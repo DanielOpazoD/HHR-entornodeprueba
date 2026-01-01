@@ -336,7 +336,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
     'MEDICAL_HANDOFF_SIGNED': 'Firma Entrega Médica',
     'VIEW_CUDYR': 'Visualización CUDYR',
     'VIEW_NURSING_HANDOFF': 'Visualización Entrega Enfermería',
-    'VIEW_MEDICAL_HANDOFF': 'Visualización Entrega Médica'
+    'VIEW_MEDICAL_HANDOFF': 'Visualización Entrega Médica',
+    'DATA_IMPORTED': 'Importación de Datos JSON',
+    'DATA_EXPORTED': 'Exportación de Datos JSON'
 };
 
 // ============================================================================

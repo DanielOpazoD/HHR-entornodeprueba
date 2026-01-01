@@ -24,7 +24,9 @@ export type AuditAction =
     | 'BED_BLOCKED'
     | 'BED_UNBLOCKED'
     | 'EXTRA_BED_TOGGLED'
-    | 'MEDICAL_HANDOFF_SIGNED';
+    | 'MEDICAL_HANDOFF_SIGNED'
+    | 'DATA_IMPORTED'
+    | 'DATA_EXPORTED';
 
 // Specific detail interfaces for different actions
 export interface AuditDetailsPatient {

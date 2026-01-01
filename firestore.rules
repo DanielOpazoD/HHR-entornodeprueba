@@ -37,32 +37,62 @@ service cloud.firestore {
     }
     
     // ============================================
-    // DAILY RECORDS (Main Census Data)
+    // HOSPITALS COLLECTION (Main hierarchy)
     // ============================================
-    match /dailyRecords/{date} {
-      // All authenticated users can read
+    match /hospitals/{hospitalId} {
+      // Hospital document itself
       allow read: if isAuthenticated();
+      allow write: if isAdmin();
       
-      // Update rule: regular editors can update everything, 
-      // but ANY authenticated user (including anonymous) can update the medicalSignature field
-      allow update: if canEdit() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['medicalSignature', 'lastUpdated']));
+      // ----------------------------------------
+      // DAILY RECORDS (Census Data)
+      // ----------------------------------------
+      match /dailyRecords/{date} {
+        allow read: if isAuthenticated();
+        allow create: if canEdit();
+        allow update: if canEdit() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['medicalSignature', 'lastUpdated']));
+        allow delete: if isAdmin();
+        
+        // History subcollection
+        match /history/{historyId} {
+          allow read: if isAuthenticated();
+          allow create: if canEdit();
+          allow update, delete: if isAdmin();
+        }
+      }
       
-      // Only admins and nurses can create
-      allow create: if canEdit();
-      allow delete: if isAdmin(); // Only admin can delete entire days
+      // ----------------------------------------
+      // SETTINGS (Nurses, TENS, TableConfig)
+      // ----------------------------------------
+      match /settings/{settingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // ----------------------------------------
+      // EXPORT PASSWORDS
+      // ----------------------------------------
+      match /exportPasswords/{passwordId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // ----------------------------------------
+      // AUDIT LOGS (Hospital-level)
+      // ----------------------------------------
+      match /auditLogs/{logId} {
+        allow read: if isAdmin();
+        allow create: if isAuthenticated();
+        allow update, delete: if false;
+      }
     }
     
     // ============================================
-    // AUDIT LOGS (Critical - Read-only for non-admins)
+    // TOP-LEVEL AUDIT LOGS (Legacy/Fallback)
     // ============================================
     match /auditLogs/{logId} {
-      // Only admins can read audit logs
       allow read: if isAdmin();
-      
-      // Only the system can write (server-side or admin)
-      allow create: if isAdmin();
-      
-      // No updates or deletes allowed (immutable logs)
+      allow create: if isAuthenticated();
       allow update, delete: if false;
     }
     
@@ -70,74 +100,50 @@ service cloud.firestore {
     // ALLOWED USERS (Admin management)
     // ============================================
     match /allowedUsers/{userId} {
-      // Only admins can manage allowed users
       allow read, write: if isAdmin();
     }
     
     // ============================================
-    // STAFF CATALOGS (Nurses, TENS lists)
+    // STAFF CATALOGS (Legacy - if still used)
     // ============================================
     match /staffCatalogs/{catalogType} {
-      // All authenticated users can read staff lists
       allow read: if isAuthenticated();
-      
-      // Only admins can update staff catalogs
       allow write: if isAdmin();
     }
     
     // ============================================
-    // USER SETTINGS (Future: per-user preferences)
+    // USER SETTINGS
     // ============================================
     match /userSettings/{userId} {
-      // Users can read their own settings, admins can read all
-      allow read: if isAuthenticated() && 
-        (request.auth.uid == userId || isAdmin());
-      
-      // Users can write their own settings, admins can write all
-      allow write: if isAuthenticated() && 
-        (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
     
     // ============================================
     // WHATSAPP INTEGRATION
     // ============================================
-    
-    // WhatsApp configuration
-    match /whatsapp/config {
-      // All authenticated users can read config
+    match /whatsapp/{docId} {
       allow read: if isAuthenticated();
-      
-      // Only admins can update configuration
       allow write: if isAdmin();
     }
     
-    // Weekly shifts from WhatsApp
-    match /shifts/weekly/{date} {
-      // All authenticated users can read shifts
-      allow read: if isAuthenticated();
-      
-      // Only system (Cloud Functions) or admins can write
-      allow write: if isAdmin();
-    }
-    
-    // WhatsApp operation logs
     match /whatsappLogs/{logId} {
-      // Only admins can read logs
       allow read: if isAdmin();
-      
-      // System can create (never update/delete)
       allow create: if isAuthenticated();
       allow update, delete: if false;
     }
     
-    // WhatsApp messages (temporary storage for parsing)
     match /whatsappMessages/{messageId} {
-      // Only system can write
       allow read, write: if isAdmin();
     }
     
+    match /shifts/{path=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
     // ============================================
-    // DENY ALL OTHER COLLECTIONS BY DEFAULT
+    // DENY ALL OTHER BY DEFAULT
     // ============================================
     match /{document=**} {
       allow read, write: if false;

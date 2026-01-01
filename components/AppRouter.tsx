@@ -15,14 +15,13 @@ import {
     CensusView,
     CudyrView,
     HandoffView,
-    ReportsView,
     AuditView,
     MedicalSignatureView,
     WhatsAppIntegrationView,
     ErrorDashboard
 } from '@/views/LazyViews';
 
-export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'REPORTS' | 'AUDIT' | 'WHATSAPP' | 'ERRORS';
+export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS';
 export type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface AppRouterProps {
@@ -86,7 +85,6 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                         {currentModule === 'CUDYR' && <CudyrView readOnly={!canEditModule(role, 'CUDYR')} />}
                         {currentModule === 'NURSING_HANDOFF' && <HandoffView type="nursing" readOnly={!canEditModule(role, 'NURSING_HANDOFF')} />}
                         {currentModule === 'MEDICAL_HANDOFF' && <HandoffView type="medical" readOnly={!canEditModule(role, 'MEDICAL_HANDOFF')} />}
-                        {currentModule === 'REPORTS' && <ReportsView />}
                         {currentModule === 'AUDIT' && <AuditView />}
                         {currentModule === 'WHATSAPP' && <WhatsAppIntegrationView />}
                         {currentModule === 'ERRORS' && <ErrorDashboard />}

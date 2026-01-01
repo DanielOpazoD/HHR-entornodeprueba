@@ -4,7 +4,7 @@ import {
     FileText, Filter, Download, ChevronDown, ChevronRight, Zap, Rows3, List,
     Calendar, AlertCircle, CheckCircle2, Trash2, LogIn, Eye, Activity, BarChart3,
     MapPin, LogOut, GitBranch, MessageSquare, Stethoscope, Info, X, Key,
-    Box, Boxes, FileDown, LayoutGrid, History, BedDouble
+    Box, Boxes, FileDown, LayoutGrid, History, BedDouble, Wrench, Upload
 } from 'lucide-react';
 import { getAuditLogs, AUDIT_ACTION_LABELS } from '../../services/admin/auditService';
 import { AuditAction, AuditLogEntry, GroupedAuditLogEntry } from '../../types/audit';
@@ -18,6 +18,7 @@ import { ExportKeysPanel } from './components/audit/ExportKeysPanel';
 import { AuditHeader } from './components/audit/AuditHeader';
 import { AuditStatsDashboard } from './components/audit/AuditStatsDashboard';
 import { AuditFilters } from './components/audit/AuditFilters';
+import { DataMaintenancePanel } from './components/DataMaintenancePanel';
 
 // Format ISO timestamp to readable format
 const formatTimestamp = (iso: string): string => {
@@ -54,7 +55,9 @@ const actionIcons: Record<AuditAction, React.ReactNode> = {
     'BED_BLOCKED': <X size={14} />,
     'BED_UNBLOCKED': <CheckCircle2 size={14} />,
     'EXTRA_BED_TOGGLED': <Zap size={14} />,
-    'MEDICAL_HANDOFF_SIGNED': <User size={14} />
+    'MEDICAL_HANDOFF_SIGNED': <User size={14} />,
+    'DATA_IMPORTED': <Upload size={14} />,
+    'DATA_EXPORTED': <Download size={14} />
 };
 
 
@@ -81,7 +84,9 @@ const actionColors: Record<AuditAction, string> = {
     'BED_BLOCKED': 'bg-rose-50 text-rose-700 border-rose-100',
     'BED_UNBLOCKED': 'bg-emerald-50 text-emerald-700 border-emerald-100',
     'EXTRA_BED_TOGGLED': 'bg-cyan-50 text-cyan-700 border-cyan-100',
-    'MEDICAL_HANDOFF_SIGNED': 'bg-indigo-50 text-indigo-700 border-indigo-100'
+    'MEDICAL_HANDOFF_SIGNED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    'DATA_IMPORTED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    'DATA_EXPORTED': 'bg-emerald-50 text-emerald-700 border-emerald-100'
 };
 
 const renderHumanDetails = (log: AuditLogEntry) => {
@@ -123,6 +128,10 @@ const renderHumanDetails = (log: AuditLogEntry) => {
             return `Visualización de la entrega de turno de enfermería(${details.shift || 'turno'}).`;
         case 'VIEW_MEDICAL_HANDOFF':
             return `Visualización de la entrega de turno médica.`;
+        case 'DATA_IMPORTED':
+            return `Se importó un respaldo JSON(${details.recordCount || 0} registros).`;
+        case 'DATA_EXPORTED':
+            return `Se exportó la base de datos a JSON(${details.recordCount || 0} registros).`;
         default:
             return JSON.stringify(details).slice(0, 100) + '...';
     }
@@ -190,7 +199,7 @@ export const AuditView: React.FC = () => {
 
     const [activeSection, setActiveSection] = useState<AuditSection>('ALL');
 
-    type AuditSection = 'ALL' | 'TIMELINE' | 'SESSIONS' | 'CENSUS' | 'CUDYR' | 'HANDOFF_NURSE' | 'HANDOFF_MEDICAL' | 'EXPORT_KEYS' | 'TRACEABILITY';
+    type AuditSection = 'ALL' | 'TIMELINE' | 'SESSIONS' | 'CENSUS' | 'CUDYR' | 'HANDOFF_NURSE' | 'HANDOFF_MEDICAL' | 'EXPORT_KEYS' | 'TRACEABILITY' | 'MAINTENANCE';
 
     interface SectionConfig {
         label: string;
@@ -207,6 +216,7 @@ export const AuditView: React.FC = () => {
         'CUDYR': { label: 'CUDYR', color: 'bg-amber-100 text-amber-700', actions: ['CUDYR_MODIFIED', 'VIEW_CUDYR'] },
         'HANDOFF_NURSE': { label: 'Entrega Enfermería', color: 'bg-purple-100 text-purple-700', actions: ['NURSE_HANDOFF_MODIFIED', 'VIEW_NURSING_HANDOFF', 'HANDOFF_NOVEDADES_MODIFIED'] },
         'HANDOFF_MEDICAL': { label: 'Entrega Médica', color: 'bg-sky-100 text-sky-700', actions: ['MEDICAL_HANDOFF_MODIFIED', 'VIEW_MEDICAL_HANDOFF', 'HANDOFF_NOVEDADES_MODIFIED', 'MEDICAL_HANDOFF_SIGNED'] },
+        'MAINTENANCE': { label: '🛠️ Mantenimiento', color: 'bg-slate-200 text-slate-800', actions: [] },
         'EXPORT_KEYS': { label: 'Claves Excel', color: 'bg-rose-100 text-rose-700', actions: [] }
     };
 
@@ -269,7 +279,7 @@ export const AuditView: React.FC = () => {
         filteredLogs.forEach(log => {
             // Group by User + Action + Date
             const dateStr = log.recordDate || new Date(log.timestamp).toISOString().split('T')[0];
-            const groupKey = `${log.userId}-${log.action}-${dateStr}`;
+            const groupKey = `${log.userId} -${log.action} -${dateStr} `;
             if (!groups[groupKey]) groups[groupKey] = [];
             groups[groupKey].push(log);
         });
@@ -280,7 +290,7 @@ export const AuditView: React.FC = () => {
 
             return {
                 ...first,
-                id: `group-${key}`,
+                id: `group - ${key} `,
                 timestamp: last.timestamp,
                 summary: `${AUDIT_ACTION_LABELS[first.action] || first.action} (${group.length} registros)`,
                 isGroup: true,
@@ -307,27 +317,27 @@ export const AuditView: React.FC = () => {
     // PDF Export using browser print
     const handlePdfExport = useCallback(() => {
         const printContent = `
-    <!DOCTYPE html>
+    < !DOCTYPE html >
         <html>
             <head>
                 <meta charset="UTF-8">
                     <title>Reporte de Auditoría - Hospital de Hanga Roa</title>
                     <style>
-                        @page { size: landscape; margin: 1.5cm; }
-                        body { font-family: Arial, sans-serif; font-size: 10px; color: #333; }
-                        h1 { font-size: 16px; margin-bottom: 5px; }
-                        h2 { font-size: 12px; color: #666; margin-bottom: 20px; font-weight: normal; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                        th { background: #f1f5f9; padding: 8px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0; font-size: 9px; text-transform: uppercase; }
-                        td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-                        tr:nth-child(even) { background: #f8fafc; }
-                        .critical { background: #fee2e2 !important; }
-                        .header-info { display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-                        .stats { display: flex; gap: 30px; }
-                        .stat { text-align: center; }
-                        .stat-value { font-size: 18px; font-weight: bold; color: #4f46e5; }
-                        .stat-label { font-size: 9px; color: #64748b; }
-                        .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #94a3b8; text-align: center; }
+                        @page {size: landscape; margin: 1.5cm; }
+                        body {font - family: Arial, sans-serif; font-size: 10px; color: #333; }
+                        h1 {font - size: 16px; margin-bottom: 5px; }
+                        h2 {font - size: 12px; color: #666; margin-bottom: 20px; font-weight: normal; }
+                        table {width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        th {background: #f1f5f9; padding: 8px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0; font-size: 9px; text-transform: uppercase; }
+                        td {padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+                        tr:nth-child(even) {background: #f8fafc; }
+                        .critical {background: #fee2e2 !important; }
+                        .header-info {display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+                        .stats {display: flex; gap: 30px; }
+                        .stat {text - align: center; }
+                        .stat-value {font - size: 18px; font-weight: bold; color: #4f46e5; }
+                        .stat-label {font - size: 9px; color: #64748b; }
+                        .footer {margin - top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #94a3b8; text-align: center; }
                     </style>
             </head>
             <body>
@@ -571,7 +581,6 @@ export const AuditView: React.FC = () => {
                 )
             }
 
-            {/* Patient Traceability Mode (Area 11) */}
             {
                 activeSection === 'TRACEABILITY' && (
                     <PatientTraceability
@@ -582,9 +591,16 @@ export const AuditView: React.FC = () => {
                 )
             }
 
+            {/* Maintenance Panel */}
+            {
+                activeSection === 'MAINTENANCE' && (
+                    <DataMaintenancePanel />
+                )
+            }
+
             {/* Logs Table: Modern Striped with Details */}
             {
-                activeSection !== 'EXPORT_KEYS' && activeSection !== 'TIMELINE' && activeSection !== 'TRACEABILITY' && (
+                activeSection !== 'EXPORT_KEYS' && activeSection !== 'TIMELINE' && activeSection !== 'TRACEABILITY' && activeSection !== 'MAINTENANCE' && (
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         {/* Table Toolbar */}
                         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/30">

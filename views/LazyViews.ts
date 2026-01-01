@@ -19,10 +19,6 @@ export const HandoffView = lazy(() =>
     import(/* webpackPrefetch: true */ './handoff/HandoffView').then(m => ({ default: m.HandoffView }))
 );
 
-// Reports module
-export const ReportsView = lazy(() =>
-    import(/* webpackChunkName: "reports" */ './reports/ReportsView').then(m => ({ default: m.ReportsView }))
-);
 
 // Admin modules
 export const AuditView = lazy(() =>
