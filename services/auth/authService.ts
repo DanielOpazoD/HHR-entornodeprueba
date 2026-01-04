@@ -239,7 +239,25 @@ export const signInWithGoogle = async (): Promise<AuthUser> => {
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 
-        // Check if email is allowed in Firestore
+        // Check if we're in shared census mode - if so, skip strict whitelist check
+        // The shared census mode has its own local authorization via censusAuthorizedEmails.ts
+        const isSharedCensusMode = window.location.pathname.startsWith('/censo-compartido') ||
+            window.location.pathname.startsWith('/censo-publico');
+
+        if (isSharedCensusMode) {
+            // In shared census mode, we allow the login to proceed
+            // Authorization is handled by useSharedCensusMode hook using local list
+            console.log('[authService] 🌐 Shared census mode - skipping strict whitelist check');
+            return {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                role: 'viewer_census' // Limited role for census viewers
+            };
+        }
+
+        // For normal app access, check if email is allowed in Firestore
         const { allowed, role } = await checkEmailInFirestore(user.email || '');
         if (!allowed) {
             await firebaseSignOut(auth);
@@ -340,6 +358,24 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => 
                     email: null,
                     displayName: 'Anonymous Doctor',
                     role: 'viewer'
+                });
+                return;
+            }
+
+            // Check if we're in shared census mode - skip strict whitelist verification
+            const isSharedCensusMode = window.location.pathname.startsWith('/censo-compartido') ||
+                window.location.pathname.startsWith('/censo-publico');
+
+            if (isSharedCensusMode) {
+                // In shared census mode, allow user through without Firestore check
+                // Authorization is handled locally by useSharedCensusMode
+                console.log('[authService] 🌐 Shared census mode - allowing user without Firestore whitelist check');
+                callback({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    photoURL: firebaseUser.photoURL,
+                    role: 'viewer_census'
                 });
                 return;
             }

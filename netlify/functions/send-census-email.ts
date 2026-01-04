@@ -32,12 +32,13 @@ export const handler = async (event: any) => {
 
     try {
         const payload = JSON.parse(event.body);
-        const { date, records, recipients, nursesSignature, body } = payload as {
+        const { date, records, recipients, nursesSignature, body, shareLink } = payload as {
             date: string;
             records: DailyRecord[];
             recipients?: string[];
             nursesSignature?: string;
             body?: string;
+            shareLink?: string;
         };
 
         if (!date || !Array.isArray(records) || records.length === 0) {
@@ -82,35 +83,52 @@ export const handler = async (event: any) => {
         }
 
         // Generate deterministic password based on census date
-        // Use numeric PIN generator (pure function, no Firebase deps)
         const { generateCensusPassword } = await import('../../services/security/passwordGenerator');
-        const password = generateCensusPassword(date);
+        const password = shareLink ? '' : generateCensusPassword(date);
 
-        console.log(`[CensusEmail] Numeric PIN for ${date}: ${password}`);
-
-        // Ensure the PIN is included in the email body in the correct position
+        // Ensure the PIN or Link is included in the email body
         let finalBody = body || '';
-        if (password && !finalBody.includes(password)) {
-            const pinLine = `Clave Excel: ${password}`;
 
-            // Try to insert before "Saludos cordiales,"
+        if (shareLink) {
+            const linkText = `Link de Acceso Seguro: ${shareLink}`;
+            const instructions = `Este link le permitirá visualizar el censo de este mes y el anterior directamente en la plataforma.`;
+            const shareBlock = `${linkText}\n${instructions}`;
+
+            if (finalBody.includes('Saludos cordiales,')) {
+                finalBody = finalBody.replace('Saludos cordiales,', `${shareBlock}\n\nSaludos cordiales,`);
+            } else if (finalBody.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
+                finalBody = finalBody.replace('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', `${shareBlock}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            } else {
+                finalBody = finalBody ? `${finalBody}\n\n${shareBlock}` : shareBlock;
+            }
+        } else if (password && !finalBody.includes(password)) {
+            const pinLine = `Clave Excel: ${password}`;
+            // ... (keep existing logic for PIN insertion)
             if (finalBody.includes('Saludos cordiales,')) {
                 finalBody = finalBody.replace('Saludos cordiales,', `${pinLine}\n\nSaludos cordiales,`);
-            }
-            // Fallback: insert before the signature separator
-            else if (finalBody.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
+            } else if (finalBody.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
                 finalBody = finalBody.replace('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', `${pinLine}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-            }
-            // Absolute fallback: append at the end
-            else {
+            } else {
                 finalBody = finalBody ? `${finalBody}\n\n${pinLine}` : pinLine;
             }
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const XlsxPopulate = require('xlsx-populate');
-        const attachmentBuffer = await XlsxPopulate.fromDataAsync(attachmentBufferRaw)
-            .then((workbook: any) => workbook.outputAsync({ password }));
+        let attachmentBuffer = null;
+        if (!shareLink) {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const XlsxPopulate = require('xlsx-populate');
+            attachmentBuffer = await XlsxPopulate.fromDataAsync(attachmentBufferRaw)
+                .then((workbook: any) => workbook.outputAsync({ password }));
+
+            // Validate encrypted buffer
+            if (!attachmentBuffer || attachmentBuffer.length < MIN_EXCEL_SIZE) {
+                console.error('[CensusEmail] Encrypted buffer validation failed: buffer is too small or empty');
+                return {
+                    statusCode: 500,
+                    body: 'Error: El archivo Excel encriptado es inválido o está vacío. No se enviará el correo.'
+                };
+            }
+        }
 
         // Validate encrypted buffer
         if (!attachmentBuffer || attachmentBuffer.length < MIN_EXCEL_SIZE) {
@@ -128,12 +146,12 @@ export const handler = async (event: any) => {
         const gmailResponse = await sendCensusEmail({
             date,
             recipients: resolvedRecipients,
-            attachmentBuffer,
-            attachmentName,
+            attachmentBuffer: attachmentBuffer || undefined,
+            attachmentName: shareLink ? undefined : attachmentName,
             nursesSignature,
-            body: finalBody, // Use the body with the appended PIN
+            body: finalBody,
             requestedBy: requesterEmail,
-            encryptionPin: password
+            encryptionPin: password || undefined
         });
 
         console.log('Gmail send response', gmailResponse);

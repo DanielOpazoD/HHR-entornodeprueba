@@ -8,3 +8,5 @@ export * from './TransfersSection';
 export * from './CMASection';
 export * from './CensusModals';
 export * from './CensusStaffHeader';
+export * from './SharedCensusView';
+

@@ -37,9 +37,9 @@ interface NavbarMenuProps {
     onExportJSON: () => void;
     onImportClick: () => void;
     onOpenSettings: () => void;
-    // Permissions
     isUserAdmin: boolean;
     visibleModules: readonly ModuleType[];
+    disabled?: boolean;
 }
 
 export const NavbarMenu: React.FC<NavbarMenuProps> = ({
@@ -54,7 +54,8 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
     onImportClick,
     onOpenSettings,
     isUserAdmin,
-    visibleModules
+    visibleModules,
+    disabled = false
 }) => {
     const handleModuleChange = (mod: ModuleType) => {
         setModule(mod);
@@ -64,8 +65,12 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
     return (
         <div className="relative">
             <button
-                onClick={onToggle}
-                className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-white/10 transition-all duration-200"
+                onClick={disabled ? undefined : onToggle}
+                className={clsx(
+                    "flex items-center gap-3 py-2 px-3 rounded-xl transition-all duration-200",
+                    !disabled && "hover:bg-white/10"
+                )}
+                disabled={disabled}
             >
                 <div className="bg-white p-1.5 rounded-xl shadow-sm">
                     <img
@@ -76,9 +81,9 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                 </div>
                 <div className="text-left">
                     <h1 className="text-lg font-display font-bold leading-tight tracking-tight">Hospital Hanga Roa</h1>
-                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Gestión de Camas</p>
+                    <p className="text-[10px] font-bold text-red-300 uppercase tracking-[0.2em]">{disabled ? 'Censo Compartido' : 'MODO PRUEBA'}</p>
                 </div>
-                <ChevronDown size={16} className={clsx("text-white/50 transition-transform ml-1", isOpen && "rotate-180")} />
+                {!disabled && <ChevronDown size={16} className={clsx("text-white/50 transition-transform ml-1", isOpen && "rotate-180")} />}
             </button>
 
             {isOpen && (

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { SectionErrorBoundary } from '../../components/shared/SectionErrorBoundary';
 import { AnalyticsView } from '../analytics/AnalyticsView';
 import { useCensusLogic } from '../../hooks/useCensusLogic';
 import { useTableConfig } from '../../context/TableConfigContext';
+import { usePatientHistory } from '../../hooks/usePatientHistory';
+import { PatientHistoryPanel } from '../../components/patient/PatientHistoryPanel';
 import {
     CensusActionsProvider,
     EmptyDayPrompt,
@@ -59,6 +61,22 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     const { config } = useTableConfig();
     const marginStyle = { padding: `0 ${config.pageMargin}px` };
 
+    // Patient history panel state
+    const { history, isLoading: historyLoading, error: historyError, loadHistory, clearHistory } = usePatientHistory();
+    const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+    const [selectedPatientName, setSelectedPatientName] = useState('');
+
+    const handleViewHistory = useCallback((rut: string, name: string) => {
+        setSelectedPatientName(name);
+        setIsHistoryPanelOpen(true);
+        loadHistory(rut);
+    }, [loadHistory]);
+
+    const handleCloseHistoryPanel = useCallback(() => {
+        setIsHistoryPanelOpen(false);
+        clearHistory();
+    }, [clearHistory]);
+
     // ========== VIEW MODE: ANALYTICS ==========
     if (viewMode === 'ANALYTICS') {
         return (
@@ -106,6 +124,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                         record={record}
                         currentDateString={currentDateString}
                         onResetDay={resetDay}
+                        onViewHistory={handleViewHistory}
                         readOnly={readOnly}
                     />
                 </SectionErrorBoundary>
@@ -140,6 +159,16 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                         onCloseBedManagerModal={onCloseBedManagerModal}
                     />
                 )}
+
+                {/* 7. Patient History Panel */}
+                <PatientHistoryPanel
+                    isOpen={isHistoryPanelOpen}
+                    onClose={handleCloseHistoryPanel}
+                    history={history}
+                    isLoading={historyLoading}
+                    error={historyError}
+                    currentPatientName={selectedPatientName}
+                />
             </div>
         </CensusActionsProvider>
     );

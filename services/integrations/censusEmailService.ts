@@ -9,6 +9,7 @@ interface TriggerEmailParams {
     recipients?: string[];
     nursesSignature?: string;
     body?: string;
+    shareLink?: string;
     userEmail?: string | null;
     userRole?: string | null;
 }
@@ -51,7 +52,8 @@ const saveExportPassword = async (date: string, password: string, createdBy?: st
 };
 
 export const triggerCensusEmail = async (params: TriggerEmailParams): Promise<EmailResponse> => {
-    const { date, records, recipients, nursesSignature, body, userEmail, userRole } = params;
+    const { date, records, recipients, nursesSignature, body, shareLink, userEmail, userRole } = params;
+
 
     // In development, Netlify functions are not available
     if (isDevelopment) {
@@ -78,7 +80,8 @@ export const triggerCensusEmail = async (params: TriggerEmailParams): Promise<Em
             records,
             recipients: recipients && recipients.length > 0 ? recipients : CENSUS_DEFAULT_RECIPIENTS,
             nursesSignature,
-            body
+            body,
+            shareLink
         })
     });
 

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { useDailyRecordContext } from '../../context/DailyRecordContext';
 import { useStaffContext } from '../../context/StaffContext';
 import { BEDS } from '../../constants';
-import { MessageSquare, Stethoscope, Share2, Send } from 'lucide-react';
+import { MessageSquare, Stethoscope, Share2, Send, Printer } from 'lucide-react';
 import clsx from 'clsx';
 import { getShiftSchedule } from '../../utils/dateUtils';
 
@@ -17,19 +17,22 @@ import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffShiftSelector } from './HandoffShiftSelector';
 import { MedicalHandoffHeader } from './MedicalHandoffHeader';
 import { MovementsSummary } from './MovementsSummary';
+import { SaveBackupButton } from '../../components/handoff/SaveBackupButton';
 
 import { useNotification } from '@/context/UIContext';
 import { useHandoffLogic } from '@/hooks';
 import { useAuditContext } from '../../context/AuditContext';
 import { getAttributedAuthors } from '../../services/admin/attributionService';
 import { useEffect } from 'react';
+import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 
 interface HandoffViewProps {
     type?: 'nursing' | 'medical';
     readOnly?: boolean;
+    ui?: UseUIStateReturn;
 }
 
-export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', readOnly = false }) => {
+export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', readOnly = false, ui: propUi }) => {
     const {
         record,
         updatePatient,
@@ -47,6 +50,10 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
     const { success } = useNotification();
     const { logEvent } = useAuditContext();
 
+    // Use prop UI state (shared) or local UI state (if direct mount)
+    const localUi = useUIState();
+    const ui = propUi || localUi;
+
     const {
         selectedShift,
         setSelectedShift,
@@ -58,6 +65,7 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
         deliversList,
         receivesList,
         tensList,
+        shouldShowPatient,
         handleNursingNoteChange,
         handleShareLink,
         handleSendWhatsAppManual,
@@ -65,6 +73,8 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
     } = useHandoffLogic({
         record,
         type,
+        selectedShift: ui.selectedShift,
+        setSelectedShift: ui.setSelectedShift,
         updatePatient,
         updatePatientMultiple,
         updateClinicalCrib,
@@ -160,16 +170,33 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
                     </div>
                 </div>
 
-                {/* Shift Switcher - Only Nursing */}
-                {!isMedical && (
-                    <div className="md:mx-auto">
-                        <HandoffShiftSelector
-                            selectedShift={selectedShift}
-                            onShiftChange={setSelectedShift}
-                            schedule={schedule}
-                        />
-                    </div>
-                )}
+                <div className="flex-1" />
+
+                <div className="flex items-center gap-2">
+                    {/* Shift Switcher - Only Nursing */}
+                    {!isMedical && (
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button
+                                onClick={() => setSelectedShift('day')}
+                                className={clsx(
+                                    "p-1.5 rounded-md text-sm font-medium transition-colors",
+                                    selectedShift === 'day' ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                Turno Largo
+                            </button>
+                            <button
+                                onClick={() => setSelectedShift('night')}
+                                className={clsx(
+                                    "p-1.5 rounded-md text-sm font-medium transition-colors",
+                                    selectedShift === 'night' ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                Turno Noche
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 {/* Medical Action Buttons */}
                 {isMedical && !readOnly && (
@@ -212,50 +239,76 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
             )}
 
             {/* Compact Staff & Checklist Section (Monitor view) */}
-            {!isMedical && (
-                <div className="bg-white rounded-lg border border-slate-200 p-2 print:hidden">
-                    {/* Staff Selectors - Compact horizontal layout */}
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-slate-100">
-                        <HandoffStaffSelector
-                            label="Entrega"
-                            type="delivers"
-                            bgClass=""
-                            selectedNurses={deliversList}
-                            availableNurses={nursesList}
-                            onUpdate={(list) => updateHandoffStaff(selectedShift, 'delivers', list)}
-                            readOnly={readOnly}
-                            compact
-                        />
-                        <HandoffStaffSelector
-                            label="Recibe"
-                            type="receives"
-                            bgClass=""
-                            selectedNurses={receivesList}
-                            availableNurses={nursesList}
-                            onUpdate={(list) => updateHandoffStaff(selectedShift, 'receives', list)}
-                            readOnly={readOnly}
-                            compact
-                        />
-                    </div>
+            {
+                !isMedical && (
+                    <div className="bg-white rounded-lg border border-slate-200 p-2 print:hidden">
+                        {/* Staff Selectors - Compact horizontal layout */}
+                        <div className="flex flex-wrap gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-slate-100">
+                            <HandoffStaffSelector
+                                label="Entrega"
+                                type="delivers"
+                                bgClass=""
+                                selectedNurses={deliversList}
+                                availableNurses={nursesList}
+                                onUpdate={(list) => updateHandoffStaff(selectedShift, 'delivers', list)}
+                                readOnly={readOnly}
+                                compact
+                            />
+                            <HandoffStaffSelector
+                                label="Recibe"
+                                type="receives"
+                                bgClass=""
+                                selectedNurses={receivesList}
+                                availableNurses={nursesList}
+                                onUpdate={(list) => updateHandoffStaff(selectedShift, 'receives', list)}
+                                readOnly={readOnly}
+                                compact
+                            />
 
-                    {/* Checklist - inline with minimal styling */}
-                    <div>
-                        {selectedShift === 'day' ? (
-                            <HandoffChecklistDay
-                                data={record.handoffDayChecklist}
-                                onUpdate={(field, val) => updateHandoffChecklist('day', field, val)}
-                                readOnly={readOnly}
-                            />
-                        ) : (
-                            <HandoffChecklistNight
-                                data={record.handoffNightChecklist}
-                                onUpdate={(field, val) => updateHandoffChecklist('night', field, val)}
-                                readOnly={readOnly}
-                            />
-                        )}
+                            {/* Spacer to push CUDYR button to the right */}
+                            <div className="flex-1" />
+
+                            {/* CUDYR Button */}
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'CUDYR' }))}
+                                className="px-3 py-1 text-xs font-bold border-2 border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap"
+                                title="Ver Categorización CUDYR"
+                            >
+                                CUDYR
+                            </button>
+
+                            {/* Save Backup Button */}
+                            {!readOnly && (
+                                <SaveBackupButton
+                                    date={record.date}
+                                    shiftType={selectedShift}
+                                    deliveryStaff={deliversList[0] || ''}
+                                    receivingStaff={receivesList[0] || ''}
+                                    record={record}
+                                    schedule={schedule}
+                                />
+                            )}
+                        </div>
+
+                        {/* Checklist - inline with minimal styling */}
+                        <div>
+                            {selectedShift === 'day' ? (
+                                <HandoffChecklistDay
+                                    data={record.handoffDayChecklist}
+                                    onUpdate={(field, val) => updateHandoffChecklist('day', field, val)}
+                                    readOnly={readOnly}
+                                />
+                            ) : (
+                                <HandoffChecklistNight
+                                    data={record.handoffNightChecklist}
+                                    onUpdate={(field, val) => updateHandoffChecklist('night', field, val)}
+                                    readOnly={readOnly}
+                                />
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
                 <div className="overflow-x-auto">
@@ -275,6 +328,30 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
                         <tbody>
                             {visibleBeds.map(bed => {
                                 const patient = record.beds[bed.id];
+
+                                // Check if patient should be shown in current shift
+                                // If no patient name and not blocked, show empty bed
+                                // If patient is blocked, always show
+                                // Otherwise, apply shift filter
+                                const showPatient = patient.isBlocked ||
+                                    !patient.patientName ||
+                                    shouldShowPatient(bed.id);
+
+                                // If patient should be hidden, render empty bed row
+                                if (!showPatient) {
+                                    return (
+                                        <HandoffRow
+                                            key={bed.id}
+                                            bedName={bed.name}
+                                            bedType={bed.type}
+                                            patient={{ isBlocked: false } as any}
+                                            reportDate={record.date}
+                                            noteField={noteField}
+                                            onNoteChange={(val) => handleNursingNoteChange(bed.id, val, false)}
+                                            readOnly={readOnly}
+                                        />
+                                    );
+                                }
 
                                 return (
                                     <React.Fragment key={bed.id}>
@@ -320,34 +397,40 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
             <div className="hidden print:block print:h-4" aria-hidden="true" />{/* Print-only spacer */}
 
             {/* Additional Sections for Nursing Handoff (Altas, Traslados, CMA) */}
-            {!isMedical && <MovementsSummary record={record} />}
+            {!isMedical && <MovementsSummary record={record} selectedShift={selectedShift} />}
 
             {/* Novedades Section */}
-            {!isMedical && (
-                <HandoffNovedades
-                    value={
-                        selectedShift === 'day'
-                            ? (record.handoffNovedadesDayShift || '')
-                            : (record.handoffNovedadesNightShift || record.handoffNovedadesDayShift || '')
-                    }
-                    onChange={(val) => updateHandoffNovedades(selectedShift, val)}
-                />
-            )}
+            {
+                !isMedical && (
+                    <HandoffNovedades
+                        value={
+                            selectedShift === 'day'
+                                ? (record.handoffNovedadesDayShift || '')
+                                : (record.handoffNovedadesNightShift || record.handoffNovedadesDayShift || '')
+                        }
+                        onChange={(val) => updateHandoffNovedades(selectedShift, val)}
+                    />
+                )
+            }
 
             {/* Novedades Section - Medical */}
-            {isMedical && (
-                <HandoffNovedades
-                    value={record.medicalHandoffNovedades || ''}
-                    onChange={(val) => updateHandoffNovedades('medical', val)}
-                />
-            )}
+            {
+                isMedical && (
+                    <HandoffNovedades
+                        value={record.medicalHandoffNovedades || ''}
+                        onChange={(val) => updateHandoffNovedades('medical', val)}
+                    />
+                )
+            }
 
             {/* CUDYR - Night Nursing Print Only */}
-            {!isMedical && selectedShift === 'night' && (
-                <div className="print:break-before-page">
-                    <HandoffCudyrPrint />
-                </div>
-            )}
-        </div>
+            {
+                !isMedical && selectedShift === 'night' && (
+                    <div className="print:break-before-page">
+                        <HandoffCudyrPrint />
+                    </div>
+                )
+            }
+        </div >
     );
 };

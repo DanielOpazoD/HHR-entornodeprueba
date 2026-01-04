@@ -41,13 +41,13 @@ interface RolePermissions {
 
 const PERMISSIONS: Record<string, RolePermissions> = {
     [ROLES.ADMIN]: {
-        modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'AUDIT', 'WHATSAPP', 'ERRORS'],
-        canEdit: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'AUDIT', 'WHATSAPP', 'ERRORS']
+        modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'AUDIT', 'WHATSAPP', 'ERRORS', 'TRANSFER_MANAGEMENT', 'BACKUP_FILES'],
+        canEdit: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'AUDIT', 'WHATSAPP', 'ERRORS', 'TRANSFER_MANAGEMENT', 'BACKUP_FILES']
     },
     [ROLES.NURSE_HOSPITAL]: {
-        // Editar: Censo, CUDYR, Entrega Enf. Ver: Entrega Médica.
-        modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'],
-        canEdit: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF']
+        // Editar: Censo, CUDYR, Entrega Enf, Gestión Traslados, Archivos. Ver: Entrega Médica.
+        modules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'TRANSFER_MANAGEMENT', 'BACKUP_FILES'],
+        canEdit: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'TRANSFER_MANAGEMENT', 'BACKUP_FILES']
     },
     [ROLES.DOCTOR_URGENCY]: {
         // Observador de Censo, Entrega Enf y Entrega Médica.

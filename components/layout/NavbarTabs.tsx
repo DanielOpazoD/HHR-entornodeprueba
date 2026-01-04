@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { LayoutList, ClipboardList, MessageSquare, Stethoscope, LucideIcon } from 'lucide-react';
+import { LayoutList, ClipboardList, MessageSquare, Stethoscope, Truck, FolderArchive, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 
@@ -52,15 +52,6 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                     onClick={() => onModuleChange('CENSUS')}
                 />
             )}
-            {visibleModules.includes('CUDYR') && (
-                <NavTab
-                    module="CUDYR"
-                    label="CUDYR"
-                    icon={ClipboardList}
-                    isActive={currentModule === 'CUDYR'}
-                    onClick={() => onModuleChange('CUDYR')}
-                />
-            )}
             {visibleModules.includes('NURSING_HANDOFF') && (
                 <NavTab
                     module="NURSING_HANDOFF"
@@ -77,6 +68,24 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                     icon={Stethoscope}
                     isActive={currentModule === 'MEDICAL_HANDOFF'}
                     onClick={() => onModuleChange('MEDICAL_HANDOFF')}
+                />
+            )}
+            {visibleModules.includes('TRANSFER_MANAGEMENT') && (
+                <NavTab
+                    module="TRANSFER_MANAGEMENT"
+                    label="Gestión Traslados"
+                    icon={Truck}
+                    isActive={currentModule === 'TRANSFER_MANAGEMENT'}
+                    onClick={() => onModuleChange('TRANSFER_MANAGEMENT')}
+                />
+            )}
+            {visibleModules.includes('BACKUP_FILES') && (
+                <NavTab
+                    module="BACKUP_FILES"
+                    label="Archivos"
+                    icon={FolderArchive}
+                    isActive={currentModule === 'BACKUP_FILES'}
+                    onClick={() => onModuleChange('BACKUP_FILES')}
                 />
             )}
         </div>

@@ -15,7 +15,7 @@ import { UserMenu } from './UserMenu';
 import { DemoModeBadge } from './DemoModeBadge';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
-export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS';
+export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface NavbarProps {
@@ -31,6 +31,7 @@ interface NavbarProps {
   userEmail?: string | null;
   onLogout?: () => void;
   isFirebaseConnected?: boolean;
+  isSharedMode?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -43,7 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   userEmail,
   onLogout,
-  isFirebaseConnected
+  isFirebaseConnected,
+  isSharedMode = false
 }) => {
   const { role } = useAuth();
   const visibleModules = getVisibleModules(role);
@@ -99,28 +101,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           onOpenSettings={onOpenSettings}
           isUserAdmin={isUserAdmin}
           visibleModules={visibleModules}
+          disabled={isSharedMode}
         />
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept=".json,.csv"
-          onChange={onImportJSON}
-        />
+        {!isSharedMode && (
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".json,.csv"
+              onChange={onImportJSON}
+            />
 
-        {/* Main Navigation Tabs */}
-        <NavbarTabs
-          currentModule={currentModule}
-          onModuleChange={handleModuleChange}
-          visibleModules={visibleModules}
-        />
+            {/* Main Navigation Tabs */}
+            <NavbarTabs
+              currentModule={currentModule}
+              onModuleChange={handleModuleChange}
+              visibleModules={visibleModules}
+            />
+          </>
+        )}
 
         {/* Status Indicators & User Menu */}
-        <div className="flex items-center gap-4 py-2">
+        <div className="flex items-center gap-4 py-2 ml-auto">
           <div className="flex items-center gap-3">
-            <SyncStatusIndicator />
-            <DemoModeBadge />
+            {!isSharedMode && (
+              <>
+                <SyncStatusIndicator />
+                <DemoModeBadge />
+              </>
+            )}
 
             {!isFirebaseConnected && (
               <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-full text-red-200 text-xs font-bold uppercase tracking-wider">

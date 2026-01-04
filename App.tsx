@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDays, useCensusEmail, useSignatureMode, useAppState, useVersionCheck } from '@/hooks';
+import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDays, useCensusEmail, useSignatureMode, useSharedCensusMode, useAppState, useVersionCheck } from '@/hooks';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { useAuth, AuthContextType } from '@/context/AuthContext';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
@@ -67,9 +67,10 @@ function App() {
   const dateNav = useDateNavigation();
 
   const { isSignatureMode, currentDateString } = useSignatureMode(dateNav.currentDateString, auth.user, auth.isLoading);
+  const sharedCensus = useSharedCensusMode();
 
   // Loading state
-  if (auth.isLoading) {
+  if (auth.isLoading || (sharedCensus.isSharedCensusMode && sharedCensus.isLoading)) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="animate-pulse text-medical-600 text-xl font-bold">Cargando...</div>
@@ -77,14 +78,24 @@ function App() {
     );
   }
 
-  // Auth required
-  if (!auth.user && !isSignatureMode) {
+  // Auth required for main app (NOT shared census mode)
+  if (!auth.user && !isSignatureMode && !sharedCensus.isSharedCensusMode) {
     return <LoginPage onLoginSuccess={() => { }} />;
+  }
+
+  // If in shared census mode and user needs to login, show login page
+  // This is a SEPARATE login flow from the main app
+  if (sharedCensus.isSharedCensusMode && sharedCensus.needsLogin) {
+    return <LoginPage onLoginSuccess={() => { }} isSharedCensusMode={true} />;
   }
 
   return (
     <AuditProvider userId={auth.user?.uid || 'anon'}>
-      <AppInner auth={auth} dateNav={{ ...dateNav, isSignatureMode, currentDateString }} />
+      <AppInner
+        auth={auth}
+        dateNav={{ ...dateNav, isSignatureMode, currentDateString }}
+        sharedCensus={sharedCensus}
+      />
     </AuditProvider>
   );
 }
@@ -95,9 +106,10 @@ function App() {
 interface AppInnerProps {
   auth: AuthContextType;
   dateNav: UseDateNavigationReturn & { isSignatureMode: boolean };
+  sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
-function AppInner({ auth, dateNav }: AppInnerProps) {
+function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
   const dailyRecordHook = useDailyRecord(dateNav.currentDateString, auth.isOfflineMode, auth.isFirebaseConnected);
   const { record } = dailyRecordHook;
 
@@ -123,6 +135,7 @@ function AppInner({ auth, dateNav }: AppInnerProps) {
       censusEmail={censusEmail}
       fileOps={fileOps}
       nurseSignature={nurseSignature}
+      sharedCensus={sharedCensus}
     />
   );
 }

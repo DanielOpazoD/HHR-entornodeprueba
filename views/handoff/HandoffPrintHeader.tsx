@@ -32,14 +32,20 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
     return (
         <div className="hidden print:block mb-4 pb-4 border-b-2 border-slate-800">
             <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h1 className="text-2xl print:text-lg font-bold text-slate-900 uppercase tracking-tight flex items-center gap-3">
-                        <Icon size={28} className="text-slate-900 print:w-6 print:h-6" />
-                        {title}
-                    </h1>
-                    <p className="text-sm text-slate-600 font-medium mt-1 uppercase tracking-wide print:text-xs">
-                        Servicio Hospitalizados Hanga Roa
-                    </p>
+                <div className="flex items-start gap-4">
+                    <img
+                        src="/images/logos/logo_HHR.png"
+                        alt="Logo HHR"
+                        className="w-12 h-12 print:w-10 print:h-10 object-contain shadow-sm border border-slate-100 p-1 print:p-0 print:border-0 print:shadow-none"
+                    />
+                    <div>
+                        <h1 className="text-2xl print:text-lg font-bold text-slate-900 uppercase tracking-tight">
+                            {title}
+                        </h1>
+                        <p className="text-sm text-slate-600 font-medium mt-1 uppercase tracking-wide print:text-xs">
+                            Servicio Hospitalizados Hanga Roa
+                        </p>
+                    </div>
                 </div>
                 <div className="text-right">
                     <div className="text-xl print:text-base font-bold text-slate-900">{dateString}</div>

@@ -12,10 +12,10 @@ interface CudyrRowProps {
 
 // Reusable Header Cell for Vertical Text
 export const VerticalHeader = ({ text, colorClass }: { text: string, colorClass: string }) => (
-    <th className={clsx("border border-slate-300 p-0 w-6 align-bottom h-44 relative print:h-auto print:bg-white", colorClass)}>
-        <div className="h-full w-full flex items-center justify-center overflow-hidden print:h-auto">
+    <th className={clsx("border border-slate-300 p-0 w-6 align-bottom h-44 relative print:h-24 print:bg-white", colorClass)}>
+        <div className="h-full w-full flex items-center justify-center overflow-hidden">
             <span
-                className="block whitespace-nowrap text-[10px] font-bold leading-none tracking-tight uppercase print:text-[6px]"
+                className="block whitespace-nowrap text-[10px] font-bold leading-none tracking-tight uppercase print:text-[5px] print:transform-none"
                 style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
             >
                 {text}

@@ -1,3 +1,10 @@
+/**
+ * HandoffPatientTable Component
+ * 
+ * Renders the main patient table for nursing and medical handoff views.
+ * Supports shift-based patient filtering via shouldShowPatient callback.
+ */
+
 import React from 'react';
 import { BedDefinition, DailyRecord } from '../../types';
 import { HandoffRow } from './HandoffRow';
@@ -9,6 +16,14 @@ interface HandoffPatientTableProps {
     onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
     tableHeaderClass: string;
     readOnly: boolean;
+    /**
+     * Optional function to determine if a patient should be shown in the current shift.
+     * If not provided, all patients are shown.
+     * 
+     * @param bedId - The bed ID to check
+     * @returns true if patient should be displayed, false to hide
+     */
+    shouldShowPatient?: (bedId: string) => boolean;
 }
 
 export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
@@ -17,7 +32,8 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
     noteField,
     onNoteChange,
     tableHeaderClass,
-    readOnly
+    readOnly,
+    shouldShowPatient
 }) => {
     return (
         <div className="overflow-x-auto shadow-lg rounded-xl border border-slate-200 bg-white print:shadow-none print:border print:border-slate-400 font-sans">
@@ -33,6 +49,33 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                 <tbody className="divide-y divide-slate-100 print:divide-slate-300">
                     {visibleBeds.map((bed) => {
                         const patient = record.beds[bed.id];
+
+                        // Check if this patient should be shown in the current shift
+                        // If shouldShowPatient is not provided, show all patients
+                        // If bed is blocked, always show it
+                        const showMainPatient = patient.isBlocked ||
+                            !shouldShowPatient ||
+                            shouldShowPatient(bed.id);
+
+                        // For clinical crib, check if main patient is visible first
+                        const showClinicalCrib = patient.clinicalCrib?.patientName && showMainPatient;
+
+                        // If patient should be hidden and bed is not blocked, render empty row
+                        if (!showMainPatient && !patient.isBlocked) {
+                            return (
+                                <HandoffRow
+                                    key={bed.id}
+                                    bedName={bed.name}
+                                    bedType={bed.type}
+                                    patient={{ isBlocked: false } as any}
+                                    reportDate={record.date}
+                                    noteField={noteField}
+                                    onNoteChange={(val) => onNoteChange(bed.id, val, false)}
+                                    readOnly={readOnly}
+                                />
+                            );
+                        }
+
                         return (
                             <React.Fragment key={bed.id}>
                                 <HandoffRow
@@ -45,7 +88,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                     readOnly={readOnly}
                                 />
                                 {/* Clinical Crib Sub-Row */}
-                                {patient.clinicalCrib && patient.clinicalCrib.patientName && (
+                                {showClinicalCrib && (
                                     <HandoffRow
                                         bedName={bed.name}
                                         bedType="Cuna"

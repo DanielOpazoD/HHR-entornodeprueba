@@ -9,6 +9,12 @@ export const CensusView = lazy(() =>
     import(/* webpackPrefetch: true */ './census/CensusView').then(m => ({ default: m.CensusView }))
 );
 
+export const SharedCensusView = lazy(() =>
+    import(/* webpackChunkName: "shared-census" */ './census/SharedCensusView').then(m => ({ default: m.SharedCensusView }))
+) as React.ComponentType<any>;
+
+
+
 // CUDYR module (prefetch)
 export const CudyrView = lazy(() =>
     import(/* webpackPrefetch: true */ './cudyr/CudyrView').then(m => ({ default: m.CudyrView }))
@@ -36,4 +42,14 @@ export const ErrorDashboard = lazy(() =>
 // WhatsApp module
 export const WhatsAppIntegrationView = lazy(() =>
     import(/* webpackChunkName: "whatsapp" */ './whatsapp/WhatsAppIntegrationView').then(m => ({ default: m.WhatsAppIntegrationView }))
+);
+
+// Transfer Management module
+export const TransferManagementView = lazy(() =>
+    import(/* webpackChunkName: "transfers" */ './transfers/TransferManagementView').then(m => ({ default: m.TransferManagementView }))
+);
+
+// Backup Files module
+export const BackupFilesView = lazy(() =>
+    import(/* webpackChunkName: "backup" */ './backup/BackupFilesView').then(m => ({ default: m.BackupFilesView }))
 );

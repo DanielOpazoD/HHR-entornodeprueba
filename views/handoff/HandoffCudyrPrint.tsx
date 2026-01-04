@@ -70,7 +70,7 @@ export const HandoffCudyrPrint: React.FC = () => {
             <div className="mb-3 pb-3 border-b border-slate-300">
                 <div className="flex justify-between items-center mb-1">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <ClipboardList size={18} className="text-medical-700" />
+                        <ClipboardList size={18} className="text-medical-700 print:hidden" />
                         Instrumento CUDYR
                     </h2>
                     {/* Metrics Badge */}
@@ -203,7 +203,7 @@ export const HandoffCudyrPrint: React.FC = () => {
 
                                         <td className="p-1 text-center print:p-0.5">
                                             <span className={clsx(
-                                                'px-2 py-0.5 rounded font-bold text-xs block w-full shadow-sm print:px-1 print:text-[10px] print:shadow-none',
+                                                'px-2 py-0.5 rounded font-bold text-xs block w-full shadow-sm print:px-1 print:text-[10px] print:shadow-none print:rounded-none print:border print:bg-transparent',
                                                 badgeColor,
                                                 // Print Override: Force B/W aggressively
                                                 'print:!bg-white print:!text-black print:!border print:!border-black'

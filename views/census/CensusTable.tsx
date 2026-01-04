@@ -13,6 +13,7 @@ interface CensusTableProps {
     record: DailyRecord;
     currentDateString: string;
     onResetDay: () => void;
+    onViewHistory?: (rut: string, name: string) => void;
     readOnly?: boolean;
 }
 
@@ -20,6 +21,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     record,
     currentDateString,
     onResetDay,
+    onViewHistory,
     readOnly = false
 }) => {
     const { showCribConfig, setShowCribConfig, handleRowAction } = useCensusActions();
@@ -221,6 +223,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 data={record.beds[bed.id]}
                                 currentDateString={currentDateString}
                                 onAction={handleRowAction}
+                                onViewHistory={onViewHistory}
                                 showCribControls={showCribConfig}
                                 readOnly={readOnly}
                                 actionMenuAlign={index >= visibleBeds.length - 4 ? 'bottom' : 'top'}

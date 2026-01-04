@@ -12,6 +12,8 @@ import { saveSetting } from '../../services/storage/indexedDBService';
 
 interface LoginPageProps {
     onLoginSuccess: () => void;
+    /** If true, shows a simplified message for shared census access */
+    isSharedCensusMode?: boolean;
 }
 
 // Google Icon SVG Component
@@ -24,7 +26,7 @@ const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCensusMode = false }) => {
     const [error, setError] = useState<string | null>(null);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isPassportLoading, setIsPassportLoading] = useState(false);
@@ -137,9 +139,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <div className="bg-white rounded-3xl shadow-2xl p-10 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-medical-400 to-medical-600"></div>
 
-                    <h2 className="text-xl font-bold text-slate-800 mb-8 text-center text-balance">
-                        Acceso al Sistema
+                    <h2 className="text-xl font-bold text-slate-800 mb-2 text-center text-balance">
+                        {isSharedCensusMode ? 'Acceso al Censo Compartido' : 'Acceso al Sistema'}
                     </h2>
+                    {isSharedCensusMode && (
+                        <p className="text-sm text-slate-500 mb-6 text-center">
+                            Inicia sesión con tu correo autorizado para ver el censo diario.
+                        </p>
+                    )}
+                    {!isSharedCensusMode && <div className="mb-8" />}
 
                     {/* Google Sign In Button */}
                     <button

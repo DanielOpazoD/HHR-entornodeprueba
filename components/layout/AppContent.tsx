@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     Navbar,
     DateStrip,
@@ -9,7 +9,9 @@ import {
 } from '@/components';
 import { AppRouter } from '@/components/AppRouter';
 import { AppProviders } from '@/components/AppProviders';
-import { generateCensusMasterExcel } from '@/services';
+import { generateCensusMasterExcel, getMonthRecordsFromFirestore } from '@/services';
+import { buildCensusMasterWorkbook } from '@/services/exporters/censusMasterWorkbook';
+import { uploadCensus, checkCensusExists } from '@/services/backup/censusStorageService';
 import { CensusEmailConfigModal } from '@/components/census/CensusEmailConfigModal';
 
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +21,7 @@ import { DailyRecordContextType } from '@/hooks/useDailyRecord';
 import { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
 import { UseFileOperationsReturn } from '@/hooks/useFileOperations';
 import { UseNurseSignatureReturn } from '@/hooks/useNurseSignature';
+import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
 
 interface AppContentProps {
     dateNav: UseDateNavigationReturn & {
@@ -30,6 +33,7 @@ interface AppContentProps {
     censusEmail: UseCensusEmailReturn;
     fileOps: UseFileOperationsReturn;
     nurseSignature: UseNurseSignatureReturn;
+    sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
 export const AppContent: React.FC<AppContentProps> = ({
@@ -38,11 +42,37 @@ export const AppContent: React.FC<AppContentProps> = ({
     dailyRecordHook,
     censusEmail,
     fileOps,
-    nurseSignature
+    nurseSignature,
+    sharedCensus
 }) => {
     const auth = useAuth();
     const { record, syncStatus, lastSyncTime } = dailyRecordHook;
     const { isSignatureMode, currentDateString } = dateNav;
+
+    // Track if current date's census is already archived
+    const [isArchived, setIsArchived] = useState(false);
+
+    // Check archive status when date changes
+    useEffect(() => {
+        if (currentDateString && ui.currentModule === 'CENSUS') {
+            checkCensusExists(currentDateString)
+                .then(exists => setIsArchived(exists))
+                .catch(() => setIsArchived(false));
+        }
+    }, [currentDateString, ui.currentModule]);
+
+    // Listen for navigate-module events (e.g., from CUDYR button in Handoff)
+    useEffect(() => {
+        const handleNavigateModule = (event: Event) => {
+            const customEvent = event as CustomEvent<string>;
+            if (customEvent.detail) {
+                ui.setCurrentModule(customEvent.detail as any);
+            }
+        };
+
+        window.addEventListener('navigate-module', handleNavigateModule);
+        return () => window.removeEventListener('navigate-module', handleNavigateModule);
+    }, [ui]);
 
     return (
         <AppProviders dailyRecordHook={dailyRecordHook} userId={auth.user?.uid || 'anon'}>
@@ -62,11 +92,12 @@ export const AppContent: React.FC<AppContentProps> = ({
                         userEmail={auth.user?.email}
                         onLogout={auth.signOut}
                         isFirebaseConnected={auth.isFirebaseConnected}
+                        isSharedMode={sharedCensus.isSharedCensusMode}
                     />
                 )}
 
                 {/* Date Strip */}
-                {ui.censusViewMode === 'REGISTER' && !isSignatureMode && (
+                {ui.currentModule === 'CENSUS' && ui.censusViewMode === 'REGISTER' && !isSignatureMode && !sharedCensus.isSharedCensusMode && (
                     <DateStrip
                         selectedYear={dateNav.selectedYear} setSelectedYear={dateNav.setSelectedYear}
                         selectedMonth={dateNav.selectedMonth} setSelectedMonth={dateNav.setSelectedMonth}
@@ -75,12 +106,58 @@ export const AppContent: React.FC<AppContentProps> = ({
                         daysInMonth={dateNav.daysInMonth}
                         existingDaysInMonth={dateNav.existingDaysInMonth}
                         onPrintPDF={ui.showPrintButton ? () => window.print() : undefined}
+                        onExportPDF={ui.showPrintButton ? () => {
+                            // Use the globally selected shift (from useAppState)
+                            const shift = ui.selectedShift;
+
+                            // Import dynamically to avoid loading jsPDF on main bundle if possible
+                            import('@/services/pdf/handoffPdfGenerator').then(({ generateHandoffPdf }) => {
+                                if (record) {
+                                    generateHandoffPdf(record, false, shift, { dayStart: '08:00', dayEnd: '20:00', nightStart: '20:00', nightEnd: '08:00' });
+                                }
+                            });
+                        } : undefined}
                         onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
                         onExportExcel={ui.currentModule === 'CENSUS'
                             ? () => generateCensusMasterExcel(dateNav.selectedYear, dateNav.selectedMonth, dateNav.selectedDay)
                             : undefined}
                         onConfigureEmail={ui.currentModule === 'CENSUS' ? () => censusEmail.setShowEmailConfig(true) : undefined}
                         onSendEmail={ui.currentModule === 'CENSUS' ? censusEmail.sendEmail : undefined}
+                        onGenerateShareLink={ui.currentModule === 'CENSUS' ? () => censusEmail.sendEmailWithLink('viewer') : undefined}
+                        onCopyShareLink={ui.currentModule === 'CENSUS' ? () => censusEmail.copyShareLink('viewer') : undefined}
+                        onBackupExcel={ui.currentModule === 'CENSUS' ? async () => {
+                            // Build Excel and upload to Firebase Storage
+                            const monthRecords = await getMonthRecordsFromFirestore(dateNav.selectedYear, dateNav.selectedMonth);
+                            const limitDate = `${dateNav.selectedYear}-${String(dateNav.selectedMonth + 1).padStart(2, '0')}-${String(dateNav.selectedDay).padStart(2, '0')}`;
+
+                            let filteredRecords = monthRecords
+                                .filter(r => r.date <= limitDate)
+                                .sort((a, b) => a.date.localeCompare(b.date));
+
+                            // Include current record if not in the list
+                            if (record && !filteredRecords.some(r => r.date === currentDateString)) {
+                                filteredRecords.push(record);
+                                filteredRecords.sort((a, b) => a.date.localeCompare(b.date));
+                            }
+
+                            if (filteredRecords.length === 0) {
+                                alert('No hay registros para archivar.');
+                                return;
+                            }
+
+                            const workbook = buildCensusMasterWorkbook(filteredRecords);
+                            const buffer = await workbook.xlsx.writeBuffer();
+                            const blob = new Blob([buffer], {
+                                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            });
+
+                            await uploadCensus(blob, currentDateString);
+                            setIsArchived(true); // Update state immediately
+                            alert(`✅ Excel archivado correctamente para ${currentDateString}`);
+                        } : undefined}
+                        isArchived={ui.currentModule === 'CENSUS' ? isArchived : undefined}
+
+
                         emailStatus={censusEmail.status}
                         emailErrorMessage={censusEmail.error}
                         syncStatus={syncStatus}
@@ -91,6 +168,7 @@ export const AppContent: React.FC<AppContentProps> = ({
                 {/* Main Content */}
                 <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">
                     <AppRouter
+                        ui={ui}
                         currentModule={ui.currentModule}
                         censusViewMode={ui.censusViewMode}
                         selectedDay={dateNav.selectedDay}
@@ -101,6 +179,7 @@ export const AppContent: React.FC<AppContentProps> = ({
                         onOpenBedManager={ui.bedManagerModal.open}
                         showBedManagerModal={ui.bedManagerModal.isOpen}
                         onCloseBedManagerModal={ui.bedManagerModal.close}
+                        sharedCensus={sharedCensus}
                     />
                 </main>
 
@@ -132,14 +211,20 @@ export const AppContent: React.FC<AppContentProps> = ({
                     onTestRecipientChange={censusEmail.setTestRecipient}
                 />
 
-                <TestAgent
-                    isRunning={ui.isTestAgentRunning}
-                    onComplete={() => ui.setIsTestAgentRunning(false)}
-                    currentRecord={record}
-                />
+                {!sharedCensus.isSharedCensusMode && (
+                    <TestAgent
+                        isRunning={ui.isTestAgentRunning}
+                        onComplete={() => ui.setIsTestAgentRunning(false)}
+                        currentRecord={record}
+                    />
+                )}
 
-                <SyncWatcher />
-                <DemoModePanel isOpen={ui.demoModal.isOpen} onClose={ui.demoModal.close} />
+                {!sharedCensus.isSharedCensusMode && (
+                    <>
+                        <SyncWatcher />
+                        <DemoModePanel isOpen={ui.demoModal.isOpen} onClose={ui.demoModal.close} />
+                    </>
+                )}
             </div>
         </AppProviders>
     );

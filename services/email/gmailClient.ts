@@ -4,8 +4,8 @@ import { buildCensusEmailBody, buildCensusEmailSubject } from '../../constants/e
 interface SendCensusEmailParams {
     date: string;
     recipients: string[];
-    attachmentBuffer: ArrayBuffer | Buffer;
-    attachmentName: string;
+    attachmentBuffer?: ArrayBuffer | Buffer;
+    attachmentName?: string;
     nursesSignature?: string;
     subject?: string;
     body?: string;
@@ -41,11 +41,7 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
     const baseBody = body || buildCensusEmailBody(date, nursesSignature, encryptionPin);
     // Audit line removed per user request
     const mailBodyBase64 = Buffer.from(baseBody).toString('base64');
-    const attachmentBase64 = Buffer.isBuffer(attachmentBuffer)
-        ? attachmentBuffer.toString('base64')
-        : Buffer.from(attachmentBuffer).toString('base64');
-
-    return [
+    const parts = [
         'Content-Type: multipart/mixed; boundary="' + boundary + '"',
         'MIME-Version: 1.0',
         'Content-Language: es-CL',
@@ -60,16 +56,28 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
         'Content-Disposition: inline',
         '',
         mailBodyBase64,
-        '',
-        '--' + boundary,
-        'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="' + attachmentName + '"',
-        'MIME-Version: 1.0',
-        'Content-Transfer-Encoding: base64',
-        'Content-Disposition: attachment; filename="' + attachmentName + '"',
-        '',
-        attachmentBase64,
-        '--' + boundary + '--'
-    ].join('\r\n');
+        ''
+    ];
+
+    if (attachmentBuffer && attachmentName) {
+        const attachmentBase64 = Buffer.isBuffer(attachmentBuffer)
+            ? attachmentBuffer.toString('base64')
+            : Buffer.from(attachmentBuffer).toString('base64');
+
+        parts.push(
+            '--' + boundary,
+            'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="' + attachmentName + '"',
+            'MIME-Version: 1.0',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="' + attachmentName + '"',
+            '',
+            attachmentBase64
+        );
+    }
+
+    parts.push('--' + boundary + '--');
+
+    return parts.join('\r\n');
 };
 
 export const sendCensusEmail = async (params: SendCensusEmailParams) => {

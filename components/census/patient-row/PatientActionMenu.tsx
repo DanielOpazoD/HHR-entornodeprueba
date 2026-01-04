@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, History } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PatientActionMenuProps {
     isBlocked: boolean;
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => void;
     onViewDemographics: () => void;
+    onViewHistory?: () => void;
     readOnly?: boolean;
     align?: 'top' | 'bottom';
+    hasPatient?: boolean;
 }
 
 export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     isBlocked,
     onAction,
     onViewDemographics,
+    onViewHistory,
     readOnly = false,
-    align = 'top'
+    align = 'top',
+    hasPatient = false
 }) => {
     const [showMenu, setShowMenu] = useState(false);
 
@@ -29,13 +33,24 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     return (
         <div className="flex flex-col items-center gap-1 relative">
             {!isBlocked && (
-                <button
-                    onClick={onViewDemographics}
-                    className="p-1 rounded-full text-medical-500 hover:text-medical-700 hover:bg-medical-50 transition-colors"
-                    title="Datos del Paciente"
-                >
-                    <User size={16} />
-                </button>
+                <div className="flex items-center gap-0.5">
+                    <button
+                        onClick={onViewDemographics}
+                        className="p-1 rounded-full text-medical-500 hover:text-medical-700 hover:bg-medical-50 transition-colors"
+                        title="Datos del Paciente"
+                    >
+                        <User size={16} />
+                    </button>
+                    {hasPatient && onViewHistory && (
+                        <button
+                            onClick={onViewHistory}
+                            className="p-1 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                            title="Ver Historial"
+                        >
+                            <History size={14} />
+                        </button>
+                    )}
+                </div>
             )}
             {!readOnly && (
                 <button

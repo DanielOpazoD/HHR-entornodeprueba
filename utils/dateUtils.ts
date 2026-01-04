@@ -263,3 +263,124 @@ export const getShiftSchedule = (dateString: string): ShiftSchedule => {
     };
 };
 
+// ==========================================
+// SHIFT FILTERING UTILITIES
+// ==========================================
+
+/**
+ * Shift boundaries in 24h format
+ */
+export const DAY_SHIFT_START = '08:00';
+export const DAY_SHIFT_END = '20:00';
+export const NIGHT_SHIFT_START = '20:00';
+export const NIGHT_SHIFT_END = '08:00';
+
+/**
+ * Check if a time string (HH:MM) falls within the day shift (08:00 - 20:00).
+ * 
+ * @param time - Time in HH:MM format
+ * @returns true if time is between 08:00 (inclusive) and 20:00 (exclusive)
+ * 
+ * @example
+ * isWithinDayShift('10:00') // true
+ * isWithinDayShift('22:00') // false
+ * isWithinDayShift('08:00') // true
+ * isWithinDayShift('20:00') // false (start of night shift)
+ * isWithinDayShift('03:00') // false (night/madrugada)
+ */
+export const isWithinDayShift = (time?: string): boolean => {
+    if (!time || time.length < 5) return true; // Default to day if no time
+
+    const hour = parseInt(time.substring(0, 2), 10);
+    const minute = parseInt(time.substring(3, 5), 10);
+
+    if (isNaN(hour) || isNaN(minute)) return true;
+
+    const timeMinutes = hour * 60 + minute;
+    const dayStartMinutes = 8 * 60;  // 08:00
+    const dayEndMinutes = 20 * 60;   // 20:00
+
+    return timeMinutes >= dayStartMinutes && timeMinutes < dayEndMinutes;
+};
+
+/**
+ * Determines if a patient should be visible in a specific shift handoff.
+ * 
+ * ## Logic:
+ * - **Day Shift (08:00-20:00)**: Show patients admitted BEFORE 20:00 on record date
+ * - **Night Shift (20:00-08:00)**: Show patients admitted:
+ *   1. On record date at any time (they were there during the night)
+ *   2. On record date + 1 day BEFORE 08:00 (madrugada admission)
+ * 
+ * The night shift is tricky because it spans two calendar days:
+ * - Night shift of Jan 3 = 20:00 Jan 3 → 08:00 Jan 4
+ * - So we need to include admissions from 00:00-08:00 on Jan 4
+ * 
+ * @param recordDate - The date of the record being viewed (YYYY-MM-DD)
+ * @param admissionDate - Patient's admission date (YYYY-MM-DD)
+ * @param admissionTime - Patient's admission time (HH:MM)
+ * @param shift - The shift being viewed ('day' or 'night')
+ * @returns true if patient should appear in this shift's handoff
+ * 
+ * @example
+ * // Record date: 2026-01-03
+ * // Day shift viewing (08:00-20:00):
+ * isAdmittedDuringShift('2026-01-03', '2026-01-03', '10:00', 'day')  // true - admitted in morning
+ * isAdmittedDuringShift('2026-01-03', '2026-01-03', '22:00', 'day')  // false - admitted at night
+ * 
+ * // Night shift viewing (20:00-08:00):
+ * isAdmittedDuringShift('2026-01-03', '2026-01-03', '10:00', 'night') // true - was there before night
+ * isAdmittedDuringShift('2026-01-03', '2026-01-03', '22:00', 'night') // true - admitted during night
+ * isAdmittedDuringShift('2026-01-03', '2026-01-04', '02:00', 'night') // true - madrugada of night shift
+ * isAdmittedDuringShift('2026-01-03', '2026-01-04', '10:00', 'night') // false - admitted next day
+ */
+export const isAdmittedDuringShift = (
+    recordDate: string,
+    admissionDate?: string,
+    admissionTime?: string,
+    shift: 'day' | 'night' = 'day'
+): boolean => {
+    // If no admission date, assume patient was already there (show in both shifts)
+    if (!admissionDate) return true;
+
+    // If patient was admitted on a previous date, they're in both shifts
+    if (admissionDate < recordDate) return true;
+
+    // Parse admission time, default to 08:00 if not specified
+    const admHour = admissionTime ? parseInt(admissionTime.substring(0, 2), 10) : 8;
+    const admMinute = admissionTime ? parseInt(admissionTime.substring(3, 5), 10) : 0;
+    const admTimeMinutes = (isNaN(admHour) ? 8 : admHour) * 60 + (isNaN(admMinute) ? 0 : admMinute);
+
+    // Day shift cutoff: 20:00 (1200 minutes)
+    const dayEndMinutes = 20 * 60;
+    // Night shift end (next day): 08:00 (480 minutes)
+    const nightEndMinutes = 8 * 60;
+
+    // Calculate next day from record date
+    const nextDay = getNextDay(recordDate);
+
+    if (shift === 'day') {
+        // Day shift shows patients admitted on record date BEFORE 20:00
+        if (admissionDate === recordDate) {
+            return admTimeMinutes < dayEndMinutes;
+        }
+        // Patients admitted after record date don't appear in day shift
+        return false;
+    } else {
+        // Night shift (20:00 recordDate -> 08:00 nextDay)
+
+        // 1. Patient admitted on record date: show if admitted before end of night shift
+        //    (they were there during the night)
+        if (admissionDate === recordDate) {
+            return true; // All patients admitted on record date are visible at night
+        }
+
+        // 2. Patient admitted on next day: show only if before 08:00 (madrugada)
+        if (admissionDate === nextDay) {
+            return admTimeMinutes < nightEndMinutes;
+        }
+
+        // Patients admitted on other dates don't appear
+        return false;
+    }
+};

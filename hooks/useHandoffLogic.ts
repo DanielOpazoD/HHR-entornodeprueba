@@ -27,7 +27,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { DailyRecord, PatientData } from '@/types';
 import { BEDS } from '@/constants';
-import { getShiftSchedule } from '@/utils/dateUtils';
+import { getShiftSchedule, isAdmittedDuringShift } from '@/utils/dateUtils';
 import { getWhatsAppConfig, getMessageTemplates } from '@/services/integrations/whatsapp/whatsappService';
 import { logNurseHandoffModified, logMedicalHandoffModified } from '@/services/admin/auditService';
 
@@ -36,6 +36,8 @@ export type NursingShift = 'day' | 'night';
 interface UseHandoffLogicParams {
     record: DailyRecord | null;
     type: 'nursing' | 'medical';
+    selectedShift: NursingShift;
+    setSelectedShift: (s: NursingShift) => void;
     updatePatient: (bedId: string, field: keyof PatientData, value: PatientData[keyof PatientData]) => void;
     updatePatientMultiple: (bedId: string, updates: Partial<PatientData>) => void;
     updateClinicalCrib: (bedId: string, field: keyof PatientData, value: PatientData[keyof PatientData]) => void;
@@ -47,6 +49,8 @@ interface UseHandoffLogicParams {
 export const useHandoffLogic = ({
     record,
     type,
+    selectedShift,
+    setSelectedShift,
     updatePatient,
     updatePatientMultiple,
     updateClinicalCrib,
@@ -55,7 +59,6 @@ export const useHandoffLogic = ({
     onSuccess,
 }: UseHandoffLogicParams) => {
     // ========== STATE ==========
-    const [selectedShift, setSelectedShift] = useState<NursingShift>('day');
     const [whatsappSending, setWhatsappSending] = useState(false);
     const [whatsappSent, setWhatsappSent] = useState(false);
 
@@ -71,10 +74,37 @@ export const useHandoffLogic = ({
         return BEDS.filter(bed => !bed.isExtra || activeExtras.includes(bed.id));
     }, [record]);
 
+    /**
+     * Helper to determine if a patient in a bed should be visible in the current shift.
+     * Uses isAdmittedDuringShift to filter based on admission date/time.
+     * 
+     * @param bedId - The bed ID to check
+     * @returns true if the patient should be shown, false if they should be hidden
+     */
+    const shouldShowPatient = useCallback((bedId: string): boolean => {
+        if (!record) return false;
+
+        const patient = record.beds[bedId];
+        if (!patient || !patient.patientName) return false;
+        if (patient.isBlocked) return true; // Always show blocked beds
+
+        return isAdmittedDuringShift(
+            record.date,
+            patient.admissionDate,
+            patient.admissionTime,
+            selectedShift
+        );
+    }, [record, selectedShift]);
+
     const hasAnyPatients = useMemo(() => {
         if (!record) return false;
-        return visibleBeds.some(b => record.beds[b.id]?.patientName || record.beds[b.id]?.isBlocked);
-    }, [visibleBeds, record]);
+        return visibleBeds.some(b => {
+            const patient = record.beds[b.id];
+            if (!patient?.patientName && !patient?.isBlocked) return false;
+            if (patient?.isBlocked) return true;
+            return shouldShowPatient(b.id);
+        });
+    }, [visibleBeds, record, shouldShowPatient]);
 
     const schedule = useMemo(() => {
         if (!record) return { dayStart: '08:00', dayEnd: '20:00', nightStart: '20:00', nightEnd: '08:00', description: '' };
@@ -283,6 +313,9 @@ export const useHandoffLogic = ({
         deliversList,
         receivesList,
         tensList,
+
+        // Shift filtering
+        shouldShowPatient,
 
         // Handlers
         handleNursingNoteChange,

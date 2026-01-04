@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseOptions, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { initializeFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const CACHED_CONFIG_KEY = 'hhr_firebase_config';
 
@@ -8,7 +9,6 @@ const decodeBase64 = (rawValue: string) => {
     const value = rawValue?.trim();
     if (!value) return '';
 
-    // Normalize base64 (remove whitespace, handle URL-safe variants, ensure padding)
     const normalized = value
         .replace(/\s+/g, '')
         .replace(/-/g, '+')
@@ -130,53 +130,59 @@ const loadFirebaseConfig = async () => {
 let app!: FirebaseApp;
 let auth!: Auth;
 let db!: Firestore;
+let storage!: FirebaseStorage;
 
 export const firebaseReady = (async () => {
     console.log('[FirebaseConfig] 🚀 Starting Firebase Ready sequence...');
-    const firebaseConfig = await loadFirebaseConfig();
-    console.log('[FirebaseConfig] 📁 Config loaded:', firebaseConfig.projectId);
 
-    if (!firebaseConfig.apiKey) {
-        mountConfigWarning('Firebase API key is missing. Please configure it in Netlify.');
-        throw new Error('Missing Firebase API key');
+    // Safety timeout for the entire initialization
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase initialization timed out')), 10000));
+
+    try {
+        const configPromise = (async () => {
+            const config = await loadFirebaseConfig();
+            console.log('[FirebaseConfig] 📁 Config loaded:', config.projectId);
+            console.log('[FirebaseConfig] 🪣 Storage Bucket:', config.storageBucket || 'not set');
+
+            if (!config.apiKey) {
+                mountConfigWarning('Firebase API key is missing. Please configure it in Netlify.');
+                throw new Error('Missing Firebase API key');
+            }
+
+            app = initializeApp(config);
+            auth = getAuth(app);
+            db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+            storage = getStorage(app);
+
+            setPersistence(auth, browserLocalPersistence).catch(err => {
+                console.warn('[FirebaseConfig] Failed to set auth persistence:', err);
+            });
+
+            console.log('[FirebaseConfig] 🔥 Firebase initialized');
+
+            const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
+            const firestoreEmulatorHost = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST;
+
+            if (import.meta.env.DEV && authEmulatorHost) {
+                connectAuthEmulator(auth, authEmulatorHost);
+            }
+
+            if (import.meta.env.DEV && firestoreEmulatorHost) {
+                const [host, port] = firestoreEmulatorHost.split(':');
+                connectFirestoreEmulator(db, host, Number(port));
+            }
+
+            return { app, auth, db, storage };
+        })();
+
+        return await Promise.race([configPromise, timeout]) as any;
+    } catch (err: any) {
+        console.error('[FirebaseConfig] ❌ Critical initialization error:', err.message || err);
+        // We throw here because without Firebase the app can't function properly
+        // but it will be caught by anyone awaiting firebaseReady
+        throw err;
     }
-
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = initializeFirestore(app, { ignoreUndefinedProperties: true });
-
-    // Set persistence once auth is initialized
-    setPersistence(auth, browserLocalPersistence).catch(err => {
-        console.warn('[FirebaseConfig] Failed to set auth persistence:', err);
-    });
-
-    console.log('[FirebaseConfig] 🔥 Firebase initialized');
-
-    /* 
-    enableMultiTabIndexedDbPersistence(db).catch((err) => {
-        if ((err as any).code === 'failed-precondition') {
-            console.warn('Firestore persistence failed: Multiple tabs open');
-        } else if ((err as any).code === 'unimplemented') {
-            console.warn('Firestore persistence not available in this browser');
-        }
-    });
-    */
-
-    // If emulators are configured, connect
-    const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
-    const firestoreEmulatorHost = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST;
-
-    if (import.meta.env.DEV && authEmulatorHost) {
-        connectAuthEmulator(auth, authEmulatorHost);
-    }
-
-    if (import.meta.env.DEV && firestoreEmulatorHost) {
-        const [host, port] = firestoreEmulatorHost.split(':');
-        connectFirestoreEmulator(db, host, Number(port));
-    }
-
-    return { app, auth, db };
 })();
 
-export { app, auth, db, mountConfigWarning };
+export { app, auth, db, storage, mountConfigWarning };
 export default app;

@@ -16,12 +16,13 @@ interface PatientRowProps {
     data: PatientData;
     currentDateString: string;
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => void;
+    onViewHistory?: (rut: string, name: string) => void;
     showCribControls: boolean;
     readOnly?: boolean;
     actionMenuAlign?: 'top' | 'bottom';
 }
 
-const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDateString, onAction, showCribControls, readOnly = false, actionMenuAlign = 'top' }) => {
+const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDateString, onAction, onViewHistory, showCribControls, readOnly = false, actionMenuAlign = 'top' }) => {
     const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } = useDailyRecordContext();
     const { confirm, alert } = useConfirmDialog();
     const isBlocked = data.isBlocked;
@@ -157,6 +158,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                         isBlocked={!!isBlocked}
                         onAction={handleAction}
                         onViewDemographics={() => setShowDemographics(true)}
+                        onViewHistory={data.rut ? () => onViewHistory?.(data.rut, data.patientName || '') : undefined}
+                        hasPatient={!!data.patientName}
                         readOnly={readOnly}
                         align={actionMenuAlign}
                     />

@@ -3,8 +3,11 @@ import { useConfirmDialog } from '../context/UIContext';
 import { DailyRecord } from '../types';
 import { buildCensusEmailBody, CENSUS_DEFAULT_RECIPIENTS } from '../constants/email';
 import { formatDate, getMonthRecordsFromFirestore, triggerCensusEmail, initializeDay } from '../services';
+import { buildCensusMasterWorkbook } from '../services/exporters/censusMasterWorkbook';
+import { uploadCensus } from '../services/backup/censusStorageService';
 import { isAdmin } from '../utils/permissions';
 import { getSetting, saveSetting } from '../services/storage/indexedDBService';
+import { CensusAccessRole } from '../types/censusAccess';
 
 interface UseCensusEmailParams {
   record: DailyRecord | null;
@@ -13,7 +16,7 @@ interface UseCensusEmailParams {
   selectedYear: number;
   selectedMonth: number;
   selectedDay: number;
-  user: { email?: string | null; role?: string } | null;
+  user: { uid?: string; email?: string | null; role?: string } | null;
   role: string;
 }
 
@@ -38,6 +41,9 @@ export interface UseCensusEmailReturn {
   // Actions
   resetStatus: () => void;
   sendEmail: () => Promise<void>;
+  sendEmailWithLink: (role?: CensusAccessRole) => Promise<void>;
+  generateShareLink: (role?: CensusAccessRole) => Promise<string | null>;
+  copyShareLink: (role?: CensusAccessRole) => Promise<void>;
 
   // Test mode
   testModeEnabled: boolean;
@@ -253,6 +259,23 @@ export const useCensusEmail = ({
         userEmail: user?.email,
         userRole: user?.role || role
       });
+
+      // 2. BACKUP TO STORAGE (Cloud Archive)
+      try {
+        console.log(`[useCensusEmail] Starting cloud backup for ${currentDateString}...`);
+        const workbook = buildCensusMasterWorkbook(filteredRecords);
+        const buffer = await workbook.xlsx.writeBuffer();
+        const excelBlob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        await uploadCensus(excelBlob, currentDateString);
+        console.log(`[useCensusEmail] Cloud backup successful for ${currentDateString}`);
+      } catch (backupErr) {
+        console.error('[useCensusEmail] Cloud backup failed (but email was sent):', backupErr);
+        // Don't fail the whole operation if backup fails, as long as email was sent
+      }
+
       setStatus('success');
       // Button stays in 'success' state (disabled) for this date session
     } catch (err: unknown) {
@@ -280,6 +303,96 @@ export const useCensusEmail = ({
     isAdminUser
   ]);
 
+  const generateShareLink = useCallback(async (_accessRole: CensusAccessRole = 'viewer'): Promise<string | null> => {
+    try {
+      // Simple URL without Firestore dependency
+      // Users will login with Google and be validated against local authorized emails list
+      const baseUrl = window.location.origin;
+      const shareUrl = `${baseUrl}/censo-compartido`;
+
+      return shareUrl;
+    } catch (err) {
+      console.error('Error generating share link', err);
+      alert('No se pudo generar el link de acceso.');
+      return null;
+    }
+  }, []);
+
+  const sendEmailWithLink = useCallback(async (accessRole: CensusAccessRole = 'viewer') => {
+    if (!record) {
+      alert('No hay datos del censo para enviar.');
+      return;
+    }
+
+    if (status === 'loading' || status === 'success') return;
+
+    // 1. Ask for confirmation
+    const confirmed = await confirm({
+      title: 'Enviar Link de Acceso',
+      message: `¿Estás seguro de enviar un link de acceso seguro a los destinatarios configurados?\n\nEsto permitirá a los usuarios visualizar el censo sin necesidad de archivos Excel.`,
+      confirmText: 'Aceptar',
+      cancelText: 'Cancelar',
+      variant: 'info'
+    });
+    if (!confirmed) return;
+
+    setStatus('loading');
+    setError(null);
+
+    try {
+      // 2. Generate the link
+      const shareLink = await generateShareLink(accessRole);
+      if (!shareLink) throw new Error('No se pudo generar el link.');
+
+      // 3. Trigger email with link
+      const resolvedRecipients = recipients.filter(r => r.trim()).length > 0
+        ? recipients.map(r => normalizeEmail(r)).filter(Boolean)
+        : CENSUS_DEFAULT_RECIPIENTS;
+
+      await triggerCensusEmail({
+        date: currentDateString,
+        records: [record], // Just metadata needed for the mail function usually
+        recipients: resolvedRecipients,
+        nursesSignature: nurseSignature || undefined,
+        body: message,
+        shareLink,
+        userEmail: user?.email,
+        userRole: user?.role || role
+      });
+
+      setStatus('success');
+    } catch (err: any) {
+      console.error('Error sending email with link', err);
+      setError(err?.message || 'Error al enviar link.');
+      setStatus('error');
+      alert(err?.message || 'No se pudo enviar el link de acceso.');
+    }
+  }, [
+    record,
+    status,
+    generateShareLink,
+    recipients,
+    currentDateString,
+    nurseSignature,
+    message,
+    user,
+    role,
+    alert
+  ]);
+
+  const copyShareLink = useCallback(async (accessRole: CensusAccessRole = 'viewer') => {
+    const link = await generateShareLink(accessRole);
+    if (link) {
+      try {
+        await navigator.clipboard.writeText(link);
+        alert('Copiado al portapapeles: ' + link, 'Link Copiado');
+      } catch (err) {
+        console.error('Clipboard error', err);
+        alert('No se pudo copiar el link. Intenta manualmente: ' + link);
+      }
+    }
+  }, [generateShareLink, alert]);
+
   return {
     showEmailConfig,
     setShowEmailConfig,
@@ -292,6 +405,9 @@ export const useCensusEmail = ({
     error,
     resetStatus,
     sendEmail,
+    sendEmailWithLink,
+    generateShareLink,
+    copyShareLink,
     testModeEnabled,
     setTestModeEnabled,
     testRecipient,

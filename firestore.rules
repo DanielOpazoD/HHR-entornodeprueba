@@ -21,7 +21,8 @@ service cloud.firestore {
       return isAuthenticated() && 
         getUserEmail() in [
           'daniel.opazo@hospitalhangaroa.cl',
-          'd.opazo.damiani@gmail.com'
+          'd.opazo.damiani@gmail.com',
+          'd.opazo.damiani@hospitalhangaroa.cl'
         ];
     }
     
@@ -85,6 +86,35 @@ service cloud.firestore {
         allow create: if isAuthenticated();
         allow update, delete: if false;
       }
+      
+      // ----------------------------------------
+      // TRANSFER REQUESTS (Patient transfers)
+      // ----------------------------------------
+      match /transferRequests/{transferId} {
+        allow read: if isAuthenticated();
+        allow create: if canEdit();
+        allow update: if canEdit();
+        allow delete: if isAdmin();
+      }
+      
+      // ----------------------------------------
+      // TRANSFER HISTORY (Completed transfers)
+      // ----------------------------------------
+      match /transferHistory/{transferId} {
+        allow read: if isAuthenticated();
+        allow create: if canEdit();
+        allow update, delete: if isAdmin();
+      }
+      
+      // ----------------------------------------
+      // BACKUP FILES (Cloud backup archives)
+      // ----------------------------------------
+      match /backupFiles/{fileId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();  // Temporarily allow all authenticated users for testing
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
     }
     
     // ============================================
@@ -143,6 +173,30 @@ service cloud.firestore {
     }
     
     // ============================================
+    // CENSUS ACCESS (Shared census links)
+    // ============================================
+    match /census-access-invitations/{invitationId} {
+      allow read: if true; 
+      allow write: if isAuthenticated(); // Simplified for debugging
+    }
+    
+    match /census-access-users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update, delete: if canEdit();
+    }
+    
+    match /census-access-logs/{logId} {
+      allow read: if canEdit();
+      allow create: if isAuthenticated();
+    }
+    
+    match /census-authorized-emails/{email} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // Simplified for debugging
+    }
+
+    // ============================================
     // DENY ALL OTHER BY DEFAULT
     // ============================================
     match /{document=**} {
@@ -150,3 +204,4 @@ service cloud.firestore {
     }
   }
 }
+

@@ -34,6 +34,10 @@ export interface UseAppStateReturn {
     isTestAgentRunning: boolean;
     setIsTestAgentRunning: (v: boolean) => void;
 
+    // Shift state (shared between views and global actions)
+    selectedShift: 'day' | 'night';
+    setSelectedShift: (s: 'day' | 'night') => void;
+
     // Derived state
     showPrintButton: boolean;
 }
@@ -55,6 +59,9 @@ export function useAppState(): UseAppStateReturn {
 
     // Feature flags
     const [isTestAgentRunning, setIsTestAgentRunning] = useState(false);
+
+    // Shift state
+    const [selectedShift, setSelectedShift] = useState<'day' | 'night'>('day');
 
     // Derived state
     const showPrintButton = useMemo(() => {
@@ -80,6 +87,10 @@ export function useAppState(): UseAppStateReturn {
         // Feature flags
         isTestAgentRunning,
         setIsTestAgentRunning,
+
+        // Shift
+        selectedShift,
+        setSelectedShift,
 
         // Derived
         showPrintButton

@@ -80,13 +80,16 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
         )}>
             {/* Cama + Días Hosp - Vertically Centered */}
             <td className="p-2 border-r border-slate-200 text-center w-20 align-middle print:w-auto print:text-[10px] print:p-1">
-                <div className="font-bold text-slate-700 text-base print:text-[10px]">
-                    {isSubRow ? '' : bedName}
+                <div className="font-bold text-slate-700 text-base print:text-[10px] flex flex-col items-center">
+                    <span>{!isSubRow && bedName}</span>
+                    {!isSubRow && daysHospitalized !== null && (
+                        <span className="hidden print:inline font-normal text-[9px] text-slate-500 leading-none mt-0.5">({daysHospitalized}d)</span>
+                    )}
                 </div>
                 {!isSubRow && daysHospitalized !== null && (
-                    <div className="flex flex-col items-center justify-center mt-1 text-slate-500 print:text-[8px]" title="Días Hospitalizado">
+                    <div className="flex flex-col items-center justify-center mt-1 text-slate-500 print:hidden" title="Días Hospitalizado">
                         <Clock size={12} className="print:hidden" />
-                        <span className="text-[10px] font-bold print:text-[8px] print:font-normal">{daysHospitalized}d</span>
+                        <span className="text-[10px] font-bold">{daysHospitalized}d</span>
                     </div>
                 )}
             </td>
@@ -130,10 +133,10 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
             {/* Estado */}
             <td className="p-2 border-r border-slate-200 w-20 align-middle print:text-[9px] print:p-1">
                 <span className={clsx(
-                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap block text-center print:whitespace-normal print:text-[9px] print:px-1 print:py-0 print:leading-tight",
-                    patient.status === PatientStatus.GRAVE ? "bg-red-100 text-red-700" :
-                        patient.status === PatientStatus.DE_CUIDADO ? "bg-orange-100 text-orange-700" :
-                            "bg-green-100 text-green-700"
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap block text-center print:whitespace-normal print:text-[8px] print:px-1 print:py-0 print:leading-tight print:rounded-none print:border print:bg-transparent",
+                    patient.status === PatientStatus.GRAVE ? "bg-red-100 text-red-700 border-red-200" :
+                        patient.status === PatientStatus.DE_CUIDADO ? "bg-orange-100 text-orange-700 border-orange-200" :
+                            "bg-green-100 text-green-700 border-green-200"
                 )}>
                     {patient.status}
                 </span>

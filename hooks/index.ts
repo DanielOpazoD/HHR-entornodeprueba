@@ -21,6 +21,7 @@ export { useClinicalCrib } from './useClinicalCrib';
 export { useNurseManagement } from './useNurseManagement';
 export { usePatientDischarges } from './usePatientDischarges';
 export { usePatientTransfers } from './usePatientTransfers';
+export { usePatientHistory } from './usePatientHistory';
 export { useCMA } from './useCMA';
 
 // Extracted Hooks (from useBedManagement)
@@ -32,6 +33,8 @@ export { useDateNavigation } from './useDateNavigation';
 export { useExistingDays } from './useExistingDays';
 export { useExistingDaysQuery, usePrefetchAdjacentMonths } from './useExistingDaysQuery';
 export { useSignatureMode } from './useSignatureMode';
+export { useSharedCensusMode } from './useSharedCensusMode';
+
 
 // React Query Hooks
 export { useDailyRecordQuery, useSaveDailyRecordMutation, usePrefetchDailyRecord, useInvalidateDailyRecord } from './useDailyRecordQuery';
@@ -57,3 +60,11 @@ export { useFeatureFlag, useAllFeatureFlags } from './useFeatureFlag';
 
 // Version Check (auto-refresh on new deployments)
 export { useVersionCheck } from './useVersionCheck';
+
+// Audit Data Management
+export { useAuditData, AUDIT_SECTIONS } from './useAuditData';
+export type { AuditSection, AuditFiltersState, UseAuditDataReturn } from './useAuditData';
+
+// Excel Parsing
+export { useExcelParser } from './useExcelParser';
+export type { ParsedCell, UseExcelParserReturn } from './useExcelParser';

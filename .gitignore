@@ -37,3 +37,4 @@ coverage/
 # Misc
 .DS_Store
 .env*
+functions/llave-beta.json

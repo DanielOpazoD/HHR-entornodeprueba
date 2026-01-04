@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to read all backup files
+    match /entregas-enfermeria/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Allow PUBLIC read access to census files (for shared census mode)
+    // Write still requires authentication
+    match /censo-diario/{allPaths=**} {
+      allow read: if true;  // Public read for shared census links
+      allow write: if request.auth != null;
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

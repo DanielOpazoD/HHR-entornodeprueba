@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { canEditModule } from '@/utils/permissions';
 import { UserRole } from '@/hooks/useAuthState';
+import { UseUIStateReturn } from '@/hooks/useUIState';
 
 // Lazy-loaded views
 import {
@@ -18,13 +19,19 @@ import {
     AuditView,
     MedicalSignatureView,
     WhatsAppIntegrationView,
-    ErrorDashboard
+    ErrorDashboard,
+    TransferManagementView,
+    BackupFilesView,
+    SharedCensusView
 } from '@/views/LazyViews';
+import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
 
-export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS';
+export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES';
 export type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface AppRouterProps {
+    /** Global UI state */
+    ui: UseUIStateReturn;
     /** Current active module */
     currentModule: AppModule;
     /** Census sub-view mode */
@@ -45,6 +52,8 @@ interface AppRouterProps {
     showBedManagerModal: boolean;
     /** Callback to close bed manager modal */
     onCloseBedManagerModal: () => void;
+    /** Shared census mode state */
+    sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
 /**
@@ -52,6 +61,7 @@ interface AppRouterProps {
  * Wraps all views with ErrorBoundary and Suspense for lazy loading.
  */
 export const AppRouter: React.FC<AppRouterProps> = ({
+    ui,
     currentModule,
     censusViewMode,
     selectedDay,
@@ -61,13 +71,16 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     isSignatureMode,
     onOpenBedManager,
     showBedManagerModal,
-    onCloseBedManagerModal
+    onCloseBedManagerModal,
+    sharedCensus
 }) => {
     return (
         <ErrorBoundary>
             <Suspense fallback={<ViewLoader />}>
                 {isSignatureMode ? (
                     <MedicalSignatureView />
+                ) : sharedCensus.isSharedCensusMode ? (
+                    <SharedCensusView accessUser={sharedCensus.accessUser} error={sharedCensus.error} />
                 ) : (
                     <>
                         {currentModule === 'CENSUS' && (
@@ -83,11 +96,13 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                             />
                         )}
                         {currentModule === 'CUDYR' && <CudyrView readOnly={!canEditModule(role, 'CUDYR')} />}
-                        {currentModule === 'NURSING_HANDOFF' && <HandoffView type="nursing" readOnly={!canEditModule(role, 'NURSING_HANDOFF')} />}
-                        {currentModule === 'MEDICAL_HANDOFF' && <HandoffView type="medical" readOnly={!canEditModule(role, 'MEDICAL_HANDOFF')} />}
+                        {currentModule === 'NURSING_HANDOFF' && <HandoffView ui={ui} type="nursing" readOnly={!canEditModule(role, 'NURSING_HANDOFF')} />}
+                        {currentModule === 'MEDICAL_HANDOFF' && <HandoffView ui={ui} type="medical" readOnly={!canEditModule(role, 'MEDICAL_HANDOFF')} />}
                         {currentModule === 'AUDIT' && <AuditView />}
                         {currentModule === 'WHATSAPP' && <WhatsAppIntegrationView />}
                         {currentModule === 'ERRORS' && <ErrorDashboard />}
+                        {currentModule === 'TRANSFER_MANAGEMENT' && <TransferManagementView />}
+                        {currentModule === 'BACKUP_FILES' && <BackupFilesView />}
                     </>
                 )}
             </Suspense>
