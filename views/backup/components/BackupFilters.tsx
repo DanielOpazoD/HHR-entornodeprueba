@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Search, Filter } from 'lucide-react';
-import { BackupFilters as FilterType, BackupFileType, BackupShiftType, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '../../../types/backup';
+import { BackupFilters as FilterType, BackupFileType, BackupShiftType, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
 
 interface BackupFiltersProps {
     filters: FilterType;

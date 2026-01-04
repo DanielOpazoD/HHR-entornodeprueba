@@ -1,8 +1,8 @@
 import React from 'react';
 import clsx from 'clsx';
-import { DailyRecord, Statistics } from '../../types';
+import { DailyRecord, Statistics } from '@/types';
 import { NurseSelector, TensSelector } from './';
-import { BedSummaryCard, CribSummaryCard, MovementSummaryCard } from '../../components/layout/SummaryCard';
+import { BedSummaryCard, CribSummaryCard, MovementSummaryCard } from '@/components/layout/SummaryCard';
 
 interface CensusStaffHeaderProps {
     record: DailyRecord;
@@ -11,7 +11,7 @@ interface CensusStaffHeaderProps {
     onUpdateNurse: (shift: 'day' | 'night', index: number, value: string) => void;
     onUpdateTens: (shift: 'day' | 'night', index: number, value: string) => void;
     readOnly?: boolean;
-    stats: Statistics;
+    stats: Statistics | null;
 }
 
 export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({

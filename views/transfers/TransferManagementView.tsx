@@ -9,8 +9,8 @@ import { TransferFormModal } from './components/TransferFormModal';
 import { StatusChangeModal } from './components/StatusChangeModal';
 import { ConfirmTransferModal } from './components/ConfirmTransferModal';
 import { CancelTransferModal } from './components/CancelTransferModal';
-import { TransferRequest, TransferFormData } from '../../types/transfers';
-import { useTransferManagement } from '../../hooks/useTransferManagement';
+import { TransferRequest, TransferFormData } from '@/types/transfers';
+import { useTransferManagement } from '@/hooks/useTransferManagement';
 
 export const TransferManagementView: React.FC = () => {
     const {

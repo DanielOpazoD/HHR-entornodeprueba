@@ -263,7 +263,7 @@ export const useCensusEmail = ({
       // 2. BACKUP TO STORAGE (Cloud Archive)
       try {
         console.log(`[useCensusEmail] Starting cloud backup for ${currentDateString}...`);
-        const workbook = buildCensusMasterWorkbook(filteredRecords);
+        const workbook = await buildCensusMasterWorkbook(filteredRecords);
         const buffer = await workbook.xlsx.writeBuffer();
         const excelBlob = new Blob([buffer], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

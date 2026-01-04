@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { TransferRequest, TRANSFER_STATUS_CONFIG } from '../../../types/transfers';
+import { TransferRequest, TRANSFER_STATUS_CONFIG } from '@/types/transfers';
 
 interface CancelTransferModalProps {
     transfer: TransferRequest;

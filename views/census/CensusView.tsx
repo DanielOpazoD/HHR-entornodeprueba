@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { SectionErrorBoundary } from '../../components/shared/SectionErrorBoundary';
-import { AnalyticsView } from '../analytics/AnalyticsView';
-import { useCensusLogic } from '../../hooks/useCensusLogic';
-import { useTableConfig } from '../../context/TableConfigContext';
-import { usePatientHistory } from '../../hooks/usePatientHistory';
-import { PatientHistoryPanel } from '../../components/patient/PatientHistoryPanel';
+import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
+import { AnalyticsView } from '@/views/analytics/AnalyticsView';
+import { useCensusLogic } from '@/hooks/useCensusLogic';
+import { useTableConfig } from '@/context/TableConfigContext';
+import { usePatientHistory } from '@/hooks/usePatientHistory';
+import { PatientHistoryPanel } from '@/components/patient/PatientHistoryPanel';
 import {
     CensusActionsProvider,
     EmptyDayPrompt,

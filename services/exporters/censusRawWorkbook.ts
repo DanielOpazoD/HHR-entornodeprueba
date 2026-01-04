@@ -92,8 +92,8 @@ export const extractRowsFromRecord = (record: DailyRecord): CensusRawRow[] => {
     return rows;
 };
 
-export const buildCensusDailyRawWorkbook = (record: DailyRecord): Workbook => {
-    const workbook = createWorkbook();
+export const buildCensusDailyRawWorkbook = async (record: DailyRecord): Promise<Workbook> => {
+    const workbook = await createWorkbook();
     const sheet = workbook.addWorksheet('Censo Diario');
 
     sheet.addRow(getRawHeader());
@@ -109,7 +109,7 @@ export const buildCensusDailyRawWorkbook = (record: DailyRecord): Workbook => {
 };
 
 export const buildCensusDailyRawBuffer = async (record: DailyRecord) => {
-    const workbook = buildCensusDailyRawWorkbook(record);
+    const workbook = await buildCensusDailyRawWorkbook(record);
     return workbook.xlsx.writeBuffer();
 };
 

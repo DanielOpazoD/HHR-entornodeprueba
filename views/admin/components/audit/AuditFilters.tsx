@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Filter, Calendar, History } from 'lucide-react';
-import { AuditAction } from '../../../../types/audit';
-import { AUDIT_ACTION_LABELS } from '../../../../services/admin/auditService';
+import { AuditAction } from '@/types/audit';
+import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
 
 interface AuditFiltersProps {
     searchTerm: string;

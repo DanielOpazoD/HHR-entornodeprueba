@@ -1,9 +1,9 @@
 import React from 'react';
 import { Activity, Users, Zap, Clock, BarChart3 } from 'lucide-react';
 import clsx from 'clsx';
-import { AuditAction, AuditLogEntry } from '../../../../types/audit';
-import { AUDIT_ACTION_LABELS } from '../../../../services/admin/auditService';
-import { formatDuration, getActionCriticality } from '../../../../hooks/useAuditStats';
+import { AuditAction, AuditLogEntry } from '@/types/audit';
+import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
+import { formatDuration, getActionCriticality } from '@/hooks/useAuditStats';
 
 interface AuditStatsDashboardProps {
     stats: {

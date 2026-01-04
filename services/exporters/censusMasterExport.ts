@@ -57,7 +57,7 @@ export const generateCensusMasterExcel = async (year: number, month: number, sel
         console.log(`✅ Se encontraron ${monthRecords.length} días con datos`);
 
         // Generate the workbook (without encryption - xlsx-populate doesn't work in browsers)
-        const workbook = buildCensusMasterWorkbook(monthRecords);
+        const workbook = await buildCensusMasterWorkbook(monthRecords);
         const buffer = await workbook.xlsx.writeBuffer();
         const filename = getCensusMasterFilename(limitDateStr);
 

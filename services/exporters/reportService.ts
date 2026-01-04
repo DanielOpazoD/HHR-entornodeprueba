@@ -2,7 +2,8 @@
 import type { Workbook } from 'exceljs';
 import { saveAs } from 'file-saver';
 import { DailyRecord } from '../../types';
-import { getStoredRecords, getRecordForDate } from '../dataService';
+import { getRecordForDate } from '../dataService';
+import { getAllRecords } from '../storage/indexedDBService';
 import { buildCensusDailyRawWorkbook, extractRowsFromRecord, getCensusRawHeader } from './censusRawWorkbook';
 import { BEDS } from '../../constants';
 import { createWorkbook } from './excelUtils';
@@ -25,13 +26,13 @@ export const generateCensusDailyRaw = async (date: string) => {
         return;
     }
 
-    const workbook = buildCensusDailyRawWorkbook(record);
+    const workbook = await buildCensusDailyRawWorkbook(record);
 
     await saveWorkbook(workbook, `Censo_HangaRoa_Bruto_${date}`);
 };
 
 export const generateCensusRangeRaw = async (startDate: string, endDate: string) => {
-    const allRecords = getStoredRecords();
+    const allRecords = await getAllRecords();
     // Filter dates within range (inclusive)
     const dates = Object.keys(allRecords).filter(d => d >= startDate && d <= endDate).sort();
 
@@ -40,7 +41,7 @@ export const generateCensusRangeRaw = async (startDate: string, endDate: string)
         return;
     }
 
-    const workbook = createWorkbook();
+    const workbook = await createWorkbook();
     const sheet = workbook.addWorksheet('Datos Brutos');
 
     sheet.addRow(getCensusRawHeader());
@@ -81,7 +82,7 @@ export const generateCudyrDailyRaw = async (date: string) => {
     const record = await getRecordForDate(date);
     if (!record) { alert("Sin datos"); return; }
 
-    const workbook = createWorkbook();
+    const workbook = await createWorkbook();
     const sheet = workbook.addWorksheet('CUDYR Diario');
 
     sheet.addRow(['FECHA', 'CAMA', 'PACIENTE', 'RUT', 'PUNTAJE_TOTAL', 'CATEGORIA', 'DEPENDENCIA', 'RIESGO']);

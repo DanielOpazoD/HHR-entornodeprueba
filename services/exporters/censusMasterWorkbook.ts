@@ -18,13 +18,13 @@ const TITLE_STYLE = { bold: true, size: 11 } satisfies Partial<Font>;
  * The records should contain one entry per day of the month (up to the selected day),
  * sorted ascending by date.
  */
-export const buildCensusMasterWorkbook = (records: DailyRecord[]): Workbook => {
+export const buildCensusMasterWorkbook = async (records: DailyRecord[]): Promise<Workbook> => {
     if (!records || records.length === 0) {
         throw new Error('No hay registros disponibles para generar el Excel maestro.');
     }
 
     const sortedRecords = [...records].sort((a, b) => a.date.localeCompare(b.date));
-    const workbook = createWorkbook();
+    const workbook = await createWorkbook();
     workbook.creator = 'Hospital Hanga Roa';
     workbook.created = new Date();
 
@@ -39,7 +39,7 @@ export const buildCensusMasterWorkbook = (records: DailyRecord[]): Workbook => {
  * Return a Node-friendly buffer for the workbook.
  */
 export const buildCensusMasterBuffer = async (records: DailyRecord[]): Promise<Buffer> => {
-    const workbook = buildCensusMasterWorkbook(records);
+    const workbook = await buildCensusMasterWorkbook(records);
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);
 };

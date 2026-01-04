@@ -15,7 +15,7 @@ import { getAttributedAuthors } from '../services/admin/attributionService';
 export interface HandoffManagementActions {
     updateHandoffChecklist: (shift: 'day' | 'night', field: string, value: boolean | string) => void;
     updateHandoffNovedades: (shift: 'day' | 'night' | 'medical', value: string) => void;
-    updateHandoffStaff: (shift: 'day' | 'night', type: 'delivers' | 'receives', staffList: string[]) => void;
+    updateHandoffStaff: (shift: 'day' | 'night', type: 'delivers' | 'receives' | 'tens', staffList: string[]) => void;
     updateMedicalSignature: (doctorName: string) => void;
     updateMedicalHandoffDoctor: (doctorName: string) => Promise<void>;
     markMedicalHandoffAsSent: (doctorName?: string) => Promise<void>;
@@ -91,7 +91,7 @@ export const useHandoffManagement = (
         );
     }, [record, saveAndUpdate, logDebouncedEvent, userId]);
 
-    const updateHandoffStaff = useCallback((shift: 'day' | 'night', type: 'delivers' | 'receives', staffList: string[]) => {
+    const updateHandoffStaff = useCallback((shift: 'day' | 'night', type: 'delivers' | 'receives' | 'tens', staffList: string[]) => {
         if (!record) return;
 
         const updatedRecord = { ...record };
@@ -99,14 +99,18 @@ export const useHandoffManagement = (
         if (shift === 'day') {
             if (type === 'delivers') {
                 updatedRecord.handoffDayDelivers = staffList;
-            } else {
+            } else if (type === 'receives') {
                 updatedRecord.handoffDayReceives = staffList;
+            } else if (type === 'tens') {
+                updatedRecord.tensDayShift = staffList;
             }
         } else {
             if (type === 'delivers') {
                 updatedRecord.handoffNightDelivers = staffList;
-            } else {
+            } else if (type === 'receives') {
                 updatedRecord.handoffNightReceives = staffList;
+            } else if (type === 'tens') {
+                updatedRecord.tensNightShift = staffList;
             }
         }
 

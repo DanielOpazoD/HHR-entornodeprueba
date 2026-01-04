@@ -111,9 +111,9 @@ export const useHandoffLogic = ({
         return getShiftSchedule(record.date);
     }, [record]);
 
-    const noteField = useMemo((): keyof PatientData => {
-        if (!record || isMedical) return 'medicalHandoffNote';
-        return selectedShift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
+    const noteField = useMemo(() => {
+        if (!record || isMedical) return 'medicalHandoffNote' as const;
+        return selectedShift === 'day' ? ('handoffNoteDayShift' as const) : ('handoffNoteNightShift' as const);
     }, [record, isMedical, selectedShift]);
 
     // Staff lists - Use census data directly for display

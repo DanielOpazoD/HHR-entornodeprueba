@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import { TransferRequest } from '../../../types/transfers';
+import { TransferRequest } from '@/types/transfers';
 import { TransferStatusBadge } from './TransferStatusBadge';
-import { calculateDaysElapsed } from '../../../constants/transferConstants';
+import { calculateDaysElapsed } from '@/constants/transferConstants';
 
 interface TransferTableProps {
     transfers: TransferRequest[];

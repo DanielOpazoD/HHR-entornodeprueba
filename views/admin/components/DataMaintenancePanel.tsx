@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Database, Download, Upload, Calendar, AlertCircle, Info, ShieldCheck, FileJson, ChevronDown } from 'lucide-react';
-import { exportMonthRecords } from '../../../services/admin/dataMaintenanceService';
+import { exportMonthRecords } from '@/services/admin/dataMaintenanceService';
 import { DataImportModal } from './DataImportModal';
 import clsx from 'clsx';
 

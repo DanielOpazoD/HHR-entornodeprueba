@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users, Settings, Sun, Moon } from 'lucide-react';
-import { useStaffContext } from '../../context/StaffContext';
+import { useStaffContext } from '@/context/StaffContext';
 
 interface NurseSelectorProps {
     nursesDayShift: string[];

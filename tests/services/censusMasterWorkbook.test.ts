@@ -43,10 +43,10 @@ const buildRecord = (date: string, patientName: string): DailyRecord => ({
 });
 
 describe('census master workbook builder', () => {
-    it('creates one sheet per day sorted by date with header content intact', () => {
+    it('creates one sheet per day sorted by date with header content intact', async () => {
         const records = [buildRecord('2024-05-02', 'Paciente Dos'), buildRecord('2024-05-01', 'Paciente Uno')];
 
-        const workbook = buildCensusMasterWorkbook(records);
+        const workbook = await buildCensusMasterWorkbook(records);
 
         expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['01-05-2024', '02-05-2024']);
         const firstSheet = workbook.worksheets[0];

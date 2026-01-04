@@ -11,13 +11,13 @@
 import type { Workbook, Worksheet } from 'exceljs';
 
 // ExcelJS import - Vite pre-bundles this from CommonJS to ESM
-import * as ExcelJSModule from 'exceljs';
+// import * as ExcelJSModule from 'exceljs';
 
 interface ExcelJSModuleType {
-    Workbook: typeof ExcelJSModule.Workbook;
+    Workbook: typeof import('exceljs').Workbook;
     default?: {
-        Workbook: typeof ExcelJSModule.Workbook;
-    } | typeof ExcelJSModule.Workbook; // Handle case where default IS the module
+        Workbook: typeof import('exceljs').Workbook;
+    } | typeof import('exceljs').Workbook; // Handle case where default IS the module
 }
 
 /**
@@ -28,12 +28,14 @@ interface ExcelJSModuleType {
  * @throws {Error} If ExcelJS module cannot be loaded
  * 
  * @example
- * const workbook = createWorkbook();
+ * const workbook = await createWorkbook();
  * workbook.creator = 'Hospital Hanga Roa';
  * const sheet = workbook.addWorksheet('Data');
  */
-export const createWorkbook = (): Workbook => {
-    // After Vite pre-bundles, ExcelJS.Workbook should be available
+export const createWorkbook = async (): Promise<Workbook> => {
+    // Dynamic import
+    const ExcelJSModule = await import('exceljs');
+
     // After Vite pre-bundles, ExcelJS.Workbook should be available
     const ExcelJS = ExcelJSModule as unknown as ExcelJSModuleType;
 

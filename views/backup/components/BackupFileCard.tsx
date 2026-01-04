@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { FileText, Eye, Trash2, Download, Clock, User, Sun, Moon } from 'lucide-react';
-import { BackupFilePreview, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '../../../types/backup';
+import { BackupFilePreview, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
 
 interface BackupFileCardProps {
     file: BackupFilePreview;

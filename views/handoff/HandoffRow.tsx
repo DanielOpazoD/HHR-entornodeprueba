@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { PatientData, PatientStatus } from '../../types';
+import { PatientData, PatientStatus } from '@/types';
 import { Baby, AlertCircle, Clock } from 'lucide-react';
 import clsx from 'clsx';
-import { formatDateDDMMYYYY } from '../../services/dataService';
-import { calculateDeviceDays } from '../../components/device-selector/DeviceDateConfigModal';
+import { formatDateDDMMYYYY } from '@/services/dataService';
+import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
 
 // ============================================================================
 // Utilities
@@ -25,7 +25,7 @@ export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: 
     return totalDays >= 1 ? totalDays : 1;
 };
 
-import { DebouncedTextarea } from '../../components/ui/DebouncedTextarea';
+import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
 
 // ============================================================================
 // HandoffRow Component

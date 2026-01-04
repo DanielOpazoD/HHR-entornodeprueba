@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import autoTable, { UserOptions } from 'jspdf-autotable';
+import type { jsPDF } from 'jspdf';
+import type { UserOptions } from 'jspdf-autotable';
 import { DailyRecord, PatientData, PatientStatus, HandoffData, ShiftType } from '../../types';
 import { BEDS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
@@ -39,6 +39,12 @@ export const generateHandoffPdf = async (
     selectedShift: ShiftType,
     schedule: any
 ) => {
+    // Dynamic imports
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+    ]);
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;

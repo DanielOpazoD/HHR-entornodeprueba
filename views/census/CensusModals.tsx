@@ -1,10 +1,10 @@
 import React from 'react';
 import { useCensusActions } from './CensusActionsContext';
-import { useStaffContext } from '../../context/StaffContext';
-import { NurseManagerModal } from '../../components/modals/NurseManagerModal';
-import { TensManagerModal } from '../../components/modals/TensManagerModal';
-import { BedManagerModal } from '../../components/modals/BedManagerModal';
-import { MoveCopyModal, DischargeModal, TransferModal } from '../../components/modals/ActionModals';
+import { useStaffContext } from '@/context/StaffContext';
+import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
+import { TensManagerModal } from '@/components/modals/TensManagerModal';
+import { BedManagerModal } from '@/components/modals/BedManagerModal';
+import { MoveCopyModal, DischargeModal, TransferModal } from '@/components/modals/ActionModals';
 
 interface CensusModalsProps {
     // Bed Manager props

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { DailyRecord } from '../../types';
-import { MONTH_NAMES } from '../../constants';
+import { DailyRecord } from '@/types';
+import { MONTH_NAMES } from '@/constants';
 import { Calendar, Plus, Copy, ChevronDown, Check } from 'lucide-react';
 import clsx from 'clsx';
 

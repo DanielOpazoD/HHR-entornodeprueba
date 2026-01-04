@@ -11,8 +11,12 @@ vi.mock('file-saver', () => ({
 
 // Mock dataService
 vi.mock('../../services/dataService', () => ({
-    getStoredRecords: vi.fn(),
     getRecordForDate: vi.fn(),
+}));
+
+// Mock indexedDBService
+vi.mock('../../services/storage/indexedDBService', () => ({
+    getAllRecords: vi.fn(),
 }));
 
 describe('Excel Export Configuration', () => {
@@ -51,16 +55,16 @@ describe('censusMasterWorkbook', () => {
             // Import the module dynamically to test
             const { buildCensusMasterWorkbook } = await import('../../services/exporters/censusMasterWorkbook');
 
-            expect(() => buildCensusMasterWorkbook([])).toThrow('No hay registros disponibles');
+            await expect(buildCensusMasterWorkbook([])).rejects.toThrow('No hay registros disponibles');
         });
 
         it('should throw error when records is null/undefined', async () => {
             const { buildCensusMasterWorkbook } = await import('../../services/exporters/censusMasterWorkbook');
 
             // @ts-expect-error - Testing invalid input
-            expect(() => buildCensusMasterWorkbook(null)).toThrow();
+            await expect(buildCensusMasterWorkbook(null)).rejects.toThrow();
             // @ts-expect-error - Testing invalid input
-            expect(() => buildCensusMasterWorkbook(undefined)).toThrow();
+            await expect(buildCensusMasterWorkbook(undefined)).rejects.toThrow();
         });
     });
 
@@ -75,12 +79,12 @@ describe('censusMasterWorkbook', () => {
                 beds: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            };
+            } as any;
 
             // If ExcelJS is properly loaded, this should not throw
             // (it may still throw for invalid record structure, but not for ExcelJS loading)
             try {
-                const workbook = buildCensusMasterWorkbook([mockRecord]);
+                const workbook = await buildCensusMasterWorkbook([mockRecord]);
                 expect(workbook).toBeDefined();
                 expect(typeof workbook.xlsx).toBe('object');
             } catch (error: any) {
@@ -101,9 +105,9 @@ describe('censusRawWorkbook', () => {
                 beds: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            };
+            } as any;
 
-            const workbook = buildCensusDailyRawWorkbook(mockRecord);
+            const workbook = await buildCensusDailyRawWorkbook(mockRecord);
 
             expect(workbook).toBeDefined();
             // Verify worksheet was created
@@ -119,9 +123,9 @@ describe('censusRawWorkbook', () => {
                 beds: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            };
+            } as any;
 
-            const workbook = buildCensusDailyRawWorkbook(mockRecord);
+            const workbook = await buildCensusDailyRawWorkbook(mockRecord);
             const worksheet = workbook.getWorksheet('Censo Diario');
             const header = getCensusRawHeader();
 
@@ -148,7 +152,7 @@ describe('censusRawWorkbook', () => {
                 },
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            };
+            } as any;
 
             const rows = extractRowsFromRecord(mockRecord);
 
@@ -168,12 +172,17 @@ describe('reportService', () => {
             const { getRecordForDate } = await import('../../services/dataService');
 
             // Mock getRecordForDate to return a valid record
-            vi.mocked(getRecordForDate).mockReturnValue({
+            vi.mocked(getRecordForDate).mockResolvedValue({
                 date: '2025-12-25',
                 beds: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-            });
+                nurses: [],
+                discharges: [],
+                transfers: [],
+                cma: [],
+                lastUpdated: new Date().toISOString()
+            } as any);
 
             await generateCensusDailyRaw('2025-12-25');
 

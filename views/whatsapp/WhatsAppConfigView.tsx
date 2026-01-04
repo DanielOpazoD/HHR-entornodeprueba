@@ -22,8 +22,8 @@ import {
     updateWhatsAppConfig,
     checkBotHealth,
     getWhatsAppGroups
-} from '../../services/integrations/whatsapp/whatsappService';
-import type { WhatsAppConfig } from '../../types';
+} from '@/services/integrations/whatsapp/whatsappService';
+import type { WhatsAppConfig } from '@/types';
 
 export const WhatsAppConfigView: React.FC = () => {
     const [config, setConfig] = useState<WhatsAppConfig | null>(null);

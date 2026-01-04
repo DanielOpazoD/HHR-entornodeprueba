@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getErrorLogs, clearErrorLogs } from '../../services/storage/indexedDBService';
-import { ErrorLog } from '../../services/utils/errorService';
+import { getErrorLogs, clearErrorLogs } from '@/services/storage/indexedDBService';
+import { ErrorLog } from '@/services/utils/errorService';
 import {
     AlertTriangle,
     Trash2,

@@ -1,29 +1,17 @@
-/**
- * HandoffPatientTable Component
- * 
- * Renders the main patient table for nursing and medical handoff views.
- * Supports shift-based patient filtering via shouldShowPatient callback.
- */
-
 import React from 'react';
-import { BedDefinition, DailyRecord } from '../../types';
+import { BedDefinition, DailyRecord, PatientData } from '@/types';
 import { HandoffRow } from './HandoffRow';
 
 interface HandoffPatientTableProps {
     visibleBeds: BedDefinition[];
     record: DailyRecord;
-    noteField: keyof DailyRecord['beds'][string];
+    noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
     onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
     tableHeaderClass: string;
     readOnly: boolean;
-    /**
-     * Optional function to determine if a patient should be shown in the current shift.
-     * If not provided, all patients are shown.
-     * 
-     * @param bedId - The bed ID to check
-     * @returns true if patient should be displayed, false to hide
-     */
-    shouldShowPatient?: (bedId: string) => boolean;
+    isMedical: boolean;
+    hasAnyPatients: boolean;
+    shouldShowPatient: (bedId: string) => boolean;
 }
 
 export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
@@ -33,78 +21,106 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
     onNoteChange,
     tableHeaderClass,
     readOnly,
+    isMedical,
+    hasAnyPatients,
     shouldShowPatient
 }) => {
     return (
-        <div className="overflow-x-auto shadow-lg rounded-xl border border-slate-200 bg-white print:shadow-none print:border print:border-slate-400 font-sans">
-            <table className="w-full border-collapse table-fixed min-w-[900px] print:min-w-0 font-sans">
-                <thead>
-                    <tr className={tableHeaderClass}>
-                        <th className="p-3 text-left w-24 print:p-2 print:w-20 print:text-xs">Cama</th>
-                        <th className="p-3 text-left w-56 print:p-2 print:text-xs">Paciente</th>
-                        <th className="p-3 text-left w-36 print:p-2 print:w-28 print:text-xs">Diagnóstico</th>
-                        <th className="p-3 text-left print:p-2 print:text-xs">Nota de Entrega</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 print:divide-slate-300">
-                    {visibleBeds.map((bed) => {
-                        const patient = record.beds[bed.id];
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse print:table-fixed print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
+                    <thead>
+                        <tr className={tableHeaderClass}>
+                            <th className="p-2 border-r border-slate-200 text-center w-20 print:w-[35px] print:text-[10px] print:p-1">Cama</th>
+                            <th className="p-2 border-r border-slate-200 min-w-[150px] print:w-[15%] print:text-[10px] print:p-1">Nombre Paciente</th>
+                            {!isMedical && <th className="p-2 border-r border-slate-200 w-36 print:hidden">RUT</th>}
+                            <th className="p-2 border-r border-slate-200 w-64 print:w-[20%] print:text-[10px] print:p-1">Diagnóstico</th>
+                            <th className="p-2 border-r border-slate-200 w-20 print:w-[45px] print:text-[10px] print:p-1">Estado</th>
+                            <th className="p-2 border-r border-slate-200 w-28 text-center print:hidden">F. Ingreso</th>
+                            <th className="p-2 border-r border-slate-200 w-20 print:w-[50px] print:text-[10px] print:p-1" title="Dispositivos médicos invasivos">DMI</th>
+                            <th className="p-2 min-w-[300px] print:w-[45%] print:min-w-0 print:text-[10px] print:p-1">Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {visibleBeds.map(bed => {
+                            const patient = record.beds[bed.id];
 
-                        // Check if this patient should be shown in the current shift
-                        // If shouldShowPatient is not provided, show all patients
-                        // If bed is blocked, always show it
-                        const showMainPatient = patient.isBlocked ||
-                            !shouldShowPatient ||
-                            shouldShowPatient(bed.id);
-
-                        // For clinical crib, check if main patient is visible first
-                        const showClinicalCrib = patient.clinicalCrib?.patientName && showMainPatient;
-
-                        // If patient should be hidden and bed is not blocked, render empty row
-                        if (!showMainPatient && !patient.isBlocked) {
-                            return (
-                                <HandoffRow
-                                    key={bed.id}
-                                    bedName={bed.name}
-                                    bedType={bed.type}
-                                    patient={{ isBlocked: false } as any}
-                                    reportDate={record.date}
-                                    noteField={noteField}
-                                    onNoteChange={(val) => onNoteChange(bed.id, val, false)}
-                                    readOnly={readOnly}
-                                />
-                            );
-                        }
-
-                        return (
-                            <React.Fragment key={bed.id}>
-                                <HandoffRow
-                                    bedName={bed.name}
-                                    bedType={bed.type}
-                                    patient={patient}
-                                    reportDate={record.date}
-                                    noteField={noteField}
-                                    onNoteChange={(val) => onNoteChange(bed.id, val, false)}
-                                    readOnly={readOnly}
-                                />
-                                {/* Clinical Crib Sub-Row */}
-                                {showClinicalCrib && (
+                            // Safety check: if bed data is missing in record, show as empty
+                            if (!patient) {
+                                return (
                                     <HandoffRow
+                                        key={bed.id}
                                         bedName={bed.name}
-                                        bedType="Cuna"
-                                        patient={patient.clinicalCrib}
+                                        bedType={bed.type}
+                                        patient={{ isBlocked: false } as PatientData}
                                         reportDate={record.date}
-                                        isSubRow={true}
                                         noteField={noteField}
-                                        onNoteChange={(val) => onNoteChange(bed.id, val, true)}
+                                        onNoteChange={(val) => onNoteChange(bed.id, val, false)}
                                         readOnly={readOnly}
                                     />
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </tbody>
-            </table>
+                                );
+                            }
+
+                            // Check if patient should be shown in current shift
+                            const showPatient = patient.isBlocked ||
+                                !patient.patientName ||
+                                shouldShowPatient(bed.id);
+
+                            // If patient should be hidden, render empty bed row
+                            if (!showPatient) {
+                                return (
+                                    <HandoffRow
+                                        key={bed.id}
+                                        bedName={bed.name}
+                                        bedType={bed.type}
+                                        patient={{ isBlocked: false } as PatientData}
+                                        reportDate={record.date}
+                                        noteField={noteField}
+                                        onNoteChange={(val) => onNoteChange(bed.id, val, false)}
+                                        readOnly={readOnly}
+                                    />
+                                );
+                            }
+
+                            return (
+                                <React.Fragment key={bed.id}>
+                                    <HandoffRow
+                                        bedName={bed.name}
+                                        bedType={bed.type}
+                                        patient={patient}
+                                        reportDate={record.date}
+                                        noteField={noteField}
+                                        onNoteChange={(val) => onNoteChange(bed.id, val, false)}
+                                        readOnly={readOnly}
+                                    />
+
+                                    {patient.clinicalCrib && patient.clinicalCrib.patientName && (
+                                        <HandoffRow
+                                            bedName={bed.name}
+                                            bedType="Cuna"
+                                            patient={patient.clinicalCrib}
+                                            reportDate={record.date}
+                                            isSubRow={true}
+                                            noteField={noteField}
+                                            onNoteChange={(val) => onNoteChange(bed.id, val, true)}
+                                            readOnly={readOnly}
+                                        />
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
+
+                        {/* If no occupied beds found */}
+                        {!hasAnyPatients && (
+                            <tr>
+                                <td colSpan={10} className="p-8 text-center text-slate-400 italic text-sm">
+                                    No hay pacientes registrados en este turno.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };

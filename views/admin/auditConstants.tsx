@@ -8,7 +8,7 @@ import {
     FileText, Eye, MessageSquare, Stethoscope, AlertCircle,
     BarChart3, LogIn
 } from 'lucide-react';
-import { AuditAction } from '../../types/audit';
+import { AuditAction } from '@/types/audit';
 
 /**
  * Format ISO timestamp to readable format (es-CL locale)
@@ -29,23 +29,23 @@ export const formatAuditTimestamp = (iso: string): string => {
  * Action Icon Mapping - Maps each audit action to its corresponding icon
  */
 export const actionIcons: Record<AuditAction, React.ReactNode> = {
-    'PATIENT_ADMITTED': <CheckCircle2 size={ 14} />,
-'PATIENT_DISCHARGED': <LogOut size={ 14 } />,
-'PATIENT_TRANSFERRED': <GitBranch size={ 14 } />,
-'PATIENT_MODIFIED': <Activity size={ 14 } />,
-'PATIENT_CLEARED': <Trash2 size={ 14 } />,
-'DAILY_RECORD_DELETED': <Trash2 size={ 14 } />,
-'DAILY_RECORD_CREATED': <FileText size={ 14 } />,
-'PATIENT_VIEWED': <Eye size={ 14 } />,
-'NURSE_HANDOFF_MODIFIED': <MessageSquare size={ 14 } />,
-'MEDICAL_HANDOFF_MODIFIED': <Stethoscope size={ 14 } />,
-'HANDOFF_NOVEDADES_MODIFIED': <AlertCircle size={ 14 } />,
-'CUDYR_MODIFIED': <BarChart3 size={ 14 } />,
-'USER_LOGIN': <LogIn size={ 14 } />,
-'USER_LOGOUT': <LogOut size={ 14 } />,
-'VIEW_CUDYR': <Eye size={ 14 } />,
-'VIEW_NURSING_HANDOFF': <Eye size={ 14 } />,
-'VIEW_MEDICAL_HANDOFF': <Eye size={ 14 } />
+    'PATIENT_ADMITTED': <CheckCircle2 size={14} />,
+    'PATIENT_DISCHARGED': <LogOut size={14} />,
+    'PATIENT_TRANSFERRED': <GitBranch size={14} />,
+    'PATIENT_MODIFIED': <Activity size={14} />,
+    'PATIENT_CLEARED': <Trash2 size={14} />,
+    'DAILY_RECORD_DELETED': <Trash2 size={14} />,
+    'DAILY_RECORD_CREATED': <FileText size={14} />,
+    'PATIENT_VIEWED': <Eye size={14} />,
+    'NURSE_HANDOFF_MODIFIED': <MessageSquare size={14} />,
+    'MEDICAL_HANDOFF_MODIFIED': <Stethoscope size={14} />,
+    'HANDOFF_NOVEDADES_MODIFIED': <AlertCircle size={14} />,
+    'CUDYR_MODIFIED': <BarChart3 size={14} />,
+    'USER_LOGIN': <LogIn size={14} />,
+    'USER_LOGOUT': <LogOut size={14} />,
+    'VIEW_CUDYR': <Eye size={14} />,
+    'VIEW_NURSING_HANDOFF': <Eye size={14} />,
+    'VIEW_MEDICAL_HANDOFF': <Eye size={14} />
 };
 
 /**

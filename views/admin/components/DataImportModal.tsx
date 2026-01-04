@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Upload, FileJson, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { MonthBackup, validateBackupFile, importRecordsFromBackup } from '../../../services/admin/dataMaintenanceService';
+import { MonthBackup, validateBackupFile, importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
 import clsx from 'clsx';
 
 interface DataImportModalProps {

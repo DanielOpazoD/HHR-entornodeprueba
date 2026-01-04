@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { useDailyRecordContext } from '../../context/DailyRecordContext';
-import { BEDS } from '../../constants';
-import { CudyrScore } from '../../types';
+import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { BEDS } from '@/constants';
+import { CudyrScore } from '@/types';
 import { ClipboardList } from 'lucide-react';
 
 // Sub-components
@@ -13,8 +13,8 @@ interface CudyrViewProps {
     readOnly?: boolean;
 }
 
-import { useAuditContext } from '../../context/AuditContext';
-import { getAttributedAuthors } from '../../services/admin/attributionService';
+import { useAuditContext } from '@/context/AuditContext';
+import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { useEffect } from 'react';
 
 export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {

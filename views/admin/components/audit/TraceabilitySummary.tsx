@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Clock, Zap, BedDouble, Stethoscope, Activity } from 'lucide-react';
 import clsx from 'clsx';
-import { ClinicalData } from '../../../../hooks/admin/useClinicalData';
+import { ClinicalData } from '@/hooks/admin/useClinicalData';
 
 interface TraceabilitySummaryProps {
     clinicalData: ClinicalData;

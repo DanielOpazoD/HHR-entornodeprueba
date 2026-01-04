@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
-import { getAllRecords } from '../../services/storage/indexedDBService';
-import { calculateStats } from '../../services/calculations/statsCalculator';
-import { DailyRecord, Specialty, PatientData } from '../../types';
-import { BEDS } from '../../constants';
+import { getAllRecords } from '@/services/storage/indexedDBService';
+import { calculateStats } from '@/services/calculations/statsCalculator';
+import { DailyRecord, Specialty, PatientData } from '@/types';
+import { BEDS } from '@/constants';
 import { Loader2 } from 'lucide-react';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];

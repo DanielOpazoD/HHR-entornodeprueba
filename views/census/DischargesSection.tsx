@@ -1,5 +1,5 @@
 import React from 'react';
-import { DischargeData } from '../../types';
+import { DischargeData } from '@/types';
 import { useCensusActions } from './CensusActionsContext';
 import { CheckCircle, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 import clsx from 'clsx';

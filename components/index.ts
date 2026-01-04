@@ -8,7 +8,6 @@
 // ============================================================
 // ERROR HANDLING (shared/)
 // ============================================================
-export { ErrorBoundary } from './shared/ErrorBoundary';
 export { GlobalErrorBoundary } from './shared/GlobalErrorBoundary';
 export { SectionErrorBoundary } from './shared/SectionErrorBoundary';
 export { SyncWatcher } from './shared/SyncWatcher';

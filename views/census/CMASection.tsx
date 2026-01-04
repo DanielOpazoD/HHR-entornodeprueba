@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { CMAData } from '../../types';
-import { useDailyRecordContext } from '../../context/DailyRecordContext';
+import { CMAData } from '@/types';
+import { useDailyRecordContext } from '@/context/DailyRecordContext';
 import { Trash2, Save, X, Plus, Scissors } from 'lucide-react';
-import { SPECIALTY_OPTIONS } from '../../constants';
-import { DebouncedInput } from '../../components/ui/DebouncedInput';
-import { PatientInputSchema } from '../../schemas/inputSchemas';
+import { SPECIALTY_OPTIONS } from '@/constants';
+import { DebouncedInput } from '@/components/ui/DebouncedInput';
+import { PatientInputSchema } from '@/schemas/inputSchemas';
 import clsx from 'clsx';
 
 const INTERVENTION_TYPES = [

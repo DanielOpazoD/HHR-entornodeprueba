@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { TransferRequest, TransferStatus, StatusChange, TRANSFER_STATUS_CONFIG } from '../../../types/transfers';
-import { getNextStatus } from '../../../constants/transferConstants';
+import { TransferRequest, TransferStatus, StatusChange, TRANSFER_STATUS_CONFIG } from '@/types/transfers';
+import { getNextStatus } from '@/constants/transferConstants';
 
 interface StatusChangeModalProps {
     transfer: TransferRequest;

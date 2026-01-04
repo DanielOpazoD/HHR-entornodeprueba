@@ -11,7 +11,7 @@ export const ExportKeysPanel: React.FC = () => {
             setLoading(true);
             try {
                 // Fetch stored passwords from Firestore
-                const { getStoredPasswords } = await import('../../../../services/security/exportPasswordService');
+                const { getStoredPasswords } = await import('@/services/security/exportPasswordService');
                 const storedPasswords = await getStoredPasswords(60); // Last 60 passwords
 
                 setPasswords(storedPasswords.map(p => ({

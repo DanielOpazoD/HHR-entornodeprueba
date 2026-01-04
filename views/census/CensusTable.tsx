@@ -1,11 +1,11 @@
 import React, { useMemo, useCallback } from 'react';
-import { DailyRecord } from '../../types';
-import { BEDS } from '../../constants';
-import { PatientRow } from '../../components/census/PatientRow';
+import { DailyRecord } from '@/types';
+import { BEDS } from '@/constants';
+import { PatientRow } from '@/components/census/PatientRow';
 import { useCensusActions } from './CensusActionsContext';
-import { useConfirmDialog } from '../../context/UIContext';
-import { useTableConfig, TableColumnConfig } from '../../context/TableConfigContext';
-import { ResizableHeader } from '../../components/ui/ResizableHeader';
+import { useConfirmDialog } from '@/context/UIContext';
+import { useTableConfig, TableColumnConfig } from '@/context/TableConfigContext';
+import { ResizableHeader } from '@/components/ui/ResizableHeader';
 import { Trash2, Baby, Settings2 } from 'lucide-react';
 import clsx from 'clsx';
 

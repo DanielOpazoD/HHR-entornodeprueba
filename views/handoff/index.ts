@@ -10,5 +10,5 @@ export { HandoffStaffSelector } from './HandoffStaffSelector';
 export { HandoffPrintHeader } from './HandoffPrintHeader';
 export { HandoffShiftSelector } from './HandoffShiftSelector';
 export { HandoffPatientTable } from './HandoffPatientTable';
-export { HandoffSpecialSections } from './HandoffSpecialSections';
+export { HandoffChecklistSection } from './HandoffChecklistSection';
 export { HandoffWhatsAppActions } from './HandoffWhatsAppActions';

@@ -18,8 +18,8 @@ import {
     Upload,
     Search
 } from 'lucide-react';
-import { subscribeToCurrentShift, saveManualShift, fetchShiftsFromGroup } from '../../services/integrations/whatsapp/whatsappService';
-import type { WeeklyShift, ShiftStaffMember } from '../../types';
+import { subscribeToCurrentShift, saveManualShift, fetchShiftsFromGroup } from '@/services/integrations/whatsapp/whatsappService';
+import type { WeeklyShift, ShiftStaffMember } from '@/types';
 
 export const ShiftPanelView: React.FC = () => {
     const [shift, setShift] = useState<WeeklyShift | null>(null);

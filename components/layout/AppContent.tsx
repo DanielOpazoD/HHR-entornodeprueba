@@ -145,7 +145,7 @@ export const AppContent: React.FC<AppContentProps> = ({
                                 return;
                             }
 
-                            const workbook = buildCensusMasterWorkbook(filteredRecords);
+                            const workbook = await buildCensusMasterWorkbook(filteredRecords);
                             const buffer = await workbook.xlsx.writeBuffer();
                             const blob = new Blob([buffer], {
                                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

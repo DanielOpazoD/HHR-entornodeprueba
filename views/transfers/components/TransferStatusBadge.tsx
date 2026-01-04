@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { TransferStatus, TRANSFER_STATUS_CONFIG } from '../../../types/transfers';
+import { TransferStatus, TRANSFER_STATUS_CONFIG } from '@/types/transfers';
 
 interface TransferStatusBadgeProps {
     status: TransferStatus;

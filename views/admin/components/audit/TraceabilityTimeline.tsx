@@ -1,8 +1,8 @@
 import React from 'react';
 import { History, Activity, Clock } from 'lucide-react';
 import clsx from 'clsx';
-import { AuditLogEntry } from '../../../../types/audit';
-import { AUDIT_ACTION_LABELS } from '../../../../services/admin/auditService';
+import { AuditLogEntry } from '@/types/audit';
+import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
 
 interface TraceabilityTimelineProps {
     chronologicalLogs: AuditLogEntry[];

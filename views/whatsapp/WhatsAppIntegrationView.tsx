@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import { MessageSquare, Users, FileText, Settings } from 'lucide-react';
 import { WhatsAppConfigView } from './WhatsAppConfigView';
 import { ShiftPanelView } from './ShiftPanelView';
-import { MessageTemplatesEditor } from '../../components/whatsapp/MessageTemplatesEditor';
+import { MessageTemplatesEditor } from '@/components/whatsapp/MessageTemplatesEditor';
 
 type TabId = 'shifts' | 'templates' | 'config';
 
@@ -49,8 +49,8 @@ export const WhatsAppIntegrationView: React.FC = () => {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                                        ? 'border-green-500 text-green-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    ? 'border-green-500 text-green-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />

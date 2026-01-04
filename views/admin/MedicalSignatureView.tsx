@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useDailyRecordContext } from '../../context/DailyRecordContext';
-import { HandoffView } from '../handoff/HandoffView';
+import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { HandoffView } from '@/views/handoff/HandoffView';
 import { PenTool, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export const MedicalSignatureView: React.FC = () => {

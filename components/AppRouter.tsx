@@ -5,7 +5,7 @@
  */
 
 import React, { Suspense } from 'react';
-import { ErrorBoundary } from '@/components';
+import { GlobalErrorBoundary, SectionErrorBoundary } from '@/components';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { canEditModule } from '@/utils/permissions';
 import { UserRole } from '@/hooks/useAuthState';
@@ -75,37 +75,75 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     sharedCensus
 }) => {
     return (
-        <ErrorBoundary>
+        <GlobalErrorBoundary>
             <Suspense fallback={<ViewLoader />}>
                 {isSignatureMode ? (
-                    <MedicalSignatureView />
+                    <SectionErrorBoundary sectionName="Firma Médica">
+                        <MedicalSignatureView />
+                    </SectionErrorBoundary>
                 ) : sharedCensus.isSharedCensusMode ? (
-                    <SharedCensusView accessUser={sharedCensus.accessUser} error={sharedCensus.error} />
+                    <SectionErrorBoundary sectionName="Censo Compartido">
+                        <SharedCensusView accessUser={sharedCensus.accessUser} error={sharedCensus.error} />
+                    </SectionErrorBoundary>
                 ) : (
                     <>
                         {currentModule === 'CENSUS' && (
-                            <CensusView
-                                viewMode={censusViewMode}
-                                selectedDay={selectedDay}
-                                selectedMonth={selectedMonth}
-                                currentDateString={currentDateString}
-                                onOpenBedManager={onOpenBedManager}
-                                showBedManagerModal={showBedManagerModal}
-                                onCloseBedManagerModal={onCloseBedManagerModal}
-                                readOnly={!canEditModule(role, 'CENSUS')}
-                            />
+                            <SectionErrorBoundary sectionName="Censo">
+                                <CensusView
+                                    viewMode={censusViewMode}
+                                    selectedDay={selectedDay}
+                                    selectedMonth={selectedMonth}
+                                    currentDateString={currentDateString}
+                                    onOpenBedManager={onOpenBedManager}
+                                    showBedManagerModal={showBedManagerModal}
+                                    onCloseBedManagerModal={onCloseBedManagerModal}
+                                    readOnly={!canEditModule(role, 'CENSUS')}
+                                />
+                            </SectionErrorBoundary>
                         )}
-                        {currentModule === 'CUDYR' && <CudyrView readOnly={!canEditModule(role, 'CUDYR')} />}
-                        {currentModule === 'NURSING_HANDOFF' && <HandoffView ui={ui} type="nursing" readOnly={!canEditModule(role, 'NURSING_HANDOFF')} />}
-                        {currentModule === 'MEDICAL_HANDOFF' && <HandoffView ui={ui} type="medical" readOnly={!canEditModule(role, 'MEDICAL_HANDOFF')} />}
-                        {currentModule === 'AUDIT' && <AuditView />}
-                        {currentModule === 'WHATSAPP' && <WhatsAppIntegrationView />}
-                        {currentModule === 'ERRORS' && <ErrorDashboard />}
-                        {currentModule === 'TRANSFER_MANAGEMENT' && <TransferManagementView />}
-                        {currentModule === 'BACKUP_FILES' && <BackupFilesView />}
+                        {currentModule === 'CUDYR' && (
+                            <SectionErrorBoundary sectionName="CUDYR">
+                                <CudyrView readOnly={!canEditModule(role, 'CUDYR')} />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'NURSING_HANDOFF' && (
+                            <SectionErrorBoundary sectionName="Entrega Enfermería">
+                                <HandoffView ui={ui} type="nursing" readOnly={!canEditModule(role, 'NURSING_HANDOFF')} />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'MEDICAL_HANDOFF' && (
+                            <SectionErrorBoundary sectionName="Entrega Médica">
+                                <HandoffView ui={ui} type="medical" readOnly={!canEditModule(role, 'MEDICAL_HANDOFF')} />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'AUDIT' && (
+                            <SectionErrorBoundary sectionName="Auditoría">
+                                <AuditView />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'WHATSAPP' && (
+                            <SectionErrorBoundary sectionName="Integración WhatsApp">
+                                <WhatsAppIntegrationView />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'ERRORS' && (
+                            <SectionErrorBoundary sectionName="Dashboard de Errores">
+                                <ErrorDashboard />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'TRANSFER_MANAGEMENT' && (
+                            <SectionErrorBoundary sectionName="Traslados">
+                                <TransferManagementView />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'BACKUP_FILES' && (
+                            <SectionErrorBoundary sectionName="Respaldos">
+                                <BackupFilesView />
+                            </SectionErrorBoundary>
+                        )}
                     </>
                 )}
             </Suspense>
-        </ErrorBoundary>
+        </GlobalErrorBoundary>
     );
 };

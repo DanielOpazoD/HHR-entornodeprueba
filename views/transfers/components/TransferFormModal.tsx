@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { TransferRequest, TransferFormData } from '../../../types/transfers';
-import { DESTINATION_HOSPITALS, MEDICAL_SPECIALTIES, TRANSFER_REASONS } from '../../../constants/transferConstants';
+import { TransferRequest, TransferFormData } from '@/types/transfers';
+import { DESTINATION_HOSPITALS, MEDICAL_SPECIALTIES, TRANSFER_REASONS } from '@/constants/transferConstants';
 import { PatientSelector } from './PatientSelector';
 
 interface Patient {

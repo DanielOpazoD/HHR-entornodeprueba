@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, User, Calendar, MapPin, History, FileText, ChevronRight, Clock } from 'lucide-react';
 import clsx from 'clsx';
-import { AuditLogEntry } from '../../../../types/audit';
-import { useClinicalData } from '../../../../hooks/admin/useClinicalData';
+import { AuditLogEntry } from '@/types/audit';
+import { useClinicalData } from '@/hooks/admin/useClinicalData';
 import { TraceabilityTimeline } from './TraceabilityTimeline';
 import { TraceabilitySummary } from './TraceabilitySummary';
 

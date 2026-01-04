@@ -160,30 +160,30 @@ const createMockDailyRecord = (
 
 describe('Census → Excel Export Integration', () => {
     describe('buildCensusMasterWorkbook', () => {
-        it('should throw error when no records provided', () => {
-            expect(() => buildCensusMasterWorkbook([])).toThrow(
+        it('should throw error when no records provided', async () => {
+            await expect(buildCensusMasterWorkbook([])).rejects.toThrow(
                 'No hay registros disponibles para generar el Excel maestro.'
             );
         });
 
-        it('should generate workbook with single day record', () => {
+        it('should generate workbook with single day record', async () => {
             const record = createMockDailyRecord('2024-12-23');
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
             expect(workbook.worksheets.length).toBe(1);
             expect(workbook.worksheets[0].name).toContain('23');
         });
 
-        it('should generate workbook with multiple days sorted', () => {
+        it('should generate workbook with multiple days sorted', async () => {
             const records = [
                 createMockDailyRecord('2024-12-25'),
                 createMockDailyRecord('2024-12-23'),
                 createMockDailyRecord('2024-12-24'),
             ];
 
-            const workbook = buildCensusMasterWorkbook(records);
+            const workbook = await buildCensusMasterWorkbook(records);
 
             expect(workbook.worksheets.length).toBe(3);
             // Should be sorted ascending by date
@@ -192,7 +192,7 @@ describe('Census → Excel Export Integration', () => {
             expect(workbook.worksheets[2].name).toContain('25');
         });
 
-        it('should include all patient data in worksheet', () => {
+        it('should include all patient data in worksheet', async () => {
             const record = createMockDailyRecord('2024-12-23', {
                 occupiedBeds: 3,
                 discharges: 2,
@@ -200,7 +200,7 @@ describe('Census → Excel Export Integration', () => {
                 cma: 2
             });
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
             const sheet = workbook.worksheets[0];
 
             // Sheet should have content
@@ -214,7 +214,7 @@ describe('Census → Excel Export Integration', () => {
             expect(hasPatientData).toBe(true);
         });
 
-        it('should handle record with no discharges/transfers/cma', () => {
+        it('should handle record with no discharges/transfers/cma', async () => {
             const record = createMockDailyRecord('2024-12-23', {
                 occupiedBeds: 10,
                 discharges: 0,
@@ -222,13 +222,13 @@ describe('Census → Excel Export Integration', () => {
                 cma: 0
             });
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
             expect(workbook.worksheets.length).toBe(1);
         });
 
-        it('should handle record with empty beds only', () => {
+        it('should handle record with empty beds only', async () => {
             const record = createMockDailyRecord('2024-12-23', {
                 occupiedBeds: 0,
                 discharges: 0,
@@ -236,17 +236,17 @@ describe('Census → Excel Export Integration', () => {
                 cma: 0
             });
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
             // Should still create the sheet even with empty beds
             expect(workbook.worksheets.length).toBe(1);
         });
 
-        it('should set workbook metadata', () => {
+        it('should set workbook metadata', async () => {
             const record = createMockDailyRecord('2024-12-23');
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook.creator).toBe('Hospital Hanga Roa');
             expect(workbook.created).toBeInstanceOf(Date);
@@ -272,7 +272,7 @@ describe('Census → Excel Export Integration', () => {
     });
 
     describe('Full Month Export Simulation', () => {
-        it('should handle 15 consecutive days export', () => {
+        it('should handle 15 consecutive days export', async () => {
             const records: DailyRecord[] = [];
 
             for (let day = 1; day <= 15; day++) {
@@ -285,7 +285,7 @@ describe('Census → Excel Export Integration', () => {
                 }));
             }
 
-            const workbook = buildCensusMasterWorkbook(records);
+            const workbook = await buildCensusMasterWorkbook(records);
 
             expect(workbook.worksheets.length).toBe(15);
             // First sheet should be day 1
@@ -294,20 +294,20 @@ describe('Census → Excel Export Integration', () => {
             expect(workbook.worksheets[14].name).toContain('15');
         });
 
-        it('should handle month transition correctly', () => {
+        it('should handle month transition correctly', async () => {
             const records = [
                 createMockDailyRecord('2024-11-30'),
                 createMockDailyRecord('2024-12-01'),
             ];
 
-            const workbook = buildCensusMasterWorkbook(records);
+            const workbook = await buildCensusMasterWorkbook(records);
 
             expect(workbook.worksheets.length).toBe(2);
         });
     });
 
     describe('Edge Cases', () => {
-        it('should handle patient with clinical crib', () => {
+        it('should handle patient with clinical crib', async () => {
             const record = createMockDailyRecord('2024-12-23', { occupiedBeds: 1 });
 
             // Add clinical crib to patient
@@ -319,36 +319,36 @@ describe('Census → Excel Export Integration', () => {
                 pathology: 'RN Sano',
             } as PatientData;
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
             expect(workbook.worksheets.length).toBe(1);
         });
 
-        it('should handle blocked beds', () => {
+        it('should handle blocked beds', async () => {
             const record = createMockDailyRecord('2024-12-23', { occupiedBeds: 3 });
 
             // Block some beds
             record.beds['R10'].isBlocked = true;
             record.beds['R11'].isBlocked = true;
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
         });
 
-        it('should handle UPC patients', () => {
+        it('should handle UPC patients', async () => {
             const record = createMockDailyRecord('2024-12-23', { occupiedBeds: 2 });
 
             // Set UPC flag on patient
             record.beds['R1'].isUPC = true;
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
 
             expect(workbook).toBeDefined();
         });
 
-        it('should exclude empty extra beds and include occupied ones', () => {
+        it('should exclude empty extra beds and include occupied ones', async () => {
             const record = createMockDailyRecord('2024-12-23', { occupiedBeds: 0 });
 
             // Add an extra bed with a patient
@@ -357,7 +357,7 @@ describe('Census → Excel Export Integration', () => {
             // E2 is an extra bed but it's empty
             record.beds['E2'] = createEmptyBed('E2');
 
-            const workbook = buildCensusMasterWorkbook([record]);
+            const workbook = await buildCensusMasterWorkbook([record]);
             const sheet = workbook.worksheets[0];
 
             // Helper to find text in sheet

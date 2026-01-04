@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Download, Trash2, Sun, Moon, Calendar } from 'lucide-react';
-import { StoredPdfFile } from '../../../services/backup/pdfStorageService';
+import { StoredPdfFile } from '@/services/backup/pdfStorageService';
 
 interface HandoffCalendarViewProps {
     files: StoredPdfFile[];
