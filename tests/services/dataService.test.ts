@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDateDDMMYYYY, getTodayISO } from '@/services/utils/dateFormatter';
+import { formatDateDDMMYYYY, getTodayISO } from '@/utils/dateUtils';
 
 describe('dateFormatter', () => {
     describe('formatDateDDMMYYYY', () => {

@@ -40,6 +40,10 @@ export interface UseAppStateReturn {
 
     // Derived state
     showPrintButton: boolean;
+
+    // Bookmarks bar toggle
+    showBookmarksBar: boolean;
+    setShowBookmarksBar: (v: boolean) => void;
 }
 
 /**
@@ -59,6 +63,9 @@ export function useAppState(): UseAppStateReturn {
 
     // Feature flags
     const [isTestAgentRunning, setIsTestAgentRunning] = useState(false);
+
+    // Bookmarks bar toggle
+    const [showBookmarksBar, setShowBookmarksBar] = useState(true);
 
     // Shift state
     const [selectedShift, setSelectedShift] = useState<'day' | 'night'>('day');
@@ -93,7 +100,11 @@ export function useAppState(): UseAppStateReturn {
         setSelectedShift,
 
         // Derived
-        showPrintButton
+        showPrintButton,
+
+        // Bookmarks
+        showBookmarksBar,
+        setShowBookmarksBar
     };
 }
 

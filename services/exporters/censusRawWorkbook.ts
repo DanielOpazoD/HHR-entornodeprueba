@@ -1,7 +1,7 @@
 import type { Workbook } from 'exceljs';
 import { DailyRecord, PatientData } from '../../types';
 import { BEDS } from '../../constants';
-import { formatDateDDMMYYYY } from '../utils/dateFormatter';
+import { formatDateDDMMYYYY } from '@/utils/dateUtils';
 import { createWorkbook } from './excelUtils';
 
 

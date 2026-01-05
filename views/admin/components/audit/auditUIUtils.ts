@@ -15,7 +15,8 @@ export const formatTimestamp = (iso: string): string => {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit'
+        second: '2-digit',
+        hour12: false
     });
 };
 
@@ -43,7 +44,8 @@ export const actionIcons: Record<AuditAction, React.ReactNode> = {
     'EXTRA_BED_TOGGLED': React.createElement(Zap, { size: 14 }),
     'MEDICAL_HANDOFF_SIGNED': React.createElement(User, { size: 14 }),
     'DATA_IMPORTED': React.createElement(Upload, { size: 14 }),
-    'DATA_EXPORTED': React.createElement(Download, { size: 14 })
+    'DATA_EXPORTED': React.createElement(Download, { size: 14 }),
+    'SYSTEM_ERROR': React.createElement(AlertCircle, { size: 14 })
 };
 
 // Action color mapping - Enhanced with semantic shades
@@ -70,7 +72,8 @@ export const actionColors: Record<AuditAction, string> = {
     'EXTRA_BED_TOGGLED': 'bg-cyan-50 text-cyan-700 border-cyan-100',
     'MEDICAL_HANDOFF_SIGNED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
     'DATA_IMPORTED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
-    'DATA_EXPORTED': 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    'DATA_EXPORTED': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    'SYSTEM_ERROR': 'bg-red-50 text-red-700 border-red-100'
 };
 
 export const renderHumanDetails = (log: AuditLogEntry) => {
@@ -116,6 +119,8 @@ export const renderHumanDetails = (log: AuditLogEntry) => {
             return `Se importó un respaldo JSON(${details.recordCount || 0} registros).`;
         case 'DATA_EXPORTED':
             return `Se exportó la base de datos a JSON(${details.recordCount || 0} registros).`;
+        case 'SYSTEM_ERROR':
+            return `Error del sistema: ${details.message || 'Error no especificado'}.`;
         default:
             return typeof details === 'string' ? details : JSON.stringify(details).slice(0, 100) + '...';
     }

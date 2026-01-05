@@ -37,7 +37,7 @@ export {
 } from './AuthContext';
 export type { UserRole, AuthContextType } from './AuthContext';
 
-// Note: RoleContext deprecated - use AuthContext instead
+
 
 // Audit Logging
 export {

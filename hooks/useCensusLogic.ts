@@ -4,6 +4,13 @@ import { useStaffContext } from '../context/StaffContext';
 import { getPreviousDay, getAvailableDates } from '../services/repositories/DailyRecordRepository';
 import { calculateStats } from '../services/calculations/statsCalculator';
 
+/**
+ * Custom hook to manage the logic for the Census View.
+ * Connects the view with DailyRecordContext and StaffContext, 
+ * and handles asynchronous checks for previous day availability.
+ * 
+ * @param currentDateString - The currently selected date in YYYY-MM-DD format.
+ */
 export const useCensusLogic = (currentDateString: string) => {
     const {
         record,

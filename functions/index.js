@@ -7,10 +7,12 @@ admin.initializeApp();
 // 2. Inicializamos la app BETA (donde queremos copiar los datos)
 // IMPORTANTE: Tienes que mover tu archivo .json a esta carpeta y renombrarlo a 'llave-beta.json'
 let secondaryApp;
+let serviceAccountCredentials = null;
+
 try {
-    const serviceAccountBeta = require('./llave-beta.json');
+    serviceAccountCredentials = require('./llave-beta.json');
     secondaryApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccountBeta)
+        credential: admin.credential.cert(serviceAccountCredentials)
     }, 'secondary');
 } catch (e) {
     console.error("No se encontró el archivo llave-beta.json. Asegúrate de moverlo a la carpeta 'functions'.");
@@ -22,12 +24,15 @@ const dbBeta = secondaryApp ? secondaryApp.firestore() : null;
  * Función que detecta cambios en Daily Records y los copia al Beta
  * REGLA: Solo sincroniza días con menos de 48 horas de antigüedad
  * Días más antiguos quedan "congelados" en Beta como respaldo inmutable
+ * 
+ * PROTECCIÓN ANTI-LOOP:
+ * - Añade un campo _syncedAt para evitar re-sincronizaciones redundantes
+ * - Compara lastUpdated para detectar si realmente hubo cambios
  */
 exports.mirrorDailyRecords = functions.firestore
     .document('hospitals/hanga_roa/dailyRecords/{docId}')
     .onWrite(async (change, context) => {
         const docId = context.params.docId; // Format: "2025-12-26"
-        console.log(`>>> Evento mirrorDailyRecords para: ${docId}`);
 
         if (!dbBeta) {
             console.error("ERROR: dbBeta no está inicializada. Revisa llave-beta.json");
@@ -35,9 +40,8 @@ exports.mirrorDailyRecords = functions.firestore
         }
 
         // === REGLA DE 48 HORAS ===
-        // Verificar si el documento es demasiado antiguo para sincronizar
         try {
-            const docDate = new Date(docId + 'T00:00:00'); // Parse YYYY-MM-DD
+            const docDate = new Date(docId + 'T00:00:00');
             const now = new Date();
             const hoursElapsed = (now - docDate) / (1000 * 60 * 60);
 
@@ -45,9 +49,8 @@ exports.mirrorDailyRecords = functions.firestore
                 console.log(`🔒 FROZEN: ${docId} tiene ${Math.round(hoursElapsed)}h de antigüedad (>48h). No se sincroniza.`);
                 return null;
             }
-            console.log(`✅ ${docId} tiene ${Math.round(hoursElapsed)}h de antigüedad (<48h). Sincronizando...`);
         } catch (dateError) {
-            console.warn(`⚠️ No se pudo parsear fecha de ${docId}, sincronizando de todas formas:`, dateError.message);
+            console.warn(`⚠️ No se pudo parsear fecha de ${docId}:`, dateError.message);
         }
 
         const path = `hospitals/hanga_roa/dailyRecords/${docId}`;
@@ -55,16 +58,43 @@ exports.mirrorDailyRecords = functions.firestore
         try {
             // Si se borra en el oficial, NO se borra en el beta (preservar respaldo)
             if (!change.after.exists) {
-                console.log(`⚠️ Documento borrado en Oficial: ${path}. NO se borra en Beta (preservar respaldo)`);
+                console.log(`⚠️ Documento borrado en Oficial: ${path}. NO se borra en Beta.`);
                 return null;
             }
 
-            // Si se crea o edita, se copia/sobrescribe en el beta
-            const data = change.after.data();
-            console.log(`Copiando datos a Beta en: ${path} (LastUpdated: ${data.lastUpdated})`);
+            const sourceData = change.after.data();
+            const sourceLastUpdated = sourceData.lastUpdated?.toMillis ? sourceData.lastUpdated.toMillis() : 0;
 
-            // Usamos merge: true para no borrar subcolecciones si existieran
-            return await dbBeta.doc(path).set(data, { merge: true });
+            // === PROTECCIÓN ANTI-LOOP ===
+            // Verificar en Beta si ya sincronizamos recientemente
+            const betaDoc = await dbBeta.doc(path).get();
+            if (betaDoc.exists) {
+                const betaData = betaDoc.data();
+                const betaSyncedAt = betaData._syncedAt?.toMillis ? betaData._syncedAt.toMillis() : 0;
+                const betaLastUpdated = betaData.lastUpdated?.toMillis ? betaData.lastUpdated.toMillis() : 0;
+
+                // Si ya sincronizamos en los últimos 5 segundos, ignorar
+                const now = Date.now();
+                if (now - betaSyncedAt < 5000) {
+                    console.log(`⏸️ DEBOUNCE: ${docId} sincronizado hace ${Math.round((now - betaSyncedAt) / 1000)}s. Ignorando.`);
+                    return null;
+                }
+
+                // Si el lastUpdated no cambió, no hay nada que sincronizar
+                if (sourceLastUpdated === betaLastUpdated) {
+                    console.log(`🔄 SIN CAMBIOS: ${docId} ya tiene los mismos datos. Ignorando.`);
+                    return null;
+                }
+            }
+
+            // Añadir marca de tiempo de sincronización
+            const dataToSync = {
+                ...sourceData,
+                _syncedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            console.log(`✅ Sincronizando ${docId} a Beta...`);
+            return await dbBeta.doc(path).set(dataToSync, { merge: true });
         } catch (error) {
             console.error(`ERROR sincronizando ${docId}:`, error);
             return null;
@@ -78,7 +108,6 @@ exports.mirrorAuditLogs = functions.firestore
     .document('hospitals/hanga_roa/auditLogs/{docId}')
     .onWrite(async (change, context) => {
         const docId = context.params.docId;
-        console.log(`>>> Evento mirrorAuditLogs para: ${docId}`);
 
         if (!dbBeta) return null;
 
@@ -104,7 +133,6 @@ exports.mirrorSettings = functions.firestore
     .document('hospitals/hanga_roa/settings/{docId}')
     .onWrite(async (change, context) => {
         const docId = context.params.docId;
-        console.log(`>>> Evento mirrorSettings para: ${docId}`);
 
         if (!dbBeta) return null;
 
@@ -132,7 +160,6 @@ exports.mirrorTransferRequests = functions.firestore
     .document('hospitals/hanga_roa/transferRequests/{docId}')
     .onWrite(async (change, context) => {
         const docId = context.params.docId;
-        console.log(`>>> Evento mirrorTransferRequests para: ${docId}`);
 
         if (!dbBeta) return null;
 
@@ -152,3 +179,8 @@ exports.mirrorTransferRequests = functions.firestore
             return null;
         }
     });
+
+// =============================================================================
+// FUNCIÓN DE GOOGLE DRIVE DESHABILITADA TEMPORALMENTE
+// Será restaurada cuando se configuren las credenciales correctamente
+// =============================================================================

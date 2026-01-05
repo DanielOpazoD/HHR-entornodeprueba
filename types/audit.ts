@@ -26,7 +26,8 @@ export type AuditAction =
     | 'EXTRA_BED_TOGGLED'
     | 'MEDICAL_HANDOFF_SIGNED'
     | 'DATA_IMPORTED'
-    | 'DATA_EXPORTED';
+    | 'DATA_EXPORTED'
+    | 'SYSTEM_ERROR';
 
 // Specific detail interfaces for different actions
 export interface AuditDetailsPatient {
@@ -73,7 +74,7 @@ export interface AuditLogEntry {
 
     // Action details
     action: AuditAction;        // tipo de acción
-    entityType: 'patient' | 'discharge' | 'transfer' | 'dailyRecord' | 'user';
+    entityType: 'patient' | 'discharge' | 'transfer' | 'dailyRecord' | 'user' | 'system';
     entityId: string;           // bedId, recordId, etc.
 
     // Human-readable summary

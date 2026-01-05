@@ -23,6 +23,8 @@ import {
 } from '@/services/backup/censusStorageService';
 import { Breadcrumbs, FolderCard, FileCard } from './components/BackupDriveItems';
 import { HandoffCalendarView } from './components/HandoffCalendarView';
+import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
+import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
 
 type NavPath = {
     year?: string;
@@ -45,6 +47,12 @@ export const BackupFilesView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+    // Excel preview state for census files
+    const [previewFile, setPreviewFile] = useState<StoredCensusFile | null>(null);
+
+    // PDF preview state for handoff files
+    const [previewPdf, setPreviewPdf] = useState<StoredPdfFile | null>(null);
 
     // Load content based on current path
     const loadContent = useCallback(async () => {
@@ -76,7 +84,11 @@ export const BackupFilesView: React.FC = () => {
                     })));
                 } else {
                     const files = await listCensusFilesInMonth(path[0], currentNav.month?.number || '');
-                    setItems(files.map(file => ({
+                    // Sort census files chronologically: oldest first (top to bottom)
+                    const sortedFiles = files.sort((a, b) => {
+                        return a.date.localeCompare(b.date); // YYYY-MM-DD format sorts chronologically
+                    });
+                    setItems(sortedFiles.map(file => ({
                         type: 'file',
                         data: file
                     })));
@@ -90,10 +102,21 @@ export const BackupFilesView: React.FC = () => {
         }
     }, [path, currentNav.month?.number, error, backupType]);
 
-    // Reset path when backup type changes
+    // Auto-navigate to current year/month when backup type changes
     useEffect(() => {
-        setPath([]);
-        setCurrentNav({});
+        const now = new Date();
+        const currentYear = now.getFullYear().toString();
+        const currentMonthNum = String(now.getMonth() + 1).padStart(2, '0');
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const currentMonthName = monthNames[now.getMonth()];
+
+        // Navigate directly to current year/month
+        setPath([currentYear, currentMonthName]);
+        setCurrentNav({
+            year: currentYear,
+            month: { number: currentMonthNum, name: currentMonthName }
+        });
     }, [backupType]);
 
     useEffect(() => {
@@ -121,8 +144,15 @@ export const BackupFilesView: React.FC = () => {
         }
     };
 
-    const handleDownload = (file: StoredPdfFile) => {
-        window.open(file.downloadUrl, '_blank');
+    const handleDownload = (file: any) => {
+        const link = document.createElement('a');
+        link.href = file.downloadUrl;
+        link.download = file.name || 'documento';
+        window.open(file.downloadUrl, '_blank'); // Keep original behavior for download button
+    };
+
+    const handlePreviewPdf = (file: StoredPdfFile) => {
+        setPreviewPdf(file);
     };
 
     const handleDelete = async (file: any) => {
@@ -157,6 +187,11 @@ export const BackupFilesView: React.FC = () => {
         const sizes = ['B', 'KB', 'MB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
+    };
+
+    // Handler for previewing census Excel files
+    const handlePreviewExcel = (file: StoredCensusFile) => {
+        setPreviewFile(file);
     };
 
 
@@ -264,6 +299,7 @@ export const BackupFilesView: React.FC = () => {
                             <HandoffCalendarView
                                 files={filteredItems.filter(i => i.type === 'file').map(i => i.data)}
                                 onDownload={handleDownload}
+                                onView={handlePreviewPdf}
                                 onDelete={handleDelete}
                                 canDelete={isAdmin}
                                 formatSize={formatSize}
@@ -288,6 +324,9 @@ export const BackupFilesView: React.FC = () => {
                                             shift={item.data.shiftType}
                                             size={formatSize(item.data.size)}
                                             onDownload={() => handleDownload(item.data)}
+                                            onView={backupType === 'census'
+                                                ? () => handlePreviewExcel(item.data)
+                                                : () => handlePreviewPdf(item.data)}
                                             onDelete={() => handleDelete(item.data)}
                                             canDelete={isAdmin}
                                         />
@@ -312,6 +351,28 @@ export const BackupFilesView: React.FC = () => {
                         </p>
                     </div>
                 </div>
+            )}
+
+            {/* Excel Preview Modal for Census Files */}
+            {previewFile && (
+                <ExcelViewerModal
+                    fileName={previewFile.date}
+                    downloadUrl={previewFile.downloadUrl}
+                    canDownload={true}
+                    onClose={() => setPreviewFile(null)}
+                    onDownload={() => window.open(previewFile.downloadUrl, '_blank')}
+                    subtitle="Censo Diario Hospital Hanga Roa"
+                />
+            )}
+
+            {/* PDF Preview Modal for Handoff Files */}
+            {previewPdf && (
+                <PdfViewerModal
+                    fileName={`Entrega ${previewPdf.date} - ${previewPdf.shiftType === 'day' ? 'Largo' : 'Noche'}`}
+                    url={previewPdf.downloadUrl}
+                    onClose={() => setPreviewPdf(null)}
+                    onDownload={() => handleDownload(previewPdf)}
+                />
             )}
         </div>
     );

@@ -9,7 +9,7 @@
  * - factories/patientFactory  
  * - calculations/statsCalculator
  * - repositories/DailyRecordRepository
- * - utils/dateFormatter
+ * - utils/dateUtils
  * - utils/demoDataGenerator
  */
 
@@ -51,7 +51,7 @@ export {
   formatDateDDMMYYYY,
   getTodayISO,
   formatDateForDisplay
-} from './utils/dateFormatter';
+} from '@/utils/dateUtils';
 
 // ============================================================================
 // Demo Data

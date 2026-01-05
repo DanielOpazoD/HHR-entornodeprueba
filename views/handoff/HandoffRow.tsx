@@ -40,6 +40,7 @@ interface HandoffRowProps {
     noteField: keyof PatientData; // Dynamic field
     onNoteChange: (val: string) => void;
     readOnly?: boolean;
+    isMedical?: boolean;
 }
 
 export const HandoffRow: React.FC<HandoffRowProps> = ({
@@ -50,14 +51,15 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
     isSubRow = false,
     noteField,
     onNoteChange,
-    readOnly = false
+    readOnly = false,
+    isMedical = false
 }) => {
     // If bed is blocked (and not a sub-row), show blocked status
     if (!isSubRow && patient.isBlocked) {
         return (
             <tr className="bg-slate-50 border-b border-slate-200 text-sm print:last:border-b-0 print:text-[10px]">
                 <td className="p-2 font-semibold text-slate-700 text-center align-middle border-r border-slate-200 print:p-1">{bedName}</td>
-                <td colSpan={7} className="p-2 text-slate-600 align-middle print:p-1 print:whitespace-nowrap">
+                <td colSpan={isMedical ? 6 : 7} className="p-2 text-slate-600 align-middle print:p-1 print:whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 print:gap-1">
                         <AlertCircle size={14} className="text-slate-500 print:hidden" />
                         <span className="font-medium">BLOQUEADA:</span> {patient.blockedReason || 'Sin motivo'}
@@ -102,8 +104,11 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                         {isSubRow && <span className="hidden print:inline text-[8px] text-pink-600 font-bold">(RN)</span>}
                         <span>{patient.patientName}</span>
                     </div>
-                    {/* Print: RUT below name */}
-                    <div className="hidden print:block font-mono text-[8px] text-slate-500 leading-none mt-0.5">
+                    {/* Print/Medical: RUT below name */}
+                    <div className={clsx(
+                        "font-mono text-[8px] text-slate-500 leading-none mt-0.5",
+                        isMedical ? "block" : "hidden print:block"
+                    )}>
                         {patient.rut}
                     </div>
                     {/* Age (Always shown if present, adjusted for print) */}
@@ -114,10 +119,12 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
             </td>
 
             {/* RUT */}
-            {/* RUT - Hidden in Print */}
-            <td className="p-2 border-r border-slate-200 w-36 text-xs text-slate-600 align-middle whitespace-nowrap print:hidden">
-                {patient.rut}
-            </td>
+            {/* RUT - Hidden in Print OR Medical */}
+            {!isMedical && (
+                <td className="p-2 border-r border-slate-200 w-36 text-xs text-slate-600 align-middle whitespace-nowrap print:hidden">
+                    {patient.rut}
+                </td>
+            )}
 
             {/* Diagnóstico */}
             <td className="p-2 border-r border-slate-200 w-64 text-slate-700 align-middle print:w-20 print:text-[10px] print:leading-tight print:p-1">

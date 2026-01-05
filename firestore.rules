@@ -22,7 +22,9 @@ service cloud.firestore {
         getUserEmail() in [
           'daniel.opazo@hospitalhangaroa.cl',
           'd.opazo.damiani@gmail.com',
-          'd.opazo.damiani@hospitalhangaroa.cl'
+          'd.opazo.damiani@hospitalhangaroa.cl',
+          'danielopazodamiani@gmail.com',
+          'hospitalizados@hospitalhangaroa.cl'
         ];
     }
     
@@ -106,6 +108,12 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
       
+      // ----------------------------------------
+      match /bookmarks/{bookmarkId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+
       // ----------------------------------------
       // BACKUP FILES (Cloud backup archives)
       // ----------------------------------------

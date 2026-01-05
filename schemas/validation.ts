@@ -177,13 +177,10 @@ export const DailyRecordSchema = z.object({
   // ===== Handoff Checklist - Day Shift =====
   handoffDayChecklist: z.record(z.any()).optional(),
   handoffNovedadesDayShift: z.string().optional(),
-  handoffDayDelivers: z.array(z.string()).optional(),
-  handoffDayReceives: z.array(z.string()).optional(),
 
   // ===== Handoff Checklist - Night Shift =====
   handoffNightChecklist: z.record(z.any()).optional(),
   handoffNovedadesNightShift: z.string().optional(),
-  handoffNightDelivers: z.array(z.string()).optional(),
   handoffNightReceives: z.array(z.string()).optional(),
 
   // ===== Medical Handoff =====

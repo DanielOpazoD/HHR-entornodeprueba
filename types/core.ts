@@ -26,6 +26,8 @@ export enum PatientStatus {
     EMPTY = ''
 }
 
+export type ShiftType = 'day' | 'night';
+
 // Fixed list of 18 beds + Extras
 export interface BedDefinition {
     id: string;
@@ -223,10 +225,9 @@ export interface DailyRecord {
     handoffNovedadesNightShift?: string;
 
     // ===== Nurse Handoff Identification =====
-    handoffDayDelivers?: string[]; // Nurses who deliver day shift
-    handoffDayReceives?: string[]; // Nurses who receive day shift
-    handoffNightDelivers?: string[]; // Nurses who deliver night shift
-    handoffNightReceives?: string[]; // Nurses who receive night shift
+    // Deprecated: handoffDayDelivers, handoffDayReceives, handoffNightDelivers removed. 
+    // Uses nursesDayShift/nursesNightShift directly (Single Source of Truth).
+    handoffNightReceives?: string[]; // Nurses who receive night shift (Next day's night or unique)
 
     // ===== Medical Handoff Novedades =====
     medicalHandoffNovedades?: string; // Free text novedades for medical handoff

@@ -23,7 +23,8 @@ export {
     type CMAData,
     type DailyRecord,
     type Statistics,
-    type DischargeType
+    type DischargeType,
+    type ShiftType
 } from './core';
 
 // Value types and utilities

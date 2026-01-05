@@ -170,21 +170,7 @@ describe('useHandoffLogic - Staff List Synchronization', () => {
     });
 
     describe('Data Flow Integrity', () => {
-        it('should NOT use handoffDayDelivers (deprecated field)', () => {
-            const mockRecord = createMockRecord({
-                nursesDayShift: ['Census Nurse 1', 'Census Nurse 2'],
-                handoffDayDelivers: ['Old Handoff Nurse 1', 'Old Handoff Nurse 2']
-            });
 
-            const { result } = renderHook(() => useHandoffLogic({
-                record: mockRecord,
-                ...defaultParams
-            }));
-
-            // Should use census data, NOT handoff-specific data
-            expect(result.current.deliversList).toEqual(['Census Nurse 1', 'Census Nurse 2']);
-            expect(result.current.deliversList).not.toEqual(['Old Handoff Nurse 1', 'Old Handoff Nurse 2']);
-        });
 
         it('should reflect census changes immediately', () => {
             // First render with initial nurses

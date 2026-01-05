@@ -145,7 +145,7 @@ export {
     formatDateDDMMYYYY as formatDate,
     getTodayISO,
     formatDateForDisplay
-} from './utils/dateFormatter';
+} from '@/utils/dateUtils';
 
 export {
     generateDemoRecord,

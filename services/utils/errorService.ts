@@ -326,15 +326,28 @@ class ErrorService {
     }
 
 
-    private sendToExternalService(error: ErrorLog): void {
-        // TODO: Integrate with Sentry, LogRocket, or similar service
-        // Example with Sentry:
-        // if (window.Sentry) {
-        //   window.Sentry.captureException(error.message, {
-        //     level: error.severity,
-        //     extra: error.context,
-        //   });
-        // }
+    private async sendToExternalService(error: ErrorLog): Promise<void> {
+        // Only log high or critical errors to remote audit
+        if (error.severity === 'high' || error.severity === 'critical') {
+            try {
+                // Dynamic import to avoid circular dependencies or init issues
+                const { logSystemError } = await import('../admin/auditService');
+
+                await logSystemError(
+                    error.message,
+                    error.severity,
+                    {
+                        stack: error.stack,
+                        context: error.context,
+                        url: error.url,
+                        userAgent: error.userAgent,
+                        originalErrorId: error.id
+                    }
+                );
+            } catch (err) {
+                console.error('[ErrorService] Failed to send to audit log:', err);
+            }
+        }
     }
 }
 

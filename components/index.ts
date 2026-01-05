@@ -21,6 +21,7 @@ export { Navbar } from './layout/Navbar';
 export type { ModuleType } from './layout/Navbar';
 export { DateStrip } from './layout/DateStrip';
 export { SummaryCard } from './layout/SummaryCard';
+export { BookmarkBar } from './bookmarks/BookmarkBar';
 
 // ============================================================
 // AUTH COMPONENTS (auth/)

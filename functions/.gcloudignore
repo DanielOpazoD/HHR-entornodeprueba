@@ -1,0 +1,15 @@
+# This file specifies files that are *not* uploaded to Cloud Functions
+# on deploy
+
+# Ignore the node_modules directory - dependencies are installed fresh
+node_modules/
+
+# Ignore TypeScript source files
+*.ts
+
+# Ignore tests
+test/
+tests/
+
+# Do NOT ignore llave-beta.json - it's needed for authentication
+# !llave-beta.json

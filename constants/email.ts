@@ -28,7 +28,7 @@
  * - Nurse signature comes from `nursesSignature` parameter (typically from Census)
  * - Plain text format ensures compatibility with all email clients
  */
-import { formatDateDDMMYYYY } from '../services/utils/dateFormatter';
+import { formatDateDDMMYYYY } from '@/utils/dateUtils';
 
 export const CENSUS_DEFAULT_RECIPIENTS = [
     'arenka.palma@hospitalhangaroa.cl',

@@ -338,7 +338,8 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
     'VIEW_NURSING_HANDOFF': 'Visualización Entrega Enfermería',
     'VIEW_MEDICAL_HANDOFF': 'Visualización Entrega Médica',
     'DATA_IMPORTED': 'Importación de Datos JSON',
-    'DATA_EXPORTED': 'Exportación de Datos JSON'
+    'DATA_EXPORTED': 'Exportación de Datos JSON',
+    'SYSTEM_ERROR': 'Error del Sistema'
 };
 
 // ============================================================================
@@ -517,4 +518,29 @@ export const logUserLogout = (email: string, reason: 'manual' | 'automatic' = 'm
         durationSeconds: durationSec,
         durationFormatted: durationSec > 0 ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s` : 'Unknown'
     });
+};
+
+/**
+ * Log system error (Centralized Error Handling)
+ */
+export const logSystemError = (
+    message: string,
+    severity: 'medium' | 'high' | 'critical',
+    details: Record<string, unknown>
+): Promise<void> => {
+    const email = getCurrentUserEmail() || 'system';
+    const errorId = `err_${Date.now()}`;
+
+    // If it's a connection error, fallback to local storage only is handled by logAuditEvent internals
+    return logAuditEvent(
+        email,
+        'SYSTEM_ERROR',
+        'system',
+        errorId,
+        {
+            message,
+            severity,
+            ...details
+        }
+    );
 };

@@ -71,7 +71,7 @@ export function useExcelParser(): UseExcelParserReturn {
         setActiveSheet('');
 
         try {
-            const workbook = createWorkbook();
+            const workbook = await createWorkbook();
             await workbook.xlsx.load(await blob.arrayBuffer());
 
             const allSheetsData: Record<string, ParsedCell[][]> = {};

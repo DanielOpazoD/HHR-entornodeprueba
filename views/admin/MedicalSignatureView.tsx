@@ -23,10 +23,15 @@ export const MedicalSignatureView: React.FC = () => {
     const isSigned = !!existingSignature || isSignedLocal;
     const signatureData = existingSignature || { doctorName, signedAt: new Date().toISOString() };
 
-    const handleSign = () => {
+    const handleSign = async () => {
         if (!doctorName.trim()) return;
-        updateMedicalSignature(doctorName);
-        setIsSignedLocal(true);
+        try {
+            await updateMedicalSignature(doctorName);
+            setIsSignedLocal(true);
+        } catch (error) {
+            console.error('Error signing handoff:', error);
+            alert('Error al firmar la entrega. Por favor intente nuevamente.');
+        }
     };
 
     return (

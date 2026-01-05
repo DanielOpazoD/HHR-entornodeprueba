@@ -57,6 +57,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                         noteField={noteField}
                                         onNoteChange={(val) => onNoteChange(bed.id, val, false)}
                                         readOnly={readOnly}
+                                        isMedical={isMedical}
                                     />
                                 );
                             }
@@ -78,6 +79,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                         noteField={noteField}
                                         onNoteChange={(val) => onNoteChange(bed.id, val, false)}
                                         readOnly={readOnly}
+                                        isMedical={isMedical}
                                     />
                                 );
                             }
@@ -92,6 +94,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                         noteField={noteField}
                                         onNoteChange={(val) => onNoteChange(bed.id, val, false)}
                                         readOnly={readOnly}
+                                        isMedical={isMedical}
                                     />
 
                                     {patient.clinicalCrib && patient.clinicalCrib.patientName && (
@@ -104,6 +107,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                             noteField={noteField}
                                             onNoteChange={(val) => onNoteChange(bed.id, val, true)}
                                             readOnly={readOnly}
+                                            isMedical={isMedical}
                                         />
                                     )}
                                 </React.Fragment>

@@ -222,6 +222,17 @@ const generateNewPatient = (bedId: string, admissionDate: string): PatientData =
 // Initial Day Generator
 // ============================================================================
 
+/**
+ * Generates a completely new daily record from scratch.
+ * 
+ * Simulation Parameters:
+ * - 85% Bed Occupancy (randomly assigned).
+ * - 5% Blocked Bed probability per bed.
+ * - Random assignments of patient demographics, diagnostics, and specialties based on bed type (UTI, Medicine, Pediatrics, etc.).
+ * 
+ * @param date - The date string (YYYY-MM-DD) for the record.
+ * @returns A fully populated DailyRecord object.
+ */
 export const generateDemoRecord = (date: string): DailyRecord => {
     resetUsedNames();
     const demoBeds: Record<string, PatientData> = {};

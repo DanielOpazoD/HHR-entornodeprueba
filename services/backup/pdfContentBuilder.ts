@@ -8,12 +8,26 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { DailyRecord, PatientData, PatientStatus } from '../../types';
+import { DailyRecord, PatientData, PatientStatus, ShiftType, DeviceDetails, CudyrScore } from '../../types';
 import { BEDS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
 
 // Logo path
 const LOGO_PATH = '/images/logos/logo_HHR.png';
+
+interface Schedule {
+    dayStart?: string;
+    dayEnd?: string;
+    nightStart?: string;
+    nightEnd?: string;
+}
+
+// Augment jsPDF for autotable
+declare module 'jspdf' {
+    interface jsPDF {
+        lastAutoTable: { finalY: number };
+    }
+}
 
 /**
  * Build handoff PDF content into a jsPDF document
@@ -21,8 +35,8 @@ const LOGO_PATH = '/images/logos/logo_HHR.png';
 export const buildHandoffPdfContent = async (
     doc: jsPDF,
     record: DailyRecord,
-    shiftType: 'day' | 'night',
-    schedule: any
+    shiftType: ShiftType,
+    schedule: Schedule
 ): Promise<void> => {
     const pageWidth = doc.internal.pageSize.width;
     const margin = 14;
@@ -90,7 +104,19 @@ export const buildHandoffPdfContent = async (
     // 2. CHECKLIST
     const checklist = shiftType === 'day' ? record.handoffDayChecklist : record.handoffNightChecklist;
     if (checklist) {
-        const cl = checklist as any;
+        type Checklist = {
+            escalaBraden?: boolean;
+            escalaRiesgoCaidas?: boolean;
+            escalaRiesgoLPP?: boolean;
+            estadistica?: boolean;
+            categorizacionCudyr?: boolean;
+            encuestaUTI?: boolean;
+            encuestaMedias?: boolean;
+            conteoMedicamento?: boolean;
+            conteoNoControlados?: boolean;
+            conteoNoControladosProximaFecha?: string;
+        }
+        const cl = checklist as Checklist;
         const checklistItems: string[] = [];
 
         if (shiftType === 'day') {
@@ -125,12 +151,13 @@ export const buildHandoffPdfContent = async (
 
     // 3. PATIENT TABLE
     const tableHeaders = [['Cama', 'Paciente', 'Diagnóstico', 'Est', 'DMI', 'Observaciones']];
-    const tableBody: any[] = [];
+    type TableRow = (string | { content: string; colSpan?: number; styles?: any; } | { content: string; styles: any })[];
+    const tableBody: TableRow[] = [];
 
     const formatDevices = (p: PatientData): string => {
         if (!p.devices || !Array.isArray(p.devices) || p.devices.length === 0) return '';
         return (p.devices as string[]).map((d: string) => {
-            const detail = p.deviceDetails?.[d as keyof typeof p.deviceDetails];
+            const detail = p.deviceDetails?.[d as keyof DeviceDetails];
             let daysStr = '';
             if (detail?.installationDate) {
                 const installDate = new Date(detail.installationDate);
@@ -153,7 +180,9 @@ export const buildHandoffPdfContent = async (
 
         const admission = patient.admissionDate ? formatDateDDMMYYYY(patient.admissionDate) : '';
         const observationKey = shiftType === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
-        const observation = (patient as any)[observationKey] || '';
+        // Safe access to observation
+        // @ts-ignore - Dynamic key usage
+        const observation = patient[observationKey] || '';
         const devicesStr = formatDevices(patient);
 
         tableBody.push([
@@ -162,13 +191,14 @@ export const buildHandoffPdfContent = async (
             patient.pathology || '',
             patient.status || '',
             devicesStr,
-            observation
+            observation as string
         ]);
 
         // Clinical Crib
         if (patient.clinicalCrib && patient.clinicalCrib.patientName) {
             const crib = patient.clinicalCrib;
-            const cribObservation = (crib as any)[observationKey] || '';
+            // @ts-ignore - Dynamic key usage
+            const cribObservation = crib[observationKey] || '';
             const cribDevices = formatDevices(crib);
             const cribAdmission = crib.admissionDate ? formatDateDDMMYYYY(crib.admissionDate) : '';
 
@@ -178,7 +208,7 @@ export const buildHandoffPdfContent = async (
                 crib.pathology || '',
                 crib.status || '',
                 cribDevices,
-                cribObservation
+                cribObservation as string
             ]);
         }
     });
@@ -225,9 +255,10 @@ export const buildHandoffPdfContent = async (
     });
 
     // 4. NOVEDADES
-    const finalY = (doc as any).lastAutoTable?.finalY || currentY + 20;
+    const finalY = doc.lastAutoTable?.finalY || currentY + 20;
     const novedadesKey = shiftType === 'day' ? 'handoffNovedadesDayShift' : 'handoffNovedadesNightShift';
-    const novedades = (record as any)[novedadesKey];
+    // @ts-ignore
+    const novedades = record[novedadesKey];
 
     if (novedades && finalY < 260) {
         doc.setFontSize(9);
@@ -240,7 +271,7 @@ export const buildHandoffPdfContent = async (
     }
 
     // Page numbering
-    const totalPages = (doc as any).internal.getNumberOfPages();
+    const totalPages = (doc.internal as any).getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         doc.setFontSize(7);
@@ -274,6 +305,7 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
         img.onerror = (error) => reject(error);
     });
 };
+
 
 /**
  * Replicated calculator to match PDF LITE

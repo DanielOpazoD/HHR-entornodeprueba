@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import type { UserOptions } from 'jspdf-autotable';
-import { DailyRecord, PatientData, PatientStatus, HandoffData, ShiftType } from '../../types';
+import { DailyRecord, PatientData, PatientStatus, ShiftType, DeviceDetails, CudyrScore } from '../../types';
 import { BEDS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
 
@@ -11,7 +11,11 @@ declare module 'jspdf' {
     }
 }
 
-// Helper to convert image to DataURI
+/**
+ * Helper to convert image to DataURI for embedding in PDF.
+ * @param url - The URL of the image to converting.
+ * @returns Promise resolving to the base64 encoded image string.
+ */
 const getBase64ImageFromURL = (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -31,13 +35,26 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
 };
 
 /**
- * Generate a lightweight PDF for the Handoff report
+ * Generate a lightweight PDF for the Handoff report.
+ * Supports both Medical and Nursing formats.
+ * 
+ * @param record - The full DailyRecord object containing patient data.
+ * @param isMedical - If true, generates the Medical Handoff format. If false, Nursing Handoff.
+ * @param selectedShift - 'day' or 'night', determines which specific handoff notes to show.
+ * @param schedule - Shift schedule times for display in the header.
  */
+interface Schedule {
+    dayStart?: string;
+    dayEnd?: string;
+    nightStart?: string;
+    nightEnd?: string;
+}
+
 export const generateHandoffPdf = async (
     record: DailyRecord,
     isMedical: boolean,
     selectedShift: ShiftType,
-    schedule: any
+    schedule: Schedule
 ) => {
     // Dynamic imports
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
@@ -126,7 +143,20 @@ export const generateHandoffPdf = async (
     if (!isMedical) {
         const checklist = selectedShift === 'day' ? record.handoffDayChecklist : record.handoffNightChecklist;
         if (checklist) {
-            const cl = checklist as any;
+            // Define type for checklist to avoid 'any'
+            type Checklist = {
+                escalaBraden?: boolean;
+                escalaRiesgoCaidas?: boolean;
+                escalaRiesgoLPP?: boolean;
+                estadistica?: boolean;
+                categorizacionCudyr?: boolean;
+                encuestaUTI?: boolean;
+                encuestaMedias?: boolean;
+                conteoMedicamento?: boolean;
+                conteoNoControlados?: boolean;
+                conteoNoControladosProximaFecha?: string;
+            }
+            const cl = checklist as Checklist;
             const checklistItems: string[] = [];
 
             if (selectedShift === 'day') {
@@ -164,14 +194,17 @@ export const generateHandoffPdf = async (
     // 3. PATIENT TABLE
     const tableHeaders = [['Cama', 'Paciente', 'Diagnóstico', 'Est', 'DMI', 'Observaciones']];
 
-    const tableBody: any[] = [];
+    // Define exact type for table body rows (autotable accepts array of arrays or objects)
+    type TableRow = (string | { content: string; colSpan?: number; styles?: any; } | { content: string; styles: any })[] & { _daysStr?: string };
+
+    const tableBody: TableRow[] = [];
 
     // Helper to format devices
-    const formatDevices = (p: any): string => {
+    const formatDevices = (p: PatientData): string => {
         if (!p.devices || !Array.isArray(p.devices) || p.devices.length === 0) return '';
         // Map common device codes to cleaner text if needed, or join with days installed
         return p.devices.map((d: string) => {
-            const detail = p.deviceDetails?.[d];
+            const detail = p.deviceDetails?.[d as keyof DeviceDetails];
             let daysStr = '';
             if (detail?.installationDate) {
                 // Calculate days since installation
@@ -209,24 +242,43 @@ export const generateHandoffPdf = async (
 
         // Row Data
         // Use correct field names: handoffNoteDayShift / handoffNoteNightShift
-        const observationKey = isMedical ? 'medicalHandoffNote' : (selectedShift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift');
-        const observation = (patient as any)[observationKey] || '';
+        // medicalHandoffNote for doctors
+
+        let observation = '';
+        if (isMedical) {
+            observation = patient.medicalHandoffNote || '';
+        } else {
+            observation = selectedShift === 'day'
+                ? (patient.handoffNoteDayShift || '')
+                : (patient.handoffNoteNightShift || '');
+        }
 
         const devicesStr = formatDevices(patient);
 
-        tableBody.push(Object.assign([
+        const row: TableRow = [
             { content: bedName, styles: { halign: 'center', fontStyle: 'bold', valign: 'top' } },
-            { content: `${patient.patientName}\n${patient.rut || ''} ${patient.age ? `(${patient.age})` : ''}\nFI: ${admission}`, styles: { fontStyle: 'normal' } }, // Name bold requires custom draw, setting normal for now to distinguish from header
+            { content: `${patient.patientName}\n${patient.rut || ''} ${patient.age ? `(${patient.age})` : ''}\nFI: ${admission}`, styles: { fontStyle: 'normal' } },
             patient.pathology || '',
             patient.status || '',
             devicesStr,
             observation
-        ], { _daysStr: daysStr }));
+        ];
+        // augment row with metadata for draw hook
+        (row as any)._daysStr = daysStr;
+        tableBody.push(row);
 
         // Clinical Crib (Sub-row)
         if (patient.clinicalCrib && patient.clinicalCrib.patientName) {
             const crib = patient.clinicalCrib;
-            const cribObservation = (crib as any)[observationKey] || '';
+            let cribObservation = '';
+            if (isMedical) {
+                cribObservation = crib.medicalHandoffNote || '';
+            } else {
+                cribObservation = selectedShift === 'day'
+                    ? (crib.handoffNoteDayShift || '')
+                    : (crib.handoffNoteNightShift || '');
+            }
+
             const cribDevices = formatDevices(crib);
             const cribAdmission = crib.admissionDate ? formatDateDDMMYYYY(crib.admissionDate) : '';
 
@@ -290,16 +342,20 @@ export const generateHandoffPdf = async (
             // Draw days hospitalized below bed name in smaller gray font
             if (data.section === 'body' && data.column.index === 0) {
                 const cellContent = data.cell.raw as string;
-                // Look up days from our stored map
-                const bedId = cellContent; // bedName like 'R2', 'NEO 1', etc
+                // Look up days from our stored map based on row index
+                // Since autotable might reorder? No, usually stable.
+                // Better to use row.index but note we have 'tableBody' as source
                 const rowData = tableBody[data.row.index];
-                if (rowData && rowData._daysStr) {
+                // Check hidden property
+                const daysStr = (rowData as any)._daysStr;
+
+                if (daysStr) {
                     doc.setFontSize(7);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(120, 120, 120); // Gray color
                     const x = data.cell.x + data.cell.width / 2;
                     const y = data.cell.y + data.cell.height - 2;
-                    doc.text(rowData._daysStr, x, y, { align: 'center' });
+                    doc.text(daysStr, x, y, { align: 'center' });
                     // Reset text color
                     doc.setTextColor(0, 0, 0);
                 }
@@ -471,14 +527,14 @@ export const generateHandoffPdf = async (
             'Cat' // Result
         ];
 
-        const cudyrBody: any[] = [];
+        const cudyrBody: (string | number)[][] = [];
 
         BEDS.forEach(bedDef => {
             const bedId = bedDef.id;
             const patient = record.beds[bedId];
             if (!patient || !patient.patientName) return;
 
-            const c = patient.cudyr || {};
+            const c = (patient.cudyr || {}) as CudyrScore;
 
             // Calculate Scores based on CudyrScoreUtils logic
             const depScore = (c.changeClothes || 0) + (c.mobilization || 0) + (c.feeding || 0) +
@@ -504,8 +560,7 @@ export const generateHandoffPdf = async (
             const nameParts = patient.patientName.split(' ');
             const shortName = nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];
 
-            // Use type assertion for cudyr props
-            const cp = c as any;
+            const cp = c;
 
             cudyrBody.push([
                 bedDef.name,
@@ -552,15 +607,21 @@ export const generateHandoffPdf = async (
         });
     }
 
+
     // Output - Try to show "Save As" dialog if supported
     const fileName = isMedical
         ? `Entrega_Medica_${dateStr}.pdf`
         : `Entrega_${selectedShift === 'day' ? 'TL' : 'TN'}_${dateStr}.pdf`;
 
     // Use File System Access API if available (allows "Save As" dialog)
+    // Define type for window with showSaveFilePicker
+    type WindowWithFilePicker = Window & {
+        showSaveFilePicker?: (options?: any) => Promise<any>;
+    };
+
     if ('showSaveFilePicker' in window) {
         try {
-            const handle = await (window as any).showSaveFilePicker({
+            const handle = await (window as WindowWithFilePicker).showSaveFilePicker!({
                 suggestedName: fileName,
                 types: [{
                     description: 'PDF Document',

@@ -37,4 +37,5 @@ coverage/
 # Misc
 .DS_Store
 .env*
+# NOTA: llave-beta.json debe estar en functions/ para el despliegue de Cloud Functions
 functions/llave-beta.json

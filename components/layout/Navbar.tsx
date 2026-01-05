@@ -82,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav
-      className={clsx(getNavColor(), "text-white shadow-md sticky top-0 z-50 print:hidden transition-colors duration-300")}
+      className={clsx(getNavColor(), "text-white shadow-md sticky top-0 z-[60] print:hidden transition-colors duration-300")}
       style={{ transform: 'translateZ(0)' }}
     >
       <div className="max-w-screen-2xl mx-auto px-4 flex flex-wrap gap-4 justify-between items-center">

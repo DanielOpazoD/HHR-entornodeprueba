@@ -18,7 +18,10 @@ import {
     orderBy,
     where,
     limit,
-    Timestamp
+    Timestamp,
+    QueryDocumentSnapshot,
+    DocumentSnapshot,
+    DocumentData
 } from 'firebase/firestore';
 import { db, auth } from '../../firebaseConfig';
 import {
@@ -66,15 +69,18 @@ const getCurrentUserInfo = () => {
 /**
  * Convert Firestore document to BackupFilePreview
  */
-const docToPreview = (docSnap: any): BackupFilePreview => {
+const docToPreview = (docSnap: QueryDocumentSnapshot<DocumentData> | DocumentSnapshot<DocumentData>): BackupFilePreview => {
     const data = docSnap.data();
+    if (!data) {
+        throw new Error('Document data is undefined');
+    }
     return {
         id: docSnap.id,
         type: data.type,
         shiftType: data.shiftType,
         date: data.date,
         title: data.title,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt?.toString(),
         createdBy: data.createdBy,
         metadata: data.metadata
     };
@@ -83,8 +89,11 @@ const docToPreview = (docSnap: any): BackupFilePreview => {
 /**
  * Convert Firestore document to full BackupFile
  */
-const docToBackupFile = (docSnap: any): BackupFile => {
+const docToBackupFile = (docSnap: QueryDocumentSnapshot<DocumentData> | DocumentSnapshot<DocumentData>): BackupFile => {
     const data = docSnap.data();
+    if (!data) {
+        throw new Error('Document data is undefined');
+    }
     return {
         ...docToPreview(docSnap),
         content: data.content

@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Settings, FileSpreadsheet, Send, Printer, Lock, Mail, Link as LinkIcon, ChevronDown, Copy, CloudUpload, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, FileSpreadsheet, Send, Printer, Lock, Mail, Link as LinkIcon, ChevronDown, Copy, CloudUpload, Loader2, CheckCircle2, RefreshCw, Star } from 'lucide-react';
 import clsx from 'clsx';
 import { MONTH_NAMES } from '../../constants';
 
@@ -55,9 +55,17 @@ export interface SyncConfigProps {
 }
 
 /**
+ * Bookmark bar toggle props
+ */
+export interface BookmarkConfigProps {
+    onToggleBookmarks?: () => void;
+    showBookmarks?: boolean;
+}
+
+/**
  * Combined DateStrip props - composed from grouped interfaces
  */
-export interface DateStripProps extends DateNavigationProps, DateStripActionsProps, EmailConfigProps, SyncConfigProps { }
+export interface DateStripProps extends DateNavigationProps, DateStripActionsProps, EmailConfigProps, SyncConfigProps, BookmarkConfigProps { }
 
 // ============================================================================
 // Component Implementation
@@ -87,7 +95,10 @@ export const DateStrip: React.FC<DateStripProps> = ({
     emailErrorMessage,
     // Sync (no longer displayed here, shown in Navbar instead)
     syncStatus: _syncStatus,
-    lastSyncTime: _lastSyncTime
+    lastSyncTime: _lastSyncTime,
+    // Bookmarks
+    onToggleBookmarks,
+    showBookmarks
 }) => {
     const daysContainerRef = useRef<HTMLDivElement>(null);
     const [showSendMenu, setShowSendMenu] = React.useState(false);
@@ -140,6 +151,19 @@ export const DateStrip: React.FC<DateStripProps> = ({
         >
             <div className="max-w-screen-2xl mx-auto px-4 py-1.5">
                 <div className="flex items-center gap-3">
+                    {/* Bookmark Toggle */}
+                    {onToggleBookmarks && (
+                        <button
+                            onClick={onToggleBookmarks}
+                            className={clsx(
+                                "p-1.5 rounded-lg transition-all shrink-0",
+                                showBookmarks ? "text-medical-600 bg-medical-50" : "text-slate-400 hover:bg-slate-100"
+                            )}
+                            title={showBookmarks ? "Ocultar Marcadores" : "Mostrar Marcadores"}
+                        >
+                            <Star size={14} className={clsx(showBookmarks ? "text-amber-500 fill-amber-500" : "text-slate-400")} />
+                        </button>
+                    )}
 
                     {/* Print PDF Button */}
                     {onPrintPDF && (

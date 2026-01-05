@@ -16,7 +16,7 @@ export interface HandoffManagementActions {
     updateHandoffChecklist: (shift: 'day' | 'night', field: string, value: boolean | string) => void;
     updateHandoffNovedades: (shift: 'day' | 'night' | 'medical', value: string) => void;
     updateHandoffStaff: (shift: 'day' | 'night', type: 'delivers' | 'receives' | 'tens', staffList: string[]) => void;
-    updateMedicalSignature: (doctorName: string) => void;
+    updateMedicalSignature: (doctorName: string) => Promise<void>;
     updateMedicalHandoffDoctor: (doctorName: string) => Promise<void>;
     markMedicalHandoffAsSent: (doctorName?: string) => Promise<void>;
     sendMedicalHandoff: (templateContent: string, targetGroupId: string) => Promise<void>;
@@ -98,15 +98,15 @@ export const useHandoffManagement = (
 
         if (shift === 'day') {
             if (type === 'delivers') {
-                updatedRecord.handoffDayDelivers = staffList;
+                updatedRecord.nursesDayShift = staffList;
             } else if (type === 'receives') {
-                updatedRecord.handoffDayReceives = staffList;
+                updatedRecord.nursesNightShift = staffList;
             } else if (type === 'tens') {
                 updatedRecord.tensDayShift = staffList;
             }
         } else {
             if (type === 'delivers') {
-                updatedRecord.handoffNightDelivers = staffList;
+                updatedRecord.nursesNightShift = staffList;
             } else if (type === 'receives') {
                 updatedRecord.handoffNightReceives = staffList;
             } else if (type === 'tens') {
@@ -118,7 +118,7 @@ export const useHandoffManagement = (
         saveAndUpdate(updatedRecord);
     }, [record, saveAndUpdate]);
 
-    const updateMedicalSignature = useCallback((doctorName: string) => {
+    const updateMedicalSignature = useCallback(async (doctorName: string) => {
         if (!record) return;
 
         const updatedRecord = { ...record };
@@ -130,7 +130,7 @@ export const useHandoffManagement = (
         };
 
         updatedRecord.lastUpdated = new Date().toISOString();
-        saveAndUpdate(updatedRecord);
+        await saveAndUpdate(updatedRecord);
 
         // Audit Log
         logEvent(

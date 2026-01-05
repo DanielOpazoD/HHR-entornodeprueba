@@ -4,12 +4,13 @@
  */
 
 import React from 'react';
-import { Download, Trash2, Sun, Moon, Calendar } from 'lucide-react';
+import { Download, Trash2, Sun, Moon, Calendar, Eye } from 'lucide-react';
 import { StoredPdfFile } from '@/services/backup/pdfStorageService';
 
 interface HandoffCalendarViewProps {
     files: StoredPdfFile[];
     onDownload: (file: StoredPdfFile) => void;
+    onView: (file: StoredPdfFile) => void;
     onDelete: (file: StoredPdfFile) => void;
     canDelete: boolean;
     formatSize: (bytes: number) => string;
@@ -25,6 +26,7 @@ interface DayRow {
 export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
     files,
     onDownload,
+    onView,
     onDelete,
     canDelete,
     formatSize
@@ -84,21 +86,23 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
                             <td className="px-2 py-1">
                                 <span className="font-medium text-slate-700 text-xs">{row.displayDate}</span>
                             </td>
-                            <td className="px-1 py-0.5">
+                            <td className="px-1 py-0.5 text-center">
                                 <ShiftCell
                                     file={row.dayFile}
                                     shiftType="day"
                                     onDownload={onDownload}
+                                    onView={onView}
                                     onDelete={onDelete}
                                     canDelete={canDelete}
                                     formatSize={formatSize}
                                 />
                             </td>
-                            <td className="px-1 py-0.5">
+                            <td className="px-1 py-0.5 text-center">
                                 <ShiftCell
                                     file={row.nightFile}
                                     shiftType="night"
                                     onDownload={onDownload}
+                                    onView={onView}
                                     onDelete={onDelete}
                                     canDelete={canDelete}
                                     formatSize={formatSize}
@@ -116,6 +120,7 @@ interface ShiftCellProps {
     file?: StoredPdfFile;
     shiftType: 'day' | 'night';
     onDownload: (file: StoredPdfFile) => void;
+    onView: (file: StoredPdfFile) => void;
     onDelete: (file: StoredPdfFile) => void;
     canDelete: boolean;
     formatSize: (bytes: number) => string;
@@ -125,6 +130,7 @@ const ShiftCell: React.FC<ShiftCellProps> = ({
     file,
     shiftType,
     onDownload,
+    onView,
     onDelete,
     canDelete,
     formatSize
@@ -143,16 +149,15 @@ const ShiftCell: React.FC<ShiftCellProps> = ({
     const iconColor = shiftType === 'day' ? 'text-amber-500' : 'text-indigo-500';
 
     return (
-        <div className={`inline-flex items-center justify-between gap-1 px-1 py-0.5 rounded border ${bgColor} transition-colors`}>
-            <div className="flex items-center gap-0.5 min-w-0">
-                {shiftType === 'day' ? (
-                    <Sun size={10} className={iconColor} />
-                ) : (
-                    <Moon size={10} className={iconColor} />
-                )}
-                <span className="text-[10px] text-slate-500">{formatSize(file.size)}</span>
-            </div>
+        <div className={`inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded border ${bgColor} transition-colors`}>
             <div className="flex items-center shrink-0">
+                <button
+                    onClick={() => onView(file)}
+                    className="p-0.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                    title="Ver"
+                >
+                    <Eye size={12} />
+                </button>
                 <button
                     onClick={() => onDownload(file)}
                     className="p-0.5 text-teal-600 hover:bg-teal-100 rounded transition-colors"
