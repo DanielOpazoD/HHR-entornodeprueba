@@ -132,6 +132,7 @@ export interface DailyRecordContextType {
     updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => void;
     updateClinicalCrib: (bedId: string, field: keyof PatientData | 'create' | 'remove', value?: PatientFieldValue) => void;
     updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
+    updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
     updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
     clearPatient: (bedId: string) => void;
     clearAllBeds: () => void;

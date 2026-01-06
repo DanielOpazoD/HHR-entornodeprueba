@@ -132,10 +132,13 @@ export const AppContent: React.FC<AppContentProps> = ({
                         />
                     )}
 
-                {/* Favorites Bookmark Bar */}
-                {!isSignatureMode && !sharedCensus.isSharedCensusMode && ui.showBookmarksBar && (
-                    <BookmarkBar />
-                )}
+                {/* Favorites Bookmark Bar - Only visible in Census for admin/nurse_hospital */}
+                {!isSignatureMode && !sharedCensus.isSharedCensusMode &&
+                    ui.showBookmarksBar &&
+                    ui.currentModule === 'CENSUS' &&
+                    (auth.role === 'admin' || auth.role === 'nurse_hospital') && (
+                        <BookmarkBar />
+                    )}
 
                 {/* Main Content */}
                 <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">

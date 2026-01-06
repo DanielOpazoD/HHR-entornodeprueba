@@ -9,8 +9,14 @@ import { TransferFormModal } from './components/TransferFormModal';
 import { StatusChangeModal } from './components/StatusChangeModal';
 import { ConfirmTransferModal } from './components/ConfirmTransferModal';
 import { CancelTransferModal } from './components/CancelTransferModal';
+import { TransferQuestionnaireModal } from './components/TransferQuestionnaireModal';
+import { TransferDocumentPackageModal } from './components/TransferDocumentPackageModal';
 import { TransferRequest, TransferFormData } from '@/types/transfers';
+import { QuestionnaireResponse, TransferPatientData, GeneratedDocument } from '@/types/transferDocuments';
 import { useTransferManagement } from '@/hooks/useTransferManagement';
+import { getHospitalConfigs, getHospitalConfigById } from '@/constants/hospitalConfigs';
+import { generateTransferDocuments, downloadAllDocuments } from '@/services/transfers/documentGeneratorService';
+import { FileDown } from 'lucide-react';
 
 export const TransferManagementView: React.FC = () => {
     const {
@@ -31,7 +37,16 @@ export const TransferManagementView: React.FC = () => {
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
+    const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
     const [selectedTransfer, setSelectedTransfer] = useState<TransferRequest | null>(null);
+    const [selectedHospitalId, setSelectedHospitalId] = useState<string>('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedDocs, setGeneratedDocs] = useState<GeneratedDocument[]>([]);
+    const [patientDataForDocs, setPatientDataForDocs] = useState<TransferPatientData | null>(null);
+
+    // Available hospitals for document generation
+    const hospitals = getHospitalConfigs();
 
     // Form Modal handlers
     const handleNewRequest = () => {
@@ -109,6 +124,72 @@ export const TransferManagementView: React.FC = () => {
         }
     };
 
+    // Document generation handlers
+    const handleGenerateDocs = (transfer: TransferRequest) => {
+        setSelectedTransfer(transfer);
+        setSelectedHospitalId('hospital-salvador'); // Default for now
+        setIsQuestionnaireOpen(true);
+    };
+
+    const handleCloseQuestionnaire = () => {
+        setIsQuestionnaireOpen(false);
+        setSelectedTransfer(null);
+    };
+
+    const handleQuestionnaireComplete = async (responses: QuestionnaireResponse) => {
+        if (!selectedTransfer || !selectedHospitalId) return;
+
+        const hospital = getHospitalConfigById(selectedHospitalId);
+        if (!hospital) return;
+
+        setIsGenerating(true);
+
+        try {
+            // 1. Persist the responses in Firestore first
+            await updateTransfer(selectedTransfer.id, {
+                questionnaireResponses: responses
+            } as any);
+
+            // 2. Build patient data from transfer snapshot
+            const patientData: TransferPatientData = {
+                patientName: selectedTransfer.patientSnapshot.name,
+                rut: selectedTransfer.patientSnapshot.rut || '',
+                birthDate: selectedTransfer.patientSnapshot.admissionDate,
+                diagnosis: selectedTransfer.patientSnapshot.diagnosis,
+                admissionDate: selectedTransfer.patientSnapshot.admissionDate,
+                bedName: selectedTransfer.bedId.replace('BED_', ''),
+                bedType: 'Básica',
+                isUPC: false,
+                originHospital: 'Hospital Hanga Roa'
+            };
+
+            // 3. Generate documents
+            const documents = await generateTransferDocuments(patientData, responses, hospital);
+
+            // 4. Update state to show package modal instead of auto-downloading
+            setGeneratedDocs(documents);
+            setPatientDataForDocs(patientData);
+            setIsQuestionnaireOpen(false);
+            setIsPackageModalOpen(true);
+
+        } catch (error) {
+            console.error('Error generating documents:', error);
+            alert('Error al generar documentos. Por favor intente nuevamente.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleClosePackageModal = () => {
+        setIsPackageModalOpen(false);
+        setSelectedTransfer(null);
+        setGeneratedDocs([]);
+    };
+
+    const handleEditOnline = (_doc: GeneratedDocument) => {
+        // Handled internally by TransferDocumentPackageModal using googleDriveService
+    };
+
     return (
         <div className="p-4 max-w-7xl mx-auto">
             {/* Header */}
@@ -150,6 +231,7 @@ export const TransferManagementView: React.FC = () => {
                     onStatusChange={handleStatusChange}
                     onMarkTransferred={handleMarkTransferred}
                     onCancel={handleCancel}
+                    onGenerateDocs={handleGenerateDocs}
                 />
             )}
 
@@ -188,6 +270,49 @@ export const TransferManagementView: React.FC = () => {
                     onClose={handleCloseCancelModal}
                     onConfirm={handleConfirmCancel}
                 />
+            )}
+
+            {/* Document Questionnaire Modal */}
+            {isQuestionnaireOpen && selectedTransfer && getHospitalConfigById(selectedHospitalId) && (
+                <TransferQuestionnaireModal
+                    isOpen={isQuestionnaireOpen}
+                    hospital={getHospitalConfigById(selectedHospitalId)!}
+                    patientData={{
+                        patientName: selectedTransfer.patientSnapshot.name,
+                        rut: selectedTransfer.patientSnapshot.rut,
+                        admissionDate: selectedTransfer.patientSnapshot.admissionDate,
+                        diagnosis: selectedTransfer.patientSnapshot.diagnosis,
+                        bedName: selectedTransfer.bedId.replace('BED_', ''),
+                        bedType: 'Básica',
+                        isUPC: false,
+                        originHospital: 'Hospital Hanga Roa'
+                    }}
+                    onClose={handleCloseQuestionnaire}
+                    initialResponses={selectedTransfer.questionnaireResponses}
+                    onComplete={handleQuestionnaireComplete}
+                />
+            )}
+
+            {/* Document Package Modal */}
+            {isPackageModalOpen && selectedTransfer && patientDataForDocs && (
+                <TransferDocumentPackageModal
+                    isOpen={isPackageModalOpen}
+                    hospital={getHospitalConfigById(selectedHospitalId)!}
+                    patientData={patientDataForDocs}
+                    documents={generatedDocs}
+                    onClose={handleClosePackageModal}
+                />
+            )}
+
+            {/* Generating Overlay */}
+            {isGenerating && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                    <div className="bg-white px-8 py-6 rounded-2xl shadow-xl flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        <p className="font-semibold text-slate-700">Generando suite de 5 documentos...</p>
+                        <p className="text-sm text-slate-500 italic">Por favor espere</p>
+                    </div>
+                </div>
             )}
         </div>
     );

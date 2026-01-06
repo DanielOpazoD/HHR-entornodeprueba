@@ -165,33 +165,30 @@ export const isEligibleForPassport = (user: AuthUser | null): boolean => {
 
 /**
  * Generate an offline passport for an eligible user.
+ * Admin can generate passports with any eligible role.
+ * @param user - The authenticated user (must be admin)
+ * @param targetRole - The role to assign to the passport ('admin' or 'nurse_hospital')
  * Returns the passport object or null if user is not eligible.
  */
-export const generatePassport = async (user: AuthUser, password?: string): Promise<OfflinePassport | null> => {
-    if (!isEligibleForPassport(user)) {
-        console.warn('[Passport] User not eligible for offline passport:', user.email);
+export const generatePassport = async (user: AuthUser, targetRole?: string): Promise<OfflinePassport | null> => {
+    // Only admin can generate passports
+    if (user.role?.toLowerCase() !== 'admin') {
+        console.warn('[Passport] Only admin can generate passports:', user.email);
         return null;
     }
 
+    const roleToUse = targetRole || 'admin';
     const issuedAt = new Date().toISOString();
     const expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + PASSPORT_EXPIRATION_YEARS);
 
     const passport: Omit<OfflinePassport, 'signature'> = {
         email: user.email || '',
-        role: user.role || 'viewer',
+        role: roleToUse,
         displayName: user.displayName || user.email || 'Usuario',
         issuedAt,
         expiresAt: expiresAt.toISOString(),
     };
-
-    // Add password hash if provided
-    if (password) {
-        const salt = Math.random().toString(36).substring(2, 15);
-        const hash = await hashString(password + salt);
-        passport.hash = hash;
-        passport.salt = salt;
-    }
 
     // Generate signature
     const dataToSign = `${passport.email}|${passport.role}|${passport.displayName}|${passport.issuedAt}|${passport.expiresAt}`;
@@ -274,9 +271,11 @@ export const verifyPassportCredentials = async (passport: OfflinePassport, email
 
 /**
  * Download passport as a .hhr file.
+ * @param user - The authenticated admin user
+ * @param targetRole - Role to assign: 'admin' or 'nurse_hospital'
  */
-export const downloadPassport = async (user: AuthUser, password?: string): Promise<boolean> => {
-    const passport = await generatePassport(user, password);
+export const downloadPassport = async (user: AuthUser, targetRole?: string): Promise<boolean> => {
+    const passport = await generatePassport(user, targetRole);
     if (!passport) {
         return false;
     }

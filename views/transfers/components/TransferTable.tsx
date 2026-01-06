@@ -7,6 +7,7 @@ import React from 'react';
 import { TransferRequest } from '@/types/transfers';
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { calculateDaysElapsed } from '@/constants/transferConstants';
+import { FileDown } from 'lucide-react';
 
 interface TransferTableProps {
     transfers: TransferRequest[];
@@ -14,6 +15,7 @@ interface TransferTableProps {
     onStatusChange: (transfer: TransferRequest) => void;
     onMarkTransferred: (transfer: TransferRequest) => void;
     onCancel: (transfer: TransferRequest) => void;
+    onGenerateDocs: (transfer: TransferRequest) => void;
 }
 
 export const TransferTable: React.FC<TransferTableProps> = ({
@@ -21,7 +23,8 @@ export const TransferTable: React.FC<TransferTableProps> = ({
     onEdit,
     onStatusChange,
     onMarkTransferred,
-    onCancel
+    onCancel,
+    onGenerateDocs
 }) => {
     if (transfers.length === 0) {
         return (
@@ -108,6 +111,13 @@ export const TransferTable: React.FC<TransferTableProps> = ({
                                         title="Ver/Editar"
                                     >
                                         📄
+                                    </button>
+                                    <button
+                                        onClick={() => onGenerateDocs(transfer)}
+                                        className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                                        title="Generar Documentos"
+                                    >
+                                        <FileDown size={14} />
                                     </button>
                                     {isActive(transfer.status) && (
                                         <>

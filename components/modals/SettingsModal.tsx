@@ -16,7 +16,7 @@ interface SettingsModalProps {
   onGenerateDemo: () => void;
   onRunTest: () => void;
   canDownloadPassport?: boolean;
-  onDownloadPassport?: (password: string) => Promise<boolean>;
+  onDownloadPassport?: (role: string) => Promise<boolean>;
   isOfflineMode?: boolean;
 }
 
@@ -32,32 +32,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const { config, exportConfig, importConfig, resetToDefaults, isEditMode, setEditMode, updatePageMargin } = useTableConfig();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Passport security states
-  const [password, setPassword] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Passport generation states
+  const [selectedPassportRole, setSelectedPassportRole] = useState<'admin' | 'nurse_hospital'>('admin');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handlePassportDownload = async () => {
-    if (!password) {
-      setDownloadError('Debe ingresar su contraseña actual para proteger el pasaporte');
-      return;
-    }
-
     if (onDownloadPassport) {
-      setIsVerifying(true);
-      setDownloadError(null);
+      setIsGenerating(true);
       try {
-        const success = await onDownloadPassport(password);
+        const success = await onDownloadPassport(selectedPassportRole);
         if (success) {
           onClose();
-          setPassword('');
-        } else {
-          setDownloadError('Error al generar el pasaporte. Verifique sus permisos.');
         }
       } catch (err) {
-        setDownloadError('Error inesperado al descargar.');
+        console.error('Error generando pasaporte:', err);
       } finally {
-        setIsVerifying(false);
+        setIsGenerating(false);
       }
     }
   };
@@ -166,47 +156,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         />
       </ModalSection>
 
-      {/* Passport Download Section - Only for eligible users */}
+      {/* Passport Download Section - Only for admin users */}
       {canDownloadPassport && !isOfflineMode && onDownloadPassport && (
         <ModalSection
-          title="Acceso Offline (Pasaporte)"
+          title="Generar Pasaporte Offline"
           icon={<FileKey size={16} />}
-          description={<>Descargue un archivo pasaporte que le permitirá acceder al sistema <strong>sin conexión a internet</strong>.<br /><span className="font-bold text-emerald-700">Válido por 3 años. Se requiere su contraseña para encriptar el acceso.</span></>}
+          description={<>Genere un archivo pasaporte para acceder al sistema <strong>sin conexión a internet</strong>.<br /><span className="font-bold text-emerald-700">Válido por 3 años. Solo usted como admin puede generar estos pasaportes.</span></>}
           variant="success"
         >
           <div className="space-y-3">
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="password"
-                placeholder="Confirme su contraseña actual"
-                className="w-full pl-10 pr-4 py-2 bg-white/60 border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setDownloadError(null);
-                }}
-              />
+            {/* Role Selector */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedPassportRole('admin')}
+                className={`flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${selectedPassportRole === 'admin'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                  }`}
+              >
+                <FileKey size={14} />
+                Admin
+              </button>
+              <button
+                onClick={() => setSelectedPassportRole('nurse_hospital')}
+                className={`flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${selectedPassportRole === 'nurse_hospital'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                  }`}
+              >
+                <FileKey size={14} />
+                Enfermería
+              </button>
             </div>
-
-            {downloadError && (
-              <div className="flex items-center gap-2 text-[11px] text-red-600 bg-red-50 p-2 rounded-lg border border-red-100 italic">
-                <AlertCircle size={12} className="flex-shrink-0" />
-                {downloadError}
-              </div>
-            )}
 
             <button
               onClick={handlePassportDownload}
-              disabled={isVerifying}
-              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-2"
+              disabled={isGenerating}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-2"
             >
-              {isVerifying ? (
+              {isGenerating ? (
                 <>Generando...</>
               ) : (
                 <>
                   <Download size={16} />
-                  Descargar Pasaporte Protegido
+                  Descargar Pasaporte {selectedPassportRole === 'admin' ? 'Admin' : 'Enfermería'}
                 </>
               )}
             </button>

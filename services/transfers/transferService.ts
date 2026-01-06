@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { TransferRequest, TransferStatus, StatusChange } from '../../types/transfers';
+import { QuestionnaireResponse } from '../../types/transferDocuments';
 import { HOSPITAL_ID, COLLECTIONS } from '../../constants/firestorePaths';
 
 // Collection paths
@@ -47,7 +48,7 @@ const generateTransferId = (): string => {
  */
 const docToTransfer = (docData: Record<string, unknown>, docId: string): TransferRequest => {
     return {
-        ...(docData as TransferRequest),
+        ...(docData as unknown as TransferRequest),
         id: docId,
         requestDate: docData.requestDate instanceof Timestamp
             ? docData.requestDate.toDate().toISOString().split('T')[0]

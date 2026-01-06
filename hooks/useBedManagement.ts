@@ -39,6 +39,11 @@ export interface BedManagementActions {
     updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
 
     /**
+     * Updates a specific field in the CUDYR score for a clinical crib.
+     */
+    updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
+
+    /**
      * Clears patient data from a bed (Discharge/Cleanup).
      */
     clearPatient: (bedId: string) => void;
@@ -284,6 +289,41 @@ export const useBedManagement = (
         cribActions.updateCribMultiple(bedId, fields);
     }, [cribActions]);
 
+    /**
+     * Updates CUDYR score for a clinical crib.
+     */
+    const updateClinicalCribCudyr = useCallback((
+        bedId: string,
+        field: keyof CudyrScore,
+        value: number
+    ) => {
+        if (!record) return;
+
+        const crib = record.beds[bedId]?.clinicalCrib;
+        if (crib?.patientName) {
+            const authors = getAttributedAuthors(userId, record);
+            logDebouncedEvent(
+                'CUDYR_MODIFIED',
+                'dailyRecord',
+                record.date,
+                {
+                    patientName: crib.patientName,
+                    bedId: `${bedId}-crib`,
+                    field,
+                    value,
+                    oldValue: crib.cudyr?.[field] || 0
+                },
+                crib.rut,
+                record.date,
+                authors
+            );
+        }
+
+        patchRecord({
+            [`beds.${bedId}.clinicalCrib.cudyr.${field}`]: value
+        });
+    }, [record, patchRecord, logDebouncedEvent, userId]);
+
     // ========================================================================
     // Return API (composing all hooks)
     // ========================================================================
@@ -297,6 +337,7 @@ export const useBedManagement = (
         // Clinical Crib (delegated)
         updateClinicalCrib,
         updateClinicalCribMultiple,
+        updateClinicalCribCudyr,
 
         // Bed Operations (delegated)
         clearPatient: bedOperations.clearPatient,

@@ -159,3 +159,64 @@ export const reorderBookmarks = async (bookmarks: Bookmark[]) => {
         throw error;
     }
 };
+
+// ============================================================================
+// Bookmark Bar Preferences (saved per hospital)
+// ============================================================================
+
+export interface BookmarkBarPreferences {
+    alignment: 'left' | 'center' | 'right' | 'custom';
+    customOffset: number;
+}
+
+const getPreferencesDocRef = () => doc(
+    db,
+    COLLECTIONS.HOSPITALS,
+    HOSPITAL_ID,
+    HOSPITAL_COLLECTIONS.BOOKMARKS,
+    '_preferences'
+);
+
+/**
+ * Subscribe to bookmark bar preferences in real-time
+ */
+export const subscribeToBookmarkPreferences = (
+    onUpdate: (prefs: BookmarkBarPreferences) => void
+) => {
+    const docRef = getPreferencesDocRef();
+
+    return onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            onUpdate({
+                alignment: data.alignment || 'left',
+                customOffset: data.customOffset ?? 50
+            });
+        } else {
+            // Default preferences
+            onUpdate({ alignment: 'left', customOffset: 50 });
+        }
+    }, (error) => {
+        console.error('Error subscribing to bookmark preferences:', error);
+        // Fallback to defaults on error
+        onUpdate({ alignment: 'left', customOffset: 50 });
+    });
+};
+
+/**
+ * Save bookmark bar preferences to Firestore
+ */
+export const saveBookmarkPreferences = async (prefs: BookmarkBarPreferences) => {
+    try {
+        const docRef = getPreferencesDocRef();
+        const { setDoc } = await import('firebase/firestore');
+        await setDoc(docRef, {
+            alignment: prefs.alignment,
+            customOffset: prefs.customOffset,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+    } catch (error) {
+        console.error('Error saving bookmark preferences:', error);
+        throw error;
+    }
+};

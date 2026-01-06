@@ -50,10 +50,10 @@ export interface UseAuthStateReturn {
     // Offline passport properties
     /** True if using offline passport authentication (no Firebase) */
     isOfflineMode: boolean;
-    /** True if current user can download an offline access passport */
+    /** True if current user can generate offline passports (admin only) */
     canDownloadPassport: boolean;
-    /** Downloads an encrypted passport file for offline access */
-    handleDownloadPassport: (password: string) => Promise<boolean>;
+    /** Downloads a passport file for offline access with specified role */
+    handleDownloadPassport: (role: string) => Promise<boolean>;
 }
 
 import { SESSION_TIMEOUT_MS, ACTIVITY_EVENTS } from '../constants/security';
@@ -306,14 +306,15 @@ export const useAuthState = (): UseAuthStateReturn => {
     }, [user, isOfflineMode, isOnline]);
 
     /**
-     * Generates and downloads an encrypted passport file for the current user.
+     * Generates and downloads a passport file for the current user.
+     * Only admin can generate passports.
      * 
-     * @param password - The password used to encrypt the passport file.
+     * @param role - The role to assign: 'admin' or 'nurse_hospital'
      * @returns True if the download was successful, false otherwise.
      */
-    const handleDownloadPassport = useCallback(async (password: string) => {
+    const handleDownloadPassport = useCallback(async (role: string) => {
         if (!user) return false;
-        return await downloadPassport(user, password);
+        return await downloadPassport(user, role);
     }, [user]);
 
     const role: UserRole = (user?.role as UserRole) || 'viewer';

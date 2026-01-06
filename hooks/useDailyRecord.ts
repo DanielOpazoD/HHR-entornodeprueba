@@ -169,6 +169,7 @@ export const useDailyRecord = (
         updatePatientMultiple: bedManagement.updatePatientMultiple,
         updateClinicalCrib: bedManagement.updateClinicalCrib,
         updateClinicalCribMultiple: bedManagement.updateClinicalCribMultiple,
+        updateClinicalCribCudyr: bedManagement.updateClinicalCribCudyr,
         updateCudyr: bedManagement.updateCudyr,
         clearPatient: bedManagement.clearPatient,
         clearAllBeds: bedManagement.clearAllBeds,

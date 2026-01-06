@@ -3,6 +3,8 @@
  * Types for the patient transfer request workflow
  */
 
+import { QuestionnaireResponse } from './transferDocuments';
+
 // ============================================================================
 // Enums and Constants
 // ============================================================================
@@ -77,6 +79,9 @@ export interface TransferRequest {
 
     // Dynamic fields per hospital
     customFields: Record<string, string>;
+
+    // Persistent questionnaire data
+    questionnaireResponses?: QuestionnaireResponse;
 
     // Status tracking
     status: TransferStatus;
