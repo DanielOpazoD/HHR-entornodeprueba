@@ -155,7 +155,9 @@
     }
 
     :root.aesthetic-animations .aesthetic-hover-glow:hover {
-        @apply ring-4 ring-medical-500/10 border-medical-400/30;
+        @apply ring-4 ring-medical-500/10;
+        border-color: rgba(56, 189, 248, 0.3);
+        /* medical-400 with 30% opacity */
     }
 }
 
