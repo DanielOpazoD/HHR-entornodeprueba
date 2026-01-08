@@ -70,15 +70,15 @@ export const CribSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => (
 
 export const MovementSummaryCard: React.FC<{ discharges: DischargeData[], transfers: TransferData[], cmaCount: number }> = ({ discharges, transfers, cmaCount }) => {
     const deaths = discharges.filter(d => d.status === 'Fallecido').length;
-    const liveDischarges = discharges.filter(d => d.status === 'Vivo').length;
+    const totalDischarges = discharges.length; // Total egresos (altas + fallecidos)
     const totalTransfers = transfers.length;
 
     return (
         <BaseSummaryCard title="Movimientos" icon={<Activity size={12} className="text-medical-500" />}>
             <div className="flex flex-col gap-1 px-1">
                 <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-500 font-medium">Altas</span>
-                    <span className="font-bold text-green-600">{liveDischarges}</span>
+                    <span className="text-slate-500 font-medium">Egresos</span>
+                    <span className="font-bold text-green-600">{totalDischarges}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
                     <span className="text-slate-500 font-medium">Traslados</span>

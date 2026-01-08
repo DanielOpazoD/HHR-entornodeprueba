@@ -11,40 +11,29 @@ import {
 import { AppRouter } from '@/components/AppRouter';
 import { AppProviders } from '@/components/AppProviders';
 import { generateCensusMasterExcel } from '@/services';
+import { generateCudyrMonthlyExcel } from '@/services/exporters/cudyrExportService';
 import { CensusEmailConfigModal } from '@/components/census/CensusEmailConfigModal';
 
 import { useAuth } from '@/context/AuthContext';
-import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { UseUIStateReturn } from '@/hooks/useUIState';
-import { DailyRecordContextType } from '@/hooks/useDailyRecord';
-import { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
-import { UseFileOperationsReturn } from '@/hooks/useFileOperations';
-import { UseNurseSignatureReturn } from '@/hooks/useNurseSignature';
-import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
+import { useCensusContext } from '@/context/CensusContext';
 import { useExportManager } from '@/hooks/useExportManager';
 
 interface AppContentProps {
-    dateNav: UseDateNavigationReturn & {
-        isSignatureMode: boolean;
-        existingDaysInMonth: number[];
-    };
     ui: UseUIStateReturn;
-    dailyRecordHook: DailyRecordContextType;
-    censusEmail: UseCensusEmailReturn;
-    fileOps: UseFileOperationsReturn;
-    nurseSignature: UseNurseSignatureReturn;
-    sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
-export const AppContent: React.FC<AppContentProps> = ({
-    dateNav,
-    ui,
-    dailyRecordHook,
-    censusEmail,
-    fileOps,
-    nurseSignature,
-    sharedCensus
-}) => {
+export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
+    // 1. Consume Domain Context
+    const {
+        dailyRecord: dailyRecordHook,
+        dateNav,
+        censusEmail,
+        fileOps,
+        nurseSignature,
+        sharedCensus
+    } = useCensusContext();
+
     const auth = useAuth();
     const { record, syncStatus, lastSyncTime } = dailyRecordHook;
     const { isSignatureMode, currentDateString } = dateNav;
@@ -60,7 +49,7 @@ export const AppContent: React.FC<AppContentProps> = ({
         selectedShift: ui.selectedShift
     });
 
-    // Listen for navigate-module events (e.g., from CUDYR button in Handoff)
+    // Listen for navigate-module events
     useEffect(() => {
         const handleNavigateModule = (event: Event) => {
             const customEvent = event as CustomEvent<string>;
@@ -95,7 +84,7 @@ export const AppContent: React.FC<AppContentProps> = ({
                     />
                 )}
 
-                {/* Date Strip - Visible in Census (Register mode) and Handoff Views */}
+                {/* Date Strip */}
                 {((ui.currentModule === 'CENSUS' && ui.censusViewMode === 'REGISTER') ||
                     ui.currentModule === 'NURSING_HANDOFF' ||
                     ui.currentModule === 'MEDICAL_HANDOFF' ||
@@ -111,9 +100,13 @@ export const AppContent: React.FC<AppContentProps> = ({
                             onPrintPDF={ui.showPrintButton ? () => window.print() : undefined}
                             onExportPDF={ui.showPrintButton ? exportManager.handleExportPDF : undefined}
                             onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
-                            onExportExcel={ui.currentModule === 'CENSUS'
-                                ? () => generateCensusMasterExcel(dateNav.selectedYear, dateNav.selectedMonth, dateNav.selectedDay)
-                                : undefined}
+                            onExportExcel={
+                                ui.currentModule === 'CENSUS'
+                                    ? () => generateCensusMasterExcel(dateNav.selectedYear, dateNav.selectedMonth, dateNav.selectedDay)
+                                    : ui.currentModule === 'CUDYR'
+                                        ? () => generateCudyrMonthlyExcel(dateNav.selectedYear, dateNav.selectedMonth, currentDateString)
+                                        : undefined
+                            }
                             onConfigureEmail={ui.currentModule === 'CENSUS' ? () => censusEmail.setShowEmailConfig(true) : undefined}
                             onSendEmail={ui.currentModule === 'CENSUS' ? censusEmail.sendEmail : undefined}
                             onGenerateShareLink={ui.currentModule === 'CENSUS' ? () => censusEmail.sendEmailWithLink('viewer') : undefined}
@@ -132,7 +125,7 @@ export const AppContent: React.FC<AppContentProps> = ({
                         />
                     )}
 
-                {/* Favorites Bookmark Bar - Only visible in Census for admin/nurse_hospital */}
+                {/* Favorites Bookmark Bar */}
                 {!isSignatureMode && !sharedCensus.isSharedCensusMode &&
                     ui.showBookmarksBar &&
                     ui.currentModule === 'CENSUS' &&

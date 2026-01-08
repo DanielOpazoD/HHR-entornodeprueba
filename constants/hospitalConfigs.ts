@@ -8,7 +8,7 @@ import { HospitalConfig } from '@/types/transferDocuments';
 export const hospitalSalvadorConfig: HospitalConfig = {
     id: 'hospital-salvador',
     name: 'Hospital del Salvador',
-    code: 'HDS',
+    code: 'HSalvador',
 
     emails: {
         to: [
@@ -32,21 +32,6 @@ export const hospitalSalvadorConfig: HospitalConfig = {
         // ========================================
         // Encuesta COVID
         // ========================================
-        {
-            id: 'responsableEncuesta',
-            label: 'Responsable de Encuesta COVID',
-            type: 'text',
-            required: true,
-            group: 'encuesta-covid'
-        },
-        {
-            id: 'cargoResponsable',
-            label: 'Cargo del Responsable',
-            type: 'text',
-            required: true,
-            placeholder: 'Enfermera/o, TENS, etc.',
-            group: 'encuesta-covid'
-        },
         {
             id: 'contactoCovid',
             label: '¿Contacto con persona COVID+ en últimas 48hrs?',
@@ -234,18 +219,10 @@ export const hospitalSalvadorConfig: HospitalConfig = {
         },
         {
             id: 'unidadesHospitalizacion',
-            label: 'Unidades donde ha estado hospitalizado',
+            label: 'Unidad de Hospitalización (UPC/Básica)',
             type: 'multiselect',
             required: true,
-            options: ['Cama básica', 'Intermedio', 'UCI'],
-            group: 'formulario-iaas'
-        },
-        {
-            id: 'observaciones',
-            label: 'Observaciones generales',
-            type: 'textarea',
-            required: false,
-            placeholder: 'Información adicional relevante...',
+            options: ['Cama básica', 'UPC (UCI/UTI)'],
             group: 'formulario-iaas'
         }
     ],
@@ -263,7 +240,7 @@ export const hospitalSalvadorConfig: HospitalConfig = {
             name: 'Encuesta COVID',
             format: 'docx',
             enabled: true,
-            requiredQuestions: ['responsableEncuesta', 'cargoResponsable', 'contactoCovid', 'sintomasCovid']
+            requiredQuestions: ['contactoCovid', 'sintomasCovid']
         },
         {
             id: 'solicitud-ambulancia',

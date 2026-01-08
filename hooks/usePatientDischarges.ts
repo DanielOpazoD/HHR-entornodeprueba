@@ -1,7 +1,9 @@
-import { DailyRecord, DischargeData, DischargeType } from '../types';
+import { DailyRecord, DischargeData, DischargeType, PatientData } from '../types';
 import { createEmptyPatient } from '../services/factories/patientFactory';
 import { BEDS } from '../constants';
 import { logPatientDischarge } from '../services/admin/auditService';
+
+export type DischargeTarget = 'mother' | 'baby' | 'both';
 
 export const usePatientDischarges = (
     record: DailyRecord | null,
@@ -14,7 +16,8 @@ export const usePatientDischarges = (
         cribStatus?: 'Vivo' | 'Fallecido',
         dischargeType?: string,
         dischargeTypeOther?: string,
-        time?: string
+        time?: string,
+        target: DischargeTarget = 'both'
     ) => {
         if (!record) return;
         const patient = record.beds[bedId];
@@ -27,62 +30,98 @@ export const usePatientDischarges = (
         }
 
         const newDischarges: DischargeData[] = [];
+        const updatedBeds = { ...record.beds };
 
-        // 1. Mother/Main Patient Discharge
-        newDischarges.push({
-            id: crypto.randomUUID(),
-            bedName: bedDef?.name || bedId,
-            bedId: bedId,
-            bedType: bedDef?.type || '',
-            patientName: patient.patientName,
-            rut: patient.rut,
-            diagnosis: patient.pathology,
-            time: time || '',
-            status: status,
-            dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
-            dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
-            age: patient.age,
-            insurance: patient.insurance,
-            origin: patient.origin,
-            isRapanui: patient.isRapanui,
-            originalData: JSON.parse(JSON.stringify(patient)), // Snapshot
-            isNested: false
-        });
-
-        // 2. Clinical Crib Discharge (If present)
-        if (patient.clinicalCrib && patient.clinicalCrib.patientName && cribStatus) {
+        // Handle based on target
+        if (target === 'mother' || target === 'both') {
+            // Create discharge record for mother/main patient
             newDischarges.push({
                 id: crypto.randomUUID(),
-                bedName: (bedDef?.name || bedId) + " (Cuna)",
+                bedName: bedDef?.name || bedId,
                 bedId: bedId,
-                bedType: 'Cuna',
-                patientName: patient.clinicalCrib.patientName,
-                rut: patient.clinicalCrib.rut,
-                diagnosis: patient.clinicalCrib.pathology,
+                bedType: bedDef?.type || '',
+                patientName: patient.patientName,
+                rut: patient.rut,
+                diagnosis: patient.pathology,
                 time: time || '',
-                status: cribStatus,
-                age: patient.clinicalCrib.age,
+                status: status,
+                dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
+                dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
+                age: patient.age,
                 insurance: patient.insurance,
                 origin: patient.origin,
                 isRapanui: patient.isRapanui,
-                originalData: JSON.parse(JSON.stringify(patient.clinicalCrib)), // Snapshot
-                isNested: true
+                originalData: JSON.parse(JSON.stringify(patient)),
+                isNested: false
             });
+
+            // Audit Logging for Main Patient
+            logPatientDischarge(bedId, patient.patientName, patient.rut, status, record.date);
         }
 
-        const updatedBeds = { ...record.beds };
-        const cleanPatient = createEmptyPatient(bedId);
-        cleanPatient.location = updatedBeds[bedId].location;
-        updatedBeds[bedId] = cleanPatient;
+        if (target === 'baby' || target === 'both') {
+            // Only if clinical crib exists
+            if (patient.clinicalCrib && patient.clinicalCrib.patientName && cribStatus) {
+                newDischarges.push({
+                    id: crypto.randomUUID(),
+                    bedName: (bedDef?.name || bedId) + " (Cuna)",
+                    bedId: bedId,
+                    bedType: 'Cuna',
+                    patientName: patient.clinicalCrib.patientName,
+                    rut: patient.clinicalCrib.rut,
+                    diagnosis: patient.clinicalCrib.pathology,
+                    time: time || '',
+                    status: cribStatus,
+                    age: patient.clinicalCrib.age,
+                    insurance: patient.insurance,
+                    origin: patient.origin,
+                    isRapanui: patient.isRapanui,
+                    originalData: JSON.parse(JSON.stringify(patient.clinicalCrib)),
+                    isNested: true
+                });
+
+                // Audit Logging for RN
+                logPatientDischarge(bedId, patient.clinicalCrib.patientName, patient.clinicalCrib.rut, cribStatus, record.date);
+            }
+        }
+
+        // Update bed state based on target
+        if (target === 'both') {
+            // Clear the entire bed
+            const cleanPatient = createEmptyPatient(bedId);
+            cleanPatient.location = updatedBeds[bedId].location;
+            updatedBeds[bedId] = cleanPatient;
+        } else if (target === 'mother') {
+            // Promote RN to main patient
+            if (patient.clinicalCrib && patient.clinicalCrib.patientName) {
+                const promotedPatient: PatientData = {
+                    ...createEmptyPatient(bedId),
+                    ...patient.clinicalCrib,
+                    location: patient.location,
+                    bedMode: 'Cama', // Switch from Cuna to Cama mode
+                    clinicalCrib: undefined, // No more clinical crib
+                    hasCompanionCrib: false
+                };
+                updatedBeds[bedId] = promotedPatient;
+            } else {
+                // No clinical crib to promote, just clear the bed
+                const cleanPatient = createEmptyPatient(bedId);
+                cleanPatient.location = updatedBeds[bedId].location;
+                updatedBeds[bedId] = cleanPatient;
+            }
+        } else if (target === 'baby') {
+            // Keep mother, remove clinical crib
+            updatedBeds[bedId] = {
+                ...patient,
+                clinicalCrib: undefined
+            };
+        }
 
         saveAndUpdate({
             ...record,
             beds: updatedBeds,
             discharges: [...(record.discharges || []), ...newDischarges]
         });
-
-        // Audit Logging for Main Patient
-        logPatientDischarge(bedId, patient.patientName, patient.rut, status, record.date);
     };
 
     const updateDischarge = (

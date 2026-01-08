@@ -145,12 +145,12 @@ export const HandoffCudyrPrint: React.FC = () => {
                         <tbody>
                             {visibleBeds.map((bed) => {
                                 const patient = record.beds[bed.id];
-                                const cudyr: Partial<CudyrScore> = patient.cudyr || {};
+                                const cudyr: Partial<CudyrScore> = patient?.cudyr || {};
                                 const { finalCat, badgeColor } = getCategorization(cudyr as CudyrScore);
                                 const isUTI = bed.type === 'UTI';
 
                                 // Empty bed row - consistent height with occupied beds
-                                if (!patient.patientName) {
+                                if (!patient?.patientName) {
                                     return (
                                         <tr
                                             key={bed.id}

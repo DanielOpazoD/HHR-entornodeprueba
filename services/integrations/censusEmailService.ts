@@ -68,6 +68,13 @@ export const triggerCensusEmail = async (params: TriggerEmailParams): Promise<Em
         throw new Error('El envío de correo automático solo está disponible cuando la aplicación está desplegada en Netlify. En desarrollo local, puedes verificar los datos en la consola.');
     }
 
+    // Validate recipients - must be provided explicitly since no hardcoded defaults
+    const finalRecipients = recipients && recipients.length > 0 ? recipients : CENSUS_DEFAULT_RECIPIENTS;
+
+    if (finalRecipients.length === 0) {
+        throw new Error('No se especificaron destinatarios para el correo. Configure los destinatarios antes de enviar.');
+    }
+
     const response = await fetch(ENDPOINT, {
         method: 'POST',
         headers: {
@@ -78,7 +85,7 @@ export const triggerCensusEmail = async (params: TriggerEmailParams): Promise<Em
         body: JSON.stringify({
             date,
             records,
-            recipients: recipients && recipients.length > 0 ? recipients : CENSUS_DEFAULT_RECIPIENTS,
+            recipients: finalRecipients,
             nursesSignature,
             body,
             shareLink

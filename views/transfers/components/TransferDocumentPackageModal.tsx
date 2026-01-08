@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, FileText, Download, Edit3, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { HospitalConfig, GeneratedDocument, TransferPatientData } from '@/types/transferDocuments';
 import { downloadDocument } from '@/services/transfers/documentGeneratorService';
-import { uploadToDrive, makeFilePubliclyEditable } from '@/services/google/googleDriveService';
+import { uploadToTransferFolder, makeFilePubliclyEditable } from '@/services/google/googleDriveService';
 import clsx from 'clsx';
 
 interface TransferDocumentPackageModalProps {
@@ -28,7 +28,13 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
     const handleEdit = async (doc: GeneratedDocument) => {
         setIsUploading(doc.templateId);
         try {
-            const result = await uploadToDrive(doc.blob, doc.fileName);
+            // Upload to organized folder structure: Traslados HHR / Año / Mes / Paciente
+            const result = await uploadToTransferFolder(doc.blob, doc.fileName, {
+                patientName: patientData.patientName,
+                patientRut: patientData.rut
+            });
+            console.log(`[Transfers] File uploaded to: ${result.folderPath}`);
+
             // Optional: make it editable by anyone with link if corporate account allows it
             await makeFilePubliclyEditable(result.fileId);
             window.open(result.webViewLink, '_blank');
@@ -46,79 +52,79 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
     };
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <CheckCircle2 className="text-green-600" size={24} />
-                            Documentos Listos para Traslado
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <CheckCircle2 className="text-green-600" size={20} />
+                            Documentos Listos
                         </h2>
-                        <p className="text-slate-500 text-sm mt-1">
+                        <p className="text-slate-500 text-xs">
                             {hospital.name} • {patientData.patientName}
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-full hover:bg-slate-200 transition-colors"
+                        className="p-1.5 rounded-full hover:bg-slate-200 transition-colors"
                     >
-                        <X size={20} className="text-slate-500" />
+                        <X size={18} className="text-slate-500" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
-                    <div className="grid gap-4">
+                <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
+                    <div className="grid gap-3">
                         {documents.map((doc) => (
                             <div
                                 key={doc.templateId}
-                                className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+                                className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
                             >
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3 shrink min-w-0">
                                     <div className={clsx(
-                                        "w-12 h-12 rounded-lg flex items-center justify-center",
+                                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                                         doc.mimeType.includes('spreadsheet') ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"
                                     )}>
-                                        <FileText size={24} />
+                                        <FileText size={20} />
                                     </div>
-                                    <div>
-                                        <h3 className="font-semibold text-slate-800 truncate max-w-[300px]">
+                                    <div className="min-w-0">
+                                        <h3 className="font-semibold text-slate-800 truncate text-sm">
                                             {doc.fileName}
                                         </h3>
-                                        <p className="text-xs text-slate-500 uppercase tracking-widest mt-0.5">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5 truncate">
                                             {doc.templateId.replace(/-/g, ' ')}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         onClick={() => handleEdit(doc)}
                                         disabled={!!isUploading}
                                         className={clsx(
-                                            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border border-transparent min-w-[120px] justify-center",
+                                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-transparent min-w-[100px] justify-center",
                                             isUploading === doc.templateId
                                                 ? "bg-blue-50 text-blue-400 cursor-not-allowed"
                                                 : "text-blue-600 hover:bg-blue-50 hover:border-blue-100"
                                         )}
                                     >
                                         {isUploading === doc.templateId ? (
-                                            <Loader2 size={16} className="animate-spin" />
+                                            <Loader2 size={14} className="animate-spin" />
                                         ) : (
-                                            <Edit3 size={16} />
+                                            <Edit3 size={14} />
                                         )}
-                                        {isUploading === doc.templateId ? 'Subiendo...' : 'Editar Online'}
+                                        {isUploading === doc.templateId ? 'Subiendo...' : 'Editar'}
                                     </button>
                                     <button
                                         onClick={() => downloadDocument(doc)}
                                         disabled={!!isUploading}
                                         className={clsx(
-                                            "flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-slate-800 text-white rounded-lg transition-colors shadow-sm",
+                                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg transition-colors shadow-sm",
                                             isUploading ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-900"
                                         )}
                                     >
-                                        <Download size={16} />
+                                        <Download size={14} />
                                         Descargar
                                     </button>
                                 </div>
@@ -127,12 +133,12 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
                     </div>
 
                     {/* Info Box */}
-                    <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                        <AlertCircle className="text-blue-600 shrink-0" size={20} />
-                        <div className="text-sm text-blue-800">
-                            <p className="font-semibold">Sugerencia de Edición Online</p>
-                            <p className="mt-1 opacity-90">
-                                Al pulsar "Editar Online", el documento se abrirá en Google Drive. Cualquier cambio que realices se guardará automáticamente en la nube antes de que realices el envío final.
+                    <div className="mt-6 p-3 bg-blue-50/50 border border-blue-100 rounded-lg flex gap-2">
+                        <AlertCircle className="text-blue-600 shrink-0" size={16} />
+                        <div className="text-[11px] text-blue-800">
+                            <p className="font-semibold">Sugerencia de Edición</p>
+                            <p className="mt-0.5 opacity-90">
+                                Al pulsar "Editar", el documento se abrirá en Google Drive. Cualquier cambio que realices se guardará automáticamente en la nube.
                             </p>
                         </div>
                     </div>

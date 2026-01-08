@@ -6,9 +6,10 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { Settings, Database, Bot, FileKey, Download, TableProperties, Upload, RotateCcw, Lock, AlertCircle } from 'lucide-react';
+import { Settings, Database, Bot, FileKey, Download, TableProperties, Upload, RotateCcw, Sparkles, MousePointer2, Move, Type } from 'lucide-react';
 import { BaseModal, ModalSection } from '../shared/BaseModal';
 import { useTableConfig } from '../../context/TableConfigContext';
+import { useUISettings } from '../../context/UISettingsContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOfflineMode = false
 }) => {
   const { config, exportConfig, importConfig, resetToDefaults, isEditMode, setEditMode, updatePageMargin } = useTableConfig();
+  const { settings, updateSetting } = useUISettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Passport generation states
@@ -83,6 +85,92 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       icon={<Settings size={18} />}
       size="md"
     >
+      {/* Premium Aesthetics Section */}
+      <ModalSection
+        title="Estética Premium"
+        icon={<Sparkles size={16} />}
+        description="Personalice la apariencia y sensaciones táctiles del sistema."
+        variant="info"
+      >
+        <div className="space-y-4">
+          {/* Glassmorphism Toggle */}
+          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">Glassmorphism</p>
+                <p className="text-[10px] text-slate-500">Efecto de cristal y profundidad</p>
+              </div>
+            </div>
+            <button
+              onClick={() => updateSetting('glassmorphism', !settings.glassmorphism)}
+              className={`w-12 h-6 rounded-full transition-all relative ${settings.glassmorphism ? 'bg-medical-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.glassmorphism ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+
+          {/* Animations Toggle */}
+          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                <Move size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">Micro-interacciones</p>
+                <p className="text-[10px] text-slate-500">Transiciones y animaciones suaves</p>
+              </div>
+            </div>
+            <button
+              onClick={() => updateSetting('animations', !settings.animations)}
+              className={`w-12 h-6 rounded-full transition-all relative ${settings.animations ? 'bg-medical-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.animations ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+
+          {/* Hover Effects Toggle */}
+          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-pink-50 text-pink-600 rounded-lg">
+                <MousePointer2 size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">Efectos Hover</p>
+                <p className="text-[10px] text-slate-500">Iluminación al pasar el mouse</p>
+              </div>
+            </div>
+            <button
+              onClick={() => updateSetting('hoverEffects', !settings.hoverEffects)}
+              className={`w-12 h-6 rounded-full transition-all relative ${settings.hoverEffects ? 'bg-medical-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.hoverEffects ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+
+          {/* Typography Toggle */}
+          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <Type size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">Tipografía Moderna</p>
+                <p className="text-[10px] text-slate-500">Usar fuente 'Plus Jakarta Sans'</p>
+              </div>
+            </div>
+            <button
+              onClick={() => updateSetting('modernTypography', !settings.modernTypography)}
+              className={`w-12 h-6 rounded-full transition-all relative ${settings.modernTypography ? 'bg-medical-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.modernTypography ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+        </div>
+      </ModalSection>
+
       {/* Table Configuration Section */}
       <ModalSection
         title="Configuración de Tabla"

@@ -12,6 +12,31 @@ afterEach(() => {
     cleanup();
 });
 
+// Mock localStorage and sessionStorage for JSDOM
+// We use a more direct approach here to ensure availability during module evaluation
+const storageMock = () => {
+    let store: Record<string, string> = {};
+    return {
+        getItem: vi.fn((key: string) => store[key] || null),
+        setItem: vi.fn((key: string, value: string) => { store[key] = value.toString(); }),
+        removeItem: vi.fn((key: string) => { delete store[key]; }),
+        clear: vi.fn(() => { store = {}; }),
+        length: 0,
+        key: vi.fn((index: number) => Object.keys(store)[index] || null),
+    };
+};
+
+const mockLS = storageMock();
+const mockSS = storageMock();
+
+// Stub globals before any other imports
+vi.stubGlobal('localStorage', mockLS);
+vi.stubGlobal('sessionStorage', mockSS);
+
+// Force them onto global object too
+Object.defineProperty(global, 'localStorage', { value: mockLS, configurable: true });
+Object.defineProperty(global, 'sessionStorage', { value: mockSS, configurable: true });
+
 // Mock Firebase Auth user
 const mockUser = {
     uid: 'test-user-123',
@@ -24,9 +49,7 @@ const mockUser = {
 const mockAuth = {
     currentUser: mockUser,
     onAuthStateChanged: vi.fn((callback: (user: typeof mockUser | null) => void) => {
-        // Immediately call the callback with mock user synchronously for deterministic tests
         callback(mockUser);
-        // Return unsubscribe function
         return vi.fn();
     }),
     signInWithEmailAndPassword: vi.fn().mockResolvedValue({ user: mockUser }),
@@ -73,8 +96,9 @@ const firebaseMock = {
     mountConfigWarning: () => { }
 };
 
-vi.mock('./firebaseConfig', () => firebaseMock);
+// Use @ alias or absolute relative paths
 vi.mock('@/firebaseConfig', () => firebaseMock);
+vi.mock('../firebaseConfig', () => firebaseMock);
 
 // Mock firebase/auth module
 vi.mock('firebase/auth', () => ({
@@ -90,11 +114,33 @@ vi.mock('firebase/auth', () => ({
         static credential = vi.fn();
         setCustomParameters = vi.fn();
     },
+    signInAnonymously: vi.fn().mockResolvedValue({ user: { uid: 'anon-123', isAnonymous: true } }),
+    signInWithPopup: vi.fn().mockResolvedValue({ user: mockUser }),
+    createUserWithEmailAndPassword: vi.fn().mockResolvedValue({ user: mockUser }),
 }));
 
-// Mock auditService globally to prevent Firebase dependency chain execution
-vi.mock('./services/admin/auditService', () => ({
+// Mock firestore module
+vi.mock('firebase/firestore', () => ({
+    collection: vi.fn(() => ({})),
+    doc: vi.fn(() => ({})),
+    getDoc: vi.fn().mockResolvedValue(mockDoc),
+    getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+    setDoc: vi.fn().mockResolvedValue(undefined),
+    updateDoc: vi.fn().mockResolvedValue(undefined),
+    deleteDoc: vi.fn().mockResolvedValue(undefined),
+    query: vi.fn(() => ({})),
+    where: vi.fn(() => ({})),
+    onSnapshot: vi.fn(() => vi.fn()),
+    orderBy: vi.fn(() => ({})),
+    limit: vi.fn(() => ({})),
+    startAfter: vi.fn(() => ({})),
+}));
+
+// Mock auditService globally
+const mockAuditService = {
     logAuditEvent: vi.fn(),
+    logUserLogin: vi.fn(),
+    logUserLogout: vi.fn(),
     logPatientAdmission: vi.fn(),
     logPatientDischarge: vi.fn(),
     logPatientTransfer: vi.fn(),
@@ -106,24 +152,58 @@ vi.mock('./services/admin/auditService', () => ({
     getAuditLogsForDate: vi.fn().mockResolvedValue([]),
     getLocalAuditLogs: vi.fn().mockReturnValue([]),
     AUDIT_ACTION_LABELS: {}
+};
+
+vi.mock('@/services/admin/auditService', () => mockAuditService);
+vi.mock('../services/admin/auditService', () => mockAuditService);
+
+vi.mock('@/services/repositories/DailyRecordRepository', () => ({
+    CatalogRepository: {
+        getNurses: vi.fn().mockResolvedValue(["Enfermero/a 1", "Enfermero/a 2", "Test Nurse"]),
+        saveNurses: vi.fn().mockResolvedValue(undefined),
+        subscribeNurses: vi.fn((cb) => {
+            cb(["Enfermero/a 1", "Enfermero/a 2", "Test Nurse"]);
+            return () => { };
+        }),
+        getTens: vi.fn().mockResolvedValue(["TENS 1", "TENS 2"]),
+        saveTens: vi.fn().mockResolvedValue(undefined),
+        subscribeTens: vi.fn((cb) => {
+            cb(["TENS 1", "TENS 2"]);
+            return () => { };
+        }),
+    },
+    DailyRecordRepository: {
+        getForDate: vi.fn(),
+        getPreviousDay: vi.fn(),
+        save: vi.fn(),
+        subscribe: vi.fn(),
+        initializeDay: vi.fn(),
+        deleteDay: vi.fn(),
+    },
+    setDemoModeActive: vi.fn(),
+    isDemoModeActive: vi.fn().mockReturnValue(false),
 }));
 
-vi.mock('@/services/admin/auditService', () => ({
-    logAuditEvent: vi.fn(),
-    logPatientAdmission: vi.fn(),
-    logPatientDischarge: vi.fn(),
-    logPatientTransfer: vi.fn(),
-    logPatientCleared: vi.fn(),
-    logPatientView: vi.fn(),
-    logDailyRecordDeleted: vi.fn(),
-    logDailyRecordCreated: vi.fn(),
-    getAuditLogs: vi.fn().mockResolvedValue([]),
-    getAuditLogsForDate: vi.fn().mockResolvedValue([]),
-    getLocalAuditLogs: vi.fn().mockReturnValue([]),
-    AUDIT_ACTION_LABELS: {}
-}));
+// Mock authService globally
+const mockAuthService = {
+    signIn: vi.fn(),
+    signInWithGoogle: vi.fn(),
+    signOut: vi.fn(),
+    onAuthChange: vi.fn((cb) => {
+        cb(mockUser);
+        return () => { };
+    }),
+    getCurrentUser: vi.fn(() => mockUser),
+    isCurrentUserAllowed: vi.fn().mockResolvedValue(true),
+    createUser: vi.fn(),
+    signInAnonymouslyForPassport: vi.fn().mockResolvedValue('anonymous-uid'),
+    hasActiveFirebaseSession: vi.fn().mockReturnValue(true),
+};
 
-// Mock AuditContext to prevent "must be used within AuditProvider" errors
+vi.mock('@/services/auth/authService', () => mockAuthService);
+vi.mock('../services/auth/authService', () => mockAuthService);
+
+// Mock AuditContext
 const mockAuditContextValue = {
     logPatientAdmission: vi.fn(),
     logPatientDischarge: vi.fn(),
@@ -132,6 +212,8 @@ const mockAuditContextValue = {
     logDailyRecordDeleted: vi.fn(),
     logDailyRecordCreated: vi.fn(),
     logPatientView: vi.fn(),
+    logUserLogin: vi.fn(),
+    logUserLogout: vi.fn(),
     logEvent: vi.fn(),
     logDebouncedEvent: vi.fn(),
     fetchLogs: vi.fn().mockResolvedValue([]),
@@ -139,16 +221,15 @@ const mockAuditContextValue = {
     userId: 'test-user-123'
 };
 
-vi.mock('./context/AuditContext', () => ({
+vi.mock('@/context/AuditContext', () => ({
     AuditProvider: ({ children }: { children: React.ReactNode }) => children,
     useAuditContext: () => mockAuditContextValue
 }));
 
-vi.mock('@/context/AuditContext', () => ({
+vi.mock('../context/AuditContext', () => ({
     AuditProvider: ({ children }: { children: React.ReactNode }) => children,
     useAuditContext: () => mockAuditContextValue
 }));
 
 // Export mock user for use in tests
 export { mockUser, mockAuth, mockFirestore, mockAuditContextValue };
-

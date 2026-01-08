@@ -13,10 +13,11 @@ import { TransferStatus } from '../types/transfers';
  * Allowed status transitions
  */
 export const STATUS_TRANSITIONS: Record<TransferStatus, TransferStatus | null> = {
-    REQUESTED: 'RECEIVED',
-    RECEIVED: 'ACCEPTED',
+    REQUESTED: 'SENT',
+    SENT: 'ACCEPTED',
     ACCEPTED: 'TRANSFERRED',
-    TRANSFERRED: null // Final state
+    TRANSFERRED: null,
+    CANCELLED: null
 };
 
 /**

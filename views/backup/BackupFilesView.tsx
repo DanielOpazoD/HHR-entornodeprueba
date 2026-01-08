@@ -21,6 +21,12 @@ import {
     deleteCensus,
     StoredCensusFile
 } from '@/services/backup/censusStorageService';
+import {
+    listCudyrYears,
+    listCudyrMonths,
+    listCudyrFilesInMonth,
+    StoredCudyrFile
+} from '@/services/backup/cudyrStorageService';
 import { Breadcrumbs, FolderCard, FileCard } from './components/BackupDriveItems';
 import { HandoffCalendarView } from './components/HandoffCalendarView';
 import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
@@ -31,7 +37,7 @@ type NavPath = {
     month?: { number: string; name: string };
 };
 
-type BackupType = 'handoff' | 'census';
+type BackupType = 'handoff' | 'census' | 'cudyr';
 
 export const BackupFilesView: React.FC = () => {
     const { role } = useAuthState();
@@ -54,22 +60,39 @@ export const BackupFilesView: React.FC = () => {
     // PDF preview state for handoff files
     const [previewPdf, setPreviewPdf] = useState<StoredPdfFile | null>(null);
 
+    // Request ID to handle race conditions - ignore stale responses
+    const [requestId, setRequestId] = useState(0);
+
     // Load content based on current path
-    const loadContent = useCallback(async () => {
+    const loadContent = useCallback(async (currentRequestId: number) => {
         setIsLoading(true);
         try {
             if (path.length === 0) {
                 // Root: List years
-                const years = backupType === 'handoff' ? await listYears() : await listCensusYears();
+                let years: string[] = [];
+                if (backupType === 'handoff') {
+                    years = await listYears();
+                } else if (backupType === 'census') {
+                    years = await listCensusYears();
+                } else {
+                    years = await listCudyrYears();
+                }
                 setItems(years.map(year => ({
                     type: 'folder',
                     data: { name: year, type: 'year' }
                 })));
             } else if (path.length === 1) {
                 // Year: List months
-                const months = backupType === 'handoff'
-                    ? await listMonths(path[0])
-                    : await listCensusMonths(path[0]);
+                let months: { number: string; name: string }[] = [];
+                if (backupType === 'handoff') {
+                    months = await listMonths(path[0]);
+                } else if (backupType === 'census') {
+                    months = await listCensusMonths(path[0]);
+                } else {
+                    months = await listCudyrMonths(path[0]);
+                }
+                // Check if this request is still current
+                if (currentRequestId !== requestId) return;
                 setItems(months.map(month => ({
                     type: 'folder',
                     data: { name: month.name, number: month.number, type: 'month' }
@@ -78,16 +101,27 @@ export const BackupFilesView: React.FC = () => {
                 // Month: List files
                 if (backupType === 'handoff') {
                     const files = await listFilesInMonth(path[0], currentNav.month?.number || '');
+                    // Check if this request is still current
+                    if (currentRequestId !== requestId) return;
                     setItems(files.map(file => ({
                         type: 'file',
                         data: file
                     })));
-                } else {
+                } else if (backupType === 'census') {
                     const files = await listCensusFilesInMonth(path[0], currentNav.month?.number || '');
-                    // Sort census files chronologically: oldest first (top to bottom)
-                    const sortedFiles = files.sort((a, b) => {
-                        return a.date.localeCompare(b.date); // YYYY-MM-DD format sorts chronologically
-                    });
+                    // Check if this request is still current
+                    if (currentRequestId !== requestId) return;
+                    const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
+                    setItems(sortedFiles.map(file => ({
+                        type: 'file',
+                        data: file
+                    })));
+                } else {
+                    // CUDYR files
+                    const files = await listCudyrFilesInMonth(path[0], currentNav.month?.number || '');
+                    // Check if this request is still current
+                    if (currentRequestId !== requestId) return;
+                    const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
                     setItems(sortedFiles.map(file => ({
                         type: 'file',
                         data: file
@@ -100,7 +134,7 @@ export const BackupFilesView: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [path, currentNav.month?.number, error, backupType]);
+    }, [path, currentNav.month?.number, error, backupType, requestId]);
 
     // Auto-navigate to current year/month when backup type changes
     useEffect(() => {
@@ -119,9 +153,13 @@ export const BackupFilesView: React.FC = () => {
         });
     }, [backupType]);
 
+    // Load content when path or backup type changes
     useEffect(() => {
-        loadContent();
-    }, [loadContent]);
+        // Increment request ID to invalidate any pending requests
+        const newRequestId = requestId + 1;
+        setRequestId(newRequestId);
+        loadContent(newRequestId);
+    }, [path, backupType]);
 
     // Navigation handlers
     const handleFolderClick = (folderData: any) => {
@@ -156,7 +194,7 @@ export const BackupFilesView: React.FC = () => {
     };
 
     const handleDelete = async (file: any) => {
-        const typeLabel = backupType === 'handoff' ? 'Respaldo' : 'Censo';
+        const typeLabel = backupType === 'handoff' ? 'Respaldo' : backupType === 'census' ? 'Censo' : 'CUDYR';
         const confirmed = await confirm({
             title: `🗑️ Eliminar ${typeLabel}`,
             message: `¿Estás seguro de que deseas eliminar el archivo del día ${file.date}?\n\nEsta acción no se puede deshacer.`,
@@ -170,16 +208,30 @@ export const BackupFilesView: React.FC = () => {
         try {
             if (backupType === 'handoff') {
                 await deletePdf(file.date, file.shiftType);
-            } else {
+            } else if (backupType === 'census') {
                 await deleteCensus(file.date);
+            } else {
+                // CUDYR: For now, we don't support delete (read-only archive)
+                warning('Los archivos CUDYR no se pueden eliminar desde aquí');
+                return;
             }
             success('Archivo eliminado correctamente');
-            loadContent(); // Refresh the list
+            // Trigger a refresh
+            const newId = requestId + 1;
+            setRequestId(newId);
+            loadContent(newId);
         } catch (err) {
             console.error('Error deleting file:', err);
             error('No se pudo eliminar el archivo');
         }
     };
+
+    // Wrapper for refresh button
+    const handleRefresh = useCallback(() => {
+        const newId = requestId + 1;
+        setRequestId(newId);
+        loadContent(newId);
+    }, [requestId, loadContent]);
 
     const formatSize = (bytes: number) => {
         if (bytes === 0) return '0 B';
@@ -212,7 +264,9 @@ export const BackupFilesView: React.FC = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800">Archivos</h1>
                         <p className="text-sm text-slate-500">
-                            {backupType === 'handoff' ? 'Respaldos de Entregas de Turno' : 'Respaldos de Censo Diario'}
+                            {backupType === 'handoff' ? 'Respaldos de Entregas de Turno' :
+                                backupType === 'census' ? 'Respaldos de Censo Diario' :
+                                    'Respaldos CUDYR Mensual'}
                         </p>
                     </div>
                 </div>
@@ -221,21 +275,30 @@ export const BackupFilesView: React.FC = () => {
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                     <button
                         onClick={() => setBackupType('handoff')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${backupType === 'handoff'
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'handoff'
                             ? 'bg-white text-teal-700 shadow-sm'
                             : 'text-slate-600 hover:text-slate-900'
                             }`}
                     >
-                        Entregas Enfermería
+                        Entregas
                     </button>
                     <button
                         onClick={() => setBackupType('census')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${backupType === 'census'
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'census'
                             ? 'bg-white text-teal-700 shadow-sm'
                             : 'text-slate-600 hover:text-slate-900'
                             }`}
                     >
-                        Censo Diario
+                        Censo
+                    </button>
+                    <button
+                        onClick={() => setBackupType('cudyr')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'cudyr'
+                            ? 'bg-white text-emerald-700 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                    >
+                        CUDYR
                     </button>
                 </div>
 
@@ -265,7 +328,7 @@ export const BackupFilesView: React.FC = () => {
                         </button>
                     </div>
                     <button
-                        onClick={loadContent}
+                        onClick={handleRefresh}
                         disabled={isLoading}
                         className="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all disabled:opacity-50"
                         title="Refrescar"
@@ -324,11 +387,11 @@ export const BackupFilesView: React.FC = () => {
                                             shift={item.data.shiftType}
                                             size={formatSize(item.data.size)}
                                             onDownload={() => handleDownload(item.data)}
-                                            onView={backupType === 'census'
+                                            onView={(backupType === 'census' || backupType === 'cudyr')
                                                 ? () => handlePreviewExcel(item.data)
                                                 : () => handlePreviewPdf(item.data)}
                                             onDelete={() => handleDelete(item.data)}
-                                            canDelete={isAdmin}
+                                            canDelete={isAdmin && backupType !== 'cudyr'}
                                         />
                                     )
                                 ))}

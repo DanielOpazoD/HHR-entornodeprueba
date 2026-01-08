@@ -14,6 +14,7 @@ import { TransferDocumentPackageModal } from './components/TransferDocumentPacka
 import { TransferRequest, TransferFormData } from '@/types/transfers';
 import { QuestionnaireResponse, TransferPatientData, GeneratedDocument } from '@/types/transferDocuments';
 import { useTransferManagement } from '@/hooks/useTransferManagement';
+import { useDailyRecordContext } from '@/context/DailyRecordContext';
 import { getHospitalConfigs, getHospitalConfigById } from '@/constants/hospitalConfigs';
 import { generateTransferDocuments, downloadAllDocuments } from '@/services/transfers/documentGeneratorService';
 import { FileDown } from 'lucide-react';
@@ -26,11 +27,18 @@ export const TransferManagementView: React.FC = () => {
         createTransfer,
         updateTransfer,
         advanceStatus,
+        setTransferStatus,
         markAsTransferred,
         cancelTransfer,
+        undoTransfer,
+        archiveTransfer,
+        deleteHistoryEntry,
         getHospitalizedPatients,
         activeCount
     } = useTransferManagement();
+
+    // Get current daily record to access up-to-date patient data (including birthDate)
+    const { record } = useDailyRecordContext();
 
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -151,10 +159,18 @@ export const TransferManagementView: React.FC = () => {
             } as any);
 
             // 2. Build patient data from transfer snapshot
+            // Note: snapshot may have birthDate or just age - also check current census for birthDate
+            const snapshot = selectedTransfer.patientSnapshot as any;
+
+            // Try to get birthDate from: 1) snapshot, 2) current census record
+            const currentPatient = record?.beds[selectedTransfer.bedId];
+            const birthDate = snapshot.birthDate || currentPatient?.birthDate || '';
+
             const patientData: TransferPatientData = {
                 patientName: selectedTransfer.patientSnapshot.name,
                 rut: selectedTransfer.patientSnapshot.rut || '',
-                birthDate: selectedTransfer.patientSnapshot.admissionDate,
+                birthDate: birthDate,
+                age: selectedTransfer.patientSnapshot.age, // Direct age from snapshot
                 diagnosis: selectedTransfer.patientSnapshot.diagnosis,
                 admissionDate: selectedTransfer.patientSnapshot.admissionDate,
                 bedName: selectedTransfer.bedId.replace('BED_', ''),
@@ -186,6 +202,16 @@ export const TransferManagementView: React.FC = () => {
         setGeneratedDocs([]);
     };
 
+    const handleViewDocs = async (transfer: TransferRequest) => {
+        if (!transfer.questionnaireResponses) return;
+
+        setSelectedTransfer(transfer);
+        setSelectedHospitalId('hospital-salvador'); // Default
+
+        // Use the same logic as handleQuestionnaireComplete but skipping the modal
+        await handleQuestionnaireComplete(transfer.questionnaireResponses);
+    };
+
     const handleEditOnline = (_doc: GeneratedDocument) => {
         // Handled internally by TransferDocumentPackageModal using googleDriveService
     };
@@ -204,9 +230,9 @@ export const TransferManagementView: React.FC = () => {
                 </div>
                 <button
                     onClick={handleNewRequest}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 text-sm font-medium shadow-sm"
                 >
-                    <span>+</span>
+                    <span className="text-lg">+</span>
                     Nueva Solicitud
                 </button>
             </div>
@@ -229,9 +255,14 @@ export const TransferManagementView: React.FC = () => {
                     transfers={transfers}
                     onEdit={handleEditTransfer}
                     onStatusChange={handleStatusChange}
+                    onQuickStatusChange={setTransferStatus}
                     onMarkTransferred={handleMarkTransferred}
                     onCancel={handleCancel}
                     onGenerateDocs={handleGenerateDocs}
+                    onViewDocs={handleViewDocs}
+                    onUndo={undoTransfer}
+                    onArchive={archiveTransfer}
+                    onDeleteHistoryEntry={deleteHistoryEntry}
                 />
             )}
 
@@ -306,11 +337,11 @@ export const TransferManagementView: React.FC = () => {
 
             {/* Generating Overlay */}
             {isGenerating && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-md">
                     <div className="bg-white px-8 py-6 rounded-2xl shadow-xl flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                        <p className="font-semibold text-slate-700">Generando suite de 5 documentos...</p>
-                        <p className="text-sm text-slate-500 italic">Por favor espere</p>
+                        <p className="font-semibold text-slate-700">Preparando documentos...</p>
+                        <p className="text-sm text-slate-500 italic">Por favor espere un momento</p>
                     </div>
                 </div>
             )}

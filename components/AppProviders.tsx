@@ -7,6 +7,7 @@
 import React, { ReactNode } from 'react';
 import { DailyRecordProvider, StaffProvider, AuditProvider } from '@/context';
 import { TableConfigProvider } from '@/context/TableConfigContext';
+import { UISettingsProvider } from '@/context/UISettingsContext';
 import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
 
 interface AppProvidersProps {
@@ -30,9 +31,11 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, dailyRecor
     return (
         <DailyRecordProvider value={dailyRecordHook}>
             <StaffProvider>
-                <TableConfigProvider>
-                    {children}
-                </TableConfigProvider>
+                <UISettingsProvider>
+                    <TableConfigProvider>
+                        {children}
+                    </TableConfigProvider>
+                </UISettingsProvider>
             </StaffProvider>
         </DailyRecordProvider>
     );

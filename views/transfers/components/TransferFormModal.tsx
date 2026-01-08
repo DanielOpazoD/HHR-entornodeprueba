@@ -1,12 +1,14 @@
 /**
  * Transfer Form Modal Component
  * Modal for creating and editing transfer requests
+ * Simplified version: removes medical requester, observations, and transfer reason
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TransferRequest, TransferFormData } from '@/types/transfers';
-import { DESTINATION_HOSPITALS, MEDICAL_SPECIALTIES, TRANSFER_REASONS } from '@/constants/transferConstants';
+import { DESTINATION_HOSPITALS, MEDICAL_SPECIALTIES } from '@/constants/transferConstants';
 import { PatientSelector } from './PatientSelector';
+import { X } from 'lucide-react';
 
 interface Patient {
     id: string;
@@ -33,10 +35,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
     // Form state
     const [selectedPatientId, setSelectedPatientId] = useState(transfer?.bedId || '');
     const [destinationHospital, setDestinationHospital] = useState(transfer?.destinationHospital || '');
-    const [transferReason, setTransferReason] = useState(transfer?.transferReason || '');
     const [requiredSpecialty, setRequiredSpecialty] = useState(transfer?.requiredSpecialty || '');
-    const [requestingDoctor, setRequestingDoctor] = useState(transfer?.requestingDoctor || '');
-    const [observations, setObservations] = useState(transfer?.observations || '');
     const [isSaving, setIsSaving] = useState(false);
 
     // Find selected patient
@@ -45,7 +44,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedPatientId || !destinationHospital || !transferReason || !requestingDoctor) {
+        if (!selectedPatientId || !destinationHospital) {
             alert('Por favor complete todos los campos requeridos');
             return;
         }
@@ -56,10 +55,10 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
                 patientId: selectedPatientId,
                 bedId: selectedPatientId,
                 destinationHospital,
-                transferReason,
+                transferReason: 'Derivación a especialidad', // System default
                 requiredSpecialty,
-                requestingDoctor,
-                observations
+                requestingDoctor: '', // Manual entry per user request
+                observations: ''
             });
         } finally {
             setIsSaving(false);
@@ -67,29 +66,34 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h2 className="text-lg font-semibold text-gray-800">
-                        {isEditing ? 'Editar Solicitud de Traslado' : 'Nueva Solicitud de Traslado'}
-                    </h2>
+                <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">
+                            {isEditing ? 'Editar Traslado' : 'Nueva Solicitud'}
+                        </h2>
+                        <p className="text-slate-500 text-sm mt-0.5">
+                            Gestión de derivación hospitalaria
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-xl transition-all"
                         disabled={isSaving}
                     >
-                        ✕
+                        <X size={20} />
                     </button>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {/* Patient Selection (only for new) */}
-                    {!isEditing && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Paciente Hospitalizado *
+                    {!isEditing ? (
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                Paciente Hospitalizado
                             </label>
                             <PatientSelector
                                 patients={patients}
@@ -97,37 +101,30 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
                                 onChange={setSelectedPatientId}
                                 disabled={isSaving}
                             />
+                            {selectedPatient && (
+                                <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
+                                    <p className="font-bold">{selectedPatient.name}</p>
+                                    <p className="opacity-80">Cama {selectedPatient.bedId.replace('BED_', '')} • {selectedPatient.diagnosis}</p>
+                                </div>
+                            )}
                         </div>
-                    )}
-
-                    {/* Patient Info (read-only when editing) */}
-                    {isEditing && transfer && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                            <h3 className="text-sm font-medium text-gray-500 mb-2">Datos del Paciente</h3>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div><span className="text-gray-500">Nombre:</span> {transfer.patientSnapshot.name}</div>
-                                <div><span className="text-gray-500">RUT:</span> {transfer.patientSnapshot.rut}</div>
-                                <div><span className="text-gray-500">Cama:</span> {transfer.bedId.replace('BED_', '')}</div>
-                                <div><span className="text-gray-500">Diagnóstico:</span> {transfer.patientSnapshot.diagnosis}</div>
+                    ) : (
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Paciente Seleccionado</h3>
+                            <div className="space-y-1">
+                                <p className="text-sm font-bold text-slate-800">{transfer.patientSnapshot.name}</p>
+                                <p className="text-xs text-slate-500">{transfer.patientSnapshot.rut} • Cama {transfer.bedId.replace('BED_', '')}</p>
                             </div>
                         </div>
                     )}
 
-                    {/* Selected Patient Preview (for new) */}
-                    {!isEditing && selectedPatient && (
-                        <div className="bg-blue-50 p-3 rounded-lg text-sm">
-                            <p><strong>Paciente seleccionado:</strong> {selectedPatient.name}</p>
-                            <p className="text-gray-600">Cama {selectedPatient.bedId.replace('BED_', '')} - {selectedPatient.diagnosis}</p>
-                        </div>
-                    )}
-
                     {/* Hospital Destination */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                             Hospital Destino *
                         </label>
                         <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                             value={destinationHospital}
                             onChange={(e) => setDestinationHospital(e.target.value)}
                             disabled={isSaving}
@@ -139,88 +136,40 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
                         </select>
                     </div>
 
-                    {/* Transfer Reason */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Motivo del Traslado *
-                        </label>
-                        <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={transferReason}
-                            onChange={(e) => setTransferReason(e.target.value)}
-                            disabled={isSaving}
-                        >
-                            <option value="">Seleccionar motivo...</option>
-                            {TRANSFER_REASONS.map(r => (
-                                <option key={r} value={r}>{r}</option>
-                            ))}
-                        </select>
-                    </div>
-
                     {/* Required Specialty */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                             Especialidad Requerida
                         </label>
                         <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                             value={requiredSpecialty}
                             onChange={(e) => setRequiredSpecialty(e.target.value)}
                             disabled={isSaving}
                         >
-                            <option value="">Seleccionar especialidad...</option>
+                            <option value="">Opcional: Seleccionar especialidad...</option>
                             {MEDICAL_SPECIALTIES.map(s => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
                     </div>
 
-                    {/* Requesting Doctor */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Médico Solicitante *
-                        </label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Nombre del médico"
-                            value={requestingDoctor}
-                            onChange={(e) => setRequestingDoctor(e.target.value)}
-                            disabled={isSaving}
-                        />
-                    </div>
-
-                    {/* Observations */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Observaciones
-                        </label>
-                        <textarea
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            rows={3}
-                            placeholder="Observaciones adicionales..."
-                            value={observations}
-                            onChange={(e) => setObservations(e.target.value)}
-                            disabled={isSaving}
-                        />
-                    </div>
-
                     {/* Footer */}
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                    <div className="flex items-center justify-end gap-3 pt-4">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                            className="px-6 py-2.5 text-slate-600 font-semibold text-sm hover:bg-slate-50 rounded-xl transition-all"
                             disabled={isSaving}
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                            disabled={isSaving || (!isEditing && !selectedPatientId)}
+                            className="px-8 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-900/10"
+                            disabled={isSaving || (!isEditing && !selectedPatientId) || !destinationHospital}
                         >
-                            {isSaving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Crear Solicitud')}
+                            {isSaving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Crear Traslado')}
                         </button>
                     </div>
                 </form>

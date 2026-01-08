@@ -6,8 +6,8 @@
  * Modified to avoid side effects (doc.save) and fix types.
  */
 
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable'; // Removed static import
 import { DailyRecord, PatientData, PatientStatus, ShiftType, DeviceDetails, CudyrScore } from '../../types';
 import { BEDS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
@@ -36,7 +36,8 @@ export const buildHandoffPdfContent = async (
     doc: jsPDF,
     record: DailyRecord,
     shiftType: ShiftType,
-    schedule: Schedule
+    schedule: Schedule,
+    autoTable: any // Injected dependency
 ): Promise<void> => {
     const pageWidth = doc.internal.pageSize.width;
     const margin = 14;

@@ -15,6 +15,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
+import { CudyrView } from '@/views/cudyr/CudyrView';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
 import { AuditProvider } from '@/context/AuditContext';

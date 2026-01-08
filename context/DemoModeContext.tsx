@@ -52,8 +52,8 @@ export const DemoModeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 let stored = await getSetting<Partial<DemoModeState> | null>(DEMO_MODE_STORAGE_KEY, null);
 
                 // Fallback to localStorage for migration
-                if (!stored) {
-                    const legacy = localStorage.getItem(DEMO_MODE_STORAGE_KEY);
+                if (!stored && typeof window !== 'undefined' && window.localStorage) {
+                    const legacy = window.localStorage.getItem(DEMO_MODE_STORAGE_KEY);
                     if (legacy) {
                         stored = JSON.parse(legacy);
                         if (stored) await saveSetting(DEMO_MODE_STORAGE_KEY, stored);
@@ -89,7 +89,9 @@ export const DemoModeProvider: React.FC<{ children: ReactNode }> = ({ children }
             };
             await saveSetting(DEMO_MODE_STORAGE_KEY, data);
             // Cleanup legacy
-            localStorage.removeItem(DEMO_MODE_STORAGE_KEY);
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.removeItem(DEMO_MODE_STORAGE_KEY);
+            }
         } catch (e) {
             console.error('Failed to persist demo mode state:', e);
         }

@@ -12,7 +12,7 @@ import { QuestionnaireResponse } from './transferDocuments';
 /**
  * Transfer request status progression
  */
-export type TransferStatus = 'REQUESTED' | 'RECEIVED' | 'ACCEPTED' | 'TRANSFERRED' | 'CANCELLED';
+export type TransferStatus = 'REQUESTED' | 'SENT' | 'RECEIVED' | 'ACCEPTED' | 'TRANSFERRED' | 'CANCELLED';
 
 /**
  * Status display configuration
@@ -22,11 +22,12 @@ export const TRANSFER_STATUS_CONFIG: Record<TransferStatus, {
     color: string;
     bgColor: string;
 }> = {
-    REQUESTED: { label: 'Solicitado', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
+    REQUESTED: { label: 'Solicitado', color: 'text-amber-700', bgColor: 'bg-amber-100' },
+    SENT: { label: 'Enviado', color: 'text-blue-700', bgColor: 'bg-blue-100' },
     RECEIVED: { label: 'Recibido', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-    ACCEPTED: { label: 'Aceptado', color: 'text-green-700', bgColor: 'bg-green-100' },
-    TRANSFERRED: { label: 'Trasladado', color: 'text-gray-700', bgColor: 'bg-gray-100' },
-    CANCELLED: { label: 'Cancelado', color: 'text-red-700', bgColor: 'bg-red-100' }
+    ACCEPTED: { label: 'Aceptado', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
+    TRANSFERRED: { label: 'Trasladado', color: 'text-slate-700', bgColor: 'bg-slate-100' },
+    CANCELLED: { label: 'Cancelado', color: 'text-rose-700', bgColor: 'bg-rose-100' }
 };
 
 // ============================================================================
@@ -41,6 +42,7 @@ export interface PatientSnapshot {
     name: string;
     rut: string;
     age: number;
+    birthDate?: string; // Date of birth from census
     sex: 'M' | 'F';
     diagnosis: string;
     secondaryDiagnoses?: string[];
@@ -87,6 +89,10 @@ export interface TransferRequest {
     status: TransferStatus;
     statusHistory: StatusChange[];
     requestDate: string;
+
+    // Archive tracking
+    archived?: boolean;
+    archivedAt?: string;
 
     // Metadata
     createdAt: string;

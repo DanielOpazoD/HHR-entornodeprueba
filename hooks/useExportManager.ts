@@ -3,6 +3,7 @@ import { DailyRecord } from '@/types';
 import { checkCensusExists, uploadCensus } from '@/services/backup/censusStorageService';
 import { getMonthRecordsFromFirestore } from '@/services';
 import { buildCensusMasterWorkbook } from '@/services/exporters/censusMasterWorkbook';
+import { useNotification } from '@/context/UIContext';
 
 interface UseExportManagerProps {
     currentDateString: string;
@@ -29,6 +30,7 @@ export const useExportManager = ({
     currentModule,
     selectedShift
 }: UseExportManagerProps): UseExportManagerReturn => {
+    const { success, error: notifyError, warning } = useNotification();
     // Track if current date's census is already archived
     const [isArchived, setIsArchived] = useState(false);
 
@@ -50,7 +52,7 @@ export const useExportManager = ({
             }
         } catch (error) {
             console.error('Error generating PDF:', error);
-            alert('Error al generar el PDF. Por favor intente nuevamente.');
+            notifyError('Error al generar el PDF. Por favor intente nuevamente.');
         }
     }, [record, selectedShift]);
 
@@ -70,7 +72,7 @@ export const useExportManager = ({
         }
 
         if (filteredRecords.length === 0) {
-            alert('No hay registros para archivar.');
+            warning('No hay registros para archivar.');
             return;
         }
 
@@ -81,9 +83,9 @@ export const useExportManager = ({
         });
 
         await uploadCensus(blob, currentDateString);
-        setIsArchived(true); // Update state immediately
-        alert(`✅ Excel archivado correctamente para ${currentDateString}`);
-    }, [selectedYear, selectedMonth, selectedDay, record, currentDateString]);
+        setIsArchived(true);
+        success('Excel archivado', `Guardado para ${currentDateString}`);
+    }, [selectedYear, selectedMonth, selectedDay, record, currentDateString, success, warning]);
 
     return {
         isArchived,

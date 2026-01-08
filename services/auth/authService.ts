@@ -72,7 +72,9 @@ const saveRoleToCache = async (email: string, role: string) => {
         const key = `${ROLE_CACHE_PREFIX}${normalizeEmail(email)}`;
         await saveSetting(key, cacheData);
         // Cleanup legacy localStorage
-        localStorage.removeItem(key);
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem(key);
+        }
     } catch (e) {
         console.warn('[authService] Failed to cache role:', e);
     }
@@ -89,8 +91,8 @@ const getCachedRole = async (email: string): Promise<string | null> => {
         let cached = await getSetting<{ role: string, timestamp: number } | null>(key, null);
 
         // 2. Fallback to localStorage for migration
-        if (!cached) {
-            const legacy = localStorage.getItem(key);
+        if (!cached && typeof window !== 'undefined' && window.localStorage) {
+            const legacy = window.localStorage.getItem(key);
             if (legacy) {
                 try {
                     cached = JSON.parse(legacy);

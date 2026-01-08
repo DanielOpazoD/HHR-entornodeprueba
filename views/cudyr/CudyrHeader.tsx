@@ -1,19 +1,39 @@
-import React from 'react';
-import { ClipboardList, Calculator } from 'lucide-react';
+import React, { useState } from 'react';
+import { ClipboardList, Calculator, FileSpreadsheet, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { generateCudyrMonthlyExcel } from '@/services/exporters/cudyrExportService';
 
 interface CudyrHeaderProps {
     occupiedCount: number;
     categorizedCount: number;
+    currentDate?: string; // YYYY-MM-DD format
 }
 
 export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
     occupiedCount,
-    categorizedCount
+    categorizedCount,
+    currentDate
 }) => {
+    const [isExporting, setIsExporting] = useState(false);
+
     const categorizationIndex = occupiedCount > 0
         ? Math.round((categorizedCount / occupiedCount) * 100)
         : 0;
+
+    const handleExportExcel = async () => {
+        if (!currentDate || isExporting) return;
+
+        setIsExporting(true);
+        try {
+            const [year, month] = currentDate.split('-').map(Number);
+            await generateCudyrMonthlyExcel(year, month, currentDate);
+        } catch (error) {
+            console.error('Error exporting CUDYR Excel:', error);
+            alert('Error al exportar Excel. Por favor intente nuevamente.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <header className="mb-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
@@ -55,6 +75,33 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
                         <span className="w-2.5 h-2.5 bg-green-600 rounded-full"></span> D: Bajo
                     </span>
                 </div>
+
+                {/* Excel Export Button */}
+                {currentDate && (
+                    <button
+                        onClick={handleExportExcel}
+                        disabled={isExporting}
+                        className={clsx(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm",
+                            isExporting
+                                ? "bg-slate-100 text-slate-400 cursor-wait"
+                                : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                        )}
+                        title="Exportar resumen mensual a Excel"
+                    >
+                        {isExporting ? (
+                            <>
+                                <Loader2 size={14} className="animate-spin" />
+                                Exportando...
+                            </>
+                        ) : (
+                            <>
+                                <FileSpreadsheet size={14} />
+                                Excel Mensual
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
         </header>
     );

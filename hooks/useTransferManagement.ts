@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { TransferRequest, TransferFormData, PatientSnapshot } from '../types/transfers';
+import { TransferRequest, TransferFormData, PatientSnapshot, TransferStatus } from '../types/transfers';
 import { PatientData } from '../types';
 import {
     subscribeToTransfers,
@@ -12,7 +12,8 @@ import {
     updateTransferRequest,
     changeTransferStatus,
     completeTransfer,
-    deleteTransferRequest
+    deleteTransferRequest,
+    deleteStatusHistoryEntry
 } from '../services/transfers/transferService';
 import { getNextStatus } from '../constants/transferConstants';
 import { useAuth } from '../context/AuthContext';
@@ -28,9 +29,13 @@ interface UseTransferManagementReturn {
     createTransfer: (data: TransferFormData) => Promise<void>;
     updateTransfer: (id: string, data: Partial<TransferFormData>) => Promise<void>;
     advanceStatus: (transfer: TransferRequest) => Promise<void>;
+    setTransferStatus: (transfer: TransferRequest, status: TransferStatus) => Promise<void>;
     markAsTransferred: (transfer: TransferRequest, transferMethod: string) => Promise<void>;
     cancelTransfer: (transfer: TransferRequest, reason: string) => Promise<void>;
     deleteTransfer: (id: string) => Promise<void>;
+    undoTransfer: (transfer: TransferRequest) => Promise<void>;
+    archiveTransfer: (transfer: TransferRequest) => Promise<void>;
+    deleteHistoryEntry: (transfer: TransferRequest, historyIndex: number) => Promise<void>;
 
     // Helpers
     getHospitalizedPatients: () => { id: string; name: string; bedId: string; diagnosis: string }[];
@@ -93,6 +98,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
             name: patient.patientName,
             rut: patient.rut || 'Sin RUT',
             age: parseInt(patient.age) || 0,
+            birthDate: patient.birthDate, // Copy birth date from census
             sex: patient.biologicalSex === 'Masculino' ? 'M' : 'F',
             diagnosis: patient.pathology || 'Sin diagnóstico',
             secondaryDiagnoses: patient.diagnosisComments ? [patient.diagnosisComments] : undefined,
@@ -150,6 +156,22 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
             setError(null);
         } catch (err) {
             console.error('Error advancing status:', err);
+            setError('Error al cambiar el estado');
+        }
+    }, [user]);
+
+    // Set a specific status
+    const setTransferStatus = useCallback(async (transfer: TransferRequest, status: TransferStatus) => {
+        if (!user?.email) {
+            setError('Usuario no autenticado');
+            return;
+        }
+
+        try {
+            await changeTransferStatus(transfer.id, status, user.email);
+            setError(null);
+        } catch (err) {
+            console.error('Error setting status:', err);
             setError('Error al cambiar el estado');
         }
     }, [user]);
@@ -214,18 +236,82 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
         }
     }, []);
 
-    const activeCount = transfers.filter(t => t.status !== 'TRANSFERRED' && t.status !== 'CANCELLED').length;
+    // Undo a transfer (revert to previous status, typically ACCEPTED)
+    const undoTransfer = useCallback(async (transfer: TransferRequest) => {
+        if (!user?.email) {
+            setError('Usuario no autenticado');
+            return;
+        }
+
+        // Find the previous status from history
+        const prevChange = transfer.statusHistory.length >= 2
+            ? transfer.statusHistory[transfer.statusHistory.length - 2]
+            : null;
+        const prevStatus = prevChange?.to || 'ACCEPTED';
+
+        try {
+            await changeTransferStatus(transfer.id, prevStatus, user.email, 'Traslado deshecho');
+            setError(null);
+            console.log(`↩️ Traslado deshecho: ${transfer.patientSnapshot.name} → ${prevStatus}`);
+        } catch (err) {
+            console.error('Error undoing transfer:', err);
+            setError('Error al deshacer el traslado');
+        }
+    }, [user]);
+
+    // Archive a transfer (hide from list until next day auto-cleanup)
+    const archiveTransfer = useCallback(async (transfer: TransferRequest) => {
+        try {
+            await updateTransferRequest(transfer.id, {
+                archived: true,
+                archivedAt: new Date().toISOString()
+            } as any);
+            setError(null);
+            console.log(`📦 Traslado archivado: ${transfer.patientSnapshot.name}`);
+        } catch (err) {
+            console.error('Error archiving transfer:', err);
+            setError('Error al archivar el traslado');
+        }
+    }, []);
+
+    // Delete a specific history entry (for correcting mistakes)
+    const deleteHistoryEntry = useCallback(async (transfer: TransferRequest, historyIndex: number) => {
+        try {
+            await deleteStatusHistoryEntry(transfer.id, historyIndex);
+            setError(null);
+            console.log(`🗑️ Historial eliminado: ${transfer.patientSnapshot.name} índice ${historyIndex}`);
+        } catch (err) {
+            console.error('Error deleting history entry:', err);
+            setError('Error al eliminar el registro del historial');
+        }
+    }, []);
+
+    // Filter out archived transfers and old completed ones (auto-cleanup next day)
+    const today = new Date().toISOString().split('T')[0];
+    const visibleTransfers = transfers.filter(t => {
+        // Always hide archived
+        if (t.archived) return false;
+        // Auto-hide transferred/cancelled from previous days
+        if ((t.status === 'TRANSFERRED' || t.status === 'CANCELLED') && t.updatedAt < today) return false;
+        return true;
+    });
+
+    const activeCount = visibleTransfers.filter(t => t.status !== 'TRANSFERRED' && t.status !== 'CANCELLED').length;
 
     return {
-        transfers,
+        transfers: visibleTransfers,
         isLoading,
         error,
         createTransfer,
         updateTransfer,
         advanceStatus,
+        setTransferStatus,
         markAsTransferred,
         cancelTransfer,
         deleteTransfer,
+        undoTransfer,
+        archiveTransfer,
+        deleteHistoryEntry,
         getHospitalizedPatients,
         activeCount
     };

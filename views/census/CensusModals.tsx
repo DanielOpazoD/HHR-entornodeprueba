@@ -85,6 +85,8 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
                 clinicalCribStatus={dischargeState.clinicalCribStatus}
                 onClinicalCribStatusChange={(s) => setDischargeState({ ...dischargeState, clinicalCribStatus: s })}
                 onStatusChange={(s) => setDischargeState({ ...dischargeState, status: s })}
+                dischargeTarget={dischargeState.dischargeTarget}
+                onDischargeTargetChange={(t) => setDischargeState({ ...dischargeState, dischargeTarget: t })}
                 initialType={dischargeState.type}
                 initialOtherDetails={dischargeState.typeOther}
                 initialTime={dischargeState.time}

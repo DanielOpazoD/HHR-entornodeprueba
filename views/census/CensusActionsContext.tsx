@@ -25,6 +25,7 @@ export interface DischargeState {
     hasClinicalCrib?: boolean;
     clinicalCribName?: string;
     clinicalCribStatus?: 'Vivo' | 'Fallecido';
+    dischargeTarget?: 'mother' | 'baby' | 'both';
 }
 
 export interface TransferState {
@@ -49,7 +50,7 @@ interface CensusActionsContextType {
     // Discharge State
     dischargeState: DischargeState;
     setDischargeState: (state: DischargeState) => void;
-    executeDischarge: (data?: { status: 'Vivo' | 'Fallecido', type?: string, typeOther?: string, time?: string }) => void;
+    executeDischarge: (data?: { status: 'Vivo' | 'Fallecido', type?: string, typeOther?: string, time?: string, dischargeTarget?: 'mother' | 'baby' | 'both' }) => void;
     handleEditDischarge: (d: DischargeData) => void;
 
     // Transfer State
@@ -143,7 +144,8 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
                 hasClinicalCrib: hasBaby,
                 clinicalCribName: patient.clinicalCrib?.patientName,
                 clinicalCribStatus: 'Vivo',
-                time: undefined
+                time: undefined,
+                dischargeTarget: hasBaby ? 'both' : undefined
             });
         } else if (action === 'transfer') {
             const patient = record.beds[bedId];
@@ -169,12 +171,13 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
         setActionState({ type: null, sourceBedId: null, targetBedId: null });
     }, [actionState, moveOrCopyPatient]);
 
-    const executeDischarge = useCallback((data?: { status: 'Vivo' | 'Fallecido', type?: string, typeOther?: string, time?: string }) => {
+    const executeDischarge = useCallback((data?: { status: 'Vivo' | 'Fallecido', type?: string, typeOther?: string, time?: string, dischargeTarget?: 'mother' | 'baby' | 'both' }) => {
         // If data is provided (from Modal onConfirm), use it. Fallback to state (legacy/editing)
         const status = data?.status || dischargeState.status;
         const type = data?.type;
         const typeOther = data?.typeOther;
         const time = data?.time || dischargeState.time || new Date().toTimeString().slice(0, 5);
+        const target = data?.dischargeTarget || dischargeState.dischargeTarget;
 
         if (dischargeState.recordId) {
             updateDischarge(
@@ -191,7 +194,8 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
                 dischargeState.clinicalCribStatus,
                 type,
                 typeOther,
-                time
+                time,
+                target
             );
         }
         setDischargeState(prev => ({ ...prev, isOpen: false }));

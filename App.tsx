@@ -18,6 +18,7 @@ import { AppProviders } from '@/components/AppProviders';
 import { AppRouter } from '@/components/AppRouter';
 import { AuditProvider } from '@/context';
 import { AppContent } from '@/components/layout/AppContent';
+import { CensusProvider, CensusContextType } from '@/context/CensusContext';
 
 // ============================================================================
 // Sync Effect - Keeps repository in sync with Firebase connection status
@@ -41,13 +42,6 @@ const useNurseSignature = (record: ReturnType<typeof useDailyRecord>['record']) 
     return (record.nurses?.filter(n => n && n.trim()) || []).join(' / ');
   }, [record]);
 };
-
-// ============================================================================
-// Main App Component
-// ============================================================================
-// ============================================================================
-// Internal App Content (Needs Context Providers)
-// ============================================================================
 
 // ============================================================================
 // Main App Component
@@ -105,7 +99,7 @@ function App() {
  */
 interface AppInnerProps {
   auth: AuthContextType;
-  dateNav: UseDateNavigationReturn & { isSignatureMode: boolean };
+  dateNav: UseDateNavigationReturn & { isSignatureMode: boolean; currentDateString: string };
   sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
@@ -127,16 +121,23 @@ function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
   const fileOps = useFileOperations(record, dailyRecordHook.refresh);
   const ui = useAppState();
 
+  // Construct Domain Context Value
+  const censusContextValue: CensusContextType = {
+    dailyRecord: dailyRecordHook,
+    dateNav: {
+      ...dateNav,
+      existingDaysInMonth: existingDaysInMonth || [],
+    },
+    fileOps,
+    censusEmail,
+    nurseSignature,
+    sharedCensus
+  };
+
   return (
-    <AppContent
-      dateNav={{ ...dateNav, existingDaysInMonth }}
-      ui={ui}
-      dailyRecordHook={dailyRecordHook}
-      censusEmail={censusEmail}
-      fileOps={fileOps}
-      nurseSignature={nurseSignature}
-      sharedCensus={sharedCensus}
-    />
+    <CensusProvider value={censusContextValue}>
+      <AppContent ui={ui} />
+    </CensusProvider>
   );
 }
 

@@ -31,7 +31,8 @@ export const NURSES_STORAGE_KEY = 'hanga_roa_nurses_list';
  */
 export const getStoredRecords = (): Record<string, DailyRecord> => {
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
+        if (typeof window === 'undefined' || !window.localStorage) return {};
+        const data = window.localStorage.getItem(STORAGE_KEY);
         return data ? JSON.parse(data) : {};
     } catch (e) {
         console.error("Failed to load data from localStorage:", e);
@@ -47,7 +48,9 @@ export const getStoredRecords = (): Record<string, DailyRecord> => {
 export const saveRecordLocal = (record: DailyRecord): void => {
     const allRecords = getStoredRecords();
     allRecords[record.date] = record;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+    }
 };
 
 /**
@@ -104,7 +107,8 @@ export const getPreviousDayRecord = (currentDate: string): DailyRecord | null =>
  */
 export const getStoredNurses = (): string[] => {
     try {
-        const data = localStorage.getItem(NURSES_STORAGE_KEY);
+        if (typeof window === 'undefined' || !window.localStorage) return ["Enfermero/a 1", "Enfermero/a 2"];
+        const data = window.localStorage.getItem(NURSES_STORAGE_KEY);
         return data ? JSON.parse(data) : ["Enfermero/a 1", "Enfermero/a 2"];
     } catch {
         return [];
@@ -117,7 +121,9 @@ export const getStoredNurses = (): string[] => {
  * @param nurses - Array of nurse name strings to persist.
  */
 export const saveStoredNurses = (nurses: string[]): void => {
-    localStorage.setItem(NURSES_STORAGE_KEY, JSON.stringify(nurses));
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(NURSES_STORAGE_KEY, JSON.stringify(nurses));
+    }
 };
 
 // ============================================================================
@@ -132,15 +138,19 @@ export const saveStoredNurses = (nurses: string[]): void => {
 export const deleteRecordLocal = (date: string): void => {
     const allRecords = getStoredRecords();
     delete allRecords[date];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+    }
 };
 
 /**
  * Clear all application data from localStorage
  */
 export const clearAllData = (): void => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(NURSES_STORAGE_KEY);
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(NURSES_STORAGE_KEY);
+    }
 };
 
 /**
@@ -150,9 +160,10 @@ export const clearAllData = (): void => {
  */
 export const isLocalStorageAvailable = (): boolean => {
     try {
+        if (typeof window === 'undefined' || !window.localStorage) return false;
         const testKey = '__test__';
-        localStorage.setItem(testKey, testKey);
-        localStorage.removeItem(testKey);
+        window.localStorage.setItem(testKey, testKey);
+        window.localStorage.removeItem(testKey);
         return true;
     } catch {
         return false;
@@ -170,7 +181,8 @@ const DEMO_STORAGE_KEY = 'hhr_demo_records';
  */
 export const getDemoRecords = (): Record<string, DailyRecord> => {
     try {
-        const data = localStorage.getItem(DEMO_STORAGE_KEY);
+        if (typeof window === 'undefined' || !window.localStorage) return {};
+        const data = window.localStorage.getItem(DEMO_STORAGE_KEY);
         return data ? JSON.parse(data) : {};
     } catch (e) {
         console.error("Failed to load demo data:", e);
@@ -201,7 +213,9 @@ export const saveDemoRecords = (records: DailyRecord[]): void => {
     records.forEach(record => {
         allRecords[record.date] = record;
     });
-    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(allRecords));
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(allRecords));
+    }
 };
 
 /**
@@ -232,7 +246,9 @@ export const deleteDemoRecord = (date: string): void => {
     deleteDemoToIndexedDB(date);
     const allRecords = getDemoRecords();
     delete allRecords[date];
-    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(allRecords));
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(allRecords));
+    }
 };
 
 /**
@@ -240,7 +256,9 @@ export const deleteDemoRecord = (date: string): void => {
  */
 export const clearAllDemoData = (): void => {
     clearAllDemoRecords();
-    localStorage.removeItem(DEMO_STORAGE_KEY);
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY);
+    }
 };
 
 /**

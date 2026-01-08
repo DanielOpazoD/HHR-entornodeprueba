@@ -58,7 +58,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
     return (
         <div className="card print:border-none print:shadow-none flex flex-col">
-            <div className="relative overflow-x-auto">
+            <div className="relative">
                 <table className="w-full text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed">
                     <thead>
                         <tr className="border-b border-slate-200 print:static">

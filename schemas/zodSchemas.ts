@@ -174,6 +174,23 @@ export const DailyRecordSchema = z.object({
     tensDayShift: z.array(z.string()).optional(),
     tensNightShift: z.array(z.string()).optional(),
     activeExtraBeds: z.array(z.string()).default([]),
+    handoffDayChecklist: z.object({
+        escalaBraden: z.boolean().optional(),
+        escalaRiesgoCaidas: z.boolean().optional(),
+        escalaRiesgoLPP: z.boolean().optional(),
+    }).optional(),
+    handoffNightChecklist: z.object({
+        estadistica: z.boolean().optional(),
+        categorizacionCudyr: z.boolean().optional(),
+        encuestaUTI: z.boolean().optional(),
+        encuestaMedias: z.boolean().optional(),
+        conteoMedicamento: z.boolean().optional(),
+        conteoNoControlados: z.boolean().optional(),
+        conteoNoControladosProximaFecha: z.string().optional(),
+    }).optional(),
+    handoffNovedadesDayShift: z.string().optional(),
+    handoffNovedadesNightShift: z.string().optional(),
+    medicalHandoffNovedades: z.string().optional(),
 }).passthrough(); // Allow additional fields not defined here
 
 // ============================================================================
@@ -214,7 +231,18 @@ export const parseDailyRecordWithDefaults = (data: unknown, docId: string): z.in
             cma: Array.isArray(raw.cma) ? raw.cma : [],
             lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
             nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
+            nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
+            nursesNightShift: Array.isArray(raw.nursesNightShift) ? raw.nursesNightShift : ['', ''],
+            tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
+            tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
             activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
+            handoffDayChecklist: typeof raw.handoffDayChecklist === 'object' ? raw.handoffDayChecklist : {},
+            handoffNightChecklist: typeof raw.handoffNightChecklist === 'object' ? raw.handoffNightChecklist : {},
+            handoffNovedadesDayShift: typeof raw.handoffNovedadesDayShift === 'string' ? raw.handoffNovedadesDayShift : '',
+            handoffNovedadesNightShift: typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
+            medicalHandoffNovedades: typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
+            // Night shift receiving nurses
+            handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
         };
     }
 };

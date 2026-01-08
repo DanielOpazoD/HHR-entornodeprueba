@@ -74,6 +74,8 @@ export interface QuestionnaireResponse {
     responses: QuestionResponse[];
     completedAt: string;
     completedBy: string;
+    attendingPhysician?: string;
+    diagnosis?: string;
 }
 
 // ============================================================================
@@ -151,6 +153,9 @@ export interface TransferPatientData {
 
     /** Birth date */
     birthDate?: string;
+
+    /** Patient age (in years) - used if birthDate is not available */
+    age?: number;
 
     /** Main diagnosis */
     diagnosis?: string;

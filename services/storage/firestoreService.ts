@@ -16,6 +16,7 @@ import { db } from '../../firebaseConfig';
 import { DailyRecord } from '../../types';
 import { DailyRecordSchema } from '../../schemas/zodSchemas';
 import { withRetry } from '../../utils/networkUtils';
+import { parseDailyRecordWithDefaults } from '../../schemas/zodSchemas';
 import {
     HOSPITAL_ID,
     COLLECTIONS,
@@ -95,43 +96,43 @@ const ensureArray = (value: unknown, defaultLength: number): string[] => {
     return Array(defaultLength).fill('');
 };
 
+
+
 // Convert Firestore data to DailyRecord
-// Preserves ALL data from Firestore with minimal validation
+// Uses Zod for validation with graceful defaults for missing fields
 const docToRecord = (docData: Record<string, unknown>, docId: string): DailyRecord => {
-    const rawBeds = (docData.beds as DailyRecord['beds']) || {};
+    // 1. Transform Firestore-specific types (Timestamp) to strings BEFORE validation
+    const rawData = { ...docData };
 
-    // Transform Firestore Timestamp to ISO string
-    const lastUpdated = docData.lastUpdated instanceof Timestamp
-        ? docData.lastUpdated.toDate().toISOString()
-        : (docData.lastUpdated as string) || new Date().toISOString();
+    if (rawData.lastUpdated instanceof Timestamp) {
+        rawData.lastUpdated = rawData.lastUpdated.toDate().toISOString();
+    }
 
-    // Return record preserving ALL fields from Firestore
-    // Using spread of docData first, then overriding with sanitized values
+    // 1.5 Pre-process arrays that might be returned as objects by Firestore (indexed updates)
+    // This is crucial because Zod expects clean arrays, but Firestore might return {0: "Name"}
+    rawData.nurses = ensureArray(rawData.nurses, 2);
+    rawData.nursesDayShift = ensureArray(rawData.nursesDayShift, 2);
+    rawData.nursesNightShift = ensureArray(rawData.nursesNightShift, 2);
+    rawData.tensDayShift = ensureArray(rawData.tensDayShift, 3);
+    rawData.tensNightShift = ensureArray(rawData.tensNightShift, 3);
+    rawData.activeExtraBeds = Array.isArray(rawData.activeExtraBeds) ? rawData.activeExtraBeds : [];
 
-    return {
-        // Spread ALL Firestore data first
-        ...(docData as Partial<DailyRecord>),
-        // Override with sanitized/required values
-        date: docId,
-        beds: sanitizeBeds(rawBeds),
-        lastUpdated,
-        discharges: (docData.discharges as DailyRecord['discharges']) || [],
-        transfers: (docData.transfers as DailyRecord['transfers']) || [],
-        cma: (docData.cma as DailyRecord['cma']) || [],
-        nurses: (docData.nurses as string[]) || ['', ''],
-        // Use ensureArray to handle both arrays and corrupted object data
-        nursesDayShift: ensureArray(docData.nursesDayShift, 2),
-        nursesNightShift: ensureArray(docData.nursesNightShift, 2),
-        tensDayShift: ensureArray(docData.tensDayShift, 3),
-        tensNightShift: ensureArray(docData.tensNightShift, 3),
-        activeExtraBeds: (docData.activeExtraBeds as string[]) || [],
+    // 2. Use Zod to validate and apply defaults (soft validation)
+    // This ensures that we always return a valid DailyRecord structure
+    // regardless of what missing/corrupted data exists in Firestore.
+    const validRecord = parseDailyRecordWithDefaults(rawData, docId);
 
-        // === Explicitly preserve/convert medical handoff fields ===
-        // IMPORTANT: Firestore stores undefined as null. We convert back to undefined.
-        medicalHandoffDoctor: (docData.medicalHandoffDoctor as string) || undefined,
-        medicalHandoffSentAt: (docData.medicalHandoffSentAt as string) || undefined,
-        medicalSignature: (docData.medicalSignature as DailyRecord['medicalSignature']) || undefined
-    } as DailyRecord;
+    // 3. Apply specific sanitization that Zod might not handle (like empty array padding if strictly needed by UI,
+    // although Zod defaults should handle most). 
+    // We keep the explicit checks for undefined -> null conversion logic if strictly needed,
+    // but typically the repository layer prefers undefined for optional fields in the UI.
+
+    // Note: parseDailyRecordWithDefaults already handles the "ensureArray" and defaults.
+
+    // 4. Overwrite specific fields that need special handling or were just sanitized by Zod
+    // (If your Zod schema is comprehensive, this step is small).
+
+    return validRecord as DailyRecord;
 };
 
 /**
@@ -252,6 +253,32 @@ export const saveRecordToFirestore = async (record: DailyRecord, expectedLastUpd
  * await updateRecordPartial('2024-12-24', { 'beds.BED_01.isBlocked': true });
  * ```
  */
+/**
+ * Flattens a nested object into a single-level object with dot-notation keys.
+ * Used for Firestore partial updates to avoid overwriting nested objects.
+ */
+const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
+    return Object.keys(obj).reduce((acc: any, k) => {
+        const pre = prefix.length ? prefix + '.' : '';
+        if (
+            typeof obj[k] === 'object' &&
+            obj[k] !== null &&
+            !Array.isArray(obj[k]) &&
+            !(obj[k] instanceof Date) &&
+            !(obj[k] instanceof Timestamp)
+        ) {
+            Object.assign(acc, flattenObject(obj[k], pre + k));
+        } else {
+            acc[pre + k] = obj[k];
+        }
+        return acc;
+    }, {});
+};
+
+/**
+ * Performs a partial update to a DailyRecord in Firestore using dot-notation paths.
+ * This is efficient as it only modifies the specified fields.
+ */
 export const updateRecordPartial = async (date: string, partialData: Partial<DailyRecord>): Promise<void> => {
     try {
         const docRef = doc(getRecordsCollection(), date);
@@ -259,16 +286,18 @@ export const updateRecordPartial = async (date: string, partialData: Partial<Dai
         // MINSAL Integrity: Save snapshot of current state before partial update
         await saveHistorySnapshot(date);
 
-        // Add timestamp and sanitize
+        // Flatten the data to handle nested fields correctly (dot-notation)
+        // and add timestamp
+        const flatData = flattenObject(partialData);
         const sanitizedData = sanitizeForFirestore({
-            ...partialData,
+            ...flatData,
             lastUpdated: Timestamp.now()
         });
 
         await withRetry(() => updateDoc(docRef, sanitizedData as Record<string, unknown>), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
         });
-        console.log('✅ Partial update to Firestore:', date, Object.keys(partialData));
+        console.log('✅ Partial update to Firestore (flattened):', date, Object.keys(flatData));
     } catch (error) {
         console.error('❌ Error in partial update to Firestore:', error);
         throw error;

@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Save, CheckCircle, Loader2 } from 'lucide-react';
 import { useConfirmDialog, useNotification } from '../../context/UIContext';
 import { uploadPdf, pdfExists } from '../../services/backup/pdfStorageService';
+import { uploadCudyrExcel } from '../../services/backup/cudyrStorageService';
 import { DailyRecord } from '../../types';
 
 interface SaveBackupButtonProps {
@@ -89,8 +90,9 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
 
         try {
             // Dynamically import jsPDF and the PDF builder
-            const [{ default: jsPDF }, { buildHandoffPdfContent }] = await Promise.all([
+            const [{ default: jsPDF }, { default: autoTable }, { buildHandoffPdfContent }] = await Promise.all([
                 import('jspdf'),
+                import('jspdf-autotable'),
                 import('../../services/backup/pdfContentBuilder')
             ]);
 
@@ -98,7 +100,7 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
             const doc = new jsPDF();
 
             // Build the PDF content (same as PDF LITE)
-            await buildHandoffPdfContent(doc, record, shiftType, schedule);
+            await buildHandoffPdfContent(doc, record, shiftType, schedule, autoTable);
 
             // Get blob from jsPDF
             const pdfBlob = doc.output('blob');
@@ -106,7 +108,23 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
             // Upload to Storage
             await uploadPdf(pdfBlob, date, shiftType);
 
-            success(backupExists ? 'Respaldo PDF actualizado' : 'Respaldo PDF guardado');
+            // If night shift, also backup CUDYR monthly Excel
+            if (shiftType === 'night') {
+                try {
+                    console.log('[SaveBackupButton] 📊 Generating CUDYR backup...');
+                    const { generateCudyrMonthlyExcelBlob } = await import('../../services/exporters/cudyrExportService');
+                    const [year, month] = date.split('-').map(Number);
+                    const cudyrBlob = await generateCudyrMonthlyExcelBlob(year, month, date);
+                    await uploadCudyrExcel(cudyrBlob, date);
+                    console.log('[SaveBackupButton] ✅ CUDYR backup uploaded');
+                    success('Respaldos guardados', 'PDF + CUDYR mensual');
+                } catch (cudyrErr) {
+                    console.error('[SaveBackupButton] ⚠️ CUDYR backup failed:', cudyrErr);
+                    warning('PDF guardado, CUDYR falló', 'Revise consola para detalles');
+                }
+            } else {
+                success(backupExists ? 'Respaldo PDF actualizado' : 'Respaldo PDF guardado');
+            }
             setBackupExists(true);
             setJustSaved(true);
             setTimeout(() => setJustSaved(false), 3000);

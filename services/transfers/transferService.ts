@@ -47,9 +47,19 @@ const generateTransferId = (): string => {
  * Convert Firestore document to TransferRequest
  */
 const docToTransfer = (docData: Record<string, unknown>, docId: string): TransferRequest => {
+    // Normalize status for backward compatibility
+    let status = docData.status as TransferStatus;
+    if (status === 'RECEIVED' as any) status = 'SENT';
+
     return {
         ...(docData as unknown as TransferRequest),
         id: docId,
+        status,
+        statusHistory: (docData.statusHistory as any[])?.map(h => ({
+            ...h,
+            from: h.from === 'RECEIVED' ? 'SENT' : h.from,
+            to: h.to === 'RECEIVED' ? 'SENT' : h.to
+        })) || [],
         requestDate: docData.requestDate instanceof Timestamp
             ? docData.requestDate.toDate().toISOString().split('T')[0]
             : (docData.requestDate as string),
@@ -258,4 +268,40 @@ export const deleteTransferRequest = async (id: string): Promise<void> => {
     const docRef = doc(getTransfersCollection(), id);
     await deleteDoc(docRef);
     console.log('🗑️ Transfer request deleted:', id);
+};
+
+/**
+ * Delete a specific status history entry (for correcting mistakes)
+ * Never allows deleting the first entry (creation)
+ */
+export const deleteStatusHistoryEntry = async (
+    id: string,
+    historyIndex: number
+): Promise<void> => {
+    const docRef = doc(getTransfersCollection(), id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+        throw new Error(`Transfer request ${id} not found`);
+    }
+
+    const current = docSnap.data() as TransferRequest;
+    const history = current.statusHistory || [];
+
+    // Never delete the first entry
+    if (historyIndex === 0 || historyIndex >= history.length) {
+        throw new Error('Cannot delete this history entry');
+    }
+
+    // Remove the entry and update status to the previous entry's "to" value
+    const newHistory = history.filter((_, idx) => idx !== historyIndex);
+    const newStatus = newHistory[newHistory.length - 1]?.to || 'REQUESTED';
+
+    await setDoc(docRef, {
+        status: newStatus,
+        statusHistory: newHistory,
+        updatedAt: Timestamp.now()
+    }, { merge: true });
+
+    console.log(`✅ Transfer ${id} history entry ${historyIndex} deleted, status reverted to ${newStatus}`);
 };

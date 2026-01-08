@@ -1,15 +1,14 @@
 /**
  * NavbarTabs - Main navigation tabs component
- * Extracted from Navbar.tsx for better maintainability.
+ * Clinical modules shown as tabs, utility modules in dropdown.
  */
 
-import React from 'react';
-import { LayoutList, ClipboardList, MessageSquare, Stethoscope, Truck, FolderArchive, LucideIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { LayoutList, MessageSquare, Stethoscope, Truck, FolderArchive, LayoutGrid, BarChart3, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 
 interface NavTabProps {
-    module: ModuleType;
     label: string;
     icon: LucideIcon;
     isActive: boolean;
@@ -30,6 +29,34 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick })
     </button>
 );
 
+// Utility modules dropdown item
+interface DropdownItemProps {
+    label: string;
+    icon: LucideIcon;
+    isActive: boolean;
+    onClick: () => void;
+    disabled?: boolean;
+}
+
+const DropdownItem: React.FC<DropdownItemProps> = ({ label, icon: Icon, isActive, onClick, disabled }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={clsx(
+            "flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium transition-all",
+            disabled
+                ? "text-slate-400 cursor-not-allowed"
+                : isActive
+                    ? "text-medical-600 bg-medical-50"
+                    : "text-slate-700 hover:bg-slate-50"
+        )}
+    >
+        <Icon size={18} className={disabled ? "text-slate-300" : ""} />
+        <span>{label}</span>
+        {disabled && <span className="ml-auto text-xs text-slate-400">(próximamente)</span>}
+    </button>
+);
+
 interface NavbarTabsProps {
     currentModule: ModuleType;
     onModuleChange: (mod: ModuleType) => void;
@@ -41,11 +68,28 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
     onModuleChange,
     visibleModules
 }) => {
+    const [isUtilityMenuOpen, setIsUtilityMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsUtilityMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const isUtilityModuleActive = currentModule === 'BACKUP_FILES' || currentModule === 'CUDYR';
+    const hasUtilityModules = visibleModules.includes('BACKUP_FILES') || visibleModules.includes('CUDYR');
+
     return (
-        <div className="flex gap-1 self-end">
+        <div className="flex gap-1 self-end items-center">
+            {/* Clinical Modules - Prominent tabs */}
             {visibleModules.includes('CENSUS') && (
                 <NavTab
-                    module="CENSUS"
                     label="Censo Diario"
                     icon={LayoutList}
                     isActive={currentModule === 'CENSUS'}
@@ -54,7 +98,6 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             )}
             {visibleModules.includes('NURSING_HANDOFF') && (
                 <NavTab
-                    module="NURSING_HANDOFF"
                     label="Entrega Turno Enfermería"
                     icon={MessageSquare}
                     isActive={currentModule === 'NURSING_HANDOFF'}
@@ -63,7 +106,6 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             )}
             {visibleModules.includes('MEDICAL_HANDOFF') && (
                 <NavTab
-                    module="MEDICAL_HANDOFF"
                     label="Entrega Turno Médicos"
                     icon={Stethoscope}
                     isActive={currentModule === 'MEDICAL_HANDOFF'}
@@ -72,21 +114,59 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             )}
             {visibleModules.includes('TRANSFER_MANAGEMENT') && (
                 <NavTab
-                    module="TRANSFER_MANAGEMENT"
                     label="Gestión Traslados"
                     icon={Truck}
                     isActive={currentModule === 'TRANSFER_MANAGEMENT'}
                     onClick={() => onModuleChange('TRANSFER_MANAGEMENT')}
                 />
             )}
-            {visibleModules.includes('BACKUP_FILES') && (
-                <NavTab
-                    module="BACKUP_FILES"
-                    label="Archivos"
-                    icon={FolderArchive}
-                    isActive={currentModule === 'BACKUP_FILES'}
-                    onClick={() => onModuleChange('BACKUP_FILES')}
-                />
+
+            {/* Utility Modules Dropdown - Subtle icon */}
+            {hasUtilityModules && (
+                <div className="relative ml-2" ref={menuRef}>
+                    <button
+                        onClick={() => setIsUtilityMenuOpen(!isUtilityMenuOpen)}
+                        className={clsx(
+                            "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+                            isUtilityModuleActive
+                                ? "bg-white/20 text-white ring-2 ring-white/30"
+                                : "text-medical-200 hover:bg-white/10 hover:text-white"
+                        )}
+                        title="Más módulos"
+                    >
+                        <LayoutGrid size={20} />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isUtilityMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="py-1">
+                                {visibleModules.includes('CUDYR') && (
+                                    <DropdownItem
+                                        label="Estadísticas CUDYR"
+                                        icon={BarChart3}
+                                        isActive={currentModule === 'CUDYR'}
+                                        onClick={() => {
+                                            onModuleChange('CUDYR');
+                                            setIsUtilityMenuOpen(false);
+                                        }}
+                                    />
+                                )}
+                                {visibleModules.includes('BACKUP_FILES') && (
+                                    <DropdownItem
+                                        label="Archivos"
+                                        icon={FolderArchive}
+                                        isActive={currentModule === 'BACKUP_FILES'}
+                                        onClick={() => {
+                                            onModuleChange('BACKUP_FILES');
+                                            setIsUtilityMenuOpen(false);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     );

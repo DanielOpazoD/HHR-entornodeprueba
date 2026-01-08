@@ -1,5 +1,5 @@
 import React from 'react';
-import { PatientData, DeviceDetails } from '../../../types';
+import { PatientData, DeviceDetails, Specialty } from '../../../types';
 import { SPECIALTY_OPTIONS, STATUS_OPTIONS } from '../../../constants';
 import clsx from 'clsx';
 import { ArrowRight, Baby } from 'lucide-react';
@@ -7,6 +7,7 @@ import { DeviceSelector } from '../../DeviceSelector';
 import { DebouncedInput } from '../../ui/DebouncedInput';
 import { RutPassportInput } from './RutPassportInput';
 import { PatientInputSchema } from '../../../schemas/inputSchemas';
+import { DeliveryRoutePopover } from './DeliveryRoutePopover';
 
 interface PatientInputCellsProps {
     data: PatientData;
@@ -19,6 +20,7 @@ interface PatientInputCellsProps {
         devices: (newDevices: string[]) => void;
         deviceDetails: (details: DeviceDetails) => void;
         toggleDocType?: () => void;
+        deliveryRoute?: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
     };
     onDemo: () => void;
     readOnly?: boolean;
@@ -115,20 +117,34 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
                 {isEmpty && !isSubRow ? (
                     <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">-</div>
                 ) : (
-                    <DebouncedInput
-                        type="text"
-                        className={clsx(
-                            "w-full p-0.5 h-7  border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px]",
-                            !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology }).success && data.pathology
-                                ? "border-red-400 focus:ring-red-200 focus:border-red-500"
-                                : "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
-                            isSubRow && "text-xs h-6"
+                    <div className="relative">
+                        <DebouncedInput
+                            type="text"
+                            className={clsx(
+                                "w-full p-0.5 h-7 border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px]",
+                                !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology }).success && data.pathology
+                                    ? "border-red-400 focus:ring-red-200 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
+                                isSubRow && "text-xs h-6",
+                                data.specialty === 'Ginecobstetricia' && "pr-6" // Make room for icon
+                            )}
+                            placeholder="Diagnóstico"
+                            value={data.pathology || ''}
+                            onChange={handleDebouncedText('pathology')}
+                            disabled={readOnly}
+                        />
+                        {/* Delivery Route icon for Ginecobstetricia - inside the input */}
+                        {data.specialty === 'Ginecobstetricia' && onChange.deliveryRoute && (
+                            <div className="absolute right-0.5 top-1/2 -translate-y-1/2 z-10">
+                                <DeliveryRoutePopover
+                                    deliveryRoute={data.deliveryRoute}
+                                    deliveryDate={data.deliveryDate}
+                                    onSave={onChange.deliveryRoute}
+                                    disabled={readOnly}
+                                />
+                            </div>
                         )}
-                        placeholder="Diagnóstico"
-                        value={data.pathology || ''}
-                        onChange={handleDebouncedText('pathology')}
-                        disabled={readOnly}
-                    />
+                    </div>
                 )}
             </td>
 

@@ -106,6 +106,10 @@ export interface PatientData {
 
     // Medical Handoff
     medicalHandoffNote?: string;
+
+    // Obstetric delivery tracking (Ginecobstetricia only)
+    deliveryRoute?: 'Vaginal' | 'Cesárea';
+    deliveryDate?: string; // ISO date string
 }
 
 /**

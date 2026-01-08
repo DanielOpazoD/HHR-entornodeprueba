@@ -58,11 +58,11 @@ const ScoreInput: React.FC<{
 };
 
 export const CudyrRow: React.FC<CudyrRowProps> = ({ bed, patient, onScoreChange, readOnly = false, isCrib = false }) => {
-    const isOccupied = !!patient.patientName;
+    const isOccupied = !!patient?.patientName;
     const isUTI = bed.type === 'UTI';
-    const cudyrScores = patient.cudyr;
+    const cudyrScores = patient?.cudyr;
 
-    const { finalCat, depScore, riskScore, badgeColor } = getCategorization(patient.cudyr);
+    const { finalCat, depScore, riskScore, badgeColor } = getCategorization(patient?.cudyr);
 
     // Background color based on bed type and crib status
     const rowBgClass = isCrib

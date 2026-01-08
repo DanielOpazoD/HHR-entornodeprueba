@@ -67,6 +67,10 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
         updatePatient(bed.id, 'documentType', newType);
     }, [updatePatient, bed.id, data.documentType]);
 
+    const handleDeliveryRouteChange = useCallback((route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => {
+        updatePatientMultiple(bed.id, { deliveryRoute: route, deliveryDate: date });
+    }, [updatePatientMultiple, bed.id]);
+
     // --- Handlers for Clinical Crib (Sub-Patient) ---
     const handleCribTextChange = useCallback((field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         updateClinicalCrib(bed.id, field, e.target.value);
@@ -215,7 +219,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                             check: handleCheckboxChange,
                             devices: handleDevicesChange,
                             deviceDetails: handleDeviceDetailsChange,
-                            toggleDocType: toggleDocumentType
+                            toggleDocType: toggleDocumentType,
+                            deliveryRoute: handleDeliveryRouteChange
                         }}
                         onDemo={() => setShowDemographics(true)}
                         readOnly={readOnly}

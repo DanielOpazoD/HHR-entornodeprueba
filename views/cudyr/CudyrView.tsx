@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useDailyRecordContext } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants';
 import { CudyrScore } from '@/types';
@@ -8,14 +8,14 @@ import { ClipboardList } from 'lucide-react';
 import { CudyrHeader } from './CudyrHeader';
 import { CudyrRow, VerticalHeader } from './CudyrRow';
 import { getCategorization } from './CudyrScoreUtils';
+import { CudyrSummaryTable } from './CudyrSummaryTable';
+import { buildDailyCudyrSummary } from '@/services/calculations/cudyrSummary';
+import { useAuditContext } from '@/context/AuditContext';
+import { getAttributedAuthors } from '@/services/admin/attributionService';
 
 interface CudyrViewProps {
     readOnly?: boolean;
 }
-
-import { useAuditContext } from '@/context/AuditContext';
-import { getAttributedAuthors } from '@/services/admin/attributionService';
-import { useEffect } from 'react';
 
 export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
     const { record, updateCudyr, updateClinicalCribCudyr } = useDailyRecordContext();
@@ -58,6 +58,8 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
 
         visibleBeds.forEach(b => {
             const p = record.beds[b.id];
+            if (!p) return;
+
             // Count main patient
             if (p.patientName && !p.isBlocked) {
                 occupiedCount++;
@@ -74,6 +76,12 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
 
         return { occupiedCount, categorizedCount };
     }, [visibleBeds, record]);
+
+    // Calculate CUDYR summary with category breakdown
+    const cudyrSummary = useMemo(() => {
+        if (!record) return null;
+        return buildDailyCudyrSummary(record);
+    }, [record]);
 
     // Early return AFTER all hooks have been called
     if (!record) {
@@ -126,12 +134,22 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                 </div>
             </div>
 
+            {/* Category Summary Tables (Screen only) */}
+            {cudyrSummary && (
+                <CudyrSummaryTable
+                    counts={cudyrSummary.counts}
+                    utiTotal={cudyrSummary.utiTotal}
+                    mediaTotal={cudyrSummary.mediaTotal}
+                />
+            )}
+
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print:p-0 print:break-inside-avoid">
                 {/* Hide CudyrHeader when printing - title already in print header */}
                 <div className="print:hidden">
                     <CudyrHeader
                         occupiedCount={stats.occupiedCount}
                         categorizedCount={stats.categorizedCount}
+                        currentDate={record.date}
                     />
                 </div>
 
@@ -183,7 +201,7 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                         <tbody>
                             {visibleBeds.map(bed => {
                                 const patient = record.beds[bed.id];
-                                const hasCrib = !!patient.clinicalCrib?.patientName;
+                                const hasCrib = !!patient?.clinicalCrib?.patientName;
                                 return (
                                     <React.Fragment key={bed.id}>
                                         <CudyrRow
