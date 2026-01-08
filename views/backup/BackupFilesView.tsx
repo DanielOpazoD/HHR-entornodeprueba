@@ -63,6 +63,14 @@ export const BackupFilesView: React.FC = () => {
     // Request ID ref to handle race conditions - ignore stale responses
     const requestIdRef = useRef(0);
 
+    // Helper to convert month name to number
+    const monthNameToNumber = (monthName: string): string => {
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const index = monthNames.indexOf(monthName);
+        return index >= 0 ? String(index + 1).padStart(2, '0') : '';
+    };
+
     // Load content based on current path
     const loadContent = useCallback(async (currentRequestId: number) => {
         setIsLoading(true);
@@ -100,9 +108,11 @@ export const BackupFilesView: React.FC = () => {
                     data: { name: month.name, number: month.number, type: 'month' }
                 })));
             } else if (path.length === 2) {
-                // Month: List files
+                // Month: List files - derive month number from path
+                const monthNumber = monthNameToNumber(path[1]);
+
                 if (backupType === 'handoff') {
-                    const files = await listFilesInMonth(path[0], currentNav.month?.number || '');
+                    const files = await listFilesInMonth(path[0], monthNumber);
                     // Check if this request is still current
                     if (currentRequestId !== requestIdRef.current) return;
                     setItems(files.map(file => ({
@@ -110,7 +120,7 @@ export const BackupFilesView: React.FC = () => {
                         data: file
                     })));
                 } else if (backupType === 'census') {
-                    const files = await listCensusFilesInMonth(path[0], currentNav.month?.number || '');
+                    const files = await listCensusFilesInMonth(path[0], monthNumber);
                     // Check if this request is still current
                     if (currentRequestId !== requestIdRef.current) return;
                     const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
@@ -120,7 +130,7 @@ export const BackupFilesView: React.FC = () => {
                     })));
                 } else {
                     // CUDYR files
-                    const files = await listCudyrFilesInMonth(path[0], currentNav.month?.number || '');
+                    const files = await listCudyrFilesInMonth(path[0], monthNumber);
                     // Check if this request is still current
                     if (currentRequestId !== requestIdRef.current) return;
                     const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
@@ -136,7 +146,7 @@ export const BackupFilesView: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [path, currentNav.month?.number, error, backupType]);
+    }, [path, error, backupType]);
 
     // Auto-navigate to current year/month when backup type changes
     useEffect(() => {
