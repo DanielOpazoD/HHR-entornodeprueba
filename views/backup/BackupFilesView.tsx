@@ -3,7 +3,7 @@
  * Main view for navigating and managing backup PDFs in Storage
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FolderArchive, Plus, Search, LayoutGrid, List as ListIcon, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuthState } from '@/hooks/useAuthState';
 import { useNotification, useConfirmDialog } from '@/context/UIContext';
@@ -60,8 +60,8 @@ export const BackupFilesView: React.FC = () => {
     // PDF preview state for handoff files
     const [previewPdf, setPreviewPdf] = useState<StoredPdfFile | null>(null);
 
-    // Request ID to handle race conditions - ignore stale responses
-    const [requestId, setRequestId] = useState(0);
+    // Request ID ref to handle race conditions - ignore stale responses
+    const requestIdRef = useRef(0);
 
     // Load content based on current path
     const loadContent = useCallback(async (currentRequestId: number) => {
@@ -77,6 +77,8 @@ export const BackupFilesView: React.FC = () => {
                 } else {
                     years = await listCudyrYears();
                 }
+                // Check if this request is still current
+                if (currentRequestId !== requestIdRef.current) return;
                 setItems(years.map(year => ({
                     type: 'folder',
                     data: { name: year, type: 'year' }
@@ -92,7 +94,7 @@ export const BackupFilesView: React.FC = () => {
                     months = await listCudyrMonths(path[0]);
                 }
                 // Check if this request is still current
-                if (currentRequestId !== requestId) return;
+                if (currentRequestId !== requestIdRef.current) return;
                 setItems(months.map(month => ({
                     type: 'folder',
                     data: { name: month.name, number: month.number, type: 'month' }
@@ -102,7 +104,7 @@ export const BackupFilesView: React.FC = () => {
                 if (backupType === 'handoff') {
                     const files = await listFilesInMonth(path[0], currentNav.month?.number || '');
                     // Check if this request is still current
-                    if (currentRequestId !== requestId) return;
+                    if (currentRequestId !== requestIdRef.current) return;
                     setItems(files.map(file => ({
                         type: 'file',
                         data: file
@@ -110,7 +112,7 @@ export const BackupFilesView: React.FC = () => {
                 } else if (backupType === 'census') {
                     const files = await listCensusFilesInMonth(path[0], currentNav.month?.number || '');
                     // Check if this request is still current
-                    if (currentRequestId !== requestId) return;
+                    if (currentRequestId !== requestIdRef.current) return;
                     const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
                     setItems(sortedFiles.map(file => ({
                         type: 'file',
@@ -120,7 +122,7 @@ export const BackupFilesView: React.FC = () => {
                     // CUDYR files
                     const files = await listCudyrFilesInMonth(path[0], currentNav.month?.number || '');
                     // Check if this request is still current
-                    if (currentRequestId !== requestId) return;
+                    if (currentRequestId !== requestIdRef.current) return;
                     const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
                     setItems(sortedFiles.map(file => ({
                         type: 'file',
@@ -134,7 +136,7 @@ export const BackupFilesView: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [path, currentNav.month?.number, error, backupType, requestId]);
+    }, [path, currentNav.month?.number, error, backupType]);
 
     // Auto-navigate to current year/month when backup type changes
     useEffect(() => {
@@ -156,10 +158,10 @@ export const BackupFilesView: React.FC = () => {
     // Load content when path or backup type changes
     useEffect(() => {
         // Increment request ID to invalidate any pending requests
-        const newRequestId = requestId + 1;
-        setRequestId(newRequestId);
-        loadContent(newRequestId);
-    }, [path, backupType]);
+        requestIdRef.current += 1;
+        const currentRequestId = requestIdRef.current;
+        loadContent(currentRequestId);
+    }, [path, backupType, loadContent]);
 
     // Navigation handlers
     const handleFolderClick = (folderData: any) => {
@@ -217,9 +219,8 @@ export const BackupFilesView: React.FC = () => {
             }
             success('Archivo eliminado correctamente');
             // Trigger a refresh
-            const newId = requestId + 1;
-            setRequestId(newId);
-            loadContent(newId);
+            requestIdRef.current += 1;
+            loadContent(requestIdRef.current);
         } catch (err) {
             console.error('Error deleting file:', err);
             error('No se pudo eliminar el archivo');
@@ -228,10 +229,9 @@ export const BackupFilesView: React.FC = () => {
 
     // Wrapper for refresh button
     const handleRefresh = useCallback(() => {
-        const newId = requestId + 1;
-        setRequestId(newId);
-        loadContent(newId);
-    }, [requestId, loadContent]);
+        requestIdRef.current += 1;
+        loadContent(requestIdRef.current);
+    }, [loadContent]);
 
     const formatSize = (bytes: number) => {
         if (bytes === 0) return '0 B';
