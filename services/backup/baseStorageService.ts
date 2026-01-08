@@ -49,7 +49,7 @@ export const MONTH_NAMES = [
 // ============= Default Timeouts =============
 
 const DEFAULT_LIST_TIMEOUT_MS = 5000;
-const DEFAULT_FILES_TIMEOUT_MS = 8000;
+const DEFAULT_FILES_TIMEOUT_MS = 15000;
 
 // ============= Factory Functions =============
 
@@ -117,42 +117,57 @@ export const createListMonths = (storageRoot: string) => {
  */
 export const createListFilesInMonth = <T extends BaseStoredFile>(config: ListFilesConfig<T>) => {
     return async (year: string, month: string): Promise<T[]> => {
+        const fullStoragePath = `${config.storageRoot}/${year}/${month}`;
         try {
             await firebaseReady;
             if (!storage) return [];
 
             const timeoutPromise = new Promise<T[]>((resolve) =>
-                setTimeout(() => resolve([]), DEFAULT_FILES_TIMEOUT_MS)
+                setTimeout(() => {
+                    console.warn(`[BaseStorage] ⏱️ Timeout reached for ${fullStoragePath}`);
+                    resolve([]);
+                }, DEFAULT_FILES_TIMEOUT_MS)
             );
 
             const listPromise = (async () => {
-                const path = `${config.storageRoot}/${year}/${month}`;
-                const monthRef = ref(storage, path);
+                const monthRef = ref(storage, fullStoragePath);
                 const result = await listAll(monthRef);
 
-                const files: T[] = [];
+                if (result.items.length === 0) {
+                    return [];
+                }
 
-                for (const item of result.items) {
+                console.log(`[BaseStorage] 🔍 Found ${result.items.length} items in ${fullStoragePath}, fetching metadata in parallel...`);
+
+                const filePromises = result.items.map(async (item) => {
                     try {
-                        const metadata = await getMetadata(item);
-                        const downloadUrl = await getDownloadURL(item);
+                        const [metadata, downloadUrl] = await Promise.all([
+                            getMetadata(item),
+                            getDownloadURL(item)
+                        ]);
+
                         const parsed = config.parseFilePath(item.fullPath);
 
-
                         if (parsed) {
-                            files.push(config.mapToFile(item, metadata, downloadUrl, parsed));
+                            return config.mapToFile(item, metadata, downloadUrl, parsed);
+                        } else {
+                            console.warn(`[BaseStorage] ⚠️ File skipped (failed parsing): ${item.fullPath}`);
+                            return null;
                         }
                     } catch (error) {
                         console.error(`[BaseStorage] ‼️ Error getting file info: ${item.name}`, error);
+                        return null;
                     }
-                }
+                });
 
+                const filesWithNulls = await Promise.all(filePromises);
+                const files = filesWithNulls.filter(f => f !== null) as T[];
                 return files.sort((a, b) => b.date.localeCompare(a.date));
             })();
 
             return await Promise.race([listPromise, timeoutPromise]);
         } catch (error) {
-            console.warn(`[BaseStorage] Error listing files for ${config.storageRoot}/${year}/${month}:`, error);
+            console.warn(`[BaseStorage] Error listing files for ${fullStoragePath}:`, error);
             return [];
         }
     };

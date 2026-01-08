@@ -22,6 +22,8 @@ import {
 import { DailyRecord } from '../../types';
 import * as firestoreService from '../../services/storage/firestoreService';
 import { clearAllRecords } from '../../services/storage/indexedDBService';
+vi.unmock('../../services/repositories/DailyRecordRepository');
+vi.unmock('@/services/repositories/DailyRecordRepository');
 
 // Mock Firestore Service
 vi.mock('../../services/storage/firestoreService', () => ({

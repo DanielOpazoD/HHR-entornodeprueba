@@ -114,7 +114,8 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
                     console.log('[SaveBackupButton] 📊 Generating CUDYR backup...');
                     const { generateCudyrMonthlyExcelBlob } = await import('../../services/exporters/cudyrExportService');
                     const [year, month] = date.split('-').map(Number);
-                    const cudyrBlob = await generateCudyrMonthlyExcelBlob(year, month, date);
+                    // Pass current record to ensure we use the latest in-memory data instead of potentially stale Firestore data
+                    const cudyrBlob = await generateCudyrMonthlyExcelBlob(year, month, date, record);
                     await uploadCudyrExcel(cudyrBlob, date);
                     console.log('[SaveBackupButton] ✅ CUDYR backup uploaded');
                     success('Respaldos guardados', 'PDF + CUDYR mensual');
@@ -155,13 +156,13 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
         if (justSaved || backupExists) {
             return {
                 icon: <CheckCircle size={14} />,
-                text: 'Archivado ✓',
+                text: 'Guardado ✓',
                 className: 'bg-emerald-600 hover:bg-amber-500 text-white border-emerald-600 hover:border-amber-500'
             };
         }
         return {
             icon: <Save size={14} />,
-            text: 'Archivar',
+            text: 'Guardar',
             className: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
         };
     };

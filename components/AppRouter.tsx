@@ -22,11 +22,12 @@ import {
     ErrorDashboard,
     TransferManagementView,
     BackupFilesView,
-    SharedCensusView
+    SharedCensusView,
+    DevDashboard
 } from '@/views/LazyViews';
 import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
 
-export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES';
+export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD';
 export type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface AppRouterProps {
@@ -138,7 +139,12 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                         )}
                         {currentModule === 'BACKUP_FILES' && (
                             <SectionErrorBoundary sectionName="Respaldos">
-                                <BackupFilesView />
+                                <BackupFilesView backupType="handoff" />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'DEV_DASHBOARD' && (
+                            <SectionErrorBoundary sectionName="Dev Health">
+                                <DevDashboard />
                             </SectionErrorBoundary>
                         )}
                     </>

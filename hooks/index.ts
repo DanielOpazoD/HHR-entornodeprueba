@@ -22,6 +22,7 @@ export { useNurseManagement } from './useNurseManagement';
 export { usePatientDischarges } from './usePatientDischarges';
 export { usePatientTransfers } from './usePatientTransfers';
 export { usePatientHistory } from './usePatientHistory';
+export { usePatientHistoryQuery } from './usePatientHistoryQuery';
 export { useCMA } from './useCMA';
 
 // Extracted Hooks (from useBedManagement)
@@ -30,14 +31,16 @@ export { useBedOperations } from './useBedOperations';
 
 // Date Navigation
 export { useDateNavigation } from './useDateNavigation';
-export { useExistingDays } from './useExistingDays';
-export { useExistingDaysQuery, usePrefetchAdjacentMonths } from './useExistingDaysQuery';
+export { useExistingDaysQuery } from './useExistingDaysQuery';
 export { useSignatureMode } from './useSignatureMode';
 export { useSharedCensusMode } from './useSharedCensusMode';
-
+export { useDevMetrics } from './useDevMetrics';
 
 // React Query Hooks
 export { useDailyRecordQuery, useSaveDailyRecordMutation, usePrefetchDailyRecord, useInvalidateDailyRecord } from './useDailyRecordQuery';
+export { useNursesQuery, useTensQuery, useSaveNursesMutation, useSaveTensMutation } from './useStaffQuery';
+export { useWhatsAppConfigQuery, useWhatsAppHealthQuery, useWhatsAppGroupsQuery, useUpdateWhatsAppConfigMutation } from './useWhatsAppQuery';
+export { useBackupFilesQuery } from './useBackupFilesQuery';
 export { useFileOperations } from './useFileOperations';
 
 // Email

@@ -68,6 +68,12 @@ const escapeSheetName = (name: string): string => {
     return name;
 };
 
+// Workaround for ExcelJS bug where result=0 is skipped/dropped when writing to buffer
+// We convert 0 to string "0" to force it to be written.
+const safeResult = (val: number | string): number | string => {
+    return val === 0 ? "0" : val;
+};
+
 /**
  * Adds the CUDYR summary table to a daily worksheet.
  * Format: CAT | UTI | MEDIA | TOTAL
@@ -146,11 +152,16 @@ const addDailyOccupationStats = (
 
     // Index (formula within the daily sheet)
     const indexRow = sheet.getRow(startRow + 3);
+    const indexVal = occupiedCount > 0 ? Math.round((categorizedCount / occupiedCount) * 100) : 0;
+
     indexRow.values = ['Índice de Categorización'];
     indexRow.getCell(1).font = { bold: true };
     // Use formula: B(categorized) / B(occupied) * 100
     const indexCell = sheet.getCell(`B${startRow + 3}`);
-    indexCell.value = { formula: `IF(B${startRow + 1}=0,0,ROUND(B${startRow + 2}/B${startRow + 1}*100,0))` };
+    indexCell.value = {
+        formula: `IF(B${startRow + 1}=0,0,ROUND(B${startRow + 2}/B${startRow + 1}*100,0))`,
+        result: safeResult(indexVal)
+    };
     indexCell.numFmt = '0"%"';
     indexCell.alignment = { horizontal: 'center' };
 
@@ -159,11 +170,15 @@ const addDailyOccupationStats = (
 
 /**
  * Adds the monthly summary table with FORMULAS referencing daily sheets.
+ * Includes calculated results for web preview compatibility.
  */
 const addMonthlySummaryTableWithFormulas = (
     sheet: Worksheet,
     sheetNames: string[],
-    startRow: number
+    startRow: number,
+    totals: CategoryCounts,
+    utiTotal: number,
+    mediaTotal: number
 ): number => {
     // Header row
     const headerRow = sheet.getRow(startRow);
@@ -187,20 +202,24 @@ const addMonthlySummaryTableWithFormulas = (
         row.getCell(1).alignment = { horizontal: 'center' };
         row.getCell(1).border = BORDER_THIN;
 
+        const utiVal = totals.uti[cat];
+        const mediaVal = totals.media[cat];
+        const totalVal = utiVal + mediaVal;
+
         // UTI formula: SUM of column B from all daily sheets
         const utiFormula = sheetNames.map(name => `${escapeSheetName(name)}!B${dailyDataRow}`).join('+');
-        row.getCell(2).value = { formula: utiFormula };
+        row.getCell(2).value = { formula: utiFormula, result: safeResult(utiVal) };
         row.getCell(2).alignment = { horizontal: 'center' };
         row.getCell(2).border = BORDER_THIN;
 
         // MEDIA formula: SUM of column C from all daily sheets
         const mediaFormula = sheetNames.map(name => `${escapeSheetName(name)}!C${dailyDataRow}`).join('+');
-        row.getCell(3).value = { formula: mediaFormula };
+        row.getCell(3).value = { formula: mediaFormula, result: safeResult(mediaVal) };
         row.getCell(3).alignment = { horizontal: 'center' };
         row.getCell(3).border = BORDER_THIN;
 
         // TOTAL formula: B + C in this row
-        row.getCell(4).value = { formula: `B${currentRow}+C${currentRow}` };
+        row.getCell(4).value = { formula: `B${currentRow}+C${currentRow}`, result: safeResult(totalVal) };
         row.getCell(4).alignment = { horizontal: 'center' };
         row.getCell(4).border = BORDER_THIN;
 
@@ -208,6 +227,7 @@ const addMonthlySummaryTableWithFormulas = (
     });
 
     // Total row with formulas
+    const totalMsgVal = utiTotal + mediaTotal;
     const totalRow = sheet.getRow(currentRow);
     totalRow.getCell(1).value = 'TOTAL';
     totalRow.getCell(1).font = { bold: true };
@@ -215,21 +235,21 @@ const addMonthlySummaryTableWithFormulas = (
     totalRow.getCell(1).border = BORDER_THIN;
 
     // Sum of UTI column
-    totalRow.getCell(2).value = { formula: `SUM(B${startRow + 1}:B${currentRow - 1})` };
+    totalRow.getCell(2).value = { formula: `SUM(B${startRow + 1}:B${currentRow - 1})`, result: safeResult(utiTotal) };
     totalRow.getCell(2).font = { bold: true };
     totalRow.getCell(2).alignment = { horizontal: 'center' };
     totalRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
     totalRow.getCell(2).border = BORDER_THIN;
 
     // Sum of MEDIA column
-    totalRow.getCell(3).value = { formula: `SUM(C${startRow + 1}:C${currentRow - 1})` };
+    totalRow.getCell(3).value = { formula: `SUM(C${startRow + 1}:C${currentRow - 1})`, result: safeResult(mediaTotal) };
     totalRow.getCell(3).font = { bold: true };
     totalRow.getCell(3).alignment = { horizontal: 'center' };
     totalRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
     totalRow.getCell(3).border = BORDER_THIN;
 
     // Sum of TOTAL column
-    totalRow.getCell(4).value = { formula: `SUM(D${startRow + 1}:D${currentRow - 1})` };
+    totalRow.getCell(4).value = { formula: `SUM(D${startRow + 1}:D${currentRow - 1})`, result: safeResult(totalMsgVal) };
     totalRow.getCell(4).font = { bold: true };
     totalRow.getCell(4).alignment = { horizontal: 'center' };
     totalRow.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -240,11 +260,14 @@ const addMonthlySummaryTableWithFormulas = (
 
 /**
  * Adds occupation statistics with FORMULAS referencing daily sheets.
+ * Includes calculated results for web preview compatibility.
  */
 const addMonthlyOccupationStatsWithFormulas = (
     sheet: Worksheet,
     sheetNames: string[],
-    startRow: number
+    startRow: number,
+    totalOccupied: number,
+    totalCategorized: number
 ): number => {
     const sectionRow = sheet.getRow(startRow);
     sectionRow.values = ['Estadísticas de Ocupación (Acumulado)'];
@@ -256,7 +279,7 @@ const addMonthlyOccupationStatsWithFormulas = (
     occupiedRow.getCell(1).value = 'Camas Ocupadas';
     occupiedRow.getCell(1).font = { bold: true };
     const occupiedFormula = sheetNames.map(name => `${escapeSheetName(name)}!B${DAILY_SHEET_OCCUPIED_ROW}`).join('+');
-    occupiedRow.getCell(2).value = { formula: occupiedFormula };
+    occupiedRow.getCell(2).value = { formula: occupiedFormula, result: safeResult(totalOccupied) };
     occupiedRow.getCell(2).alignment = { horizontal: 'center' };
 
     // Categorized count with formula
@@ -264,14 +287,20 @@ const addMonthlyOccupationStatsWithFormulas = (
     categorizedRow.getCell(1).value = 'Pacientes Categorizados';
     categorizedRow.getCell(1).font = { bold: true };
     const categorizedFormula = sheetNames.map(name => `${escapeSheetName(name)}!B${DAILY_SHEET_CATEGORIZED_ROW}`).join('+');
-    categorizedRow.getCell(2).value = { formula: categorizedFormula };
+    categorizedRow.getCell(2).value = { formula: categorizedFormula, result: safeResult(totalCategorized) };
     categorizedRow.getCell(2).alignment = { horizontal: 'center' };
 
     // Index with formula
     const indexRow = sheet.getRow(startRow + 3);
+    const indexVal = totalOccupied > 0 ? Math.round((totalCategorized / totalOccupied) * 100) : 0;
+
     indexRow.getCell(1).value = 'Índice de Categorización';
     indexRow.getCell(1).font = { bold: true };
-    indexRow.getCell(2).value = { formula: `IF(B${startRow + 1}=0,0,ROUND(B${startRow + 2}/B${startRow + 1}*100,0))` };
+    indexRow.getCell(2).value = {
+        formula: `IF(B${startRow + 1}=0,0,ROUND(B${startRow + 2}/B${startRow + 1}*100,0))`,
+        result: indexVal
+    };
+
     indexRow.getCell(2).numFmt = '0"%"';
     indexRow.getCell(2).alignment = { horizontal: 'center' };
 
@@ -299,90 +328,63 @@ const fetchDailyRecord = async (dateStr: string): Promise<DailyRecord | null> =>
     }
 };
 
-// ============================================================================
-// Main Export Function
-// ============================================================================
-
 /**
  * Generates and downloads a monthly CUDYR Excel report.
- * The summary sheet uses Excel formulas referencing daily sheets for auditability.
- * 
- * @param year - Year for the report
- * @param month - Month (1-12) for the report
- * @param endDate - Optional end date (YYYY-MM-DD) to limit the report
  */
 export const generateCudyrMonthlyExcel = async (
     year: number,
     month: number,
-    endDate?: string
+    endDate?: string,
+    currentRecord?: DailyRecord | null
 ): Promise<void> => {
+    // ... (workbook creation)
     const workbook = await createWorkbook();
     workbook.creator = 'Hospital Hanga Roa';
     workbook.created = new Date();
 
-    // Fetch monthly data using internal fetch function
-    const monthlySummary = await getCudyrMonthlyTotals(year, month, endDate, fetchDailyRecord);
+    // Fetch monthly data
+    const monthlySummary = await getCudyrMonthlyTotals(year, month, endDate, fetchDailyRecord, currentRecord);
 
-    // -------------------------------------------------------------------------
-    // Create Summary Sheet FIRST (so it appears as the first tab)
-    // -------------------------------------------------------------------------
+    // ... (sheet creation logic - kept same but updating call below)
     const summarySheet = workbook.addWorksheet('Resumen Mensual', {
         properties: { tabColor: { argb: 'FF4CAF50' } }
     });
-    summarySheet.columns = [
-        { width: 22 },
-        { width: 10 },
-        { width: 10 },
-        { width: 10 }
-    ];
-
-    // Collect sheet names for formula references
+    // ... (columns setup)
+    summarySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
     const dailySheetNames: string[] = [];
 
-    // -------------------------------------------------------------------------
-    // Create Daily Sheets (after summary, so they appear after it)
-    // -------------------------------------------------------------------------
+    // Daily sheets loop
     monthlySummary.dailySummaries.forEach((daySummary: CudyrDailySummary) => {
         const sheetName = formatDateDMY(daySummary.date);
         dailySheetNames.push(sheetName);
-
         const daySheet = workbook.addWorksheet(sheetName);
-        daySheet.columns = [
-            { width: 22 },
-            { width: 10 },
-            { width: 10 },
-            { width: 10 }
-        ];
+        // ... (daily sheet populating logic is fine as it uses values directly, except index formula in addDailyOccupationStats)
+        // CHECK: addDailyOccupationStats logic inside loop
+        // It uses addDailyOccupationStats. Let's look at THAT function in original file.
+        // It's line 124. It creates index formula.
+        // I should probably update that one too if we want daily index to show up correctly in preview.
+        // But let's finish the monthly one first.
 
-        // Title
+        daySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
         daySheet.getCell('A1').value = `CUDYR - ${sheetName}`;
         daySheet.getCell('A1').font = { bold: true, size: 12 };
         daySheet.mergeCells('A1:D1');
 
-        // Summary table (starting at row 3, categories at row 4+)
         let rowNum = 3;
-        rowNum = addDailySummaryTable(
-            daySheet,
-            daySummary.counts,
-            daySummary.utiTotal,
-            daySummary.mediaTotal,
-            rowNum
-        );
+        rowNum = addDailySummaryTable(daySheet, daySummary.counts, daySummary.utiTotal, daySummary.mediaTotal, rowNum);
 
-        // Occupation stats (starting at row 18)
+        // This function also puts formulas!
         rowNum = 18;
-        addDailyOccupationStats(
-            daySheet,
-            daySummary.occupiedCount,
-            daySummary.categorizedCount,
-            rowNum
-        );
+
+        // We need to update addDailyOccupationStats too?
+        // Let's verify addDailyOccupationStats in original code
+        // It calculates Index with formula: line 153.
+        // Yes, I should update it to include result too.
+
+        addDailyOccupationStats(daySheet, daySummary.occupiedCount, daySummary.categorizedCount, rowNum);
     });
 
-    // -------------------------------------------------------------------------
-    // NOW populate the Summary Sheet with formulas
-    // -------------------------------------------------------------------------
-    // Title
+    // ... (Summary sheet population)
     const endDateFormatted = endDate ? formatDateDMY(endDate) : `${new Date(year, month, 0).getDate()}-${String(month).padStart(2, '0')}-${year}`;
     const title = `Resumen CUDYR - ${MONTHS_ES[month - 1]} ${year} (hasta ${endDateFormatted})`;
     summarySheet.getCell('A1').value = title;
@@ -390,65 +392,52 @@ export const generateCudyrMonthlyExcel = async (
     summarySheet.mergeCells('A1:D1');
 
     if (dailySheetNames.length > 0) {
-        // Summary table with formulas
         let currentRow = 3;
         currentRow = addMonthlySummaryTableWithFormulas(
             summarySheet,
             dailySheetNames,
-            currentRow
+            currentRow,
+            monthlySummary.totals,
+            monthlySummary.utiTotal,
+            monthlySummary.mediaTotal
         );
 
-        // Occupation stats with formulas
         currentRow += 2;
         addMonthlyOccupationStatsWithFormulas(
             summarySheet,
             dailySheetNames,
-            currentRow
+            currentRow,
+            monthlySummary.totalOccupied,
+            monthlySummary.totalCategorized
         );
     } else {
-        // No data message
+        // ...
         summarySheet.getCell('A3').value = 'No hay datos para el período seleccionado.';
         summarySheet.getCell('A3').font = { italic: true, color: { argb: 'FF888888' } };
     }
 
-    // -------------------------------------------------------------------------
-    // Download
-    // -------------------------------------------------------------------------
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const fileName = `CUDYR_${MONTHS_ES[month - 1]}_${year}.xlsx`;
     saveAs(blob, fileName);
 };
 
-/**
- * Generates a monthly CUDYR Excel report and returns it as a Blob.
- * Used for automatic backup to Firebase Storage.
- * 
- * @param year - Year for the report
- * @param month - Month (1-12) for the report
- * @param endDate - Optional end date (YYYY-MM-DD) to limit the report
- * @returns Blob of the Excel file
- */
 export const generateCudyrMonthlyExcelBlob = async (
     year: number,
     month: number,
-    endDate?: string
+    endDate?: string,
+    currentRecord?: DailyRecord | null
 ): Promise<Blob> => {
     const workbook = await createWorkbook();
     workbook.creator = 'Hospital Hanga Roa';
     workbook.created = new Date();
 
-    const monthlySummary = await getCudyrMonthlyTotals(year, month, endDate, fetchDailyRecord);
+    const monthlySummary = await getCudyrMonthlyTotals(year, month, endDate, fetchDailyRecord, currentRecord);
 
     const summarySheet = workbook.addWorksheet('Resumen Mensual', {
         properties: { tabColor: { argb: 'FF4CAF50' } }
     });
-    summarySheet.columns = [
-        { width: 22 },
-        { width: 10 },
-        { width: 10 },
-        { width: 10 }
-    ];
+    summarySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
 
     const dailySheetNames: string[] = [];
 
@@ -457,33 +446,17 @@ export const generateCudyrMonthlyExcelBlob = async (
         dailySheetNames.push(sheetName);
 
         const daySheet = workbook.addWorksheet(sheetName);
-        daySheet.columns = [
-            { width: 22 },
-            { width: 10 },
-            { width: 10 },
-            { width: 10 }
-        ];
+        daySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
 
         daySheet.getCell('A1').value = `CUDYR - ${sheetName}`;
         daySheet.getCell('A1').font = { bold: true, size: 12 };
         daySheet.mergeCells('A1:D1');
 
         let rowNum = 3;
-        rowNum = addDailySummaryTable(
-            daySheet,
-            daySummary.counts,
-            daySummary.utiTotal,
-            daySummary.mediaTotal,
-            rowNum
-        );
+        rowNum = addDailySummaryTable(daySheet, daySummary.counts, daySummary.utiTotal, daySummary.mediaTotal, rowNum);
 
         rowNum = 18;
-        addDailyOccupationStats(
-            daySheet,
-            daySummary.occupiedCount,
-            daySummary.categorizedCount,
-            rowNum
-        );
+        addDailyOccupationStats(daySheet, daySummary.occupiedCount, daySummary.categorizedCount, rowNum);
     });
 
     const endDateFormatted = endDate ? formatDateDMY(endDate) : `${new Date(year, month, 0).getDate()}-${String(month).padStart(2, '0')}-${year}`;
@@ -497,14 +470,19 @@ export const generateCudyrMonthlyExcelBlob = async (
         currentRow = addMonthlySummaryTableWithFormulas(
             summarySheet,
             dailySheetNames,
-            currentRow
+            currentRow,
+            monthlySummary.totals,
+            monthlySummary.utiTotal,
+            monthlySummary.mediaTotal
         );
 
         currentRow += 2;
         addMonthlyOccupationStatsWithFormulas(
             summarySheet,
             dailySheetNames,
-            currentRow
+            currentRow,
+            monthlySummary.totalOccupied,
+            monthlySummary.totalCategorized
         );
     } else {
         summarySheet.getCell('A3').value = 'No hay datos para el período seleccionado.';

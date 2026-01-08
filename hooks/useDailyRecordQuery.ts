@@ -57,7 +57,7 @@ export const useDailyRecordQuery = (
         });
 
         return () => unsubscribe();
-    }, [date, queryClient]);
+    }, [date, queryClient, isOfflineMode, isFirebaseConnected]);
 
     // Prefetch previous day for faster "copy from previous" functionality
     useEffect(() => {

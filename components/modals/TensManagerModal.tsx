@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
-import { saveTensCatalogToFirestore } from '../../services/storage/firestoreService';
-import { CatalogRepository } from '../../services/repositories/DailyRecordRepository';
-import { BaseModal, ModalSection } from '../shared/BaseModal';
+import { useSaveTensMutation } from '../../hooks/useStaffQuery';
+import { BaseModal } from '../shared/BaseModal';
 import { StaffNameSchema } from '../../schemas/inputSchemas';
 import clsx from 'clsx';
 
@@ -10,38 +9,17 @@ interface TensManagerModalProps {
     isOpen: boolean;
     onClose: () => void;
     tensList: string[];
-    setTensList: (list: string[]) => void;
 }
 
-export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onClose, tensList, setTensList }) => {
+export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onClose, tensList }) => {
     const [newTensName, setNewTensName] = useState('');
-    const [syncing, setSyncing] = useState(false);
-    const [syncError, setSyncError] = useState<string | null>(null);
     const [editingName, setEditingName] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
     const [validationError, setValidationError] = useState<string | null>(null);
 
-    const saveTens = async (updatedList: string[]) => {
-        // Update local state first
-        setTensList(updatedList);
-        // Save to IndexedDB (via Repository)
-        await CatalogRepository.saveTens(updatedList);
+    const { mutate: saveTens, isPending: syncing, isError: hasSyncError } = useSaveTensMutation();
 
-        // Sync to Firebase (Handled by CatalogRepository.saveTens if firestoreEnabled)
-        // Manual sync below is kept for error handling UI
-        setSyncing(true);
-        setSyncError(null);
-        try {
-            await saveTensCatalogToFirestore(updatedList);
-        } catch (error) {
-            setSyncError('Error al sincronizar con la nube');
-            console.error('Firebase sync failed:', error);
-        } finally {
-            setSyncing(false);
-        }
-    };
-
-    const handleAdd = async () => {
+    const handleAdd = () => {
         const trimmed = newTensName.trim();
         const result = StaffNameSchema.safeParse(trimmed);
 
@@ -52,13 +30,13 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
 
         setValidationError(null);
         const updated = [...tensList, trimmed];
-        await saveTens(updated);
+        saveTens(updated);
         setNewTensName('');
     };
 
-    const handleRemove = async (name: string) => {
+    const handleRemove = (name: string) => {
         const updated = tensList.filter(n => n !== name);
-        await saveTens(updated);
+        saveTens(updated);
     };
 
     const handleStartEdit = (name: string) => {
@@ -67,7 +45,7 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
         setValidationError(null);
     };
 
-    const handleUpdate = async () => {
+    const handleUpdate = () => {
         if (!editingName) return;
         const trimmed = editValue.trim();
 
@@ -79,7 +57,7 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
 
         setValidationError(null);
         const updated = tensList.map(n => (n === editingName ? trimmed : n));
-        await saveTens(updated);
+        saveTens(updated);
         setEditingName(null);
         setEditValue('');
     };
@@ -112,14 +90,13 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
                         )}
                     </div>
 
-                    {syncError && (
+                    {hasSyncError && (
                         <div className="mb-3 p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100 flex items-center gap-2">
                             <AlertCircle size={14} />
-                            {syncError}
+                            Error al sincronizar con la nube. Se guardó localmente.
                         </div>
                     )}
 
-                    {/* Add new TENS input */}
                     <div className="space-y-2">
                         <div className="flex gap-2">
                             <input
@@ -149,7 +126,6 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
 
                 <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block tracking-wider">Catálogo Actual</label>
-                    {/* TENS list */}
                     <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
                         {tensList.map(tens => (
                             <div key={tens} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 gap-3 group transition-all hover:bg-white hover:border-teal-200 hover:shadow-sm">
@@ -227,7 +203,6 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({ isOpen, onCl
                     </div>
                 </div>
 
-                {/* Sync status footer */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                     <div className="flex items-center gap-1.5">
                         <Cloud size={12} className="text-teal-400" />

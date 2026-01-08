@@ -1,6 +1,7 @@
 import React from 'react';
 import { render as rtlRender, RenderOptions } from '@testing-library/react';
 import { vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Types
 import { DailyRecord, BedType, Specialty, PatientStatus, PatientData } from '@/types';
@@ -183,21 +184,32 @@ function customRender(
     const { contextValue, ...renderOptions } = options;
     const mockContext = contextValue || createMockDailyRecordContext(createMockRecord());
 
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+                gcTime: 0,
+            },
+        },
+    });
+
     const AllProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         return (
-            <UIProvider>
-                <AuthProvider>
-                    <AuditProvider userId="test-user">
-                        <DemoModeProvider>
-                            <StaffProvider>
-                                <DailyRecordProvider value={mockContext}>
-                                    {children}
-                                </DailyRecordProvider>
-                            </StaffProvider>
-                        </DemoModeProvider>
-                    </AuditProvider>
-                </AuthProvider>
-            </UIProvider>
+            <QueryClientProvider client={queryClient}>
+                <UIProvider>
+                    <AuthProvider>
+                        <AuditProvider userId="test-user">
+                            <DemoModeProvider>
+                                <StaffProvider>
+                                    <DailyRecordProvider value={mockContext}>
+                                        {children}
+                                    </DailyRecordProvider>
+                                </StaffProvider>
+                            </DemoModeProvider>
+                        </AuditProvider>
+                    </AuthProvider>
+                </UIProvider>
+            </QueryClientProvider>
         );
     };
 

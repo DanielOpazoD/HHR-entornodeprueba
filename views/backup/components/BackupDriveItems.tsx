@@ -37,12 +37,16 @@ export const FolderCard: React.FC<FolderCardProps> = ({ name, onClick, itemCount
 interface FileCardProps {
     name: string;
     date: string;
-    shift: 'day' | 'night';
+    shift?: 'day' | 'night';
     size: string;
     onDownload: () => void;
     onView?: () => void;
     onDelete?: () => void;
     canDelete?: boolean;
+    /** Hide the shift badge (for census/cudyr files) */
+    hideShift?: boolean;
+    /** Use compact layout */
+    compact?: boolean;
 }
 
 export const FileCard: React.FC<FileCardProps> = ({
@@ -53,20 +57,24 @@ export const FileCard: React.FC<FileCardProps> = ({
     onDownload,
     onView,
     onDelete,
-    canDelete
+    canDelete,
+    hideShift = false,
+    compact = false
 }) => (
-    <div className="flex items-center gap-4 p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-teal-300 transition-all group">
-        <div className="p-2.5 bg-red-50 text-red-600 rounded-lg">
-            <FileText size={20} />
+    <div className={`flex items-center gap-3 ${compact ? 'p-2' : 'p-3'} bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-teal-300 transition-all group`}>
+        <div className={`${compact ? 'p-1.5' : 'p-2.5'} bg-red-50 text-red-600 rounded-lg`}>
+            <FileText size={compact ? 16 : 20} />
         </div>
 
         <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-slate-800 text-sm truncate">{name}</h4>
+            <h4 className={`font-medium text-slate-800 ${compact ? 'text-xs' : 'text-sm'} truncate`}>{name}</h4>
             <div className="flex items-center gap-3 mt-0.5">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase ${shift === 'day' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
-                    }`}>
-                    {shift === 'day' ? 'Turno Largo' : 'Turno Noche'}
-                </span>
+                {!hideShift && shift && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase ${shift === 'day' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                        {shift === 'day' ? 'Turno Largo' : 'Turno Noche'}
+                    </span>
+                )}
                 <span className="text-xs text-slate-400">{size}</span>
             </div>
         </div>

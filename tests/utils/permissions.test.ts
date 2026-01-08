@@ -28,7 +28,8 @@ describe('permissions.ts - Security Critical Tests', () => {
             expect(canEditModule(ROLES.ADMIN, 'CUDYR')).toBe(true);
             expect(canEditModule(ROLES.ADMIN, 'NURSING_HANDOFF')).toBe(true);
             expect(canEditModule(ROLES.ADMIN, 'MEDICAL_HANDOFF')).toBe(true);
-            expect(canEditModule(ROLES.ADMIN, 'REPORTS')).toBe(true);
+            expect(canEditModule(ROLES.ADMIN, 'TRANSFER_MANAGEMENT')).toBe(true);
+            expect(canEditModule(ROLES.ADMIN, 'BACKUP_FILES')).toBe(true);
             expect(canEditModule(ROLES.ADMIN, 'AUDIT')).toBe(true);
         });
 
@@ -36,9 +37,10 @@ describe('permissions.ts - Security Critical Tests', () => {
             expect(canEditModule(ROLES.NURSE_HOSPITAL, 'CENSUS')).toBe(true);
             expect(canEditModule(ROLES.NURSE_HOSPITAL, 'CUDYR')).toBe(true);
             expect(canEditModule(ROLES.NURSE_HOSPITAL, 'NURSING_HANDOFF')).toBe(true);
+            expect(canEditModule(ROLES.NURSE_HOSPITAL, 'TRANSFER_MANAGEMENT')).toBe(true);
+            expect(canEditModule(ROLES.NURSE_HOSPITAL, 'BACKUP_FILES')).toBe(true);
             // Should NOT edit these:
             expect(canEditModule(ROLES.NURSE_HOSPITAL, 'MEDICAL_HANDOFF')).toBe(false);
-            expect(canEditModule(ROLES.NURSE_HOSPITAL, 'REPORTS')).toBe(false);
             expect(canEditModule(ROLES.NURSE_HOSPITAL, 'AUDIT')).toBe(false);
         });
 
@@ -71,7 +73,8 @@ describe('permissions.ts - Security Critical Tests', () => {
             expect(modules).toContain('CUDYR');
             expect(modules).toContain('NURSING_HANDOFF');
             expect(modules).toContain('MEDICAL_HANDOFF');
-            expect(modules).toContain('REPORTS');
+            expect(modules).toContain('TRANSFER_MANAGEMENT');
+            expect(modules).toContain('BACKUP_FILES');
             expect(modules).toContain('AUDIT');
         });
 
@@ -81,7 +84,8 @@ describe('permissions.ts - Security Critical Tests', () => {
             expect(modules).toContain('CUDYR');
             expect(modules).toContain('NURSING_HANDOFF');
             expect(modules).toContain('MEDICAL_HANDOFF');
-            expect(modules).toContain('REPORTS');
+            expect(modules).toContain('TRANSFER_MANAGEMENT');
+            expect(modules).toContain('BACKUP_FILES');
             expect(modules).not.toContain('AUDIT');
         });
 

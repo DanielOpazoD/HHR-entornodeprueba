@@ -175,6 +175,7 @@ const ShiftCell: React.FC<ShiftCellProps> = ({
                     </button>
                 )}
             </div>
+            {file.size && <span className="text-[9px] text-slate-500 font-medium tabular-nums border-l border-slate-200 pl-1 ml-0.5">{formatSize(file.size)}</span>}
         </div>
     );
 };

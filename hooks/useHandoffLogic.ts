@@ -256,10 +256,12 @@ export const useHandoffLogic = ({
             }
 
             // Calculate Stats (Replica of server-side logic for consistency)
-            const hospitalized = visibleBeds.filter(b =>
-                record.beds[b.id].patientName && !record.beds[b.id].isBlocked
-            ).length;
-            const blockedBeds = visibleBeds.filter(b => record.beds[b.id].isBlocked).length;
+            const hospitalized = visibleBeds.filter(b => {
+                const p = record.beds[b.id];
+                return p && p.patientName && !p.isBlocked;
+            }).length;
+
+            const blockedBeds = visibleBeds.filter(b => record.beds[b.id]?.isBlocked).length;
             const freeBeds = visibleBeds.length - hospitalized - blockedBeds;
 
             const [year, month, day] = record.date.split('-');

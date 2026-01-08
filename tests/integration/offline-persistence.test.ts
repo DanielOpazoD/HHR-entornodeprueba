@@ -7,6 +7,9 @@ import {
 } from '../../services/repositories/DailyRecordRepository';
 import { DailyRecord } from '../../types';
 import * as firestoreService from '../../services/storage/firestoreService';
+// We want real implementation for integration test, but mocked firestore
+vi.unmock('../../services/repositories/DailyRecordRepository');
+vi.unmock('@/services/repositories/DailyRecordRepository');
 
 // Mock Firestore service
 vi.mock('../../services/storage/firestoreService', () => ({

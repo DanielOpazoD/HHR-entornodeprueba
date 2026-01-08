@@ -3,7 +3,7 @@ import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { AnalyticsView } from '@/views/analytics/AnalyticsView';
 import { useCensusLogic } from '@/hooks/useCensusLogic';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { usePatientHistory } from '@/hooks/usePatientHistory';
+import { usePatientHistoryQuery } from '@/hooks';
 import { PatientHistoryPanel } from '@/components/patient/PatientHistoryPanel';
 import {
     CensusActionsProvider,
@@ -62,20 +62,20 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     const marginStyle = { padding: `0 ${config.pageMargin}px` };
 
     // Patient history panel state
-    const { history, isLoading: historyLoading, error: historyError, loadHistory, clearHistory } = usePatientHistory();
-    const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+    const [selectedRut, setSelectedRut] = useState<string | null>(null);
     const [selectedPatientName, setSelectedPatientName] = useState('');
+    const { data: history, isLoading: historyLoading, error: historyError } = usePatientHistoryQuery(selectedRut);
+    const isHistoryPanelOpen = !!selectedRut;
 
     const handleViewHistory = useCallback((rut: string, name: string) => {
         setSelectedPatientName(name);
-        setIsHistoryPanelOpen(true);
-        loadHistory(rut);
-    }, [loadHistory]);
+        setSelectedRut(rut);
+    }, []);
 
     const handleCloseHistoryPanel = useCallback(() => {
-        setIsHistoryPanelOpen(false);
-        clearHistory();
-    }, [clearHistory]);
+        setSelectedRut(null);
+        setSelectedPatientName('');
+    }, []);
 
     // ========== VIEW MODE: ANALYTICS ==========
     if (viewMode === 'ANALYTICS') {
@@ -164,9 +164,9 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                 <PatientHistoryPanel
                     isOpen={isHistoryPanelOpen}
                     onClose={handleCloseHistoryPanel}
-                    history={history}
+                    history={history ?? null}
                     isLoading={historyLoading}
-                    error={historyError}
+                    error={historyError instanceof Error ? historyError.message : (historyError as string | null)}
                     currentPatientName={selectedPatientName}
                 />
             </div>

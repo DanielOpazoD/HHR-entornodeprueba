@@ -39,6 +39,10 @@ export const ErrorDashboard = lazy(() =>
     import(/* webpackChunkName: "error-db" */ './admin/ErrorDashboard').then(m => ({ default: m.ErrorDashboard }))
 );
 
+export const DevDashboard = lazy(() =>
+    import(/* webpackChunkName: "dev-db" */ './admin/DevDashboard').then(m => ({ default: m.DevDashboard }))
+);
+
 // WhatsApp module
 export const WhatsAppIntegrationView = lazy(() =>
     import(/* webpackChunkName: "whatsapp" */ './whatsapp/WhatsAppIntegrationView').then(m => ({ default: m.WhatsAppIntegrationView }))

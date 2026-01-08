@@ -9,13 +9,9 @@ import { buildCensusEmailSubject, buildCensusEmailBody, CENSUS_DEFAULT_RECIPIENT
 
 describe('Email Constants', () => {
     describe('CENSUS_DEFAULT_RECIPIENTS', () => {
-        it('should contain expected hospital email addresses', () => {
-            expect(CENSUS_DEFAULT_RECIPIENTS).toContain('epidemiologia@hospitalhangaroa.cl');
-            expect(CENSUS_DEFAULT_RECIPIENTS).toContain('daniel.opazo@hospitalhangaroa.cl');
-        });
-
-        it('should have at least 10 recipients', () => {
-            expect(CENSUS_DEFAULT_RECIPIENTS.length).toBeGreaterThanOrEqual(10);
+        it('should be an empty array by default (no hardcoded emails)', () => {
+            expect(CENSUS_DEFAULT_RECIPIENTS).toBeInstanceOf(Array);
+            expect(CENSUS_DEFAULT_RECIPIENTS).toHaveLength(0);
         });
     });
 

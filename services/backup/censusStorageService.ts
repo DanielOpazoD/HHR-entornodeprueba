@@ -111,7 +111,7 @@ export const checkCensusExists = async (date: string): Promise<boolean> => {
 /**
  * Delete a Census file from Storage
  */
-export const deleteCensus = async (date: string): Promise<void> => {
+export const deleteCensusFile = async (date: string): Promise<void> => {
     const filePath = generateCensusPath(date);
     const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
@@ -130,16 +130,23 @@ export const listCensusMonths = createListMonths(STORAGE_ROOT);
 
 /**
  * List all Census files in a month (using base service)
+ * Note: Display name is normalized to format (DD-MM-YYYY - Censo Diario.xlsx)
  */
 export const listCensusFilesInMonth = createListFilesInMonth<StoredCensusFile>({
     storageRoot: STORAGE_ROOT,
     parseFilePath,
-    mapToFile: (item, metadata, downloadUrl, parsed) => ({
-        name: item.name,
-        fullPath: item.fullPath,
-        downloadUrl,
-        date: parsed.date,
-        createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-        size: metadata.size
-    })
+    mapToFile: (item, metadata, downloadUrl, parsed) => {
+        // Generate normalized display name from parsed date
+        const [year, month, day] = parsed.date.split('-');
+        const displayName = `${day}-${month}-${year} - Censo Diario.xlsx`;
+
+        return {
+            name: displayName, // Always use normalized format for display
+            fullPath: item.fullPath,
+            downloadUrl,
+            date: parsed.date,
+            createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
+            size: metadata.size
+        };
+    }
 });

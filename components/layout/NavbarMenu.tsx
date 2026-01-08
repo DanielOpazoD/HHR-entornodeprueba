@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { LayoutList, BarChart2, FileJson, Upload, Settings, ShieldCheck, MessageSquare, FileSpreadsheet, ChevronDown, LucideIcon, Bug } from 'lucide-react';
+import { LayoutList, BarChart2, FileJson, Upload, Settings, ShieldCheck, MessageSquare, FileSpreadsheet, ChevronDown, LucideIcon, Bug, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 
@@ -146,6 +146,11 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                                         icon={Bug}
                                         label="Monitor de Errores"
                                         onClick={() => handleModuleChange('ERRORS')}
+                                    />
+                                    <MenuItem
+                                        icon={Activity}
+                                        label="Dev Health"
+                                        onClick={() => handleModuleChange('DEV_DASHBOARD')}
                                     />
                                 </>
                             )}

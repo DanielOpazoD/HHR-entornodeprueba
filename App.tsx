@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDays, useCensusEmail, useSignatureMode, useSharedCensusMode, useAppState, useVersionCheck } from '@/hooks';
+import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDaysQuery, useCensusEmail, useSignatureMode, useSharedCensusMode, useAppState, useVersionCheck } from '@/hooks';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { useAuth, AuthContextType } from '@/context/AuthContext';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
@@ -107,7 +107,7 @@ function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
   const dailyRecordHook = useDailyRecord(dateNav.currentDateString, auth.isOfflineMode, auth.isFirebaseConnected);
   const { record } = dailyRecordHook;
 
-  const existingDaysInMonth = useExistingDays(dateNav.selectedYear, dateNav.selectedMonth, record);
+  const { data: existingDaysInMonth = [] } = useExistingDaysQuery(dateNav.selectedYear, dateNav.selectedMonth);
   const nurseSignature = useNurseSignature(record);
 
   const censusEmail = useCensusEmail({

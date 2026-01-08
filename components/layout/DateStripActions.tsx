@@ -14,7 +14,9 @@ import {
     Copy,
     CloudUpload,
     Loader2,
-    CheckCircle2
+    CheckCircle2,
+    Save,
+    CheckCircle
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -124,16 +126,18 @@ export const ExcelButtons: React.FC<ExcelButtonsProps> = ({
                             ? "bg-emerald-600 hover:bg-amber-500 text-white"
                             : "bg-amber-500 hover:bg-amber-600 text-white"
                     )}
-                    title={isArchived ? "Archivo guardado - Clic para actualizar" : "Guardar Excel en Archivos (Cloud Backup)"}
+                    title={isArchived ? 'Actualizar respaldo existente' : 'Guardar censo del día'}
                 >
                     {isBackingUp ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <Loader2 size={16} className="animate-spin" />
                     ) : isArchived ? (
-                        <CheckCircle2 size={14} />
+                        <CheckCircle size={16} />
                     ) : (
-                        <CloudUpload size={14} />
+                        <Save size={16} />
                     )}
-                    {isBackingUp ? 'Guardando...' : isArchived ? 'Archivado ✓' : 'Archivar'}
+                    <span>
+                        {isBackingUp ? 'Guardando...' : isArchived ? 'Guardado ✓' : 'Guardar'}
+                    </span>
                 </button>
             )}
         </>

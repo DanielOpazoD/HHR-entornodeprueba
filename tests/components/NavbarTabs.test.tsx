@@ -18,13 +18,22 @@ describe('NavbarTabs', () => {
         vi.clearAllMocks();
     });
 
-    it('renders visible tabs', () => {
+    it('renders visible main tabs', () => {
         render(<NavbarTabs {...defaultProps} />);
 
         expect(screen.getByText('Censo Diario')).toBeInTheDocument();
-        expect(screen.getByText('CUDYR')).toBeInTheDocument();
         expect(screen.getByText('Entrega Turno Enfermería')).toBeInTheDocument();
         expect(screen.getByText('Entrega Turno Médicos')).toBeInTheDocument();
+    });
+
+    it('shows utility modules in dropdown', () => {
+        render(<NavbarTabs {...defaultProps} />);
+
+        // Open dropdown
+        const menuBtn = screen.getByTitle('Más módulos');
+        fireEvent.click(menuBtn);
+
+        expect(screen.getByText('Estadísticas CUDYR')).toBeInTheDocument();
     });
 
     it('does not render hidden tabs', () => {
@@ -37,17 +46,19 @@ describe('NavbarTabs', () => {
     it('calls onModuleChange when tab is clicked', () => {
         render(<NavbarTabs {...defaultProps} />);
 
-        fireEvent.click(screen.getByText('CUDYR'));
+        // Open dropdown for CUDYR
+        fireEvent.click(screen.getByTitle('Más módulos'));
+        fireEvent.click(screen.getByText('Estadísticas CUDYR'));
 
         expect(defaultProps.onModuleChange).toHaveBeenCalledWith('CUDYR');
     });
 
     it('applies active style to current module', () => {
-        const { container } = render(<NavbarTabs {...defaultProps} currentModule="CUDYR" />);
+        const { container } = render(<NavbarTabs {...defaultProps} currentModule="CENSUS" />);
 
-        // The active tab should have different classes
-        const cudyrButton = screen.getByText('CUDYR').closest('button');
-        expect(cudyrButton?.className).toContain('border-white');
+        // The active tab should have different classes (border-white)
+        const censusButton = screen.getByText('Censo Diario').closest('button');
+        expect(censusButton?.className).toContain('border-white');
     });
 
     it('renders CENSUS tab correctly', () => {

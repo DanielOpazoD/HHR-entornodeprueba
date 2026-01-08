@@ -418,11 +418,7 @@ export const getNurses = async (): Promise<string[]> => {
 export const saveNurses = async (nurses: string[]): Promise<void> => {
     await saveCatalog('nurses', nurses);
     if (firestoreEnabled && !demoModeActive) {
-        try {
-            await saveNurseCatalogToFirestore(nurses);
-        } catch (err) {
-            console.warn('Firestore nurse catalog sync failed:', err);
-        }
+        await saveNurseCatalogToFirestore(nurses);
     }
 };
 
@@ -441,11 +437,7 @@ export const getTens = async (): Promise<string[]> => {
 export const saveTens = async (tens: string[]): Promise<void> => {
     await saveCatalog('tens', tens);
     if (firestoreEnabled && !demoModeActive) {
-        try {
-            await saveTensCatalogToFirestore(tens);
-        } catch (err) {
-            console.warn('Firestore TENS catalog sync failed:', err);
-        }
+        await saveTensCatalogToFirestore(tens);
     }
 };
 

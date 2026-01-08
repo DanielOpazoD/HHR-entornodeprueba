@@ -7,7 +7,7 @@
  * This hook is reusable for any Excel viewing functionality in the application.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { createWorkbook } from '../services/exporters/excelUtils';
 
 // ============================================================================
@@ -49,10 +49,17 @@ export function useExcelParser(): UseExcelParserReturn {
     const [isParsing, setIsParsing] = useState(false);
     const [parseError, setParseError] = useState<string | null>(null);
 
+    // Check if component is mounted to avoid state updates after unmount
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     /**
-     * Reset all parser state
+     * Reset all parser state and abort pending requests
      */
     const reset = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
         setWorkbookData({});
         setSheetNames([]);
         setActiveSheet('');
@@ -60,8 +67,19 @@ export function useExcelParser(): UseExcelParserReturn {
         setIsParsing(false);
     }, []);
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
     /**
      * Core parsing logic - processes a Blob into structured cell data
+     * Note: This function is not cancellable once plain blob is received, 
+     * but we check signal before setting state.
      */
     const parseFromBlob = useCallback(async (blob: Blob) => {
         setIsParsing(true);
@@ -72,7 +90,8 @@ export function useExcelParser(): UseExcelParserReturn {
 
         try {
             const workbook = await createWorkbook();
-            await workbook.xlsx.load(await blob.arrayBuffer());
+            const buffer = await blob.arrayBuffer();
+            await workbook.xlsx.load(buffer);
 
             const allSheetsData: Record<string, ParsedCell[][]> = {};
             const names: string[] = [];
@@ -104,15 +123,30 @@ export function useExcelParser(): UseExcelParserReturn {
 
                         // Extract actual value from complex cell types
                         if (val && typeof val === 'object') {
-                            if ('result' in val) {
-                                // Formula cell - use the result
-                                val = (val as any).result;
+                            if ('formula' in val || 'result' in val) {
+                                // Formula cell - get the result
+                                const formulaRes = (val as any).result;
+
+                                // Default to 0 if result is missing (fix for ExcelJS dropping 0s or uncalculated formulas)
+                                val = (formulaRes === undefined || formulaRes === null) ? 0 : formulaRes;
                             } else if ('richText' in val) {
                                 // Rich text - concatenate all text parts
                                 val = (val as any).richText.map((rt: any) => rt.text).join('');
                             } else if ('text' in val) {
                                 // Hyperlink or similar
                                 val = (val as any).text;
+                            }
+
+                            // Handle if the extracted result is STILL an object
+                            if (val && typeof val === 'object') {
+                                if ('error' in val) {
+                                    val = (val as any).error;
+                                } else if (val instanceof Date) {
+                                    // Keep as Date object
+                                } else {
+                                    // Fallback for unknown objects
+                                    val = '';
+                                }
                             }
                         }
 
@@ -169,19 +203,46 @@ export function useExcelParser(): UseExcelParserReturn {
      * Fetch and parse from a URL
      */
     const parseFromUrl = useCallback(async (url: string) => {
+        // Abort previous request if any
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         setIsParsing(true);
         setParseError(null);
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
             if (!response.ok) throw new Error(`Failed to fetch file: ${response.status}`);
 
             const blob = await response.blob();
+
+            // Check if aborted during blob reading
+            if (controller.signal.aborted) return;
+
             await parseFromBlob(blob);
-        } catch (err) {
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                console.log('[useExcelParser] Fetch aborted');
+                return;
+            }
             console.error('[useExcelParser] Error fetching file:', err);
             setParseError('No se pudo descargar el archivo para visualización.');
             setIsParsing(false);
+        } finally {
+            // Only clear loading if this is the active request
+            if (abortControllerRef.current === controller) {
+                abortControllerRef.current = null;
+                // Note: parseFromBlob handles its own setIsParsing(false), 
+                // but if we errored/aborted before calling it, we need to handle it.
+                // If success, parseFromBlob handles it.
+                // Actually relying on parseFromBlob finally block is tricky if we don't call it.
+                // We should ensure isParsing is false if we error here.
+                // But parseFromBlob sets isParsing=true again.
+            }
         }
     }, [parseFromBlob]);
 

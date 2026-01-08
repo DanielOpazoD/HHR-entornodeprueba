@@ -202,7 +202,8 @@ export const getCudyrMonthlyTotals = async (
     year: number,
     month: number,
     endDate: string | undefined,
-    fetchRecordFn: (dateStr: string) => Promise<DailyRecord | null>
+    fetchRecordFn: (dateStr: string) => Promise<DailyRecord | null>,
+    overrideRecord?: DailyRecord | null // Optional override for current day
 ): Promise<CudyrMonthlySummary> => {
     const totals: CategoryCounts = {
         uti: createEmptyCounts(),
@@ -223,7 +224,15 @@ export const getCudyrMonthlyTotals = async (
 
     for (let day = 1; day <= endDay; day++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const record = await fetchRecordFn(dateStr);
+
+        let record: DailyRecord | null = null;
+
+        // Use override if available and matches date
+        if (overrideRecord && overrideRecord.date === dateStr) {
+            record = overrideRecord;
+        } else {
+            record = await fetchRecordFn(dateStr);
+        }
 
         if (record) {
             const summary = buildDailyCudyrSummary(record);

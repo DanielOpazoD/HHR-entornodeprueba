@@ -97,7 +97,7 @@ describe('Census Email Integration', () => {
     it('should initialize hook with default recipients and dynamic message', () => {
         const { result } = renderHook(() => useCensusEmail(mockParams));
 
-        expect(result.current.recipients).toEqual(expect.arrayContaining(['daniel.opazo@hospitalhangaroa.cl']));
+        expect(result.current.recipients).toEqual([]);
         expect(result.current.message).toContain('planilla estadística');
         expect(result.current.message).toContain('diciembre'); // 11 is December
         expect(result.current.message).toContain('Carmen Lopez');

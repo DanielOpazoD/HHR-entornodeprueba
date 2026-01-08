@@ -15,7 +15,7 @@ import { UserMenu } from './UserMenu';
 import { DemoModeBadge } from './DemoModeBadge';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
-export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES';
+export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface NavbarProps {

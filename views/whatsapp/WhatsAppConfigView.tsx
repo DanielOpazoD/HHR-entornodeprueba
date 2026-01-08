@@ -1,7 +1,8 @@
 /**
  * WhatsApp Configuration Panel
  * 
- * Admin panel for configuring WhatsApp integration settings
+ * Admin panel for configuring WhatsApp integration settings.
+ * Refactored to use TanStack Query for state management.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -15,103 +16,87 @@ import {
     RefreshCw,
     Wifi,
     WifiOff,
-    Save
+    Save,
+    AlertCircle
 } from 'lucide-react';
 import {
-    getWhatsAppConfig,
-    updateWhatsAppConfig,
-    checkBotHealth,
-    getWhatsAppGroups
-} from '@/services/integrations/whatsapp/whatsappService';
+    useWhatsAppConfigQuery,
+    useWhatsAppHealthQuery,
+    useWhatsAppGroupsQuery,
+    useUpdateWhatsAppConfigMutation
+} from '@/hooks/useWhatsAppQuery';
 import type { WhatsAppConfig } from '@/types';
 
 export const WhatsAppConfigView: React.FC = () => {
-    const [config, setConfig] = useState<WhatsAppConfig | null>(null);
-    const [botStatus, setBotStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
-    const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    // 1. Data Queries
+    const {
+        data: serverConfig,
+        isLoading: loadingConfig,
+        refetch: refetchConfig
+    } = useWhatsAppConfigQuery();
+
+    const {
+        data: botStatus = 'disconnected',
+        isLoading: checkingHealth,
+        refetch: refetchHealth
+    } = useWhatsAppHealthQuery();
+
+    const {
+        data: groups = [],
+        isLoading: loadingGroups
+    } = useWhatsAppGroupsQuery(botStatus === 'connected');
+
+    // 2. Mutations
+    const updateConfigMutation = useUpdateWhatsAppConfigMutation();
+
+    // 3. Local state for form management (buffer)
+    const [localConfig, setLocalConfig] = useState<WhatsAppConfig | null>(null);
     const [autoSendTime, setAutoSendTime] = useState('17:00');
 
+    // Initialize local state from server data
     useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        setBotStatus('checking');
-
-        // Load config with defaults
-        const configData = await getWhatsAppConfig();
-        const defaultConfig: WhatsAppConfig = {
-            enabled: true,
-            status: 'disconnected',
-            shiftParser: {
-                enabled: false,
-                sourceGroupId: ''
-            },
-            handoffNotifications: {
-                enabled: true,
-                targetGroupId: '120363423199014610@g.us',
-                autoSendTime: '17:00'
-            }
-        };
-
-        // Merge with defaults to ensure all properties exist
-        const mergedConfig = configData ? {
-            ...defaultConfig,
-            ...configData,
-            shiftParser: { ...defaultConfig.shiftParser, ...configData.shiftParser },
-            handoffNotifications: { ...defaultConfig.handoffNotifications, ...configData.handoffNotifications }
-        } : defaultConfig;
-
-        setConfig(mergedConfig);
-        setAutoSendTime(mergedConfig.handoffNotifications?.autoSendTime || '17:00');
-
-        // Check bot health
-        const health = await checkBotHealth();
-        setBotStatus(health.whatsapp);
-
-        // Load groups if bot is connected
-        if (health.whatsapp === 'connected') {
-            const groupList = await getWhatsAppGroups();
-            setGroups(groupList);
+        if (serverConfig) {
+            setLocalConfig(serverConfig);
+            setAutoSendTime(serverConfig.handoffNotifications?.autoSendTime || '17:00');
         }
+    }, [serverConfig]);
 
-        setLoading(false);
+    const handleRefresh = async () => {
+        await Promise.all([refetchConfig(), refetchHealth()]);
     };
 
     const handleSave = async () => {
-        if (!config) return;
+        if (!localConfig) return;
 
-        setSaving(true);
         const updated: Partial<WhatsAppConfig> = {
-            ...config,
+            ...localConfig,
             handoffNotifications: {
-                ...config.handoffNotifications,
+                ...localConfig.handoffNotifications,
                 autoSendTime
             }
         };
 
-        await updateWhatsAppConfig(updated);
-        setSaving(false);
+        updateConfigMutation.mutate(updated);
     };
 
     const handleGroupChange = (type: 'shift' | 'handoff', groupId: string) => {
-        if (!config) return;
+        if (!localConfig) return;
 
         if (type === 'shift') {
-            setConfig({
-                ...config,
-                shiftParser: { ...config.shiftParser, sourceGroupId: groupId }
+            setLocalConfig({
+                ...localConfig,
+                shiftParser: { ...localConfig.shiftParser, sourceGroupId: groupId }
             });
         } else {
-            setConfig({
-                ...config,
-                handoffNotifications: { ...config.handoffNotifications, targetGroupId: groupId }
+            setLocalConfig({
+                ...localConfig,
+                handoffNotifications: { ...localConfig.handoffNotifications, targetGroupId: groupId }
             });
         }
     };
+
+    const loading = loadingConfig || (checkingHealth && botStatus === 'disconnected');
+    const saving = updateConfigMutation.isPending;
 
     if (loading) {
         return (
@@ -130,11 +115,12 @@ export const WhatsAppConfigView: React.FC = () => {
                     <h2 className="text-xl font-semibold">Configuración WhatsApp</h2>
                 </div>
                 <button
-                    onClick={loadData}
+                    onClick={handleRefresh}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Actualizar"
+                    disabled={loading || checkingHealth}
                 >
-                    <RefreshCw className="w-5 h-5" />
+                    <RefreshCw className={clsx("w-5 h-5", (loading || checkingHealth) && "animate-spin")} />
                 </button>
             </div>
 
@@ -176,14 +162,14 @@ export const WhatsAppConfigView: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <span className="text-sm">Activado</span>
                             <button
-                                onClick={() => setConfig(config ? {
-                                    ...config,
-                                    shiftParser: { ...config.shiftParser, enabled: !config.shiftParser.enabled }
-                                } : null)}
-                                className={`w-12 h-6 rounded-full transition-colors ${config?.shiftParser.enabled ? 'bg-green-500' : 'bg-gray-300'
+                                onClick={() => localConfig && setLocalConfig({
+                                    ...localConfig,
+                                    shiftParser: { ...localConfig.shiftParser, enabled: !localConfig.shiftParser.enabled }
+                                })}
+                                className={`w-12 h-6 rounded-full transition-colors ${localConfig?.shiftParser.enabled ? 'bg-green-500' : 'bg-gray-300'
                                     }`}
                             >
-                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${config?.shiftParser.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig?.shiftParser.enabled ? 'translate-x-6' : 'translate-x-0.5'
                                     }`} />
                             </button>
                         </div>
@@ -193,12 +179,12 @@ export const WhatsAppConfigView: React.FC = () => {
                                 Grupo de Turnos (solo lectura)
                             </label>
                             <select
-                                value={config?.shiftParser.sourceGroupId || ''}
+                                value={localConfig?.shiftParser.sourceGroupId || ''}
                                 onChange={(e) => handleGroupChange('shift', e.target.value)}
                                 className="w-full p-2 border rounded-lg text-sm"
-                                disabled={botStatus !== 'connected'}
+                                disabled={botStatus !== 'connected' || loadingGroups}
                             >
-                                <option value="">Seleccionar grupo...</option>
+                                <option value="">{loadingGroups ? 'Cargando grupos...' : 'Seleccionar grupo...'}</option>
                                 {groups.map(g => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
                                 ))}
@@ -218,17 +204,17 @@ export const WhatsAppConfigView: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <span className="text-sm">Activado</span>
                             <button
-                                onClick={() => setConfig(config ? {
-                                    ...config,
+                                onClick={() => localConfig && setLocalConfig({
+                                    ...localConfig,
                                     handoffNotifications: {
-                                        ...config.handoffNotifications,
-                                        enabled: !config.handoffNotifications.enabled
+                                        ...localConfig.handoffNotifications,
+                                        enabled: !localConfig.handoffNotifications.enabled
                                     }
-                                } : null)}
-                                className={`w-12 h-6 rounded-full transition-colors ${config?.handoffNotifications.enabled ? 'bg-green-500' : 'bg-gray-300'
+                                })}
+                                className={`w-12 h-6 rounded-full transition-colors ${localConfig?.handoffNotifications.enabled ? 'bg-green-500' : 'bg-gray-300'
                                     }`}
                             >
-                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${config?.handoffNotifications.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig?.handoffNotifications.enabled ? 'translate-x-6' : 'translate-x-0.5'
                                     }`} />
                             </button>
                         </div>
@@ -238,12 +224,12 @@ export const WhatsAppConfigView: React.FC = () => {
                                 Grupo para Enviar Entregas
                             </label>
                             <select
-                                value={config?.handoffNotifications.targetGroupId || ''}
+                                value={localConfig?.handoffNotifications.targetGroupId || ''}
                                 onChange={(e) => handleGroupChange('handoff', e.target.value)}
                                 className="w-full p-2 border rounded-lg text-sm"
-                                disabled={botStatus !== 'connected'}
+                                disabled={botStatus !== 'connected' || loadingGroups}
                             >
-                                <option value="">Seleccionar grupo...</option>
+                                <option value="">{loadingGroups ? 'Cargando grupos...' : 'Seleccionar grupo...'}</option>
                                 {groups.map(g => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
                                 ))}
@@ -278,12 +264,24 @@ export const WhatsAppConfigView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Save Button */}
-            <div className="flex justify-end">
+            {/* Save Button & Status */}
+            <div className="flex items-center justify-end gap-4">
+                {updateConfigMutation.isSuccess && (
+                    <div className="flex items-center gap-1.5 text-xs text-green-600 font-bold animate-pulse">
+                        <Check size={14} />
+                        GUARDADO CORRECTAMENTE
+                    </div>
+                )}
+                {updateConfigMutation.isError && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600 font-bold">
+                        <AlertCircle size={14} />
+                        FALLÓ EL GUARDADO
+                    </div>
+                )}
                 <button
                     onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    disabled={saving || !localConfig}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-lg shadow-blue-200"
                 >
                     {saving ? (
                         <RefreshCw className="w-4 h-4 animate-spin" />
@@ -296,5 +294,8 @@ export const WhatsAppConfigView: React.FC = () => {
         </div>
     );
 };
+
+// Internal utility for class names
+const clsx = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default WhatsAppConfigView;

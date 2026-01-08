@@ -13,6 +13,8 @@ vi.mock('@/services/repositories/DailyRecordRepository', () => ({
     updatePartial: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { UIProvider } from '@/context/UIContext';
+
 const createWrapper = () => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -22,7 +24,11 @@ const createWrapper = () => {
         },
     });
     return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+            <UIProvider>
+                {children}
+            </UIProvider>
+        </QueryClientProvider>
     );
 };
 

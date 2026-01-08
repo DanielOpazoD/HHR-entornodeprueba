@@ -1,0 +1,207 @@
+
+> hanga-roa-hospital-tracker@0.0.1 test
+> vitest --run tests/integration/flicker-free-login.test.tsx
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/Users/danielopazodamiani/Downloads/HHR-entornoprueba[39m
+
+[90mstderr[2m | tests/integration/flicker-free-login.test.tsx[2m > [22m[2mFlicker-Free Login Flow[2m > [22m[2mshould transition smoothly without window.location.reload when login succeeds
+[22m[39mTypeError: Cannot read properties of undefined (reading 'startsWith')
+    at useSharedCensusMode [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mhooks/useSharedCensusMode.ts:29:41[90m)[39m
+    at App [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mApp.tsx:64:24[90m)[39m
+    at Object.react_stack_bottom_frame [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:25904:20[90m)[39m
+    at renderWithHooks [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:7662:22[90m)[39m
+    at updateFunctionComponent [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10166:19[90m)[39m
+    at beginWork [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:11778:18[90m)[39m
+    at runWithFiberInDEV [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:874:13[90m)[39m
+    at performUnitOfWork [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:17641:22[90m)[39m
+    at workLoopSync [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:17469:41[90m)[39m
+    at renderRootSync [90m(/Users/danielopazodamiani/Downloads/HHR-entornoprueba/[39mnode_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:17450:11[90m)[39m {
+  [stack]: [36m[Getter/Setter][39m,
+  [message]: [32m"Cannot read properties of undefined (reading 'startsWith')"[39m
+}
+
+The above error occurred in the <App> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, GlobalErrorBoundary.
+
+[ErrorService] {
+  id: [32m'err_1767903058133_7q2tpmdcl'[39m,
+  timestamp: [32m'2026-01-08T20:10:58.133Z'[39m,
+  message: [32m"React Error Boundary: Cannot read properties of undefined (reading 'startsWith')"[39m,
+  severity: [32m'critical'[39m,
+  stack: [32m'\n'[39m +
+    [32m'    at App (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/App.tsx:28:48)\n'[39m +
+    [32m'    at GlobalErrorBoundary (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/components/shared/GlobalErrorBoundary.tsx:9:5)\n'[39m +
+    [32m'    at AppWithErrorBoundary (<anonymous>)\n'[39m +
+    [32m'    at DemoModeProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/DemoModeContext.tsx:9:29)\n'[39m +
+    [32m'    at UIProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/UIContext.tsx:250:23)\n'[39m +
+    [32m'    at AuthProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/AuthContext.tsx:8:25)\n'[39m +
+    [32m'    at QueryClientProvider (file:///Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)'[39m,
+  userId: [90mundefined[39m,
+  userEmail: [90mundefined[39m,
+  context: {
+    componentStack: [32m'\n'[39m +
+      [32m'    at App (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/App.tsx:28:48)\n'[39m +
+      [32m'    at GlobalErrorBoundary (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/components/shared/GlobalErrorBoundary.tsx:9:5)\n'[39m +
+      [32m'    at AppWithErrorBoundary (<anonymous>)\n'[39m +
+      [32m'    at DemoModeProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/DemoModeContext.tsx:9:29)\n'[39m +
+      [32m'    at UIProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/UIContext.tsx:250:23)\n'[39m +
+      [32m'    at AuthProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/AuthContext.tsx:8:25)\n'[39m +
+      [32m'    at QueryClientProvider (file:///Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)'[39m,
+    errorInfo: {
+      componentStack: [32m'\n'[39m +
+        [32m'    at App (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/App.tsx:28:48)\n'[39m +
+        [32m'    at GlobalErrorBoundary (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/components/shared/GlobalErrorBoundary.tsx:9:5)\n'[39m +
+        [32m'    at AppWithErrorBoundary (<anonymous>)\n'[39m +
+        [32m'    at DemoModeProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/DemoModeContext.tsx:9:29)\n'[39m +
+        [32m'    at UIProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/UIContext.tsx:250:23)\n'[39m +
+        [32m'    at AuthProvider (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/context/AuthContext.tsx:8:25)\n'[39m +
+        [32m'    at QueryClientProvider (file:///Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)'[39m
+    }
+  },
+  userAgent: [32m'Mozilla/5.0 (darwin) AppleWebKit/537.36 (KHTML, like Gecko) jsdom/27.4.0'[39m,
+  url: [90mundefined[39m
+}
+
+ [31m❯[39m tests/integration/flicker-free-login.test.tsx [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 27[2mms[22m[39m
+[31m     [31m×[31m should transition smoothly without window.location.reload when login succeeds[39m[32m 26[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/integration/flicker-free-login.test.tsx[2m > [22mFlicker-Free Login Flow[2m > [22mshould transition smoothly without window.location.reload when login succeeds
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element by: [data-testid="login-btn"]
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"min-h-screen bg-slate-50 flex items-center justify-center p-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 border border-red-200"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex justify-center mb-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"bg-red-100 p-4 rounded-full"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-triangle-alert text-red-600"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"48"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"48"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 9v4"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 17h.01"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-2xl font-bold text-center text-slate-800 mb-4"[39m
+        [36m>[39m
+          [0m¡Ups! Algo salió mal[0m
+        [36m</h1>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-center text-slate-600 mb-6"[39m
+        [36m>[39m
+          [0mLa aplicación encontró un error inesperado. No se preocupe, sus datos están seguros.[0m
+        [36m</p>[39m
+        [36m<details[39m
+          [33mclass[39m=[32m"mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200"[39m
+        [36m>[39m
+          [36m<summary[39m
+            [33mclass[39m=[32m"cursor-pointer font-semibold text-slate-700 mb-2"[39m
+          [36m>[39m
+            [0mDetalles técnicos (solo visible en desarrollo)[0m
+          [36m</summary>[39m
+          [36m<pre[39m
+            [33mclass[39m=[32m"text-xs text-red-600 overflow-auto"[39m
+          [36m>[39m
+            [0mCannot read properties of undefined (reading 'startsWith')[0m
+            [0m
+
+[0m
+            [0mTypeError: Cannot read properties of undefined (reading 'startsWith')
+    at useSharedCensusMode (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/hooks/useSharedCensusMode.ts:29:41)
+    at App (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/App.tsx:64:24)
+    at Object.react_stack_bottom_frame (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20)
+    at renderWithHooks (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19)
+    at beginWork (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18)
+    at runWithFiberInDEV (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+    at performUnitOfWork (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22)
+    at workLoopSync (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41)
+    at renderRootSync (/Users/danielopazodamiani/Downloads/HHR-entornoprueba/node_modules/react-dom/cjs/react-dom-client.development.js:17450:11)[0m
+          [36m</pre>[39m
+        [36m</details>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex gap-4 justify-center"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"bg-medical-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-medical-700 transition-colors"[39m
+          [36m>[39m
+            [0mRecargar Aplicación[0m
+          [36m</button>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"bg-slate-200 text-slate-700 font-semibold px-6 py-3 rounded-lg hover:bg-slate-300 transition-colors"[39m
+          [36m>[39m
+            [0mCopiar Error (para reportar)[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-center text-sm text-slate-500 mt-6"[39m
+        [36m>[39m
+          [0mSi el problema persiste, contacte al administrador del sistema.[0m
+        [36m</p>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"fixed bottom-4 right-4 z-[9999] flex flex-col gap-1"[39m
+    [36m/>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[36m [2m❯[22m useSharedCensusMode hooks/useSharedCensusMode.ts:[2m29:41[22m[39m
+    [90m 27| [39m
+    [90m 28| [39m    [90m// Detection: Are we in shared census mode?[39m
+    [90m 29| [39m    const isSharedCensusMode = pathname.startsWith('/censo-compartido'…
+    [90m   | [39m                                        [31m^[39m
+    [90m 30| [39m
+    [90m 31| [39m    [90m// Get invitation ID from URL (optional, for tracking)[39m
+[90m [2m❯[22m App App.tsx:[2m64:24[22m[39m
+[90m [2m❯[22m Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:[2m25904:20[22m[39m
+[90m [2m❯[22m renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:[2m7662:22[22m[39m
+[90m [2m❯[22m updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:[2m10166:19[22m[39m
+[90m [2m❯[22m beginWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m11778:18[22m[39m
+[90m [2m❯[22m runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:[2m874:13[22m[39m
+[90m [2m❯[22m performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m17641:22[22m[39m
+[90m [2m❯[22m workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:[2m17469:41[22m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[90m [2m❯[22m tests/integration/flicker-free-login.test.tsx:[2m66:33[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 15:10:56
+[2m   Duration [22m 1.22s[2m (transform 478ms, setup 130ms, import 630ms, tests 27ms, environment 364ms)[22m
+

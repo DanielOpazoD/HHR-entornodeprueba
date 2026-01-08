@@ -29,7 +29,7 @@ describe('NavbarMenu', () => {
         onImportClick: vi.fn(),
         onOpenSettings: vi.fn(),
         isUserAdmin: true,
-        visibleModules: ['CENSUS', 'CUDYR', 'REPORTS'] as const
+        visibleModules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'] as const
     };
 
     beforeEach(() => {
@@ -40,7 +40,7 @@ describe('NavbarMenu', () => {
         render(<NavbarMenu {...defaultProps} />);
 
         expect(screen.getByText('Hospital Hanga Roa')).toBeInTheDocument();
-        expect(screen.getByText('Gestión de Camas')).toBeInTheDocument();
+        expect(screen.getByText('MODO PRUEBA')).toBeInTheDocument();
     });
 
     it('calls onToggle when brand button is clicked', () => {
@@ -91,9 +91,9 @@ describe('NavbarMenu', () => {
         expect(defaultProps.setCensusViewMode).toHaveBeenCalledWith('ANALYTICS');
     });
 
-    it('shows Reports when visible in modules', () => {
-        render(<NavbarMenu {...defaultProps} isOpen={true} visibleModules={['CENSUS', 'REPORTS']} />);
+    it('shows Error Monitor for admin users', () => {
+        render(<NavbarMenu {...defaultProps} isOpen={true} isUserAdmin={true} />);
 
-        expect(screen.getByText('Reportes')).toBeInTheDocument();
+        expect(screen.getByText('Monitor de Errores')).toBeInTheDocument();
     });
 });

@@ -3,6 +3,9 @@ import { signIn, signInWithGoogle, onAuthChange } from '../../services/auth/auth
 import * as firebaseAuth from 'firebase/auth';
 import { getDocs } from 'firebase/firestore';
 
+vi.unmock('../../services/auth/authService');
+vi.unmock('@/services/auth/authService');
+
 // Mock setup for authService tests
 vi.mock('firebase/auth', () => {
     const GoogleAuthProvider = vi.fn();
@@ -109,7 +112,7 @@ describe('authService', () => {
             onAuthChange(mockCallback);
 
             expect(firebaseAuth.onAuthStateChanged).toHaveBeenCalled();
-            const firebaseCallback = vi.mocked(firebaseAuth.onAuthStateChanged).mock.calls[0][1];
+            const firebaseCallback = vi.mocked(firebaseAuth.onAuthStateChanged).mock.calls[0][1] as (user: any) => Promise<void>;
 
             await firebaseCallback({
                 uid: 'anon-123',

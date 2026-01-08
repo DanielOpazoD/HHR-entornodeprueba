@@ -1,215 +1,114 @@
 /**
- * Backup Files View (Google Drive style)
- * Main view for navigating and managing backup PDFs in Storage
+ * BackupFilesView
+ * 
+ * View for browsing and downloading backup files (Handoffs, Census, CUDYR).
+ * Now migrated to TanStack Query for robust data fetching and navigation.
+ * Includes internal tabs for switching between backup types.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FolderArchive, Plus, Search, LayoutGrid, List as ListIcon, RefreshCw, AlertCircle } from 'lucide-react';
-import { useAuthState } from '@/hooks/useAuthState';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    Folder,
+    Search,
+    LayoutGrid,
+    List,
+    RefreshCw,
+    MessageSquare,
+    LayoutList,
+    BarChart3,
+} from 'lucide-react';
 import { useNotification, useConfirmDialog } from '@/context/UIContext';
-import {
-    listYears,
-    listMonths,
-    listFilesInMonth,
-    deletePdf,
-    StoredPdfFile
-} from '@/services/backup/pdfStorageService';
-import {
-    listCensusYears,
-    listCensusMonths,
-    listCensusFilesInMonth,
-    deleteCensus,
-    StoredCensusFile
-} from '@/services/backup/censusStorageService';
-import {
-    listCudyrYears,
-    listCudyrMonths,
-    listCudyrFilesInMonth,
-    StoredCudyrFile
-} from '@/services/backup/cudyrStorageService';
-import { Breadcrumbs, FolderCard, FileCard } from './components/BackupDriveItems';
+import { useBackupFilesQuery } from '@/hooks/useBackupFilesQuery';
+import { FolderCard, FileCard, Breadcrumbs } from './components/BackupDriveItems';
 import { HandoffCalendarView } from './components/HandoffCalendarView';
 import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
 import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
+import { deletePdf } from '@/services/backup/pdfStorageService';
+import { deleteCensusFile } from '@/services/backup/censusStorageService';
+import { deleteCudyrFile } from '@/services/backup/cudyrStorageService';
+import { formatFileSize } from '@/services/backup/baseStorageService';
+import { useAuth } from '@/context/AuthContext';
+import clsx from 'clsx';
 
-type NavPath = {
-    year?: string;
-    month?: { number: string; name: string };
-};
+export type BackupType = 'handoff' | 'census' | 'cudyr';
 
-type BackupType = 'handoff' | 'census' | 'cudyr';
+// Tab configuration for backup types
+const BACKUP_TABS: { type: BackupType; label: string; icon: React.ElementType }[] = [
+    { type: 'handoff', label: 'Entregas', icon: MessageSquare },
+    { type: 'census', label: 'Censo', icon: LayoutList },
+    { type: 'cudyr', label: 'CUDYR', icon: BarChart3 },
+];
 
-export const BackupFilesView: React.FC = () => {
-    const { role } = useAuthState();
-    const { success, error, warning } = useNotification();
+interface BackupFilesViewProps {
+    backupType?: BackupType; // Now optional, defaults to 'handoff'
+}
+
+export const BackupFilesView: React.FC<BackupFilesViewProps> = ({ backupType: initialBackupType = 'handoff' }) => {
+    // Internal state for selected backup type (tabs)
+    const [selectedBackupType, setSelectedBackupType] = useState<BackupType>(initialBackupType);
+    const { success, error: notifyError } = useNotification();
     const { confirm } = useConfirmDialog();
-    const isAdmin = role === 'admin' || role === 'nurse_hospital';
+    const { role } = useAuth();
+    const canDelete = role === 'admin';
 
-    // State
-    const [backupType, setBackupType] = useState<BackupType>('handoff');
-    const [path, setPath] = useState<string[]>([]); // Array of folder names for breadcrumbs
-    const [currentNav, setCurrentNav] = useState<NavPath>({});
-    const [items, setItems] = useState<{ type: 'folder' | 'file', data: any }[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // Navigation state
+    const [path, setPath] = useState<string[]>([]);
+
+    // View state
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [previewFile, setPreviewFile] = useState<any | null>(null);
 
-    // Excel preview state for census files
-    const [previewFile, setPreviewFile] = useState<StoredCensusFile | null>(null);
+    // 1. Data Query
+    const {
+        data: items = [],
+        isLoading,
+        isRefetching,
+        refetch
+    } = useBackupFilesQuery(selectedBackupType, path);
 
-    // PDF preview state for handoff files
-    const [previewPdf, setPreviewPdf] = useState<StoredPdfFile | null>(null);
-
-    // Request ID ref to handle race conditions - ignore stale responses
-    const requestIdRef = useRef(0);
-
-    // Helper to convert month name to number
-    const monthNameToNumber = (monthName: string): string => {
-        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        const index = monthNames.indexOf(monthName);
-        return index >= 0 ? String(index + 1).padStart(2, '0') : '';
-    };
-
-    // Load content based on current path
-    const loadContent = useCallback(async (currentRequestId: number) => {
-        setIsLoading(true);
-        try {
-            if (path.length === 0) {
-                // Root: List years
-                let years: string[] = [];
-                if (backupType === 'handoff') {
-                    years = await listYears();
-                } else if (backupType === 'census') {
-                    years = await listCensusYears();
-                } else {
-                    years = await listCudyrYears();
-                }
-                // Check if this request is still current
-                if (currentRequestId !== requestIdRef.current) return;
-                setItems(years.map(year => ({
-                    type: 'folder',
-                    data: { name: year, type: 'year' }
-                })));
-            } else if (path.length === 1) {
-                // Year: List months
-                let months: { number: string; name: string }[] = [];
-                if (backupType === 'handoff') {
-                    months = await listMonths(path[0]);
-                } else if (backupType === 'census') {
-                    months = await listCensusMonths(path[0]);
-                } else {
-                    months = await listCudyrMonths(path[0]);
-                }
-                // Check if this request is still current
-                if (currentRequestId !== requestIdRef.current) return;
-                setItems(months.map(month => ({
-                    type: 'folder',
-                    data: { name: month.name, number: month.number, type: 'month' }
-                })));
-            } else if (path.length === 2) {
-                // Month: List files - derive month number from path
-                const monthNumber = monthNameToNumber(path[1]);
-
-                if (backupType === 'handoff') {
-                    const files = await listFilesInMonth(path[0], monthNumber);
-                    // Check if this request is still current
-                    if (currentRequestId !== requestIdRef.current) return;
-                    setItems(files.map(file => ({
-                        type: 'file',
-                        data: file
-                    })));
-                } else if (backupType === 'census') {
-                    const files = await listCensusFilesInMonth(path[0], monthNumber);
-                    // Check if this request is still current
-                    if (currentRequestId !== requestIdRef.current) return;
-                    const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
-                    setItems(sortedFiles.map(file => ({
-                        type: 'file',
-                        data: file
-                    })));
-                } else {
-                    // CUDYR files
-                    const files = await listCudyrFilesInMonth(path[0], monthNumber);
-                    // Check if this request is still current
-                    if (currentRequestId !== requestIdRef.current) return;
-                    const sortedFiles = files.sort((a, b) => a.date.localeCompare(b.date));
-                    setItems(sortedFiles.map(file => ({
-                        type: 'file',
-                        data: file
-                    })));
-                }
-            }
-        } catch (err) {
-            console.error('Error loading backup content:', err);
-            error('Error al cargar contenido de respaldos');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [path, error, backupType]);
-
-    // Auto-navigate to current year/month when backup type changes
+    // Auto-navigate to current year/month on mount or type change
     useEffect(() => {
         const now = new Date();
         const currentYear = now.getFullYear().toString();
-        const currentMonthNum = String(now.getMonth() + 1).padStart(2, '0');
         const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         const currentMonthName = monthNames[now.getMonth()];
 
-        // Navigate directly to current year/month
         setPath([currentYear, currentMonthName]);
-        setCurrentNav({
-            year: currentYear,
-            month: { number: currentMonthNum, name: currentMonthName }
-        });
-    }, [backupType]);
+    }, [selectedBackupType]);
 
-    // Load content when path or backup type changes
-    useEffect(() => {
-        // Increment request ID to invalidate any pending requests
-        requestIdRef.current += 1;
-        const currentRequestId = requestIdRef.current;
-        loadContent(currentRequestId);
-    }, [path, backupType, loadContent]);
+    // Derived states
+    const filteredItems = useMemo(() => {
+        if (!searchQuery) return items;
+        const q = searchQuery.toLowerCase();
+        return items.filter(item => {
+            if (item.type === 'folder') return item.data.name.toLowerCase().includes(q);
+            return item.data.name.toLowerCase().includes(q) || (item.data.date && item.data.date.includes(q));
+        });
+    }, [items, searchQuery]);
 
     // Navigation handlers
     const handleFolderClick = (folderData: any) => {
         if (folderData.type === 'year') {
             setPath([folderData.name]);
-            setCurrentNav({ year: folderData.name });
         } else if (folderData.type === 'month') {
             setPath([path[0], folderData.name]);
-            setCurrentNav(prev => ({ ...prev, month: { number: folderData.number, name: folderData.name } }));
         }
     };
 
     const handleBreadcrumbNavigate = (index: number) => {
         if (index === -1) {
             setPath([]);
-            setCurrentNav({});
-        } else if (index === 0) {
-            setPath([path[0]]);
-            setCurrentNav({ year: path[0] });
+        } else {
+            setPath(path.slice(0, index + 1));
         }
     };
 
-    const handleDownload = (file: any) => {
-        const link = document.createElement('a');
-        link.href = file.downloadUrl;
-        link.download = file.name || 'documento';
-        window.open(file.downloadUrl, '_blank'); // Keep original behavior for download button
-    };
-
-    const handlePreviewPdf = (file: StoredPdfFile) => {
-        setPreviewPdf(file);
-    };
-
     const handleDelete = async (file: any) => {
-        const typeLabel = backupType === 'handoff' ? 'Respaldo' : backupType === 'census' ? 'Censo' : 'CUDYR';
         const confirmed = await confirm({
-            title: `🗑️ Eliminar ${typeLabel}`,
-            message: `¿Estás seguro de que deseas eliminar el archivo del día ${file.date}?\n\nEsta acción no se puede deshacer.`,
+            title: 'Eliminar Archivo',
+            message: `¿Está seguro de eliminar "${file.name}"?\nEsta acción no se puede deshacer.`,
             confirmText: 'Eliminar',
             cancelText: 'Cancelar',
             variant: 'danger'
@@ -218,234 +117,195 @@ export const BackupFilesView: React.FC = () => {
         if (!confirmed) return;
 
         try {
-            if (backupType === 'handoff') {
+            if (selectedBackupType === 'handoff') {
                 await deletePdf(file.date, file.shiftType);
-            } else if (backupType === 'census') {
-                await deleteCensus(file.date);
+            } else if (selectedBackupType === 'census') {
+                await deleteCensusFile(file.date);
             } else {
-                // CUDYR: For now, we don't support delete (read-only archive)
-                warning('Los archivos CUDYR no se pueden eliminar desde aquí');
-                return;
+                await deleteCudyrFile(file.date);
             }
-            success('Archivo eliminado correctamente');
-            // Trigger a refresh
-            requestIdRef.current += 1;
-            loadContent(requestIdRef.current);
+            success('Archivo eliminado');
+            refetch();
         } catch (err) {
-            console.error('Error deleting file:', err);
-            error('No se pudo eliminar el archivo');
+            console.error('Delete error:', err);
+            notifyError('Error al eliminar archivo');
         }
     };
 
-    // Wrapper for refresh button
-    const handleRefresh = useCallback(() => {
-        requestIdRef.current += 1;
-        loadContent(requestIdRef.current);
-    }, [loadContent]);
-
-    const formatSize = (bytes: number) => {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
+    const handleDownload = (file: any) => {
+        if (file.downloadUrl) {
+            window.open(file.downloadUrl, '_blank');
+        }
     };
 
-    // Handler for previewing census Excel files
-    const handlePreviewExcel = (file: StoredCensusFile) => {
-        setPreviewFile(file);
+    const renderContent = () => {
+        if (isLoading && !isRefetching) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                    <RefreshCw className="w-12 h-12 text-slate-300 animate-spin mb-4" />
+                    <p className="text-slate-400 font-medium">Buscando archivos...</p>
+                </div>
+            );
+        }
+
+        if (items.length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                    <Folder className="w-16 h-16 text-slate-200 mb-4" />
+                    <p className="text-slate-400 font-medium">No se encontraron archivos en esta ubicación</p>
+                </div>
+            );
+        }
+
+        // Calendar View for Handoffs in month view
+        if (selectedBackupType === 'handoff' && path.length === 2) {
+            const files = items.filter(i => i.type === 'file').map(i => i.data);
+            return (
+                <HandoffCalendarView
+                    files={files}
+                    onView={(file) => setPreviewFile(file)}
+                    onDownload={(file) => handleDownload(file)}
+                    onDelete={handleDelete}
+                    canDelete={canDelete}
+                    formatSize={formatFileSize}
+                />
+            );
+        }
+
+        // Use compact grid for census/cudyr
+        const isCompactView = selectedBackupType !== 'handoff';
+
+        return (
+            <div className={clsx(
+                isCompactView ? "gap-2" : "gap-4",
+                viewMode === 'grid'
+                    ? isCompactView
+                        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5"
+                        : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    : "flex flex-col"
+            )}>
+                {filteredItems.map((item, idx) => (
+                    item.type === 'folder' ? (
+                        <FolderCard
+                            key={item.data.name}
+                            name={item.data.name}
+                            onClick={() => handleFolderClick(item.data)}
+                        />
+                    ) : (
+                        <FileCard
+                            key={item.data.path || idx}
+                            name={item.data.name}
+                            date={item.data.date}
+                            shift={item.data.shiftType || 'day'}
+                            size={formatFileSize(item.data.size)}
+                            onView={() => setPreviewFile(item.data)}
+                            onDownload={() => handleDownload(item.data)}
+                            onDelete={() => handleDelete(item.data)}
+                            canDelete={canDelete}
+                            hideShift={selectedBackupType !== 'handoff'}
+                            compact={selectedBackupType !== 'handoff'}
+                        />
+                    )
+                ))}
+            </div>
+        );
     };
-
-
-    // Filter items based on search
-    const filteredItems = items.filter(item => {
-        const name = item.type === 'folder' ? item.data.name : item.data.name;
-        return name.toLowerCase().includes(searchQuery.toLowerCase());
-    });
 
     return (
-        <div className="max-w-6xl mx-auto p-4 sm:p-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm">
-                        <FolderArchive size={28} />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">Archivos</h1>
-                        <p className="text-sm text-slate-500">
-                            {backupType === 'handoff' ? 'Respaldos de Entregas de Turno' :
-                                backupType === 'census' ? 'Respaldos de Censo Diario' :
-                                    'Respaldos CUDYR Mensual'}
-                        </p>
-                    </div>
-                </div>
+        <div className="space-y-6">
+            {/* Tabs for Backup Types */}
+            <div className="flex gap-1 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+                {BACKUP_TABS.map(({ type, label, icon: Icon }) => (
+                    <button
+                        key={type}
+                        onClick={() => {
+                            setSelectedBackupType(type);
+                            setPath([]); // Reset navigation when switching tabs
+                        }}
+                        className={clsx(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200",
+                            selectedBackupType === type
+                                ? "bg-medical-600 text-white shadow-md"
+                                : "text-slate-600 hover:bg-slate-50"
+                        )}
+                    >
+                        <Icon size={18} />
+                        {label}
+                    </button>
+                ))}
+            </div>
 
-                {/* Backup Type Selector */}
-                <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button
-                        onClick={() => setBackupType('handoff')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'handoff'
-                            ? 'bg-white text-teal-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                    >
-                        Entregas
-                    </button>
-                    <button
-                        onClick={() => setBackupType('census')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'census'
-                            ? 'bg-white text-teal-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                    >
-                        Censo
-                    </button>
-                    <button
-                        onClick={() => setBackupType('cudyr')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${backupType === 'cudyr'
-                            ? 'bg-white text-emerald-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                    >
-                        CUDYR
-                    </button>
-                </div>
+            {/* Header and Breadcrumbs */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+                <Breadcrumbs path={path} onNavigate={handleBreadcrumbNavigate} />
 
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1 sm:w-64">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Buscar en archivos..."
+                            placeholder="Buscar..."
+                            className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-medical-500 w-full md:w-48 lg:w-64"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                         />
                     </div>
-                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+
+                    <div className="flex bg-slate-50 p-1 rounded-xl">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={clsx("p-1.5 rounded-lg transition-all", viewMode === 'grid' ? "bg-white shadow-sm text-medical-600" : "text-slate-400")}
                         >
                             <LayoutGrid size={18} />
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={clsx("p-1.5 rounded-lg transition-all", viewMode === 'list' ? "bg-white shadow-sm text-medical-600" : "text-slate-400")}
                         >
-                            <ListIcon size={18} />
+                            <List size={18} />
                         </button>
                     </div>
+
                     <button
-                        onClick={handleRefresh}
-                        disabled={isLoading}
-                        className="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all disabled:opacity-50"
+                        onClick={() => refetch()}
+                        className={clsx(
+                            "p-2 rounded-xl border border-slate-100 transition-all active:scale-95",
+                            isRefetching ? "text-medical-600 bg-medical-50" : "text-slate-500 hover:bg-slate-50"
+                        )}
                         title="Refrescar"
+                        disabled={isLoading}
                     >
-                        <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+                        <RefreshCw size={18} className={isRefetching ? "animate-spin" : ""} />
                     </button>
                 </div>
             </div>
 
-            {/* Navigation & Breadcrumbs */}
-            <div className="bg-white/50 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 mb-6">
-                <Breadcrumbs path={path} onNavigate={handleBreadcrumbNavigate} />
-
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                        <RefreshCw size={40} className="animate-spin mb-4 opacity-20" />
-                        <p className="text-sm font-medium animate-pulse">Cargando elementos...</p>
-                    </div>
-                ) : filteredItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200">
-                        <AlertCircle size={40} className="text-slate-300 mb-2" />
-                        <p className="text-slate-500 font-medium">No se encontraron elementos</p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            {path.length === 0 ? 'Aún no hay respaldos guardados' : 'Esta carpeta está vacía'}
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        {/* Calendar view for handoff files at month level */}
-                        {backupType === 'handoff' && path.length === 2 && filteredItems.some(i => i.type === 'file') ? (
-                            <HandoffCalendarView
-                                files={filteredItems.filter(i => i.type === 'file').map(i => i.data)}
-                                onDownload={handleDownload}
-                                onView={handlePreviewPdf}
-                                onDelete={handleDelete}
-                                canDelete={isAdmin}
-                                formatSize={formatSize}
-                            />
-                        ) : (
-                            <div className={viewMode === 'grid'
-                                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-                                : "flex flex-col gap-2"
-                            }>
-                                {filteredItems.map((item, idx) => (
-                                    item.type === 'folder' ? (
-                                        <FolderCard
-                                            key={idx}
-                                            name={item.data.name}
-                                            onClick={() => handleFolderClick(item.data)}
-                                        />
-                                    ) : (
-                                        <FileCard
-                                            key={idx}
-                                            name={item.data.name}
-                                            date={item.data.date}
-                                            shift={item.data.shiftType}
-                                            size={formatSize(item.data.size)}
-                                            onDownload={() => handleDownload(item.data)}
-                                            onView={(backupType === 'census' || backupType === 'cudyr')
-                                                ? () => handlePreviewExcel(item.data)
-                                                : () => handlePreviewPdf(item.data)}
-                                            onDelete={() => handleDelete(item.data)}
-                                            canDelete={isAdmin && backupType !== 'cudyr'}
-                                        />
-                                    )
-                                ))}
-                            </div>
-                        )}
-                    </>
-                )}
+            {/* List/Grid Content */}
+            <div className="min-h-[400px]">
+                {renderContent()}
             </div>
 
-            {/* Empty State Help */}
-            {path.length === 0 && !isLoading && items.length > 0 && (
-                <div className="mt-8 p-4 bg-teal-50/50 border border-teal-100 rounded-2xl flex gap-4">
-                    <div className="p-2 bg-teal-100 text-teal-600 rounded-xl self-start">
-                        <AlertCircle size={20} />
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-teal-800">Sistema de Respaldos en la Nube</h4>
-                        <p className="text-xs text-teal-700 mt-1 leading-relaxed">
-                            Los archivos se organizan automáticamente por año y mes. Para generar un respaldo, utiliza el botón <b>"Guardar Respaldo PDF"</b> en la vista de Entrega de Turno. Solo se permiten 2 respaldos por día (Largo/Noche).
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Excel Preview Modal for Census Files */}
+            {/* Previews */}
             {previewFile && (
-                <ExcelViewerModal
-                    fileName={previewFile.date}
-                    downloadUrl={previewFile.downloadUrl}
-                    canDownload={true}
-                    onClose={() => setPreviewFile(null)}
-                    onDownload={() => window.open(previewFile.downloadUrl, '_blank')}
-                    subtitle="Censo Diario Hospital Hanga Roa"
-                />
-            )}
-
-            {/* PDF Preview Modal for Handoff Files */}
-            {previewPdf && (
-                <PdfViewerModal
-                    fileName={`Entrega ${previewPdf.date} - ${previewPdf.shiftType === 'day' ? 'Largo' : 'Noche'}`}
-                    url={previewPdf.downloadUrl}
-                    onClose={() => setPreviewPdf(null)}
-                    onDownload={() => handleDownload(previewPdf)}
-                />
+                <>
+                    {previewFile.name.endsWith('.xlsx') ? (
+                        <ExcelViewerModal
+                            fileName={previewFile.name}
+                            downloadUrl={previewFile.downloadUrl}
+                            onClose={() => setPreviewFile(null)}
+                            onDownload={() => handleDownload(previewFile)}
+                            canDownload={true}
+                            subtitle={selectedBackupType === 'census' ? 'Censo Hospital Hanga Roa' : 'CUDYR Hospital Hanga Roa'}
+                        />
+                    ) : (
+                        <PdfViewerModal
+                            fileName={previewFile.name}
+                            url={previewFile.downloadUrl}
+                            onClose={() => setPreviewFile(null)}
+                            onDownload={() => handleDownload(previewFile)}
+                        />
+                    )}
+                </>
             )}
         </div>
     );

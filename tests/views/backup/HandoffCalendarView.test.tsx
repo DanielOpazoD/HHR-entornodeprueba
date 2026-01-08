@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => ({
     Trash2: () => <span data-testid="trash-icon">Trash</span>,
     Sun: () => <span data-testid="sun-icon">Sun</span>,
     Moon: () => <span data-testid="moon-icon">Moon</span>,
+    Eye: () => <span data-testid="eye-icon">Eye</span>,
     Calendar: () => <span data-testid="calendar-icon">Calendar</span>
 }));
 
@@ -33,6 +34,7 @@ const createMockFile = (date: string, shiftType: 'day' | 'night', size: number =
 
 describe('HandoffCalendarView', () => {
     const mockOnDownload = vi.fn();
+    const mockOnView = vi.fn();
     const mockOnDelete = vi.fn();
 
     beforeEach(() => {
@@ -51,6 +53,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -72,6 +75,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -95,6 +99,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -120,6 +125,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -142,6 +148,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -164,6 +171,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={false}
                     formatSize={mockFormatSize}
@@ -184,6 +192,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -202,6 +211,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -218,6 +228,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={[]}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}
@@ -236,6 +247,7 @@ describe('HandoffCalendarView', () => {
                 <HandoffCalendarView
                     files={files}
                     onDownload={mockOnDownload}
+                    onView={mockOnView}
                     onDelete={mockOnDelete}
                     canDelete={true}
                     formatSize={mockFormatSize}

@@ -148,6 +148,7 @@ const mockAuditService = {
     logPatientView: vi.fn(),
     logDailyRecordDeleted: vi.fn(),
     logDailyRecordCreated: vi.fn(),
+    logSystemError: vi.fn(),
     getAuditLogs: vi.fn().mockResolvedValue([]),
     getAuditLogsForDate: vi.fn().mockResolvedValue([]),
     getLocalAuditLogs: vi.fn().mockReturnValue([]),
@@ -182,6 +183,7 @@ vi.mock('@/services/repositories/DailyRecordRepository', () => ({
     },
     setDemoModeActive: vi.fn(),
     isDemoModeActive: vi.fn().mockReturnValue(false),
+    setFirestoreEnabled: vi.fn(),
 }));
 
 // Mock authService globally

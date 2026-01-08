@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
-import * as DataService from '../../services/dataService';
-import { saveNurseCatalogToFirestore } from '../../services/storage/firestoreService';
-import { BaseModal, ModalSection } from '../shared/BaseModal';
+import { useSaveNursesMutation } from '../../hooks/useStaffQuery';
+import { BaseModal } from '../shared/BaseModal';
 import { StaffNameSchema } from '../../schemas/inputSchemas';
 import clsx from 'clsx';
 
@@ -10,34 +9,17 @@ interface NurseManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   nursesList: string[];
-  setNursesList: (list: string[]) => void;
 }
 
-export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, onClose, nursesList, setNursesList }) => {
+export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, onClose, nursesList }) => {
   const [newNurseName, setNewNurseName] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const saveNurses = async (updatedList: string[]) => {
-    setNursesList(updatedList);
-    DataService.saveStoredNurses(updatedList);
+  const { mutate: saveNurses, isPending: syncing, isError: hasSyncError } = useSaveNursesMutation();
 
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      await saveNurseCatalogToFirestore(updatedList);
-    } catch (error) {
-      setSyncError('Error al sincronizar con la nube');
-      console.error('Firebase sync failed:', error);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const trimmed = newNurseName.trim();
     const result = StaffNameSchema.safeParse(trimmed);
 
@@ -48,13 +30,13 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
 
     setValidationError(null);
     const updated = [...nursesList, trimmed];
-    await saveNurses(updated);
+    saveNurses(updated);
     setNewNurseName('');
   };
 
-  const handleRemove = async (name: string) => {
+  const handleRemove = (name: string) => {
     const updated = nursesList.filter(n => n !== name);
-    await saveNurses(updated);
+    saveNurses(updated);
   };
 
   const handleStartEdit = (name: string) => {
@@ -63,7 +45,7 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
     setValidationError(null);
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = () => {
     if (!editingName) return;
     const trimmed = editValue.trim();
 
@@ -75,7 +57,7 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
 
     setValidationError(null);
     const updated = nursesList.map(n => (n === editingName ? trimmed : n));
-    await saveNurses(updated);
+    saveNurses(updated);
     setEditingName(null);
     setEditValue('');
   };
@@ -108,14 +90,13 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
             )}
           </div>
 
-          {syncError && (
+          {hasSyncError && (
             <div className="mb-3 p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100 flex items-center gap-2">
               <AlertCircle size={14} />
-              {syncError}
+              Error al sincronizar con la nube. Se guardó localmente.
             </div>
           )}
 
-          {/* Add new nurse input */}
           <div className="space-y-2">
             <div className="flex gap-2">
               <input
@@ -145,7 +126,6 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
 
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block tracking-wider">Catálogo Actual</label>
-          {/* Nurses list */}
           <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
             {nursesList.map(nurse => (
               <div key={nurse} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 gap-3 group transition-all hover:bg-white hover:border-medical-200 hover:shadow-sm">
@@ -223,7 +203,6 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({ isOpen, on
           </div>
         </div>
 
-        {/* Sync status footer */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest">
           <div className="flex items-center gap-1.5">
             <Cloud size={12} className="text-medical-400" />

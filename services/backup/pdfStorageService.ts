@@ -79,6 +79,8 @@ const parseFilePath = (path: string): { date: string; shiftType: 'day' | 'night'
             shiftType: oldMatch[2] === 'turno-largo' ? 'day' : 'night'
         };
     }
+
+    console.log(`[PdfStorage] 🔍 Failed to parse path: "${path}"`);
     return null;
 };
 

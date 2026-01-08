@@ -6,7 +6,7 @@
  * cudyr-backup/
  *   2026/
  *     01/
- *       CUDYR_08-01-2026.xlsx
+ *       08-01-2026 - CUDYR.xlsx
  */
 
 import {
@@ -38,24 +38,37 @@ const STORAGE_ROOT = 'cudyr-backup';
 
 /**
  * Generate file path for a CUDYR Excel backup
+ * New format: DD-MM-YYYY - CUDYR.xlsx
  */
 const generateCudyrPath = (date: string): string => {
     const [year, month, day] = date.split('-');
     const formattedDate = `${day}-${month}-${year}`;
-    const filename = `CUDYR_${formattedDate}.xlsx`;
+    const filename = `${formattedDate} - CUDYR.xlsx`;
     return `${STORAGE_ROOT}/${year}/${month}/${filename}`;
 };
 
 /**
  * Parse file path to extract metadata
+ * Supports both old format (CUDYR_DD-MM-YYYY.xlsx) and new format (DD-MM-YYYY - CUDYR.xlsx)
  */
 const parseFilePath = (path: string): { date: string; year: string; month: string } | null => {
-    const match = path.match(/CUDYR_(\d{2})-(\d{2})-(\d{4})\.xlsx$/);
-    if (match) {
+    // New format: DD-MM-YYYY - CUDYR.xlsx
+    const newMatch = path.match(/(\d{2})-(\d{2})-(\d{4}) - CUDYR\.xlsx$/);
+    if (newMatch) {
         return {
-            date: `${match[3]}-${match[2]}-${match[1]}`, // YYYY-MM-DD
-            year: match[3],
-            month: match[2]
+            date: `${newMatch[3]}-${newMatch[2]}-${newMatch[1]}`, // YYYY-MM-DD
+            year: newMatch[3],
+            month: newMatch[2]
+        };
+    }
+
+    // Old format: CUDYR_DD-MM-YYYY.xlsx (backwards compatibility)
+    const oldMatch = path.match(/CUDYR_(\d{2})-(\d{2})-(\d{4})\.xlsx$/);
+    if (oldMatch) {
+        return {
+            date: `${oldMatch[3]}-${oldMatch[2]}-${oldMatch[1]}`, // YYYY-MM-DD
+            year: oldMatch[3],
+            month: oldMatch[2]
         };
     }
     return null;
@@ -78,6 +91,26 @@ export const uploadCudyrExcel = async (
     }
 
     const filePath = generateCudyrPath(date);
+
+    // Check for and delete legacy file to prevent duplicates (CUDYR_DD-MM-YYYY.xlsx)
+    try {
+        const [d, m, y] = date.split('-');
+        const legacyFilename = `CUDYR_${d}-${m}-${y}.xlsx`;
+        const legacyPath = `${STORAGE_ROOT}/${y}/${m}/${legacyFilename}`;
+        const legacyRef = ref(storage, legacyPath);
+
+        // Check if legacy file exists
+        await getMetadata(legacyRef);
+
+        // If found, delete it
+        console.log(`[CudyrStorage] Found legacy duplicate: ${legacyPath}, deleting...`);
+        const { deleteObject } = await import('firebase/storage');
+        await deleteObject(legacyRef);
+        console.log(`[CudyrStorage] ✅ Legacy duplicate deleted`);
+    } catch (ignore) {
+        // Legacy file doesn't exist, proceed normally
+    }
+
     const storageRef = ref(storage, filePath);
 
     const user = auth.currentUser;
@@ -129,6 +162,17 @@ export const cudyrExists = async (date: string): Promise<boolean> => {
 };
 
 /**
+ * Delete a CUDYR file from Storage
+ */
+export const deleteCudyrFile = async (date: string): Promise<void> => {
+    const { deleteObject } = await import('firebase/storage');
+    const filePath = generateCudyrPath(date);
+    const storageRef = ref(storage, filePath);
+    await deleteObject(storageRef);
+    console.log(`🗑️ CUDYR deleted: ${filePath}`);
+};
+
+/**
  * List all years with CUDYR backups
  */
 export const listCudyrYears = createListYears(STORAGE_ROOT);
@@ -140,18 +184,26 @@ export const listCudyrMonths = createListMonths(STORAGE_ROOT);
 
 /**
  * List all files in a month
+ * Note: Display name is normalized to new format (DD-MM-YYYY - CUDYR.xlsx)
+ * even for older files stored with the old naming convention.
  */
 export const listCudyrFilesInMonth = createListFilesInMonth<StoredCudyrFile>({
     storageRoot: STORAGE_ROOT,
     parseFilePath,
-    mapToFile: (item, metadata, downloadUrl, parsed) => ({
-        name: item.name,
-        fullPath: item.fullPath,
-        downloadUrl,
-        date: parsed.date,
-        year: parsed.year,
-        month: parsed.month,
-        createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-        size: metadata.size
-    })
+    mapToFile: (item, metadata, downloadUrl, parsed) => {
+        // Generate normalized display name from parsed date (DD-MM-YYYY - CUDYR.xlsx)
+        const [year, month, day] = parsed.date.split('-');
+        const displayName = `${day}-${month}-${year} - CUDYR.xlsx`;
+
+        return {
+            name: displayName, // Always use normalized format for display
+            fullPath: item.fullPath,
+            downloadUrl,
+            date: parsed.date,
+            year: parsed.year,
+            month: parsed.month,
+            createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
+            size: metadata.size
+        };
+    }
 });
