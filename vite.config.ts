@@ -116,6 +116,10 @@ export default defineConfig(({ mode }) => {
             'vendor-charts': ['recharts'],
             // Excel/Reports (lazy loaded)
             'vendor-excel': ['exceljs', 'file-saver'],
+            // PDF generation (lazy loaded)
+            'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+            // HTML to Canvas (lazy loaded for screenshots)
+            'vendor-canvas': ['html2canvas'],
           },
         },
       },

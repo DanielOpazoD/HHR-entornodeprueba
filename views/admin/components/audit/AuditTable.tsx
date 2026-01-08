@@ -1,10 +1,11 @@
 import React from 'react';
 import {
-    RefreshCw, Search, List, Rows3, Box, Boxes, FileDown, Download
+    RefreshCw, Search, List, Rows3, Box, Boxes, FileDown, Download, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
 import { AuditLogEntry } from '@/types/audit';
 import { AuditLogRow } from './AuditLogRow';
+import { AuditSkeleton } from '@/components/shared/Skeleton';
 
 interface AuditTableProps {
     filteredLogs: AuditLogEntry[];
@@ -19,6 +20,11 @@ interface AuditTableProps {
     onPdfExport: () => void;
     onExcelExport: () => void;
     isExporting: boolean;
+    // Pagination
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    itemsPerPage: number;
 }
 
 export const AuditTable: React.FC<AuditTableProps> = ({
@@ -33,7 +39,11 @@ export const AuditTable: React.FC<AuditTableProps> = ({
     toggleRow,
     onPdfExport,
     onExcelExport,
-    isExporting
+    isExporting,
+    currentPage,
+    totalPages,
+    onPageChange,
+    itemsPerPage
 }) => {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -109,11 +119,8 @@ export const AuditTable: React.FC<AuditTableProps> = ({
                     <tbody className="divide-y divide-slate-50">
                         {loading ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-20 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <RefreshCw size={40} className="animate-spin text-indigo-500 opacity-20" />
-                                        <p className="text-slate-400 font-medium animate-pulse">Sincronizando registros clínicos...</p>
-                                    </div>
+                                <td colSpan={7} className="p-4">
+                                    <AuditSkeleton entries={10} />
                                 </td>
                             </tr>
                         ) : filteredLogs.length === 0 ? (
@@ -139,6 +146,59 @@ export const AuditTable: React.FC<AuditTableProps> = ({
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/30">
+                    <span className="text-xs text-slate-500">
+                        Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredLogs.length)} de {filteredLogs.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onPageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                let pageNum: number;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentPage <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentPage >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = currentPage - 2 + i;
+                                }
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => onPageChange(pageNum)}
+                                        className={clsx(
+                                            "w-8 h-8 rounded-lg text-xs font-medium transition-all",
+                                            currentPage === pageNum
+                                                ? "bg-indigo-600 text-white"
+                                                : "bg-white border border-slate-200 hover:bg-slate-100"
+                                        )}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button
+                            onClick={() => onPageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

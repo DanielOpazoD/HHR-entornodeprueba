@@ -35,7 +35,11 @@ export const AuditView: React.FC = () => {
         expandedRows,
         toggleRow,
         fetchLogs,
-        sections
+        sections,
+        currentPage,
+        totalPages,
+        setCurrentPage,
+        ITEMS_PER_PAGE
     } = useAuditData();
 
     const {
@@ -238,6 +242,10 @@ export const AuditView: React.FC = () => {
                     onPdfExport={handlePdfExport}
                     onExcelExport={handleExport}
                     isExporting={exporting}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    itemsPerPage={ITEMS_PER_PAGE}
                 />
             )}
         </div>

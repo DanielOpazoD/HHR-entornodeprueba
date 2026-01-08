@@ -206,3 +206,49 @@ export const HandoffSkeleton: React.FC = () => {
         </div>
     );
 };
+
+// ============================================================================
+// Audit Log Skeleton
+// ============================================================================
+
+export const AuditEntrySkeleton: React.FC = () => (
+    <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-100 mb-2">
+        <Skeleton variant="circular" width={32} height={32} />
+        <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+                <Skeleton variant="rounded" width={80} height={20} />
+                <Skeleton variant="rounded" width={60} height={16} />
+            </div>
+            <Skeleton variant="text" height={14} className="w-full" />
+            <Skeleton variant="text" height={12} className="w-24" />
+        </div>
+    </div>
+);
+
+export const AuditSkeleton: React.FC<{ entries?: number }> = ({ entries = 10 }) => (
+    <div className="space-y-2">
+        {Array.from({ length: entries }).map((_, i) => (
+            <AuditEntrySkeleton key={i} />
+        ))}
+    </div>
+);
+
+// ============================================================================
+// File List Skeleton (for BackupFilesView)
+// ============================================================================
+
+export const FileListSkeleton: React.FC<{ items?: number }> = ({ items = 6 }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {Array.from({ length: items }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-slate-100 p-4">
+                <div className="flex items-center gap-3">
+                    <Skeleton variant="rounded" width={40} height={40} />
+                    <div className="flex-1 space-y-1">
+                        <Skeleton variant="text" height={14} className="w-3/4" />
+                        <Skeleton variant="text" height={10} className="w-1/2" />
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+);

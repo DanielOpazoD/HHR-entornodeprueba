@@ -5,7 +5,7 @@
  */
 
 import React, { useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Settings, Lock, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Lock, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { MONTH_NAMES } from '../../constants';
 import { PdfButtons, ExcelButtons, EmailDropdown } from './DateStripActions';
@@ -146,7 +146,13 @@ export const DateStrip: React.FC<DateStripProps> = ({
                             )}
                             title={showBookmarks ? "Ocultar Marcadores" : "Mostrar Marcadores"}
                         >
-                            <Star size={14} className={clsx(showBookmarks ? "text-amber-500 fill-amber-500" : "text-slate-400")} />
+                            <ChevronDown
+                                size={16}
+                                className={clsx(
+                                    "transition-transform duration-300",
+                                    showBookmarks ? "rotate-180 text-medical-600" : "text-slate-400"
+                                )}
+                            />
                         </button>
                     )}
 
