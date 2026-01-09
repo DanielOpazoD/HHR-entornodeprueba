@@ -242,13 +242,8 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
-                    <div className="flex items-center gap-4 mb-5">
-                        <div className="h-[1px] flex-1 bg-slate-100" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-1 rounded-full border border-slate-100">
-                            {groupInfo.label}
-                        </span>
-                        <div className="h-[1px] flex-1 bg-slate-100" />
-                    </div>
+                    {/* Redundant title removed as per user request */}
+                    <div className="mb-5"></div>
 
                     {/* Questions Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
