@@ -13,6 +13,7 @@ import { DailyRecord } from '../types';
 import { DailyRecordPatchLoose } from './useDailyRecordTypes';
 import { useNotification } from '../context/UIContext';
 import { ConcurrencyError } from '../services/storage/firestoreService';
+import { DataRegressionError, VersionMismatchError } from '../utils/integrityGuard';
 
 export const useDailyRecordSyncQuery = (
     currentDateString: string,
@@ -59,6 +60,19 @@ export const useDailyRecordSyncQuery = (
                 setTimeout(() => {
                     refetch();
                 }, 2000);
+            } else if (err instanceof DataRegressionError) {
+                notifyError('Protección de Datos', err.message);
+                console.error('[Sync] Data regression blocked:', err);
+                // Suggest a refresh since remote data is better
+                setTimeout(() => {
+                    refetch();
+                }, 3000);
+            } else if (err instanceof VersionMismatchError) {
+                notifyError('Versión de Datos Antigua', err.message);
+                console.error('[Sync] Version mismatch blocked save:', err);
+                // No auto-refetch here because it might lose current changes without warning? 
+                // Actually, a refetch is better than being stuck.
+                setTimeout(() => refetch(), 5000);
             }
             throw err;
         }

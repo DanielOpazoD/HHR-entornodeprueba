@@ -167,6 +167,10 @@ export const DailyRecordSchema = z.object({
     transfers: z.array(TransferDataSchema).default([]),
     cma: z.array(CMADataSchema).default([]),
     lastUpdated: z.string().default(() => new Date().toISOString()),
+    /** Unix timestamp (ms) for the start of the day, used for security rule validation */
+    dateTimestamp: z.number().optional(),
+    /** Version of the data structure, used to prevent corruption from old clients */
+    schemaVersion: z.number().default(1),
     nurses: z.array(z.string()).default(['', '']),
     nurseName: z.string().optional(),
     nursesDayShift: z.array(z.string()).optional(),
@@ -243,6 +247,7 @@ export const parseDailyRecordWithDefaults = (data: unknown, docId: string): z.in
             medicalHandoffNovedades: typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
             // Night shift receiving nurses
             handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
+            schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
         };
     }
 };

@@ -11,6 +11,7 @@ import {
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 import { saveSetting, getSetting } from '../storage/indexedDBService';
+import { INSTITUTIONAL_ACCOUNTS, ADMIN_EMAILS } from '../../constants/identities';
 
 /**
  * User information structure used within the application's authentication state.
@@ -42,8 +43,9 @@ export interface AuthUser {
 // Agregar aquí correos que requieren acceso garantizado
 // ============================================================================
 const STATIC_ROLES: Record<string, string> = {
+    [INSTITUTIONAL_ACCOUNTS.NURSING]: 'nurse_hospital',
+    [INSTITUTIONAL_ACCOUNTS.NURSING_ALT]: 'nurse_hospital',
     'daniel.opazo@hospitalhangaroa.cl': 'admin',
-    'hospitalizados@hospitalhangaroa.cl': 'nurse_hospital',
     'd.opazo.damiani@gmail.com': 'doctor_urgency',
 };
 

@@ -32,10 +32,13 @@ import {
     saveNurseCatalogToFirestore,
     saveTensCatalogToFirestore,
     subscribeToNurseCatalog,
-    subscribeToTensCatalog
+    subscribeToTensCatalog,
+    moveRecordToTrash
 } from '../storage/firestoreService';
+import { CURRENT_SCHEMA_VERSION } from '../../constants/version';
 import { createEmptyPatient, clonePatient } from '../factories/patientFactory';
 import { applyPatches } from '../../utils/patchUtils';
+import { checkRegression, DataRegressionError, calculateDensity, VersionMismatchError } from '../../utils/integrityGuard';
 
 // ============================================================================
 // Configuration
@@ -148,6 +151,49 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
         return;
     }
 
+    // Ensure dateTimestamp is present for security rules (legacy records fix)
+    if (!record.dateTimestamp && record.date) {
+        const dateObj = new Date(record.date + 'T00:00:00');
+        record.dateTimestamp = dateObj.getTime();
+    }
+
+    // 1. Check for suspicious regressions BEFORE saving to IndexedDB OR Firestore
+    // This protects against overwriting good cloud data with empty local data (sync failure scenario)
+    if (firestoreEnabled) {
+        try {
+            const remoteRecord = await getRecordFromFirestore(record.date);
+            if (remoteRecord) {
+                // A. Version Check (Schema Guard)
+                const remoteVersion = remoteRecord.schemaVersion || 0;
+                if (remoteVersion > CURRENT_SCHEMA_VERSION) {
+                    console.error(`[Versioning] Blocked save. Local: ${CURRENT_SCHEMA_VERSION}, Cloud: ${remoteVersion}`);
+                    throw new VersionMismatchError(
+                        `Tu aplicación está desactualizada (v${CURRENT_SCHEMA_VERSION}) y el registro en la nube usa el nuevo formato v${remoteVersion}. Por favor, recarga la página para actualizar.`
+                    );
+                }
+
+                // B. Data Integrity Check (Regression Guard)
+                const { isSuspicious, dropPercentage } = checkRegression(remoteRecord, record);
+                if (isSuspicious) {
+                    console.warn(`[Repository] BLOCKING SAVE: Suspicious regression detected (${dropPercentage.toFixed(1)}% drop)`);
+                    throw new DataRegressionError(
+                        `Se detectó una pérdida masiva de datos (${dropPercentage.toFixed(1)}%). El guardado fue bloqueado para proteger la información en la nube.`,
+                        calculateDensity(record),
+                        calculateDensity(remoteRecord)
+                    );
+                }
+            }
+        } catch (err) {
+            // Rethrow specialized errors
+            if (err instanceof DataRegressionError || err instanceof VersionMismatchError) throw err;
+            // Suppress network errors for the check itself (if we can't check, we proceed optimistically)
+            console.warn('[Repository] Could not perform integrity check, proceeding:', err);
+        }
+    }
+
+    // Always set current version before saving
+    record.schemaVersion = CURRENT_SCHEMA_VERSION;
+
     // Save to IndexedDB (unlimited capacity)
     await saveToIndexedDB(record);
 
@@ -157,14 +203,10 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
             await saveRecordToFirestore(record, expectedLastUpdated);
         } catch (err) {
             console.warn('Firestore sync failed, data saved in IndexedDB:', err);
-            // If it's a ConcurrencyError, we SHOULD rethrow it to notify the user
-            if (err && (err as Error).name === 'ConcurrencyError') {
+            // If it's a ConcurrencyError or DataRegressionError, we SHOULD rethrow it to notify the user
+            if (err && ((err as Error).name === 'ConcurrencyError' || err instanceof DataRegressionError)) {
                 throw err;
             }
-            // For other errors (network), we suppress (offline mode)
-            // But maybe we should let the caller know?
-            // For now, keep existing behavior of suppressing network errors unless critical
-            // throw err; 
         }
     }
 };
@@ -312,6 +354,7 @@ export const initializeDay = async (
         });
     }
 
+    const dateObj = new Date(date + 'T00:00:00');
     const newRecord: DailyRecord = {
         date,
         beds: initialBeds,
@@ -319,6 +362,7 @@ export const initializeDay = async (
         transfers: [],
         cma: [],
         lastUpdated: new Date().toISOString(),
+        dateTimestamp: dateObj.getTime(),
         nurses: ["", ""],
         nursesDayShift: nursesDay,
         nursesNightShift: nursesNight,
@@ -343,12 +387,24 @@ export const deleteDay = async (date: string): Promise<void> => {
     if (demoModeActive) {
         await deleteDemoRecord(date);
     } else {
+        // 1. Local Delete (IndexedDB)
         await deleteFromIndexedDB(date);
+
+        // 2. Soft Delete in Firestore (Move to trash)
         if (firestoreEnabled) {
             try {
+                const record = await getRecordFromFirestore(date);
+                if (record) {
+                    // Create a snapshot in the deletedRecords collection
+                    // Note: This requires a new helper in firestoreService or direct access
+                    // For now, I'll use saveRecordToFirestore with a custom path if possible, 
+                    // or just implement moveRecordToTrash in firestoreService.
+                    await moveRecordToTrash(record);
+                }
                 await deleteRecordFromFirestore(date);
             } catch (error) {
-                console.error('Failed to delete from Firestore:', error);
+                console.error('Failed to soft-delete from Firestore:', error);
+                // Fallback to hard delete if move fails? No, better to keep it and report error.
             }
         }
     }

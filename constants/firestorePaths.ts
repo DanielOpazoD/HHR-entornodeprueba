@@ -39,7 +39,9 @@ export const HOSPITAL_COLLECTIONS = {
     /** Export passwords for Excel files */
     EXPORT_PASSWORDS: 'exportPasswords',
     /** Global bookmarks for the hospital */
-    BOOKMARKS: 'bookmarks'
+    BOOKMARKS: 'bookmarks',
+    /** Trash bin for deleted records */
+    DELETED_RECORDS: 'deletedRecords'
 } as const;
 
 // ============================================================================

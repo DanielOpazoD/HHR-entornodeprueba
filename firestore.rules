@@ -23,20 +23,32 @@ service cloud.firestore {
           'daniel.opazo@hospitalhangaroa.cl',
           'd.opazo.damiani@gmail.com',
           'd.opazo.damiani@hospitalhangaroa.cl',
-          'danielopazodamiani@gmail.com',
-          'hospitalizados@hospitalhangaroa.cl'
+          'danielopazodamiani@gmail.com'
         ];
     }
     
     // Check if user is nurse
     function isNurse() {
       return isAuthenticated() && 
-        getUserEmail() == 'hospitalizados@hospitalhangaroa.cl';
+        getUserEmail() in [
+          'hospitalizados@hospitalhangaroa.cl',
+          'enfermeria.hospitalizados@hospitalhangaroa.cl'
+        ];
     }
     
     // Check if user can edit (admin or nurse)
     function canEdit() {
       return isAdmin() || isNurse();
+    }
+    
+    // Check if a date (ms timestamp) is within the editing window (+/- 1 day)
+    // Nurse window: Can edit yesterday, today and tomorrow.
+    // Calculation: (CurrentTime - RecordTime) should be between -24h and +48h
+    function isWithinEditingWindow(recordTS) {
+      let now = request.time.toMillis();
+      return recordTS != null && 
+             now > (recordTS - 86400000) && 
+             now < (recordTS + 172800000);
     }
     
     // ============================================
@@ -52,8 +64,11 @@ service cloud.firestore {
       // ----------------------------------------
       match /dailyRecords/{date} {
         allow read: if isAuthenticated();
+        // create: simplified for logic, usually same as update
         allow create: if canEdit();
-        allow update: if canEdit() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['medicalSignature', 'lastUpdated']));
+        // Update: Admin can do anything. Nurse subject to window.
+        // Also allow doctors to sign regardless of window (using affectsKeys check).
+        allow update: if isAdmin() || (isNurse() && isWithinEditingWindow(resource.data.dateTimestamp)) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['medicalSignature', 'lastUpdated', 'medicalHandoffDoctor', 'medicalHandoffSentAt']));
         allow delete: if isAdmin();
         
         // History subcollection
@@ -62,6 +77,11 @@ service cloud.firestore {
           allow create: if canEdit();
           allow update, delete: if isAdmin();
         }
+      }
+
+      // Deleted Records (Trash)
+      match /deletedRecords/{trashId} {
+        allow read, write: if isAdmin();
       }
       
       // ----------------------------------------
@@ -138,7 +158,14 @@ service cloud.firestore {
     // ALLOWED USERS (Admin management)
     // ============================================
     match /allowedUsers/{userId} {
-      allow read, write: if isAdmin();
+      // Whitelist Read-Lock fix: Allow users to read their own authorization doc 
+      // or search for it by email to validate their role.
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        resource.data.email == getUserEmail() ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
     }
     
     // ============================================

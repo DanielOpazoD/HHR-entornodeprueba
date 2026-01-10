@@ -1,4 +1,5 @@
 import { isWorkingDay } from './calendarService';
+import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '../../constants/identities';
 import { DailyRecord } from '../../types';
 
 /**
@@ -10,14 +11,16 @@ import { DailyRecord } from '../../types';
 /**
  * Shared nursing account email that requires attribution
  */
-export const SHARED_NURSING_ACCOUNT = 'enfermeria.hospitalizados@hospitalhangaroa.cl';
+export const SHARED_NURSING_ACCOUNT = INSTITUTIONAL_ACCOUNTS.NURSING;
 
 /**
  * Determines if a user represents a shared nursing account
  * @param userId User email or ID
  */
 export const isSharedNursingAccount = (userId: string | undefined): boolean => {
-    return userId === SHARED_NURSING_ACCOUNT;
+    if (!userId) return false;
+    // We check both primary and alternative for backward compatibility during transition
+    return isInstitutionalAccount(userId);
 };
 
 /**

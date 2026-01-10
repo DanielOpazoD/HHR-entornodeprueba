@@ -77,14 +77,19 @@ registerRoute(
 );
 
 // API calls with background sync for POST
-const bgSyncPlugin = new BackgroundSyncPlugin('patientSyncQueue', {
-    maxRetentionTime: 24 * 60, // Retry for up to 24 hours
-});
+let bgSyncPlugin: BackgroundSyncPlugin | undefined;
+try {
+    bgSyncPlugin = new BackgroundSyncPlugin('patientSyncQueue', {
+        maxRetentionTime: 24 * 60, // Retry for up to 24 hours
+    });
+} catch (error) {
+    console.error('[SW] Failed to initialize BackgroundSyncPlugin:', error);
+}
 
 registerRoute(
     ({ url, request }) => url.pathname.startsWith('/api/') && request.method === 'POST',
     new NetworkOnly({
-        plugins: [bgSyncPlugin],
+        plugins: bgSyncPlugin ? [bgSyncPlugin] : [],
     }),
     'POST'
 );

@@ -195,6 +195,10 @@ export interface DailyRecord {
     transfers: TransferData[];
     cma: CMAData[]; // Cirugía Mayor Ambulatoria
     lastUpdated: string;
+    /** Unix timestamp (ms) for the start of the day, used for security rule validation */
+    dateTimestamp?: number;
+    /** Version of the data structure, used to prevent corruption from old clients */
+    schemaVersion?: number;
     nurses: string[]; // Legacy
     nurseName?: string; // Legacy
     nursesDayShift?: string[]; // Turno Largo nurses

@@ -540,3 +540,33 @@ export const subscribeToTensCatalog = (callback: (tens: string[]) => void): (() 
         callback([]);
     });
 };
+
+// ============================================================================
+// Soft Delete / Trash Management
+// ============================================================================
+
+/**
+ * Soft delete: Move a record to a dedicated trash collection before permanent deletion.
+ * Provides a safety net for accidental data loss.
+ */
+export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
+    try {
+        const trashRef = doc(
+            db,
+            COLLECTIONS.HOSPITALS,
+            HOSPITAL_ID,
+            HOSPITAL_COLLECTIONS.DELETED_RECORDS,
+            `${record.date}_trash_${new Date().getTime()}`
+        );
+
+        await withRetry(() => setDoc(trashRef, {
+            ...sanitizeForFirestore(record) as Record<string, unknown>,
+            deletedAt: Timestamp.now(),
+            originalDate: record.date
+        }));
+        console.log('♻️ Record moved to trash:', record.date);
+    } catch (error) {
+        console.error('❌ Error moving record to trash:', error);
+        throw error;
+    }
+};
