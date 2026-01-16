@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { searchDiagnoses, TerminologyConcept } from '../../services/terminology/terminologyService';
 import { checkAIAvailability } from '../../services/terminology/cie10AISearch';
+import { abbreviateDiagnosis } from '../../services/terminology/diagnosisAbbreviations';
 import { Search, Loader2, X, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from './BaseModal';
@@ -11,7 +12,8 @@ interface TerminologySuggestorProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    iconOffset?: boolean; // Prop to move icons left for external icons
+    iconOffset?: boolean;
+    cie10Code?: string; // Current CIE-10 code (shows as badge)
 }
 
 export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
@@ -20,7 +22,8 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
     placeholder,
     className,
     disabled,
-    iconOffset = false
+    iconOffset = false,
+    cie10Code
 }) => {
     const [query, setQuery] = useState(value);
     const [suggestions, setSuggestions] = useState<TerminologyConcept[]>([]);
@@ -74,8 +77,10 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
     }, []);
 
     const handleSelect = (concept: TerminologyConcept) => {
-        setQuery(concept.display);
-        onChange(concept.display, concept);
+        // Use abbreviated form only (code shown as badge)
+        const displayText = abbreviateDiagnosis(concept.display);
+        setQuery(displayText);
+        onChange(displayText, concept);
         setIsOpen(false);
     };
 
@@ -85,7 +90,8 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                 <input
                     type="text"
                     className={clsx(
-                        iconOffset ? "pr-12" : "pr-8", // Padding for search button only
+                        "w-full pl-2",
+                        iconOffset ? "pr-14" : "pr-8", // Padding for search button
                         className
                     )}
                     placeholder={placeholder}
@@ -104,7 +110,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                 />
                 <div className={clsx(
                     "absolute top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all duration-300",
-                    iconOffset ? "right-8" : "right-1" // Shift left if offset requested
+                    iconOffset ? "right-9" : "right-1"
                 )}>
                     <button
                         type="button"
@@ -113,11 +119,22 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                             setIsOpen(true);
                             setIsModalOpen(true);
                         }}
-                        className="p-1 text-slate-400 hover:text-medical-600 hover:bg-slate-100 rounded-md transition-all"
-                        title="Búsqueda avanzada CIE-10"
+                        className={clsx(
+                            "transition-all",
+                            cie10Code
+                                ? "text-[9px] font-mono text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200"
+                                : "p-1 text-slate-400 hover:text-medical-600 hover:bg-slate-100 rounded-md"
+                        )}
+                        title={cie10Code ? `${cie10Code} - Clic para cambiar` : "Búsqueda CIE-10"}
                         disabled={disabled}
                     >
-                        {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                        {isLoading ? (
+                            <Loader2 size={12} className="animate-spin" />
+                        ) : cie10Code ? (
+                            cie10Code
+                        ) : (
+                            <Search size={12} />
+                        )}
                     </button>
                 </div>
             </div>

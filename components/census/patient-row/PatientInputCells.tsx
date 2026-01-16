@@ -115,29 +115,30 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
             </td>
 
             {/* DIAGNOSTICO */}
-            <td className="py-0.5 px-1 border-r border-slate-200 w-[140px]">
+            <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px]">
                 {isEmpty && !isSubRow ? (
                     <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">-</div>
                 ) : (
-                    <div className="relative">
+                    <div className="relative w-full">
                         <TerminologySuggestor
                             className={clsx(
-                                "border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7",
+                                "w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7",
                                 !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology }).success && data.pathology
                                     ? "border-red-400 focus:ring-red-200 focus:border-red-500"
                                     : "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
                                 isSubRow && "text-xs h-6",
-                                data.specialty === 'Ginecobstetricia' && "pr-8" // Slightly more room for the icons shift
+                                data.specialty === 'Ginecobstetricia' && "pr-8"
                             )}
                             placeholder="Diagnóstico"
                             value={data.pathology || ''}
+                            cie10Code={data.cie10Code}
                             iconOffset={data.specialty === 'Ginecobstetricia'}
                             onChange={(text, concept) => {
                                 if (concept && onChange.multiple) {
                                     onChange.multiple({
                                         pathology: text,
-                                        cie10Code: concept.code, // CIE-10 is now the primary code
-                                        snomedCode: undefined    // No longer using SNOMED
+                                        cie10Code: concept.code,
+                                        snomedCode: undefined
                                     });
                                 } else {
                                     handleDebouncedText('pathology')(text);

@@ -476,15 +476,33 @@ function addCMATable(sheet: Worksheet, cma: CMAData[], startRow: number): number
     return currentRow;
 }
 
+/**
+ * Format a date string from YYYY-MM-DD to DD-MM-YYYY
+ * 
+ * IMPORTANT: We parse the date string directly instead of using new Date()
+ * because new Date("YYYY-MM-DD") interprets the date as UTC midnight,
+ * which can shift to the previous day in timezones behind UTC (like Chile).
+ * 
+ * @param date - Date string in YYYY-MM-DD format
+ * @returns Date string in DD-MM-YYYY format
+ */
 function formatDateDDMMYYYY(date?: string): string {
     if (!date) return '';
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return '';
 
-    const day = String(parsed.getDate()).padStart(2, '0');
-    const month = String(parsed.getMonth() + 1).padStart(2, '0');
-    const year = parsed.getFullYear();
-    return `${day}-${month}-${year}`;
+    // Parse YYYY-MM-DD format directly without Date object to avoid timezone issues
+    const parts = date.split('-');
+    if (parts.length !== 3) return date; // Return original if not expected format
+
+    const [year, month, day] = parts;
+
+    // Validate parts are numeric
+    if (!year || !month || !day) return date;
+    if (!/^\d{4}$/.test(year) || !/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day)) {
+        return date;
+    }
+
+    // Return in DD-MM-YYYY format
+    return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
 }
 
 function formatAge(age?: string): string {
