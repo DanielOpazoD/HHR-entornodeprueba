@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { searchDiagnoses, TerminologyConcept } from '../../services/terminology/terminologyService';
-import { Search, Loader2, Check, X, ClipboardCheck } from 'lucide-react';
+import { searchDiagnoses, TerminologyConcept, isAIAvailable } from '../../services/terminology/terminologyService';
+import { Search, Loader2, X, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from './BaseModal';
 
@@ -27,6 +27,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [aiEnabled] = useState(() => isAIAvailable());
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Update internal state if value changes from outside ONLY when not focused
@@ -148,6 +149,21 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                 size="md"
             >
                 <div className="space-y-3">
+                    {/* AI Status Indicator */}
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Base de datos CIE-10 local</span>
+                        {aiEnabled ? (
+                            <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                <Sparkles size={12} />
+                                IA Activa
+                            </span>
+                        ) : (
+                            <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                IA No Configurada
+                            </span>
+                        )}
+                    </div>
+
                     <div className="relative">
                         <input
                             autoFocus
@@ -173,12 +189,21 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                                         handleSelect(concept);
                                         setIsModalOpen(false);
                                     }}
-                                    className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors flex justify-between items-center border-b border-slate-100 last:border-b-0"
+                                    className={clsx(
+                                        "w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors flex justify-between items-center border-b border-slate-100 last:border-b-0",
+                                        concept.fromAI && "bg-purple-50/50"
+                                    )}
                                 >
-                                    <span className="text-sm text-slate-700">
-                                        {concept.display}
-                                    </span>
-                                    <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">
+                                    <div className="flex items-center gap-2">
+                                        {concept.fromAI && <Sparkles size={12} className="text-purple-500" />}
+                                        <span className="text-sm text-slate-700">
+                                            {concept.display}
+                                        </span>
+                                    </div>
+                                    <span className={clsx(
+                                        "text-xs font-mono px-2 py-0.5 rounded",
+                                        concept.fromAI ? "text-purple-600 bg-purple-100" : "text-slate-500 bg-slate-100"
+                                    )}>
                                         {concept.code}
                                     </span>
                                 </button>

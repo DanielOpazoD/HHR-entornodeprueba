@@ -17,6 +17,13 @@ const getApiKey = () => {
 };
 
 /**
+ * Check if AI search is available (API key configured)
+ */
+export function isAIAvailable(): boolean {
+    return !!getApiKey();
+}
+
+/**
  * Searches for CIE-10 codes using Gemini AI
  * @param query The diagnosis text to search for
  * @returns Array of CIE-10 entries suggested by AI
