@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { searchDiagnoses, TerminologyConcept, isAIAvailable } from '../../services/terminology/terminologyService';
+import { searchDiagnoses, TerminologyConcept } from '../../services/terminology/terminologyService';
+import { checkAIAvailability } from '../../services/terminology/cie10AISearch';
 import { Search, Loader2, X, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { BaseModal } from './BaseModal';
@@ -27,8 +28,15 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
-    const [aiEnabled] = useState(() => isAIAvailable());
+    const [aiEnabled, setAiEnabled] = useState<boolean | null>(null); // null = checking
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Check AI availability when modal opens
+    useEffect(() => {
+        if (isModalOpen && aiEnabled === null) {
+            checkAIAvailability().then(setAiEnabled);
+        }
+    }, [isModalOpen, aiEnabled]);
 
     // Update internal state if value changes from outside ONLY when not focused
     // This prevents overwriting user input during typing
@@ -152,14 +160,19 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                     {/* AI Status Indicator */}
                     <div className="flex items-center justify-between text-xs">
                         <span className="text-slate-400">Base de datos CIE-10 local</span>
-                        {aiEnabled ? (
+                        {aiEnabled === null ? (
+                            <span className="flex items-center gap-1 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                <Loader2 size={12} className="animate-spin" />
+                                Verificando IA...
+                            </span>
+                        ) : aiEnabled ? (
                             <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                                 <Sparkles size={12} />
                                 IA Activa
                             </span>
                         ) : (
                             <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                                IA No Configurada
+                                Solo base local
                             </span>
                         )}
                     </div>

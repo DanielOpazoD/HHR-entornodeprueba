@@ -7,10 +7,7 @@
  */
 
 import { searchCIE10Spanish, CIE10Entry } from './cie10SpanishDatabase';
-import { searchCIE10WithAI, isAIAvailable } from './cie10AISearch';
-
-// Re-export AI availability check
-export { isAIAvailable };
+import { searchCIE10WithAI } from './cie10AISearch';
 
 export interface TerminologyConcept {
     code: string;        // CIE-10 code (e.g., E11.5)
