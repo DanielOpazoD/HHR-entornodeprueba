@@ -1,30 +1,104 @@
 /**
  * AI-Enhanced CIE-10 Search Service
  * 
- * Uses a serverless function to call Gemini AI
- * API key is kept secure on the server side.
+ * Hybrid approach:
+ * - In Netlify: Uses serverless function (API key secured server-side)
+ * - In local dev: Uses API key directly from .env
  */
 
+import { GoogleGenAI } from '@google/genai';
 import { CIE10Entry } from './cie10SpanishDatabase';
 
-// Track AI availability (checked once on first search)
+// Track AI availability
 let aiAvailabilityChecked = false;
 let aiIsAvailable = false;
 
 /**
  * Check if AI search is available
- * This is determined by calling the serverless function
  */
 export function isAIAvailable(): boolean {
     return aiIsAvailable;
 }
 
 /**
- * Searches for CIE-10 codes using Gemini AI via serverless function
- * @param query The diagnosis text to search for
- * @returns Array of CIE-10 entries suggested by AI
+ * Get API key for local development
  */
-export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
+const getLocalApiKey = (): string | undefined => {
+    try {
+        return (import.meta as any).env?.GEMINI_API_KEY ||
+            (import.meta as any).env?.API_KEY;
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Search CIE-10 using local Gemini API (for development)
+ */
+async function searchWithLocalAPI(query: string): Promise<CIE10Entry[]> {
+    const apiKey = getLocalApiKey();
+    if (!apiKey) return [];
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+
+        const prompt = `
+Eres un experto en codificación CIE-10 (Clasificación Internacional de Enfermedades, 10a revisión) en español.
+
+El usuario busca: "${query}"
+
+Responde ÚNICAMENTE con un array JSON de hasta 8 códigos CIE-10 más relevantes para esta búsqueda.
+Cada elemento debe tener: code (código CIE-10), description (descripción en español), category (categoría).
+
+Ejemplo de formato de respuesta (solo el JSON, sin texto adicional):
+[
+  {"code": "J18.9", "description": "Neumonía, no especificada", "category": "Respiratorias"},
+  {"code": "J15.9", "description": "Neumonía bacteriana, no especificada", "category": "Respiratorias"}
+]
+
+IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
+`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+        });
+
+        const text = response.text?.trim() || '';
+
+        // Parse JSON from response
+        let jsonText = text;
+        if (text.startsWith('```')) {
+            const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+            jsonText = match ? match[1].trim() : text;
+        }
+
+        const parsed = JSON.parse(jsonText);
+
+        if (Array.isArray(parsed)) {
+            return parsed.filter(item =>
+                item.code &&
+                item.description &&
+                typeof item.code === 'string' &&
+                typeof item.description === 'string'
+            ).map(item => ({
+                code: item.code,
+                description: item.description,
+                category: item.category || 'IA'
+            }));
+        }
+
+        return [];
+    } catch (error) {
+        console.error('Error in local AI search:', error);
+        return [];
+    }
+}
+
+/**
+ * Search CIE-10 using Netlify serverless function
+ */
+async function searchWithServerlessFunction(query: string): Promise<{ available: boolean; results: CIE10Entry[] }> {
     try {
         const response = await fetch('/.netlify/functions/cie10-ai-search', {
             method: 'POST',
@@ -33,36 +107,59 @@ export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
         });
 
         if (!response.ok) {
-            console.warn('AI search endpoint not available');
-            return [];
+            return { available: false, results: [] };
         }
 
         const data = await response.json();
-
-        // Update AI availability status
-        if (!aiAvailabilityChecked) {
-            aiAvailabilityChecked = true;
-            aiIsAvailable = data.available === true;
-        }
-
-        return data.results || [];
-    } catch (error) {
-        console.warn('AI search failed:', error);
-        // For local development without Netlify functions
-        aiAvailabilityChecked = true;
-        aiIsAvailable = false;
-        return [];
+        return {
+            available: data.available === true,
+            results: data.results || []
+        };
+    } catch {
+        return { available: false, results: [] };
     }
 }
 
 /**
- * Check AI availability by making a test request
+ * Searches for CIE-10 codes using Gemini AI
+ * Uses serverless function in Netlify, or direct API in local dev
+ */
+export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
+    if (!query || query.length < 2) return [];
+
+    // First try serverless function (Netlify)
+    const serverlessResult = await searchWithServerlessFunction(query);
+
+    if (serverlessResult.available) {
+        aiAvailabilityChecked = true;
+        aiIsAvailable = true;
+        return serverlessResult.results;
+    }
+
+    // Fallback to local API (development mode)
+    const localApiKey = getLocalApiKey();
+    if (localApiKey) {
+        console.log('🔧 Using local Gemini API for development');
+        aiAvailabilityChecked = true;
+        aiIsAvailable = true;
+        return searchWithLocalAPI(query);
+    }
+
+    // No AI available
+    aiAvailabilityChecked = true;
+    aiIsAvailable = false;
+    return [];
+}
+
+/**
+ * Check AI availability
  */
 export async function checkAIAvailability(): Promise<boolean> {
     if (aiAvailabilityChecked) {
         return aiIsAvailable;
     }
 
+    // Try serverless function first
     try {
         const response = await fetch('/.netlify/functions/cie10-ai-search', {
             method: 'POST',
@@ -72,12 +169,22 @@ export async function checkAIAvailability(): Promise<boolean> {
 
         if (response.ok) {
             const data = await response.json();
-            aiAvailabilityChecked = true;
-            aiIsAvailable = data.available === true;
-            return aiIsAvailable;
+            if (data.available === true) {
+                aiAvailabilityChecked = true;
+                aiIsAvailable = true;
+                return true;
+            }
         }
     } catch {
-        // Function not available (local dev without Netlify)
+        // Serverless not available
+    }
+
+    // Check local API key
+    const localApiKey = getLocalApiKey();
+    if (localApiKey) {
+        aiAvailabilityChecked = true;
+        aiIsAvailable = true;
+        return true;
     }
 
     aiAvailabilityChecked = true;
