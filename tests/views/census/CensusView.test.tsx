@@ -4,12 +4,9 @@ import React from 'react';
 import { CensusView } from '@/views/census/CensusView';
 import { useCensusLogic } from '@/hooks/useCensusLogic';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { usePatientHistoryQuery } from '@/hooks';
-
 // Mock dependencies
 vi.mock('@/hooks/useCensusLogic');
 vi.mock('@/context/TableConfigContext');
-vi.mock('@/hooks/usePatientHistoryQuery');
 vi.mock('@/components/shared/SectionErrorBoundary', () => ({
     SectionErrorBoundary: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
 }));
@@ -30,9 +27,7 @@ vi.mock('@/views/analytics/AnalyticsView', () => ({
     AnalyticsView: () => <div data-testid="analytics-view">Analytics View</div>
 }));
 
-vi.mock('@/components/patient/PatientHistoryPanel', () => ({
-    PatientHistoryPanel: () => <div data-testid="history-panel">History Panel</div>
-}));
+// Sub-components are mocked in the index mock below
 
 describe('CensusView', () => {
     const defaultProps = {
@@ -66,7 +61,6 @@ describe('CensusView', () => {
     beforeEach(() => {
         vi.mocked(useCensusLogic).mockReturnValue(mockCensusLogic as any);
         vi.mocked(useTableConfig).mockReturnValue({ config: { pageMargin: 20 } } as any);
-        vi.mocked(usePatientHistoryQuery).mockReturnValue({ data: null, isLoading: false, error: null } as any);
     });
 
     it('renders AnalyticsView when viewMode is ANALYTICS', () => {

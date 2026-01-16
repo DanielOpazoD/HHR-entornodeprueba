@@ -31,5 +31,6 @@ export const EMPTY_PATIENT: Omit<PatientData, 'bedId'> = {
     devices: [],
     surgicalComplication: false,
     isUPC: false,
-    location: ''
+    location: '',
+    clinicalEvents: []
 };

@@ -62,22 +62,22 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
 
             {/* Print: Show Responsible Nurses & TENS */}
             {!isMedical && (
-                <div className="grid grid-cols-3 gap-6 text-xs border-t border-slate-300 pt-3">
-                    <div>
+                <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4 text-xs border-t border-slate-300 pt-3">
+                    <div className="min-w-0">
                         <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">Enfermero(a) Entrega:</span>
-                        <div className="text-slate-800 text-[11px]">
+                        <div className="text-slate-800 text-[10px] break-words">
                             {deliversList.length > 0 ? deliversList.filter(Boolean).join(', ') : <span className="italic text-slate-400">Sin especificar</span>}
                         </div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">Enfermero(a) Recibe:</span>
-                        <div className="text-slate-800 text-[11px]">
+                        <div className="text-slate-800 text-[10px] break-words">
                             {receivesList.length > 0 ? receivesList.filter(Boolean).join(', ') : <span className="italic text-slate-400">Sin especificar</span>}
                         </div>
                     </div>
-                    <div>
+                    <div className="min-w-0 border-l border-slate-100 pl-4">
                         <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">TENS de Turno:</span>
-                        <div className="text-slate-800 text-[11px]">
+                        <div className="text-slate-800 text-[10px] break-words font-medium">
                             {tensList.length > 0 ? tensList.filter(Boolean).join(', ') : <span className="italic text-slate-400">Sin registro</span>}
                         </div>
                     </div>

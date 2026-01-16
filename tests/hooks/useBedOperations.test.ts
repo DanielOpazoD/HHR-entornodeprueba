@@ -228,5 +228,36 @@ describe('useBedOperations', () => {
                 'beds.B1.blockedReason': ''
             });
         });
+
+        it('should update blocked reason for a blocked bed', () => {
+            const patient = createMockPatient('B1', '');
+            patient.isBlocked = true;
+            patient.blockedReason = 'Old Reason';
+            const record = createMockRecord({ B1: patient });
+
+            const { result } = renderHook(() => useBedOperations(record, mockPatchRecord));
+
+            act(() => {
+                result.current.updateBlockedReason('B1', 'New Reason');
+            });
+
+            expect(mockPatchRecord).toHaveBeenCalledWith({
+                'beds.B1.blockedReason': 'New Reason'
+            });
+        });
+
+        it('should NOT update blocked reason for an unblocked bed', () => {
+            const patient = createMockPatient('B1', '');
+            patient.isBlocked = false;
+            const record = createMockRecord({ B1: patient });
+
+            const { result } = renderHook(() => useBedOperations(record, mockPatchRecord));
+
+            act(() => {
+                result.current.updateBlockedReason('B1', 'New Reason');
+            });
+
+            expect(mockPatchRecord).not.toHaveBeenCalled();
+        });
     });
 });

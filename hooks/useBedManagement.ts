@@ -80,9 +80,11 @@ export interface BedManagementActions {
  * Orchestrates all bed-related operations including patient data updates,
  * CUDYR scoring, and physical bed management (blocking, moving).
  * 
- * @param record - The current DailyRecord
- * @param saveAndUpdate - Function to save the entire record
- * @param patchRecord - Function to perform partial updates (atomic)
+ * @param record - The current DailyRecord (Source of truth for the UI)
+ * @param saveAndUpdate - Function to save the entire record (Full write)
+ * @param patchRecord - Function to perform partial updates (Atomic writes via dot-notation)
+ *                      Uses Firestore updateDoc behavior: only specified fields are changed,
+ *                      preventing data loss from concurrent edits on different beds.
  * @returns An object containing all bed management actions
  */
 export const useBedManagement = (
@@ -196,6 +198,10 @@ export const useBedManagement = (
             }
         }
 
+        // Send an atomic patch to the database.
+        // We use dot-notation (e.g., "beds.bed-1.patientName") so Firestore 
+        // only updates that specific leaf node. This is critical for concurrency
+        // as other users might be updating "beds.bed-2" at the same time.
         patchRecord({
             [`beds.${bedId}.${field}`]: processedValue
         });

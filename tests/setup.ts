@@ -120,20 +120,57 @@ vi.mock('firebase/auth', () => ({
 }));
 
 // Mock firestore module
-vi.mock('firebase/firestore', () => ({
-    collection: vi.fn(() => ({})),
-    doc: vi.fn(() => ({})),
-    getDoc: vi.fn().mockResolvedValue(mockDoc),
-    getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true }),
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    updateDoc: vi.fn().mockResolvedValue(undefined),
-    deleteDoc: vi.fn().mockResolvedValue(undefined),
-    query: vi.fn(() => ({})),
-    where: vi.fn(() => ({})),
-    onSnapshot: vi.fn(() => vi.fn()),
-    orderBy: vi.fn(() => ({})),
-    limit: vi.fn(() => ({})),
-    startAfter: vi.fn(() => ({})),
+vi.mock('firebase/firestore', () => {
+    class MockTimestamp {
+        constructor(public seconds: number, public nanoseconds: number) { }
+        static now() { return new MockTimestamp(Math.floor(Date.now() / 1000), 0); }
+        static fromDate(date: Date) { return new MockTimestamp(Math.floor(date.getTime() / 1000), 0); }
+        toDate() { return new Date(this.seconds * 1000); }
+        toMillis() { return this.seconds * 1000; }
+        toISOString() { return this.toDate().toISOString(); }
+    }
+
+    return {
+        collection: vi.fn(() => ({})),
+        doc: vi.fn(() => ({})),
+        getDoc: vi.fn().mockResolvedValue(mockDoc),
+        getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+        setDoc: vi.fn().mockResolvedValue(undefined),
+        updateDoc: vi.fn().mockResolvedValue(undefined),
+        deleteDoc: vi.fn().mockResolvedValue(undefined),
+        query: vi.fn(() => ({})),
+        where: vi.fn(() => ({})),
+        onSnapshot: vi.fn(() => vi.fn()),
+        orderBy: vi.fn(() => ({})),
+        limit: vi.fn(() => ({})),
+        startAfter: vi.fn(() => ({})),
+        Timestamp: MockTimestamp,
+        runTransaction: vi.fn(),
+        writeBatch: vi.fn(() => ({
+            set: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+            commit: vi.fn().mockResolvedValue(undefined),
+        })),
+    };
+});
+
+// Mock storage module
+vi.mock('firebase/storage', () => ({
+    getStorage: vi.fn(() => ({})),
+    ref: vi.fn(() => ({
+        fullPath: 'mock-path',
+        name: 'mock-file',
+    })),
+    uploadBytes: vi.fn().mockResolvedValue({}),
+    getDownloadURL: vi.fn().mockResolvedValue('https://mock-download-url.com'),
+    listAll: vi.fn().mockResolvedValue({ prefixes: [], items: [] }),
+    deleteObject: vi.fn().mockResolvedValue(undefined),
+    getMetadata: vi.fn().mockResolvedValue({
+        customMetadata: {},
+        timeCreated: new Date().toISOString(),
+        size: 1024
+    }),
 }));
 
 // Mock auditService globally
@@ -155,8 +192,11 @@ const mockAuditService = {
     AUDIT_ACTION_LABELS: {}
 };
 
-vi.mock('@/services/admin/auditService', () => mockAuditService);
-vi.mock('../services/admin/auditService', () => mockAuditService);
+// Use factory function to prevent shared state issues across different imports
+const mockAuditFactory = () => mockAuditService;
+
+vi.mock('@/services/admin/auditService', () => mockAuditFactory());
+vi.mock('../services/admin/auditService', () => mockAuditFactory());
 
 vi.mock('@/services/repositories/DailyRecordRepository', () => ({
     CatalogRepository: {
@@ -202,8 +242,37 @@ const mockAuthService = {
     hasActiveFirebaseSession: vi.fn().mockReturnValue(true),
 };
 
-vi.mock('@/services/auth/authService', () => mockAuthService);
-vi.mock('../services/auth/authService', () => mockAuthService);
+const mockAuthFactory = () => mockAuthService;
+
+vi.mock('@/services/auth/authService', () => mockAuthFactory());
+vi.mock('../services/auth/authService', () => mockAuthFactory());
+
+// Mock AuthContext and useAuth
+const mockAuthContextValue = {
+    user: mockUser,
+    role: 'admin' as const,
+    isLoading: false,
+    isAuthenticated: true,
+    isEditor: true,
+    isViewer: false,
+    isOfflineMode: false,
+    isFirebaseConnected: true,
+    signOut: vi.fn().mockResolvedValue(undefined),
+    canDownloadPassport: true,
+    handleDownloadPassport: vi.fn().mockResolvedValue(true),
+};
+
+vi.mock('@/context/AuthContext', () => ({
+    AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+    useAuth: () => mockAuthContextValue,
+    useCanEdit: () => true,
+}));
+
+vi.mock('../context/AuthContext', () => ({
+    AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+    useAuth: () => mockAuthContextValue,
+    useCanEdit: () => true,
+}));
 
 // Mock AuditContext
 const mockAuditContextValue = {
@@ -233,5 +302,24 @@ vi.mock('../context/AuditContext', () => ({
     useAuditContext: () => mockAuditContextValue
 }));
 
-// Export mock user for use in tests
-export { mockUser, mockAuth, mockFirestore, mockAuditContextValue };
+// Mock VersionContext
+const mockVersionContextValue = {
+    isOutdated: false,
+    appVersion: 1,
+    remoteVersion: 1,
+    checkVersion: vi.fn(),
+    forceUpdate: vi.fn(),
+};
+
+vi.mock('@/context/VersionContext', () => ({
+    VersionProvider: ({ children }: { children: React.ReactNode }) => children,
+    useVersion: () => mockVersionContextValue,
+}));
+
+vi.mock('../context/VersionContext', () => ({
+    VersionProvider: ({ children }: { children: React.ReactNode }) => children,
+    useVersion: () => mockVersionContextValue,
+}));
+
+// Export mocks for use in tests
+export { mockUser, mockAuth, mockFirestore, mockAuditContextValue, mockAuthContextValue, mockAuditService, mockAuthService };

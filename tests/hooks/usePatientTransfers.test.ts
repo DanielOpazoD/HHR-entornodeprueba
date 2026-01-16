@@ -227,4 +227,58 @@ describe('usePatientTransfers', () => {
             expect(updatedRecord.transfers[0].time).toBe('14:30');
         });
     });
+
+    describe('undoTransfer edge cases', () => {
+        it('should alert if bed is already occupied when undoing main transfer', () => {
+            const transfer: TransferData = { id: 't1', bedId: 'R1', patientName: 'P1', originalData: {} } as any;
+            const record = createMockRecord({ R1: createMockPatient('R1', { patientName: 'Occupant' }) }, [transfer]);
+
+            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+            const { result } = renderHook(() => usePatientTransfers(record, mockSaveAndUpdate));
+
+            act(() => {
+                result.current.undoTransfer('t1');
+            });
+
+            expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('ya está ocupada'));
+            expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+            alertSpy.mockRestore();
+        });
+
+        it('should alert if main bed is empty when undoing nested transfer', () => {
+            const transfer: TransferData = { id: 't1', bedId: 'R1', patientName: 'Baby', originalData: {}, isNested: true } as any;
+            const record = createMockRecord({ R1: createMockPatient('R1', { patientName: '' }) }, [transfer]);
+
+            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+            const { result } = renderHook(() => usePatientTransfers(record, mockSaveAndUpdate));
+
+            act(() => {
+                result.current.undoTransfer('t1');
+            });
+
+            expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('primero debe estar ocupada la cama principal'));
+            expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+            alertSpy.mockRestore();
+        });
+
+        it('should alert if crib is already occupied when undoing nested transfer', () => {
+            const transfer: TransferData = { id: 't1', bedId: 'R1', patientName: 'Baby', originalData: {}, isNested: true } as any;
+            const patientWithCrib = createMockPatient('R1', {
+                patientName: 'Mother',
+                clinicalCrib: { patientName: 'Existing Baby' } as any
+            });
+            const record = createMockRecord({ R1: patientWithCrib }, [transfer]);
+
+            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+            const { result } = renderHook(() => usePatientTransfers(record, mockSaveAndUpdate));
+
+            act(() => {
+                result.current.undoTransfer('t1');
+            });
+
+            expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('ya existe una cuna clínica ocupada'));
+            expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+            alertSpy.mockRestore();
+        });
+    });
 });

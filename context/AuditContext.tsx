@@ -16,7 +16,7 @@ interface AuditContextType {
     logDailyRecordCreated: (date: string, copiedFrom?: string) => void;
     logPatientView: (bedId: string, patientName: string, rut: string, recordDate: string, authors?: string) => void;
     logEvent: (action: AuditAction, entityType: AuditLogEntry['entityType'], entityId: string, details: Record<string, unknown>, patientRut?: string, recordDate?: string, authors?: string) => void;
-    logDebouncedEvent: (action: AuditAction, entityType: AuditLogEntry['entityType'], entityId: string, details: Record<string, unknown>, patientRut?: string, recordDate?: string, authors?: string) => void;
+    logDebouncedEvent: (action: AuditAction, entityType: AuditLogEntry['entityType'], entityId: string, details: Record<string, unknown>, patientRut?: string, recordDate?: string, authors?: string, waitMs?: number) => void;
     fetchLogs: (limit?: number) => Promise<AuditLogEntry[]>;
     getActionLabel: (action: AuditAction) => string;
     userId: string;

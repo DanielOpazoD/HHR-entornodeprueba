@@ -6,17 +6,15 @@
  */
 
 import { z } from 'zod';
+import { PatientData, Specialty, PatientStatus } from '../types';
 
 // ============================================================================
 // Enums
 // ============================================================================
 
 export const BedTypeSchema = z.enum(['UTI', 'MEDIA']);
-export const SpecialtySchema = z.enum([
-    'Med Interna', 'Cirugía', 'Traumatología', 'Ginecobstetricia',
-    'Psiquiatría', 'Pediatría', 'Otro', ''
-]);
-export const PatientStatusSchema = z.enum(['Grave', 'De cuidado', 'Estable', '']);
+export const SpecialtySchema = z.nativeEnum(Specialty);
+export const PatientStatusSchema = z.nativeEnum(PatientStatus);
 
 // ============================================================================
 // Sub-schemas
@@ -37,7 +35,7 @@ export const CudyrScoreSchema = z.object({
     skinCare: z.number().default(0),
     pharmacology: z.number().default(0),
     invasiveElements: z.number().default(0),
-}).partial();
+});
 
 export const DeviceInfoSchema = z.object({
     installationDate: z.string().optional(),
@@ -55,11 +53,23 @@ export const DeviceDetailsSchema = z.object({
 });
 
 // ============================================================================
+// FHIR Core-CL Schemas
+// ============================================================================
+
+export const FhirResourceSchema = z.object({
+    resourceType: z.string(),
+    id: z.string().optional(),
+    meta: z.object({
+        profile: z.array(z.string()).optional(),
+    }).optional(),
+}).passthrough();
+
+// ============================================================================
 // PatientData Schema
 // ============================================================================
 
-// Forward declare for recursive type (clinicalCrib)
-export const PatientDataSchema: z.ZodType<unknown> = z.lazy(() =>
+// Forward declare for recursive type (clinicalCrib) with explicit type for better inference
+export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, any> = z.lazy(() =>
     z.object({
         bedId: z.string().default(''),
         isBlocked: z.boolean().default(false),
@@ -79,9 +89,11 @@ export const PatientDataSchema: z.ZodType<unknown> = z.lazy(() =>
         origin: z.enum(['Residente', 'Turista Nacional', 'Turista Extranjero']).optional(),
         isRapanui: z.boolean().optional(),
         pathology: z.string().default(''),
+        snomedCode: z.string().optional(),
+        cie10Code: z.string().optional(),
         diagnosisComments: z.string().optional(),
-        specialty: SpecialtySchema.default(''),
-        status: PatientStatusSchema.default(''),
+        specialty: z.nativeEnum(Specialty).default(Specialty.EMPTY),
+        status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
         admissionDate: z.string().default(''),
         admissionTime: z.string().default(''),
         hasWristband: z.boolean().default(true),
@@ -95,6 +107,7 @@ export const PatientDataSchema: z.ZodType<unknown> = z.lazy(() =>
         handoffNoteDayShift: z.string().optional(),
         handoffNoteNightShift: z.string().optional(),
         medicalHandoffNote: z.string().optional(),
+        fhir_resource: FhirResourceSchema.optional(),
     }).passthrough() // Allow additional fields
 );
 
@@ -118,7 +131,7 @@ export const DischargeDataSchema = z.object({
     insurance: z.string().optional(),
     origin: z.string().optional(),
     isRapanui: z.boolean().optional(),
-    originalData: z.unknown().optional(),
+    originalData: PatientDataSchema.optional(),
     isNested: z.boolean().optional(),
 }).passthrough();
 
@@ -139,7 +152,7 @@ export const TransferDataSchema = z.object({
     insurance: z.string().optional(),
     origin: z.string().optional(),
     isRapanui: z.boolean().optional(),
-    originalData: z.unknown().optional(),
+    originalData: PatientDataSchema.optional(),
     isNested: z.boolean().optional(),
 }).passthrough();
 
@@ -150,8 +163,8 @@ export const CMADataSchema = z.object({
     rut: z.string().default(''),
     age: z.string().default(''),
     diagnosis: z.string().default(''),
-    specialty: z.string().default(''),
-    interventionType: z.enum(['Cirugía Mayor Ambulatoria', 'Procedimiento Médico Ambulatorio']).optional(),
+    specialty: z.nativeEnum(Specialty).default(Specialty.EMPTY),
+    interventionType: z.enum(['Cirugía Mayor Ambulatoria', 'Procedimiento Médico Ambulatorio']).default('Cirugía Mayor Ambulatoria'),
     enteredBy: z.string().optional(),
     timestamp: z.string().optional(),
 }).passthrough();

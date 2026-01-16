@@ -3,7 +3,7 @@
  * These replace `any` types throughout the codebase for better type safety.
  */
 
-import { PatientData, CudyrScore, PatientStatus, Specialty, DeviceDetails } from './core';
+import { PatientData, CudyrScore, PatientStatus, Specialty, DeviceDetails, ClinicalEvent } from './core';
 import { LucideIcon } from 'lucide-react';
 
 // ============================================================================
@@ -23,7 +23,8 @@ export type PatientFieldValue =
     | CudyrScore
     | DeviceDetails
     | PatientStatus
-    | Specialty;
+    | Specialty
+    | ClinicalEvent[];
 
 /**
  * Specific field value types for type-safe updates
@@ -47,7 +48,7 @@ export type PatientBooleanField =
     | 'isUPC'
     | 'hasCompanionCrib';
 
-export type PatientArrayField = 'devices';
+export type PatientArrayField = 'devices' | 'clinicalEvents';
 
 export type PatientEnumField = 'status' | 'specialty' | 'bedMode';
 

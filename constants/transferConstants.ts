@@ -16,7 +16,8 @@ export const STATUS_TRANSITIONS: Record<TransferStatus, TransferStatus | null> =
     REQUESTED: 'SENT',
     SENT: 'ACCEPTED',
     ACCEPTED: 'TRANSFERRED',
-    TRANSFERRED: null,
+    TRANSFERRED: 'RECEIVED',
+    RECEIVED: null,
     CANCELLED: null
 };
 

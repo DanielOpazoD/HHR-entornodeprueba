@@ -269,7 +269,7 @@ export async function saveMessageTemplates(
 /**
  * Get default message templates
  */
-function getDefaultTemplates(): MessageTemplate[] {
+export function getDefaultTemplates(): MessageTemplate[] {
     return [
         {
             id: 'handoff-default',

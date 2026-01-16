@@ -9,10 +9,17 @@
 // Hospital Configuration
 // ============================================================================
 
+import { HospitalConfigService } from '../services/config/HospitalConfigService';
+
 /**
- * Hospital ID - used as the root document for all hospital data
+ * Hospital ID - used as the root document for all hospital data.
+ * Now dynamic via HospitalConfigService for multi-tenancy.
  */
-export const HOSPITAL_ID = 'hanga_roa' as const;
+export const getActiveHospitalId = () => HospitalConfigService.getHospitalId();
+
+// Legacy constant for broad compatibility during transition
+/** @deprecated Use getActiveHospitalId() */
+export const HOSPITAL_ID = HospitalConfigService.getHospitalId();
 
 // ============================================================================
 // Collection Names
@@ -67,19 +74,19 @@ export const SETTINGS_DOCS = {
 /**
  * Build full path to a hospital's collection
  */
-export const getHospitalPath = (hospitalId: string = HOSPITAL_ID) =>
+export const getHospitalPath = (hospitalId: string = getActiveHospitalId()) =>
     `${COLLECTIONS.HOSPITALS}/${hospitalId}` as const;
 
 /**
  * Build path to daily records collection
  */
-export const getDailyRecordsPath = (hospitalId: string = HOSPITAL_ID) =>
+export const getDailyRecordsPath = (hospitalId: string = getActiveHospitalId()) =>
     `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.DAILY_RECORDS}` as const;
 
 /**
  * Build path to settings collection
  */
-export const getSettingsPath = (hospitalId: string = HOSPITAL_ID) =>
+export const getSettingsPath = (hospitalId: string = getActiveHospitalId()) =>
     `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SETTINGS}` as const;
 
 /**
@@ -87,13 +94,13 @@ export const getSettingsPath = (hospitalId: string = HOSPITAL_ID) =>
  */
 export const getSettingsDocPath = (
     docId: keyof typeof SETTINGS_DOCS | string,
-    hospitalId: string = HOSPITAL_ID
+    hospitalId: string = getActiveHospitalId()
 ) => `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SETTINGS}/${docId}` as const;
 
 /**
  * Build path to export passwords collection
  */
-export const getExportPasswordsPath = (hospitalId: string = HOSPITAL_ID) =>
+export const getExportPasswordsPath = (hospitalId: string = getActiveHospitalId()) =>
     `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.EXPORT_PASSWORDS}` as const;
 
 // ============================================================================

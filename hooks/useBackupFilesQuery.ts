@@ -49,7 +49,9 @@ export const useBackupFilesQuery = (backupType: string, path: string[]) => {
 
             if (path.length === 0) {
                 // Root: List years
+                console.log('[useBackupFilesQuery] 📅 Fetching years...');
                 const years = await service.listYears();
+                console.log(`[useBackupFilesQuery] ✅ Found years: ${years.join(', ')}`);
                 return years.map(year => ({
                     type: 'folder',
                     data: { name: year, type: 'year' }
@@ -57,7 +59,9 @@ export const useBackupFilesQuery = (backupType: string, path: string[]) => {
             } else if (path.length === 1) {
                 // Year: List months
                 const year = path[0];
+                console.log(`[useBackupFilesQuery] 📅 Fetching months for year: ${year}`);
                 const months = await service.listMonths(year);
+                console.log(`[useBackupFilesQuery] ✅ Found months: ${months.length}`);
                 return months.map(month => ({
                     type: 'folder',
                     data: { name: month.name, number: month.number, type: 'month' }
@@ -68,7 +72,9 @@ export const useBackupFilesQuery = (backupType: string, path: string[]) => {
                 const monthName = path[1];
                 const monthNumber = monthNameToNumber(monthName);
 
+                console.log(`[useBackupFilesQuery] 📄 Fetching files for ${year}/${monthNumber} (${monthName})`);
                 const files = await service.listFilesInMonth(year, monthNumber);
+                console.log(`[useBackupFilesQuery] ✅ Found files: ${files.length}`);
 
                 return files.map(file => ({
                     type: 'file',

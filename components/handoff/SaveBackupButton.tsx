@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Save, CheckCircle, Loader2 } from 'lucide-react';
 import { useConfirmDialog, useNotification } from '../../context/UIContext';
 import { uploadPdf, pdfExists } from '../../services/backup/pdfStorageService';
+import { validateCriticalFields, getMissingFieldsLabel } from '../../services/validation/criticalFieldsValidator';
 import { uploadCudyrExcel } from '../../services/backup/cudyrStorageService';
 import { DailyRecord } from '../../types';
 
@@ -66,6 +67,18 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
         // Validate required fields
         if (!deliveryStaff || !receivingStaff) {
             warning('Selecciona enfermera que entrega y recibe antes de guardar');
+            return;
+        }
+
+        // Validate critical fields (Estado, Fecha de ingreso)
+        const validation = validateCriticalFields(record);
+        if (!validation.isValid) {
+            const firstIssue = validation.issues[0];
+            const fieldsMessage = getMissingFieldsLabel(firstIssue.missingFields);
+            warning(
+                `Campos críticos incompletos`,
+                `${validation.issueCount} paciente(s) sin ${fieldsMessage}. Complete los datos antes de guardar.`
+            );
             return;
         }
 

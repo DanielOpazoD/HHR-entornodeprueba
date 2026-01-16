@@ -29,8 +29,9 @@ interface UseAuditReturn {
 
 export const useAudit = (userId: string): UseAuditReturn => {
     // Store timers for debounced events (key: action-entityId)
+    // We use 'any' for timer to avoid NodeJS vs Browser type conflicts
     const timersRef = React.useRef<Record<string, {
-        timer: NodeJS.Timeout,
+        timer: any,
         details: Record<string, unknown>,
         rut?: string,
         date?: string,
@@ -50,6 +51,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
         logAuditEvent(userId, action, entityType, entityId, details, patientRut, recordDate, authors);
     }, [userId]);
 
+    // Smart logger (debounced with merging)
     const logDebouncedEvent = useCallback((
         action: AuditAction,
         entityType: AuditLogEntry['entityType'],
@@ -57,30 +59,62 @@ export const useAudit = (userId: string): UseAuditReturn => {
         details: Record<string, unknown>,
         patientRut?: string,
         recordDate?: string,
-        authors?: string
+        authors?: string,
+        waitMs: number = 5 * 60 * 1000 // Default 5 mins
     ) => {
         const key = `${action}-${entityId}`;
 
-        // Clear existing timer if any
-        if (timersRef.current[key]) {
-            clearTimeout(timersRef.current[key].timer);
+        // Get existing pending entry
+        const pending = timersRef.current[key];
+
+        // Merge changes if they exist
+        let mergedDetails = { ...details };
+        if (pending && pending.details && details.changes) {
+            const oldChanges = (pending.details.changes || {}) as Record<string, any>;
+            const newChanges = (details.changes || {}) as Record<string, any>;
+
+            // Merge logic: Preserve the FIRST 'old' value in the chain
+            // but take the LAST 'new' value.
+            const mergedChanges: Record<string, any> = { ...oldChanges };
+
+            Object.keys(newChanges).forEach(field => {
+                if (mergedChanges[field]) {
+                    // Field already exists in pending log, keep its 'old' value
+                    mergedChanges[field] = {
+                        old: mergedChanges[field].old,
+                        new: newChanges[field].new
+                    };
+                } else {
+                    // New field being modified
+                    mergedChanges[field] = newChanges[field];
+                }
+            });
+
+            mergedDetails = {
+                ...pending.details,
+                ...details,
+                changes: mergedChanges
+            };
         }
 
-        // Set a new timer (5 minutes window for related clinical changes)
-        // Note: For intensive dev/testing, we might want to lower this to 1 min.
-        // But for production medical audits, 5 mins is a good "session" window.
-        const timer = setTimeout(() => {
-            const pending = timersRef.current[key];
-            if (pending) {
-                logEvent(action, entityType, entityId, pending.details, pending.rut, pending.date, pending.authors);
+        // Clear existing timer (explicitly using window for browser environment)
+        if (pending) {
+            window.clearTimeout(pending.timer);
+        }
+
+        // Set a new timer
+        const timer = window.setTimeout(() => {
+            const entry = timersRef.current[key];
+            if (entry) {
+                logEvent(action, entityType, entityId, entry.details, entry.rut, entry.date, entry.authors);
                 delete timersRef.current[key];
             }
-        }, 5 * 60 * 1000);
+        }, waitMs);
 
-        // Store latest details and timer
+        // Store merged details and timer
         timersRef.current[key] = {
             timer,
-            details,
+            details: mergedDetails,
             rut: patientRut,
             date: recordDate,
             authors

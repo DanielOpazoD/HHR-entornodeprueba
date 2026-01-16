@@ -32,14 +32,14 @@ describe('MovementsSummary', () => {
         // 22:00 is Night Shift (20:00-08:00)
 
         record.discharges = [
-            { id: 'd1', bedName: 'B1', patientName: 'Day Discharge', time: '10:00', diagnosis: 'D1', dischargeType: 'Alta', status: 'OK' },
-            { id: 'd2', bedName: 'B2', patientName: 'Night Discharge', time: '22:00', diagnosis: 'D2', dischargeType: 'Alta', status: 'OK' },
-            { id: 'd3', bedName: 'B3', patientName: 'No Time Discharge', diagnosis: 'D3', dischargeType: 'Alta', status: 'OK' }, // Should default to day
+            { id: 'd1', bedId: 'B1', bedName: 'B1', bedType: 'Adulto', patientName: 'Day Discharge', rut: '1', time: '10:00', diagnosis: 'D1', dischargeType: 'Domicilio (Habitual)', status: 'Vivo' },
+            { id: 'd2', bedId: 'B2', bedName: 'B2', bedType: 'Adulto', patientName: 'Night Discharge', rut: '2', time: '22:00', diagnosis: 'D2', dischargeType: 'Domicilio (Habitual)', status: 'Vivo' },
+            { id: 'd3', bedId: 'B3', bedName: 'B3', bedType: 'Adulto', patientName: 'No Time Discharge', rut: '3', time: '', diagnosis: 'D3', dischargeType: 'Domicilio (Habitual)', status: 'Vivo' },
         ];
 
         record.transfers = [
-            { id: 't1', bedName: 'T1', patientName: 'Day Transfer', time: '14:00', diagnosis: 'D4', evacuationMethod: 'Ambulancia', receivingCenter: 'H1' },
-            { id: 't2', bedName: 'T2', patientName: 'Night Transfer', time: '02:00', diagnosis: 'D5', evacuationMethod: 'Ambulancia', receivingCenter: 'H2' },
+            { id: 't1', bedId: 'T1', bedName: 'T1', bedType: 'Adulto', patientName: 'Day Transfer', rut: '4', time: '14:00', diagnosis: 'D4', evacuationMethod: 'Ambulancia', receivingCenter: 'H1' },
+            { id: 't2', bedId: 'T2', bedName: 'T2', bedType: 'Adulto', patientName: 'Night Transfer', rut: '5', time: '02:00', diagnosis: 'D5', evacuationMethod: 'Ambulancia', receivingCenter: 'H2' },
         ];
 
         const { rerender } = render(<MovementsSummary record={record} selectedShift="day" />);
@@ -65,7 +65,7 @@ describe('MovementsSummary', () => {
     it('renders CMA patients only on day shift', () => {
         const record = createMockRecord('2024-12-11');
         record.cma = [
-            { id: 'c1', bedName: 'C1', patientName: 'CMA Patient', diagnosis: 'D6', interventionType: 'Minor' }
+            { id: 'c1', bedName: 'C1', patientName: 'CMA Patient', rut: '6', age: '40', diagnosis: 'D6', specialty: 'Medicina', interventionType: 'Cirugía Mayor Ambulatoria' }
         ];
 
         const { rerender } = render(<MovementsSummary record={record} selectedShift="day" />);
@@ -81,8 +81,11 @@ describe('MovementsSummary', () => {
         record.transfers = [
             {
                 id: 't1',
+                bedId: 'T1',
                 bedName: 'T1',
+                bedType: 'Adulto',
                 patientName: 'Other Transfer',
+                rut: '7',
                 time: '12:00',
                 diagnosis: 'D4',
                 evacuationMethod: 'Ambulancia',

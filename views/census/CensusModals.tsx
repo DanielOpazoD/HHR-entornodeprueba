@@ -51,14 +51,12 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
                 isOpen={showNurseManager}
                 onClose={() => setShowNurseManager(false)}
                 nursesList={nursesList}
-                setNursesList={setNursesList}
             />
 
             <TensManagerModal
                 isOpen={showTensManager}
                 onClose={() => setShowTensManager(false)}
                 tensList={tensList}
-                setTensList={setTensList}
             />
 
             <BedManagerModal

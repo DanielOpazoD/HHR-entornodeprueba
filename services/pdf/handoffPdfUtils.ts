@@ -1,4 +1,5 @@
 import { DailyRecord, ShiftType } from '../../types';
+import { calculateHospitalizedDays } from '@/utils/dateUtils';
 
 export interface Schedule {
     dayStart?: string;
@@ -29,19 +30,9 @@ export const getBase64ImageFromURL = (url: string): Promise<string> => {
 };
 
 /**
- * Calculate hospitalized days between admission and current record date.
+ * Re-export centralized utility
  */
-export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string): number | null => {
-    if (!admissionDate || !currentDate) return null;
-    const start = new Date(admissionDate);
-    const end = new Date(currentDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diff = end.getTime() - start.getTime();
-    const days = Math.floor(diff / (1000 * 3600 * 24));
-    const totalDays = days + 1;
-    return totalDays >= 1 ? totalDays : 1;
-};
+export { calculateHospitalizedDays };
 
 /**
  * Get staff info for nursing handoff.

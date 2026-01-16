@@ -21,7 +21,7 @@ const run = async () => {
         })
     } as any;
 
-    const response = await sendCensusEmailHandler(event, {} as any);
+    const response = await sendCensusEmailHandler(event);
     console.log('Respuesta de prueba:', response);
 };
 

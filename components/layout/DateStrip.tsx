@@ -27,7 +27,6 @@ export interface DateNavigationProps {
 }
 
 export interface DateStripActionsProps {
-    onPrintPDF?: () => void;
     onExportPDF?: () => void;
     onOpenBedManager?: () => void;
     onExportExcel?: () => void;
@@ -69,7 +68,6 @@ export const DateStrip: React.FC<DateStripProps> = ({
     daysInMonth,
     existingDaysInMonth,
     // Actions
-    onPrintPDF,
     onExportPDF,
     onOpenBedManager,
     onExportExcel,
@@ -157,7 +155,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
                     )}
 
                     {/* PDF Buttons */}
-                    <PdfButtons onPrintPDF={onPrintPDF} onExportPDF={onExportPDF} />
+                    <PdfButtons onExportPDF={onExportPDF} />
 
                     {/* Excel Buttons */}
                     <ExcelButtons

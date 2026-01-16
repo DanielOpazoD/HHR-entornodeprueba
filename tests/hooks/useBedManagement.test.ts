@@ -164,6 +164,42 @@ describe('useBedManagement', () => {
 
             expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalled();
         });
+
+        it('should handle validation failure', () => {
+            const patient = createMockPatient('R1');
+            const record = createMockRecord({ R1: patient });
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+            const { result } = renderHook(() => useBedManagement(record, mockSaveAndUpdate, mockPatchRecord));
+
+            act(() => {
+                // Future date should fail validation in dateUtils/validation
+                result.current.updatePatient('R1', 'admissionDate', '2099-01-01');
+            });
+
+            expect(mockPatchRecord).not.toHaveBeenCalled();
+            expect(consoleSpy).toHaveBeenCalled();
+            consoleSpy.mockRestore();
+        });
+
+        it('should update multiple patient fields', () => {
+            const patient = createMockPatient('R1');
+            const record = createMockRecord({ R1: patient });
+
+            const { result } = renderHook(() => useBedManagement(record, mockSaveAndUpdate, mockPatchRecord));
+
+            act(() => {
+                result.current.updatePatientMultiple('R1', {
+                    patientName: 'Updated Name',
+                    rut: '1-1'
+                });
+            });
+
+            expect(mockPatchRecord).toHaveBeenCalledWith({
+                'beds.R1.patientName': 'Updated Name',
+                'beds.R1.rut': '1-1'
+            });
+        });
     });
 
     describe('updateCudyr', () => {
@@ -200,8 +236,6 @@ describe('useBedManagement', () => {
             act(() => {
                 result.current.updateClinicalCrib('R1', 'create');
             });
-            // Detailed verification would require mocking useClinicalCrib internal return, 
-            // but we can check if it tries to call something or doesn't crash.
         });
 
         it('should update clinical crib CUDYR', () => {
@@ -220,6 +254,27 @@ describe('useBedManagement', () => {
                 'beds.R1.clinicalCrib.cudyr.feeding': 2
             });
             expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalled();
+        });
+
+        it('should update multiple clinical crib fields', () => {
+            const patient = createMockPatient('R1', {
+                clinicalCrib: { patientName: 'Baby', rut: '1-1', bedMode: 'Cuna' } as any
+            });
+            const record = createMockRecord({ R1: patient });
+
+            const { result } = renderHook(() => useBedManagement(record, mockSaveAndUpdate, mockPatchRecord));
+
+            act(() => {
+                result.current.updateClinicalCribMultiple('R1', {
+                    patientName: 'New Baby Name',
+                    age: '1'
+                });
+            });
+
+            expect(mockPatchRecord).toHaveBeenCalledWith({
+                'beds.R1.clinicalCrib.patientName': 'New Baby Name',
+                'beds.R1.clinicalCrib.age': '1'
+            });
         });
     });
 });

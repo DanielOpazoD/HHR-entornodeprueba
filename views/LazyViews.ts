@@ -39,8 +39,17 @@ export const ErrorDashboard = lazy(() =>
     import(/* webpackChunkName: "error-db" */ './admin/ErrorDashboard').then(m => ({ default: m.ErrorDashboard }))
 );
 
+export const BackupFilesView = lazy(() =>
+    import(/* webpackChunkName: "backup" */ './backup/BackupFilesView').then(m => ({ default: m.BackupFilesView }))
+);
+
+// Health & Monitoring
 export const DevDashboard = lazy(() =>
     import(/* webpackChunkName: "dev-db" */ './admin/DevDashboard').then(m => ({ default: m.DevDashboard }))
+);
+
+export const SystemHealthDashboard = lazy(() =>
+    import(/* webpackChunkName: "health-db" */ './admin/SystemHealthDashboard').then(m => ({ default: m.SystemHealthDashboard }))
 );
 
 // WhatsApp module
@@ -51,9 +60,4 @@ export const WhatsAppIntegrationView = lazy(() =>
 // Transfer Management module
 export const TransferManagementView = lazy(() =>
     import(/* webpackChunkName: "transfers" */ './transfers/TransferManagementView').then(m => ({ default: m.TransferManagementView }))
-);
-
-// Backup Files module
-export const BackupFilesView = lazy(() =>
-    import(/* webpackChunkName: "backup" */ './backup/BackupFilesView').then(m => ({ default: m.BackupFilesView }))
 );

@@ -12,6 +12,17 @@ import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, 
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+export interface InventoryStats {
+    occupiedCount: number;
+    blockedCount: number;
+    availableCount: number;
+    occupancyRate: number;
+    occupiedBeds: string[];
+    freeBeds: string[];
+    blockedBeds: string[];
+    isFull: boolean;
+}
+
 export interface UseDailyRecordSyncResult {
     record: DailyRecord | null;
     setRecord: (record: DailyRecord | null | ((prev: DailyRecord | null) => DailyRecord | null)) => void;
@@ -120,12 +131,18 @@ export interface DailyRecordContextType {
     record: DailyRecord | null;
     syncStatus: SyncStatus;
     lastSyncTime: Date | null;
+    inventory: InventoryStats;
 
     // Day Management
     createDay: (copyFromPrevious: boolean, specificDate?: string) => void;
     generateDemo: () => void;
     resetDay: () => Promise<void>;
     refresh: () => void;
+
+    // Validation helpers
+    validateRecordSchema: (record: DailyRecord) => { isValid: boolean; errors: any[] };
+    canMovePatient: (sourceBedId: string, targetBedId: string, record: DailyRecord | null) => { canMove: boolean; reason?: string };
+    canDischargePatient: (patient: PatientData) => boolean;
 
     // Bed Management (from useBedManagement)
     updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;

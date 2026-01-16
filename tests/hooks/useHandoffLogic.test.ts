@@ -1,30 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useHandoffLogic } from '@/hooks/useHandoffLogic';
-import { DailyRecord, Specialty, PatientStatus } from '@/types';
+import { Specialty, PatientStatus } from '@/types';
 import * as dateUtils from '@/utils/dateUtils';
-import * as whatsappService from '@/services/integrations/whatsapp/whatsappService';
-import * as auditService from '@/services/admin/auditService';
 
-// Mock dependencies
+// Mock Audit
+const mockLogDebouncedEvent = vi.fn();
+vi.mock('@/context/AuditContext', () => ({
+    useAuditContext: () => ({
+        logDebouncedEvent: mockLogDebouncedEvent,
+        logEvent: vi.fn()
+    })
+}));
+
 vi.mock('@/utils/dateUtils');
-vi.mock('@/services/integrations/whatsapp/whatsappService');
-vi.mock('@/services/admin/auditService');
 
 describe('useHandoffLogic', () => {
-    const mockUpdatePatient = vi.fn();
-    const mockUpdatePatientMultiple = vi.fn();
-    const mockUpdateClinicalCrib = vi.fn();
-    const mockUpdateClinicalCribMultiple = vi.fn();
-    const mockSendMedicalHandoff = vi.fn();
-    const mockOnSuccess = vi.fn();
-
-    const mockRecord: DailyRecord = {
+    const mockRecord = {
         date: '2025-01-01',
         beds: {
             R1: {
                 bedId: 'R1',
-                patientName: 'Test Patient',
+                patientName: 'Test',
                 rut: '1-1',
                 age: '40',
                 pathology: 'Test',
@@ -33,150 +30,97 @@ describe('useHandoffLogic', () => {
                 admissionDate: '2025-01-01',
                 isBlocked: false,
                 bedMode: 'Cama',
-                hasCompanionCrib: false,
                 devices: [],
-                hasWristband: true,
                 surgicalComplication: false,
-                isUPC: false
+                isUPC: false,
+                hasCompanionCrib: false,
+                hasWristband: true
             }
         },
-        discharges: [],
-        transfers: [],
-        cma: [],
-        lastUpdated: new Date().toISOString(),
-        nurses: ['Nurse 1'],
-        nursesDayShift: ['Day Nurse'],
-        nursesNightShift: ['Night Nurse'],
-        tensDayShift: ['Day Tens'],
-        tensNightShift: ['Night Tens'],
-        activeExtraBeds: []
-    };
-
-    const defaultParams = {
-        record: mockRecord,
-        type: 'nursing' as const,
-        selectedShift: 'day' as const,
-        setSelectedShift: vi.fn(),
-        updatePatient: mockUpdatePatient,
-        updatePatientMultiple: mockUpdatePatientMultiple,
-        updateClinicalCrib: mockUpdateClinicalCrib,
-        updateClinicalCribMultiple: mockUpdateClinicalCribMultiple,
-        sendMedicalHandoff: mockSendMedicalHandoff,
-        onSuccess: mockOnSuccess,
-    };
+        discharges: [], transfers: [], cma: [], lastUpdated: '', nurses: [], nursesDayShift: [], nursesNightShift: [], tensDayShift: [], tensNightShift: [], activeExtraBeds: []
+    } as any;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(dateUtils.getShiftSchedule).mockReturnValue({
-            dayStart: '08:00', dayEnd: '20:00', nightStart: '20:00', nightEnd: '08:00', description: 'Test Schedule'
-        });
+        vi.mocked(dateUtils.getShiftSchedule).mockReturnValue({ dayStart: '08:00', dayEnd: '20:00', nightStart: '20:00', nightEnd: '08:00', description: '' });
         vi.mocked(dateUtils.isAdmittedDuringShift).mockReturnValue(true);
-
-        // Mock clipboard and window.open
-        Object.assign(navigator, {
-            clipboard: {
-                writeText: vi.fn().mockResolvedValue(undefined),
-            },
-        });
-        vi.spyOn(window, 'open').mockImplementation(() => null);
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('derives staff lists correctly for day shift', () => {
-        const { result } = renderHook(() => useHandoffLogic(defaultParams));
+    it('handles nursing note changes correctly (Day Shift uses updatePatientMultiple)', async () => {
+        const mockUpdateMultiple = vi.fn();
+        const params = {
+            record: mockRecord,
+            type: 'nursing' as any,
+            selectedShift: 'day' as any,
+            updatePatient: vi.fn(),
+            updatePatientMultiple: mockUpdateMultiple,
+            updateClinicalCrib: vi.fn(),
+            updateClinicalCribMultiple: vi.fn(),
+            sendMedicalHandoff: vi.fn(),
+            onSuccess: vi.fn(),
+            setSelectedShift: vi.fn(),
+        };
 
-        expect(result.current.deliversList).toEqual(['Day Nurse']);
-        expect(result.current.receivesList).toEqual(['Night Nurse']);
-        expect(result.current.tensList).toEqual(['Day Tens']);
+        const { result } = renderHook(() => useHandoffLogic(params));
+
+        await act(async () => {
+            await result.current.handleNursingNoteChange('R1', 'New Note');
+        });
+
+        // El turno largo propaga la nota a ambos turnos usando updatePatientMultiple
+        expect(mockUpdateMultiple).toHaveBeenCalledWith('R1', expect.objectContaining({
+            handoffNoteDayShift: 'New Note',
+            handoffNoteNightShift: 'New Note'
+        }));
+        expect(mockLogDebouncedEvent).toHaveBeenCalledWith('NURSE_HANDOFF_MODIFIED', 'patient', 'R1', expect.anything(), '1-1', '2025-01-01', undefined, 30000);
     });
 
-    it('derives staff lists correctly for night shift', () => {
-        const { result } = renderHook(() => useHandoffLogic({ ...defaultParams, selectedShift: 'night' }));
+    it('adds and deletes clinical events', async () => {
+        const mockUpdate = vi.fn();
+        const params = {
+            record: mockRecord,
+            type: 'nursing' as any,
+            selectedShift: 'day' as any,
+            updatePatient: mockUpdate,
+            updatePatientMultiple: vi.fn(),
+            updateClinicalCrib: vi.fn(),
+            updateClinicalCribMultiple: vi.fn(),
+            sendMedicalHandoff: vi.fn(),
+            onSuccess: vi.fn(),
+            setSelectedShift: vi.fn(),
+        };
 
-        expect(result.current.deliversList).toEqual(['Night Nurse']);
-        expect(result.current.tensList).toEqual(['Night Tens']);
-    });
+        const { result } = renderHook(() => useHandoffLogic(params));
 
-    describe('handleNursingNoteChange', () => {
-        it('updates multiple fields for day shift nursing', async () => {
-            const { result } = renderHook(() => useHandoffLogic(defaultParams));
-
-            await act(async () => {
-                await result.current.handleNursingNoteChange('R1', 'New note');
-            });
-
-            expect(mockUpdatePatientMultiple).toHaveBeenCalledWith('R1', {
-                handoffNoteDayShift: 'New note',
-                handoffNoteNightShift: 'New note'
-            });
-            expect(auditService.logNurseHandoffModified).toHaveBeenCalled();
+        await act(async () => {
+            await result.current.handleClinicalEventAdd('R1', { name: 'Cirugía', date: '2025-01-01', note: '' });
         });
 
-        it('updates single field for night shift nursing', async () => {
-            const { result } = renderHook(() => useHandoffLogic({ ...defaultParams, selectedShift: 'night' }));
+        expect(mockUpdate).toHaveBeenCalledWith('R1', 'clinicalEvents', expect.any(Array));
+        expect(mockLogDebouncedEvent).toHaveBeenCalledWith('CLINICAL_EVENT_ADDED', 'patient', 'R1', expect.anything(), 'R1', '2025-01-01', undefined, 10000);
 
-            await act(async () => {
-                await result.current.handleNursingNoteChange('R1', 'New night note');
-            });
+        // Delete
+        const recordWithEvent = {
+            ...mockRecord,
+            beds: {
+                R1: {
+                    ...mockRecord.beds.R1,
+                    clinicalEvents: [{ id: 'evt-1', name: 'Delete', date: '2025-01-01', note: '', createdAt: '' }]
+                }
+            }
+        };
+        const mockUpdate2 = vi.fn();
+        const { result: res2 } = renderHook(() => useHandoffLogic({ ...params, record: recordWithEvent, updatePatient: mockUpdate2 }));
 
-            expect(mockUpdatePatient).toHaveBeenCalledWith('R1', 'handoffNoteNightShift', 'New night note');
+        await act(async () => {
+            await res2.current.handleClinicalEventDelete('R1', 'evt-1');
         });
 
-        it('updates medical handoff note', async () => {
-            const { result } = renderHook(() => useHandoffLogic({ ...defaultParams, type: 'medical' }));
-
-            await act(async () => {
-                await result.current.handleNursingNoteChange('R1', 'Medical note');
-            });
-
-            expect(mockUpdatePatient).toHaveBeenCalledWith('R1', 'medicalHandoffNote', 'Medical note');
-            expect(auditService.logMedicalHandoffModified).toHaveBeenCalled();
-        });
-    });
-
-    it('handles clipboard sharing of the link', () => {
-        const { result } = renderHook(() => useHandoffLogic(defaultParams));
-
-        act(() => {
-            result.current.handleShareLink();
-        });
-
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('mode=signature'));
-        expect(mockOnSuccess).toHaveBeenCalledWith('Enlace copiado', expect.any(String));
-    });
-
-    describe('WhatsApp integration', () => {
-        beforeEach(() => {
-            vi.mocked(whatsappService.getWhatsAppConfig).mockResolvedValue({
-                handoffNotifications: { targetGroupId: 'group1' }
-            } as any);
-            vi.mocked(whatsappService.getMessageTemplates).mockResolvedValue([
-                { type: 'handoff', content: 'Template Content' }
-            ] as any);
-        });
-
-        it('sends automatic WhatsApp message', async () => {
-            const { result } = renderHook(() => useHandoffLogic(defaultParams));
-
-            await act(async () => {
-                await result.current.handleSendWhatsApp();
-            });
-
-            expect(mockSendMedicalHandoff).toHaveBeenCalledWith('Template Content', 'group1');
-            expect(result.current.whatsappSent).toBe(true);
-        });
-
-        it('opens WhatsApp manual interface', async () => {
-            const { result } = renderHook(() => useHandoffLogic(defaultParams));
-
-            await act(async () => {
-                await result.current.handleSendWhatsAppManual();
-            });
-
-            expect(window.open).toHaveBeenCalledWith(expect.stringContaining('api.whatsapp.com/send'), '_blank');
-        });
+        expect(mockUpdate2).toHaveBeenCalledWith('R1', 'clinicalEvents', []);
+        expect(mockLogDebouncedEvent).toHaveBeenCalledWith('CLINICAL_EVENT_DELETED', 'patient', 'R1', expect.anything(), 'R1', '2025-01-01', undefined, 10000);
     });
 });

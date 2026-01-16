@@ -33,6 +33,22 @@ GitHUBHHR
 
 # Testing
 coverage/
+playwright-report/
+test-results/
+
+# Temporary coverage/test output files
+coverage_*.txt
+coverage_*.json
+coverage-report.json
+final_coverage*.txt
+hook_coverage.txt
+useBedOps_coverage.txt
+usePatRow_coverage.txt
+usePatVal_coverage.txt
+test_*.txt
+test_*.json
+tsc_*.txt
+tsc_*.log
 
 # Misc
 .DS_Store

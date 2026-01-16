@@ -31,17 +31,20 @@ describe('useAuditData', () => {
             id: '1',
             action: 'USER_LOGIN',
             userId: 'user1',
-            userEmail: 'user1@test.com',
             timestamp: '2025-01-01T10:00:00Z',
-            recordDate: '2025-01-01'
+            recordDate: '2025-01-01',
+            entityType: 'user',
+            entityId: 'user1',
+            details: {}
         },
         {
             id: '2',
             action: 'PATIENT_ADMITTED',
             userId: 'user1',
-            userEmail: 'user1@test.com',
             timestamp: '2025-01-01T11:00:00Z',
             recordDate: '2025-01-01',
+            entityType: 'patient',
+            entityId: 'R1',
             patientIdentifier: '12345678-9',
             details: { patientName: 'Juan Perez', rut: '12.345.678-9' }
         },
@@ -49,9 +52,10 @@ describe('useAuditData', () => {
             id: '3',
             action: 'PATIENT_DISCHARGED',
             userId: 'user2',
-            userEmail: 'user2@test.com',
             timestamp: '2025-01-02T09:00:00Z',
             recordDate: '2025-01-02',
+            entityType: 'patient',
+            entityId: 'R1',
             patientIdentifier: '98765432-1',
             details: { patientName: 'Maria Lopez', rut: '98.765.432-1' }
         }

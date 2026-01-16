@@ -74,7 +74,7 @@ export const useClinicalData = (
             }
 
             // 3. Diagnosis evolution
-            const pathology = details?.changes?.pathology?.new || details?.pathology;
+            const pathology = (details?.changes?.pathology?.new || details?.pathology) as string | undefined;
             if (pathology) {
                 diagnosisHistory.push({ date: timestamp, pathology });
             }

@@ -19,20 +19,20 @@ import {
 import { db } from '../../firebaseConfig';
 import { TransferRequest, TransferStatus, StatusChange } from '../../types/transfers';
 import { QuestionnaireResponse } from '../../types/transferDocuments';
-import { HOSPITAL_ID, COLLECTIONS } from '../../constants/firestorePaths';
+import { getActiveHospitalId, COLLECTIONS } from '../../constants/firestorePaths';
 
 // Collection paths
 const getTransfersCollection = () => collection(
     db,
     COLLECTIONS.HOSPITALS,
-    HOSPITAL_ID,
+    getActiveHospitalId(),
     'transferRequests'
 );
 
 const getTransferHistoryCollection = () => collection(
     db,
     COLLECTIONS.HOSPITALS,
-    HOSPITAL_ID,
+    getActiveHospitalId(),
     'transferHistory'
 );
 

@@ -28,6 +28,12 @@ export const useDevMetrics = () => {
     useEffect(() => {
         const fetchMetrics = async () => {
             setLoading(true);
+
+            // Default values: Updated 2026-01-11 from actual test run
+            // Run: npx vitest run --coverage
+            let testStats = { total: 1187, passed: 1187, failed: 0, successRate: 100 };
+            let coverage = { statements: 66.94, functions: 59.63, lines: 68.39, branches: 55.53 };
+
             try {
                 // We try to fetch the generated result files. 
                 // Note: These must be available to the dev server.
@@ -35,9 +41,6 @@ export const useDevMetrics = () => {
                     fetch('/test_results_current.json'),
                     fetch('/coverage_current.json')
                 ]);
-
-                let testStats = { total: 820, passed: 820, failed: 0, successRate: 100 };
-                let coverage = { statements: 57.33, functions: 48.93, lines: 58.67, branches: 48.0 };
 
                 if (resultsRes.status === 'fulfilled' && resultsRes.value.ok) {
                     const data = await resultsRes.value.json();
@@ -49,31 +52,42 @@ export const useDevMetrics = () => {
                     };
                 }
 
-                // Calculate health score based on coverage and tests
-                // S: 100% tests + > 80% coverage
-                // A: 100% tests + > 60% coverage
-                // B: > 95% tests + > 50% coverage
-                // C: > 90% tests + > 40% coverage
-                let healthScore: DevMetrics['healthScore'] = 'C';
-                if (testStats.successRate === 100) {
-                    if (coverage.statements >= 80) healthScore = 'S';
-                    else if (coverage.statements >= 60) healthScore = 'A';
-                    else if (coverage.statements >= 30) healthScore = 'B'; // B if tests pass but coverage is low
-                } else if (testStats.successRate > 95) {
-                    healthScore = 'B';
+                if (coverageRes.status === 'fulfilled' && coverageRes.value.ok) {
+                    const data = await coverageRes.value.json();
+                    if (data.total) {
+                        coverage = {
+                            statements: data.total.statements?.pct ?? coverage.statements,
+                            functions: data.total.functions?.pct ?? coverage.functions,
+                            lines: data.total.lines?.pct ?? coverage.lines,
+                            branches: data.total.branches?.pct ?? coverage.branches
+                        };
+                    }
                 }
-
-                setMetrics({
-                    testStats,
-                    coverage,
-                    healthScore,
-                    lastRun: new Date().toISOString()
-                });
             } catch (error) {
-                console.warn('Failed to fetch dev metrics, using defaults', error);
-            } finally {
-                setLoading(false);
+                console.warn('[DevMetrics] Using default values', error);
             }
+
+            // Calculate health score based on coverage and tests
+            // S: 100% tests + > 80% coverage
+            // A: 100% tests + > 60% coverage
+            // B: > 95% tests + > 50% coverage
+            // C: > 90% tests + > 40% coverage
+            let healthScore: DevMetrics['healthScore'] = 'C';
+            if (testStats.successRate === 100) {
+                if (coverage.statements >= 80) healthScore = 'S';
+                else if (coverage.statements >= 60) healthScore = 'A';
+                else if (coverage.statements >= 30) healthScore = 'B';
+            } else if (testStats.successRate > 95) {
+                healthScore = 'B';
+            }
+
+            setMetrics({
+                testStats,
+                coverage,
+                healthScore,
+                lastRun: new Date().toISOString()
+            });
+            setLoading(false);
         };
 
         fetchMetrics();

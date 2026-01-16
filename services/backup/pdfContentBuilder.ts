@@ -247,7 +247,7 @@ export const buildHandoffPdfContent = async (
             5: { cellWidth: 'auto' }
         },
         margin: { left: margin, right: margin },
-        didDrawCell: (data) => {
+        didDrawCell: (data: any) => {
             if (data.section === 'body' && data.row.index > 0) {
                 doc.setDrawColor(220, 220, 220);
                 doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);

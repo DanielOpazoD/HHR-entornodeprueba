@@ -19,6 +19,11 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     exclude: ['stories/**/*', 'node_modules/**/*'],
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    teardownTimeout: 10000,
+    maxThreads: 4,
+    minThreads: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

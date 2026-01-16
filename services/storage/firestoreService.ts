@@ -21,7 +21,8 @@ import {
     HOSPITAL_ID,
     COLLECTIONS,
     HOSPITAL_COLLECTIONS,
-    SETTINGS_DOCS
+    SETTINGS_DOCS,
+    getActiveHospitalId
 } from '../../constants/firestorePaths';
 
 // Get collection reference using typed constants
@@ -109,12 +110,24 @@ const docToRecord = (docData: Record<string, unknown>, docId: string): DailyReco
     }
 
     // 1.5 Pre-process arrays that might be returned as objects by Firestore (indexed updates)
-    // This is crucial because Zod expects clean arrays, but Firestore might return {0: "Name"}
     rawData.nurses = ensureArray(rawData.nurses, 2);
     rawData.nursesDayShift = ensureArray(rawData.nursesDayShift, 2);
     rawData.nursesNightShift = ensureArray(rawData.nursesNightShift, 2);
     rawData.tensDayShift = ensureArray(rawData.tensDayShift, 3);
     rawData.tensNightShift = ensureArray(rawData.tensNightShift, 3);
+
+    const nursesArr = rawData.nurses as string[];
+    const dayShiftArr = rawData.nursesDayShift as string[];
+
+    // MIGRATION: If new shifts are empty but old 'nurses' has data, copy it.
+    if (nursesArr.length > 0 && dayShiftArr.every(n => !n)) {
+        rawData.nursesDayShift = [...nursesArr];
+    }
+    // MIGRATION: If nurseName (single string) is present but shift 0 is empty
+    if (typeof rawData.nurseName === 'string' && rawData.nurseName && !dayShiftArr[0]) {
+        (rawData.nursesDayShift as string[])[0] = rawData.nurseName;
+    }
+
     rawData.activeExtraBeds = Array.isArray(rawData.activeExtraBeds) ? rawData.activeExtraBeds : [];
 
     // 2. Use Zod to validate and apply defaults (soft validation)
@@ -294,7 +307,7 @@ export const updateRecordPartial = async (date: string, partialData: Partial<Dai
             lastUpdated: Timestamp.now()
         });
 
-        await withRetry(() => updateDoc(docRef, sanitizedData as Record<string, unknown>), {
+        await withRetry(() => updateDoc(docRef, sanitizedData as any), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
         });
         console.log('✅ Partial update to Firestore (flattened):', date, Object.keys(flatData));
@@ -402,8 +415,8 @@ export const subscribeToRecord = (
 export const isFirestoreAvailable = async (): Promise<boolean> => {
     try {
         // Try a simple read operation
-        const docRef = doc(db, 'hospitals', HOSPITAL_ID);
-        await getDoc(docRef);
+        const docRef = doc(db, 'hospitals', getActiveHospitalId());
+        await getDoc(docRef); // Reverted to original getDoc as partialData was undefined
         return true;
     } catch (error) {
         return false;
@@ -419,7 +432,7 @@ export const isFirestoreAvailable = async (): Promise<boolean> => {
  */
 export const getNurseCatalogFromFirestore = async (): Promise<string[]> => {
     try {
-        const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -438,7 +451,7 @@ export const getNurseCatalogFromFirestore = async (): Promise<string[]> => {
  */
 export const saveNurseCatalogToFirestore = async (nurses: string[]): Promise<void> => {
     try {
-        const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
         await withRetry(() => setDoc(docRef, {
             list: nurses,
             lastUpdated: new Date().toISOString()
@@ -454,7 +467,7 @@ export const saveNurseCatalogToFirestore = async (nurses: string[]): Promise<voi
  * Subscribe to nurse catalog changes in real-time
  */
 export const subscribeToNurseCatalog = (callback: (nurses: string[]) => void): (() => void) => {
-    const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
+    const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
     console.log('[Firestore] Setting up nurse catalog subscription...');
 
     return onSnapshot(docRef, (docSnap) => {
@@ -486,7 +499,7 @@ export const subscribeToNurseCatalog = (callback: (nurses: string[]) => void): (
  */
 export const getTensCatalogFromFirestore = async (): Promise<string[]> => {
     try {
-        const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -505,7 +518,7 @@ export const getTensCatalogFromFirestore = async (): Promise<string[]> => {
  */
 export const saveTensCatalogToFirestore = async (tens: string[]): Promise<void> => {
     try {
-        const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
         await withRetry(() => setDoc(docRef, {
             list: tens,
             lastUpdated: new Date().toISOString()
@@ -521,7 +534,7 @@ export const saveTensCatalogToFirestore = async (tens: string[]): Promise<void> 
  * Subscribe to TENS catalog changes in real-time
  */
 export const subscribeToTensCatalog = (callback: (tens: string[]) => void): (() => void) => {
-    const docRef = doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
+    const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
     console.log('[Firestore] Setting up TENS catalog subscription...');
 
     return onSnapshot(docRef, (docSnap) => {
@@ -554,7 +567,7 @@ export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
         const trashRef = doc(
             db,
             COLLECTIONS.HOSPITALS,
-            HOSPITAL_ID,
+            getActiveHospitalId(),
             HOSPITAL_COLLECTIONS.DELETED_RECORDS,
             `${record.date}_trash_${new Date().getTime()}`
         );

@@ -1,35 +1,37 @@
-/**
- * Tests for Movement Counters (Altas, Traslados, Hospitalizaciones Diurnas)
- * Verifies that the counters for discharges, transfers, and CMA are correct.
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePatientDischarges } from '../../hooks/usePatientDischarges';
 import { usePatientTransfers } from '../../hooks/usePatientTransfers';
 import { useCMA } from '../../hooks/useCMA';
-import { DailyRecord, PatientData } from '../../types';
+import { DailyRecord, PatientData, Specialty, PatientStatus } from '../../types';
 
 // Mock audit service
 vi.mock('../../services/admin/auditService', () => ({
-    logPatientDischarge: vi.fn(),
-    logPatientTransfer: vi.fn(),
-    logPatientAdmission: vi.fn(),
+    logPatientDischarge: vi.fn().mockResolvedValue(undefined),
+    logPatientTransfer: vi.fn().mockResolvedValue(undefined),
+    logAuditEvent: vi.fn().mockResolvedValue(undefined),
+    AUDIT_ACTION_LABELS: {},
 }));
 
-// Helper to create a mock patient
 const createMockPatient = (name: string, bedId: string): PatientData => ({
     bedId,
     patientName: name,
     rut: '12345678-9',
     pathology: 'Test Diagnosis',
-    age: 30,
-    insurance: 'FONASA',
-    origin: 'Isla de Pascua',
+    age: '30',
+    insurance: 'Fonasa',
+    origin: 'Residente',
     isRapanui: true,
     bedMode: 'Cama',
     hasCompanionCrib: false,
     isBlocked: false,
+    admissionDate: '2024-01-01',
+    specialty: Specialty.MEDICINA,
+    status: PatientStatus.ESTABLE,
+    hasWristband: true,
+    devices: [],
+    surgicalComplication: false,
+    isUPC: false,
 });
 
 // Helper to create mock record with patients
@@ -38,7 +40,23 @@ const createMockRecord = (dischargesCount = 0, transfersCount = 0, cmaCount = 0)
     beds: {
         'bed-1': createMockPatient('Paciente 1', 'bed-1'),
         'bed-2': createMockPatient('Paciente 2', 'bed-2'),
-        'bed-3': { bedId: 'bed-3', patientName: '', bedMode: 'Cama', hasCompanionCrib: false, isBlocked: false } as PatientData,
+        'bed-3': {
+            bedId: 'bed-3',
+            patientName: '',
+            rut: '',
+            age: '',
+            admissionDate: '',
+            pathology: '',
+            specialty: Specialty.EMPTY,
+            status: PatientStatus.EMPTY,
+            hasWristband: false,
+            devices: [],
+            surgicalComplication: false,
+            isUPC: false,
+            bedMode: 'Cama',
+            hasCompanionCrib: false,
+            isBlocked: false
+        } as PatientData,
     },
     discharges: Array(dischargesCount).fill(null).map((_, i) => ({
         id: `discharge-${i}`,
@@ -46,6 +64,8 @@ const createMockRecord = (dischargesCount = 0, transfersCount = 0, cmaCount = 0)
         bedName: 'Cama X',
         bedType: 'Adulto',
         patientName: `Alta ${i}`,
+        rut: '12345678-k',
+        diagnosis: 'Test Diagnosis',
         status: 'Vivo' as const,
         time: '10:00',
         isNested: false,
@@ -56,6 +76,8 @@ const createMockRecord = (dischargesCount = 0, transfersCount = 0, cmaCount = 0)
         bedName: 'Cama X',
         bedType: 'Adulto',
         patientName: `Traslado ${i}`,
+        rut: '12345678-k',
+        diagnosis: 'Test Diagnosis',
         evacuationMethod: 'Avión Comercial',
         receivingCenter: 'Hospital Santiago',
         time: '10:00',
@@ -63,11 +85,13 @@ const createMockRecord = (dischargesCount = 0, transfersCount = 0, cmaCount = 0)
     })),
     cma: Array(cmaCount).fill(null).map((_, i) => ({
         id: `cma-${i}`,
+        bedName: 'CMA-1',
         patientName: `CMA ${i}`,
         rut: '11111111-1',
-        procedure: 'Procedimiento',
-        age: 40,
-        insurance: 'FONASA',
+        diagnosis: 'Test Diagnosis',
+        specialty: 'Medicina',
+        interventionType: 'Cirugía Mayor Ambulatoria',
+        age: '40',
     })),
     lastUpdated: new Date().toISOString(),
     nurses: ['Nurse 1', 'Nurse 2'],
@@ -75,7 +99,7 @@ const createMockRecord = (dischargesCount = 0, transfersCount = 0, cmaCount = 0)
 });
 
 describe('Movement Counters', () => {
-    let saveAndUpdate: ReturnType<typeof vi.fn>;
+    let saveAndUpdate: any;
     let lastSavedRecord: DailyRecord | null;
 
     beforeEach(() => {
@@ -191,9 +215,11 @@ describe('Movement Counters', () => {
                 result.current.addCMA({
                     patientName: 'Nuevo CMA',
                     rut: '99999999-9',
-                    procedure: 'Procedimiento Test',
-                    age: 25,
-                    insurance: 'FONASA',
+                    diagnosis: 'Procedimiento Test',
+                    age: '25',
+                    specialty: 'Medicina',
+                    bedName: 'CMA-1',
+                    interventionType: 'Cirugía Mayor Ambulatoria'
                 });
             });
 
@@ -215,27 +241,6 @@ describe('Movement Counters', () => {
             });
 
             expect(lastSavedRecord?.cma.length).toBe(2);
-        });
-    });
-
-    describe('Combined Counters', () => {
-        it('should maintain independent counts for all movement types', () => {
-            const record = createMockRecord(2, 3, 4);
-
-            expect(record.discharges.length).toBe(2);
-            expect(record.transfers.length).toBe(3);
-            expect(record.cma.length).toBe(4);
-        });
-
-        it('should correctly calculate total movements', () => {
-            const record = createMockRecord(2, 3, 4);
-
-            const totalMovements =
-                record.discharges.length +
-                record.transfers.length +
-                record.cma.length;
-
-            expect(totalMovements).toBe(9);
         });
     });
 });

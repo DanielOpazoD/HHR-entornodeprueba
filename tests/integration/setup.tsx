@@ -14,6 +14,7 @@ import { DemoModeProvider } from '@/context/DemoModeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { AuditProvider } from '@/context/AuditContext';
 import { UIProvider } from '@/context/UIContext';
+import { VersionProvider } from '@/context/VersionContext';
 import { UseUIStateReturn } from '@/hooks/useUIState';
 import { UseModalReturn } from '@/hooks/useModal';
 
@@ -198,15 +199,17 @@ function customRender(
             <QueryClientProvider client={queryClient}>
                 <UIProvider>
                     <AuthProvider>
-                        <AuditProvider userId="test-user">
-                            <DemoModeProvider>
-                                <StaffProvider>
-                                    <DailyRecordProvider value={mockContext}>
-                                        {children}
-                                    </DailyRecordProvider>
-                                </StaffProvider>
-                            </DemoModeProvider>
-                        </AuditProvider>
+                        <VersionProvider>
+                            <AuditProvider userId="test-user">
+                                <DemoModeProvider>
+                                    <StaffProvider>
+                                        <DailyRecordProvider value={mockContext}>
+                                            {children}
+                                        </DailyRecordProvider>
+                                    </StaffProvider>
+                                </DemoModeProvider>
+                            </AuditProvider>
+                        </VersionProvider>
                     </AuthProvider>
                 </UIProvider>
             </QueryClientProvider>

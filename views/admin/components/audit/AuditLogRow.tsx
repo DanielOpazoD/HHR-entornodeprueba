@@ -1,13 +1,14 @@
 import React from 'react';
 import {
-    ChevronDown, ChevronRight, FileText, GitBranch, LayoutGrid, MapPin
+    ChevronDown, ChevronRight, FileText, GitBranch, LayoutGrid, MapPin, History
 } from 'lucide-react';
 import clsx from 'clsx';
 import { AuditLogEntry, GroupedAuditLogEntry, AuditAction } from '@/types/audit';
-import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
 import {
     formatTimestamp, actionIcons, actionColors, renderHumanDetails
 } from './auditUIUtils';
+import { DiffHighlight } from './DiffHighlight';
+import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
 
 interface AuditLogRowProps {
     log: AuditLogEntry;
@@ -173,73 +174,47 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
                             {(log.action.includes('MODIFIED') || log.details?.changes) && (
                                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                                     <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Comparación de Cambios</span>
+                                        <div className="flex items-center gap-2">
+                                            <History size={14} className="text-indigo-500" />
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auditoría Diferencial</span>
+                                        </div>
                                         <GitBranch size={12} className="text-slate-400" />
                                     </div>
-                                    <div className="p-0 overflow-x-auto">
-                                        <table className="w-full text-[10px]">
-                                            <thead>
-                                                <tr className="bg-slate-50/50 text-slate-400 border-b border-slate-100">
-                                                    <th className="px-4 py-2 text-left font-bold">Campo</th>
-                                                    <th className="px-4 py-2 text-left font-bold bg-rose-50/30 text-rose-700">Valor Anterior</th>
-                                                    <th className="px-4 py-2 text-left font-bold bg-emerald-50/30 text-emerald-700">Valor Nuevo</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {(() => {
-                                                    const details = log.details as any;
-                                                    const changes = details.changes || {};
-                                                    const rows = [];
+                                    <div className="p-4 space-y-4">
+                                        {(() => {
+                                            const details = log.details as any;
+                                            const changes = details.changes || {};
+                                            const renderedFields = [];
 
-                                                    if (Object.keys(changes).length > 0) {
-                                                        for (const field in changes) {
-                                                            rows.push({
-                                                                field,
-                                                                Old: changes[field].old,
-                                                                New: changes[field].new
-                                                            });
-                                                        }
-                                                    }
-                                                    else if (details.oldData || details.newData) {
-                                                        const oldData = details.oldData || {};
-                                                        const newData = details.newData || {};
-                                                        const allKeys = Array.from(new Set([...Object.keys(oldData), ...Object.keys(newData)]));
+                                            if (Object.keys(changes).length > 0) {
+                                                for (const field in changes) {
+                                                    renderedFields.push(
+                                                        <div key={field} className="space-y-1.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">CAMPO:</span>
+                                                                <span className="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase">
+                                                                    {field === 'note' ? 'Nota Clínica' : field === 'novedades' ? 'Novedades' : field}
+                                                                </span>
+                                                            </div>
+                                                            <DiffHighlight
+                                                                oldValue={changes[field].old}
+                                                                newValue={changes[field].new}
+                                                            />
+                                                        </div>
+                                                    );
+                                                }
+                                            }
 
-                                                        allKeys.forEach(key => {
-                                                            if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
-                                                                rows.push({
-                                                                    field: key,
-                                                                    Old: oldData[key],
-                                                                    New: newData[key]
-                                                                });
-                                                            }
-                                                        });
-                                                    }
+                                            if (renderedFields.length === 0) {
+                                                return (
+                                                    <div className="py-8 text-center text-slate-400 italic text-[11px]">
+                                                        No se detectaron cambios estructurales registrados en el log técnico.
+                                                    </div>
+                                                );
+                                            }
 
-                                                    if (rows.length === 0) {
-                                                        return (
-                                                            <tr>
-                                                                <td colSpan={3} className="px-4 py-8 text-center text-slate-400 italic">
-                                                                    No se detectaron cambios estructurales registrados en el log técnico.
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    }
-
-                                                    return rows.map((row, i) => (
-                                                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-4 py-2 font-bold text-slate-500">{row.field}</td>
-                                                            <td className="px-4 py-2 text-rose-600 bg-rose-50/10 font-mono">
-                                                                {typeof row.Old === 'object' ? JSON.stringify(row.Old) : String(row.Old ?? '-')}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-emerald-600 bg-emerald-50/10 font-bold">
-                                                                {typeof row.New === 'object' ? JSON.stringify(row.New) : String(row.New ?? '-')}
-                                                            </td>
-                                                        </tr>
-                                                    ));
-                                                })()}
-                                            </tbody>
-                                        </table>
+                                            return renderedFields;
+                                        })()}
                                     </div>
                                 </div>
                             )}

@@ -7,7 +7,7 @@ import { createWorkbook } from './excelUtils';
  * Generates an Excel workbook for audit logs
  */
 export const generateAuditWorkbook = async (logs: AuditLogEntry[]): Promise<Workbook> => {
-    const workbook = createWorkbook();
+    const workbook = await createWorkbook();
     const sheet = workbook.addWorksheet('Registros de Auditoría');
 
     // Header styling
@@ -57,10 +57,12 @@ export const generateAuditWorkbook = async (logs: AuditLogEntry[]): Promise<Work
     // Auto-fit columns
     sheet.columns.forEach((col) => {
         let maxLen = 0;
-        col.eachCell?.({ includeEmpty: true }, (cell) => {
-            const len = cell.value ? cell.value.toString().length : 0;
-            if (len > maxLen) maxLen = len;
-        });
+        if (col && typeof col.eachCell === 'function') {
+            col.eachCell({ includeEmpty: true }, (cell) => {
+                const len = cell.value ? cell.value.toString().length : 0;
+                if (len > maxLen) maxLen = len;
+            });
+        }
         col.width = Math.min(Math.max(maxLen + 2, 12), 50);
     });
 

@@ -124,8 +124,9 @@ describe('Staff Array Sync Integration', () => {
 
     it('should maintain array integrity when updating nurse selections', () => {
         // Simulate the flow: UI selects nurse -> patchRecord sends complete array
-        const currentRecord = {
-            nursesDayShift: ['', '']
+        const currentRecord: any = {
+            nursesDayShift: ['', ''],
+            nursesNightShift: ['', '']
         };
 
         // Simulating useNurseManagement logic
@@ -149,7 +150,7 @@ describe('Staff Array Sync Integration', () => {
     });
 
     it('should maintain array integrity when updating TENS selections', () => {
-        const currentRecord = {
+        const currentRecord: any = {
             tensDayShift: ['', '', ''],
             tensNightShift: ['', '', '']
         };

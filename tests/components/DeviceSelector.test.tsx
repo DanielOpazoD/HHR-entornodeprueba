@@ -2,7 +2,7 @@
  * DeviceSelector Component Tests
  * Tests for read-only mode display behavior
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { DeviceSelector } from '../../components/DeviceSelector';
 
@@ -23,7 +23,7 @@ describe('DeviceSelector', () => {
                     devices={devices}
                     deviceDetails={{}}
                     onChange={mockOnChange}
-                    onDetailsChange={mockOnDetailsChange}
+                    onDetailsChange={mockOnDetailsChange as any}
                     disabled={true}
                     currentDate="2025-12-25"
                 />

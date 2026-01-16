@@ -232,6 +232,14 @@ service cloud.firestore {
     }
 
     // ============================================
+    // SYSTEM HEALTH
+    // ============================================
+    match /stats/system_health/users/{userId} {
+      allow read: if isAdmin();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ============================================
     // DENY ALL OTHER BY DEFAULT
     // ============================================
     match /{document=**} {

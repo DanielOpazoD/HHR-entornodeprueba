@@ -1,10 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { AnalyticsView } from '@/views/analytics/AnalyticsView';
 import { useCensusLogic } from '@/hooks/useCensusLogic';
 import { useTableConfig } from '@/context/TableConfigContext';
-import { usePatientHistoryQuery } from '@/hooks';
-import { PatientHistoryPanel } from '@/components/patient/PatientHistoryPanel';
 import {
     CensusActionsProvider,
     EmptyDayPrompt,
@@ -61,22 +59,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     const { config } = useTableConfig();
     const marginStyle = { padding: `0 ${config.pageMargin}px` };
 
-    // Patient history panel state
-    const [selectedRut, setSelectedRut] = useState<string | null>(null);
-    const [selectedPatientName, setSelectedPatientName] = useState('');
-    const { data: history, isLoading: historyLoading, error: historyError } = usePatientHistoryQuery(selectedRut);
-    const isHistoryPanelOpen = !!selectedRut;
-
-    const handleViewHistory = useCallback((rut: string, name: string) => {
-        setSelectedPatientName(name);
-        setSelectedRut(rut);
-    }, []);
-
-    const handleCloseHistoryPanel = useCallback(() => {
-        setSelectedRut(null);
-        setSelectedPatientName('');
-    }, []);
-
     // ========== VIEW MODE: ANALYTICS ==========
     if (viewMode === 'ANALYTICS') {
         return (
@@ -124,7 +106,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                         record={record}
                         currentDateString={currentDateString}
                         onResetDay={resetDay}
-                        onViewHistory={handleViewHistory}
                         readOnly={readOnly}
                     />
                 </SectionErrorBoundary>
@@ -138,7 +119,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                     />
                 </SectionErrorBoundary>
 
-                {/* 4. Transfers Section */}
+                {/* 4. Traslados Section */}
                 <SectionErrorBoundary sectionName="Traslados del Día" fallbackHeight="100px">
                     <TransfersSection
                         transfers={record.transfers || []}
@@ -159,16 +140,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                         onCloseBedManagerModal={onCloseBedManagerModal}
                     />
                 )}
-
-                {/* 7. Patient History Panel */}
-                <PatientHistoryPanel
-                    isOpen={isHistoryPanelOpen}
-                    onClose={handleCloseHistoryPanel}
-                    history={history ?? null}
-                    isLoading={historyLoading}
-                    error={historyError instanceof Error ? historyError.message : (historyError as string | null)}
-                    currentPatientName={selectedPatientName}
-                />
             </div>
         </CensusActionsProvider>
     );

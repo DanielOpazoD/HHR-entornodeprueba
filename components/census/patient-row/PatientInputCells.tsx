@@ -2,12 +2,13 @@ import React from 'react';
 import { PatientData, DeviceDetails, Specialty } from '../../../types';
 import { SPECIALTY_OPTIONS, STATUS_OPTIONS } from '../../../constants';
 import clsx from 'clsx';
-import { ArrowRight, Baby } from 'lucide-react';
+import { ArrowRight, Baby, AlertCircle } from 'lucide-react';
 import { DeviceSelector } from '../../DeviceSelector';
 import { DebouncedInput } from '../../ui/DebouncedInput';
 import { RutPassportInput } from './RutPassportInput';
 import { PatientInputSchema } from '../../../schemas/inputSchemas';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';
+import { TerminologySuggestor } from '../../shared/TerminologySuggestor';
 
 interface PatientInputCellsProps {
     data: PatientData;
@@ -21,6 +22,7 @@ interface PatientInputCellsProps {
         deviceDetails: (details: DeviceDetails) => void;
         toggleDocType?: () => void;
         deliveryRoute?: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
+        multiple?: (fields: Partial<PatientData>) => void;
     };
     onDemo: () => void;
     readOnly?: boolean;
@@ -118,19 +120,29 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
                     <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">-</div>
                 ) : (
                     <div className="relative">
-                        <DebouncedInput
-                            type="text"
+                        <TerminologySuggestor
                             className={clsx(
-                                "w-full p-0.5 h-7 border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px]",
+                                "border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7",
                                 !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology }).success && data.pathology
                                     ? "border-red-400 focus:ring-red-200 focus:border-red-500"
                                     : "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
                                 isSubRow && "text-xs h-6",
-                                data.specialty === 'Ginecobstetricia' && "pr-6" // Make room for icon
+                                data.specialty === 'Ginecobstetricia' && "pr-8" // Slightly more room for the icons shift
                             )}
                             placeholder="Diagnóstico"
                             value={data.pathology || ''}
-                            onChange={handleDebouncedText('pathology')}
+                            iconOffset={data.specialty === 'Ginecobstetricia'}
+                            onChange={(text, concept) => {
+                                if (concept && onChange.multiple) {
+                                    onChange.multiple({
+                                        pathology: text,
+                                        cie10Code: concept.code, // CIE-10 is now the primary code
+                                        snomedCode: undefined    // No longer using SNOMED
+                                    });
+                                } else {
+                                    handleDebouncedText('pathology')(text);
+                                }
+                            }}
                             disabled={readOnly}
                         />
                         {/* Delivery Route icon for Ginecobstetricia - inside the input */}
@@ -170,32 +182,45 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
                 )}
             </td>
 
-            {/* Status */}
+            {/* Status - CRITICAL FIELD */}
             <td className="py-0.5 px-1 border-r border-slate-200 w-24">
                 {isEmpty && !isSubRow ? (
                     <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">-</div>
                 ) : (
-                    <select
-                        className={clsx(
-                            "w-full p-0.5 h-7  border border-slate-200 rounded transition-all duration-200 focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 focus:outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer",
-                            data.status === 'Grave' ? "text-red-600 bg-red-50/50" :
-                                data.status === 'De cuidado' ? "text-orange-600 bg-orange-50/50" :
-                                    "text-emerald-700 bg-emerald-50/30",
-                            isSubRow && "h-6"
+                    <div className="relative">
+                        <select
+                            className={clsx(
+                                "w-full p-0.5 h-7 border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer",
+                                // Critical field warning when empty but has patient
+                                !data.status && data.patientName && "border-red-400 border-2 bg-red-50 focus:ring-red-200 focus:border-red-500",
+                                // Normal status colors
+                                data.status === 'Grave' ? "text-red-600 bg-red-50/50 border-slate-200 focus:ring-medical-500/20 focus:border-medical-500" :
+                                    data.status === 'De cuidado' ? "text-orange-600 bg-orange-50/50 border-slate-200 focus:ring-medical-500/20 focus:border-medical-500" :
+                                        data.status ? "text-emerald-700 bg-emerald-50/30 border-slate-200 focus:ring-medical-500/20 focus:border-medical-500" :
+                                            "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
+                                isSubRow && "h-6"
+                            )}
+                            value={data.status || ''}
+                            onChange={handleText('status')}
+                            disabled={readOnly}
+                            title={!data.status && data.patientName ? "Campo crítico requerido para entrega" : undefined}
+                        >
+                            <option value="">-- Est --</option>
+                            {STATUS_OPTIONS.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </select>
+                        {/* Critical field warning icon */}
+                        {!data.status && data.patientName && (
+                            <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center" title="Campo crítico vacío">
+                                <AlertCircle size={8} className="text-white" />
+                            </div>
                         )}
-                        value={data.status || ''}
-                        onChange={handleText('status')}
-                        disabled={readOnly}
-                    >
-                        <option value="">-- Est --</option>
-                        {STATUS_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                    </select>
+                    </div>
                 )}
             </td>
 
-            {/* Admission */}
+            {/* Admission - CRITICAL FIELD */}
             <td className="py-0.5 px-1 border-r border-slate-200 w-28">
                 {isEmpty && !isSubRow ? (
                     <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">-</div>
@@ -213,14 +238,23 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
                             type="date"
                             max={new Date().toISOString().split('T')[0]} // Impossible to have future admission
                             className={clsx(
-                                "w-full p-0.5 h-7  border border-slate-300 rounded focus:ring-2 focus:ring-medical-500 focus:outline-none text-xs",
+                                "w-full p-0.5 h-7 border rounded focus:ring-2 focus:outline-none text-xs",
+                                // Critical field warning when empty but has patient
+                                !data.admissionDate && data.patientName ? "border-red-400 border-2 bg-red-50 focus:ring-red-200 focus:border-red-500" : "border-slate-300 focus:ring-medical-500",
                                 isSubRow && "h-6"
                             )}
                             value={data.admissionDate || ''}
                             onChange={handleDebouncedText('admissionDate')}
                             onClick={() => setShowAdmissionTime(true)}
                             disabled={readOnly}
+                            title={!data.admissionDate && data.patientName ? "Campo crítico requerido para entrega" : undefined}
                         />
+                        {/* Critical field warning icon */}
+                        {!data.admissionDate && data.patientName && (
+                            <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center z-20" title="Campo crítico vacío">
+                                <AlertCircle size={8} className="text-white" />
+                            </div>
+                        )}
                         {showAdmissionTime && (
                             <DebouncedInput
                                 type="time"

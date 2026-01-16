@@ -119,121 +119,131 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                    {/* Column 1: Demographic Info */}
-                    <div className="space-y-6">
-                        <div className="space-y-1.5">
-                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Nacimiento</label>
-                            <input
-                                type="date"
-                                className={clsx(
-                                    "w-full p-2 bg-slate-50 border rounded-lg text-sm focus:ring-2 focus:outline-none transition-all",
-                                    error ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Section 1: Demographic Info */}
+                    <ModalSection
+                        title="Información Básica"
+                        variant="default"
+                    >
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Nacimiento</label>
+                                <input
+                                    type="date"
+                                    className={clsx(
+                                        "w-full p-2 bg-slate-50 border rounded-lg text-sm focus:ring-2 focus:outline-none transition-all",
+                                        error ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                                    )}
+                                    value={localData.birthDate}
+                                    onChange={(e) => {
+                                        setLocalData({ ...localData, birthDate: e.target.value });
+                                        setError(null);
+                                    }}
+                                />
+                                {error ? (
+                                    <p className="text-[9px] text-red-500 mt-1 font-medium pl-1">{error}</p>
+                                ) : localData.birthDate && (
+                                    <p className="text-[10px] text-emerald-600 mt-1 font-semibold pl-1">
+                                        Edad: {calculateFormattedAge(localData.birthDate)}
+                                    </p>
                                 )}
-                                value={localData.birthDate}
-                                onChange={(e) => {
-                                    setLocalData({ ...localData, birthDate: e.target.value });
-                                    setError(null);
-                                }}
-                            />
-                            {error ? (
-                                <p className="text-[9px] text-red-500 mt-1 font-medium pl-1">{error}</p>
-                            ) : localData.birthDate && (
-                                <p className="text-[10px] text-emerald-600 mt-1 font-semibold pl-1">
-                                    Edad: {calculateFormattedAge(localData.birthDate)}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Previsión</label>
-                            <select
-                                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
-                                value={localData.insurance}
-                                onChange={(e) => setLocalData({ ...localData, insurance: e.target.value as any })}
-                            >
-                                <option value="Fonasa">Fonasa</option>
-                                <option value="Isapre">Isapre</option>
-                                <option value="Particular">Particular</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Sexo Biológico</label>
-                            <div className="flex gap-4 pl-1">
-                                {['Masculino', 'Femenino', 'Indeterminado'].map((sex) => (
-                                    <label key={sex} className="flex items-center gap-2 cursor-pointer group">
-                                        <input
-                                            type="radio"
-                                            name="biologicalSex"
-                                            checked={localData.biologicalSex === sex}
-                                            onChange={() => setLocalData({ ...localData, biologicalSex: sex as any })}
-                                            className="w-4 h-4 text-blue-600 focus:ring-blue-500/20"
-                                        />
-                                        <span className={clsx("text-xs transition-colors", localData.biologicalSex === sex ? "font-bold text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
-                                            {sex === 'Indeterminado' ? 'Indet.' : sex.slice(0, 4) + '.'}
-                                        </span>
-                                    </label>
-                                ))}
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Column 2: Origin & Permanence */}
-                    <div className="space-y-6">
-                        <div className="space-y-1.5">
-                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen del Ingreso</label>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Previsión</label>
                                 <select
                                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
-                                    value={localData.admissionOrigin}
-                                    onChange={(e) => setLocalData({ ...localData, admissionOrigin: e.target.value as any })}
+                                    value={localData.insurance}
+                                    onChange={(e) => setLocalData({ ...localData, insurance: e.target.value as any })}
                                 >
-                                    <option value="">-- Seleccionar --</option>
-                                    {ADMISSION_ORIGIN_OPTIONS.map(opt => (
-                                        <option key={opt} value={opt}>{opt}</option>
-                                    ))}
+                                    <option value="Fonasa">Fonasa</option>
+                                    <option value="Isapre">Isapre</option>
+                                    <option value="Particular">Particular</option>
                                 </select>
-                                {localData.admissionOrigin === 'Otro' && (
-                                    <input
-                                        type="text"
-                                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all mt-1 shadow-sm"
-                                        placeholder="Especifique origen..."
-                                        value={localData.admissionOriginDetails}
-                                        onChange={(e) => setLocalData({ ...localData, admissionOriginDetails: e.target.value })}
-                                        autoFocus
-                                    />
-                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Sexo Biológico</label>
+                                <div className="flex gap-4 pl-1">
+                                    {['Masculino', 'Femenino', 'Indeterminado'].map((sex) => (
+                                        <label key={sex} className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                                type="radio"
+                                                name="biologicalSex"
+                                                checked={localData.biologicalSex === sex}
+                                                onChange={() => setLocalData({ ...localData, biologicalSex: sex as any })}
+                                                className="w-4 h-4 text-blue-600 focus:ring-blue-500/20"
+                                            />
+                                            <span className={clsx("text-xs transition-colors", localData.biologicalSex === sex ? "font-bold text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
+                                                {sex === 'Indeterminado' ? 'Indet.' : sex.slice(0, 4) + '.'}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                         </div>
+                    </ModalSection>
 
-                        <div className="space-y-1.5">
-                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Condición de Permanencia</label>
-                            <select
-                                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
-                                value={localData.origin}
-                                onChange={(e) => setLocalData({ ...localData, origin: e.target.value as any })}
-                            >
-                                <option value="Residente">Residente</option>
-                                <option value="Turista Nacional">Turista Nacional</option>
-                                <option value="Turista Extranjero">Turista Extranjero</option>
-                            </select>
-                        </div>
+                    {/* Section 2: Origin & Permanence */}
+                    <ModalSection
+                        title="Origen y Permanencia"
+                        variant="info"
+                    >
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen del Ingreso</label>
+                                <div className="space-y-2">
+                                    <select
+                                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
+                                        value={localData.admissionOrigin}
+                                        onChange={(e) => setLocalData({ ...localData, admissionOrigin: e.target.value as any })}
+                                    >
+                                        <option value="">-- Seleccionar --</option>
+                                        {ADMISSION_ORIGIN_OPTIONS.map(opt => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
+                                    {localData.admissionOrigin === 'Otro' && (
+                                        <input
+                                            type="text"
+                                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all mt-1 shadow-sm"
+                                            placeholder="Especifique origen..."
+                                            value={localData.admissionOriginDetails}
+                                            onChange={(e) => setLocalData({ ...localData, admissionOriginDetails: e.target.value })}
+                                            autoFocus
+                                        />
+                                    )}
+                                </div>
+                            </div>
 
-                        <div className="pt-2">
-                            <label className="flex items-center gap-2 cursor-pointer group p-1">
-                                <input
-                                    type="checkbox"
-                                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500/30"
-                                    checked={localData.isRapanui}
-                                    onChange={(e) => setLocalData({ ...localData, isRapanui: e.target.checked })}
-                                />
-                                <span className="text-xs text-slate-600 font-semibold group-hover:text-slate-800 transition-colors">
-                                    Pertenencia Rapanui
-                                </span>
-                            </label>
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Condición de Permanencia</label>
+                                <select
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
+                                    value={localData.origin}
+                                    onChange={(e) => setLocalData({ ...localData, origin: e.target.value as any })}
+                                >
+                                    <option value="Residente">Residente</option>
+                                    <option value="Turista Nacional">Turista Nacional</option>
+                                    <option value="Turista Extranjero">Turista Extranjero</option>
+                                </select>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="flex items-center gap-2 cursor-pointer group p-1">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500/30"
+                                        checked={localData.isRapanui}
+                                        onChange={(e) => setLocalData({ ...localData, isRapanui: e.target.checked })}
+                                    />
+                                    <span className="text-xs text-slate-600 font-semibold group-hover:text-slate-800 transition-colors">
+                                        Pertenencia Rapanui
+                                    </span>
+                                </label>
+                            </div>
                         </div>
-                    </div>
+                    </ModalSection>
                 </div>
 
                 {/* Footer Actions - Standard Clean Style */}

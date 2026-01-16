@@ -57,6 +57,30 @@ export interface CudyrScore {
     invasiveElements: number;
 }
 
+/**
+ * Clinical Event - Tracks procedures, surgeries, cultures, etc.
+ * Persists across days while patient is hospitalized
+ */
+export interface ClinicalEvent {
+    id: string;           // UUID
+    name: string;         // Event name (free text)
+    date: string;         // ISO date string
+    note?: string;        // Optional additional note
+    createdAt: string;    // ISO timestamp when created
+}
+
+/**
+ * Basic FHIR Resource structure for Core-CL compatibility
+ */
+export interface FhirResource {
+    resourceType: string;
+    id?: string;
+    meta?: {
+        profile?: string[];
+    };
+    [key: string]: any; // Allow full FHIR properties
+}
+
 export interface PatientData {
     bedId: string;
     isBlocked: boolean;
@@ -84,6 +108,8 @@ export interface PatientData {
 
     isRapanui?: boolean;
     pathology: string;
+    snomedCode?: string; // Standardized SNOMED CT code
+    cie10Code?: string; // Standardized CIE-10 code
     diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
     specialty: Specialty;
     status: PatientStatus;
@@ -107,9 +133,15 @@ export interface PatientData {
     // Medical Handoff
     medicalHandoffNote?: string;
 
+    // Clinical Events (procedures, surgeries, cultures, etc.)
+    clinicalEvents?: ClinicalEvent[];
+
     // Obstetric delivery tracking (Ginecobstetricia only)
     deliveryRoute?: 'Vaginal' | 'Cesárea';
     deliveryDate?: string; // ISO date string
+
+    // HL7 FHIR Core-CL Resource (Optional for dual-mode sync)
+    fhir_resource?: FhirResource;
 }
 
 /**
@@ -199,8 +231,10 @@ export interface DailyRecord {
     dateTimestamp?: number;
     /** Version of the data structure, used to prevent corruption from old clients */
     schemaVersion?: number;
-    nurses: string[]; // Legacy
-    nurseName?: string; // Legacy
+    /** @deprecated Use nursesDayShift / nursesNightShift instead. Maintained for legacy sync support. */
+    nurses: string[];
+    /** @deprecated Use nursesDayShift[0]. Maintained for legacy sync support. */
+    nurseName?: string;
     nursesDayShift?: string[]; // Turno Largo nurses
     nursesNightShift?: string[]; // Turno Noche nurses
     tensDayShift?: string[]; // Turno Largo TENS (max 3)

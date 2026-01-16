@@ -9,6 +9,8 @@ describe('IntegrityGuard', () => {
         discharges: [],
         transfers: [],
         cma: [],
+        nurses: ["", ""],
+        activeExtraBeds: [],
         lastUpdated: new Date().toISOString(),
     });
 

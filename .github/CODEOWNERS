@@ -1,0 +1,39 @@
+# CODEOWNERS - Defines code review requirements for this repository
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: All changes require review from the project maintainer
+* @d-opazo
+
+# Core application files require admin review
+/App.tsx @d-opazo
+/firebaseConfig.ts @d-opazo
+/firestore.rules @d-opazo
+/storage.rules @d-opazo
+
+# Security-sensitive files require explicit admin approval
+/services/admin/ @d-opazo
+/services/auth/ @d-opazo
+/services/security/ @d-opazo
+/context/AuthContext.tsx @d-opazo
+
+# Critical infrastructure
+/services/infrastructure/ @d-opazo
+/services/repositories/ @d-opazo
+
+# Serverless functions
+/netlify/functions/ @d-opazo
+/functions/ @d-opazo
+
+# Schema changes (affects data validation)
+/schemas/ @d-opazo
+/types/ @d-opazo
+
+# Build and deployment configuration
+/vite.config.ts @d-opazo
+/netlify.toml @d-opazo
+/firebase.json @d-opazo
+/.github/ @d-opazo
+
+# Package dependencies
+/package.json @d-opazo
+/package-lock.json @d-opazo

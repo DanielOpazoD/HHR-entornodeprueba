@@ -25,12 +25,12 @@ class HangaRoaDatabase extends Dexie {
     constructor() {
         super('HangaRoaDB');
 
-        this.version(4).stores({
+        this.version(5).stores({
             dailyRecords: 'date',
             demoRecords: 'date',
             catalogs: 'id',
             errorLogs: 'id, timestamp, severity',
-            auditLogs: 'id, timestamp, action, entityId',
+            auditLogs: 'id, timestamp, action, entityId, recordDate',
             settings: 'id'
         });
     }
@@ -571,6 +571,24 @@ export const getSetting = async <T>(id: string, defaultValue: T): Promise<T> => 
     } catch (e) {
         console.error(`[IndexedDB] Failed to get setting ${id}:`, e);
         return defaultValue;
+    }
+};
+
+export const clearCatalog = async (catalogId: string): Promise<void> => {
+    try {
+        await ensureDbReady();
+        await db.catalogs.delete(catalogId);
+    } catch (err) {
+        console.error(`Failed to clear catalog ${catalogId}:`, err);
+    }
+};
+
+export const clearAllSettings = async (): Promise<void> => {
+    try {
+        await ensureDbReady();
+        await db.settings.clear();
+    } catch (err) {
+        console.error('[IndexedDB] Failed to clear all settings:', err);
     }
 };
 

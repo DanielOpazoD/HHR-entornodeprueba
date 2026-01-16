@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, History } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PatientActionMenuProps {
     isBlocked: boolean;
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => void;
     onViewDemographics: () => void;
-    onViewHistory?: () => void;
+    onViewExamRequest?: () => void;
     readOnly?: boolean;
     align?: 'top' | 'bottom';
     hasPatient?: boolean;
@@ -16,7 +16,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     isBlocked,
     onAction,
     onViewDemographics,
-    onViewHistory,
+    onViewExamRequest,
     readOnly = false,
     align = 'top',
     hasPatient = false
@@ -41,15 +41,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                     >
                         <User size={16} />
                     </button>
-                    {hasPatient && onViewHistory && (
-                        <button
-                            onClick={onViewHistory}
-                            className="p-1 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
-                            title="Ver Historial"
-                        >
-                            <History size={14} />
-                        </button>
-                    )}
                 </div>
             )}
             {!readOnly && (
@@ -88,6 +79,20 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                                 <button onClick={() => handleMenuAction('transfer')} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-blue-700 font-medium">
                                     <Ambulance size={14} /> Trasladar
                                 </button>
+                                {onViewExamRequest && (
+                                    <>
+                                        <div className="h-px bg-slate-100 my-1"></div>
+                                        <button
+                                            onClick={() => {
+                                                onViewExamRequest();
+                                                setShowMenu(false);
+                                            }}
+                                            className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium"
+                                        >
+                                            <FileText size={14} className="text-medical-500" /> Solicitud de Exámenes
+                                        </button>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>

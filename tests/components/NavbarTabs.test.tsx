@@ -11,7 +11,9 @@ describe('NavbarTabs', () => {
     const defaultProps = {
         currentModule: 'CENSUS' as const,
         onModuleChange: vi.fn(),
-        visibleModules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'] as const
+        visibleModules: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF'] as const,
+        censusViewMode: 'REGISTER' as const,
+        setCensusViewMode: vi.fn()
     };
 
     beforeEach(() => {
@@ -33,7 +35,7 @@ describe('NavbarTabs', () => {
         const menuBtn = screen.getByTitle('Más módulos');
         fireEvent.click(menuBtn);
 
-        expect(screen.getByText('Estadísticas CUDYR')).toBeInTheDocument();
+        expect(screen.getByText('Estadística')).toBeInTheDocument();
     });
 
     it('does not render hidden tabs', () => {
@@ -46,11 +48,13 @@ describe('NavbarTabs', () => {
     it('calls onModuleChange when tab is clicked', () => {
         render(<NavbarTabs {...defaultProps} />);
 
-        // Open dropdown for CUDYR
+        // Open dropdown for Estadística
         fireEvent.click(screen.getByTitle('Más módulos'));
-        fireEvent.click(screen.getByText('Estadísticas CUDYR'));
+        fireEvent.click(screen.getByText('Estadística'));
 
-        expect(defaultProps.onModuleChange).toHaveBeenCalledWith('CUDYR');
+        // It should call setCensusViewMode('ANALYTICS') if not in CENSUS
+        // But since default is CENSUS, it toggles
+        expect(defaultProps.setCensusViewMode).toHaveBeenCalled();
     });
 
     it('applies active style to current module', () => {

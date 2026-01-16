@@ -11,7 +11,7 @@
 export { CensusView } from './census/CensusView';
 export { CudyrView } from './cudyr/CudyrView';
 export { HandoffView } from './handoff/HandoffView';
-export { ReportsView } from './reports/ReportsView';
+// export { ReportsView } from './reports/ReportsView';
 export { AnalyticsView } from './analytics/AnalyticsView';
 export { AuditView } from './admin/AuditView';
 export { MedicalSignatureView } from './admin/MedicalSignatureView';

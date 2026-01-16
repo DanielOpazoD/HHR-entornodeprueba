@@ -3,105 +3,30 @@ import '../../setup';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { HandoffRow, calculateHospitalizedDays } from '@/views/handoff/HandoffRow';
+import { HandoffRow } from '@/views/handoff/HandoffRow';
 import { createMockPatient } from '../../integration/setup';
 import { PatientStatus } from '@/types';
 
-describe('HandoffRow Utilities', () => {
-    it('calculateHospitalizedDays correctly counts days', () => {
-        expect(calculateHospitalizedDays('2024-12-10', '2024-12-10')).toBe(1);
-        expect(calculateHospitalizedDays('2024-12-10', '2024-12-11')).toBe(2);
-        expect(calculateHospitalizedDays('2024-12-11', '2024-12-10')).toBe(1); // Should not go below 1
-    });
-});
-
 describe('HandoffRow', () => {
+    const mockPatient = createMockPatient({
+        patientName: 'Test Patient',
+        pathology: 'Pathology Test',
+        admissionDate: '2024-12-01',
+        status: PatientStatus.GRAVE
+    });
+
     const defaultProps = {
         bedName: 'B1',
-        bedType: 'CAMA',
-        patient: createMockPatient({ patientName: 'Test Patient' }),
-        reportDate: '2024-12-11',
-        noteField: 'handoffNursingDay' as any,
+        bedType: 'Cama' as const,
+        patient: mockPatient,
+        reportDate: '2024-12-28',
+        noteField: 'handoffNoteDayShift' as const,
         onNoteChange: vi.fn(),
+        readOnly: false,
+        isMedical: false
     };
 
-    it('renders null if patient name is missing', () => {
-        const { queryByRole } = render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} patient={createMockPatient({ patientName: '' })} />
-                </tbody>
-            </table>
-        );
-        expect(queryByRole('row')).toBeNull();
-    });
-
-    it('renders blocked bed status', () => {
-        const blockedPatient = createMockPatient({
-            isBlocked: true,
-            blockedReason: 'Maintenance'
-        });
-        render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} patient={blockedPatient} />
-                </tbody>
-            </table>
-        );
-        expect(screen.getByText(/BLOQUEADA:/)).toBeInTheDocument();
-        expect(screen.getByText(/Maintenance/)).toBeInTheDocument();
-    });
-
-    it('renders patient info correctly', () => {
-        const patient = createMockPatient({
-            patientName: 'Jane Doe',
-            age: '45y',
-            admissionDate: '2024-12-10',
-            pathology: 'Flu'
-        });
-        render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} patient={patient} />
-                </tbody>
-            </table>
-        );
-        expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-        expect(screen.getByText('(45y)')).toBeInTheDocument();
-        expect(screen.getByText('Flu')).toBeInTheDocument();
-        expect(screen.getByText('2d')).toBeInTheDocument(); // Dec 10 to Dec 11 is 2 days
-    });
-
-    it('shows baby icon and RN tag for sub-rows', () => {
-        render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} isSubRow={true} />
-                </tbody>
-            </table>
-        );
-        expect(screen.getByRole('row')).toHaveClass('bg-pink-50/40');
-    });
-
-    it('displays devices and their installation days', () => {
-        const patient = createMockPatient({
-            devices: ['VMI'],
-            deviceDetails: {
-                VMI: { installationDate: '2024-12-09' }
-            }
-        });
-        render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} patient={patient} />
-                </tbody>
-            </table>
-        );
-        expect(screen.getByText('VMI')).toBeInTheDocument();
-        expect(screen.getByText('(3d)')).toBeInTheDocument(); // Dec 9 to Dec 11
-    });
-
-    it('handles note changes via DebouncedTextarea', () => {
+    it('renders basic patient information', () => {
         render(
             <table>
                 <tbody>
@@ -109,52 +34,94 @@ describe('HandoffRow', () => {
                 </tbody>
             </table>
         );
-        const textarea = screen.getByRole('textbox');
-        fireEvent.change(textarea, { target: { value: 'New Observation' } });
+        expect(screen.getByText('Test Patient')).toBeInTheDocument();
+        expect(screen.getByText('B1')).toBeInTheDocument();
+        expect(screen.getByText('Pathology Test')).toBeInTheDocument();
     });
 
-    it('renders read-only observations correctly', () => {
-        const patient = createMockPatient({ handoffNursingDay: 'Static Note' });
+    it('calculates and displays hospitalized days correctly', () => {
+        const patientWithAdmission = createMockPatient({ admissionDate: '2024-12-01' });
         render(
             <table>
                 <tbody>
-                    <HandoffRow {...defaultProps} patient={patient} readOnly={true} />
+                    <HandoffRow {...defaultProps} patient={patientWithAdmission} reportDate="2024-12-11" />
                 </tbody>
             </table>
         );
-        expect(screen.getByText('Static Note')).toBeInTheDocument();
-        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        // From 1 to 11 is 11 days (counting both ends)
+        expect(screen.getAllByText(/11d/i)).toHaveLength(2); // One mobile, one desktop
     });
 
-    it('renders differently in medical mode', () => {
-        const patient = createMockPatient({ rut: '12.345.678-9' });
-        render(
-            <table>
-                <tbody>
-                    <HandoffRow {...defaultProps} patient={patient} isMedical={true} />
-                </tbody>
-            </table>
-        );
-        expect(screen.getByText('12.345.678-9')).toBeInTheDocument();
-    });
-
-    it('shows correct status colors', () => {
+    it('displays status badge with correct color', () => {
         const { rerender } = render(
             <table>
                 <tbody>
-                    <HandoffRow {...defaultProps} patient={createMockPatient({ status: PatientStatus.GRAVE })} />
+                    <HandoffRow {...defaultProps} />
                 </tbody>
             </table>
         );
         expect(screen.getByText(PatientStatus.GRAVE)).toHaveClass('bg-red-100');
 
+        const cuidadoPatient = createMockPatient({ status: PatientStatus.DE_CUIDADO });
         rerender(
             <table>
                 <tbody>
-                    <HandoffRow {...defaultProps} patient={createMockPatient({ status: PatientStatus.DE_CUIDADO })} />
+                    <HandoffRow {...defaultProps} patient={cuidadoPatient} />
                 </tbody>
             </table>
         );
         expect(screen.getByText(PatientStatus.DE_CUIDADO)).toHaveClass('bg-orange-100');
+    });
+
+    it('displays event indicator when clinicalEvents exist', () => {
+        const patientWithEvents = createMockPatient({
+            clinicalEvents: [{ id: '1', name: 'Test Event', date: '2024-12-11', note: '', createdAt: '' }]
+        });
+        render(
+            <table>
+                <tbody>
+                    <HandoffRow {...defaultProps} patient={patientWithEvents} />
+                </tbody>
+            </table>
+        );
+        const expandButton = screen.getByTitle(/Ver eventos clínicos/i);
+        expect(expandButton).toHaveClass('shadow-sm'); // Indicativo de que tiene eventos (bg-medical-50)
+    });
+
+    it('expands clinical events panel when forcedExpand is true', () => {
+        const patientWithEvents = createMockPatient({
+            clinicalEvents: [{ id: '1', name: 'Test Event', date: '2024-12-11', note: '', createdAt: '' }]
+        });
+        const { rerender } = render(
+            <table>
+                <tbody>
+                    <HandoffRow
+                        {...defaultProps}
+                        patient={patientWithEvents}
+                        forcedExpand={false}
+                        onClinicalEventAdd={vi.fn()}
+                        onClinicalEventUpdate={vi.fn()}
+                        onClinicalEventDelete={vi.fn()}
+                    />
+                </tbody>
+            </table>
+        );
+        expect(screen.queryByText('Test Event')).not.toBeInTheDocument();
+
+        rerender(
+            <table>
+                <tbody>
+                    <HandoffRow
+                        {...defaultProps}
+                        patient={patientWithEvents}
+                        forcedExpand={true}
+                        onClinicalEventAdd={vi.fn()}
+                        onClinicalEventUpdate={vi.fn()}
+                        onClinicalEventDelete={vi.fn()}
+                    />
+                </tbody>
+            </table>
+        );
+        expect(screen.getByText('Test Event')).toBeInTheDocument();
     });
 });

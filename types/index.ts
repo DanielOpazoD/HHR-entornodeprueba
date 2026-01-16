@@ -15,6 +15,7 @@ export {
     // Interfaces
     type BedDefinition,
     type CudyrScore,
+    type ClinicalEvent,
     type PatientData,
     type DeviceInfo,
     type DeviceDetails,
@@ -24,7 +25,8 @@ export {
     type DailyRecord,
     type Statistics,
     type DischargeType,
-    type ShiftType
+    type ShiftType,
+    type FhirResource
 } from './core';
 
 // Value types and utilities

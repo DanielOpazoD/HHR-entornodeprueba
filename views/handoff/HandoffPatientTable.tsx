@@ -1,6 +1,8 @@
-import React from 'react';
-import { BedDefinition, DailyRecord, PatientData } from '@/types';
+import React, { useState } from 'react';
+import { BedDefinition, DailyRecord, PatientData, ClinicalEvent } from '@/types';
 import { HandoffRow } from './HandoffRow';
+import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import clsx from 'clsx';
 
 interface HandoffPatientTableProps {
     visibleBeds: BedDefinition[];
@@ -12,6 +14,10 @@ interface HandoffPatientTableProps {
     isMedical: boolean;
     hasAnyPatients: boolean;
     shouldShowPatient: (bedId: string) => boolean;
+    // Clinical Events callbacks
+    onClinicalEventAdd?: (bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => void;
+    onClinicalEventUpdate?: (bedId: string, eventId: string, data: Partial<ClinicalEvent>) => void;
+    onClinicalEventDelete?: (bedId: string, eventId: string) => void;
 }
 
 export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
@@ -23,22 +29,42 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
     readOnly,
     isMedical,
     hasAnyPatients,
-    shouldShowPatient
+    shouldShowPatient,
+    onClinicalEventAdd,
+    onClinicalEventUpdate,
+    onClinicalEventDelete
 }) => {
+    const [allEventsExpanded, setAllEventsExpanded] = useState(false);
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
             <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse print:table-fixed print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
+                <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
                     <thead>
                         <tr className={tableHeaderClass}>
-                            <th className="p-2 border-r border-slate-200 text-center w-20 print:w-[35px] print:text-[10px] print:p-1">Cama</th>
-                            <th className="p-2 border-r border-slate-200 min-w-[150px] print:w-[15%] print:text-[10px] print:p-1">Nombre Paciente</th>
-                            {!isMedical && <th className="p-2 border-r border-slate-200 w-36 print:hidden">RUT</th>}
-                            <th className="p-2 border-r border-slate-200 w-64 print:w-[20%] print:text-[10px] print:p-1">Diagnóstico</th>
-                            <th className="p-2 border-r border-slate-200 w-20 print:w-[45px] print:text-[10px] print:p-1">Estado</th>
-                            <th className="p-2 border-r border-slate-200 w-28 text-center print:hidden">F. Ingreso</th>
+                            <th className="p-2 border-r border-slate-200 w-16 print:w-[35px] print:text-[10px] print:p-1">Cama</th>
+                            <th className="p-2 border-r border-slate-200 w-44 print:w-[20%] print:text-[10px] print:p-1">Nombre Paciente</th>
+                            <th className="p-2 border-r border-slate-200 w-[260px] print:w-[30%] print:text-[10px] print:p-1">
+                                <div className="flex items-center justify-between">
+                                    <span>Diagnóstico</span>
+                                    {!isMedical && (
+                                        <button
+                                            onClick={() => setAllEventsExpanded(!allEventsExpanded)}
+                                            className="p-1 hover:bg-black/5 rounded transition-colors print:hidden flex items-center justify-center"
+                                            title={allEventsExpanded ? "Colapsar todos los eventos" : "Expandir todos los eventos"}
+                                        >
+                                            {allEventsExpanded ? (
+                                                <Minimize2 size={12} className="opacity-70" />
+                                            ) : (
+                                                <Maximize2 size={12} className="opacity-70" />
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </th>
+                            <th className="p-2 border-r border-slate-200 w-20 text-center print:hidden">F. Ingreso</th>
                             <th className="p-2 border-r border-slate-200 w-20 print:w-[50px] print:text-[10px] print:p-1" title="Dispositivos médicos invasivos">DMI</th>
-                            <th className="p-2 min-w-[300px] print:w-[45%] print:min-w-0 print:text-[10px] print:p-1">Observaciones</th>
+                            <th className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1">Observaciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -95,6 +121,11 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                         onNoteChange={(val) => onNoteChange(bed.id, val, false)}
                                         readOnly={readOnly}
                                         isMedical={isMedical}
+                                        forcedExpand={allEventsExpanded}
+                                        // Clinical Events handlers - only for nursing handoff
+                                        onClinicalEventAdd={onClinicalEventAdd ? (event) => onClinicalEventAdd(bed.id, event) : undefined}
+                                        onClinicalEventUpdate={onClinicalEventUpdate ? (eventId, data) => onClinicalEventUpdate(bed.id, eventId, data) : undefined}
+                                        onClinicalEventDelete={onClinicalEventDelete ? (eventId) => onClinicalEventDelete(bed.id, eventId) : undefined}
                                     />
 
                                     {patient.clinicalCrib && patient.clinicalCrib.patientName && (
@@ -108,6 +139,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                             onNoteChange={(val) => onNoteChange(bed.id, val, true)}
                                             readOnly={readOnly}
                                             isMedical={isMedical}
+                                            forcedExpand={allEventsExpanded}
                                         />
                                     )}
                                 </React.Fragment>
@@ -117,7 +149,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                         {/* If no occupied beds found */}
                         {!hasAnyPatients && (
                             <tr>
-                                <td colSpan={10} className="p-8 text-center text-slate-400 italic text-sm">
+                                <td colSpan={6} className="p-8 text-center text-slate-400 italic text-sm">
                                     No hay pacientes registrados en este turno.
                                 </td>
                             </tr>

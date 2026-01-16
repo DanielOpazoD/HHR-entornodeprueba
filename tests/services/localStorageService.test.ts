@@ -50,6 +50,7 @@ const createMockRecord = (date: string): DailyRecord => ({
     discharges: [],
     transfers: [],
     cma: [],
+    nurses: ["", ""],
     lastUpdated: new Date().toISOString(),
     nursesDayShift: ['', ''],
     nursesNightShift: ['', ''],

@@ -27,13 +27,8 @@ export const addPatientTable = (
             const detail = p.deviceDetails?.[d as keyof DeviceDetails];
             let daysStr = '';
             if (detail?.installationDate) {
-                const installDate = new Date(detail.installationDate);
-                const today = new Date(record.date);
-                installDate.setHours(0, 0, 0, 0);
-                today.setHours(0, 0, 0, 0);
-                const diffTime = today.getTime() - installDate.getTime();
-                const diffDays = Math.floor(diffTime / (1000 * 3600 * 24)) + 1;
-                if (diffDays > 0) daysStr = ` (${diffDays}d)`;
+                const diffDays = calculateHospitalizedDays(detail.installationDate, record.date);
+                if (diffDays && diffDays > 0) daysStr = ` (${diffDays}d)`;
             }
             return `${d}${daysStr}`;
         }).join(', ');
@@ -95,7 +90,7 @@ export const addPatientTable = (
         styles: { fontSize: 8, cellPadding: 1, lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
         headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180, 180, 180] },
         columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 35 }, 2: { cellWidth: 40 }, 3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 'auto' } },
-        didParseCell: (data) => {
+        didParseCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 3) {
                 const status = (data.cell.raw as string || '').toLowerCase();
                 if (status === 'grave') { data.cell.styles.textColor = [185, 28, 28]; data.cell.styles.fontStyle = 'bold'; }
@@ -103,7 +98,7 @@ export const addPatientTable = (
                 else if (status === 'estable') { data.cell.styles.textColor = [21, 128, 61]; }
             }
         },
-        didDrawCell: (data) => {
+        didDrawCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 0) {
                 const rowData = tableBody[data.row.index];
                 const daysStr = (rowData as any)._daysStr;
@@ -250,7 +245,7 @@ export const addCudyrTable = (doc: jsPDF, record: DailyRecord, margin: number, a
         styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineColor: [100, 100, 100], lineWidth: 0.1 },
         headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', lineWidth: 0.1 },
         columnStyles: { 0: { cellWidth: 12, halign: 'left', fontStyle: 'bold' }, 1: { cellWidth: 35, halign: 'left' } },
-        didParseCell: (data) => {
+        didParseCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 16) {
                 const val = data.cell.raw as string;
                 if (val.startsWith('A')) { data.cell.styles.fillColor = [220, 38, 38]; data.cell.styles.textColor = 255; }

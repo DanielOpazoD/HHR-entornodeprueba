@@ -97,21 +97,6 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                     {/* Menu */}
                     <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden">
                         <div className="py-1">
-                            <MenuItem
-                                icon={BarChart2}
-                                label="Estadística"
-                                onClick={() => {
-                                    if (currentModule !== 'CENSUS') {
-                                        setModule('CENSUS');
-                                        setCensusViewMode('ANALYTICS');
-                                    } else {
-                                        setCensusViewMode(censusViewMode === 'ANALYTICS' ? 'REGISTER' : 'ANALYTICS');
-                                    }
-                                    onClose();
-                                }}
-                            />
-
-
                             {isUserAdmin && (
                                 <>
                                     <div className="h-px bg-slate-200 my-1" />
@@ -151,6 +136,11 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                                         icon={Activity}
                                         label="Dev Health"
                                         onClick={() => handleModuleChange('DEV_DASHBOARD')}
+                                    />
+                                    <MenuItem
+                                        icon={ShieldCheck}
+                                        label="Salud del Sistema"
+                                        onClick={() => handleModuleChange('HEALTH')}
                                     />
                                 </>
                             )}

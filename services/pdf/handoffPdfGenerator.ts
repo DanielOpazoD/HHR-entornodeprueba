@@ -74,19 +74,36 @@ export const generateHandoffPdf = async (
     let currentY = margin + 18;
     if (!isMedical) {
         const { delivers, receives, tens } = getHandoffStaffInfo(record, selectedShift);
+        const COLUMN_DELIVERS_X = margin;
+        const COLUMN_RECEIVES_X = margin + 65;
+        const COLUMN_TENS_X = margin + 125;
+        const COLUMN_WIDTH = 55; // For wrapping
 
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bolditalic');
-        doc.text('ENFERMERO(A) ENTREGA:', margin, currentY);
-        doc.text('ENFERMERO(A) RECIBE:', margin + 70, currentY);
-        doc.text('TENS:', margin + 140, currentY);
+        doc.text('ENFERMERO(A) ENTREGA:', COLUMN_DELIVERS_X, currentY);
+        doc.text('ENFERMERO(A) RECIBE:', COLUMN_RECEIVES_X, currentY);
+        doc.text('TENS DE TURNO:', COLUMN_TENS_X, currentY);
 
         currentY += 4;
         doc.setFont('helvetica', 'normal');
-        doc.text(delivers.filter(Boolean).join(', ') || '-', margin, currentY);
-        doc.text(receives.filter(Boolean).join(', ') || '-', margin + 70, currentY);
-        doc.text(tens.filter(Boolean).join(', ') || '-', margin + 140, currentY);
-        currentY += 5;
+
+        // Wrap names to avoid truncation
+        const deliversText = delivers.filter(Boolean).join(', ') || '-';
+        const receivesText = receives.filter(Boolean).join(', ') || '-';
+        const tensText = tens.filter(Boolean).join(', ') || '-';
+
+        const deliversWrapped = doc.splitTextToSize(deliversText, COLUMN_WIDTH);
+        const receivesWrapped = doc.splitTextToSize(receivesText, COLUMN_WIDTH);
+        const tensWrapped = doc.splitTextToSize(tensText, COLUMN_WIDTH + 15); // Extra space for TENS
+
+        doc.text(deliversWrapped, COLUMN_DELIVERS_X, currentY);
+        doc.text(receivesWrapped, COLUMN_RECEIVES_X, currentY);
+        doc.text(tensWrapped, COLUMN_TENS_X, currentY);
+
+        // Max lines to calculate Y spacing
+        const maxLines = Math.max(deliversWrapped.length, receivesWrapped.length, tensWrapped.length);
+        currentY += (maxLines * 4) + 1;
 
         // 2. CHECKLIST (Only Nursing)
         const checklist = selectedShift === 'day' ? record.handoffDayChecklist : record.handoffNightChecklist;
@@ -157,24 +174,38 @@ export const generateHandoffPdf = async (
         addCudyrTable(doc, record, margin, autoTable);
     }
 
-    // Output
-    const fileName = isMedical
-        ? `Entrega_Medica_${dateStr}.pdf`
-        : `Entrega_${selectedShift === 'day' ? 'TL' : 'TN'}_${dateStr}.pdf`;
-
-    if ('showSaveFilePicker' in window) {
-        try {
-            const handle = await (window as any).showSaveFilePicker({
-                suggestedName: fileName,
-                types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }]
-            });
-            const writable = await handle.createWritable();
-            await writable.write(doc.output('blob'));
-            await writable.close();
-        } catch (err) {
-            if ((err as Error).name !== 'AbortError') doc.save(fileName);
-        }
-    } else {
-        doc.save(fileName);
+    // 7. PAGE NUMBERS
+    const pageCount = doc.getNumberOfPages();
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - margin + 4, { align: 'right' });
     }
+
+    // Output: Trigger Print Dialog Directly (using hidden iframe)
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = url;
+
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        // Note: We don't remove the iframe immediately to allow print to finish
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(iframe);
+        }, 10 * 60 * 1000); // Wait 10 min or next refresh
+    };
 };

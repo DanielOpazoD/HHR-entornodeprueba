@@ -56,6 +56,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
                             onClick={() => onCreateDay(true, previousRecordDate)}
                             className="btn group !p-6 !h-auto border-2 border-slate-300 text-medical-700 hover:bg-medical-50 bg-white shadow-sm flex-col rounded-r-none border-r-0"
                             style={{ width: '230px' }}
+                            data-testid="copy-previous-btn"
                         >
                             <div className="flex items-center gap-2 text-lg font-bold">
                                 <Copy size={20} />
@@ -109,6 +110,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
                 <button
                     onClick={() => onCreateDay(false)}
                     className="btn btn-primary group !p-6 !h-auto shadow-lg shadow-medical-500/30 flex-col w-64"
+                    data-testid="blank-record-btn"
                 >
                     <div className="flex items-center gap-2 text-lg font-bold">
                         <Plus size={20} />

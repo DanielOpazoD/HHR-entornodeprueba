@@ -1,31 +1,13 @@
-import React, { useRef, useEffect, useCallback } from 'react';
-import { PatientData, PatientStatus } from '@/types';
-import { Baby, AlertCircle, Clock } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { PatientData, PatientStatus, ClinicalEvent } from '@/types';
+import { Baby, AlertCircle, Clock, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDateDDMMYYYY } from '@/services/dataService';
 import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
-
-// ============================================================================
-// Utilities
-// ============================================================================
-
-/**
- * Calculate days since admission
- * Inclusion: The admission day counts as Day 1.
- */
-export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string): number | null => {
-    if (!admissionDate || !currentDate) return null;
-    const start = new Date(admissionDate);
-    const end = new Date(currentDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diff = end.getTime() - start.getTime();
-    const days = Math.floor(diff / (1000 * 3600 * 24));
-    const totalDays = days + 1;
-    return totalDays >= 1 ? totalDays : 1;
-};
+import { calculateHospitalizedDays } from '@/utils/dateUtils';
 
 import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
+import { ClinicalEventsPanel } from './ClinicalEventsPanel';
 
 // ============================================================================
 // HandoffRow Component
@@ -41,6 +23,11 @@ interface HandoffRowProps {
     onNoteChange: (val: string) => void;
     readOnly?: boolean;
     isMedical?: boolean;
+    forcedExpand?: boolean;
+    // Clinical Events handlers
+    onClinicalEventAdd?: (event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => void;
+    onClinicalEventUpdate?: (eventId: string, data: Partial<ClinicalEvent>) => void;
+    onClinicalEventDelete?: (eventId: string) => void;
 }
 
 export const HandoffRow: React.FC<HandoffRowProps> = ({
@@ -52,14 +39,26 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
     noteField,
     onNoteChange,
     readOnly = false,
-    isMedical = false
+    isMedical = false,
+    forcedExpand = false,
+    onClinicalEventAdd,
+    onClinicalEventUpdate,
+    onClinicalEventDelete
 }) => {
+    const [showEvents, setShowEvents] = useState(false);
+
+    // Sync with global expansion
+    useEffect(() => {
+        setShowEvents(forcedExpand);
+    }, [forcedExpand]);
+
+    const hasEvents = (patient.clinicalEvents?.length || 0) > 0;
     // If bed is blocked (and not a sub-row), show blocked status
     if (!isSubRow && patient.isBlocked) {
         return (
             <tr className="bg-slate-50 border-b border-slate-200 text-sm print:last:border-b-0 print:text-[10px]">
                 <td className="p-2 font-semibold text-slate-700 text-center align-middle border-r border-slate-200 print:p-1">{bedName}</td>
-                <td colSpan={isMedical ? 6 : 7} className="p-2 text-slate-600 align-middle print:p-1 print:whitespace-nowrap">
+                <td colSpan={5} className="p-2 text-slate-600 align-middle print:p-1 print:whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 print:gap-1">
                         <AlertCircle size={14} className="text-slate-500 print:hidden" />
                         <span className="font-medium">BLOQUEADA:</span> {patient.blockedReason || 'Sin motivo'}
@@ -102,56 +101,89 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                     <div className="flex items-center gap-1 flex-wrap">
                         {isSubRow && <Baby size={14} className="text-pink-400 print:hidden" />}
                         {isSubRow && <span className="hidden print:inline text-[8px] text-pink-600 font-bold">(RN)</span>}
-                        <span>{patient.patientName}</span>
+                        <span className="font-bold text-slate-900">{patient.patientName}</span>
                     </div>
-                    {/* Print/Medical: RUT below name */}
-                    <div className={clsx(
-                        "font-mono text-[8px] text-slate-500 leading-none mt-0.5",
-                        isMedical ? "block" : "hidden print:block"
-                    )}>
+                    {/* RUT below name */}
+                    <div className="font-mono text-[10px] text-slate-500 leading-none mt-1">
                         {patient.rut}
                     </div>
-                    {/* Age (Always shown if present, adjusted for print) */}
+                    {/* Age below RUT */}
                     {patient.age && (
-                        <span className="text-slate-400 font-normal text-xs print:text-[8px] leading-none">({patient.age})</span>
+                        <div className="text-slate-400 font-normal text-[10px] print:text-[8px] mt-0.5">
+                            ({patient.age})
+                        </div>
                     )}
                 </div>
             </td>
 
-            {/* RUT */}
-            {/* RUT - Hidden in Print OR Medical */}
-            {!isMedical && (
-                <td className="p-2 border-r border-slate-200 w-36 text-xs text-slate-600 align-middle whitespace-nowrap print:hidden">
-                    {patient.rut}
-                </td>
-            )}
 
-            {/* Diagnóstico */}
-            <td className="p-2 border-r border-slate-200 w-64 text-slate-700 align-middle print:w-20 print:text-[10px] print:leading-tight print:p-1">
-                <div className="font-medium leading-tight">
-                    {patient.pathology}
-                </div>
-                {/* Print: Admission Date below Diagnosis */}
-                <div className="hidden print:block text-[8px] text-slate-500 mt-1 leading-none">
-                    FI: {formatDateDDMMYYYY(patient.admissionDate)}
+
+            {/* Diagnóstico con Eventos Clínicos y Estado */}
+            <td className="p-1.5 border-r border-slate-200 w-[260px] text-slate-700 align-top relative print:w-20 print:text-[10px] print:leading-tight print:p-1">
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-start justify-between gap-0">
+                        <div className="font-medium leading-tight flex-1 pr-6">
+                            {patient.pathology}
+                        </div>
+                        {/* Expand/Collapse Button - Absolute positioning to the corner */}
+                        {!isMedical && !isSubRow && (onClinicalEventAdd || hasEvents) && (
+                            <button
+                                onClick={() => setShowEvents(!showEvents)}
+                                className={clsx(
+                                    "absolute top-1 right-1 flex items-center gap-0.5 px-1 py-0.5 rounded transition-all print:hidden",
+                                    hasEvents
+                                        ? "text-medical-600 bg-medical-50/80 hover:bg-medical-100 shadow-sm border border-medical-100"
+                                        : "text-slate-400 hover:text-slate-600 border border-transparent"
+                                )}
+                                title={showEvents ? "Ocultar eventos" : "Ver eventos clínicos"}
+                            >
+                                <ChevronDown
+                                    size={10}
+                                    className={clsx("transition-transform", showEvents && "rotate-180")}
+                                />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Patient Status - Hidden when events are shown */}
+                    {!showEvents && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                            <span className={clsx(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap block text-center w-fit print:whitespace-normal print:text-[8px] print:px-1 print:py-0 print:leading-tight print:rounded-none print:border print:bg-transparent",
+                                patient.status === PatientStatus.GRAVE ? "bg-red-100 text-red-700 border-red-200" :
+                                    patient.status === PatientStatus.DE_CUIDADO ? "bg-orange-100 text-orange-700 border-orange-200" :
+                                        "bg-green-100 text-green-700 border-green-200"
+                            )}>
+                                {patient.status}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Print: Admission Date below Diagnosis */}
+                    <div className="hidden print:block text-[8px] text-slate-500 mt-1 leading-none">
+                        FI: {formatDateDDMMYYYY(patient.admissionDate)}
+                    </div>
+
+                    {/* Clinical Events Panel - Collapsible */}
+                    {showEvents && !isMedical && onClinicalEventAdd && onClinicalEventUpdate && onClinicalEventDelete && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                            <ClinicalEventsPanel
+                                events={patient.clinicalEvents || []}
+                                onAdd={onClinicalEventAdd}
+                                onUpdate={onClinicalEventUpdate}
+                                onDelete={onClinicalEventDelete}
+                                readOnly={readOnly}
+                            />
+                        </div>
+                    )}
                 </div>
             </td>
 
-            {/* Estado */}
-            <td className="p-2 border-r border-slate-200 w-20 align-middle print:text-[9px] print:p-1">
-                <span className={clsx(
-                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap block text-center print:whitespace-normal print:text-[8px] print:px-1 print:py-0 print:leading-tight print:rounded-none print:border print:bg-transparent",
-                    patient.status === PatientStatus.GRAVE ? "bg-red-100 text-red-700 border-red-200" :
-                        patient.status === PatientStatus.DE_CUIDADO ? "bg-orange-100 text-orange-700 border-orange-200" :
-                            "bg-green-100 text-green-700 border-green-200"
-                )}>
-                    {patient.status}
-                </span>
-            </td>
+            {/* F. Ingreso */}
 
             {/* Fecha Ingreso */}
             {/* F. Ingreso - Hidden in Print */}
-            <td className="p-2 border-r border-slate-200 w-28 text-center text-xs text-slate-600 align-middle print:hidden">
+            <td className="p-2 border-r border-slate-200 w-20 text-center text-[10px] text-slate-500 align-middle print:hidden">
                 {formatDateDDMMYYYY(patient.admissionDate)}
             </td>
 

@@ -52,12 +52,6 @@ describe('NavbarMenu', () => {
         expect(defaultProps.onToggle).toHaveBeenCalled();
     });
 
-    it('shows menu items when isOpen is true', () => {
-        render(<NavbarMenu {...defaultProps} isOpen={true} />);
-
-        expect(screen.getByText('Estadística')).toBeInTheDocument();
-    });
-
     it('shows admin-only items for admin users', () => {
         render(<NavbarMenu {...defaultProps} isOpen={true} isUserAdmin={true} />);
 
@@ -81,14 +75,6 @@ describe('NavbarMenu', () => {
             fireEvent.click(backdrop);
             expect(defaultProps.onClose).toHaveBeenCalled();
         }
-    });
-
-    it('toggles analytics view when statistic is clicked', () => {
-        render(<NavbarMenu {...defaultProps} isOpen={true} currentModule="CENSUS" censusViewMode="REGISTER" />);
-
-        fireEvent.click(screen.getByText('Estadística'));
-
-        expect(defaultProps.setCensusViewMode).toHaveBeenCalledWith('ANALYTICS');
     });
 
     it('shows Error Monitor for admin users', () => {

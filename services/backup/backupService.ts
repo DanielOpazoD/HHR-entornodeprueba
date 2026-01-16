@@ -30,14 +30,14 @@ import {
     BackupFilters,
     BackupFileType
 } from '../../types/backup';
-import { COLLECTIONS, HOSPITAL_ID } from '../../constants/firestorePaths';
+import { COLLECTIONS, getActiveHospitalId } from '../../constants/firestorePaths';
 
 // ============= Collection Reference =============
 
 const getBackupCollection = () => collection(
     db,
     COLLECTIONS.HOSPITALS,
-    HOSPITAL_ID,
+    getActiveHospitalId(),
     'backupFiles'
 );
 

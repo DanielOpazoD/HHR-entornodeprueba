@@ -8,17 +8,21 @@
 import React from 'react';
 import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDaysQuery, useCensusEmail, useSignatureMode, useSharedCensusMode, useAppState, useVersionCheck } from '@/hooks';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
-import { useAuth, AuthContextType } from '@/context/AuthContext';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
 import { Navbar, DateStrip, SettingsModal, TestAgent, SyncWatcher, DemoModePanel, LoginPage } from '@/components';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 import { generateCensusMasterExcel } from '@/services';
 import { CensusEmailConfigModal } from '@/components/census/CensusEmailConfigModal';
-import { AppProviders } from '@/components/AppProviders';
-import { AppRouter } from '@/components/AppRouter';
 import { AuditProvider } from '@/context';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider, CensusContextType } from '@/context/CensusContext';
+import { VersionProvider } from '@/context/VersionContext';
+import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverlay';
+import { HospitalConfigService } from './services/config/HospitalConfigService';
+import { useAuth, AuthContextType, AuthProvider } from './context/AuthContext';
+import { HospitalProvider } from './context/HospitalContext';
+import { UIProvider } from './context/UIContext';
+import { DemoModeProvider } from './context/DemoModeContext';
 
 // ============================================================================
 // Sync Effect - Keeps repository in sync with Firebase connection status
@@ -84,13 +88,14 @@ function App() {
   }
 
   return (
-    <AuditProvider userId={auth.user?.uid || 'anon'}>
+    <VersionProvider>
+      <VersionMismatchOverlay />
       <AppInner
         auth={auth}
         dateNav={{ ...dateNav, isSignatureMode, currentDateString }}
         sharedCensus={sharedCensus}
       />
-    </AuditProvider>
+    </VersionProvider>
   );
 }
 
@@ -103,7 +108,12 @@ interface AppInnerProps {
   sharedCensus: ReturnType<typeof useSharedCensusMode>;
 }
 
+import { useSystemHealthReporter } from '@/hooks/admin/useSystemHealthReporter';
+
 function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
+  // Report health status in background
+  useSystemHealthReporter();
+
   const dailyRecordHook = useDailyRecord(dateNav.currentDateString, auth.isOfflineMode, auth.isFirebaseConnected);
   const { record } = dailyRecordHook;
 
@@ -150,4 +160,17 @@ const AppWithErrorBoundary = () => {
   );
 };
 
-export default AppWithErrorBoundary;
+export default function ProvidedApp() {
+  return (
+    <AuthProvider>
+      <HospitalProvider>
+        <UIProvider>
+          <DemoModeProvider>
+            {/* We'll let App handle AuditProvider because it needs auth state */}
+            <AppWithErrorBoundary />
+          </DemoModeProvider>
+        </UIProvider>
+      </HospitalProvider>
+    </AuthProvider>
+  );
+}

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { isEmailAuthorizedForCensus } from '../constants/censusAuthorizedEmails';
 import { CensusAccessUser } from '../types/censusAccess';
 
-interface SharedCensusModeResult {
+export interface SharedCensusModeResult {
     isSharedCensusMode: boolean;
     invitationId: string | null;
     accessUser: CensusAccessUser | null;

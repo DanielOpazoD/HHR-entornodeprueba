@@ -5,7 +5,7 @@
 
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
-import { COLLECTIONS, HOSPITAL_ID, HOSPITAL_COLLECTIONS, SETTINGS_DOCS } from '../../constants/firestorePaths';
+import { COLLECTIONS, getActiveHospitalId, HOSPITAL_COLLECTIONS, SETTINGS_DOCS, getSettingsDocPath } from '../../constants/firestorePaths';
 
 // ============================================================================
 // Types
@@ -78,7 +78,7 @@ export const getDefaultConfig = (): TableConfig => ({
 // ============================================================================
 
 const getDocRef = () =>
-    doc(db, COLLECTIONS.HOSPITALS, HOSPITAL_ID, HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TABLE_CONFIG);
+    doc(db, getSettingsDocPath(SETTINGS_DOCS.TABLE_CONFIG));
 
 /**
  * Load table configuration from Firestore

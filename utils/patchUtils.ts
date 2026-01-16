@@ -7,11 +7,16 @@ import { DailyRecordPatchLoose } from '../hooks/useDailyRecordTypes';
 
 /**
  * Applies dot-notation updates to an object.
- * Useful for mirroring Firestore updateDoc behavior locally.
+ * Useful for mirroring Firestore updateDoc behavior locally in optimistic updates.
  * 
- * Example:
- * applyPatches(record, { "beds.bed-1.patientName": "Juan" })
- * // returns new record with updated name
+ * Flow:
+ * 1. Deep clones the object to ensure React state immutability.
+ * 2. Parses dot-paths (e.g., "beds.bed-1.name") and traverses the object.
+ * 3. Applies the new value at the leaf node.
+ * 
+ * @param obj - The base object to patch
+ * @param patches - A flat object where keys are dot-paths and values are the new data
+ * @returns A new object with the patches applied
  */
 export const applyPatches = <T>(obj: T, patches: DailyRecordPatchLoose): T => {
     if (!obj) return obj;

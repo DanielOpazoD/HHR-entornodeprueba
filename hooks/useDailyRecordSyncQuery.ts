@@ -12,8 +12,10 @@ import { SyncStatus, UseDailyRecordSyncResult } from './useDailyRecordTypes';
 import { DailyRecord } from '../types';
 import { DailyRecordPatchLoose } from './useDailyRecordTypes';
 import { useNotification } from '../context/UIContext';
+import { useVersion } from '../context/VersionContext';
 import { ConcurrencyError } from '../services/storage/firestoreService';
 import { DataRegressionError, VersionMismatchError } from '../utils/integrityGuard';
+import { useEffect } from 'react';
 
 export const useDailyRecordSyncQuery = (
     currentDateString: string,
@@ -21,6 +23,7 @@ export const useDailyRecordSyncQuery = (
     _isFirebaseConnected: boolean = false
 ): UseDailyRecordSyncResult => {
     const queryClient = useQueryClient();
+    const { checkVersion } = useVersion();
 
     // 1. Fetching
     const {
@@ -30,6 +33,13 @@ export const useDailyRecordSyncQuery = (
         fetchStatus,
         refetch
     } = useDailyRecordQuery(currentDateString, _isOfflineMode, _isFirebaseConnected);
+
+    // Monitor version in incoming records
+    useEffect(() => {
+        if (record?.schemaVersion) {
+            checkVersion(record.schemaVersion);
+        }
+    }, [record, checkVersion]);
 
     // 2. Mutations
     const saveMutation = useSaveDailyRecordMutation();

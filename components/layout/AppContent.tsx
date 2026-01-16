@@ -84,7 +84,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                     />
                 )}
 
-                {/* Date Strip */}
+                {/* Date Strip - Hide in Analytics mode */}
                 {((ui.currentModule === 'CENSUS' && ui.censusViewMode === 'REGISTER') ||
                     ui.currentModule === 'NURSING_HANDOFF' ||
                     ui.currentModule === 'MEDICAL_HANDOFF' ||
@@ -97,7 +97,6 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                             currentDateString={currentDateString}
                             daysInMonth={dateNav.daysInMonth}
                             existingDaysInMonth={dateNav.existingDaysInMonth}
-                            onPrintPDF={ui.showPrintButton ? () => window.print() : undefined}
                             onExportPDF={ui.showPrintButton ? exportManager.handleExportPDF : undefined}
                             onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
                             onExportExcel={
@@ -125,10 +124,11 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                         />
                     )}
 
-                {/* Favorites Bookmark Bar */}
+                {/* Favorites Bookmark Bar - Hide in Analytics mode */}
                 {!isSignatureMode && !sharedCensus.isSharedCensusMode &&
                     ui.showBookmarksBar &&
                     ui.currentModule === 'CENSUS' &&
+                    ui.censusViewMode === 'REGISTER' &&
                     (auth.role === 'admin' || auth.role === 'nurse_hospital') && (
                         <BookmarkBar />
                     )}

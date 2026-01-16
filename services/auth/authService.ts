@@ -8,8 +8,8 @@ import {
     createUserWithEmailAndPassword,
     signInAnonymously
 } from 'firebase/auth';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig';
+import { auth } from '../../firebaseConfig';
+import { db } from '../infrastructure/db';
 import { saveSetting, getSetting } from '../storage/indexedDBService';
 import { INSTITUTIONAL_ACCOUNTS, ADMIN_EMAILS } from '../../constants/identities';
 
@@ -142,8 +142,6 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
             return { allowed: true, role: cachedRole };
         }
 
-        const allowedUsersRef = collection(db, 'allowedUsers');
-
         // 1. VERIFICACIÓN ESTÁTICA (Prioridad alta)
         for (const [staticEmail, staticRole] of Object.entries(STATIC_ROLES)) {
             if (cleanEmail.includes(staticEmail)) {
@@ -153,13 +151,15 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
             }
         }
 
-        console.log(`[authService] 📡 Querying Firestore for whitelist...`);
-        const q = query(allowedUsersRef, where('email', '==', email.toLowerCase().trim()));
-        const querySnapshot = await getDocs(q);
-        console.log(`[authService] 📥 Firestore response received. Empty: ${querySnapshot.empty}`);
+        console.log(`[authService] 📡 Querying DB for whitelist...`);
 
-        if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0].data();
+        const results = await db.getDocs<any>('allowedUsers', {
+            where: [{ field: 'email', operator: '==', value: email.toLowerCase().trim() }]
+        });
+        console.log(`[authService] 📥 DB response received. Results count: ${results.length}`);
+
+        if (results.length > 0) {
+            const userDoc = results[0];
             const rawRole = String(userDoc.role || 'viewer').toLowerCase().trim();
             await saveRoleToCache(cleanEmail, rawRole);
             return { allowed: true, role: rawRole };

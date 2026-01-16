@@ -29,8 +29,8 @@ describe('useSignatureMode', () => {
     });
 
     it('should NOT sign in anonymously if a user is already present (real or passport)', () => {
-        const mockUser = { uid: 'existing-user', email: 'test@hospital.cl' };
-        renderHook(() => useSignatureMode('2024-12-28', mockUser, false));
+        const mockAdminUser = { uid: 'admin-1', email: 'admin@hhr.cl', displayName: 'Admin' } as any;
+        renderHook(() => useSignatureMode('2024-12-28', mockAdminUser, false));
 
         expect(signInAnonymously).not.toHaveBeenCalled();
     });

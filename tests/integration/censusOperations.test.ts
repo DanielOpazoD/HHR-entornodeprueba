@@ -105,7 +105,7 @@ describe('Census Operations Integration', () => {
                 rut: patient.rut,
                 diagnosis: patient.pathology,
                 status: 'Vivo',
-                dischargeType: 'Domicilio',
+                dischargeType: 'Domicilio (Habitual)',
                 time: '10:30',
                 isNested: false,
                 originalData: { ...patient },
@@ -212,17 +212,19 @@ describe('Census Operations Integration', () => {
 
             const cma: CMAData = {
                 id: crypto.randomUUID(),
+                bedName: 'Sala 1',
                 patientName: 'Paciente CMA',
                 rut: '99999999-9',
-                procedure: 'Biopsia',
-                age: 35,
-                insurance: 'Fonasa',
+                age: '35',
+                diagnosis: 'Biopsia',
+                specialty: 'Cirugía',
+                interventionType: 'Cirugía Mayor Ambulatoria',
             };
 
             record.cma.push(cma);
 
             expect(record.cma.length).toBe(1);
-            expect(record.cma[0].procedure).toBe('Biopsia');
+            expect(record.cma[0].diagnosis).toBe('Biopsia');
         });
 
         it('should count total movements', () => {

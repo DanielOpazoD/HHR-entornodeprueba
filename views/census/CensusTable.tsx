@@ -13,7 +13,6 @@ interface CensusTableProps {
     record: DailyRecord;
     currentDateString: string;
     onResetDay: () => void;
-    onViewHistory?: (rut: string, name: string) => void;
     readOnly?: boolean;
 }
 
@@ -21,7 +20,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     record,
     currentDateString,
     onResetDay,
-    onViewHistory,
     readOnly = false
 }) => {
     const { showCribConfig, setShowCribConfig, handleRowAction } = useCensusActions();
@@ -57,9 +55,12 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     const headerClass = "sticky top-0 z-20 bg-slate-50 py-1 px-1 border-r border-slate-100 text-center text-slate-500 text-[10px] uppercase tracking-wider font-bold shadow-sm";
 
     return (
-        <div className="card print:border-none print:shadow-none flex flex-col">
-            <div className="relative">
-                <table className="w-full text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed">
+        <div className="card print:border-none print:shadow-none flex flex-col overflow-visible">
+            <div className="relative overflow-visible">
+                <table
+                    data-testid="census-table"
+                    className="w-full text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
+                >
                     <thead>
                         <tr className="border-b border-slate-200 print:static">
                             {/* Action column - resizable */}
@@ -223,7 +224,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 data={record.beds[bed.id]}
                                 currentDateString={currentDateString}
                                 onAction={handleRowAction}
-                                onViewHistory={onViewHistory}
                                 showCribControls={showCribConfig}
                                 readOnly={readOnly}
                                 actionMenuAlign={index >= visibleBeds.length - 4 ? 'bottom' : 'top'}

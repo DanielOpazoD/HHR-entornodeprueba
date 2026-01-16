@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { DailyRecord, PatientData } from '../../types';
+import { DailyRecord, PatientData, Specialty, PatientStatus, CudyrScore } from '../../types';
 
 // Simulate the copy logic from DailyRecordRepository
 const copyPatientsFromPrevious = (
@@ -18,8 +18,9 @@ const copyPatientsFromPrevious = (
 
         if (prevPatient.patientName || prevPatient.isBlocked) {
             // Deep copy patient
+            const copiedPatient = JSON.parse(JSON.stringify(prevPatient));
             newBeds[bedId] = {
-                ...JSON.parse(JSON.stringify(prevPatient)),
+                ...copiedPatient,
                 // Reset CUDYR for new day
                 cudyr: undefined,
             };
@@ -28,6 +29,16 @@ const copyPatientsFromPrevious = (
             newBeds[bedId] = {
                 bedId,
                 patientName: '',
+                rut: '',
+                age: '',
+                admissionDate: '',
+                pathology: '',
+                specialty: Specialty.EMPTY,
+                status: PatientStatus.EMPTY,
+                hasWristband: false,
+                devices: [],
+                surgicalComplication: false,
+                isUPC: false,
                 bedMode: prevPatient.bedMode || 'Cama',
                 hasCompanionCrib: prevPatient.hasCompanionCrib || false,
                 isBlocked: false,
@@ -51,19 +62,51 @@ describe('Copy Previous Day', () => {
         patientName: name,
         rut: '12345678-9',
         pathology: 'Test Pathology',
-        age: 40,
-        insurance: 'FONASA',
-        origin: 'Local',
+        age: '40',
+        insurance: 'Fonasa',
+        origin: 'Residente',
         isRapanui: true,
         bedMode: 'Cama',
         hasCompanionCrib: false,
         isBlocked: false,
-        cudyr: { C: true, U: false, D: false, Y: false, R: false },
+        admissionDate: '2024-01-01',
+        specialty: Specialty.MEDICINA,
+        status: PatientStatus.ESTABLE,
+        hasWristband: true,
+        devices: [],
+        surgicalComplication: false,
+        isUPC: false,
+        cudyr: {
+            changeClothes: 1,
+            mobilization: 1,
+            feeding: 1,
+            elimination: 1,
+            psychosocial: 1,
+            surveillance: 1,
+            vitalSigns: 1,
+            fluidBalance: 1,
+            oxygenTherapy: 1,
+            airway: 1,
+            proInterventions: 1,
+            skinCare: 1,
+            pharmacology: 1,
+            invasiveElements: 1
+        },
     });
 
     const createEmptyBed = (bedId: string): PatientData => ({
         bedId,
         patientName: '',
+        rut: '',
+        age: '',
+        admissionDate: '',
+        pathology: '',
+        specialty: Specialty.EMPTY,
+        status: PatientStatus.EMPTY,
+        hasWristband: false,
+        devices: [],
+        surgicalComplication: false,
+        isUPC: false,
         bedMode: 'Cama',
         hasCompanionCrib: false,
         isBlocked: false,

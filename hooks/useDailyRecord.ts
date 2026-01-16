@@ -18,14 +18,13 @@ import {
     logDailyRecordDeleted
 } from '../services/admin/auditService';
 
-// Repository
-import {
-    getPreviousDay,
-    initializeDay,
-    save,
-    deleteDay
-} from '../services/repositories/DailyRecordRepository';
 import { generateDemoRecord } from '../services/utils/demoDataGenerator';
+import { DailyRecord } from '../types';
+
+// Sub-hooks
+import { usePersistence } from './usePersistence';
+import { useInventory } from './useInventory';
+import { useValidation } from './useValidation';
 
 // Sync hooks
 
@@ -72,71 +71,16 @@ export const useDailyRecord = (
     } = useDailyRecordSyncQuery(currentDateString, isOfflineMode, isFirebaseConnected);
 
     // ========================================================================
-    // Day Lifecycle
+    // Orchestrated Sub-hooks
     // ========================================================================
-    /**
-     * Creates a new daily record for the current date.
-     * Optionally copies patient data from the previous day.
-     * 
-     * @param copyFromPrevious - If true, attempts to clone the previous day's patient census
-     * @returns Promise that resolves when the day is initialized
-     * 
-     * @example
-     * ```typescript
-     * await createDay(true); // Copy from previous day
-     * await createDay(true, '2025-12-25'); // Copy from specific date
-     * ```
-     */
-    const createDay = useCallback(async (copyFromPrevious: boolean, specificDate?: string) => {
-        let prevDate: string | undefined = undefined;
+    const { createDay, generateDemo, resetDay } = usePersistence({
+        currentDateString,
+        markLocalChange,
+        setRecord
+    });
 
-        if (copyFromPrevious) {
-            if (specificDate) {
-                // Use the specific date provided
-                prevDate = specificDate;
-            } else {
-                // Fall back to finding the previous day
-                const prevRecord = await getPreviousDay(currentDateString);
-                if (prevRecord) {
-                    prevDate = prevRecord.date;
-                } else {
-                    warning("No se encontró registro anterior", "No hay datos del día previo para copiar.");
-                    return;
-                }
-            }
-        }
-
-        const newRecord = await initializeDay(currentDateString, prevDate);
-        markLocalChange();
-        setRecord(newRecord);
-
-        const sourceMsg = prevDate ? `Copiado desde ${prevDate}` : 'Registro en blanco';
-        success('Día creado', sourceMsg);
-
-        // Audit Log
-        logDailyRecordCreated(currentDateString, copyFromPrevious ? (specificDate || 'previous_day') : 'blank');
-    }, [currentDateString, warning, success, markLocalChange, setRecord]);
-
-    const generateDemo = useCallback(async () => {
-        const demoRecord = generateDemoRecord(currentDateString);
-        await save(demoRecord);
-        markLocalChange();
-        setRecord({ ...demoRecord });
-    }, [currentDateString, markLocalChange, setRecord]);
-
-    /**
-     * Resets the current day by deleting its record from the repository.
-     * 
-     * @returns Promise that resolves when the record is deleted
-     */
-    const resetDay = useCallback(async () => {
-        await deleteDay(currentDateString);
-        setRecord(null);
-        success('Registro eliminado', 'El registro del día ha sido eliminado. Puede crear uno nuevo.');
-
-        // Audit Log
-        logDailyRecordDeleted(currentDateString);
-    }, [currentDateString, setRecord, success]);
+    const inventory = useInventory(record);
+    const { validateRecordSchema, canMovePatient, canDischargePatient } = useValidation();
 
     // ========================================================================
     // Domain Hooks Composition
@@ -157,12 +101,18 @@ export const useDailyRecord = (
         record,
         syncStatus,
         lastSyncTime,
+        inventory,
 
         // Day Lifecycle
         createDay,
         generateDemo,
         resetDay,
         refresh,
+
+        // Validation helpers
+        validateRecordSchema,
+        canMovePatient,
+        canDischargePatient,
 
         // Bed Management
         updatePatient: bedManagement.updatePatient,
@@ -210,8 +160,9 @@ export const useDailyRecord = (
         markMedicalHandoffAsSent: handoffManagement.markMedicalHandoffAsSent,
         sendMedicalHandoff: handoffManagement.sendMedicalHandoff
     }), [
-        record, syncStatus, lastSyncTime,
+        record, syncStatus, lastSyncTime, inventory,
         createDay, generateDemo, resetDay, refresh,
+        validateRecordSchema, canMovePatient, canDischargePatient,
         bedManagement, nurseManagement, tensManagement,
         dischargeManagement, transferManagement, cmaManagement,
         handoffManagement

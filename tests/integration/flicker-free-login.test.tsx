@@ -13,6 +13,10 @@ vi.mock('@/hooks/useAuthState', () => ({
     useAuthState: () => mockUseAuthState()
 }));
 
+// Unmock the global AuthContext mock for this integration test
+vi.unmock('@/context/AuthContext');
+vi.unmock('../../context/AuthContext');
+
 // Mock UI Components to simplify
 vi.mock('../../components/auth/LoginPage', () => ({
     LoginPage: ({ onLoginSuccess }: any) => (

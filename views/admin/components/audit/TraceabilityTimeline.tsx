@@ -71,8 +71,8 @@ export const TraceabilityTimeline: React.FC<TraceabilityTimelineProps> = ({ chro
                                         <div className="mt-3 bg-white/60 rounded-lg p-2.5 border border-slate-100/50 space-y-2">
                                             {Object.entries(log.details.changes).map(([field, delta]) => {
                                                 if (field === 'deviceDetails') {
-                                                    const deviceDelta = delta as Record<string, { old: any; new: any }>;
-                                                    return Object.entries(deviceDelta).map(([dev, values]) => (
+                                                    const values = delta as any as Record<string, { old: any; new: any }>;
+                                                    return Object.entries(values).map(([dev, values]) => (
                                                         <div key={dev} className="flex items-center gap-2 text-[10px]">
                                                             <span className="bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded font-bold">{dev}</span>
                                                             <span className="text-slate-400">➔</span>

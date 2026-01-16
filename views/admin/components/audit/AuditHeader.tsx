@@ -1,22 +1,28 @@
 import React from 'react';
-import { ClipboardList, Info, Download, RefreshCw } from 'lucide-react';
+import { ClipboardList, Info, Download, RefreshCw, Layers } from 'lucide-react';
 
 interface AuditHeaderProps {
     onShowCompliance: () => void;
     onExport: () => void;
     onRefresh: () => void;
+    onConsolidate?: () => void;
     isExporting: boolean;
     isLoading: boolean;
+    isConsolidating?: boolean;
     hasLogs: boolean;
+    isAdmin?: boolean;
 }
 
 export const AuditHeader: React.FC<AuditHeaderProps> = ({
     onShowCompliance,
     onExport,
     onRefresh,
+    onConsolidate,
     isExporting,
     isLoading,
-    hasLogs
+    isConsolidating = false,
+    hasLogs,
+    isAdmin = false
 }) => {
     return (
         <header className="sticky top-0 z-20 backdrop-blur-md bg-white/80 p-6 rounded-2xl shadow-sm border border-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -40,6 +46,20 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
                 >
                     <Info size={20} />
                 </button>
+
+                {/* Consolidate button - Admin only */}
+                {isAdmin && onConsolidate && (
+                    <button
+                        onClick={onConsolidate}
+                        disabled={isConsolidating || !hasLogs}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-all font-bold text-sm border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        title="Consolidar logs duplicados"
+                    >
+                        <Layers size={18} className={isConsolidating ? 'animate-pulse' : ''} />
+                        {isConsolidating ? 'Consolidando...' : 'Consolidar'}
+                    </button>
+                )}
+
                 <button
                     onClick={onExport}
                     disabled={isExporting || !hasLogs}
@@ -59,3 +79,4 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
         </header>
     );
 };
+

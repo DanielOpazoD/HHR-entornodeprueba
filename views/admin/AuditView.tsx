@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useAuditData } from '@/hooks/useAuditData';
-import { generateAuditWorkbook } from '@/services/exporters/auditWorkbook';
-import { saveAs } from 'file-saver';
+import { executeConsolidation, previewConsolidation } from '@/services/admin/auditConsolidationService';
 import clsx from 'clsx';
 import { AuditHeader } from './components/audit/AuditHeader';
 import { AuditStatsDashboard } from './components/audit/AuditStatsDashboard';
@@ -12,8 +11,10 @@ import { PatientTraceability } from './components/audit/PatientTraceability';
 import { ExportKeysPanel } from './components/audit/ExportKeysPanel';
 import { DataMaintenancePanel } from './components/DataMaintenancePanel';
 import { CensusAccessManager } from '@/components/admin/CensusAccessManager';
-import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
-import { formatTimestamp } from './components/audit/auditUIUtils';
+import { isAdministratorEmail } from '@/constants/identities';
+import { useNotification, useConfirmDialog } from '@/context/UIContext';
+import { auth } from '@/firebaseConfig';
+import { useAuditExport } from './hooks/useAuditExport';
 
 export const AuditView: React.FC = () => {
     // Use extracted hook for all audit data management
@@ -53,150 +54,137 @@ export const AuditView: React.FC = () => {
         groupedView
     } = filters;
 
-    // Export state
-    const [exporting, setExporting] = useState(false);
+    // Export and Consolidation state
+    const [consolidating, setConsolidating] = useState(false);
     const [, setShowComplianceInfo] = useState(false);
 
-    const handleExport = async () => {
-        setExporting(true);
+    // Admin check
+    const userEmail = auth.currentUser?.email;
+    const isAdmin = isAdministratorEmail(userEmail);
+
+    // Notifications
+    const { success, error, info } = useNotification();
+    const { confirm } = useConfirmDialog();
+
+    // Export hook
+    const {
+        isExporting,
+        handleExcelExport,
+        handlePdfExport
+    } = useAuditExport({
+        filteredLogs,
+        stats,
+        startDate,
+        endDate
+    });
+
+    // Handle consolidation of duplicate logs
+    const handleConsolidate = async () => {
         try {
-            const workbook = await generateAuditWorkbook(filteredLogs);
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([new Uint8Array(buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            saveAs(blob, `auditoria_hospital_${new Date().toISOString().split('T')[0]}.xlsx`);
-        } catch (error) {
-            console.error('Export failed:', error);
+            // Preview first
+            info('Analizando logs...', 'Buscando duplicados');
+            const preview = await previewConsolidation(5);
+
+            if (preview.duplicateGroups.length === 0) {
+                success('No hay duplicados', 'Todos los logs están consolidados');
+                return;
+            }
+
+            // Confirm with user
+            const confirmed = await confirm({
+                title: '🗂️ Consolidar Logs Duplicados',
+                message: `Se encontraron ${preview.duplicateGroups.length} grupos con duplicados.\n\nEsto eliminará ${preview.estimatedDeletions} logs redundantes y mantendrá ${preview.duplicateGroups.length} logs consolidados con todos los cambios.\n\n¿Desea continuar?`,
+                confirmText: 'Consolidar',
+                cancelText: 'Cancelar',
+                variant: 'warning'
+            });
+
+            if (!confirmed) return;
+
+            setConsolidating(true);
+
+            const result = await executeConsolidation(5, undefined, (msg) => {
+                info(msg, 'Procesando...');
+            });
+
+            if (result.success) {
+                success(
+                    'Consolidación completada',
+                    `${result.logsConsolidated} logs actualizados, ${result.logsDeleted} duplicados eliminados`
+                );
+                // Refresh logs
+                fetchLogs();
+            } else {
+                error('Error en consolidación', result.errors.join(', '));
+            }
+        } catch (err) {
+            console.error('Consolidation failed:', err);
+            error('Error', 'No se pudo consolidar los logs');
         } finally {
-            setExporting(false);
+            setConsolidating(false);
         }
     };
-
-    // PDF Export rendering logic
-    const handlePdfExport = useCallback(() => {
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Reporte de Auditoría - Hospital de Hanga Roa</title>
-                    <style>
-                        @page {size: landscape; margin: 1.5cm; }
-                        body {font-family: Arial, sans-serif; font-size: 10px; color: #333; }
-                        h1 {font-size: 16px; margin-bottom: 5px; }
-                        h2 {font-size: 12px; color: #666; margin-bottom: 20px; font-weight: normal; }
-                        table {width: 100%; border-collapse: collapse; margin-top: 10px; }
-                        th {background: #f1f5f9; padding: 8px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0; font-size: 9px; text-transform: uppercase; }
-                        td {padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-                        tr:nth-child(even) {background: #f8fafc; }
-                        .critical {background: #fee2e2 !important; }
-                        .header-info {display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-                        .stats {display: flex; gap: 30px; }
-                        .stat {text-align: center; }
-                        .stat-value {font-size: 18px; font-weight: bold; color: #4f46e5; }
-                        .stat-label {font-size: 9px; color: #64748b; }
-                        .footer {margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #94a3b8; text-align: center; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header-info">
-                        <div>
-                            <h1>📋 Reporte de Auditoría</h1>
-                            <h2>Hospital de Hanga Roa - Sistema de Gestión Clínica</h2>
-                        </div>
-                        <div class="stats">
-                            <div class="stat">
-                                <div class="stat-value">${filteredLogs.length}</div>
-                                <div class="stat-label">Registros</div>
-                            </div>
-                            <div class="stat">
-                                <div class="stat-value">${stats.activeUserCount}</div>
-                                <div class="stat-label">Usuarios</div>
-                            </div>
-                            <div class="stat">
-                                <div class="stat-value">${stats.criticalCount}</div>
-                                <div class="stat-label">Críticos</div>
-                            </div>
-                        </div>
-                    </div>
-                    <p><strong>Período:</strong> ${startDate || 'Inicio'} al ${endDate || 'Actual'} | <strong>Generado:</strong> ${new Date().toLocaleString('es-CL')}</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha/Hora</th>
-                                <th>Operador</th>
-                                <th>Acción</th>
-                                <th>Resumen</th>
-                                <th>Paciente</th>
-                                <th>Cama</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredLogs.slice(0, 200).map(log => {
-            const isCritical = ['PATIENT_ADMITTED', 'PATIENT_DISCHARGED', 'PATIENT_TRANSFERRED', 'DAILY_RECORD_DELETED'].includes(log.action);
-            const patientName = (log.details?.patientName as string) || '-';
-            const bedId = (log.details?.bedId as string) || '-';
-            return `<tr class="${isCritical ? 'critical' : ''}">
-                                    <td>${formatTimestamp(log.timestamp)}</td>
-                                    <td>${log.userDisplayName || (log.userId || '-').split('@')[0]}</td>
-                                    <td>${AUDIT_ACTION_LABELS[log.action] || log.action}</td>
-                                    <td>${log.summary || '-'}</td>
-                                    <td>${patientName}</td>
-                                    <td>${bedId}</td>
-                                </tr>`;
-        }).join('')}
-                        </tbody>
-                    </table>
-                    ${filteredLogs.length > 200 ? '<p style="text-align: center; color: #94a3b8; margin-top: 10px;">Mostrando primeros 200 de ' + filteredLogs.length + ' registros</p>' : ''}
-                    <div class="footer">
-                        Este documento fue generado automáticamente por el Sistema de Auditoría del Hospital de Hanga Roa.<br>
-                        Los registros de auditoría no pueden ser modificados ni eliminados para cumplir con la Ley 20.584.
-                    </div>
-                </body>
-            </html>
-        `;
-
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            printWindow.onload = () => {
-                printWindow.print();
-            };
-        }
-    }, [filteredLogs, stats, startDate, endDate]);
 
     return (
         <div className="space-y-6 animate-fade-in pb-24 font-sans max-w-[1400px] mx-auto">
             {/* Header */}
             <AuditHeader
                 onShowCompliance={() => setShowComplianceInfo(true)}
-                onExport={handleExport}
+                onExport={handleExcelExport}
                 onRefresh={fetchLogs}
-                isExporting={exporting}
+                onConsolidate={handleConsolidate}
+                isExporting={isExporting}
                 isLoading={loading}
+                isConsolidating={consolidating}
                 hasLogs={filteredLogs.length > 0}
+                isAdmin={isAdmin}
             />
 
             {/* Dashboards */}
             <AuditStatsDashboard stats={stats} logs={logs} />
 
-            {/* Navigation Tabs */}
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 rounded-2xl w-fit">
-                {(Object.keys(sections) as Array<keyof typeof sections>).map((key) => (
-                    <button
-                        key={key}
-                        onClick={() => setActiveSection(key)}
-                        className={clsx(
-                            "px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2",
-                            activeSection === key
-                                ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                        )}
-                    >
-                        <div className={clsx("w-2 h-2 rounded-full", sections[key].color.split(' ')[0].replace('bg-', 'bg-'))} />
-                        {sections[key].label}
-                    </button>
-                ))}
+            {/* Navigation Tabs - Categorized */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Clinical Group */}
+                <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 rounded-2xl w-fit">
+                    {(['ALL', 'TRACEABILITY', 'TIMELINE', 'CENSUS', 'CUDYR', 'HANDOFF_NURSE', 'HANDOFF_MEDICAL'] as Array<keyof typeof sections>).map((key) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveSection(key)}
+                            className={clsx(
+                                "px-4 py-2 rounded-xl font-bold text-[11px] transition-all flex items-center gap-2",
+                                activeSection === key
+                                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                            )}
+                        >
+                            <div className={clsx("w-2 h-2 rounded-full", sections[key].color.split(' ')[0].replace('bg-', 'bg-'))} />
+                            {sections[key].label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* System & Admin Group - Minimalist Glass Style */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/30 backdrop-blur-sm rounded-2xl w-fit border border-slate-200/50 shadow-inner">
+                    {(['SESSIONS', 'EXPORT_KEYS', 'MAINTENANCE', 'ACCESS_CONTROL'] as Array<keyof typeof sections>).map((key) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveSection(key)}
+                            className={clsx(
+                                "px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2",
+                                activeSection === key
+                                    ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                            )}
+                        >
+                            <div className={clsx(
+                                "w-1.5 h-1.5 rounded-full",
+                                activeSection === key ? "bg-white animate-pulse" : sections[key].color.split(' ')[0].replace('bg-', 'bg-')
+                            )} />
+                            {sections[key].label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Filters */}
@@ -228,7 +216,7 @@ export const AuditView: React.FC = () => {
             {activeSection === 'ACCESS_CONTROL' && <CensusAccessManager />}
 
             {/* Main Data Table */}
-            {activeSection === 'ALL' && (
+            {['ALL', 'SESSIONS', 'CENSUS', 'CUDYR', 'HANDOFF_NURSE', 'HANDOFF_MEDICAL'].includes(activeSection) && (
                 <AuditTable
                     filteredLogs={filteredLogs}
                     paginatedLogs={paginatedLogs}
@@ -240,8 +228,8 @@ export const AuditView: React.FC = () => {
                     expandedRows={expandedRows}
                     toggleRow={toggleRow}
                     onPdfExport={handlePdfExport}
-                    onExcelExport={handleExport}
-                    isExporting={exporting}
+                    onExcelExport={handleExcelExport}
+                    isExporting={isExporting}
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}

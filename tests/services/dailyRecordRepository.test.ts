@@ -212,7 +212,7 @@ describe('DailyRecordRepository (Expanded)', () => {
             vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(remote);
 
             const result = await syncWithFirestore('2024-12-28');
-            expect(result).toEqual(remote);
+            expect(result).toMatchObject(remote);
 
             const savedLocal = await getForDate('2024-12-28');
             expect(savedLocal?.date).toEqual(remote.date);

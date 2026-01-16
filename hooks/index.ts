@@ -21,8 +21,6 @@ export { useClinicalCrib } from './useClinicalCrib';
 export { useNurseManagement } from './useNurseManagement';
 export { usePatientDischarges } from './usePatientDischarges';
 export { usePatientTransfers } from './usePatientTransfers';
-export { usePatientHistory } from './usePatientHistory';
-export { usePatientHistoryQuery } from './usePatientHistoryQuery';
 export { useCMA } from './useCMA';
 
 // Extracted Hooks (from useBedManagement)
@@ -46,6 +44,9 @@ export { useFileOperations } from './useFileOperations';
 // Email
 export { useCensusEmail } from './useCensusEmail';
 export { useHandoffLogic } from './useHandoffLogic';
+
+// Exam Request
+export { useExamRequest } from './useExamRequest';
 
 // Re-export types from hooks that define them
 export type { DailyRecordContextType, DailyRecordPatch, DailyRecordPatchLoose } from './useDailyRecordTypes';

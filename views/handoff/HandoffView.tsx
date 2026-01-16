@@ -69,6 +69,10 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
         handleShareLink,
         handleSendWhatsAppManual,
         formatPrintDate,
+        // Clinical Events handlers
+        handleClinicalEventAdd,
+        handleClinicalEventUpdate,
+        handleClinicalEventDelete,
     } = useHandoffLogic({
         record,
         type,
@@ -204,6 +208,10 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
                 isMedical={isMedical}
                 hasAnyPatients={hasAnyPatients}
                 shouldShowPatient={shouldShowPatient}
+                // Clinical Events
+                onClinicalEventAdd={handleClinicalEventAdd}
+                onClinicalEventUpdate={handleClinicalEventUpdate}
+                onClinicalEventDelete={handleClinicalEventDelete}
             />
 
             <div className="hidden print:block print:h-4" aria-hidden="true" />{/* Print-only spacer */}

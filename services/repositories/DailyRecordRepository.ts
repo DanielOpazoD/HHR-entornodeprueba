@@ -36,9 +36,15 @@ import {
     moveRecordToTrash
 } from '../storage/firestoreService';
 import { CURRENT_SCHEMA_VERSION } from '../../constants/version';
+import {
+    getDailyRecordsPath,
+    getActiveHospitalId
+} from '../../constants/firestorePaths';
 import { createEmptyPatient, clonePatient } from '../factories/patientFactory';
 import { applyPatches } from '../../utils/patchUtils';
 import { checkRegression, DataRegressionError, calculateDensity, VersionMismatchError } from '../../utils/integrityGuard';
+import { parseDailyRecordWithDefaults } from '../../schemas/zodSchemas';
+import { mapPatientToFhir, mapEncounterToFhir } from '../utils/fhirMappers';
 
 // ============================================================================
 // Configuration
@@ -80,6 +86,33 @@ export interface IDailyRecordRepository {
 // Duplicate imports removed
 
 /**
+ * Migrates legacy data formats to the current schema using Zod for robust validation.
+ */
+const migrateLegacyData = (record: DailyRecord, date: string): DailyRecord => {
+    // 1. Initial pass through Zod to apply defaults and recover basic structure
+    let migrated = parseDailyRecordWithDefaults(record, date);
+
+    // 2. Custom Business Migrations (Manual fixes for specific legacy rules)
+    // Legacy Nurses: If nursesDayShift is empty but legacy 'nurses' has data, migrate it.
+    if (migrated.nurses && migrated.nurses.length > 0) {
+        if (!migrated.nursesDayShift || migrated.nursesDayShift.every(n => !n)) {
+            migrated.nursesDayShift = [...migrated.nurses];
+        }
+    }
+
+    // Legacy NurseName: Legacy single string migration
+    if (migrated.nurseName && (!migrated.nursesDayShift || !migrated.nursesDayShift[0])) {
+        if (!migrated.nursesDayShift) migrated.nursesDayShift = ["", ""];
+        migrated.nursesDayShift[0] = migrated.nurseName;
+    }
+
+    // Ensure schemaVersion is at least 1
+    migrated.schemaVersion = Math.max(migrated.schemaVersion || 0, 1);
+
+    return migrated;
+};
+
+/**
  * Retrieves the daily record for a specific date.
  * First tries IndexedDB (fast), then syncs from Firestore if online and local is empty.
  * 
@@ -100,16 +133,17 @@ export const getForDate = async (date: string, syncFromRemote: boolean = true): 
         try {
             const remoteRecord = await getRecordFromFirestore(date);
             if (remoteRecord) {
+                const migrated = migrateLegacyData(remoteRecord, date);
                 // Cache it locally for next time
-                await saveToIndexedDB(remoteRecord);
-                return remoteRecord;
+                await saveToIndexedDB(migrated);
+                return migrated;
             }
         } catch (err) {
             console.warn(`[Repository] getForDate: Firestore fallback failed for ${date}:`, err);
         }
     }
 
-    return localRecord;
+    return localRecord ? migrateLegacyData(localRecord, date) : null;
 };
 
 
@@ -151,11 +185,32 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
         return;
     }
 
+    // 0. Defense-in-depth: Validate structure before persisting
+    const validatedRecord = migrateLegacyData(record, record.date);
+
+    // Use validated record from here on
+    const currentRecord = validatedRecord;
+
     // Ensure dateTimestamp is present for security rules (legacy records fix)
-    if (!record.dateTimestamp && record.date) {
-        const dateObj = new Date(record.date + 'T00:00:00');
-        record.dateTimestamp = dateObj.getTime();
+    if (!currentRecord.dateTimestamp && currentRecord.date) {
+        const dateObj = new Date(currentRecord.date + 'T00:00:00');
+        currentRecord.dateTimestamp = dateObj.getTime();
     }
+
+    // FHIR Enrichment Layer (Dual Mode)
+    const hospitalId = getActiveHospitalId();
+    Object.keys(currentRecord.beds).forEach(bedId => {
+        const patient = currentRecord.beds[bedId];
+        if (patient && patient.patientName && patient.patientName.trim()) {
+            // Self-contained enrichment: generate FHIR Resource
+            patient.fhir_resource = mapPatientToFhir(patient);
+
+            // Nested Patient (Clinical Crib) enrichment
+            if (patient.clinicalCrib && patient.clinicalCrib.patientName) {
+                patient.clinicalCrib.fhir_resource = mapPatientToFhir(patient.clinicalCrib);
+            }
+        }
+    });
 
     // 1. Check for suspicious regressions BEFORE saving to IndexedDB OR Firestore
     // This protects against overwriting good cloud data with empty local data (sync failure scenario)
@@ -192,15 +247,15 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
     }
 
     // Always set current version before saving
-    record.schemaVersion = CURRENT_SCHEMA_VERSION;
+    currentRecord.schemaVersion = CURRENT_SCHEMA_VERSION;
 
     // Save to IndexedDB (unlimited capacity)
-    await saveToIndexedDB(record);
+    await saveToIndexedDB(currentRecord);
 
     // Sync to Firestore in background (if enabled)
     if (firestoreEnabled) {
         try {
-            await saveRecordToFirestore(record, expectedLastUpdated);
+            await saveRecordToFirestore(currentRecord, expectedLastUpdated);
         } catch (err) {
             console.warn('Firestore sync failed, data saved in IndexedDB:', err);
             // If it's a ConcurrencyError or DataRegressionError, we SHOULD rethrow it to notify the user
@@ -238,6 +293,34 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatchL
     if (!demoModeActive) {
         try {
             console.log('[Repository] Sending partial update to Firestore:', date);
+
+            // Determine if FHIR resource needs regeneration
+            // If any patient field in any bed is changed, we should ideally update its fhir_resource.
+            // However, since we don't have the full patient data here, we have two options:
+            // 1. Just let it be (it will be updated on the next full save)
+            // 2. Or, if the patch contains 'patientName' or 'rut', we should consider it a major change.
+
+            // For now, let's enhance the patch if we are in updatePartial by recalculating FHIR 
+            // ONLY if the full record is available locally.
+            const current = await getRecordFromIndexedDB(date);
+            if (current) {
+                const updated = applyPatches(current, partialData);
+
+                // Re-run FHIR enrichment on affected beds
+                Object.keys(partialData).forEach(key => {
+                    if (key.startsWith('beds.')) {
+                        const parts = key.split('.');
+                        const bedId = parts[1];
+                        const patient = updated.beds[bedId];
+                        if (patient && patient.patientName) {
+                            patient.fhir_resource = mapPatientToFhir(patient);
+                            // Add the fhir_resource update to the original patch
+                            (partialData as any)[`beds.${bedId}.fhir_resource`] = patient.fhir_resource;
+                        }
+                    }
+                });
+            }
+
             await updateRecordPartial(date, partialData);
         } catch (err) {
             console.warn('Firestore partial update failed:', err);
@@ -258,11 +341,12 @@ export const subscribe = (
     }
 
     return subscribeToRecord(date, async (record, hasPendingWrites) => {
-        if (record && !hasPendingWrites) {
+        const migrated = record ? migrateLegacyData(record, date) : null;
+        if (migrated && !hasPendingWrites) {
             // Mirror to IndexedDB whenever we get an update from Firestore
-            await saveToIndexedDB(record);
+            await saveToIndexedDB(migrated);
         }
-        callback(record, hasPendingWrites);
+        callback(migrated, hasPendingWrites);
     });
 };
 
@@ -275,8 +359,9 @@ export const syncWithFirestore = async (date: string): Promise<DailyRecord | nul
     try {
         const record = await getRecordFromFirestore(date);
         if (record) {
-            await saveToIndexedDB(record);
-            return record;
+            const migrated = migrateLegacyData(record, date);
+            await saveToIndexedDB(migrated);
+            return migrated;
         }
     } catch (err) {
         console.warn(`[Repository] Sync failed for ${date}:`, err);
@@ -324,8 +409,12 @@ export const initializeDay = async (
 
     if (prevRecord) {
         const prevBeds = prevRecord.beds;
-        nursesDay = [...(prevRecord.nursesNightShift || ["", ""])];
-        tensDay = [...(prevRecord.tensNightShift || ["", "", ""])];
+
+        // Priority Migration: Use shift-based arrays, fallback to legacy 'nurses' if exists
+        const prevNurses = prevRecord.nursesNightShift || prevRecord.nurses || ["", ""];
+        nursesDay = [...prevNurses];
+
+        tensDay = [...(prevRecord.tensNightShift || prevRecord.tensDayShift || ["", "", ""])];
         activeExtras = [...(prevRecord.activeExtraBeds || [])];
 
         BEDS.forEach(bed => {

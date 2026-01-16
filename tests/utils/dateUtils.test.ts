@@ -10,7 +10,8 @@ import {
     isBusinessDay,
     getShiftSchedule,
     isWithinDayShift,
-    isAdmittedDuringShift
+    isAdmittedDuringShift,
+    calculateHospitalizedDays
 } from '../../utils/dateUtils';
 
 describe('dateUtils', () => {
@@ -248,6 +249,53 @@ describe('dateUtils', () => {
                 expect(isAdmittedDuringShift('2026-01-31', '2026-02-01', '03:00', 'night')).toBe(true);
                 expect(isAdmittedDuringShift('2026-01-31', '2026-02-01', '10:00', 'night')).toBe(false);
             });
+        });
+    });
+
+    describe('calculateHospitalizedDays', () => {
+        it('should return 1 for same day admission', () => {
+            expect(calculateHospitalizedDays('2024-12-10', '2024-12-10')).toBe(1);
+        });
+
+        it('should return 2 for next day', () => {
+            expect(calculateHospitalizedDays('2024-12-10', '2024-12-11')).toBe(2);
+        });
+
+        it('should return 1 even if current date is before admission (safety)', () => {
+            expect(calculateHospitalizedDays('2024-12-11', '2024-12-10')).toBe(1);
+        });
+
+        it('should return 31 for one month difference', () => {
+            expect(calculateHospitalizedDays('2024-03-01', '2024-03-31')).toBe(31);
+        });
+
+        it('should return null if any date is missing', () => {
+            expect(calculateHospitalizedDays(undefined, '2024-12-10')).toBeNull();
+            expect(calculateHospitalizedDays('2024-12-10', undefined)).toBeNull();
+        });
+
+        it('should handle full ISO strings with time', () => {
+            expect(calculateHospitalizedDays('2024-12-10T10:00:00Z', '2024-12-11T15:00:00Z')).toBe(2);
+        });
+
+        it('should return null on catch (invalid split/data)', () => {
+            // Force a crash type in calculateHospitalizedDays by passing non-string that .split fails on
+            // but the type is string, so we use 'any'
+            expect(calculateHospitalizedDays(null as any, '2024-12-10')).toBeNull();
+        });
+    });
+
+    describe('isAdmittedDuringShift - Additional cases', () => {
+        const recordDate = '2026-01-03';
+        it('should handle weird time strings in isAdmittedDuringShift', () => {
+            // Line 352 cases: isNaN(admHour) or isNaN(admMinute)
+            expect(isAdmittedDuringShift(recordDate, recordDate, 'XX:YY', 'day')).toBe(true);
+            expect(isAdmittedDuringShift(recordDate, recordDate, '10:XX', 'day')).toBe(true);
+        });
+
+        it('should return false for patients admitted far in the future', () => {
+            expect(isAdmittedDuringShift(recordDate, '2026-01-10', '10:00', 'day')).toBe(false);
+            expect(isAdmittedDuringShift(recordDate, '2026-01-10', '10:00', 'night')).toBe(false);
         });
     });
 });

@@ -2,6 +2,7 @@ import { initializeApp, type FirebaseOptions, type FirebaseApp } from 'firebase/
 import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { initializeFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
 
 const CACHED_CONFIG_KEY = 'hhr_firebase_config';
 
@@ -131,6 +132,7 @@ let app!: FirebaseApp;
 let auth!: Auth;
 let db!: Firestore;
 let storage!: FirebaseStorage;
+let functions!: Functions;
 
 export const firebaseReady = (async () => {
     console.log('[FirebaseConfig] 🚀 Starting Firebase Ready sequence...');
@@ -153,6 +155,7 @@ export const firebaseReady = (async () => {
             auth = getAuth(app);
             db = initializeFirestore(app, { ignoreUndefinedProperties: true });
             storage = getStorage(app);
+            functions = getFunctions(app);
 
             setPersistence(auth, browserLocalPersistence).catch(err => {
                 console.warn('[FirebaseConfig] Failed to set auth persistence:', err);
@@ -172,7 +175,13 @@ export const firebaseReady = (async () => {
                 connectFirestoreEmulator(db, host, Number(port));
             }
 
-            return { app, auth, db, storage };
+            if (import.meta.env.DEV) {
+                const functionsEmulatorHost = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST || 'localhost:5001';
+                const [host, port] = functionsEmulatorHost.split(':');
+                connectFunctionsEmulator(functions, host, Number(port));
+            }
+
+            return { app, auth, db, storage, functions };
         })();
 
         return await Promise.race([configPromise, timeout]) as any;
@@ -184,5 +193,5 @@ export const firebaseReady = (async () => {
     }
 })();
 
-export { app, auth, db, storage, mountConfigWarning };
+export { app, auth, db, storage, functions, mountConfigWarning };
 export default app;

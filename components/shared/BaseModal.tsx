@@ -63,6 +63,10 @@ export interface BaseModalProps {
     headerIconColor?: string;
     /** Background variant (default: 'glass') */
     variant?: 'glass' | 'white';
+    /** Whether the modal content should be printable (default: false) */
+    printable?: boolean;
+    /** Optional ref to the element that should receive focus when modal opens */
+    initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**
@@ -82,25 +86,73 @@ export const BaseModal: React.FC<BaseModalProps> = ({
     closeOnBackdrop = true,
     showCloseButton = true,
     headerIconColor = 'text-medical-600',
-    variant = 'glass'
+    variant = 'glass',
+    printable = false,
+    initialFocusRef
 }) => {
+    // Refs for focus management
+    const modalRef = React.useRef<HTMLDivElement>(null);
+
     // Unified scroll lock - MUST BE BEFORE EARLY RETURN
     useScrollLock(isOpen);
 
-    // Handle ESC key - MUST BE BEFORE EARLY RETURN
+    // Handle ESC key & Focus Management
     React.useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
+        const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
+
+            // Focus trap logic
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusableElements = modalRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                const firstElement = focusableElements[0] as HTMLElement;
+                const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
         };
 
         if (isOpen) {
-            document.addEventListener('keydown', handleEsc);
+            document.addEventListener('keydown', handleKeyDown);
+
+            // Initial focus - ONLY on first open
+            setTimeout(() => {
+                if (initialFocusRef?.current) {
+                    initialFocusRef.current.focus();
+                } else if (modalRef.current) {
+                    // Try to find the first input or button in the body first, 
+                    // then fallback to header close button
+                    const bodyFocusable = modalRef.current.querySelector(
+                        'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+                    ) as HTMLElement;
+
+                    if (bodyFocusable) {
+                        bodyFocusable.focus();
+                    } else {
+                        const firstFocusable = modalRef.current.querySelector(
+                            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                        ) as HTMLElement;
+                        firstFocusable?.focus();
+                    }
+                }
+            }, 100);
         }
 
         return () => {
-            document.removeEventListener('keydown', handleEsc);
+            document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]); // Stable trigger
 
     // Don't render if not open
     if (!isOpen) return null;
@@ -114,7 +166,10 @@ export const BaseModal: React.FC<BaseModalProps> = ({
 
     const modalContent = (
         <div
-            className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in print:hidden"
+            className={clsx(
+                "fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in",
+                !printable && "print:hidden"
+            )}
             style={{ isolation: 'isolate' }}
             onClick={handleBackdropClick}
             role="dialog"
@@ -122,6 +177,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
             aria-labelledby="modal-title"
         >
             <div
+                ref={modalRef}
                 className={clsx(
                     "rounded-2xl shadow-2xl w-full animate-scale-in overflow-hidden",
                     variant === 'white' ? "bg-white border border-slate-200" : "glass border border-white/40",

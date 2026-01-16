@@ -120,7 +120,7 @@ setCatchHandler(async ({ event }: any) => {
 // EVENT LISTENERS
 // ============================================
 
-const sw = (self as unknown as ServiceWorkerGlobalScope);
+const sw = (self as any);
 
 sw.addEventListener('install', (event: any) => {
     event.waitUntil(
@@ -133,7 +133,7 @@ sw.addEventListener('activate', (event: any) => {
     event.waitUntil(sw.clients.claim());
 });
 
-sw.addEventListener('message', (event) => {
+sw.addEventListener('message', (event: any) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         sw.skipWaiting();
     }

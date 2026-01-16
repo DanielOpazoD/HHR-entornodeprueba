@@ -203,4 +203,131 @@ describe('usePatientDischarges', () => {
         expect(updatedRecord.discharges.length).toBe(1);
         expect(updatedRecord.discharges[0].id).toBe('disc-2');
     });
+
+    it('should update a discharge', () => {
+        const record = createMockRecord('R1');
+        record.discharges = [{ id: 'disc-1', status: 'Vivo' } as any];
+        const { updateDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+
+        updateDischarge('disc-1', 'Fallecido');
+
+        expect(mockSaveAndUpdate).toHaveBeenCalled();
+        expect(mockSaveAndUpdate.mock.calls[0][0].discharges[0].status).toBe('Fallecido');
+    });
+
+    it('should discharge only mother and promote baby', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId] = {
+            ...record.beds[bedId],
+            patientName: 'Mother',
+            clinicalCrib: { patientName: 'Baby', age: '0' } as any
+        };
+
+        const { addDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+        addDischarge(bedId, 'Vivo', undefined, undefined, undefined, undefined, 'mother');
+
+        const updatedRecord = mockSaveAndUpdate.mock.calls[0][0] as DailyRecord;
+        expect(updatedRecord.beds[bedId].patientName).toBe('Baby');
+        expect(updatedRecord.beds[bedId].clinicalCrib).toBeUndefined();
+        expect(updatedRecord.discharges).toHaveLength(1);
+    });
+
+    it('should discharge only baby', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId] = {
+            ...record.beds[bedId],
+            patientName: 'Mother',
+            clinicalCrib: { patientName: 'Baby', age: '0' } as any
+        };
+
+        const { addDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+        addDischarge(bedId, 'Vivo', 'Vivo', undefined, undefined, undefined, 'baby');
+
+        const updatedRecord = mockSaveAndUpdate.mock.calls[0][0] as DailyRecord;
+        expect(updatedRecord.beds[bedId].patientName).toBe('Mother');
+        expect(updatedRecord.beds[bedId].clinicalCrib).toBeUndefined();
+        expect(updatedRecord.discharges).toHaveLength(1);
+    });
+
+    it('should alert if undoing non-nested discharge but bed is occupied', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId].patientName = 'Occupant';
+        const discharge = { id: 'd1', bedId, patientName: 'Original', originalData: {}, isNested: false } as any;
+        record.discharges = [discharge];
+
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+        const { undoDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+
+        undoDischarge('d1');
+
+        expect(alertSpy).toHaveBeenCalled();
+        expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+        alertSpy.mockRestore();
+    });
+
+    it('should alert if undoing nested discharge but main patient is missing', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId].patientName = ''; // Missing
+        const discharge = { id: 'd1', bedId, patientName: 'Baby', originalData: {}, isNested: true } as any;
+        record.discharges = [discharge];
+
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+        const { undoDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+
+        undoDischarge('d1');
+
+        expect(alertSpy).toHaveBeenCalled();
+        alertSpy.mockRestore();
+    });
+
+    it('should alert if undoing nested discharge but clinical crib already occupied', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId].patientName = 'Mother';
+        record.beds[bedId].clinicalCrib = { patientName: 'New Baby' } as any;
+        const discharge = { id: 'd1', bedId, patientName: 'Old Baby', originalData: {}, isNested: true } as any;
+        record.discharges = [discharge];
+
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+        const { undoDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+
+        undoDischarge('d1');
+
+        expect(alertSpy).toHaveBeenCalled();
+        alertSpy.mockRestore();
+    });
+
+    it('should discharge mother and PROMOTE baby if baby exists', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId] = {
+            ...record.beds[bedId],
+            patientName: 'Mother',
+            clinicalCrib: { patientName: 'Baby', age: '0' } as any
+        };
+
+        const { addDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+        addDischarge(bedId, 'Vivo', undefined, undefined, undefined, undefined, 'mother');
+
+        const updatedRecord = mockSaveAndUpdate.mock.calls[0][0];
+        expect(updatedRecord.beds[bedId].patientName).toBe('Baby');
+        expect(updatedRecord.beds[bedId].clinicalCrib).toBeUndefined();
+    });
+
+    it('should discharge mother and just clear bed if NO baby exists', () => {
+        const bedId = 'R1';
+        const record = createMockRecord(bedId);
+        record.beds[bedId].patientName = 'Mother';
+        record.beds[bedId].clinicalCrib = undefined;
+
+        const { addDischarge } = usePatientDischarges(record, mockSaveAndUpdate);
+        addDischarge(bedId, 'Vivo', undefined, undefined, undefined, undefined, 'mother');
+
+        const updatedRecord = mockSaveAndUpdate.mock.calls[0][0];
+        expect(updatedRecord.beds[bedId].patientName).toBe('');
+    });
 });

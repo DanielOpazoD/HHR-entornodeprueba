@@ -55,6 +55,18 @@ export const CudyrScoreSchema = z.object({
 });
 
 // ============================================================
+// CLINICAL EVENT SCHEMA
+// ============================================================
+
+export const ClinicalEventSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Nombre del evento requerido'),
+  date: z.string().regex(DATE_REGEX, 'Formato de fecha inválido (YYYY-MM-DD)'),
+  note: z.string().optional(),
+  createdAt: z.string(),
+});
+
+// ============================================================
 // PATIENT DATA SCHEMA
 // ============================================================
 
@@ -96,6 +108,9 @@ const BasePatientSchema = z.object({
   isUPC: z.boolean(),
   location: z.string().optional(),
   cudyr: CudyrScoreSchema.optional(),
+
+  // Clinical Events
+  clinicalEvents: z.array(ClinicalEventSchema).optional(),
 
   // Nursing notes
   handoffNote: z.string().optional()

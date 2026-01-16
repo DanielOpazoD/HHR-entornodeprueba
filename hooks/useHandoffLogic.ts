@@ -25,11 +25,11 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { DailyRecord, PatientData } from '@/types';
+import { DailyRecord, PatientData, ClinicalEvent } from '@/types';
 import { BEDS } from '@/constants';
 import { getShiftSchedule, isAdmittedDuringShift } from '@/utils/dateUtils';
 import { getWhatsAppConfig, getMessageTemplates } from '@/services/integrations/whatsapp/whatsappService';
-import { logNurseHandoffModified, logMedicalHandoffModified } from '@/services/admin/auditService';
+import { useAuditContext } from '@/context/AuditContext';
 
 export type NursingShift = 'day' | 'night';
 
@@ -145,9 +145,63 @@ export const useHandoffLogic = ({
     }, [record, selectedShift]);
 
     // ========== HANDLERS ==========
+    const { logDebouncedEvent, userId: currentUserId } = useAuditContext();
+
+    /**
+     * CLINICAL EVENTS HANDLERS
+     * These persist across days and are stored in the PatientData object.
+     */
+    const handleClinicalEventAdd = useCallback((bedId: string, event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => {
+        if (!record || isMedical) return;
+        const patient = record.beds[bedId];
+        if (!patient) return;
+
+        const newEvent: ClinicalEvent = {
+            ...event,
+            id: crypto.randomUUID(),
+            createdAt: new Date().toISOString()
+        };
+
+        const currentEvents = patient.clinicalEvents || [];
+        updatePatient(bedId, 'clinicalEvents', [...currentEvents, newEvent]);
+
+        // Log audit event
+        logDebouncedEvent('CLINICAL_EVENT_ADDED', 'patient', bedId, { event: event.name }, bedId, record.date, undefined, 10000);
+
+        onSuccess('Evento agregado', `Se ha registrado el evento: ${event.name}`);
+    }, [record, isMedical, updatePatient, logDebouncedEvent, onSuccess]);
+
+    const handleClinicalEventUpdate = useCallback((bedId: string, eventId: string, data: Partial<ClinicalEvent>) => {
+        if (!record || isMedical) return;
+        const patient = record.beds[bedId];
+        if (!patient || !patient.clinicalEvents) return;
+
+        const updatedEvents = patient.clinicalEvents.map(e =>
+            e.id === eventId ? { ...e, ...data } : e
+        );
+
+        updatePatient(bedId, 'clinicalEvents', updatedEvents);
+    }, [record, isMedical, updatePatient]);
+
+    const handleClinicalEventDelete = useCallback((bedId: string, eventId: string) => {
+        if (!record || isMedical) return;
+        const patient = record.beds[bedId];
+        if (!patient || !patient.clinicalEvents) return;
+
+        const eventToDelete = patient.clinicalEvents.find(e => e.id === eventId);
+        const updatedEvents = patient.clinicalEvents.filter(e => e.id !== eventId);
+
+        updatePatient(bedId, 'clinicalEvents', updatedEvents);
+
+        // Log audit event
+        if (eventToDelete) {
+            logDebouncedEvent('CLINICAL_EVENT_DELETED', 'patient', bedId, { event: eventToDelete.name }, bedId, record.date, undefined, 10000);
+        }
+    }, [record, isMedical, updatePatient, logDebouncedEvent]);
+
     /**
      * Handles changes to nursing or medical notes.
-     * Automatically logs modifications to the audit service.
+     * Uses a 30-second "thinking window" to avoid multiple audit logs during writing.
      * 
      * @param bedId - The unique ID of the bed being modified.
      * @param value - The new note content.
@@ -161,17 +215,35 @@ export const useHandoffLogic = ({
                 ? (isNested ? bed?.clinicalCrib?.handoffNoteDayShift : bed?.handoffNoteDayShift)
                 : (isNested ? bed?.clinicalCrib?.handoffNoteNightShift : bed?.handoffNoteNightShift));
 
+        // Use 30 seconds for notes to capture the "thought process" as one entry
+        const NOTE_DEBOUNCE_MS = 30 * 1000;
+
         if (isMedical) {
             if (isNested) {
                 await updateClinicalCrib(bedId, 'medicalHandoffNote', value);
                 const p = record?.beds[bedId].clinicalCrib;
-                if (p) logMedicalHandoffModified(bedId, p.patientName || 'Cuna', p.rut || '-', value, (oldNote as string) || '', record?.date || '');
+                if (p) {
+                    logDebouncedEvent('MEDICAL_HANDOFF_MODIFIED', 'patient', bedId, {
+                        patientName: p.patientName || 'Cuna',
+                        note: value,
+                        changes: { medicalHandoffNote: { old: oldNote || '', new: value } }
+                    }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                }
             } else {
                 updatePatient(bedId, 'medicalHandoffNote', value);
                 const p = record?.beds[bedId];
-                if (p) logMedicalHandoffModified(bedId, p.patientName || 'ANONYMOUS', p.rut || '-', value, (oldNote as string) || '', record?.date || '');
+                if (p) {
+                    logDebouncedEvent('MEDICAL_HANDOFF_MODIFIED', 'patient', bedId, {
+                        patientName: p.patientName || 'ANONYMOUS',
+                        note: value,
+                        changes: { medicalHandoffNote: { old: oldNote || '', new: value } }
+                    }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                }
             }
         } else {
+            const shiftLabel = selectedShift === 'day' ? 'day' : 'night';
+            const noteKey = selectedShift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
+
             if (selectedShift === 'day') {
                 if (isNested) {
                     updateClinicalCribMultiple(bedId, {
@@ -179,28 +251,56 @@ export const useHandoffLogic = ({
                         handoffNoteNightShift: value
                     });
                     const p = record?.beds[bedId].clinicalCrib;
-                    if (p) logNurseHandoffModified(bedId, p.patientName || 'Cuna', p.rut || '-', 'day', value, (oldNote as string) || '', record?.date || '');
+                    if (p) {
+                        logDebouncedEvent('NURSE_HANDOFF_MODIFIED', 'patient', bedId, {
+                            patientName: p.patientName || 'Cuna',
+                            shift: 'day',
+                            note: value,
+                            changes: { [noteKey]: { old: oldNote || '', new: value } }
+                        }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                    }
                 } else {
                     updatePatientMultiple(bedId, {
                         handoffNoteDayShift: value,
                         handoffNoteNightShift: value
                     });
                     const p = record?.beds[bedId];
-                    if (p) logNurseHandoffModified(bedId, p.patientName || 'ANONYMOUS', p.rut || '-', 'day', value, (oldNote as string) || '', record?.date || '');
+                    if (p) {
+                        logDebouncedEvent('NURSE_HANDOFF_MODIFIED', 'patient', bedId, {
+                            patientName: p.patientName || 'ANONYMOUS',
+                            shift: 'day',
+                            note: value,
+                            changes: { [noteKey]: { old: oldNote || '', new: value } }
+                        }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                    }
                 }
             } else {
                 if (isNested) {
                     updateClinicalCrib(bedId, 'handoffNoteNightShift', value);
                     const p = record?.beds[bedId].clinicalCrib;
-                    if (p) logNurseHandoffModified(bedId, p.patientName || 'Cuna', p.rut || '-', 'night', value, (oldNote as string) || '', record?.date || '');
+                    if (p) {
+                        logDebouncedEvent('NURSE_HANDOFF_MODIFIED', 'patient', bedId, {
+                            patientName: p.patientName || 'Cuna',
+                            shift: 'night',
+                            note: value,
+                            changes: { [noteKey]: { old: oldNote || '', new: value } }
+                        }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                    }
                 } else {
                     updatePatient(bedId, 'handoffNoteNightShift', value);
                     const p = record?.beds[bedId];
-                    if (p) logNurseHandoffModified(bedId, p.patientName || 'ANONYMOUS', p.rut || '-', 'night', value, (oldNote as string) || '', record?.date || '');
+                    if (p) {
+                        logDebouncedEvent('NURSE_HANDOFF_MODIFIED', 'patient', bedId, {
+                            patientName: p.patientName || 'ANONYMOUS',
+                            shift: 'night',
+                            note: value,
+                            changes: { [noteKey]: { old: oldNote || '', new: value } }
+                        }, p.rut, record?.date, undefined, NOTE_DEBOUNCE_MS);
+                    }
                 }
             }
         }
-    }, [isMedical, selectedShift, record, updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple]);
+    }, [isMedical, selectedShift, record, updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple, logDebouncedEvent]);
 
     /**
      * Copies the unique signature link to the system clipboard.
@@ -325,5 +425,10 @@ export const useHandoffLogic = ({
         handleSendWhatsApp,
         handleSendWhatsAppManual,
         formatPrintDate,
+
+        // Clinical Events
+        handleClinicalEventAdd,
+        handleClinicalEventUpdate,
+        handleClinicalEventDelete,
     };
 };

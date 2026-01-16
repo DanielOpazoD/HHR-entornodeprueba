@@ -384,3 +384,32 @@ export const isAdmittedDuringShift = (
         return false;
     }
 };
+
+/**
+ * Calculate days since admission
+ * Inclusion: The admission day counts as Day 1.
+ * Using pure UTC at mid-day to avoid DST issues and timezone shifts.
+ */
+export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string): number | null => {
+    if (!admissionDate || !currentDate) return null;
+
+    try {
+        // Ensure we only have the date portion if a full ISO string is provided
+        const cleanAdmission = admissionDate.split('T')[0];
+        const cleanCurrent = currentDate.split('T')[0];
+
+        const [aYear, aMonth, aDay] = cleanAdmission.split('-').map(Number);
+        const [cYear, cMonth, cDay] = cleanCurrent.split('-').map(Number);
+
+        // Use UTC at mid-day (12:00:00) to be 100% safe from DST and local time quirks
+        const start = Date.UTC(aYear, aMonth - 1, aDay, 12, 0, 0);
+        const end = Date.UTC(cYear, cMonth - 1, cDay, 12, 0, 0);
+
+        const diffTime = end - start;
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        return diffDays < 1 ? 1 : diffDays;
+    } catch (e) {
+        return null;
+    }
+};

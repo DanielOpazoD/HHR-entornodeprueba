@@ -103,4 +103,30 @@ describe('useClinicalCrib', () => {
             });
         });
     });
+
+    describe('updateCribMultiple', () => {
+        it('should update multiple crib fields via patchRecord', () => {
+            const patient = createMockPatient('R1', {
+                clinicalCrib: createMockPatient('R1-crib', {
+                    patientName: 'Baby',
+                    bedMode: 'Cuna'
+                })
+            });
+            const record = createMockRecord({ R1: patient });
+
+            const { result } = renderHook(() => useClinicalCrib(record, mockSaveAndUpdate, mockPatchRecord));
+
+            act(() => {
+                result.current.updateCribMultiple('R1', {
+                    patientName: 'New name',
+                    age: '10'
+                });
+            });
+
+            expect(mockPatchRecord).toHaveBeenCalledWith({
+                'beds.R1.clinicalCrib.patientName': 'New name',
+                'beds.R1.clinicalCrib.age': '10'
+            });
+        });
+    });
 });

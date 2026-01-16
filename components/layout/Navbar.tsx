@@ -15,7 +15,7 @@ import { UserMenu } from './UserMenu';
 import { DemoModeBadge } from './DemoModeBadge';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
-export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD';
+export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD' | 'HEALTH';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface NavbarProps {
@@ -119,6 +119,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               currentModule={currentModule}
               onModuleChange={handleModuleChange}
               visibleModules={visibleModules}
+              censusViewMode={censusViewMode}
+              setCensusViewMode={setCensusViewMode}
             />
           </>
         )}

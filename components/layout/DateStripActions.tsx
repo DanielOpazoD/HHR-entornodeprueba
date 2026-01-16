@@ -26,7 +26,6 @@ import clsx from 'clsx';
 
 export interface ActionButtonsProps {
     // PDF Actions
-    onPrintPDF?: () => void;
     onExportPDF?: () => void;
     // Excel Actions
     onExportExcel?: () => void;
@@ -44,32 +43,21 @@ export interface ActionButtonsProps {
 // PDF Buttons Component
 // ============================================================================
 
-export const PdfButtons: React.FC<Pick<ActionButtonsProps, 'onPrintPDF' | 'onExportPDF'>> = ({
-    onPrintPDF,
+export const PdfButtons: React.FC<Pick<ActionButtonsProps, 'onExportPDF'>> = ({
     onExportPDF
 }) => {
-    if (!onPrintPDF) return null;
+    if (!onExportPDF) return null;
 
     return (
         <div className="flex items-center gap-1">
             <button
-                onClick={onPrintPDF}
-                className="btn btn-secondary bg-slate-800 text-white hover:bg-slate-900 border-none !px-3 !py-1.5 text-[10px]"
-                title="Imprimir vista en PDF (nativo)"
+                onClick={onExportPDF}
+                className="btn btn-secondary bg-teal-700 text-white hover:bg-teal-800 border-none !px-3 !py-1.5 text-[10px]"
+                title="Descargar PDF (rápido)"
             >
                 <Printer size={14} />
                 PDF
             </button>
-            {onExportPDF && (
-                <button
-                    onClick={onExportPDF}
-                    className="btn btn-secondary bg-teal-700 text-white hover:bg-teal-800 border-none !px-3 !py-1.5 text-[10px]"
-                    title="Descargar PDF Ultra-Ligero (rápido)"
-                >
-                    <Printer size={14} />
-                    PDF (Lite)
-                </button>
-            )}
         </div>
     );
 };
@@ -156,7 +144,7 @@ interface EmailDropdownProps {
     emailErrorMessage?: string | null;
     showMenu: boolean;
     setShowMenu: (value: boolean) => void;
-    menuRef: React.RefObject<HTMLDivElement>;
+    menuRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const EmailDropdown: React.FC<EmailDropdownProps> = ({

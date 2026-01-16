@@ -16,13 +16,13 @@ import { Bookmark, BookmarkInput } from '@/types/bookmarks';
 import {
     COLLECTIONS,
     HOSPITAL_COLLECTIONS,
-    HOSPITAL_ID
+    getActiveHospitalId
 } from '@/constants/firestorePaths';
 
 const getBookmarksCollection = () => collection(
     db,
     COLLECTIONS.HOSPITALS,
-    HOSPITAL_ID,
+    getActiveHospitalId(),
     HOSPITAL_COLLECTIONS.BOOKMARKS
 );
 
@@ -172,7 +172,7 @@ export interface BookmarkBarPreferences {
 const getPreferencesDocRef = () => doc(
     db,
     COLLECTIONS.HOSPITALS,
-    HOSPITAL_ID,
+    getActiveHospitalId(),
     HOSPITAL_COLLECTIONS.BOOKMARKS,
     '_preferences'
 );

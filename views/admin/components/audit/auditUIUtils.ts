@@ -45,6 +45,11 @@ export const actionIcons: Record<AuditAction, React.ReactNode> = {
     'MEDICAL_HANDOFF_SIGNED': React.createElement(User, { size: 14 }),
     'DATA_IMPORTED': React.createElement(Upload, { size: 14 }),
     'DATA_EXPORTED': React.createElement(Download, { size: 14 }),
+    'PATIENT_NOTE_UPDATED': React.createElement(FileText, { size: 14 }),
+    'CLINICAL_EVENT_ADDED': React.createElement(Zap, { size: 14 }),
+    'CLINICAL_EVENT_UPDATED': React.createElement(Activity, { size: 14 }),
+    'CLINICAL_EVENT_DELETED': React.createElement(Trash2, { size: 14 }),
+    'VIEW_PATIENT': React.createElement(Eye, { size: 14 }),
     'SYSTEM_ERROR': React.createElement(AlertCircle, { size: 14 })
 };
 
@@ -73,6 +78,11 @@ export const actionColors: Record<AuditAction, string> = {
     'MEDICAL_HANDOFF_SIGNED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
     'DATA_IMPORTED': 'bg-indigo-50 text-indigo-700 border-indigo-100',
     'DATA_EXPORTED': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    'PATIENT_NOTE_UPDATED': 'bg-blue-50 text-blue-700 border-blue-100',
+    'CLINICAL_EVENT_ADDED': 'bg-teal-50 text-teal-700 border-teal-100',
+    'CLINICAL_EVENT_UPDATED': 'bg-amber-50 text-amber-700 border-amber-100',
+    'CLINICAL_EVENT_DELETED': 'bg-rose-50 text-rose-700 border-rose-100',
+    'VIEW_PATIENT': 'bg-teal-50 text-teal-700 border-teal-100',
     'SYSTEM_ERROR': 'bg-red-50 text-red-700 border-red-100'
 };
 

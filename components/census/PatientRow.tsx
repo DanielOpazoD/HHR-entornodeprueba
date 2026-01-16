@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { BedDefinition, PatientData, DeviceDetails } from '../../types';
-import { AlertCircle, GitBranch, User } from 'lucide-react';
+import { AlertCircle, GitBranch, User, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import { useDailyRecordContext } from '../../context/DailyRecordContext';
 import { useConfirmDialog } from '../../context/UIContext';
 import { DemographicsModal } from '../modals/DemographicsModal';
+import { ExamRequestModal } from '../modals/ExamRequestModal';
 
 // Sub-components
 import { PatientActionMenu } from './patient-row/PatientActionMenu';
@@ -28,6 +29,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
     const isBlocked = data.isBlocked;
     const [showDemographics, setShowDemographics] = useState(false);
     const [showCribDemographics, setShowCribDemographics] = useState(false);
+    const [showExamRequest, setShowExamRequest] = useState(false);
+    const [showCribExamRequest, setShowCribExamRequest] = useState(false);
 
     // Defaults
     const isCunaMode = data.bedMode === 'Cuna';
@@ -162,7 +165,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                         isBlocked={!!isBlocked}
                         onAction={handleAction}
                         onViewDemographics={() => setShowDemographics(true)}
-                        onViewHistory={data.rut ? () => onViewHistory?.(data.rut, data.patientName || '') : undefined}
+                        onViewExamRequest={!!data.patientName ? () => setShowExamRequest(true) : undefined}
                         hasPatient={!!data.patientName}
                         readOnly={readOnly}
                         align={actionMenuAlign}
@@ -220,7 +223,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                             devices: handleDevicesChange,
                             deviceDetails: handleDeviceDetailsChange,
                             toggleDocType: toggleDocumentType,
-                            deliveryRoute: handleDeliveryRouteChange
+                            deliveryRoute: handleDeliveryRouteChange,
+                            multiple: handleDemographicsSave
                         }}
                         onDemo={() => setShowDemographics(true)}
                         readOnly={readOnly}
@@ -243,6 +247,13 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                             >
                                 <User size={14} />
                             </button>
+                            <button
+                                onClick={() => setShowCribExamRequest(true)}
+                                className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                                title="Solicitud de exámenes"
+                            >
+                                <FileText size={14} />
+                            </button>
                         </div>
                     </td>
                     <td className="p-0 border-r border-slate-200 text-center">
@@ -258,7 +269,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                             text: handleCribTextChange,
                             check: handleCribCheckboxChange,
                             devices: handleCribDevicesChange,
-                            deviceDetails: handleCribDeviceDetailsChange
+                            deviceDetails: handleCribDeviceDetailsChange,
+                            multiple: handleCribDemographicsSave // Reuse the multiple update logic for crib
                         }}
                         onDemo={() => setShowCribDemographics(true)}
                         readOnly={readOnly}
@@ -284,6 +296,21 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                     onSave={handleCribDemographicsSave}
                     bedId={`${bed.id}-cuna`}
                     recordDate={currentDateString}
+                />
+            )}
+
+            {/* Exam Request Modals */}
+            <ExamRequestModal
+                isOpen={showExamRequest}
+                onClose={() => setShowExamRequest(false)}
+                patient={data}
+            />
+
+            {data.clinicalCrib && (
+                <ExamRequestModal
+                    isOpen={showCribExamRequest}
+                    onClose={() => setShowCribExamRequest(false)}
+                    patient={data.clinicalCrib}
                 />
             )}
         </>
