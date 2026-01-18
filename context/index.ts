@@ -20,7 +20,9 @@ export type { NotificationType, ConfirmOptions, UIContextType } from './UIContex
 // Daily Record Context
 export {
     DailyRecordProvider,
-    useDailyRecordContext
+    useDailyRecordContext,
+    useDailyRecordData,
+    useDailyRecordActions
 } from './DailyRecordContext';
 
 // Demo Mode

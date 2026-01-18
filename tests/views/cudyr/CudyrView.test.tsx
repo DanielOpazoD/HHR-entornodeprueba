@@ -60,7 +60,7 @@ describe('CudyrView Component', () => {
         // Use within to find text in stats boxes to avoid split text issues
         const header = screen.getByRole('banner');
         expect(within(header).getByText(/Ocupadas:/i).parentElement).toHaveTextContent(/2/);
-        expect(within(header).getByText(/Categorizados:/i).parentElement).toHaveTextContent(/1/);
+        expect(within(header).getByText(/Categ:/i).parentElement).toHaveTextContent(/1/);
     });
 
     it('updates CUDYR field when a radio button is clicked', () => {
@@ -106,6 +106,6 @@ describe('CudyrView Component', () => {
 
         const header = screen.getByRole('banner');
         expect(within(header).getByText(/Ocupadas:/i).parentElement).toHaveTextContent(/2/);
-        expect(within(header).getByText(/Categorizados:/i).parentElement).toHaveTextContent(/1/);
+        expect(within(header).getByText(/Categ:/i).parentElement).toHaveTextContent(/1/);
     });
 });

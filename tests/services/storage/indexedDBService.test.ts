@@ -229,7 +229,7 @@ describe('indexedDBService', () => {
         it('should clear all and reload (mocked reload)', async () => {
             // Mock location.reload
             const originalLocation = window.location;
-            // @ts-ignore
+            // @ts-expect-error - Testing invalid state
             delete window.location;
             (window as any).location = { ...originalLocation, reload: vi.fn() };
 

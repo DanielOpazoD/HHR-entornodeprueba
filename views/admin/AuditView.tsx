@@ -9,8 +9,11 @@ import { AuditTable } from './components/audit/AuditTable';
 import { AuditTimeline } from './components/audit/AuditTimeline';
 import { PatientTraceability } from './components/audit/PatientTraceability';
 import { ExportKeysPanel } from './components/audit/ExportKeysPanel';
-import { DataMaintenancePanel } from './components/DataMaintenancePanel';
+
+import { ConsolidationManager } from './components/audit/ConsolidationManager';
 import { CensusAccessManager } from '@/components/admin/CensusAccessManager';
+
+
 import { isAdministratorEmail } from '@/constants/identities';
 import { useNotification, useConfirmDialog } from '@/context/UIContext';
 import { auth } from '@/firebaseConfig';
@@ -212,7 +215,11 @@ export const AuditView: React.FC = () => {
                     onSelectPatient={setSearchRut}
                 />
             )}
-            {activeSection === 'MAINTENANCE' && <DataMaintenancePanel />}
+            {activeSection === 'MAINTENANCE' && (
+                <div className="space-y-6">
+                    <ConsolidationManager />
+                </div>
+            )}
             {activeSection === 'ACCESS_CONTROL' && <CensusAccessManager />}
 
             {/* Main Data Table */}

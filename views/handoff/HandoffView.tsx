@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
 import { BEDS } from '@/constants';
 import { MessageSquare, Stethoscope, Share2, Send, Printer } from 'lucide-react';
@@ -32,8 +32,8 @@ interface HandoffViewProps {
 }
 
 export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', readOnly = false, ui: propUi }) => {
+    const { record } = useDailyRecordData();
     const {
-        record,
         updatePatient,
         updatePatientMultiple,
         updateClinicalCrib,
@@ -44,7 +44,7 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
         updateMedicalHandoffDoctor,
         markMedicalHandoffAsSent,
         sendMedicalHandoff
-    } = useDailyRecordContext();
+    } = useDailyRecordActions();
     const { nursesList } = useStaffContext();
     const { success } = useNotification();
     const { logEvent } = useAuditContext();
@@ -74,15 +74,9 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
         handleClinicalEventUpdate,
         handleClinicalEventDelete,
     } = useHandoffLogic({
-        record,
         type,
         selectedShift: ui.selectedShift,
         setSelectedShift: ui.setSelectedShift,
-        updatePatient,
-        updatePatientMultiple,
-        updateClinicalCrib,
-        updateClinicalCribMultiple,
-        sendMedicalHandoff,
         onSuccess: success,
     });
 

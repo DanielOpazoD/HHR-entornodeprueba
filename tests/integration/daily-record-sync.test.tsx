@@ -203,7 +203,7 @@ describe('DailyRecord Sync Integration', () => {
         await waitFor(() => expect(result.current.syncStatus).toBe('idle'));
 
         await act(async () => {
-            try { await result.current.saveAndUpdate(createMockRecord('2024-12-28')); } catch { }
+            try { /* Empty block intended for test sync */ await result.current.saveAndUpdate(createMockRecord('2024-12-28')); } catch { }
         });
 
         await waitFor(() => {

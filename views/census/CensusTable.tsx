@@ -1,37 +1,52 @@
-import React, { useMemo, useCallback } from 'react';
-import { DailyRecord } from '@/types';
+import React, { useMemo, useCallback, useState } from 'react';
 import { BEDS } from '@/constants';
 import { PatientRow } from '@/components/census/PatientRow';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useCensusActions } from './CensusActionsContext';
 import { useConfirmDialog } from '@/context/UIContext';
 import { useTableConfig, TableColumnConfig } from '@/context/TableConfigContext';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
-import { Trash2, Baby, Settings2 } from 'lucide-react';
+import { Trash2, FileText, Stethoscope } from 'lucide-react';
 import clsx from 'clsx';
 
+// Type for diagnosis input mode
+export type DiagnosisMode = 'free' | 'cie10';
+
 interface CensusTableProps {
-    record: DailyRecord;
     currentDateString: string;
-    onResetDay: () => void;
     readOnly?: boolean;
 }
 
 export const CensusTable: React.FC<CensusTableProps> = ({
-    record,
     currentDateString,
-    onResetDay,
     readOnly = false
 }) => {
-    const { showCribConfig, setShowCribConfig, handleRowAction } = useCensusActions();
+    const { record } = useDailyRecordData();
+    const { resetDay } = useDailyRecordActions();
+    const { handleRowAction } = useCensusActions();
     const { confirm } = useConfirmDialog();
-    const { config, isEditMode, setEditMode, updateColumnWidth } = useTableConfig();
-    const { columns } = config;
+    const { config, isEditMode, updateColumnWidth } = useTableConfig();
+
+    // Diagnosis mode: 'free' (text libre) or 'cie10' (CIE-10 search)
+    const [diagnosisMode, setDiagnosisMode] = useState<DiagnosisMode>(() => {
+        if (typeof localStorage !== 'undefined') {
+            return (localStorage.getItem('hhr_diagnosis_mode') as DiagnosisMode) || 'free';
+        }
+        return 'free';
+    });
+
+    const toggleDiagnosisMode = useCallback(() => {
+        const newMode: DiagnosisMode = diagnosisMode === 'free' ? 'cie10' : 'free';
+        setDiagnosisMode(newMode);
+        localStorage.setItem('hhr_diagnosis_mode', newMode);
+    }, [diagnosisMode]);
 
     // Filter beds to display: All normal beds + Enabled extra beds
     const visibleBeds = useMemo(() => {
+        if (!record) return [];
         const activeExtras = record.activeExtraBeds || [];
         return BEDS.filter(b => !b.isExtra || activeExtras.includes(b.id));
-    }, [record.activeExtraBeds]);
+    }, [record]);
 
     const handleClearAll = useCallback(async () => {
         const confirmed = await confirm({
@@ -43,13 +58,17 @@ export const CensusTable: React.FC<CensusTableProps> = ({
         });
 
         if (confirmed) {
-            onResetDay();
+            resetDay();
         }
-    }, [confirm, onResetDay]);
+    }, [confirm, resetDay]);
 
     const handleColumnResize = useCallback((column: keyof TableColumnConfig) => (width: number) => {
         updateColumnWidth(column, width);
     }, [updateColumnWidth]);
+
+    if (!record) return null;
+
+    const { columns } = config;
 
     // Common header classes
     const headerClass = "sticky top-0 z-20 bg-slate-50 py-1 px-1 border-r border-slate-100 text-center text-slate-500 text-[10px] uppercase tracking-wider font-bold shadow-sm";
@@ -88,18 +107,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                             >
                                 <div className="flex flex-col items-center gap-0.5">
                                     <span>Cama</span>
-                                    {!readOnly && (
-                                        <button
-                                            onClick={() => setShowCribConfig(!showCribConfig)}
-                                            className={clsx(
-                                                "text-[10px] flex items-center justify-center p-0.5 rounded transition-all print:hidden w-5 h-5",
-                                                showCribConfig ? "bg-medical-600 text-white" : "bg-white border border-slate-300 text-slate-400 hover:text-medical-600"
-                                            )}
-                                            title="Configurar Cunas"
-                                        >
-                                            <Baby size={12} />
-                                        </button>
-                                    )}
                                 </div>
                             </ResizableHeader>
 
@@ -150,7 +157,23 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 onResize={handleColumnResize('diagnosis')}
                                 className={headerClass}
                             >
-                                Diagnóstico
+                                <div className="flex items-center justify-center gap-1">
+                                    <span>Diagnóstico</span>
+                                    {!readOnly && (
+                                        <button
+                                            onClick={toggleDiagnosisMode}
+                                            className={clsx(
+                                                "text-[10px] flex items-center justify-center p-0.5 rounded transition-all print:hidden w-4 h-4",
+                                                diagnosisMode === 'cie10'
+                                                    ? "bg-medical-600 text-white"
+                                                    : "bg-white border border-slate-300 text-slate-400 hover:text-medical-600"
+                                            )}
+                                            title={diagnosisMode === 'cie10' ? 'Modo CIE-10 (clic para cambiar a texto libre)' : 'Modo texto libre (clic para cambiar a CIE-10)'}
+                                        >
+                                            {diagnosisMode === 'cie10' ? <Stethoscope size={10} /> : <FileText size={10} />}
+                                        </button>
+                                    )}
+                                </div>
                             </ResizableHeader>
 
                             {/* Specialty column */}
@@ -224,9 +247,9 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 data={record.beds[bed.id]}
                                 currentDateString={currentDateString}
                                 onAction={handleRowAction}
-                                showCribControls={showCribConfig}
                                 readOnly={readOnly}
                                 actionMenuAlign={index >= visibleBeds.length - 4 ? 'bottom' : 'top'}
+                                diagnosisMode={diagnosisMode}
                             />
                         ))}
                     </tbody>

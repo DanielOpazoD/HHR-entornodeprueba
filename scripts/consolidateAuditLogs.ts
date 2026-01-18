@@ -154,7 +154,7 @@ async function consolidateLogs() {
     const auditRef = db.collection(COLLECTION_NAME);
 
     // Build query
-    let query = auditRef.orderBy('timestamp', 'desc').limit(5000);
+    const query = auditRef.orderBy('timestamp', 'desc').limit(5000);
 
     // Fetch logs
     console.log('📥 Fetching audit logs...');

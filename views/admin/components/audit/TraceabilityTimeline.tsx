@@ -3,6 +3,7 @@ import { History, Activity, Clock } from 'lucide-react';
 import clsx from 'clsx';
 import { AuditLogEntry } from '@/types/audit';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
+import { parseAuditTimestamp } from './auditUIUtils';
 
 interface TraceabilityTimelineProps {
     chronologicalLogs: AuditLogEntry[];
@@ -24,7 +25,7 @@ export const TraceabilityTimeline: React.FC<TraceabilityTimelineProps> = ({ chro
 
                 <div className="space-y-8">
                     {chronologicalLogs.map((log) => {
-                        const date = new Date(log.timestamp);
+                        const date = parseAuditTimestamp(log.timestamp);
                         const isAdmission = log.action === 'PATIENT_ADMITTED';
                         const isDischarge = log.action === 'PATIENT_DISCHARGED';
                         const isTransfer = log.action === 'PATIENT_TRANSFERRED';

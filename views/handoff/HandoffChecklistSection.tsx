@@ -62,14 +62,22 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
                 {/* Spacer to push buttons to the right */}
                 <div className="flex-1" />
 
-                {/* CUDYR Button */}
-                <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'CUDYR' }))}
-                    className="px-3 py-1 text-xs font-bold border-2 border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap cursor-pointer"
-                    title="Ver Categorización CUDYR"
-                >
-                    CUDYR
-                </button>
+                {/* CUDYR Button - Night Shift Only */}
+                {selectedShift === 'night' && (
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'CUDYR' }))}
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors whitespace-nowrap cursor-pointer"
+                        title="Ver Categorización CUDYR"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M18 17V9" />
+                            <path d="M13 17V5" />
+                            <path d="M8 17v-3" />
+                        </svg>
+                        CUDYR
+                    </button>
+                )}
 
                 {/* Save Backup Button */}
                 {!readOnly && (

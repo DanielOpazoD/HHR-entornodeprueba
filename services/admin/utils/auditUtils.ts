@@ -39,6 +39,34 @@ export const getCurrentUserEmail = (): string => {
 };
 
 /**
+ * Universal parser for audit timestamps
+ * Handles ISO strings, Firebase Timestamps (objects or plain), 
+ * numbers (ms), and Date objects.
+ */
+export const parseAuditTimestamp = (timestamp: any): Date => {
+    if (!timestamp) return new Date(0);
+
+    // Handle Firebase Timestamp objects (Firestore native)
+    if (typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+    }
+
+    // Handle plain objects from JSON (seconds/nanoseconds)
+    if (timestamp.seconds !== undefined) {
+        return new Date(timestamp.seconds * 1000);
+    }
+
+    // Handle Date objects
+    if (timestamp instanceof Date) {
+        return timestamp;
+    }
+
+    // Handle ISO strings or numbers (ms)
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? new Date(0) : date;
+};
+
+/**
  * Get user display name if available
  */
 export const getCurrentUserDisplayName = (): string | undefined => {

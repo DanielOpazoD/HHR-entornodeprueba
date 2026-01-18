@@ -48,7 +48,9 @@ export const HOSPITAL_COLLECTIONS = {
     /** Global bookmarks for the hospital */
     BOOKMARKS: 'bookmarks',
     /** Trash bin for deleted records */
-    DELETED_RECORDS: 'deletedRecords'
+    DELETED_RECORDS: 'deletedRecords',
+    /** Master patient index */
+    PATIENTS: 'patients'
 } as const;
 
 // ============================================================================

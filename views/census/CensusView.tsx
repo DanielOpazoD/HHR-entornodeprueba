@@ -91,41 +91,25 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
             <div className="space-y-6" style={marginStyle}>
                 {/* 1. Header Row: Staff Selectors + Stats */}
                 <CensusStaffHeader
-                    record={record}
-                    nursesList={nursesList}
-                    tensList={tensList}
-                    onUpdateNurse={updateNurse}
-                    onUpdateTens={updateTens}
                     readOnly={readOnly}
                     stats={stats}
                 />
 
-                {/* 2. Active Patients Table */}
                 <SectionErrorBoundary sectionName="Tabla de Pacientes" fallbackHeight="400px">
                     <CensusTable
-                        record={record}
                         currentDateString={currentDateString}
-                        onResetDay={resetDay}
                         readOnly={readOnly}
                     />
                 </SectionErrorBoundary>
 
                 {/* 3. Discharges Section */}
                 <SectionErrorBoundary sectionName="Altas del Día" fallbackHeight="100px">
-                    <DischargesSection
-                        discharges={record.discharges || []}
-                        onUndoDischarge={undoDischarge}
-                        onDeleteDischarge={deleteDischarge}
-                    />
+                    <DischargesSection />
                 </SectionErrorBoundary>
 
                 {/* 4. Traslados Section */}
                 <SectionErrorBoundary sectionName="Traslados del Día" fallbackHeight="100px">
-                    <TransfersSection
-                        transfers={record.transfers || []}
-                        onUndoTransfer={undoTransfer}
-                        onDeleteTransfer={deleteTransfer}
-                    />
+                    <TransfersSection />
                 </SectionErrorBoundary>
 
                 {/* 5. CMA Section */}

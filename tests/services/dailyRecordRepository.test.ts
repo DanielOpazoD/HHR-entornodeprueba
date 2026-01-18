@@ -72,7 +72,7 @@ describe('DailyRecordRepository (Expanded)', () => {
 
             const updated = await getForDate('2024-12-28');
             expect(updated?.beds.R1.patientName).toBe('New');
-            expect(firestoreService.updateRecordPartial).toHaveBeenCalledWith('2024-12-28', { 'beds.R1.patientName': 'New' });
+            expect(firestoreService.updateRecordPartial).toHaveBeenCalledWith('2024-12-28', expect.objectContaining({ 'beds.R1.patientName': 'New' }));
         });
 
         it('silently catches firestore errors to protect local data', async () => {

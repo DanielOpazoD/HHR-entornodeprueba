@@ -8,9 +8,8 @@ import { useCallback } from 'react';
 import { DailyRecord, PatientData } from '../types';
 import { createEmptyPatient } from '../services/factories/patientFactory';
 import { BEDS } from '../constants';
-import { logPatientCleared, logAuditEvent } from '../services/admin/auditService';
 import { useAuditContext } from '../context/AuditContext';
-import { DailyRecordPatchLoose } from './useDailyRecordTypes';
+import { DailyRecordPatch } from './useDailyRecordTypes';
 
 // ============================================================================
 // Types
@@ -50,9 +49,9 @@ export interface BedOperationsActions {
 
 export const useBedOperations = (
     record: DailyRecord | null,
-    patchRecord: (partial: DailyRecordPatchLoose) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ): BedOperationsActions => {
-    const { logEvent, logDebouncedEvent, logPatientCleared, userId } = useAuditContext();
+    const { logEvent, logPatientCleared } = useAuditContext();
 
     // ========================================================================
     // Clear Operations
@@ -76,7 +75,7 @@ export const useBedOperations = (
         // Atomic replace of bed object
         patchRecord({
             [`beds.${bedId}`]: cleanPatient
-        });
+        } as any);
     }, [record, patchRecord, logPatientCleared]);
 
     const clearAllBeds = useCallback(() => {
@@ -96,7 +95,7 @@ export const useBedOperations = (
             beds: updatedBeds,
             discharges: [],
             transfers: []
-        });
+        } as any);
     }, [record, patchRecord]);
 
     // ========================================================================
@@ -130,7 +129,7 @@ export const useBedOperations = (
             patchRecord({
                 [`beds.${targetBedId}`]: targetPatient,
                 [`beds.${sourceBedId}`]: cleanSource
-            });
+            } as any);
 
             // Audit
             logEvent(
@@ -160,7 +159,7 @@ export const useBedOperations = (
 
             patchRecord({
                 [`beds.${targetBedId}`]: targetPatient
-            });
+            } as any);
 
             // Audit
             logEvent(
@@ -184,7 +183,7 @@ export const useBedOperations = (
 
     // ========================================================================
     // Block/Extra Bed Operations
-    // ========================================================================
+    // ========================================
 
     const toggleBlockBed = useCallback((bedId: string, reason?: string) => {
         if (!record) return;
@@ -194,7 +193,7 @@ export const useBedOperations = (
         patchRecord({
             [`beds.${bedId}.isBlocked`]: newIsBlocked,
             [`beds.${bedId}.blockedReason`]: newIsBlocked ? (reason || '') : ''
-        });
+        } as any);
 
         // Audit Log
         logEvent(
@@ -217,7 +216,7 @@ export const useBedOperations = (
 
         patchRecord({
             [`beds.${bedId}.blockedReason`]: reason || ''
-        });
+        } as any);
 
         // Audit Log
         logEvent(
@@ -238,7 +237,7 @@ export const useBedOperations = (
             ? [...currentExtras, bedId]
             : currentExtras.filter(id => id !== bedId);
 
-        patchRecord({ activeExtraBeds: newExtras });
+        patchRecord({ activeExtraBeds: newExtras } as any);
 
         // Audit Log
         logEvent(

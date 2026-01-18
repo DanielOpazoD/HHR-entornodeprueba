@@ -17,12 +17,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { AuditLogEntry } from '@/types/audit';
+import { getActiveHospitalId } from '../../constants/firestorePaths';
+import { parseAuditTimestamp } from './utils/auditUtils';
 
-// ============================================================================
+// = : ===========================================================================
 // Configuration
-// ============================================================================
+// ===========================================================================
 
-const COLLECTION_NAME = 'audit_logs';
+const getAuditCollectionPath = () => `hospitals/${getActiveHospitalId()}/auditLogs`;
 const DEFAULT_WINDOW_MINUTES = 5;
 const MAX_BATCH_SIZE = 500; // Firestore batch limit
 
@@ -63,10 +65,10 @@ interface ConsolidationGroup {
 // Helpers
 // ============================================================================
 
-function mergeDetails(logs: AuditLogWithId[]): Record<string, unknown> {
+export function mergeDetails(logs: AuditLogWithId[]): Record<string, unknown> {
     // Sort by timestamp ascending (oldest first)
     const sorted = [...logs].sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        parseAuditTimestamp(a.timestamp).getTime() - parseAuditTimestamp(b.timestamp).getTime()
     );
 
     // Start with first log's details
@@ -117,7 +119,7 @@ export async function previewConsolidation(
     windowMinutes: number = DEFAULT_WINDOW_MINUTES,
     actionFilter?: string
 ): Promise<ConsolidationPreview> {
-    const auditRef = collection(db, COLLECTION_NAME);
+    const auditRef = collection(db, getAuditCollectionPath());
     const q = query(auditRef, orderBy('timestamp', 'desc'), limit(5000));
 
     const snapshot = await getDocs(q);
@@ -133,7 +135,7 @@ export async function previewConsolidation(
     }
 
     // Group logs
-    const groups = groupLogs(filtered, windowMinutes);
+    const groups = groupLogs(filtered.reverse(), windowMinutes); // Reverse to process oldest to newest within groups
     const duplicateGroups = Array.from(groups.values()).filter(g => g.logs.length > 1);
 
     return {
@@ -169,7 +171,7 @@ export async function executeConsolidation(
     try {
         onProgress?.('Cargando logs de auditoría...');
 
-        const auditRef = collection(db, COLLECTION_NAME);
+        const auditRef = collection(db, getAuditCollectionPath());
         const q = query(auditRef, orderBy('timestamp', 'desc'), limit(5000));
         const snapshot = await getDocs(q);
 
@@ -189,7 +191,7 @@ export async function executeConsolidation(
         onProgress?.(`Analizando ${filtered.length} logs...`);
 
         // Group logs
-        const groups = groupLogs(filtered, windowMinutes);
+        const groups = groupLogs(filtered.reverse(), windowMinutes);
         const duplicateGroups = Array.from(groups.values()).filter(g => g.logs.length > 1);
 
         result.groupsFound = duplicateGroups.length;
@@ -210,20 +212,21 @@ export async function executeConsolidation(
             for (const group of batchGroups) {
                 // Prepare merged details
                 group.merged = mergeDetails(group.logs);
-                group.keepId = group.logs[0].id;
+                group.keepId = group.logs[0].id; // Keep oldest
                 group.deleteIds = group.logs.slice(1).map(l => l.id);
 
                 // Update the kept log
-                const keepRef = doc(db, COLLECTION_NAME, group.keepId);
+                const keepRef = doc(db, getAuditCollectionPath(), group.keepId);
                 batch.update(keepRef, {
                     details: group.merged,
-                    consolidatedCount: group.logs.length
+                    consolidatedCount: group.logs.length,
+                    lastTimestamp: group.logs[group.logs.length - 1].timestamp
                 });
                 result.logsConsolidated++;
 
                 // Delete duplicates
                 for (const deleteId of group.deleteIds) {
-                    batch.delete(doc(db, COLLECTION_NAME, deleteId));
+                    batch.delete(doc(db, getAuditCollectionPath(), deleteId));
                     result.logsDeleted++;
                 }
             }
@@ -246,28 +249,40 @@ export async function executeConsolidation(
 /**
  * Group logs by action + entityId + user within time window
  */
-function groupLogs(logs: AuditLogWithId[], windowMinutes: number): Map<string, ConsolidationGroup> {
+export function groupLogs(logs: AuditLogWithId[], windowMinutes: number): Map<string, ConsolidationGroup> {
     const groups: Map<string, ConsolidationGroup> = new Map();
     const windowMs = windowMinutes * 60 * 1000;
 
-    logs.forEach(log => {
-        const baseKey = `${log.action}-${log.entityId}-${log.userId || 'unknown'}`;
-        const logTime = new Date(log.timestamp).getTime();
+    // First sort all logs by time to ensure window checking works correctly
+    const sortedLogs = [...logs].sort((a, b) =>
+        parseAuditTimestamp(a.timestamp).getTime() - parseAuditTimestamp(b.timestamp).getTime()
+    );
 
-        // Find existing group within time window
+    sortedLogs.forEach(log => {
+        const actionStr = (log.action || '').trim();
+        const entityStr = (log.entityId || '').trim();
+        const userStr = (log.userId || 'unknown').trim();
+        const baseKey = `${actionStr}-${entityStr}-${userStr}`;
+        const logTime = parseAuditTimestamp(log.timestamp).getTime();
+
+        // Find existing group within time window (check most recent compatible group)
         let foundGroup: ConsolidationGroup | undefined;
 
-        groups.forEach((group) => {
+        // Optimized lookup for the same base key within window
+        for (const group of groups.values()) {
             if (group.key.startsWith(baseKey)) {
-                const lastLog = group.logs[group.logs.length - 1];
-                const lastTime = new Date(lastLog.timestamp).getTime();
-                const timeDiff = Math.abs(logTime - lastTime);
+                // Check if this log fits in this group's time window
+                // A log belongs if it's close to the FIRST or LAST log of the group
+                const firstTime = parseAuditTimestamp(group.logs[0].timestamp).getTime();
+                const lastTime = parseAuditTimestamp(group.logs[group.logs.length - 1].timestamp).getTime();
 
-                if (timeDiff <= windowMs) {
+                // Allow a sliding window: as long as it's close to the last one, it joins
+                if (Math.abs(logTime - lastTime) <= windowMs || Math.abs(logTime - firstTime) <= windowMs) {
                     foundGroup = group;
+                    break;
                 }
             }
-        });
+        }
 
         if (foundGroup) {
             foundGroup.logs.push(log);

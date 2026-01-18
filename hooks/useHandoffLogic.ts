@@ -30,34 +30,31 @@ import { BEDS } from '@/constants';
 import { getShiftSchedule, isAdmittedDuringShift } from '@/utils/dateUtils';
 import { getWhatsAppConfig, getMessageTemplates } from '@/services/integrations/whatsapp/whatsappService';
 import { useAuditContext } from '@/context/AuditContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 
 export type NursingShift = 'day' | 'night';
 
 interface UseHandoffLogicParams {
-    record: DailyRecord | null;
     type: 'nursing' | 'medical';
     selectedShift: NursingShift;
     setSelectedShift: (s: NursingShift) => void;
-    updatePatient: (bedId: string, field: keyof PatientData, value: PatientData[keyof PatientData]) => void;
-    updatePatientMultiple: (bedId: string, updates: Partial<PatientData>) => void;
-    updateClinicalCrib: (bedId: string, field: keyof PatientData, value: PatientData[keyof PatientData]) => void;
-    updateClinicalCribMultiple: (bedId: string, updates: Partial<PatientData>) => void;
-    sendMedicalHandoff: (template: string, groupId: string) => Promise<void>;
     onSuccess: (message: string, description?: string) => void;
 }
 
 export const useHandoffLogic = ({
-    record,
     type,
     selectedShift,
     setSelectedShift,
-    updatePatient,
-    updatePatientMultiple,
-    updateClinicalCrib,
-    updateClinicalCribMultiple,
-    sendMedicalHandoff,
     onSuccess,
 }: UseHandoffLogicParams) => {
+    const { record } = useDailyRecordData();
+    const {
+        updatePatient,
+        updatePatientMultiple,
+        updateClinicalCrib,
+        updateClinicalCribMultiple,
+        sendMedicalHandoff
+    } = useDailyRecordActions();
     // ========== STATE ==========
     const [whatsappSending, setWhatsappSending] = useState(false);
     const [whatsappSent, setWhatsappSent] = useState(false);

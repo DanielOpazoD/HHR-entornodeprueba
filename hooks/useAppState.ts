@@ -65,7 +65,7 @@ export function useAppState(): UseAppStateReturn {
     const [isTestAgentRunning, setIsTestAgentRunning] = useState(false);
 
     // Bookmarks bar toggle
-    const [showBookmarksBar, setShowBookmarksBar] = useState(true);
+    const [showBookmarksBar, setShowBookmarksBar] = useState(false);
 
     // Shift state
     const [selectedShift, setSelectedShift] = useState<'day' | 'night'>('day');

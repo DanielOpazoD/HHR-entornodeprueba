@@ -10,10 +10,13 @@ import {
     getForDate,
     save,
     updatePartial,
-    subscribe
+    subscribe,
+    initializeDay,
+    deleteDay
 } from '../services/repositories/DailyRecordRepository';
+import { generateDemoRecord } from '../services/utils/demoDataGenerator';
 import { useEffect } from 'react';
-import { DailyRecordPatchLoose } from './useDailyRecordTypes';
+import { DailyRecordPatch } from './useDailyRecordTypes';
 import { applyPatches } from '../utils/patchUtils';
 
 /**
@@ -149,7 +152,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (partial: DailyRecordPatchLoose) => {
+        mutationFn: async (partial: DailyRecordPatch) => {
             await updatePartial(date, partial);
             return partial;
         },
@@ -225,4 +228,70 @@ export const useInvalidateDailyRecord = () => {
             });
         }
     };
+};
+
+/**
+ * Hook for initializing a new daily record.
+ */
+export const useInitializeDailyRecordMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ date, copyFromDate }: { date: string, copyFromDate?: string }) => {
+            return await initializeDay(date, copyFromDate);
+        },
+        onSuccess: (newRecord) => {
+            queryClient.setQueryData(
+                queryKeys.dailyRecord.byDate(newRecord.date),
+                newRecord
+            );
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.dailyRecord.byDate(newRecord.date)
+            });
+        }
+    });
+};
+
+/**
+ * Hook for deleting a daily record.
+ */
+export const useDeleteDailyRecordMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (date: string) => {
+            await deleteDay(date);
+            return date;
+        },
+        onSuccess: (date) => {
+            queryClient.setQueryData(
+                queryKeys.dailyRecord.byDate(date),
+                null
+            );
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.dailyRecord.byDate(date)
+            });
+        }
+    });
+};
+
+/**
+ * Hook for generating demo data.
+ */
+export const useGenerateDemoMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (date: string) => {
+            const demoRecord = generateDemoRecord(date);
+            await save(demoRecord);
+            return demoRecord;
+        },
+        onSuccess: (record) => {
+            queryClient.setQueryData(
+                queryKeys.dailyRecord.byDate(record.date),
+                record
+            );
+        }
+    });
 };

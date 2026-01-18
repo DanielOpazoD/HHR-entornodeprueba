@@ -1,11 +1,18 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { TransfersSection } from '@/views/census/TransfersSection';
 import { useCensusActions } from '@/views/census/CensusActionsContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 
 vi.mock('@/views/census/CensusActionsContext', () => ({
     useCensusActions: vi.fn()
+}));
+
+vi.mock('@/context/DailyRecordContext', () => ({
+    useDailyRecordData: vi.fn(),
+    useDailyRecordActions: vi.fn()
 }));
 
 describe('TransfersSection', () => {
@@ -28,20 +35,33 @@ describe('TransfersSection', () => {
     ];
 
     beforeEach(() => {
+        vi.clearAllMocks();
         vi.mocked(useCensusActions).mockReturnValue({ handleEditTransfer: mockHandleEdit } as any);
+        (useDailyRecordActions as any).mockReturnValue({
+            undoTransfer: mockOnUndo,
+            deleteTransfer: mockOnDelete
+        });
     });
 
     it('renders empty message when no transfers', () => {
-        render(<TransfersSection transfers={[]} onUndoTransfer={mockOnUndo} onDeleteTransfer={mockOnDelete} />);
+        (useDailyRecordData as any).mockReturnValue({
+            record: { transfers: [] }
+        });
+
+        render(<TransfersSection />);
         expect(screen.getByText(/No hay traslados registrados/)).toBeInTheDocument();
     });
 
     it('renders transfer list and triggers actions', () => {
-        render(<TransfersSection transfers={mockTransfers as any} onUndoTransfer={mockOnUndo} onDeleteTransfer={mockOnDelete} />);
+        (useDailyRecordData as any).mockReturnValue({
+            record: { transfers: mockTransfers }
+        });
+
+        render(<TransfersSection />);
 
         expect(screen.getByText('Jane Smith')).toBeInTheDocument();
         expect(screen.getByText('R2')).toBeInTheDocument();
-        expect(screen.getByText('Nurse X')).toBeInTheDocument(); // Condition on 'Avión comercial'
+        expect(screen.getByText('Nurse X')).toBeInTheDocument();
 
         fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
         expect(mockOnUndo).toHaveBeenCalledWith('t1');

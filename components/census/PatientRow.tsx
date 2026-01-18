@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { BedDefinition, PatientData, DeviceDetails } from '../../types';
-import { AlertCircle, GitBranch, User, FileText } from 'lucide-react';
+import { AlertCircle, User } from 'lucide-react';
 import clsx from 'clsx';
-import { useDailyRecordContext } from '../../context/DailyRecordContext';
+import { useDailyRecordActions } from '../../context/DailyRecordContext';
 import { useConfirmDialog } from '../../context/UIContext';
 import { DemographicsModal } from '../modals/DemographicsModal';
 import { ExamRequestModal } from '../modals/ExamRequestModal';
+import { PatientHistoryModal } from '../modals/PatientHistoryModal';
+import { DiagnosisMode } from '../../views/census/CensusTable';
 
 // Sub-components
 import { PatientActionMenu } from './patient-row/PatientActionMenu';
@@ -18,19 +20,20 @@ interface PatientRowProps {
     currentDateString: string;
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => void;
     onViewHistory?: (rut: string, name: string) => void;
-    showCribControls: boolean;
+    showCribControls?: boolean; // Keep as optional if still used in CensusTable but unused here
     readOnly?: boolean;
     actionMenuAlign?: 'top' | 'bottom';
+    diagnosisMode?: DiagnosisMode;
 }
 
-const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDateString, onAction, onViewHistory, showCribControls, readOnly = false, actionMenuAlign = 'top' }) => {
-    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } = useDailyRecordContext();
+const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDateString, onAction, readOnly = false, actionMenuAlign = 'top', diagnosisMode = 'free' }) => {
+    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } = useDailyRecordActions();
     const { confirm, alert } = useConfirmDialog();
     const isBlocked = data.isBlocked;
     const [showDemographics, setShowDemographics] = useState(false);
     const [showCribDemographics, setShowCribDemographics] = useState(false);
     const [showExamRequest, setShowExamRequest] = useState(false);
-    const [showCribExamRequest, setShowCribExamRequest] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
 
     // Defaults
     const isCunaMode = data.bedMode === 'Cuna';
@@ -165,7 +168,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                         isBlocked={!!isBlocked}
                         onAction={handleAction}
                         onViewDemographics={() => setShowDemographics(true)}
-                        onViewExamRequest={!!data.patientName ? () => setShowExamRequest(true) : undefined}
+                        onViewExamRequest={data.patientName ? () => setShowExamRequest(true) : undefined}
+                        onViewHistory={data.rut ? () => setShowHistory(true) : undefined}
                         hasPatient={!!data.patientName}
                         readOnly={readOnly}
                         align={actionMenuAlign}
@@ -178,7 +182,6 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                     data={data}
                     currentDateString={currentDateString}
                     isBlocked={!!isBlocked}
-                    showCribControls={showCribControls}
                     hasCompanion={hasCompanion}
                     hasClinicalCrib={hasClinicalCrib}
                     isCunaMode={isCunaMode}
@@ -228,6 +231,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                         }}
                         onDemo={() => setShowDemographics(true)}
                         readOnly={readOnly}
+                        diagnosisMode={diagnosisMode}
                     />
                 )}
             </tr>
@@ -246,13 +250,6 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                                 title="Datos demográficos"
                             >
                                 <User size={14} />
-                            </button>
-                            <button
-                                onClick={() => setShowCribExamRequest(true)}
-                                className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                                title="Solicitud de exámenes"
-                            >
-                                <FileText size={14} />
                             </button>
                         </div>
                     </td>
@@ -306,13 +303,13 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                 patient={data}
             />
 
-            {data.clinicalCrib && (
-                <ExamRequestModal
-                    isOpen={showCribExamRequest}
-                    onClose={() => setShowCribExamRequest(false)}
-                    patient={data.clinicalCrib}
-                />
-            )}
+            {/* Patient History Modal */}
+            <PatientHistoryModal
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
+                patientRut={data.rut || ''}
+                patientName={data.patientName}
+            />
         </>
     );
 };

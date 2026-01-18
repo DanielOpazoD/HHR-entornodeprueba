@@ -5,6 +5,7 @@ import { AuditLogEntry } from '@/types/audit';
 import { useClinicalData } from '@/hooks/admin/useClinicalData';
 import { TraceabilityTimeline } from './TraceabilityTimeline';
 import { TraceabilitySummary } from './TraceabilitySummary';
+import { parseAuditTimestamp } from './auditUIUtils';
 
 interface PatientTraceabilityProps {
     logs: AuditLogEntry[];
@@ -25,14 +26,14 @@ export const PatientTraceability: React.FC<PatientTraceabilityProps> = ({ logs, 
 
             if (rut && name) {
                 const existing = patientMap.get(rut);
-                if (!existing || new Date(log.timestamp) > new Date(existing.lastEvent)) {
+                if (!existing || parseAuditTimestamp(log.timestamp) > parseAuditTimestamp(existing.lastEvent)) {
                     patientMap.set(rut, { rut, name, lastEvent: log.timestamp });
                 }
             }
         });
 
         return Array.from(patientMap.values())
-            .sort((a, b) => new Date(b.lastEvent).getTime() - new Date(a.lastEvent).getTime())
+            .sort((a, b) => parseAuditTimestamp(b.lastEvent).getTime() - parseAuditTimestamp(a.lastEvent).getTime())
             .slice(0, 10);
     }, [logs]);
 
@@ -40,7 +41,7 @@ export const PatientTraceability: React.FC<PatientTraceabilityProps> = ({ logs, 
     const chronologicalLogs = useMemo(() => {
         if (!searchRut) return [];
         return [...logs].sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            parseAuditTimestamp(a.timestamp).getTime() - parseAuditTimestamp(b.timestamp).getTime()
         );
     }, [logs, searchRut]);
 
@@ -191,9 +192,9 @@ export const PatientTraceability: React.FC<PatientTraceabilityProps> = ({ logs, 
                             </div>
                             <div className="p-5">
                                 {admissions.map((adm, idx) => {
-                                    const nextDischarge = discharges.find(d => new Date(d.timestamp) > new Date(adm.timestamp));
-                                    const end = nextDischarge ? new Date(nextDischarge.timestamp) : new Date();
-                                    const days = Math.ceil((end.getTime() - new Date(adm.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+                                    const nextDischarge = discharges.find(d => parseAuditTimestamp(d.timestamp) > parseAuditTimestamp(adm.timestamp));
+                                    const end = nextDischarge ? parseAuditTimestamp(nextDischarge.timestamp) : new Date();
+                                    const days = Math.ceil((end.getTime() - parseAuditTimestamp(adm.timestamp).getTime()) / (1000 * 60 * 60 * 24));
 
                                     return (
                                         <div key={adm.id} className="mb-4 last:mb-0 bg-slate-50 p-3 rounded-xl border border-slate-100">

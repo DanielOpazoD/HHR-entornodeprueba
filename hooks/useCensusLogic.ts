@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useDailyRecordContext } from '../context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions } from '../context/DailyRecordContext';
 import { useStaffContext } from '../context/StaffContext';
 import { getPreviousDay, getAvailableDates } from '../services/repositories/DailyRecordRepository';
 import { calculateStats } from '../services/calculations/statsCalculator';
@@ -12,8 +12,8 @@ import { calculateStats } from '../services/calculations/statsCalculator';
  * @param currentDateString - The currently selected date in YYYY-MM-DD format.
  */
 export const useCensusLogic = (currentDateString: string) => {
+    const { record } = useDailyRecordData();
     const {
-        record,
         createDay,
         resetDay,
         updateNurse,
@@ -22,7 +22,7 @@ export const useCensusLogic = (currentDateString: string) => {
         deleteDischarge,
         undoTransfer,
         deleteTransfer
-    } = useDailyRecordContext();
+    } = useDailyRecordActions();
 
     const { nursesList, tensList } = useStaffContext();
 

@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getAuditLogs, AUDIT_ACTION_LABELS } from '../services/admin/auditService';
 import { AuditAction, AuditLogEntry, GroupedAuditLogEntry } from '../types/audit';
 import { useAuditStats } from './useAuditStats';
+import { parseAuditTimestamp } from '../views/admin/components/audit/auditUIUtils';
 
 // ============================================================================
 // Types
@@ -179,7 +180,7 @@ export function useAuditData(): UseAuditDataReturn {
     // Filtered logs computation
     const filteredLogs = useMemo(() => {
         return logs.filter(log => {
-            const logDate = new Date(log.timestamp);
+            const logDate = parseAuditTimestamp(log.timestamp);
             const patientName = (log.details?.patientName as string) || '';
             const searchLower = searchTerm.toLowerCase();
 
@@ -228,8 +229,12 @@ export function useAuditData(): UseAuditDataReturn {
 
         const groups: Record<string, AuditLogEntry[]> = {};
         filteredLogs.forEach(log => {
-            const dateStr = log.recordDate || new Date(log.timestamp).toISOString().split('T')[0];
-            const groupKey = `${log.userId}-${log.action}-${dateStr}`;
+            const dateStr = log.recordDate || parseAuditTimestamp(log.timestamp).toISOString().split('T')[0];
+            const userIdStr = (log.userId || 'unknown').trim();
+            const actionStr = (log.action || '').trim();
+            const entityStr = (log.entityId || '').trim();
+
+            const groupKey = `${userIdStr}-${actionStr}-${entityStr}-${dateStr}`;
             if (!groups[groupKey]) groups[groupKey] = [];
             groups[groupKey].push(log);
         });
@@ -246,7 +251,7 @@ export function useAuditData(): UseAuditDataReturn {
                 isGroup: true,
                 childLogs: group
             } as GroupedAuditLogEntry;
-        }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        }).sort((a, b) => parseAuditTimestamp(b.timestamp).getTime() - parseAuditTimestamp(a.timestamp).getTime());
     }, [filteredLogs, groupedView]);
 
     // Pagination

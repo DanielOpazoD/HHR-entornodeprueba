@@ -48,30 +48,16 @@ export const SystemHealthDashboard = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex items-center gap-5">
-                    <div className="relative">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-medical-500 to-indigo-500 rounded-2xl blur opacity-25" />
-                        <div className="relative p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                            <Users size={32} className="text-medical-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-display font-black text-slate-950 tracking-tight">Salud del Sistema</h1>
-                        <p className="text-slate-500 font-medium">Panel de Monitoreo de Sincronización y Errores Locales</p>
-                    </div>
-                </div>
-
-                <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <div className="max-w-7xl mx-auto space-y-4">
+            <div className="flex justify-end">
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input
                         type="text"
-                        placeholder="Buscar por usuario..."
+                        placeholder="Buscar usuario..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 outline-none transition-all"
+                        className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 outline-none transition-all"
                     />
                 </div>
             </div>

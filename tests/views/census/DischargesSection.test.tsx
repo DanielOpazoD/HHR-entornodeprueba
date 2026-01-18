@@ -1,11 +1,18 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { DischargesSection } from '@/views/census/DischargesSection';
 import { useCensusActions } from '@/views/census/CensusActionsContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 
 vi.mock('@/views/census/CensusActionsContext', () => ({
     useCensusActions: vi.fn()
+}));
+
+vi.mock('@/context/DailyRecordContext', () => ({
+    useDailyRecordData: vi.fn(),
+    useDailyRecordActions: vi.fn()
 }));
 
 describe('DischargesSection', () => {
@@ -27,16 +34,29 @@ describe('DischargesSection', () => {
     ];
 
     beforeEach(() => {
+        vi.clearAllMocks();
         vi.mocked(useCensusActions).mockReturnValue({ handleEditDischarge: mockHandleEdit } as any);
+        (useDailyRecordActions as any).mockReturnValue({
+            undoDischarge: mockOnUndo,
+            deleteDischarge: mockOnDelete
+        });
     });
 
     it('renders empty message when no discharges', () => {
-        render(<DischargesSection discharges={[]} onUndoDischarge={mockOnUndo} onDeleteDischarge={mockOnDelete} />);
+        (useDailyRecordData as any).mockReturnValue({
+            record: { discharges: [] }
+        });
+
+        render(<DischargesSection />);
         expect(screen.getByText(/No hay altas registradas/)).toBeInTheDocument();
     });
 
     it('renders discharge list and triggers actions', () => {
-        render(<DischargesSection discharges={mockDischarges as any} onUndoDischarge={mockOnUndo} onDeleteDischarge={mockOnDelete} />);
+        (useDailyRecordData as any).mockReturnValue({
+            record: { discharges: mockDischarges }
+        });
+
+        render(<DischargesSection />);
 
         expect(screen.getByText('John Doe')).toBeInTheDocument();
         expect(screen.getByText('R1')).toBeInTheDocument();

@@ -1,21 +1,19 @@
 import React from 'react';
 import { DischargeData } from '@/types';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useCensusActions } from './CensusActionsContext';
 import { CheckCircle, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 
-interface DischargesSectionProps {
-    discharges: DischargeData[];
-    onUndoDischarge: (id: string) => void;
-    onDeleteDischarge: (id: string) => void;
-}
+// Interface for props removed as data comes from context
 
-export const DischargesSection: React.FC<DischargesSectionProps> = ({
-    discharges,
-    onUndoDischarge,
-    onDeleteDischarge
-}) => {
+export const DischargesSection: React.FC = () => {
+    const { record } = useDailyRecordData();
+    const { undoDischarge, deleteDischarge } = useDailyRecordActions();
     const { handleEditDischarge } = useCensusActions();
+
+    if (!record) return null;
+    const discharges = record.discharges || [];
 
     return (
         <div className="card mt-6 animate-fade-in print:p-2 print:border-t-2 print:border-slate-800 print:shadow-none">
@@ -52,24 +50,24 @@ export const DischargesSection: React.FC<DischargesSectionProps> = ({
                             <tbody>
                                 {discharges.map(d => (
                                     <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
-                                        <td className="p-2 font-medium">{d.bedName} <span className="text-[10px] text-slate-400">({d.bedType})</span></td>
-                                        <td className="p-2">{d.patientName}</td>
-                                        <td className="p-2 font-mono text-xs">{d.rut}</td>
-                                        <td className="p-2">{d.diagnosis}</td>
-                                        <td className="p-2 text-xs">{d.dischargeType || '-'}</td>
+                                        <td className="p-2 font-medium text-slate-700">{d.bedName} <span className="text-[10px] text-slate-400">({d.bedType})</span></td>
+                                        <td className="p-2 text-slate-800 font-medium">{d.patientName}</td>
+                                        <td className="p-2 font-mono text-xs text-slate-500">{d.rut}</td>
+                                        <td className="p-2 text-slate-600">{d.diagnosis}</td>
+                                        <td className="p-2 text-xs text-slate-500">{d.dischargeType || '-'}</td>
                                         <td className="p-2">
-                                            <span className={clsx("px-2 py-1 rounded-full text-xs font-bold print:border print:border-slate-400", d.status === 'Fallecido' ? 'bg-black text-white' : 'bg-green-100 text-green-700')}>
+                                            <span className={clsx("px-2 py-1 rounded-full text-[11px] font-bold print:border print:border-slate-400", d.status === 'Fallecido' ? 'bg-black text-white' : 'bg-green-100 text-green-700')}>
                                                 {d.status}
                                             </span>
                                         </td>
                                         <td className="p-2 flex justify-end gap-2 print:hidden">
-                                            <button onClick={() => onUndoDischarge(d.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">
+                                            <button onClick={() => undoDischarge(d.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">
                                                 <RotateCcw size={14} />
                                             </button>
                                             <button onClick={() => handleEditDischarge(d)} className="text-medical-500 hover:text-medical-700" title="Editar">
                                                 <Pencil size={14} />
                                             </button>
-                                            <button onClick={() => onDeleteDischarge(d.id)} className="text-red-400 hover:text-red-600" title="Eliminar Registro">
+                                            <button onClick={() => deleteDischarge(d.id)} className="text-red-400 hover:text-red-600" title="Eliminar Registro">
                                                 <Trash2 size={14} />
                                             </button>
                                         </td>

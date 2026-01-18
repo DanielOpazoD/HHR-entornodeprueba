@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { AuditLogEntry } from '@/types/audit';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditService';
 import { getActionCriticality } from '@/hooks/useAuditStats';
-import { actionColors } from './auditUIUtils';
+import { actionColors, parseAuditTimestamp } from './auditUIUtils';
 
 interface AuditTimelineProps {
     logs: AuditLogEntry[];
@@ -36,15 +36,15 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({ logs }) => {
                 {Object.entries(userActivity)
                     .filter(([userId]) => !userId.includes('anonymous'))
                     .sort((a, b) => {
-                        const lastA = new Date(a[1][0]?.timestamp || 0).getTime();
-                        const lastB = new Date(b[1][0]?.timestamp || 0).getTime();
+                        const lastA = parseAuditTimestamp(a[1][0]?.timestamp || 0).getTime();
+                        const lastB = parseAuditTimestamp(b[1][0]?.timestamp || 0).getTime();
                         return lastB - lastA;
                     })
                     .slice(0, 5)
                     .map(([userId, userLogs]) => {
                         const loginEvent = userLogs.find(l => l.action === 'USER_LOGIN');
                         const sortedLogs = [...userLogs].sort((a, b) =>
-                            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                            parseAuditTimestamp(a.timestamp).getTime() - parseAuditTimestamp(b.timestamp).getTime()
                         );
 
                         return (
@@ -83,7 +83,7 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({ logs }) => {
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] text-slate-400 font-mono w-12">
-                                                        {new Date(log.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                                        {parseAuditTimestamp(log.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                     <span className={clsx(
                                                         "text-xs font-medium px-2 py-0.5 rounded",

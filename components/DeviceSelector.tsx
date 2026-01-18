@@ -66,7 +66,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     currentDate
 }) => {
     const [showMenu, setShowMenu] = useState(false);
-    const [editingDevice, setEditingDevice] = useState<TrackedDevice | null>(null);
+    const [editingDevice, setEditingDevice] = useState<string | null>(null); // Now supports any device
     const anchorRef = useRef<HTMLDivElement>(null);
     const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 

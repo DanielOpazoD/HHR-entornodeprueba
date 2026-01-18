@@ -4,7 +4,15 @@ import { exportMonthRecords } from '@/services/admin/dataMaintenanceService';
 import { DataImportModal } from './DataImportModal';
 import clsx from 'clsx';
 
-export const DataMaintenancePanel: React.FC = () => {
+interface DataMaintenancePanelProps {
+    onDailyExport?: () => void;
+    onDailyImport?: () => void;
+}
+
+export const DataMaintenancePanel: React.FC<DataMaintenancePanelProps> = ({
+    onDailyExport,
+    onDailyImport
+}) => {
     const [isExporting, setIsExporting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
@@ -47,44 +55,20 @@ export const DataMaintenancePanel: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            {/* Header / Intro */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 opacity-50 pointer-events-none" />
 
-                <div className="flex items-center gap-5 relative z-10">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
-                        <Database className="text-white" size={32} />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Mantenimiento de Datos</h2>
-                        <p className="text-slate-500 font-medium">Gestión de respaldos locales y restauración de censo</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 relative z-10">
-                    <div className="flex -space-x-2">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center">
-                                <ShieldCheck size={14} className="text-slate-400" />
-                            </div>
-                        ))}
-                    </div>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Protección multinivel</span>
-                </div>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Export Card */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-all flex flex-col">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-6">
-                        <Download className="text-emerald-600" size={24} />
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all flex flex-col">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-4">
+                        <Download className="text-emerald-600" size={20} />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Exportar Respaldo Mensual</h3>
-                    <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                    <h3 className="text-base font-bold text-slate-800 mb-1">Exportar Respaldo Mensual</h3>
+                    <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
                         Selecciona el periodo y descarga todos los registros en un archivo JSON seguro.
                     </p>
 
-                    <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="grid grid-cols-2 gap-3 mb-6">
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">Año</label>
                             <div className="relative">
@@ -143,13 +127,13 @@ export const DataMaintenancePanel: React.FC = () => {
                 </div>
 
                 {/* Import Card */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-all flex flex-col">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mb-6">
-                        <Upload className="text-indigo-600" size={24} />
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all flex flex-col">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center mb-4">
+                        <Upload className="text-indigo-600" size={20} />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Importar Respaldo</h3>
-                    <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-                        Carga un archivo de respaldo generado anteriormente para restaurar los datos de un mes específico. Se requiere confirmación de administrador.
+                    <h3 className="text-base font-bold text-slate-800 mb-1">Importar Respaldo Mensual</h3>
+                    <p className="text-[11px] text-slate-500 mb-6 leading-relaxed">
+                        Carga un archivo de respaldo generado anteriormente para restaurar los datos de un mes específico.
                     </p>
 
                     <div className="mt-auto">
@@ -160,6 +144,40 @@ export const DataMaintenancePanel: React.FC = () => {
                             <Upload size={20} />
                             Seleccionar Archivo
                         </button>
+                    </div>
+                </div>
+
+                {/* Daily Backup - New Section */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all flex flex-col md:col-span-2">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                                <FileJson className="text-blue-600" size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-slate-800 leading-none mb-1.5">Respaldo de Seguridad Instantáneo</h3>
+                                <p className="text-[11px] text-slate-500 max-w-md">
+                                    Respalda o restaura el censo completo del día actual de forma rápida.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={onDailyExport}
+                                className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-100"
+                            >
+                                <Download size={16} />
+                                Exportar Día
+                            </button>
+                            <button
+                                onClick={onDailyImport}
+                                className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm flex items-center gap-2 hover:bg-slate-200 transition-all border border-slate-200"
+                            >
+                                <Upload size={16} />
+                                Importar día
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -86,11 +86,11 @@ describe('useBedManagement', () => {
             const { result } = renderHook(() => useBedManagement(record, mockSaveAndUpdate, mockPatchRecord));
 
             act(() => {
-                result.current.updatePatient('R1', 'patientName', 'New Name');
+                result.current.updatePatient('R1', 'age', '50');
             });
 
             expect(mockPatchRecord).toHaveBeenCalledWith({
-                'beds.R1.patientName': 'New Name'
+                'beds.R1.age': '50'
             });
         });
 
@@ -141,7 +141,11 @@ describe('useBedManagement', () => {
                 'PATIENT_MODIFIED',
                 'patient',
                 'R1',
-                expect.objectContaining({ changes: expect.objectContaining({ status: expect.any(Object) }) }),
+                expect.objectContaining({
+                    changes: expect.objectContaining({
+                        status: expect.objectContaining({ old: PatientStatus.ESTABLE, new: PatientStatus.GRAVE })
+                    })
+                }),
                 patient.rut,
                 record.date
             );
@@ -190,14 +194,14 @@ describe('useBedManagement', () => {
 
             act(() => {
                 result.current.updatePatientMultiple('R1', {
-                    patientName: 'Updated Name',
-                    rut: '1-1'
+                    age: '50',
+                    pathology: 'New Diagnosis'
                 });
             });
 
             expect(mockPatchRecord).toHaveBeenCalledWith({
-                'beds.R1.patientName': 'Updated Name',
-                'beds.R1.rut': '1-1'
+                'beds.R1.age': '50',
+                'beds.R1.pathology': 'New Diagnosis'
             });
         });
     });
@@ -240,7 +244,7 @@ describe('useBedManagement', () => {
 
         it('should update clinical crib CUDYR', () => {
             const patient = createMockPatient('R1', {
-                clinicalCrib: { patientName: 'Baby', rut: '1-1', cudyr: {} } as any
+                clinicalCrib: { patientName: 'Baby', rut: '1-1', cudyr: {} } as PatientData
             });
             const record = createMockRecord({ R1: patient });
 
@@ -258,7 +262,7 @@ describe('useBedManagement', () => {
 
         it('should update multiple clinical crib fields', () => {
             const patient = createMockPatient('R1', {
-                clinicalCrib: { patientName: 'Baby', rut: '1-1', bedMode: 'Cuna' } as any
+                clinicalCrib: { patientName: 'Baby', rut: '1-1', bedMode: 'Cuna' } as PatientData
             });
             const record = createMockRecord({ R1: patient });
 

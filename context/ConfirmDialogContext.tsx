@@ -79,19 +79,19 @@ export const ConfirmDialogProvider: React.FC<ConfirmDialogProviderProps> = ({ ch
         });
     }, []);
 
-    const handleConfirm = useCallback(() => {
+    const handleConfirm = () => {
         if (dialog.resolve) {
             dialog.resolve(true);
         }
         setDialog(prev => ({ ...prev, isOpen: false, resolve: null }));
-    }, [dialog.resolve]);
+    };
 
-    const handleCancel = useCallback(() => {
+    const handleCancel = () => {
         if (dialog.resolve) {
             dialog.resolve(false);
         }
         setDialog(prev => ({ ...prev, isOpen: false, resolve: null }));
-    }, [dialog.resolve]);
+    };
 
     const variantStyles = {
         danger: {

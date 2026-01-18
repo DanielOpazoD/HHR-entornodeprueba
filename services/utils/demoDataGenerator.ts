@@ -4,7 +4,7 @@
  * Supports multi-day generation with patient continuity.
  */
 
-import { DailyRecord, PatientData, PatientStatus, Specialty, DischargeData, TransferData } from '../../types';
+import { DailyRecord, PatientData, PatientStatus, Specialty, DischargeData, TransferData, ClinicalEvent } from '../../types';
 import { BEDS, DEVICE_OPTIONS, VVP_DEVICE_KEYS } from '../../constants';
 import { createEmptyPatient } from '../factories/patientFactory';
 import { getTimeRoundedToStep } from '../../utils';
@@ -13,7 +13,7 @@ import { getTimeRoundedToStep } from '../../utils';
 // Clinical Profiles - Realistic diagnosis-specialty-status mappings
 // ============================================================================
 
-const CLINICAL_PROFILES: Record<Specialty, Array<{ dx: string, status: PatientStatus, upc: boolean, avgStay: number }>> = {
+const CLINICAL_PROFILES: Record<Specialty, Array<{ dx: string, status: PatientStatus, upc: boolean, avgStay: number, cie10?: { code: string, desc: string } | string, events?: string[] }>> = {
     [Specialty.MEDICINA]: [
         { dx: 'Neumonía Adquirida en Comunidad', status: PatientStatus.DE_CUIDADO, upc: false, avgStay: 7 },
         { dx: 'Insuficiencia Cardíaca Descompensada', status: PatientStatus.GRAVE, upc: true, avgStay: 10 },
@@ -42,13 +42,28 @@ const CLINICAL_PROFILES: Record<Specialty, Array<{ dx: string, status: PatientSt
         { dx: 'Neumonía Pediátrica', status: PatientStatus.DE_CUIDADO, upc: false, avgStay: 5 },
     ],
     [Specialty.TRAUMATOLOGIA]: [
-        { dx: 'Fractura de Fémur', status: PatientStatus.ESTABLE, upc: false, avgStay: 6 },
-        { dx: 'Fractura de Tibia Operada', status: PatientStatus.ESTABLE, upc: false, avgStay: 4 },
-        { dx: 'Trauma Craneoencefálico Severo', status: PatientStatus.GRAVE, upc: true, avgStay: 15 },
+        { dx: 'Fractura de Fémur', status: PatientStatus.ESTABLE, upc: false, avgStay: 6, cie10: { code: 'S72.9', desc: 'Fractura del fémur, parte no especificada' } },
+        { dx: 'Fractura de Tibia Operada', status: PatientStatus.ESTABLE, upc: false, avgStay: 4, cie10: { code: 'S82.2', desc: 'Fractura de la diáfisis de la tibia' } },
+        { dx: 'Trauma Craneoencefálico Severo', status: PatientStatus.GRAVE, upc: true, avgStay: 15, cie10: { code: 'S06.9', desc: 'Traumatismo intracraneal, no especificado' } },
+        { dx: 'Fractura de fémur proximal', status: PatientStatus.DE_CUIDADO, upc: false, avgStay: 7, cie10: 'S72.0', events: ['Cirugía de osteosíntesis', 'Evaluación Kinesiológica'] },
+        { dx: 'Artroplastia de cadera', status: PatientStatus.ESTABLE, upc: false, avgStay: 5, cie10: 'Z96.6', events: ['Cirugía de reemplazo articular', 'Protocolo analgesia'] },
     ],
     [Specialty.PSIQUIATRIA]: [],
     [Specialty.OTRO]: [],
     [Specialty.EMPTY]: [],
+};
+
+// Helper to get CIE10 description from code
+const getCIE10Description = (cie10: string | { code: string, desc: string }): string => {
+    if (typeof cie10 === 'string') {
+        // In a real app, you'd look this up from a dictionary
+        switch (cie10) {
+            case 'S72.0': return 'Fractura del cuello del fémur';
+            case 'Z96.6': return 'Presencia de implantes ortopédicos articulares';
+            default: return '';
+        }
+    }
+    return cie10.desc;
 };
 
 // Demo data constants
@@ -157,6 +172,14 @@ const generateNewPatient = (bedId: string, admissionDate: string): PatientData =
         patient.isUPC = true;
         patient.age = (Math.floor(Math.random() * 60) + 20) + "a";
         patient.devices = [randomItem(['VVP#1', 'CVC', 'CUP', 'VMI'])];
+        patient.cie10Code = typeof profile.cie10 === 'string' ? profile.cie10 : profile.cie10?.code;
+        patient.cie10Description = getCIE10Description(profile.cie10 || '');
+        patient.clinicalEvents = profile.events?.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            date: admissionDate,
+            createdAt: new Date().toISOString()
+        })) || [];
     }
     // NEO beds -> Neonates
     else if (bedId.startsWith('NEO')) {
@@ -168,6 +191,14 @@ const generateNewPatient = (bedId: string, admissionDate: string): PatientData =
         patient.pathology = profile.dx;
         patient.status = profile.status;
         patient.isUPC = profile.upc;
+        patient.cie10Code = typeof profile.cie10 === 'string' ? profile.cie10 : profile.cie10?.code;
+        patient.cie10Description = getCIE10Description(profile.cie10 || '');
+        patient.clinicalEvents = profile.events?.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            date: admissionDate,
+            createdAt: new Date().toISOString()
+        })) || [];
     }
     // Obstetric patients
     else if (patient.biologicalSex === 'Femenino' && Math.random() > 0.7) {
@@ -178,6 +209,14 @@ const generateNewPatient = (bedId: string, admissionDate: string): PatientData =
         patient.status = profile.status;
         patient.isUPC = profile.upc;
         patient.age = (Math.floor(Math.random() * 20) + 18) + "a";
+        patient.cie10Code = typeof profile.cie10 === 'string' ? profile.cie10 : profile.cie10?.code;
+        patient.cie10Description = getCIE10Description(profile.cie10 || '');
+        patient.clinicalEvents = profile.events?.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            date: admissionDate,
+            createdAt: new Date().toISOString()
+        })) || [];
 
         // Maybe add a baby
         if (Math.random() > 0.6 && profile.dx.includes('Parto')) {
@@ -205,6 +244,16 @@ const generateNewPatient = (bedId: string, admissionDate: string): PatientData =
         patient.status = profile.status;
         patient.isUPC = profile.upc;
         patient.age = (Math.floor(Math.random() * 70) + 10) + "a";
+
+        // Add sample CIE-10 and clinical events
+        patient.cie10Code = typeof profile.cie10 === 'string' ? profile.cie10 : profile.cie10?.code;
+        patient.cie10Description = getCIE10Description(profile.cie10 || '');
+        patient.clinicalEvents = profile.events?.map(name => ({
+            id: crypto.randomUUID(),
+            name,
+            date: admissionDate,
+            createdAt: new Date().toISOString()
+        })) || [];
     }
 
     // Random devices for non-UPC

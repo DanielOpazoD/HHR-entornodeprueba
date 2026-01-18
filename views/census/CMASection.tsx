@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { CMAData } from '@/types';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
-import { Trash2, Save, X, Plus, Scissors } from 'lucide-react';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { Trash2, Save, X, Plus, Scissors, User } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
+import { DemographicsModal } from '@/components/modals/DemographicsModal';
+import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
 import clsx from 'clsx';
 
 const INTERVENTION_TYPES = [
@@ -22,8 +24,10 @@ const CMA_BEDS = [
 ] as const;
 
 export const CMASection: React.FC = () => {
-    const { record, addCMA, deleteCMA, updateCMA } = useDailyRecordContext();
+    const { record } = useDailyRecordData();
+    const { addCMA, deleteCMA, updateCMA } = useDailyRecordActions();
     const [isAdding, setIsAdding] = useState(false);
+    const [showDemoModal, setShowDemoModal] = useState<string | null>(null); // 'new' or id
 
     // State for new entry
     const [newEntry, setNewEntry] = useState<Partial<CMAData>>({
@@ -35,6 +39,60 @@ export const CMASection: React.FC = () => {
         specialty: '',
         interventionType: 'Cirugía Mayor Ambulatoria' // Default
     });
+
+    const handleCmaUpdateMultiple = useCallback((id: string, fields: Partial<CMAData>) => {
+        updateCMA(id, fields);
+    }, [updateCMA]);
+
+    const handleUpdate = (id: string, field: keyof CMAData, value: any) => {
+        updateCMA(id, { [field]: value });
+    };
+
+    // Helper to render Specialty Select/Input logic (similar to SpecialtySelect but adapted for CMA state)
+    const renderSpecialtyCell = (item: Partial<CMAData>, isNew = false) => {
+        const value = item.specialty || '';
+        const isOther = value && !SPECIALTY_OPTIONS.includes(value as any);
+
+        const handleChange = (val: string) => {
+            if (isNew) setNewEntry({ ...newEntry, specialty: val });
+            else handleUpdate(item.id!, 'specialty', val);
+        };
+
+        if (isOther || value === 'Otro') {
+            return (
+                <div className="relative">
+                    <input
+                        type="text"
+                        className="w-full p-1.5 border border-medical-300 rounded text-xs font-medium text-slate-700 bg-medical-50/10 focus:outline-none focus:ring-1 focus:ring-medical-400"
+                        value={value === 'Otro' ? '' : value}
+                        onChange={(e) => handleChange(e.target.value)}
+                        placeholder="Especifique..."
+                        autoFocus
+                    />
+                    <button
+                        onClick={() => handleChange('')}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-red-500 rounded"
+                    >
+                        <X size={10} />
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <select
+                className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 text-xs text-slate-600 bg-transparent transition-all outline-none"
+                value={value}
+                onChange={(e) => handleChange(e.target.value)}
+            >
+                <option value="">--</option>
+                {SPECIALTY_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                ))}
+                <option value="Otro">Otro...</option>
+            </select>
+        );
+    };
 
     if (!record) return null;
 
@@ -48,7 +106,16 @@ export const CMASection: React.FC = () => {
             patientName: newEntry.patientName || '',
             rut: newEntry.rut || '',
             age: newEntry.age || '',
+            birthDate: newEntry.birthDate || '',
+            biologicalSex: newEntry.biologicalSex,
+            insurance: newEntry.insurance,
+            admissionOrigin: newEntry.admissionOrigin,
+            admissionOriginDetails: newEntry.admissionOriginDetails,
+            origin: newEntry.origin,
+            isRapanui: newEntry.isRapanui,
             diagnosis: newEntry.diagnosis || '',
+            cie10Code: newEntry.cie10Code,
+            cie10Description: newEntry.cie10Description,
             specialty: newEntry.specialty || '',
             interventionType: newEntry.interventionType || 'Cirugía Mayor Ambulatoria'
         });
@@ -63,10 +130,6 @@ export const CMASection: React.FC = () => {
             interventionType: 'Cirugía Mayor Ambulatoria'
         });
         setIsAdding(false);
-    };
-
-    const handleUpdate = (id: string, field: keyof CMAData, value: string) => {
-        updateCMA(id, { [field]: value });
     };
 
     return (
@@ -96,7 +159,7 @@ export const CMASection: React.FC = () => {
             </div>
 
             {(!cmaList.length && !isAdding) ? (
-                <div className="p-4 text-slate-400 italic text-sm">
+                <div className="p-4 text-slate-400 italic text-sm text-center py-4">
                     No hay registros de Hospitalización Diurna para hoy.
                 </div>
             ) : (
@@ -109,18 +172,18 @@ export const CMASection: React.FC = () => {
                                 <th className="px-3 py-2.5 w-48">Paciente</th>
                                 <th className="px-3 py-2.5 w-36">RUT / Identidad</th>
                                 <th className="px-3 py-2.5 w-16 text-center">Edad</th>
-                                <th className="px-3 py-2.5 min-w-[200px]">Diagnóstico Clínico</th>
+                                <th className="px-3 py-2.5 min-w-[200px]">DIAGNÓSTICO</th>
                                 <th className="px-3 py-2.5 w-44">Especialidad</th>
-                                <th className="px-3 py-2.5 w-10 text-right"></th>
+                                <th className="px-3 py-2.5 w-10 text-right print:hidden"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {/* Existing Entries */}
                             {cmaList.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50 group">
+                                <tr key={item.id} className="hover:bg-slate-50 group border-b border-slate-100 last:border-0">
                                     <td className="p-2">
                                         <select
-                                            className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 text-[11px] font-bold text-slate-700 bg-transparent transition-all outline-none"
+                                            className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 text-xs font-medium text-slate-700 bg-transparent transition-all outline-none"
                                             value={item.bedName}
                                             onChange={(e) => handleUpdate(item.id, 'bedName', e.target.value)}
                                         >
@@ -132,7 +195,7 @@ export const CMASection: React.FC = () => {
                                     </td>
                                     <td className="p-2">
                                         <select
-                                            className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-[11px] bg-transparent transition-colors"
+                                            className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-xs text-slate-600 bg-transparent transition-colors"
                                             value={item.interventionType || 'Cirugía Mayor Ambulatoria'}
                                             onChange={(e) => handleUpdate(item.id, 'interventionType', e.target.value)}
                                         >
@@ -141,24 +204,33 @@ export const CMASection: React.FC = () => {
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="p-2 font-medium">
-                                        <DebouncedInput
-                                            type="text"
-                                            className={clsx(
-                                                "w-full p-1 border rounded text-[11px] font-bold text-slate-700 transition-all focus:ring-2 outline-none",
-                                                !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: item.patientName }).success && item.patientName
-                                                    ? "border-red-300 bg-red-50/30 focus:border-red-500 focus:ring-red-400/20"
-                                                    : "border-transparent hover:border-slate-300 focus:border-medical-400 focus:ring-medical-500/10"
-                                            )}
-                                            value={item.patientName}
-                                            onChange={(val) => handleUpdate(item.id, 'patientName', val)}
-                                        />
+                                    <td className="p-2">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setShowDemoModal(item.id)}
+                                                className="p-1 text-slate-300 hover:text-blue-500 transition-colors"
+                                                title="Editar datos demográficos"
+                                            >
+                                                <User size={12} />
+                                            </button>
+                                            <DebouncedInput
+                                                type="text"
+                                                className={clsx(
+                                                    "w-full p-1 border rounded text-[13px] font-medium text-slate-800 transition-all focus:ring-2 outline-none",
+                                                    !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: item.patientName }).success && item.patientName
+                                                        ? "border-red-300 bg-red-50/30 focus:border-red-500 focus:ring-red-400/20"
+                                                        : "border-transparent hover:border-slate-300 focus:border-medical-400 focus:ring-medical-500/10"
+                                                )}
+                                                value={item.patientName}
+                                                onChange={(val) => handleUpdate(item.id, 'patientName', val)}
+                                            />
+                                        </div>
                                     </td>
                                     <td className="p-2">
                                         <DebouncedInput
                                             type="text"
                                             className={clsx(
-                                                "w-full p-1 border rounded text-xs transition-colors focus:ring-1",
+                                                "w-full p-1 border rounded text-[11px] font-mono text-slate-500 transition-colors focus:ring-1",
                                                 !PatientInputSchema.pick({ rut: true }).safeParse({ rut: item.rut }).success && item.rut
                                                     ? "border-red-400 focus:border-red-500 focus:ring-red-400"
                                                     : "border-transparent hover:border-slate-300 focus:border-orange-400 focus:ring-orange-400"
@@ -167,46 +239,39 @@ export const CMASection: React.FC = () => {
                                             onChange={(val) => handleUpdate(item.id, 'rut', val)}
                                         />
                                     </td>
-                                    <td className="p-2">
-                                        <DebouncedInput
-                                            type="text"
-                                            placeholder="Edad"
-                                            className={clsx(
-                                                "w-full p-1 border rounded text-xs text-center transition-colors focus:ring-1",
-                                                !PatientInputSchema.pick({ age: true }).safeParse({ age: item.age }).success && item.age
-                                                    ? "border-red-400 focus:border-red-500 focus:ring-red-400"
-                                                    : "border-transparent hover:border-slate-300 focus:border-orange-400 focus:ring-orange-400"
-                                            )}
-                                            value={item.age}
-                                            onChange={(val) => handleUpdate(item.id, 'age', val)}
-                                        />
+                                    <td className="p-2 text-center">
+                                        <div className="w-fit mx-auto px-2 py-0.5 border border-transparent rounded text-[11px] text-slate-400 bg-slate-50/50 cursor-not-allowed italic" title="Defina la edad en el modal demográfico (👤)">
+                                            {item.age || '-'}
+                                        </div>
                                     </td>
                                     <td className="p-2">
-                                        <DebouncedInput
-                                            type="text"
+                                        <TerminologySuggestor
                                             className={clsx(
-                                                "w-full p-1 border rounded text-xs transition-colors focus:ring-1",
+                                                "w-full p-1 border rounded text-[12px] text-slate-600 transition-colors focus:ring-1",
                                                 !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: item.diagnosis }).success && item.diagnosis
-                                                    ? "border-red-400 focus:border-red-500 focus:ring-red-400"
-                                                    : "border-transparent hover:border-slate-300 focus:border-orange-400 focus:ring-orange-400"
+                                                    ? "border-red-400 focus:border-red-500 focus:ring-red-400 h-7"
+                                                    : "border-transparent hover:border-slate-300 focus:border-orange-400 focus:ring-orange-400 h-7"
                                             )}
-                                            value={item.diagnosis}
-                                            onChange={(val) => handleUpdate(item.id, 'diagnosis', val)}
+                                            value={item.diagnosis || ''}
+                                            cie10Code={item.cie10Code}
+                                            onChange={(text, concept) => {
+                                                if (concept) {
+                                                    handleCmaUpdateMultiple(item.id, {
+                                                        diagnosis: concept.display,
+                                                        cie10Code: concept.code,
+                                                        cie10Description: concept.display
+                                                    });
+                                                } else {
+                                                    handleUpdate(item.id, 'diagnosis', text);
+                                                    if (text === '') handleUpdate(item.id, 'cie10Code', '');
+                                                }
+                                            }}
                                         />
                                     </td>
                                     <td className="p-2">
-                                        <select
-                                            className="w-full p-1 border border-transparent hover:border-slate-300 rounded focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 text-xs bg-transparent transition-all outline-none"
-                                            value={item.specialty}
-                                            onChange={(e) => handleUpdate(item.id, 'specialty', e.target.value)}
-                                        >
-                                            <option value="">--</option>
-                                            {SPECIALTY_OPTIONS.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                        </select>
+                                        {renderSpecialtyCell(item)}
                                     </td>
-                                    <td className="p-2 text-right">
+                                    <td className="p-2 text-right print:hidden">
                                         <button
                                             onClick={() => deleteCMA(item.id)}
                                             className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
@@ -220,10 +285,10 @@ export const CMASection: React.FC = () => {
 
                             {/* Add New Entry Row */}
                             {isAdding && (
-                                <tr className="bg-medical-50/30 animate-scale-in">
+                                <tr className="bg-medical-50/10 animate-scale-in border-b border-medical-100">
                                     <td className="p-2">
                                         <select
-                                            className="w-full p-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 transition-all font-bold text-slate-700"
+                                            className="w-full p-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10 transition-all font-medium text-slate-700"
                                             value={newEntry.bedName || ''}
                                             onChange={(e) => setNewEntry({ ...newEntry, bedName: e.target.value })}
                                             autoFocus
@@ -236,7 +301,7 @@ export const CMASection: React.FC = () => {
                                     </td>
                                     <td className="p-2">
                                         <select
-                                            className="w-full p-1.5 border border-orange-200 rounded text-[11px] focus:outline-none focus:border-orange-400"
+                                            className="w-full p-1.5 border border-orange-200 rounded text-xs text-slate-600 focus:outline-none focus:border-orange-400"
                                             value={newEntry.interventionType || 'Cirugía Mayor Ambulatoria'}
                                             onChange={(e) => setNewEntry({ ...newEntry, interventionType: e.target.value as any })}
                                         >
@@ -246,25 +311,39 @@ export const CMASection: React.FC = () => {
                                         </select>
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Nombre Paciente"
-                                            className={clsx(
-                                                "w-full p-1.5 border rounded text-xs focus:outline-none transition-all font-bold",
-                                                !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: newEntry.patientName }).success && newEntry.patientName
-                                                    ? "border-red-400 focus:border-red-500 bg-red-50/20"
-                                                    : "border-slate-200 focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10"
-                                            )}
-                                            value={newEntry.patientName || ''}
-                                            onChange={(e) => setNewEntry({ ...newEntry, patientName: e.target.value })}
-                                        />
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setShowDemoModal('new')}
+                                                className={clsx(
+                                                    "p-1.5 rounded transition-colors shadow-sm",
+                                                    newEntry.birthDate || newEntry.insurance || newEntry.biologicalSex
+                                                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                                                        : "bg-white text-slate-400 hover:text-blue-500 border border-slate-200"
+                                                )}
+                                                title="Ingresar datos demográficos"
+                                            >
+                                                <User size={14} />
+                                            </button>
+                                            <input
+                                                type="text"
+                                                placeholder="Nombre Paciente"
+                                                className={clsx(
+                                                    "w-full p-1.5 border rounded text-[13px] font-medium text-slate-800 focus:outline-none transition-all",
+                                                    !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: newEntry.patientName }).success && newEntry.patientName
+                                                        ? "border-red-400 focus:border-red-500 bg-red-50/20"
+                                                        : "border-slate-200 focus:border-medical-400 focus:ring-2 focus:ring-medical-500/10"
+                                                )}
+                                                value={newEntry.patientName || ''}
+                                                onChange={(e) => setNewEntry({ ...newEntry, patientName: e.target.value })}
+                                            />
+                                        </div>
                                     </td>
                                     <td className="p-2">
                                         <input
                                             type="text"
                                             placeholder="RUT"
                                             className={clsx(
-                                                "w-full p-1.5 border rounded text-xs focus:outline-none transition-all",
+                                                "w-full p-1.5 border rounded text-[11px] font-mono text-slate-500 focus:outline-none transition-all",
                                                 !PatientInputSchema.pick({ rut: true }).safeParse({ rut: newEntry.rut }).success && newEntry.rut
                                                     ? "border-red-400 focus:border-red-500"
                                                     : "border-orange-200 focus:border-orange-400"
@@ -273,45 +352,39 @@ export const CMASection: React.FC = () => {
                                             onChange={(e) => setNewEntry({ ...newEntry, rut: e.target.value })}
                                         />
                                     </td>
-                                    <td className="p-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Edad"
-                                            className={clsx(
-                                                "w-full p-1.5 border rounded text-xs focus:outline-none focus:border-orange-400 text-center transition-all",
-                                                !PatientInputSchema.pick({ age: true }).safeParse({ age: newEntry.age }).success && newEntry.age
-                                                    ? "border-red-400 focus:border-red-500"
-                                                    : "border-orange-200 focus:border-orange-400"
-                                            )}
-                                            value={newEntry.age || ''}
-                                            onChange={(e) => setNewEntry({ ...newEntry, age: e.target.value })}
-                                        />
+                                    <td className="p-2 text-center">
+                                        <div className="w-fit mx-auto px-2 py-1 border border-orange-200 rounded text-[11px] text-slate-400 bg-white/50 cursor-not-allowed italic" title="Defina la edad en el modal demográfico (👤)">
+                                            {newEntry.age || 'Edad'}
+                                        </div>
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Diagnóstico"
+                                        <TerminologySuggestor
                                             className={clsx(
-                                                "w-full p-1.5 border rounded text-xs focus:outline-none transition-all",
+                                                "w-full p-1.5 border rounded text-[12px] text-slate-600 focus:outline-none transition-all h-[34px]",
                                                 !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: newEntry.diagnosis }).success && newEntry.diagnosis
                                                     ? "border-red-400 focus:border-red-500"
                                                     : "border-orange-200 focus:border-orange-400"
                                             )}
+                                            placeholder="Diagnóstico"
                                             value={newEntry.diagnosis || ''}
-                                            onChange={(e) => setNewEntry({ ...newEntry, diagnosis: e.target.value })}
+                                            cie10Code={newEntry.cie10Code}
+                                            onChange={(text, concept) => {
+                                                if (concept) {
+                                                    setNewEntry({
+                                                        ...newEntry,
+                                                        diagnosis: concept.display,
+                                                        cie10Code: concept.code,
+                                                        cie10Description: concept.display
+                                                    });
+                                                } else {
+                                                    setNewEntry({ ...newEntry, diagnosis: text });
+                                                    if (text === '') setNewEntry({ ...newEntry, cie10Code: '' });
+                                                }
+                                            }}
                                         />
                                     </td>
                                     <td className="p-2">
-                                        <select
-                                            className="w-full p-1.5 border border-orange-200 rounded text-xs focus:outline-none focus:border-orange-400"
-                                            value={newEntry.specialty || ''}
-                                            onChange={(e) => setNewEntry({ ...newEntry, specialty: e.target.value })}
-                                        >
-                                            <option value="">-- Sel --</option>
-                                            {SPECIALTY_OPTIONS.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                        </select>
+                                        {renderSpecialtyCell(newEntry, true)}
                                     </td>
                                     <td className="p-2 flex gap-1 justify-end">
                                         <button
@@ -336,6 +409,38 @@ export const CMASection: React.FC = () => {
                     </table>
                 </div>
             )}
+
+            {/* Modals for CMA Demographics */}
+            {showDemoModal === 'new' && (
+                <DemographicsModal
+                    isOpen={true}
+                    onClose={() => setShowDemoModal(null)}
+                    data={newEntry as any}
+                    onSave={(fields) => {
+                        setNewEntry({ ...newEntry, ...fields });
+                        setShowDemoModal(null);
+                    }}
+                    bedId="new-cma"
+                    recordDate={record.date}
+                />
+            )}
+
+            {cmaList.map(item => (
+                showDemoModal === item.id && (
+                    <DemographicsModal
+                        key={item.id}
+                        isOpen={true}
+                        onClose={() => setShowDemoModal(null)}
+                        data={item as any}
+                        onSave={(fields) => {
+                            handleCmaUpdateMultiple(item.id, fields);
+                            setShowDemoModal(null);
+                        }}
+                        bedId={item.id}
+                        recordDate={record.date}
+                    />
+                )
+            ))}
         </div>
     );
 };

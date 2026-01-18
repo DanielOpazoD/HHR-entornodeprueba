@@ -1,6 +1,8 @@
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useHandoffLogic } from '@/hooks/useHandoffLogic';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { Specialty, PatientStatus } from '@/types';
 import * as dateUtils from '@/utils/dateUtils';
 
@@ -9,8 +11,14 @@ const mockLogDebouncedEvent = vi.fn();
 vi.mock('@/context/AuditContext', () => ({
     useAuditContext: () => ({
         logDebouncedEvent: mockLogDebouncedEvent,
-        logEvent: vi.fn()
+        logEvent: vi.fn(),
+        userId: 'test-user'
     })
+}));
+
+vi.mock('@/context/DailyRecordContext', () => ({
+    useDailyRecordData: vi.fn(),
+    useDailyRecordActions: vi.fn()
 }));
 
 vi.mock('@/utils/dateUtils');
@@ -44,6 +52,9 @@ describe('useHandoffLogic', () => {
         vi.clearAllMocks();
         vi.mocked(dateUtils.getShiftSchedule).mockReturnValue({ dayStart: '08:00', dayEnd: '20:00', nightStart: '20:00', nightEnd: '08:00', description: '' });
         vi.mocked(dateUtils.isAdmittedDuringShift).mockReturnValue(true);
+
+        (useDailyRecordData as any).mockReturnValue({ record: mockRecord });
+        (useDailyRecordActions as any).mockReturnValue({});
     });
 
     afterEach(() => {
@@ -52,17 +63,18 @@ describe('useHandoffLogic', () => {
 
     it('handles nursing note changes correctly (Day Shift uses updatePatientMultiple)', async () => {
         const mockUpdateMultiple = vi.fn();
+        (useDailyRecordActions as any).mockReturnValue({
+            updatePatientMultiple: mockUpdateMultiple,
+            updatePatient: vi.fn(),
+            updateClinicalCrib: vi.fn(),
+            updateClinicalCribMultiple: vi.fn()
+        });
+
         const params = {
-            record: mockRecord,
             type: 'nursing' as any,
             selectedShift: 'day' as any,
-            updatePatient: vi.fn(),
-            updatePatientMultiple: mockUpdateMultiple,
-            updateClinicalCrib: vi.fn(),
-            updateClinicalCribMultiple: vi.fn(),
-            sendMedicalHandoff: vi.fn(),
-            onSuccess: vi.fn(),
             setSelectedShift: vi.fn(),
+            onSuccess: vi.fn(),
         };
 
         const { result } = renderHook(() => useHandoffLogic(params));
@@ -81,17 +93,18 @@ describe('useHandoffLogic', () => {
 
     it('adds and deletes clinical events', async () => {
         const mockUpdate = vi.fn();
-        const params = {
-            record: mockRecord,
-            type: 'nursing' as any,
-            selectedShift: 'day' as any,
+        (useDailyRecordActions as any).mockReturnValue({
             updatePatient: mockUpdate,
             updatePatientMultiple: vi.fn(),
             updateClinicalCrib: vi.fn(),
-            updateClinicalCribMultiple: vi.fn(),
-            sendMedicalHandoff: vi.fn(),
-            onSuccess: vi.fn(),
+            updateClinicalCribMultiple: vi.fn()
+        });
+
+        const params = {
+            type: 'nursing' as any,
+            selectedShift: 'day' as any,
             setSelectedShift: vi.fn(),
+            onSuccess: vi.fn(),
         };
 
         const { result } = renderHook(() => useHandoffLogic(params));
@@ -113,8 +126,16 @@ describe('useHandoffLogic', () => {
                 }
             }
         };
+
+        // Update mock for the second part
         const mockUpdate2 = vi.fn();
-        const { result: res2 } = renderHook(() => useHandoffLogic({ ...params, record: recordWithEvent, updatePatient: mockUpdate2 }));
+
+        // Need to re-render or create new hook instance with updated context
+        // Since renderHook uses current context mock, we update mock before calling renderHook
+        (useDailyRecordData as any).mockReturnValue({ record: recordWithEvent });
+        (useDailyRecordActions as any).mockReturnValue({ updatePatient: mockUpdate2 });
+
+        const { result: res2 } = renderHook(() => useHandoffLogic(params));
 
         await act(async () => {
             await res2.current.handleClinicalEventDelete('R1', 'evt-1');

@@ -21,6 +21,7 @@ import { useNotification, useConfirmDialog } from '@/context/UIContext';
 import { useBackupFilesQuery } from '@/hooks/useBackupFilesQuery';
 import { FolderCard, FileCard, Breadcrumbs } from './components/BackupDriveItems';
 import { HandoffCalendarView } from './components/HandoffCalendarView';
+import { DailyBackupCalendarView } from './components/DailyBackupCalendarView';
 import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
 import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
 import { deletePdf } from '@/services/backup/pdfStorageService';
@@ -157,12 +158,33 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({ backupType: in
             );
         }
 
-        // Calendar View for Handoffs in month view
-        if (selectedBackupType === 'handoff' && path.length === 2) {
+        // Calendar-like views for month view (path.length === 2)
+        if (path.length === 2) {
+            const currentYear = parseInt(path[0]);
+            const currentMonthName = path[1];
             const files = items.filter(i => i.type === 'file').map(i => i.data);
+
+            if (selectedBackupType === 'handoff') {
+                return (
+                    <HandoffCalendarView
+                        files={files}
+                        year={currentYear}
+                        monthName={currentMonthName}
+                        onView={(file) => setPreviewFile(file)}
+                        onDownload={(file) => handleDownload(file)}
+                        onDelete={handleDelete}
+                        canDelete={canDelete}
+                        formatSize={formatFileSize}
+                    />
+                );
+            }
+
+            // Census and CUDYR table view
             return (
-                <HandoffCalendarView
+                <DailyBackupCalendarView
                     files={files}
+                    year={currentYear}
+                    monthName={currentMonthName}
                     onView={(file) => setPreviewFile(file)}
                     onDownload={(file) => handleDownload(file)}
                     onDelete={handleDelete}

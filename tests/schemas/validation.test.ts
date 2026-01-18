@@ -6,7 +6,7 @@ import {
     validateRut,
     validateAdmissionDate,
     validateCudyrScore
-} from '@/schemas/validation';
+} from '@/schemas';
 import { Specialty, PatientStatus } from '@/types';
 
 describe('validation schema helpers', () => {

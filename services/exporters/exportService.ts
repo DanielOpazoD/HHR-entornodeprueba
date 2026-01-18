@@ -3,7 +3,7 @@
 import { DailyRecord, PatientData } from '../../types';
 import { BEDS, CSV_HEADERS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
-import { validateBackupData } from '../../schemas/validation';
+import { validateBackupData } from '../../schemas';
 import { getAllRecords, saveRecord } from '../storage/indexedDBService';
 
 export const exportDataJSON = async () => {

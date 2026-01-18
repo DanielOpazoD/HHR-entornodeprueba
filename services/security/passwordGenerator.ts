@@ -29,7 +29,7 @@ export const generateCensusPassword = (censusDate: string): string => {
 
     // Convert to positive number and ensure we have at least 6 digits
     // We use modulo 1,000,000 to get a 6-digit number
-    let numericHash = Math.abs(hash);
+    const numericHash = Math.abs(hash);
     const pin = (numericHash % 1000000).toString().padStart(6, '0');
 
     return pin;

@@ -26,42 +26,40 @@ import {
 } from './types';
 
 export class FirestoreProvider implements IDatabaseProvider {
-    private db: Firestore;
-
-    constructor(db: Firestore = firebaseDb) {
-        this.db = db;
+    constructor() {
+        // We no longer capture db here to avoid initialization race conditions
     }
 
     async getDoc<T>(collectionName: string, id: string): Promise<T | null> {
-        const docRef = doc(this.db, collectionName, id);
+        const docRef = doc(firebaseDb, collectionName, id);
         const docSnap = await getDoc(docRef);
         return docSnap.exists() ? (docSnap.data() as T) : null;
     }
 
     async getDocs<T>(collectionName: string, options?: QueryOptions): Promise<T[]> {
         const constraints = this.buildConstraints(options);
-        const q = query(collection(this.db, collectionName), ...constraints);
+        const q = query(collection(firebaseDb, collectionName), ...constraints);
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     }
 
     async setDoc<T>(collectionName: string, id: string, data: T): Promise<void> {
-        const docRef = doc(this.db, collectionName, id);
+        const docRef = doc(firebaseDb, collectionName, id);
         await setDoc(docRef, data as any);
     }
 
     async updateDoc(collectionName: string, id: string, data: Record<string, any>): Promise<void> {
-        const docRef = doc(this.db, collectionName, id);
+        const docRef = doc(firebaseDb, collectionName, id);
         await updateDoc(docRef, data);
     }
 
     async deleteDoc(collectionName: string, id: string): Promise<void> {
-        const docRef = doc(this.db, collectionName, id);
+        const docRef = doc(firebaseDb, collectionName, id);
         await deleteDoc(docRef);
     }
 
     subscribeDoc<T>(collectionName: string, id: string, callback: (data: T | null) => void): () => void {
-        const docRef = doc(this.db, collectionName, id);
+        const docRef = doc(firebaseDb, collectionName, id);
         return onSnapshot(docRef, (docSnap) => {
             callback(docSnap.exists() ? (docSnap.data() as T) : null);
         });
@@ -69,18 +67,18 @@ export class FirestoreProvider implements IDatabaseProvider {
 
     subscribeQuery<T>(collectionName: string, options: QueryOptions, callback: (data: T[]) => void): () => void {
         const constraints = this.buildConstraints(options);
-        const q = query(collection(this.db, collectionName), ...constraints);
+        const q = query(collection(firebaseDb, collectionName), ...constraints);
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T)));
         });
     }
 
     async runBatch(operations: (batch: IDatabaseBatch) => void): Promise<void> {
-        const batch = writeBatch(this.db);
+        const batch = writeBatch(firebaseDb);
         const dbBatch: IDatabaseBatch = {
-            set: (col, id, data) => batch.set(doc(this.db, col, id), data as any),
-            update: (col, id, data) => batch.update(doc(this.db, col, id), data),
-            delete: (col, id) => batch.delete(doc(this.db, col, id))
+            set: (col, id, data) => batch.set(doc(firebaseDb, col, id), data as any),
+            update: (col, id, data) => batch.update(doc(firebaseDb, col, id), data),
+            delete: (col, id) => batch.delete(doc(firebaseDb, col, id))
         };
         operations(dbBatch);
         await batch.commit();

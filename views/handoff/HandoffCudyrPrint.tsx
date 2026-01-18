@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import clsx from 'clsx';
 import { ClipboardList } from 'lucide-react';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants';
 import { VerticalHeader } from '@/views/cudyr/CudyrRow';
 import { getCategorization } from '@/views/cudyr/CudyrScoreUtils';
@@ -11,7 +11,7 @@ import { calculateStats } from '@/services/calculations/statsCalculator';
 // ... (existing imports)
 
 export const HandoffCudyrPrint: React.FC = () => {
-    const { record } = useDailyRecordContext();
+    const { record } = useDailyRecordData();
 
     const visibleBeds = useMemo(() => {
         if (!record) return [];

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText, History } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PatientActionMenuProps {
@@ -7,6 +7,7 @@ interface PatientActionMenuProps {
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => void;
     onViewDemographics: () => void;
     onViewExamRequest?: () => void;
+    onViewHistory?: () => void;
     readOnly?: boolean;
     align?: 'top' | 'bottom';
     hasPatient?: boolean;
@@ -17,6 +18,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     onAction,
     onViewDemographics,
     onViewExamRequest,
+    onViewHistory,
     readOnly = false,
     align = 'top',
     hasPatient = false
@@ -60,6 +62,21 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                         "absolute left-10 z-50 bg-white shadow-lg rounded-2xl border border-slate-200 w-48 text-left py-2 animate-fade-in print:hidden",
                         align === 'top' ? "top-0" : "bottom-0"
                     )}>
+                        {/* Ver Historial Button - at the top for informational actions */}
+                        {onViewHistory && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        onViewHistory();
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                >
+                                    <History size={14} className="text-purple-500" /> Ver Historial
+                                </button>
+                                <div className="h-px bg-slate-100 my-1"></div>
+                            </>
+                        )}
                         <button onClick={() => handleMenuAction('clear')} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
                             <Trash2 size={14} /> Limpiar Datos
                         </button>

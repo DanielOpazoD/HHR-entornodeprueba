@@ -3,6 +3,8 @@
  * Main data types for the hospital census application
  */
 
+import { PatientFieldValue } from './valueTypes';
+
 export enum BedType {
     UTI = 'UTI',
     MEDIA = 'MEDIA',
@@ -78,7 +80,46 @@ export interface FhirResource {
     meta?: {
         profile?: string[];
     };
-    [key: string]: any; // Allow full FHIR properties
+    [key: string]: unknown; // Use unknown instead of any for better safety
+}
+
+/**
+ * Master Patient Index
+ * Sidecar collection for autocomplete and historical tracking
+ */
+export interface MasterPatient {
+    rut: string; // ID (Primary Key)
+    fullName: string;
+    birthDate?: string;
+    commune?: string; // Comuna de procedencia
+    address?: string;
+    phone?: string;
+    forecast?: string; // Previsión
+    gender?: string;
+
+    // Clinical Metadata
+    lastAdmission?: string;
+    lastDischarge?: string;
+    hospitalizations?: HospitalizationEvent[];
+    vitalStatus?: 'Vivo' | 'Fallecido';
+
+    // System Metadata
+    createdAt: number; // Unix timestamp
+    updatedAt: number; // Unix timestamp
+}
+
+/**
+ * Hospitalization Event
+ * Recorded when a patient is detected in the census or processed via discharge/transfer
+ */
+export interface HospitalizationEvent {
+    id: string; // Composite ID or UUID
+    type: 'Ingreso' | 'Egreso' | 'Traslado' | 'Fallecimiento';
+    date: string;
+    diagnosis: string;
+    bedName?: string;
+    receivingCenter?: string; // For transfers
+    isEvacuation?: boolean; // For transfers
 }
 
 export interface PatientData {
@@ -110,6 +151,7 @@ export interface PatientData {
     pathology: string;
     snomedCode?: string; // Standardized SNOMED CT code
     cie10Code?: string; // Standardized CIE-10 code
+    cie10Description?: string; // Official CIE-10 description recorded at selection
     diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
     specialty: Specialty;
     status: PatientStatus;
@@ -154,14 +196,12 @@ export interface DeviceInfo {
     note?: string;              // Free text note for the device
 }
 
-export interface DeviceDetails {
-    CUP?: DeviceInfo;  // Sonda Foley
-    CVC?: DeviceInfo;  // Catéter Venoso Central
-    VMI?: DeviceInfo;  // Ventilación Mecánica Invasiva
-    'VVP#1'?: DeviceInfo; // Vía Venosa Periférica #1
-    'VVP#2'?: DeviceInfo; // Vía Venosa Periférica #2
-    'VVP#3'?: DeviceInfo; // Vía Venosa Periférica #3
-}
+/**
+ * Device details mapping - allows any device to have date tracking
+ * Key is the device name (e.g., 'CUP', 'CVC', 'SNG', or custom device name)
+ * Value is the DeviceInfo with installation/removal dates
+ */
+export type DeviceDetails = Record<string, DeviceInfo>;
 
 // Extracted type for reuse
 export type DischargeType = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
@@ -213,7 +253,16 @@ export interface CMAData {
     patientName: string;
     rut: string;
     age: string;
+    birthDate?: string;
+    biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
+    insurance?: 'Fonasa' | 'Isapre' | 'Particular';
+    admissionOrigin?: string;
+    admissionOriginDetails?: string;
+    origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
+    isRapanui?: boolean;
     diagnosis: string;
+    cie10Code?: string;
+    cie10Description?: string;
     specialty: string;
     interventionType: 'Cirugía Mayor Ambulatoria' | 'Procedimiento Médico Ambulatorio'; // New field
     enteredBy?: string; // Optional: user who added the record
@@ -282,6 +331,14 @@ export interface DailyRecord {
         signedAt: string; // ISO timestamp
         userAgent?: string; // Optional device info
     };
+
+    // ===== CUDYR Lock (Prevents new patients from being added to CUDYR after cutoff) =====
+    /** Whether CUDYR editing is locked for this day */
+    cudyrLocked?: boolean;
+    /** ISO timestamp when CUDYR was locked */
+    cudyrLockedAt?: string;
+    /** User ID who locked the CUDYR */
+    cudyrLockedBy?: string;
 }
 
 export interface Statistics {
@@ -295,3 +352,86 @@ export interface Statistics {
     serviceCapacity: number; // 18 - blocked
     availableCapacity: number;
 }
+
+// ============================================================================
+// Patch Types for Type-Safe Firestore Updates
+// ============================================================================
+
+/**
+ * Represents a dot-notation path for nested object updates.
+ * Used by Firestore's updateDoc for partial updates.
+ */
+
+// Type-safe paths for PatientData fields
+type PatientFieldPath = `beds.${string}.${keyof PatientData}`;
+type PatientCudyrPath = `beds.${string}.cudyr.${keyof CudyrScore}`;
+type PatientClinicalCribPath = `beds.${string}.clinicalCrib.${keyof PatientData}`;
+type PatientDeviceDetailsPath = `beds.${string}.deviceDetails.${string}`;
+
+// Type-safe paths for Top-level DailyRecord fields
+type TopLevelPath = keyof Pick<DailyRecord,
+    | 'date'
+    | 'lastUpdated'
+    | 'nurses'
+    | 'nurseName'
+    | 'nursesDayShift'
+    | 'nursesNightShift'
+    | 'tensDayShift'
+    | 'tensNightShift'
+    | 'activeExtraBeds'
+    | 'discharges'
+    | 'transfers'
+    | 'cma'
+    | 'beds'
+    | 'handoffNovedadesDayShift'
+    | 'handoffNovedadesNightShift'
+    | 'medicalHandoffNovedades'
+    | 'medicalHandoffDoctor'
+    | 'medicalHandoffSentAt'
+    | 'medicalSignature'
+    | 'cudyrLocked'
+    | 'cudyrLockedAt'
+    | 'cudyrLockedBy'
+>;
+
+// Type-safe paths for Handoff Checklist
+type HandoffDayChecklistPath = `handoffDayChecklist.${string}`;
+type HandoffNightChecklistPath = `handoffNightChecklist.${string}`;
+type HandoffStaffPath = `handoffDayDelivers` | `handoffDayReceives` | `handoffNightDelivers` | `handoffNightReceives`;
+type MedicalSignaturePath = `medicalSignature` | `medicalSignature.${string}`;
+
+/**
+ * Union of all valid patch paths.
+ * This provides compile-time checking for patch keys.
+ */
+export type DailyRecordPatchPath =
+    | TopLevelPath
+    | PatientFieldPath
+    | PatientCudyrPath
+    | PatientClinicalCribPath
+    | PatientDeviceDetailsPath
+    | HandoffDayChecklistPath
+    | HandoffNightChecklistPath
+    | HandoffStaffPath
+    | MedicalSignaturePath;
+
+/**
+ * Type-safe patch object for DailyRecord updates.
+ * Keys are dot-notation paths, values are the corresponding field types.
+ */
+export type DailyRecordPatch = {
+    [K in DailyRecordPatchPath]?:
+    K extends TopLevelPath ? DailyRecord[K] :
+    K extends PatientCudyrPath ? number :
+    K extends HandoffDayChecklistPath | HandoffNightChecklistPath ? boolean | string :
+    K extends HandoffStaffPath ? string[] :
+    // For dynamic paths, allow common value types
+    | PatientFieldValue
+    | PatientData
+    | Record<string, unknown>
+    | string[]
+    | boolean
+    | number
+    | null
+    | undefined;
+};

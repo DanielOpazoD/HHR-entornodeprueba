@@ -4,7 +4,15 @@
  */
 
 /**
- * Format ISO date string (YYYY-MM-DD) to DD-MM-YYYY format
+ * Converts an ISO date string (YYYY-MM-DD) to Chilean format (DD-MM-YYYY).
+ * 
+ * @param isoDate - The string to format, expected to be "YYYY-MM-DD".
+ * @returns The formatted date "DD-MM-YYYY", or '-' if the input is falsy, 
+ *          or the original string if it doesn't match the expected format.
+ * 
+ * @example
+ * formatDateDDMMYYYY('2024-12-31') // '31-12-2024'
+ * formatDateDDMMYYYY('') // '-'
  */
 export const formatDateDDMMYYYY = (isoDate?: string): string => {
     if (!isoDate) return '-';
@@ -14,7 +22,10 @@ export const formatDateDDMMYYYY = (isoDate?: string): string => {
 };
 
 /**
- * Get today's date as ISO string (YYYY-MM-DD)
+ * Returns today's date in local ISO format (YYYY-MM-DD).
+ * Uses the local machine time but preserves semantic "calendar day" logic.
+ * 
+ * @returns A string in "YYYY-MM-DD" format.
  */
 export const getTodayISO = (): string => {
     return new Date().toISOString().split('T')[0];
@@ -34,7 +45,16 @@ export const formatDateForDisplay = (date: Date): string => {
 };
 
 /**
- * Calculate days between two ISO date strings
+ * Calculates the absolute number of calendar days between two ISO date strings.
+ * Note: This function calculates strict difference (24h blocks). 
+ * For duration of stay where admission day = Day 1, use calculateHospitalizedDays.
+ * 
+ * @param startDate - Initial date (YYYY-MM-DD)
+ * @param endDate - Final date (YYYY-MM-DD)
+ * @returns Number of days between dates (absolute value).
+ * 
+ * @example
+ * daysBetween('2024-01-01', '2024-01-02') // 1
  */
 export const daysBetween = (startDate: string, endDate: string): number => {
     const start = new Date(startDate);
@@ -44,8 +64,16 @@ export const daysBetween = (startDate: string, endDate: string): number => {
 };
 
 /**
- * Get a HH:MM string rounded to the nearest time step.
- * Defaults to 5-minute granularity for aligning time pickers.
+ * Formats a Date object to a string (HH:MM), rounded to the nearest minute block.
+ * Primarily used to align form inputs with consistent time steps.
+ * 
+ * @param date - The Date object to round (defaults to now).
+ * @param stepMinutes - The granularity in minutes (e.g., 5, 15, 30).
+ * @returns A string in "HH:MM" format.
+ * 
+ * @example
+ * // If current time is 14:32:15 and step is 5
+ * getTimeRoundedToStep() // "14:30"
  */
 export const getTimeRoundedToStep = (date: Date = new Date(), stepMinutes = 5): string => {
     const stepMs = stepMinutes * 60 * 1000;
@@ -55,7 +83,10 @@ export const getTimeRoundedToStep = (date: Date = new Date(), stepMinutes = 5): 
 };
 
 /**
- * Check if a date string is in the future
+ * Checks if a YYYY-MM-DD string represents a date chronologically after today.
+ * 
+ * @param dateString - Date to compare (YYYY-MM-DD)
+ * @returns TRUE if the date is strictly after today according to local system time.
  */
 export const isFutureDate = (dateString: string): boolean => {
     const today = getTodayISO();
@@ -63,7 +94,10 @@ export const isFutureDate = (dateString: string): boolean => {
 };
 
 /**
- * Parse ISO date to Date object, with fallback
+ * Safe parser for ISO date strings.
+ * 
+ * @param isoDate - The string to parse (YYYY-MM-DD or full ISO).
+ * @returns A Date object if valid, or NULL if the string is empty or invalid.
  */
 export const parseISODate = (isoDate?: string): Date | null => {
     if (!isoDate) return null;
@@ -181,8 +215,14 @@ export const CHILEAN_HOLIDAYS = [
 ];
 
 /**
- * Check if a date is a Business Day (Lunes a Viernes, no feriado)
- * Returns FALSE for Weekends (Sat/Sun) and Holidays.
+ * Validates if a date is a standard Chilean Business Day.
+ * Takes into account both weekends (Saturday/Sunday) and the CHILEAN_HOLIDAYS list.
+ * 
+ * @param dateString - The date to check in "YYYY-MM-DD" format.
+ * @returns TRUE if it is Mon-Fri and NOT a holiday. FALSE otherwise.
+ * 
+ * @important Uses midday (T12:00:00) instantiation to prevent timezone offsets 
+ * from shifting the day count during calculation.
  */
 export const isBusinessDay = (dateString: string): boolean => {
     // 1. Check Holiday List
@@ -221,15 +261,18 @@ interface ShiftSchedule {
 }
 
 /**
- * Get Shift Hours based on date type (Business Day vs Weekend/Holiday)
+ * Determines the specific start and end hours for medical/nursing shifts.
+ * Shift durations change depending on whether today and tomorrow are business days.
  * 
- * IMPORTANTE: El turno NOCHE cruza dos días calendario.
- * - El inicio del turno noche depende del día ACTUAL
- * - El fin del turno noche depende del día SIGUIENTE
+ * - **Day Shift Start**: 08:00 (Business) or 09:00 (Weekend/Holiday)
+ * - **Night Shift End**: 08:00 (If tomorrow is Business) or 09:00 (If tomorrow is Weekend/Holiday)
  * 
- * Ejemplos:
- * - Viernes (hábil) -> Sábado (no hábil): Noche 20:00 - 09:00
- * - Domingo (no hábil) -> Lunes (hábil): Noche 20:00 - 08:00
+ * @param dateString - The reference date (YYYY-MM-DD) to calculate shift boundaries for.
+ * @returns A structure containing shift hours and a human-readable description.
+ * 
+ * @example
+ * // If Friday (Busines) -> Saturday (Holiday)
+ * getShiftSchedule('2024-03-29') // { dayStart: "08:00", nightEnd: "09:00", ... }
  */
 export const getShiftSchedule = (dateString: string): ShiftSchedule => {
     const todayIsBusinessDay = isBusinessDay(dateString);
@@ -304,35 +347,31 @@ export const isWithinDayShift = (time?: string): boolean => {
 };
 
 /**
- * Determines if a patient should be visible in a specific shift handoff.
+ * Determines if a patient record should be visible within a specific shift's handoff view.
  * 
- * ## Logic:
- * - **Day Shift (08:00-20:00)**: Show patients admitted BEFORE 20:00 on record date
- * - **Night Shift (20:00-08:00)**: Show patients admitted:
- *   1. On record date at any time (they were there during the night)
- *   2. On record date + 1 day BEFORE 08:00 (madrugada admission)
+ * ## Behavioral Logic:
+ * The "census" record represents a specific date, but the shifts within that date can 
+ * technically span across calendar boundaries, especially the Night Shift.
  * 
- * The night shift is tricky because it spans two calendar days:
- * - Night shift of Jan 3 = 20:00 Jan 3 → 08:00 Jan 4
- * - So we need to include admissions from 00:00-08:00 on Jan 4
+ * ### 1. Day Shift (08:00 - 20:00):
+ * - Only shows patients admitted on the **same calendar date** as the record.
+ * - Admittance time must be **before 20:00**.
  * 
- * @param recordDate - The date of the record being viewed (YYYY-MM-DD)
- * @param admissionDate - Patient's admission date (YYYY-MM-DD)
- * @param admissionTime - Patient's admission time (HH:MM)
- * @param shift - The shift being viewed ('day' or 'night')
- * @returns true if patient should appear in this shift's handoff
+ * ### 2. Night Shift (20:00 - 08:00 next day):
+ * - Shows all patients admitted on the **record date** (since they remained there overnight).
+ * - Exceptionally shows patients admitted on the **next calendar date** but **before 08:00** 
+ *   (e.g., an admission at 03:00 AM is part of the previous night's shift).
+ * 
+ * @param recordDate - The anchor date of the Daily Record (YYYY-MM-DD).
+ * @param admissionDate - The patient's actual admission date (YYYY-MM-DD).
+ * @param admissionTime - The patient's actual admission time (HH:MM).
+ * @param shift - The current viewing context ('day' or 'night').
+ * @returns TRUE if the patient was present during that specific shift interval.
  * 
  * @example
- * // Record date: 2026-01-03
- * // Day shift viewing (08:00-20:00):
- * isAdmittedDuringShift('2026-01-03', '2026-01-03', '10:00', 'day')  // true - admitted in morning
- * isAdmittedDuringShift('2026-01-03', '2026-01-03', '22:00', 'day')  // false - admitted at night
- * 
- * // Night shift viewing (20:00-08:00):
- * isAdmittedDuringShift('2026-01-03', '2026-01-03', '10:00', 'night') // true - was there before night
- * isAdmittedDuringShift('2026-01-03', '2026-01-03', '22:00', 'night') // true - admitted during night
- * isAdmittedDuringShift('2026-01-03', '2026-01-04', '02:00', 'night') // true - madrugada of night shift
- * isAdmittedDuringShift('2026-01-03', '2026-01-04', '10:00', 'night') // false - admitted next day
+ * // Record: Jan 3rd. Night Shift covers Jan 3rd 20:00 to Jan 4th 08:00.
+ * isAdmittedDuringShift('2026-01-03', '2026-01-04', '04:30', 'night') // TRUE
+ * isAdmittedDuringShift('2026-01-03', '2026-01-04', '04:30', 'day')   // FALSE
  */
 export const isAdmittedDuringShift = (
     recordDate: string,
@@ -386,9 +425,21 @@ export const isAdmittedDuringShift = (
 };
 
 /**
- * Calculate days since admission
- * Inclusion: The admission day counts as Day 1.
- * Using pure UTC at mid-day to avoid DST issues and timezone shifts.
+ * Calculates the number of days a patient has been hospitalized (Estadía).
+ * 
+ * ## Behavioral Rules:
+ * 1. The day of admission counts as **Day 1**.
+ * 2. Uses pure UTC calculation at mid-day (12:00:00) to neutralize Daylight Saving Time (DST) 
+ *    transitions and local machine timezone offsets.
+ * 3. Minimum result is 1 (if admission and current day are the same).
+ * 
+ * @param admissionDate - Patient's admission date (YYYY-MM-DD or ISO string)
+ * @param currentDate - Comparison date (usually today, YYYY-MM-DD)
+ * @returns Number of days (integer), or null if inputs are invalid.
+ * 
+ * @example
+ * calculateHospitalizedDays('2024-01-01', '2024-01-01') // 1
+ * calculateHospitalizedDays('2024-01-01', '2024-01-02') // 2
  */
 export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string): number | null => {
     if (!admissionDate || !currentDate) return null;
@@ -412,4 +463,35 @@ export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: 
     } catch (e) {
         return null;
     }
+};
+
+/**
+ * Returns the number of days in a specific month of a year.
+ */
+export const getDaysInMonth = (year: number, month: number): number => {
+    return new Date(year, month, 0).getDate();
+};
+
+/**
+ * Generates an array of ISO date strings (YYYY-MM-DD) for every day of a month.
+ * Optionally limits the range to today if the month/year is current.
+ */
+export const generateDateRange = (year: number, month: number, limitToToday: boolean = false): string[] => {
+    const days = getDaysInMonth(year, month);
+    const range: string[] = [];
+    const monthStr = String(month).padStart(2, '0');
+    const today = getTodayISO();
+
+    for (let day = 1; day <= days; day++) {
+        const dayStr = String(day).padStart(2, '0');
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+        if (limitToToday && dateStr > today) {
+            break;
+        }
+
+        range.push(dateStr);
+    }
+
+    return range;
 };

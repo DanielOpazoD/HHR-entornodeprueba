@@ -42,7 +42,7 @@ export const addPatientTable = (
         const daysHosp = calculateHospitalizedDays(patient.admissionDate, record.date);
         const daysStr = daysHosp ? `${daysHosp}d` : '';
 
-        let observation = isMedical
+        const observation = isMedical
             ? (patient.medicalHandoffNote || '')
             : (selectedShift === 'day' ? (patient.handoffNoteDayShift || '') : (patient.handoffNoteNightShift || ''));
 
@@ -223,8 +223,8 @@ export const addCudyrTable = (doc: jsPDF, record: DailyRecord, margin: number, a
         const depScore = (c.changeClothes || 0) + (c.mobilization || 0) + (c.feeding || 0) + (c.elimination || 0) + (c.psychosocial || 0) + (c.surveillance || 0);
         const riskScore = (c.vitalSigns || 0) + (c.fluidBalance || 0) + (c.oxygenTherapy || 0) + (c.airway || 0) + (c.proInterventions || 0) + (c.skinCare || 0) + (c.pharmacology || 0) + (c.invasiveElements || 0);
 
-        let depCat = depScore >= 13 ? '1' : (depScore >= 7 ? '2' : '3');
-        let riskCat = riskScore >= 19 ? 'A' : (riskScore >= 12 ? 'B' : (riskScore >= 6 ? 'C' : 'D'));
+        const depCat = depScore >= 13 ? '1' : (depScore >= 7 ? '2' : '3');
+        const riskCat = riskScore >= 19 ? 'A' : (riskScore >= 12 ? 'B' : (riskScore >= 6 ? 'C' : 'D'));
 
         const nameParts = patient.patientName.split(' ');
         const shortName = nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];

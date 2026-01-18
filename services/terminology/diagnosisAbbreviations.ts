@@ -122,7 +122,7 @@ export function abbreviateDiagnosis(fullDiagnosis: string): string {
     // If no abbreviation found, try to shorten long text
     if (fullDiagnosis.length > 30) {
         // Remove common suffixes
-        let shortened = fullDiagnosis
+        const shortened = fullDiagnosis
             .replace(/, no especificad[ao]/gi, '')
             .replace(/, parte no especificada/gi, '')
             .replace(/\s*\([^)]*\)/g, '') // Remove parenthetical content

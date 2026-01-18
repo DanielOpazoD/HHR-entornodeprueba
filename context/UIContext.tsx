@@ -303,19 +303,19 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         });
     }, []);
 
-    const handleDialogConfirm = useCallback(() => {
+    const handleDialogConfirm = () => {
         if (dialog.resolve) {
             dialog.resolve(true);
         }
         setDialog(prev => ({ ...prev, isOpen: false, resolve: null }));
-    }, [dialog.resolve]);
+    };
 
-    const handleDialogCancel = useCallback(() => {
+    const handleDialogCancel = () => {
         if (dialog.resolve) {
             dialog.resolve(false);
         }
         setDialog(prev => ({ ...prev, isOpen: false, resolve: null }));
-    }, [dialog.resolve]);
+    };
 
     // ========================================================================
     // Render

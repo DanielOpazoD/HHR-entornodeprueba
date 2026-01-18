@@ -262,7 +262,7 @@ export const ModalSection: React.FC<ModalSectionProps> = ({
     const colors = variantClasses[variant];
 
     return (
-        <div className={clsx("bg-white/40 border p-5 rounded-2xl shadow-sm backdrop-blur-sm", colors.border)}>
+        <div className={clsx("bg-white/80 border p-4 rounded-xl shadow-sm", colors.border)}>
             <h4 className={clsx("font-display font-bold flex items-center gap-2 mb-2", colors.title)}>
                 {icon}
                 {title}

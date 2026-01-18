@@ -35,7 +35,6 @@ export const ShiftPanelView: React.FC = () => {
     const [fetchResult, setFetchResult] = useState<{ success?: boolean; message?: string; error?: string } | null>(null);
 
     useEffect(() => {
-        setLoading(true);
         const unsubscribe = subscribeToCurrentShift((data) => {
             setShift(data);
             setLoading(false);

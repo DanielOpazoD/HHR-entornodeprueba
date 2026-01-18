@@ -6,15 +6,44 @@
  */
 
 import { z } from 'zod';
-import { PatientData, Specialty, PatientStatus } from '../types';
+import { PatientData, Specialty, PatientStatus, DischargeData, TransferData, CMAData, DailyRecord, CudyrScore } from '../types';
+
+// ============================================================================
+// Constants & Regex
+// ============================================================================
+
+const RUT_REGEX = /^(\d{1,2}\.?\d{3}\.?\d{3}[-]?[\dkK])?$/; // Chilean RUT format (optional)
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
+
+/**
+ * Helper for fields that can be null in Firestore (empty) but should be undefined in the app
+ */
+const nullableOptional = <T extends z.ZodTypeAny>(schema: T) =>
+    schema.nullable().optional().transform(v => v ?? undefined);
 
 // ============================================================================
 // Enums
 // ============================================================================
 
 export const BedTypeSchema = z.enum(['UTI', 'MEDIA']);
-export const SpecialtySchema = z.nativeEnum(Specialty);
 export const PatientStatusSchema = z.nativeEnum(PatientStatus);
+
+// ============================================================================
+// Specialties
+// ============================================================================
+
+const SpecialtyEnumSchema = z.nativeEnum(Specialty);
+export const SpecialtySchema = z.preprocess((val) => {
+    // Migrate legacy values to the new combined specialty
+    if (val === 'Ginecología' || val === 'Obstetricia') {
+        return Specialty.GINECOBSTETRICIA;
+    }
+    return val;
+}, SpecialtyEnumSchema);
 
 // ============================================================================
 // Sub-schemas
@@ -50,72 +79,77 @@ export const DeviceDetailsSchema = z.object({
     'VVP#1': DeviceInfoSchema.optional(),
     'VVP#2': DeviceInfoSchema.optional(),
     'VVP#3': DeviceInfoSchema.optional(),
-});
+}).catchall(DeviceInfoSchema);
 
-// ============================================================================
-// FHIR Core-CL Schemas
-// ============================================================================
+export const ClinicalEventSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    date: z.string(),
+    note: z.string().optional(),
+    createdAt: z.string(),
+}).passthrough();
 
 export const FhirResourceSchema = z.object({
     resourceType: z.string(),
-    id: z.string().optional(),
-    meta: z.object({
-        profile: z.array(z.string()).optional(),
-    }).optional(),
+    id: nullableOptional(z.string()),
+    meta: nullableOptional(z.object({
+        profile: nullableOptional(z.array(z.string())),
+    })),
 }).passthrough();
 
 // ============================================================================
-// PatientData Schema
+// Main PatientData Schema (Recursive)
 // ============================================================================
 
-// Forward declare for recursive type (clinicalCrib) with explicit type for better inference
-export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, any> = z.lazy(() =>
+export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = z.lazy(() =>
     z.object({
         bedId: z.string().default(''),
         isBlocked: z.boolean().default(false),
-        blockedReason: z.string().optional(),
+        blockedReason: nullableOptional(z.string()),
         bedMode: z.enum(['Cama', 'Cuna']).default('Cama'),
         hasCompanionCrib: z.boolean().default(false),
-        clinicalCrib: PatientDataSchema.optional(),
+        clinicalCrib: z.lazy(() => PatientDataSchema).nullable().optional().transform(v => v ?? undefined),
         patientName: z.string().default(''),
-        rut: z.string().default(''),
-        documentType: z.enum(['RUT', 'Pasaporte']).optional(),
+        rut: z.string().regex(RUT_REGEX, 'Formato de RUT inválido').default(''),
+        documentType: nullableOptional(z.enum(['RUT', 'Pasaporte'])),
         age: z.string().default(''),
-        birthDate: z.string().optional(),
-        biologicalSex: z.enum(['Masculino', 'Femenino', 'Indeterminado']).optional(),
-        insurance: z.enum(['Fonasa', 'Isapre', 'Particular']).optional(),
-        admissionOrigin: z.enum(['CAE', 'APS', 'Urgencias', 'Pabellón', 'Otro']).optional(),
-        admissionOriginDetails: z.string().optional(),
-        origin: z.enum(['Residente', 'Turista Nacional', 'Turista Extranjero']).optional(),
-        isRapanui: z.boolean().optional(),
+        birthDate: nullableOptional(z.string()),
+        biologicalSex: nullableOptional(z.enum(['Masculino', 'Femenino', 'Indeterminado'])),
+        insurance: nullableOptional(z.enum(['Fonasa', 'Isapre', 'Particular'])),
+        admissionOrigin: nullableOptional(z.enum(['CAE', 'APS', 'Urgencias', 'Pabellón', 'Otro'])),
+        admissionOriginDetails: nullableOptional(z.string()),
+        origin: nullableOptional(z.enum(['Residente', 'Turista Nacional', 'Turista Extranjero'])),
+        isRapanui: nullableOptional(z.boolean()),
         pathology: z.string().default(''),
-        snomedCode: z.string().optional(),
-        cie10Code: z.string().optional(),
-        diagnosisComments: z.string().optional(),
-        specialty: z.nativeEnum(Specialty).default(Specialty.EMPTY),
+        snomedCode: nullableOptional(z.string()),
+        cie10Code: nullableOptional(z.string()),
+        cie10Description: nullableOptional(z.string()),
+        diagnosisComments: nullableOptional(z.string()),
+        specialty: SpecialtySchema.default(Specialty.EMPTY),
         status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
         admissionDate: z.string().default(''),
         admissionTime: z.string().default(''),
         hasWristband: z.boolean().default(true),
         devices: z.array(z.string()).default([]),
-        deviceDetails: DeviceDetailsSchema.optional(),
+        deviceDetails: nullableOptional(DeviceDetailsSchema),
         surgicalComplication: z.boolean().default(false),
         isUPC: z.boolean().default(false),
-        location: z.string().optional(),
-        cudyr: CudyrScoreSchema.optional(),
-        handoffNote: z.string().optional(),
-        handoffNoteDayShift: z.string().optional(),
-        handoffNoteNightShift: z.string().optional(),
-        medicalHandoffNote: z.string().optional(),
-        fhir_resource: FhirResourceSchema.optional(),
-    }).passthrough() // Allow additional fields
+        location: nullableOptional(z.string()),
+        cudyr: nullableOptional(CudyrScoreSchema),
+        handoffNote: nullableOptional(z.string()),
+        handoffNoteDayShift: nullableOptional(z.string()),
+        handoffNoteNightShift: nullableOptional(z.string()),
+        medicalHandoffNote: nullableOptional(z.string()),
+        clinicalEvents: z.array(ClinicalEventSchema).default([]),
+        fhir_resource: nullableOptional(FhirResourceSchema),
+    }).passthrough()
 );
 
 // ============================================================================
 // Discharge & Transfer Schemas
 // ============================================================================
 
-export const DischargeDataSchema = z.object({
+export const DischargeDataSchema: z.ZodType<DischargeData> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -135,7 +169,7 @@ export const DischargeDataSchema = z.object({
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const TransferDataSchema = z.object({
+export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -156,7 +190,7 @@ export const TransferDataSchema = z.object({
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const CMADataSchema = z.object({
+export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     patientName: z.string().default(''),
@@ -173,16 +207,14 @@ export const CMADataSchema = z.object({
 // DailyRecord Schema
 // ============================================================================
 
-export const DailyRecordSchema = z.object({
+export const DailyRecordSchema: z.ZodType<DailyRecord> = z.object({
     date: z.string(),
     beds: z.record(z.string(), PatientDataSchema).default({}),
     discharges: z.array(DischargeDataSchema).default([]),
     transfers: z.array(TransferDataSchema).default([]),
     cma: z.array(CMADataSchema).default([]),
     lastUpdated: z.string().default(() => new Date().toISOString()),
-    /** Unix timestamp (ms) for the start of the day, used for security rule validation */
     dateTimestamp: z.number().optional(),
-    /** Version of the data structure, used to prevent corruption from old clients */
     schemaVersion: z.number().default(1),
     nurses: z.array(z.string()).default(['', '']),
     nurseName: z.string().optional(),
@@ -208,59 +240,134 @@ export const DailyRecordSchema = z.object({
     handoffNovedadesDayShift: z.string().optional(),
     handoffNovedadesNightShift: z.string().optional(),
     medicalHandoffNovedades: z.string().optional(),
-}).passthrough(); // Allow additional fields not defined here
+    medicalHandoffDoctor: z.string().optional(),
+    medicalHandoffSentAt: z.string().optional(),
+    medicalSignature: z.object({
+        doctorName: z.string(),
+        signedAt: z.string(),
+        userAgent: z.string().optional()
+    }).optional(),
+    cudyrLocked: z.boolean().optional(),
+    cudyrLockedAt: z.string().optional(),
+    cudyrLockedBy: z.string().optional(),
+    handoffNightReceives: z.array(z.string()).optional(),
+}).passthrough();
+
+/**
+ * Full backup schema for import/export
+ */
+export const FullBackupSchema = z.record(z.string(), DailyRecordSchema);
+
+// ============================================================================
+// Validation Helpers & Types
+// ============================================================================
+
+export interface ValidationResult<T> {
+    success: boolean;
+    data?: T;
+    errors?: string[];
+}
+
+export const validatePatientData = (data: unknown): ValidationResult<PatientData> => {
+    const result = PatientDataSchema.safeParse(data);
+    return result.success ? { success: true, data: result.data } : {
+        success: false,
+        errors: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+    };
+};
+
+export const validateDailyRecord = (data: unknown): ValidationResult<DailyRecord> => {
+    const result = DailyRecordSchema.safeParse(data);
+    return result.success ? { success: true, data: result.data as DailyRecord } : {
+        success: false,
+        errors: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+    };
+};
+
+export const validateBackupData = (data: unknown): ValidationResult<Record<string, DailyRecord>> => {
+    const result = FullBackupSchema.safeParse(data);
+    return result.success ? { success: true, data: result.data as Record<string, DailyRecord> } : {
+        success: false,
+        errors: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+    };
+};
+
+export const validateRut = (rut: string): boolean => {
+    if (!rut || rut.trim() === '') return true;
+    return RUT_REGEX.test(rut);
+};
+
+export const validateAdmissionDate = (dateStr: string): ValidationResult<string> => {
+    if (!dateStr || dateStr.trim() === '') return { success: true, data: '' };
+    if (!DATE_REGEX.test(dateStr)) return { success: false, errors: ['Formato de fecha inválido (YYYY-MM-DD)'] };
+    const date = new Date(dateStr);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return date > today ? { success: false, errors: ['La fecha de ingreso no puede ser futura'] } : { success: true, data: dateStr };
+};
+
+export const validateCudyrScore = (score: unknown): ValidationResult<CudyrScore> => {
+    const result = CudyrScoreSchema.safeParse(score);
+    return result.success ? { success: true, data: result.data } : {
+        success: false,
+        errors: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+    };
+};
+
+export type PatientDataValidated = z.infer<typeof PatientDataSchema>;
+export type DailyRecordValidated = z.infer<typeof DailyRecordSchema>;
+export type CudyrScoreValidated = z.infer<typeof CudyrScoreSchema>;
+export type DischargeDataValidated = z.infer<typeof DischargeDataSchema>;
+export type TransferDataValidated = z.infer<typeof TransferDataSchema>;
 
 // ============================================================================
 // Safe Parsing Utilities
 // ============================================================================
 
-/**
- * Safely parse DailyRecord with fallbacks for invalid data
- */
-export const safeParseDailyRecord = (data: unknown): z.infer<typeof DailyRecordSchema> | null => {
+export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
     const result = DailyRecordSchema.safeParse(data);
-    if (result.success) {
-        return result.data;
-    }
+    if (result.success) return result.data as DailyRecord;
     console.warn('⚠️ DailyRecord validation failed:', result.error.issues);
     return null;
 };
 
-/**
- * Parse DailyRecord with partial recovery
- * Returns the data with defaults applied where validation fails
- */
-export const parseDailyRecordWithDefaults = (data: unknown, docId: string): z.infer<typeof DailyRecordSchema> => {
+export const parseDailyRecordWithDefaults = (data: unknown, docId: string): DailyRecord => {
     try {
-        // First try strict parsing
-        return DailyRecordSchema.parse(data);
-    } catch {
-        // If strict fails, apply defaults and try to recover what's possible
-        console.warn('⚠️ Applying defaults to DailyRecord for date:', docId);
-
-        const raw = (typeof data === 'object' && data !== null ? data : {}) as any;
-
-        return {
-            date: typeof raw.date === 'string' ? raw.date : docId,
-            beds: (typeof raw.beds === 'object' && raw.beds !== null && !Array.isArray(raw.beds)) ? raw.beds : {},
-            discharges: Array.isArray(raw.discharges) ? raw.discharges : [],
-            transfers: Array.isArray(raw.transfers) ? raw.transfers : [],
-            cma: Array.isArray(raw.cma) ? raw.cma : [],
-            lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
-            nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
-            nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
-            nursesNightShift: Array.isArray(raw.nursesNightShift) ? raw.nursesNightShift : ['', ''],
-            tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
-            tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
-            activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
-            handoffDayChecklist: typeof raw.handoffDayChecklist === 'object' ? raw.handoffDayChecklist : {},
-            handoffNightChecklist: typeof raw.handoffNightChecklist === 'object' ? raw.handoffNightChecklist : {},
-            handoffNovedadesDayShift: typeof raw.handoffNovedadesDayShift === 'string' ? raw.handoffNovedadesDayShift : '',
-            handoffNovedadesNightShift: typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
-            medicalHandoffNovedades: typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
-            // Night shift receiving nurses
-            handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
-            schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
-        };
+        const result = DailyRecordSchema.safeParse(data);
+        if (result.success) return result.data as DailyRecord;
+        console.warn('⚠️ DailyRecord partial validation failure for date:', docId, result.error.issues.slice(0, 5));
+    } catch (err) {
+        console.warn('⚠️ Unexpected error parsing DailyRecord for date:', docId, err);
     }
+
+    const raw = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+    const salvagedBeds: Record<string, PatientData> = {};
+    if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
+        Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
+            const parsed = PatientDataSchema.safeParse(patient);
+            salvagedBeds[id] = parsed.success ? parsed.data : (patient as PatientData || { bedId: id });
+        });
+    }
+
+    return {
+        date: typeof raw.date === 'string' ? raw.date : docId,
+        beds: salvagedBeds,
+        discharges: Array.isArray(raw.discharges) ? raw.discharges : [],
+        transfers: Array.isArray(raw.transfers) ? raw.transfers : [],
+        cma: Array.isArray(raw.cma) ? raw.cma : [],
+        lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
+        nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
+        nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
+        nursesNightShift: Array.isArray(raw.nursesNightShift) ? raw.nursesNightShift : ['', ''],
+        tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
+        tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
+        activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
+        handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
+        handoffNightChecklist: (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},
+        handoffNovedadesDayShift: typeof raw.handoffNovedadesDayShift === 'string' ? raw.handoffNovedadesDayShift : '',
+        handoffNovedadesNightShift: typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
+        medicalHandoffNovedades: typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
+        handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
+        schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
+    } as DailyRecord;
 };

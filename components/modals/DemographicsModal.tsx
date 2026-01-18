@@ -112,10 +112,10 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                 {/* Patient Header Summary - Minimalist */}
                 <div className="pb-4 border-b border-slate-100">
                     <p className="text-lg font-display font-bold text-slate-900 leading-tight">
-                        {data.patientName || "Paciente Sin Nombre"}
+                        {data.patientName || "Paciente Nuevo / Por definir"}
                     </p>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                        {data.rut || "Sin RUT"}
+                        {data.rut || "RUT No especificado"}
                     </p>
                 </div>
 
@@ -125,7 +125,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                         title="Información Básica"
                         variant="default"
                     >
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="space-y-1.5">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Nacimiento</label>
                                 <input
@@ -162,9 +162,9 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                 </select>
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Sexo Biológico</label>
-                                <div className="flex gap-4 pl-1">
+                                <div className="flex flex-col gap-1.5 pl-1">
                                     {['Masculino', 'Femenino', 'Indeterminado'].map((sex) => (
                                         <label key={sex} className="flex items-center gap-2 cursor-pointer group">
                                             <input
@@ -172,10 +172,10 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                                 name="biologicalSex"
                                                 checked={localData.biologicalSex === sex}
                                                 onChange={() => setLocalData({ ...localData, biologicalSex: sex as any })}
-                                                className="w-4 h-4 text-blue-600 focus:ring-blue-500/20"
+                                                className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500/20"
                                             />
                                             <span className={clsx("text-xs transition-colors", localData.biologicalSex === sex ? "font-bold text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
-                                                {sex === 'Indeterminado' ? 'Indet.' : sex.slice(0, 4) + '.'}
+                                                {sex}
                                             </span>
                                         </label>
                                     ))}
@@ -189,7 +189,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                         title="Origen y Permanencia"
                         variant="info"
                     >
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="space-y-1.5">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen del Ingreso</label>
                                 <div className="space-y-2">

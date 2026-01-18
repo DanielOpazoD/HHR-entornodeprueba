@@ -17,6 +17,8 @@ export {
     type CudyrScore,
     type ClinicalEvent,
     type PatientData,
+    type MasterPatient,
+    type HospitalizationEvent,
     type DeviceInfo,
     type DeviceDetails,
     type DischargeData,
@@ -26,7 +28,9 @@ export {
     type Statistics,
     type DischargeType,
     type ShiftType,
-    type FhirResource
+    type FhirResource,
+    type DailyRecordPatch,
+    type DailyRecordPatchPath
 } from './core';
 
 // Value types and utilities

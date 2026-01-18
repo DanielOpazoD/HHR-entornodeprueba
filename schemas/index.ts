@@ -32,4 +32,4 @@ export {
     type CudyrScoreValidated,
     type DischargeDataValidated,
     type TransferDataValidated
-} from './validation';
+} from './zodSchemas';

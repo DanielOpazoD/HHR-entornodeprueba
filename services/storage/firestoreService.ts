@@ -13,7 +13,7 @@ import {
     updateDoc
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
-import { DailyRecord } from '../../types';
+import { DailyRecord, DailyRecordPatch } from '../../types';
 import { DailyRecordSchema } from '../../schemas/zodSchemas';
 import { withRetry } from '../../utils/networkUtils';
 import { parseDailyRecordWithDefaults } from '../../schemas/zodSchemas';
@@ -292,7 +292,7 @@ const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
  * Performs a partial update to a DailyRecord in Firestore using dot-notation paths.
  * This is efficient as it only modifies the specified fields.
  */
-export const updateRecordPartial = async (date: string, partialData: Partial<DailyRecord>): Promise<void> => {
+export const updateRecordPartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
     try {
         const docRef = doc(getRecordsCollection(), date);
 

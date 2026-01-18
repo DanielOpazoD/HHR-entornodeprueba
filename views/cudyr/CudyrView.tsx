@@ -1,8 +1,8 @@
-import React, { useMemo, useEffect } from 'react';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import React, { useMemo, useEffect, useCallback } from 'react';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants';
 import { CudyrScore } from '@/types';
-import { ClipboardList } from 'lucide-react';
+import { BarChart3, ArrowLeft } from 'lucide-react';
 
 // Sub-components
 import { CudyrHeader } from './CudyrHeader';
@@ -12,17 +12,88 @@ import { CudyrSummaryTable } from './CudyrSummaryTable';
 import { buildDailyCudyrSummary } from '@/services/calculations/cudyrSummary';
 import { useAuditContext } from '@/context/AuditContext';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
+import { useAuth } from '@/context/AuthContext';
+import { updatePartial } from '@/services/repositories/DailyRecordRepository';
 
 interface CudyrViewProps {
     readOnly?: boolean;
 }
+/**
+ * Helper: Check if a patient was admitted after CUDYR was locked.
+ * If locked, patients admitted AFTER the lock time should be hidden.
+ * Also, patients without admission data are treated as "new" and hidden.
+ */
+const wasAdmittedAfterLock = (
+    admissionDate?: string,
+    admissionTime?: string,
+    lockedAt?: string,
+    patientName?: string
+): boolean => {
+
+    // If not locked, don't hide anyone
+    if (!lockedAt) return false;
+
+    // If there's no patient, don't hide (empty bed)
+    if (!patientName) return false;
+
+    // If patient exists but has no admission date, they were likely just added - hide them
+    if (!admissionDate) {
+        return true;
+    }
+
+    // Build admission timestamp: combine date + time
+    const admissionDateTime = admissionTime
+        ? `${admissionDate}T${admissionTime}:00`
+        : `${admissionDate}T00:00:00`;
+
+    const admissionTs = new Date(admissionDateTime).getTime();
+    const lockTs = new Date(lockedAt).getTime();
+
+    // If admission is after lock, return true (should be hidden)
+    return admissionTs > lockTs;
+};
 
 export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
-    const { record, updateCudyr, updateClinicalCribCudyr } = useDailyRecordContext();
-    const { logEvent } = useAuditContext();
+    const { record } = useDailyRecordData();
+    const { updateCudyr, updateClinicalCribCudyr, refresh } = useDailyRecordActions();
+    const { logEvent, userId } = useAuditContext();
+    const { user, isEditor, role } = useAuth();
+
+    // Permission check: Admin or Hospitalized nurse can toggle lock
+    const canToggleLock = useMemo(() => {
+        if (!user) return false;
+        // Admin (role === 'admin') or Editor can toggle
+        if (role === 'admin' || isEditor) {
+            // Additionally check if hospitalized nurse
+            const hospitalizedEmails = ['hospitalizados@hospitalhangaroa.cl', 'enfermeria.hospitalizados@hospitalhangaroa.cl'];
+            const isHospitalizedNurse = hospitalizedEmails.includes(user.email?.toLowerCase() || '');
+            // Admin always can, or hospitalized nurse
+            return role === 'admin' || isHospitalizedNurse;
+        }
+        return false;
+    }, [user, role, isEditor]);
+
+    // Toggle CUDYR lock
+    const handleToggleLock = useCallback(async () => {
+        if (!record || !canToggleLock) return;
+
+        const newLockedState = !record.cudyrLocked;
+        const now = new Date().toISOString();
+
+        try {
+            await updatePartial(record.date, {
+                cudyrLocked: newLockedState,
+                cudyrLockedAt: newLockedState ? now : undefined,
+                cudyrLockedBy: newLockedState ? (user?.email || userId) : undefined
+            });
+            // Refresh to get updated state
+            refresh();
+        } catch (error) {
+            console.error('Error toggling CUDYR lock:', error);
+        }
+    }, [record, canToggleLock, user, userId, refresh]);
 
     // MINSAL Traceability: Log when patient CUDYR is viewed
-    const { userId } = useAuditContext();
     useEffect(() => {
         if (record && record.date) {
             // Attribution logic for shared accounts (MINSAL requirement)
@@ -96,6 +167,9 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
         updateClinicalCribCudyr(bedId, field, value);
     };
 
+    // Determine if editing is locked
+    const isEditingLocked = record.cudyrLocked || readOnly;
+
     // Format date for print header
     const formatPrintDate = () => {
         const [year, month, day] = record.date.split('-');
@@ -110,7 +184,7 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
             {/* Print-only Header with Icon, Date, Nurses, and Stats */}
             <div className="hidden print:block mb-2 pb-2 border-b border-slate-300">
                 <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
-                    <ClipboardList size={20} className="text-medical-600" />
+                    <BarChart3 size={20} className="text-medical-600" />
                     Instrumento CUDYR
                 </h1>
                 <div className="flex items-center gap-4 text-sm text-slate-700">
@@ -150,6 +224,11 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                         occupiedCount={stats.occupiedCount}
                         categorizedCount={stats.categorizedCount}
                         currentDate={record.date}
+                        isLocked={record.cudyrLocked}
+                        lockedAt={record.cudyrLockedAt}
+                        lockedBy={record.cudyrLockedBy}
+                        onToggleLock={handleToggleLock}
+                        canToggle={canToggleLock}
                     />
                 </div>
 
@@ -201,21 +280,42 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                         <tbody>
                             {visibleBeds.map(bed => {
                                 const patient = record.beds[bed.id];
-                                const hasCrib = !!patient?.clinicalCrib?.patientName;
+
+                                // If CUDYR is locked, hide patients admitted after the lock
+                                const shouldHidePatient = record.cudyrLocked && wasAdmittedAfterLock(
+                                    patient?.admissionDate,
+                                    patient?.admissionTime,
+                                    record.cudyrLockedAt,
+                                    patient?.patientName
+                                );
+
+                                // Get displayable patient (null if should be hidden)
+                                const displayPatient = shouldHidePatient ? undefined : patient;
+
+                                const hasCrib = !!displayPatient?.clinicalCrib?.patientName;
+
+                                // Also check if clinical crib was added after lock
+                                const shouldHideCrib = record.cudyrLocked && hasCrib && wasAdmittedAfterLock(
+                                    displayPatient?.clinicalCrib?.admissionDate,
+                                    displayPatient?.clinicalCrib?.admissionTime,
+                                    record.cudyrLockedAt,
+                                    displayPatient?.clinicalCrib?.patientName
+                                );
+
                                 return (
                                     <React.Fragment key={bed.id}>
                                         <CudyrRow
                                             bed={bed}
-                                            patient={patient}
+                                            patient={displayPatient as any}
                                             onScoreChange={handleScoreChange}
-                                            readOnly={readOnly}
+                                            readOnly={isEditingLocked}
                                         />
-                                        {hasCrib && (
+                                        {hasCrib && !shouldHideCrib && (
                                             <CudyrRow
                                                 bed={{ ...bed, id: `${bed.id}-crib`, name: `${bed.name} (CC)` }}
-                                                patient={patient.clinicalCrib!}
+                                                patient={displayPatient!.clinicalCrib!}
                                                 onScoreChange={(_, field, value) => handleCribScoreChange(bed.id, field, value)}
-                                                readOnly={readOnly}
+                                                readOnly={isEditingLocked}
                                                 isCrib={true}
                                             />
                                         )}

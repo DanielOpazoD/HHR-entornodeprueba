@@ -1,9 +1,11 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { CensusTable } from '@/views/census/CensusTable';
 import { useCensusActions } from '@/views/census/CensusActionsContext';
 import { useConfirmDialog } from '@/context/UIContext';
 import { useTableConfig } from '@/context/TableConfigContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { DailyRecord } from '@/types';
 
 // Mock dependencies
@@ -17,6 +19,11 @@ vi.mock('@/context/UIContext', () => ({
 
 vi.mock('@/context/TableConfigContext', () => ({
     useTableConfig: vi.fn()
+}));
+
+vi.mock('@/context/DailyRecordContext', () => ({
+    useDailyRecordData: vi.fn(),
+    useDailyRecordActions: vi.fn()
 }));
 
 vi.mock('@/components/census/PatientRow', () => ({
@@ -43,10 +50,18 @@ describe('CensusTable', () => {
     const mockHandleRowAction = vi.fn();
     const mockSetShowCribConfig = vi.fn();
     const mockUpdateColumnWidth = vi.fn();
-    const mockOnResetDay = vi.fn();
+    const mockResetDay = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
+
+        (useDailyRecordData as any).mockReturnValue({
+            record: mockRecord
+        });
+
+        (useDailyRecordActions as any).mockReturnValue({
+            resetDay: mockResetDay
+        });
 
         (useCensusActions as any).mockReturnValue({
             showCribConfig: false,
@@ -75,14 +90,12 @@ describe('CensusTable', () => {
     it('should render correct number of beds (normal + active extras)', () => {
         render(
             <CensusTable
-                record={mockRecord}
                 currentDateString="2025-01-08"
-                onResetDay={mockOnResetDay}
             />
         );
 
-        // BEDS constant contains many normal beds + extras.
-        // We expect normal beds + 1 extra (E1)
+        // BEDS constant contains 29 normal beds. With E1 active, total should be 30.
+        // Or whatever BEDS length is + 1.
         const rows = screen.getAllByTestId('patient-row');
         expect(rows.length).toBeGreaterThan(0);
     });
@@ -92,9 +105,7 @@ describe('CensusTable', () => {
 
         render(
             <CensusTable
-                record={mockRecord}
                 currentDateString="2025-01-08"
-                onResetDay={mockOnResetDay}
             />
         );
 
@@ -105,17 +116,15 @@ describe('CensusTable', () => {
         });
 
         expect(mockConfirm).toHaveBeenCalled();
-        expect(mockOnResetDay).toHaveBeenCalled();
+        expect(mockResetDay).toHaveBeenCalled();
     });
 
-    it('should not call onResetDay if confirmation is rejected', async () => {
+    it('should not call resetDay if confirmation is rejected', async () => {
         mockConfirm.mockResolvedValue(false);
 
         render(
             <CensusTable
-                record={mockRecord}
                 currentDateString="2025-01-08"
-                onResetDay={mockOnResetDay}
             />
         );
 
@@ -125,15 +134,13 @@ describe('CensusTable', () => {
             fireEvent.click(clearBtn);
         });
 
-        expect(mockOnResetDay).not.toHaveBeenCalled();
+        expect(mockResetDay).not.toHaveBeenCalled();
     });
 
     it('should toggle crib configuration', () => {
         render(
             <CensusTable
-                record={mockRecord}
                 currentDateString="2025-01-08"
-                onResetDay={mockOnResetDay}
             />
         );
 
@@ -146,9 +153,7 @@ describe('CensusTable', () => {
     it('should hide crib button in readOnly mode', () => {
         render(
             <CensusTable
-                record={mockRecord}
                 currentDateString="2025-01-08"
-                onResetDay={mockOnResetDay}
                 readOnly={true}
             />
         );

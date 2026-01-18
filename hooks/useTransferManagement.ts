@@ -17,7 +17,7 @@ import {
 } from '../services/transfers/transferService';
 import { getNextStatus } from '../constants/transferConstants';
 import { useAuth } from '../context/AuthContext';
-import { useDailyRecordContext } from '../context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions } from '../context/DailyRecordContext';
 
 interface UseTransferManagementReturn {
     // State
@@ -48,7 +48,8 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
     const [error, setError] = useState<string | null>(null);
 
     const { user } = useAuth();
-    const { record, addTransfer, clearPatient } = useDailyRecordContext();
+    const { record } = useDailyRecordData();
+    const { addTransfer, clearPatient } = useDailyRecordActions();
 
     // Subscribe to transfers on mount
     useEffect(() => {

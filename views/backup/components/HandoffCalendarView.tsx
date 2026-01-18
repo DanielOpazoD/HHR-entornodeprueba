@@ -6,9 +6,13 @@
 import React from 'react';
 import { Download, Trash2, Sun, Moon, Calendar, Eye } from 'lucide-react';
 import { StoredPdfFile } from '@/services/backup/pdfStorageService';
+import { generateDateRange, formatDateDDMMYYYY } from '@/utils/dateUtils';
+import { MONTH_NAMES } from '@/services/backup/baseStorageService';
 
 interface HandoffCalendarViewProps {
     files: StoredPdfFile[];
+    year: number;
+    monthName: string;
     onDownload: (file: StoredPdfFile) => void;
     onView: (file: StoredPdfFile) => void;
     onDelete: (file: StoredPdfFile) => void;
@@ -25,19 +29,34 @@ interface DayRow {
 
 export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
     files,
+    year,
+    monthName,
     onDownload,
     onView,
     onDelete,
     canDelete,
     formatSize
 }) => {
-    // Group files by date
+    // 1. Convert month name to number
+    const monthNumber = MONTH_NAMES.indexOf(monthName) + 1;
+
+    if (monthNumber < 1) {
+        return null;
+    }
+
+    // 2. Determine if we should limit to today
+    const now = new Date();
+    const isCurrentMonth = now.getFullYear() === year && (now.getMonth() + 1) === monthNumber;
+
+    // 3. Generate all days for this month (limited to today if current)
+    const allDays = generateDateRange(year, monthNumber, isCurrentMonth);
+
+    // 4. Group existing files by date
     const groupedByDate = files.reduce<Record<string, DayRow>>((acc, file) => {
         if (!acc[file.date]) {
-            const [year, month, day] = file.date.split('-');
             acc[file.date] = {
                 date: file.date,
-                displayDate: `${day}-${month}-${year}`
+                displayDate: formatDateDDMMYYYY(file.date)
             };
         }
         if (file.shiftType === 'day') {
@@ -48,10 +67,15 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
         return acc;
     }, {});
 
-    // Sort by date ascending (oldest first - chronological order)
-    const rows = Object.values(groupedByDate).sort((a, b) => a.date.localeCompare(b.date));
+    // 4. Create rows for ALL days of the month
+    const rows: DayRow[] = allDays.map(dateStr => {
+        return groupedByDate[dateStr] || {
+            date: dateStr,
+            displayDate: formatDateDDMMYYYY(dateStr)
+        };
+    });
 
-    if (rows.length === 0) {
+    if (allDays.length === 0) {
         return null;
     }
 
@@ -146,7 +170,6 @@ const ShiftCell: React.FC<ShiftCellProps> = ({
     const bgColor = shiftType === 'day'
         ? 'bg-amber-50 hover:bg-amber-100 border-amber-200'
         : 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200';
-    const iconColor = shiftType === 'day' ? 'text-amber-500' : 'text-indigo-500';
 
     return (
         <div className={`inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded border ${bgColor} transition-colors`}>

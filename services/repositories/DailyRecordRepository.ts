@@ -6,7 +6,7 @@
  */
 
 import { DailyRecord, PatientData } from '../../types';
-import { DailyRecordPatchLoose } from '../../hooks/useDailyRecordTypes';
+import { DailyRecordPatch } from '../../types';
 import { BEDS } from '../../constants';
 import {
     getRecordForDate as getRecordFromIndexedDB,
@@ -90,7 +90,7 @@ export interface IDailyRecordRepository {
  */
 const migrateLegacyData = (record: DailyRecord, date: string): DailyRecord => {
     // 1. Initial pass through Zod to apply defaults and recover basic structure
-    let migrated = parseDailyRecordWithDefaults(record, date);
+    const migrated = parseDailyRecordWithDefaults(record, date);
 
     // 2. Custom Business Migrations (Manual fixes for specific legacy rules)
     // Legacy Nurses: If nursesDayShift is empty but legacy 'nurses' has data, migrate it.
@@ -269,7 +269,7 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
 /**
  * Updates specific fields of a daily record without overwriting the entire document.
  */
-export const updatePartial = async (date: string, partialData: DailyRecordPatchLoose): Promise<void> => {
+export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
     console.log('[Repository] updatePartial called:', date, Object.keys(partialData));
 
     // Update local storage (IndexedDB)
@@ -392,7 +392,7 @@ export const initializeDay = async (
         }
     }
 
-    let initialBeds: Record<string, PatientData> = {};
+    const initialBeds: Record<string, PatientData> = {};
     let activeExtras: string[] = [];
 
     BEDS.forEach(bed => {
@@ -400,9 +400,9 @@ export const initializeDay = async (
     });
 
     let nursesDay: string[] = ["", ""];
-    let nursesNight: string[] = ["", ""];
+    const nursesNight: string[] = ["", ""];
     let tensDay: string[] = ["", "", ""];
-    let tensNight: string[] = ["", "", ""];
+    const tensNight: string[] = ["", "", ""];
 
     // If a copyFromDate is provided, copy active patients and staff
     const prevRecord = copyFromDate ? await getForDate(copyFromDate) : null;
@@ -420,9 +420,19 @@ export const initializeDay = async (
         BEDS.forEach(bed => {
             const prevPatient = prevBeds[bed.id];
             if (prevPatient) {
-                if (prevPatient.patientName || prevPatient.isBlocked) {
+                // Robust copy condition: Copy if patient has a name, is blocked OR has diagnosis data (CIE-10 or free text)
+                // This prevents losing diagnosis data if the name was not yet entered.
+                if (prevPatient.patientName || prevPatient.isBlocked || prevPatient.cie10Code || prevPatient.pathology) {
                     initialBeds[bed.id] = clonePatient(prevPatient);
+
+                    // Reset CUDYR for the new day to ensure re-categorization
                     initialBeds[bed.id].cudyr = undefined;
+
+                    // Reset CUDYR for nested clinical crib (baby) if present
+                    if (initialBeds[bed.id].clinicalCrib) {
+                        initialBeds[bed.id].clinicalCrib!.cudyr = undefined;
+                    }
+
                     const prevNightNote = prevPatient.handoffNoteNightShift || prevPatient.handoffNote || '';
                     initialBeds[bed.id].handoffNoteDayShift = prevNightNote;
                     initialBeds[bed.id].handoffNoteNightShift = prevNightNote;

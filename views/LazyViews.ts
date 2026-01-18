@@ -44,13 +44,9 @@ export const BackupFilesView = lazy(() =>
 );
 
 // Health & Monitoring
-export const DevDashboard = lazy(() =>
-    import(/* webpackChunkName: "dev-db" */ './admin/DevDashboard').then(m => ({ default: m.DevDashboard }))
-);
-
-export const SystemHealthDashboard = lazy(() =>
-    import(/* webpackChunkName: "health-db" */ './admin/SystemHealthDashboard').then(m => ({ default: m.SystemHealthDashboard }))
-);
+export const SystemDiagnosticsView = lazy(() => import('./admin/SystemDiagnosticsView').then(module => ({ default: module.SystemDiagnosticsView })));
+export const PatientMasterView = lazy(() => import('./admin/PatientMasterView').then(module => ({ default: module.PatientMasterView })));
+export const DataMaintenanceView = lazy(() => import('./admin/DataMaintenanceView').then(module => ({ default: module.DataMaintenanceView })));
 
 // WhatsApp module
 export const WhatsAppIntegrationView = lazy(() =>

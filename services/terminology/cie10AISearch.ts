@@ -43,11 +43,17 @@ async function searchWithLocalAPI(query: string): Promise<CIE10Entry[]> {
         const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
-Eres un experto en codificación CIE-10 (Clasificación Internacional de Enfermedades, 10a revisión) en español.
+Eres un experto en codificación CIE-10 (Clasificación Internacional de Enfermedades, 10a revisión) en español, especializado en terminología médica chilena.
 
 El usuario busca: "${query}"
 
-Responde ÚNICAMENTE con un array JSON de hasta 8 códigos CIE-10 más relevantes para esta búsqueda.
+INTERPRETA el término considerando:
+1. ABREVIACIONES MÉDICAS: IAM, NAC, TVP, TEP, AKI, EPOC, ITU, AVE, ACV, HTA, IC, FA, DM, TEC, GEA, etc.
+2. TÉRMINOS COLOQUIALES CHILENOS: "presión alta" = hipertensión, "azúcar" = diabetes, "derrame" = ACV, "pulmonia" = neumonía
+3. ERRORES ORTOGRÁFICOS COMUNES: "neumonia" = neumonía, "diabetis" = diabetes
+4. TÉRMINOS EN INGLÉS: stroke, heart attack, pneumonia, kidney failure
+
+Responde ÚNICAMENTE con un array JSON de hasta 8 códigos CIE-10 más relevantes.
 Cada elemento debe tener: code (código CIE-10), description (descripción en español), category (categoría).
 
 Ejemplo de formato de respuesta (solo el JSON, sin texto adicional):

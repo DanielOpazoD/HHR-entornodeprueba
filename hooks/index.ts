@@ -18,10 +18,7 @@ export type { UseAppStateReturn } from './useAppState';
 export { useDailyRecord } from './useDailyRecord';
 export { useBedManagement } from './useBedManagement';
 export { useClinicalCrib } from './useClinicalCrib';
-export { useNurseManagement } from './useNurseManagement';
-export { usePatientDischarges } from './usePatientDischarges';
-export { usePatientTransfers } from './usePatientTransfers';
-export { useCMA } from './useCMA';
+export { useMovements } from './useMovements';
 
 // Extracted Hooks (from useBedManagement)
 export { usePatientValidation } from './usePatientValidation';
@@ -49,7 +46,7 @@ export { useHandoffLogic } from './useHandoffLogic';
 export { useExamRequest } from './useExamRequest';
 
 // Re-export types from hooks that define them
-export type { DailyRecordContextType, DailyRecordPatch, DailyRecordPatchLoose } from './useDailyRecordTypes';
+export type { DailyRecordContextType, DailyRecordPatch } from './useDailyRecordTypes';
 export type { SyncStatus } from './useDailyRecordTypes';
 export type { BedManagementActions } from './useBedManagement';
 export type { ClinicalCribActions } from './useClinicalCrib';

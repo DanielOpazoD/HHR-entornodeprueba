@@ -27,7 +27,8 @@ export const createEmptyPatient = (bedId: string): PatientData => {
         origin: undefined,
         admissionOrigin: undefined,
         admissionOriginDetails: '',
-        documentType: 'RUT'
+        documentType: 'RUT',
+        clinicalEvents: []
     };
 };
 

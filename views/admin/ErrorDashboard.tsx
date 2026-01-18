@@ -47,35 +47,24 @@ export const ErrorDashboard: React.FC = () => {
     };
 
     return (
-        <div className="p-6 max-w-6xl mx-auto animate-fade-in">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-red-100 text-red-600 rounded-xl shadow-sm border border-red-200">
-                        <Bug size={24} />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">Monitor de Errores</h1>
-                        <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">IndexedDB Log Diagnostics</p>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={loadLogs}
-                        className="btn-secondary flex items-center gap-2"
-                        disabled={loading}
-                    >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        Actualizar
-                    </button>
-                    <button
-                        onClick={handleClear}
-                        className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        disabled={logs.length === 0}
-                    >
-                        <Trash2 size={16} />
-                        Limpiar Registro
-                    </button>
-                </div>
+        <div className="max-w-6xl mx-auto space-y-4">
+            <div className="flex justify-end items-center gap-2 mb-2">
+                <button
+                    onClick={loadLogs}
+                    className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-2"
+                    disabled={loading}
+                >
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    Actualizar
+                </button>
+                <button
+                    onClick={handleClear}
+                    className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
+                    disabled={logs.length === 0}
+                >
+                    <Trash2 size={14} />
+                    Limpiar Registro
+                </button>
             </div>
 
             {loading ? (

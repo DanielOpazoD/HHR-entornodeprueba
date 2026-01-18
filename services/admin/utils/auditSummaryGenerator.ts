@@ -17,25 +17,28 @@ export const generateSummary = (
     const bedId = (details.bedId as string) || entityId;
 
     switch (action) {
-        case 'PATIENT_ADMITTED':
+        case 'PATIENT_ADMITTED': {
             const dx = (details.pathology as string) ? ` [Dx: ${details.pathology}]` : '';
             return `Ingreso: ${patientName}${dx} → Cama ${bedId}`;
+        }
         case 'PATIENT_DISCHARGED':
             return `Alta: ${patientName} (${(details.status as string) || 'Egreso'})`;
         case 'PATIENT_TRANSFERRED':
             return `Traslado: ${patientName} → ${(details.destination as string) || 'otro centro'}`;
-        case 'PATIENT_MODIFIED':
+        case 'PATIENT_MODIFIED': {
             const fields = details.changes ? Object.keys(details.changes as object).join(', ') : '';
             return `Editó Ficha: ${patientName}${fields ? ` (${fields})` : ''}`;
+        }
         case 'PATIENT_CLEARED':
             return `Limpieza Cama: ${bedId} (${patientName})`;
         case 'DAILY_RECORD_CREATED':
             return `Registro creado: ${entityId}${details.copiedFrom ? ` (desde ${details.copiedFrom})` : ''}`;
         case 'DAILY_RECORD_DELETED':
             return `Eliminación de Registro: ${entityId}`;
-        case 'CUDYR_MODIFIED':
+        case 'CUDYR_MODIFIED': {
             const cFields = details.changes ? Object.keys(details.changes as object).join(', ') : '';
             return `Editó CUDYR: ${patientName}${cFields ? ` (${cFields})` : ''}`;
+        }
         case 'NURSE_HANDOFF_MODIFIED':
             return `Editó Nota Enfermería: ${patientName} (${(details.shift as string) === 'day' ? 'Largo' : 'Noche'})`;
         case 'MEDICAL_HANDOFF_MODIFIED':

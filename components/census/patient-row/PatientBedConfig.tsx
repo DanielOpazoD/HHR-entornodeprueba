@@ -1,6 +1,6 @@
 import React from 'react';
 import { BedDefinition, PatientData } from '../../../types';
-import { Baby, User, Trash2, Clock } from 'lucide-react';
+import { Baby, Clock, Plus } from 'lucide-react';
 import clsx from 'clsx';
 
 /**
@@ -22,7 +22,6 @@ interface PatientBedConfigProps {
     data: PatientData;
     currentDateString: string;
     isBlocked: boolean;
-    showCribControls: boolean;
     hasCompanion: boolean;
     hasClinicalCrib: boolean;
     isCunaMode: boolean;
@@ -40,7 +39,6 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
     data,
     currentDateString,
     isBlocked,
-    showCribControls,
     hasCompanion,
     hasClinicalCrib,
     isCunaMode,
@@ -52,8 +50,27 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
     onShowCribDemographics,
     readOnly = false
 }) => {
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
+
     const daysHospitalized = calculateHospitalizedDays(data.admissionDate, currentDateString);
     const hasPatient = !!data.patientName;
+
+    // Close menu when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+
+        if (isMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMenuOpen]);
 
     return (
         <td className="p-[2px] border-r border-slate-200 text-center w-24 relative">
@@ -65,7 +82,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
                 </div>
 
                 {/* Days Hospitalized Counter */}
-                {!isBlocked && hasPatient && daysHospitalized !== null && !showCribControls && (
+                {!isBlocked && hasPatient && daysHospitalized !== null && (
                     <div
                         className="flex items-center gap-0.5 text-slate-500"
                         title={`${daysHospitalized} días hospitalizado`}
@@ -75,80 +92,127 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
                     </div>
                 )}
 
-                {/* Config Controls (Visible via Prop and NOT readOnly) */}
-                {!isBlocked && showCribControls && !readOnly && (
-                    <div className="flex flex-col gap-1 mt-2 w-full animate-fade-in">
-                        {/* Mode Toggle */}
-                        <button
-                            onClick={onToggleMode}
-                            className={clsx(
-                                "text-[9px] font-bold uppercase tracking-tight px-1 py-0.5 rounded border transition-all duration-200 w-full shadow-sm",
-                                isCunaMode
-                                    ? "bg-pink-50 border-pink-200 text-pink-700 shadow-pink-100/50"
-                                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                            )}
-                        >
-                            {isCunaMode ? "Cuna" : "Cama"}
-                        </button>
-
-                        {/* Companion Toggle */}
-                        <button
-                            onClick={onToggleCompanion}
-                            className={clsx(
-                                "text-[9px] font-bold uppercase tracking-tight px-1 py-0.5 rounded border transition-all duration-200 w-full shadow-sm",
-                                hasCompanion
-                                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-emerald-100/50"
-                                    : "bg-white border-slate-200 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
-                            )}
-                        >
-                            {hasCompanion ? "RN Sano" : "+ RN Sano"}
-                        </button>
-
-                        {/* Clinical Crib Toggle */}
-                        {!isCunaMode && (
-                            <button
-                                onClick={onToggleClinicalCrib}
-                                className={clsx(
-                                    "text-[9px] font-bold uppercase tracking-tight px-1 py-0.5 rounded border transition-all duration-200 w-full shadow-sm flex items-center justify-center gap-1",
-                                    hasClinicalCrib
-                                        ? "bg-purple-50 border-purple-200 text-purple-700 shadow-purple-100/50"
-                                        : "bg-white border-slate-200 text-slate-400 hover:bg-purple-50 hover:text-purple-600"
-                                )}
-                            >
-                                {hasClinicalCrib ? "Cuna Cli" : "+ Cuna Cli"}
-                            </button>
-                        )}
-
-                        {/* Additional Clinical Crib Controls (Delete/Edit) */}
-                        {hasClinicalCrib && (
-                            <div className="flex gap-1 mt-0.5">
-                                <button
-                                    onClick={onShowCribDemographics}
-                                    className="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-600 p-1 rounded border border-purple-200 transition-colors shadow-sm"
-                                    title="Datos Personales Cuna Clínica"
-                                >
-                                    <User size={12} className="mx-auto" />
-                                </button>
-                                <button
-                                    onClick={() => onUpdateClinicalCrib('remove')}
-                                    className="flex-1 bg-red-50 hover:bg-red-100 text-red-500 p-1 rounded border border-red-200 transition-colors shadow-sm"
-                                    title="Eliminar Cuna Clínica Adicional"
-                                >
-                                    <Trash2 size={12} className="mx-auto" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Static Indicators when controls are hidden */}
-                {!showCribControls && !isBlocked && (
+                {/* Static Indicators (Persistent information) */}
+                {!isBlocked && (
                     <div className="flex gap-1 mt-1">
-                        {hasCompanion && <span className="text-[9px] bg-green-100 text-green-800 px-1 rounded-sm border border-green-200" title="RN Sano">RN</span>}
-                        {hasClinicalCrib && <span className="text-[9px] bg-purple-100 text-purple-800 px-1 rounded-sm border border-purple-200" title="Cuna Clínica">+CC</span>}
+                        {isCunaMode && <span className="text-[8px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200">CUNA</span>}
+                        {hasCompanion && <span className="text-[8px] bg-emerald-100 text-emerald-700 font-bold px-1 rounded-sm border border-emerald-200" title="RN Sano">RN</span>}
+                        {hasClinicalCrib && <span className="text-[8px] bg-purple-100 text-purple-700 font-bold px-1 rounded-sm border border-purple-200" title="Cuna Clínica">+CC</span>}
                     </div>
                 )}
             </div>
+
+            {/* FLOATING CONFIG MENU (Top Right) */}
+            {!isBlocked && !readOnly && (
+                <div className="absolute top-0 right-0 p-0.5 z-20" ref={menuRef}>
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className={clsx(
+                            "p-0.5 rounded shadow-sm border transition-all duration-200",
+                            isMenuOpen
+                                ? "bg-slate-800 border-slate-900 text-white"
+                                : "opacity-0 group-hover/row:opacity-100 bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        )}
+                        title="Configuración de cama"
+                    >
+                        <Plus size={8} strokeWidth={4} />
+                    </button>
+
+                    {/* Dropdown content */}
+                    {isMenuOpen && (
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-scale-in">
+                            <div className="p-1.5 flex flex-col gap-1">
+                                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-0.5 flex justify-between items-center">
+                                    <span>Opciones</span>
+                                    <span>⚙️</span>
+                                </div>
+
+                                {/* Mode Toggle - DYNAMIC TEXT AS REQUESTED */}
+                                <button
+                                    onClick={() => onToggleMode()}
+                                    className={clsx(
+                                        "text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item",
+                                        isCunaMode
+                                            ? "bg-pink-50 text-pink-700 hover:bg-pink-100"
+                                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm">{isCunaMode ? "🛏️" : "👶"}</span>
+                                        <span className="text-left leading-none">
+                                            {isCunaMode ? "Cambiar a Cama" : "Cambiar a Cuna Clínica"}
+                                        </span>
+                                    </div>
+                                    <div className={clsx("w-1.5 h-1.5 rounded-full transition-all", isCunaMode ? "bg-pink-500 scale-125 shadow-[0_0_8px_rgba(236,72,153,0.5)]" : "bg-slate-300")} />
+                                </button>
+
+                                {/* Companion Toggle */}
+                                <button
+                                    onClick={onToggleCompanion}
+                                    className={clsx(
+                                        "text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item",
+                                        hasCompanion
+                                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm">🤱</span>
+                                        <span>RN Sano</span>
+                                    </div>
+                                    <div className={clsx("w-1.5 h-1.5 rounded-full transition-all", hasCompanion ? "bg-emerald-500 scale-125 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300")} />
+                                </button>
+
+                                {/* Clinical Crib Toggle */}
+                                {!isCunaMode && (
+                                    <button
+                                        onClick={onToggleClinicalCrib}
+                                        className={clsx(
+                                            "text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item",
+                                            hasClinicalCrib
+                                                ? "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                                                : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm">➕</span>
+                                            <span>Agregar Cuna Clínica</span>
+                                        </div>
+                                        <div className={clsx("w-1.5 h-1.5 rounded-full transition-all", hasClinicalCrib ? "bg-purple-500 scale-125 shadow-[0_0_8px_rgba(168,85,247,0.5)]" : "bg-slate-300")} />
+                                    </button>
+                                )}
+
+                                {/* Clinical Crib Actions */}
+                                {hasClinicalCrib && (
+                                    <div className="flex gap-1 mt-1 border-t border-slate-100 pt-1.5 px-0.5">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onShowCribDemographics();
+                                            }}
+                                            className="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-600 py-2 rounded-md transition-all flex items-center justify-center gap-1.5 border border-purple-100"
+                                            title="Editar Cuna"
+                                        >
+                                            <span className="text-xs">📝</span>
+                                            <span className="text-[9px] font-black uppercase tracking-tighter">DATOS</span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onUpdateClinicalCrib('remove');
+                                            }}
+                                            className="flex-shrink-0 bg-red-50 hover:bg-red-100 text-red-500 p-2 rounded-md transition-all border border-red-100"
+                                            title="Eliminar Cuna"
+                                        >
+                                            <span className="text-xs">🗑️</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Extra beds allow editing location */}
             {bed.isExtra && (
@@ -164,3 +228,4 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
         </td>
     );
 };
+

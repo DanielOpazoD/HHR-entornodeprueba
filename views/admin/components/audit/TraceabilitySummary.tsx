@@ -2,6 +2,7 @@ import React from 'react';
 import { MapPin, Clock, Zap, BedDouble, Stethoscope, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { ClinicalData } from '@/hooks/admin/useClinicalData';
+import { parseAuditTimestamp } from './auditUIUtils';
 
 interface TraceabilitySummaryProps {
     clinicalData: ClinicalData;
@@ -22,8 +23,8 @@ export const TraceabilitySummary: React.FC<TraceabilitySummaryProps> = ({ clinic
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estadía Hospitalaria</p>
                             <p className="text-2xl font-black text-slate-900">
                                 {(() => {
-                                    const start = clinicalData.firstAdmission ? new Date(clinicalData.firstAdmission) : null;
-                                    const end = clinicalData.lastDischarge ? new Date(clinicalData.lastDischarge) : new Date();
+                                    const start = clinicalData.firstAdmission ? parseAuditTimestamp(clinicalData.firstAdmission) : null;
+                                    const end = clinicalData.lastDischarge ? parseAuditTimestamp(clinicalData.lastDischarge) : new Date();
                                     if (!start) return '-';
                                     return `${Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))} días`;
                                 })()}

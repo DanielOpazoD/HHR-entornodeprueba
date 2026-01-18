@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCensusEmail } from '@/hooks/useCensusEmail';
 import { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
 import {
@@ -85,12 +85,10 @@ describe('useCensusEmail', () => {
         expect(result.current.isAdminUser).toBe(true);
 
         // Wait for IndexedDB load simulation
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
+        await waitFor(() => {
+            expect(getSetting).toHaveBeenCalledWith('censusEmailRecipients', null);
+            expect(result.current.recipients).toEqual(['test@test.com']);
         });
-
-        expect(getSetting).toHaveBeenCalledWith('censusEmailRecipients', null);
-        expect(result.current.recipients).toEqual(['test@test.com']);
     });
 
     it('should migrate legacy recipients from localStorage', async () => {
@@ -99,8 +97,8 @@ describe('useCensusEmail', () => {
 
         const { result } = renderHook(() => useCensusEmail(defaultParams));
 
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
+        await waitFor(() => {
+            expect(localStorage.removeItem).toHaveBeenCalledWith('censusEmailRecipients');
         });
 
         expect(result.current.recipients).toEqual(['legacy@test.com']);

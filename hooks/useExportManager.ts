@@ -61,7 +61,7 @@ export const useExportManager = ({
         const monthRecords = await getMonthRecordsFromFirestore(selectedYear, selectedMonth);
         const limitDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
 
-        let filteredRecords = monthRecords
+        const filteredRecords = monthRecords
             .filter(r => r.date <= limitDate)
             .sort((a, b) => a.date.localeCompare(b.date));
 

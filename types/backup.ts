@@ -14,6 +14,13 @@ export type BackupFileType = 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'CENSUS';
 export type BackupShiftType = 'day' | 'night';
 
 /**
+ * Backup statistics
+ */
+export interface BackupStats {
+    totalRecords: number;
+}
+
+/**
  * User information for audit trail
  */
 export interface BackupCreator {

@@ -23,7 +23,7 @@ interface DeviceMenuProps {
     onToggleDevice: (device: string) => void;
     onAddCustomDevice: (device: string) => void;
     onRemoveDevice: (device: string) => void;
-    onConfigureDevice: (device: TrackedDevice) => void;
+    onConfigureDevice: (device: string) => void; // Now accepts any device
 }
 
 // Helper to check if device is any VVP variant
@@ -87,9 +87,8 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
                     {/* Other Devices Grid */}
                     <div className="grid grid-cols-2 gap-2 mb-3">
                         {DEVICE_OPTIONS.map(dev => {
-                            const isTracked = isTrackedDevice(dev);
                             const isSelected = devices.includes(dev);
-                            const details = isTracked ? deviceDetails[dev as TrackedDevice] : undefined;
+                            const details = deviceDetails[dev];
                             const hasConfig = details?.installationDate;
 
                             return (
@@ -115,8 +114,8 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
                                         </div>
                                         <span className="flex-1 truncate">{dev}</span>
 
-                                        {/* Config icon for tracked devices */}
-                                        {isTracked && isSelected && (
+                                        {/* Config icon for ALL selected devices */}
+                                        {isSelected && (
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -163,21 +162,36 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
                         {/* Custom Devices List */}
                         {customDevices.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
-                                {customDevices.map(dev => (
-                                    <span
-                                        key={dev}
-                                        className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium flex items-center gap-1"
-                                    >
-                                        {dev}
-                                        <button
-                                            onClick={() => onRemoveDevice(dev)}
-                                            className="text-amber-500 hover:text-red-500 ml-0.5"
-                                            title="Eliminar dispositivo"
+                                {customDevices.map(dev => {
+                                    const details = deviceDetails[dev];
+                                    const hasConfig = details?.installationDate;
+
+                                    return (
+                                        <span
+                                            key={dev}
+                                            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium flex items-center gap-1"
                                         >
-                                            <X size={10} />
-                                        </button>
-                                    </span>
-                                ))}
+                                            {dev}
+                                            <button
+                                                onClick={() => onConfigureDevice(dev)}
+                                                className={clsx(
+                                                    "hover:bg-amber-100 rounded transition-colors",
+                                                    hasConfig ? "text-amber-600" : "text-amber-400"
+                                                )}
+                                                title="Configurar fechas"
+                                            >
+                                                <Settings size={10} />
+                                            </button>
+                                            <button
+                                                onClick={() => onRemoveDevice(dev)}
+                                                className="text-amber-500 hover:text-red-500"
+                                                title="Eliminar dispositivo"
+                                            >
+                                                <X size={10} />
+                                            </button>
+                                        </span>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

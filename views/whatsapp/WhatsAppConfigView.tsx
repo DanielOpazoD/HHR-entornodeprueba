@@ -5,14 +5,12 @@
  * Refactored to use TanStack Query for state management.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-    Settings,
     MessageSquare,
     Clock,
     Users,
     Check,
-    X,
     RefreshCw,
     Wifi,
     WifiOff,
@@ -41,33 +39,50 @@ export const WhatsAppConfigView: React.FC = () => {
         refetch: refetchHealth
     } = useWhatsAppHealthQuery();
 
-    const {
-        data: groups = [],
-        isLoading: loadingGroups
-    } = useWhatsAppGroupsQuery(botStatus === 'connected');
-
-    // 2. Mutations
-    const updateConfigMutation = useUpdateWhatsAppConfigMutation();
-
-    // 3. Local state for form management (buffer)
-    const [localConfig, setLocalConfig] = useState<WhatsAppConfig | null>(null);
-    const [autoSendTime, setAutoSendTime] = useState('17:00');
-
-    // Initialize local state from server data
-    useEffect(() => {
-        if (serverConfig) {
-            setLocalConfig(serverConfig);
-            setAutoSendTime(serverConfig.handoffNotifications?.autoSendTime || '17:00');
-        }
-    }, [serverConfig]);
+    const loading = loadingConfig || (checkingHealth && botStatus === 'disconnected');
 
     const handleRefresh = async () => {
         await Promise.all([refetchConfig(), refetchHealth()]);
     };
 
-    const handleSave = async () => {
-        if (!localConfig) return;
+    if (loading || !serverConfig) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
 
+    return (
+        <WhatsAppConfigForm
+            initialConfig={serverConfig}
+            botStatus={botStatus}
+            onRefresh={handleRefresh}
+            refreshing={loading}
+        />
+    );
+};
+
+interface WhatsAppConfigFormProps {
+    initialConfig: WhatsAppConfig;
+    botStatus: string;
+    onRefresh: () => void;
+    refreshing: boolean;
+}
+
+const WhatsAppConfigForm: React.FC<WhatsAppConfigFormProps> = ({ initialConfig, botStatus, onRefresh, refreshing }) => {
+    const {
+        data: groups = [],
+        isLoading: loadingGroups
+    } = useWhatsAppGroupsQuery(botStatus === 'connected');
+
+    const updateConfigMutation = useUpdateWhatsAppConfigMutation();
+
+    // Clean initialization from props - NO useEffect needed!
+    const [localConfig, setLocalConfig] = useState<WhatsAppConfig>(initialConfig);
+    const [autoSendTime, setAutoSendTime] = useState(initialConfig.handoffNotifications?.autoSendTime || '17:00');
+
+    const handleSave = async () => {
         const updated: Partial<WhatsAppConfig> = {
             ...localConfig,
             handoffNotifications: {
@@ -80,8 +95,6 @@ export const WhatsAppConfigView: React.FC = () => {
     };
 
     const handleGroupChange = (type: 'shift' | 'handoff', groupId: string) => {
-        if (!localConfig) return;
-
         if (type === 'shift') {
             setLocalConfig({
                 ...localConfig,
@@ -95,16 +108,7 @@ export const WhatsAppConfigView: React.FC = () => {
         }
     };
 
-    const loading = loadingConfig || (checkingHealth && botStatus === 'disconnected');
     const saving = updateConfigMutation.isPending;
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
@@ -115,12 +119,12 @@ export const WhatsAppConfigView: React.FC = () => {
                     <h2 className="text-xl font-semibold">Configuración WhatsApp</h2>
                 </div>
                 <button
-                    onClick={handleRefresh}
+                    onClick={onRefresh}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Actualizar"
-                    disabled={loading || checkingHealth}
+                    disabled={refreshing}
                 >
-                    <RefreshCw className={clsx("w-5 h-5", (loading || checkingHealth) && "animate-spin")} />
+                    <RefreshCw className={clsx("w-5 h-5", refreshing && "animate-spin")} />
                 </button>
             </div>
 
@@ -162,14 +166,14 @@ export const WhatsAppConfigView: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <span className="text-sm">Activado</span>
                             <button
-                                onClick={() => localConfig && setLocalConfig({
+                                onClick={() => setLocalConfig({
                                     ...localConfig,
                                     shiftParser: { ...localConfig.shiftParser, enabled: !localConfig.shiftParser.enabled }
                                 })}
-                                className={`w-12 h-6 rounded-full transition-colors ${localConfig?.shiftParser.enabled ? 'bg-green-500' : 'bg-gray-300'
+                                className={`w-12 h-6 rounded-full transition-colors ${localConfig.shiftParser.enabled ? 'bg-green-500' : 'bg-gray-300'
                                     }`}
                             >
-                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig?.shiftParser.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig.shiftParser.enabled ? 'translate-x-6' : 'translate-x-0.5'
                                     }`} />
                             </button>
                         </div>
@@ -179,7 +183,7 @@ export const WhatsAppConfigView: React.FC = () => {
                                 Grupo de Turnos (solo lectura)
                             </label>
                             <select
-                                value={localConfig?.shiftParser.sourceGroupId || ''}
+                                value={localConfig.shiftParser.sourceGroupId || ''}
                                 onChange={(e) => handleGroupChange('shift', e.target.value)}
                                 className="w-full p-2 border rounded-lg text-sm"
                                 disabled={botStatus !== 'connected' || loadingGroups}
@@ -204,17 +208,17 @@ export const WhatsAppConfigView: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <span className="text-sm">Activado</span>
                             <button
-                                onClick={() => localConfig && setLocalConfig({
+                                onClick={() => setLocalConfig({
                                     ...localConfig,
                                     handoffNotifications: {
                                         ...localConfig.handoffNotifications,
                                         enabled: !localConfig.handoffNotifications.enabled
                                     }
                                 })}
-                                className={`w-12 h-6 rounded-full transition-colors ${localConfig?.handoffNotifications.enabled ? 'bg-green-500' : 'bg-gray-300'
+                                className={`w-12 h-6 rounded-full transition-colors ${localConfig.handoffNotifications.enabled ? 'bg-green-500' : 'bg-gray-300'
                                     }`}
                             >
-                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig?.handoffNotifications.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                                <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform ${localConfig.handoffNotifications.enabled ? 'translate-x-6' : 'translate-x-0.5'
                                     }`} />
                             </button>
                         </div>
@@ -224,7 +228,7 @@ export const WhatsAppConfigView: React.FC = () => {
                                 Grupo para Enviar Entregas
                             </label>
                             <select
-                                value={localConfig?.handoffNotifications.targetGroupId || ''}
+                                value={localConfig.handoffNotifications.targetGroupId || ''}
                                 onChange={(e) => handleGroupChange('handoff', e.target.value)}
                                 className="w-full p-2 border rounded-lg text-sm"
                                 disabled={botStatus !== 'connected' || loadingGroups}
@@ -280,7 +284,7 @@ export const WhatsAppConfigView: React.FC = () => {
                 )}
                 <button
                     onClick={handleSave}
-                    disabled={saving || !localConfig}
+                    disabled={saving}
                     className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-lg shadow-blue-200"
                 >
                     {saving ? (
@@ -299,3 +303,4 @@ export const WhatsAppConfigView: React.FC = () => {
 const clsx = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default WhatsAppConfigView;
+

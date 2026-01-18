@@ -4,7 +4,8 @@
  * Separated for clarity and reusability.
  */
 
-import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DischargeData } from '../types';
+import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DischargeData, DailyRecordPatch } from '../types';
+export type { DailyRecordPatch };
 
 // ============================================================================
 // Sync Types
@@ -29,110 +30,37 @@ export interface UseDailyRecordSyncResult {
     syncStatus: SyncStatus;
     lastSyncTime: Date | null;
     saveAndUpdate: (updatedRecord: DailyRecord) => Promise<void>;
-    patchRecord: (partial: DailyRecordPatchLoose) => Promise<void>;
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>;
     markLocalChange: () => void;
     refresh: () => void;
+
+    // Day Lifecycle (Consolidated)
+    createDay: (copyFromPrevious: boolean, specificDate?: string) => Promise<void>;
+    resetDay: () => Promise<void>;
+    generateDemo: () => Promise<void>;
 }
 
 
-// ============================================================================
-// Patch Types for Type-Safe Firestore Updates
-// ============================================================================
+// DailyRecordPatch and related types have been moved to types/core.ts
+
 
 /**
- * Represents a dot-notation path for nested object updates.
- * Used by Firestore's updateDoc for partial updates.
- * 
- * Examples:
- * - "beds.R1.patientName"
- * - "beds.R1.cudyr.vitalSigns"
- * - "handoffDayChecklist.escalaBraden"
+ * Data-only part of the context.
+ * Changes to these fields will trigger re-renders in subscribing components.
  */
-
-// Type-safe paths for PatientData fields
-type PatientFieldPath = `beds.${string}.${keyof PatientData}`;
-type PatientCudyrPath = `beds.${string}.cudyr.${keyof CudyrScore}`;
-type PatientClinicalCribPath = `beds.${string}.clinicalCrib.${keyof PatientData}`;
-type PatientDeviceDetailsPath = `beds.${string}.deviceDetails.${string}`;
-
-// Type-safe paths for Top-level DailyRecord fields
-type TopLevelPath = keyof Pick<DailyRecord,
-    | 'date'
-    | 'lastUpdated'
-    | 'nurses'
-    | 'nurseName'
-    | 'nursesDayShift'
-    | 'nursesNightShift'
-    | 'tensDayShift'
-    | 'tensNightShift'
-    | 'activeExtraBeds'
-    | 'discharges'
-    | 'transfers'
-    | 'cma'
-    | 'beds'
-    | 'handoffNovedadesDayShift'
-    | 'handoffNovedadesNightShift'
-    | 'medicalHandoffNovedades'
-    | 'medicalHandoffDoctor'
-    | 'medicalHandoffSentAt'
->;
-
-// Type-safe paths for Handoff Checklist
-type HandoffDayChecklistPath = `handoffDayChecklist.${string}`;
-type HandoffNightChecklistPath = `handoffNightChecklist.${string}`;
-type HandoffStaffPath = `handoffDayDelivers` | `handoffDayReceives` | `handoffNightDelivers` | `handoffNightReceives`;
-type MedicalSignaturePath = `medicalSignature` | `medicalSignature.${string}`;
-
-/**
- * Union of all valid patch paths.
- * This provides compile-time checking for patch keys.
- */
-type DailyRecordPatchPath =
-    | TopLevelPath
-    | PatientFieldPath
-    | PatientCudyrPath
-    | PatientClinicalCribPath
-    | PatientDeviceDetailsPath
-    | HandoffDayChecklistPath
-    | HandoffNightChecklistPath
-    | HandoffStaffPath
-    | MedicalSignaturePath;
-
-/**
- * Type-safe patch object for DailyRecord updates.
- * Keys are dot-notation paths, values are the corresponding field types.
- * 
- * Note: We use a looser type for values since TypeScript cannot infer
- * the exact value type from a dynamic string key. Runtime validation
- * should be done by the caller.
- */
-export type DailyRecordPatch = {
-    [K in DailyRecordPatchPath]?:
-    K extends TopLevelPath ? DailyRecord[K] :
-    K extends PatientCudyrPath ? number :
-    K extends HandoffDayChecklistPath | HandoffNightChecklistPath ? boolean | string :
-    K extends HandoffStaffPath ? string[] :
-    // For dynamic paths, allow common value types
-    PatientFieldValue | PatientData | Record<string, unknown> | string[] | boolean | number | null | undefined;
-};
-
-/**
- * Looser patch type for cases where strict typing is impractical.
- * Use DailyRecordPatch when possible for better type safety.
- */
-export type DailyRecordPatchLoose = Record<string, PatientFieldValue | PatientData | DischargeData[] | TransferData[] | CMAData[] | Record<string, unknown> | string[] | boolean | number | null | undefined>;
-
-/**
- * The complete API exposed by the DailyRecord context.
- * This is the contract that consumers of the context receive.
- */
-export interface DailyRecordContextType {
-    // Core State
+export interface DailyRecordDataContextType {
     record: DailyRecord | null;
     syncStatus: SyncStatus;
     lastSyncTime: Date | null;
     inventory: InventoryStats;
+}
 
+/**
+ * Actions-only part of the context.
+ * These functions are generally stable (referentially consistent) 
+ * and won't trigger re-renders when data changes.
+ */
+export interface DailyRecordActionsContextType {
     // Day Management
     createDay: (copyFromPrevious: boolean, specificDate?: string) => void;
     generateDemo: () => void;
@@ -150,7 +78,9 @@ export interface DailyRecordContextType {
     updateClinicalCrib: (bedId: string, field: keyof PatientData | 'create' | 'remove', value?: PatientFieldValue) => void;
     updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
     updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
+    updateClinicalCribCudyrMultiple?: (bedId: string, fields: Partial<Record<keyof CudyrScore, number>>) => void;
     updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
+    updateCudyrMultiple?: (bedId: string, fields: Partial<Record<keyof CudyrScore, number>>) => void;
     clearPatient: (bedId: string) => void;
     clearAllBeds: () => void;
     moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
@@ -190,3 +120,9 @@ export interface DailyRecordContextType {
     markMedicalHandoffAsSent: (doctorName?: string) => Promise<void>;
     sendMedicalHandoff: (templateContent: string, targetGroupId: string) => Promise<void>;
 }
+
+/**
+ * Union type for compatibility with legacy components 
+ * that still use the unified context.
+ */
+export type DailyRecordContextType = DailyRecordDataContextType & DailyRecordActionsContextType;

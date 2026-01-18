@@ -15,7 +15,7 @@ import { UserMenu } from './UserMenu';
 import { DemoModeBadge } from './DemoModeBadge';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
-export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD' | 'HEALTH';
+export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface NavbarProps {
@@ -74,8 +74,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'NURSING_HANDOFF': return 'bg-sky-600 shadow-sky-600/20';
       case 'MEDICAL_HANDOFF': return 'bg-sky-600 shadow-sky-600/20';
       case 'AUDIT': return 'bg-slate-800 shadow-slate-800/20';
-      case 'WHATSAPP': return 'bg-green-700 shadow-green-700/20';
-      case 'ERRORS': return 'bg-slate-900 shadow-slate-900/20';
+      case 'TRANSFER_MANAGEMENT': return 'bg-sky-700 shadow-sky-700/20';
+      case 'BACKUP_FILES': return 'bg-slate-600 shadow-slate-600/20';
+      case 'PATIENT_MASTER_INDEX': return 'bg-blue-600 shadow-blue-600/20';
+      case 'DATA_MAINTENANCE': return 'bg-emerald-800 shadow-emerald-800/20';
+      case 'DIAGNOSTICS': return 'bg-slate-900 shadow-slate-900/20';
       default: return 'bg-medical-900 shadow-medical-900/20';
     }
   };

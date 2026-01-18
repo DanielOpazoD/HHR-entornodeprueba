@@ -77,9 +77,9 @@ describe('NavbarMenu', () => {
         }
     });
 
-    it('shows Error Monitor for admin users', () => {
+    it('shows System Diagnostics (Monitor de Errores) for admin users', () => {
         render(<NavbarMenu {...defaultProps} isOpen={true} isUserAdmin={true} />);
 
-        expect(screen.getByText('Monitor de Errores')).toBeInTheDocument();
+        expect(screen.getByText('Diagnóstico del Sistema')).toBeInTheDocument();
     });
 });

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { LayoutList, BarChart2, FileJson, Upload, Settings, ShieldCheck, MessageSquare, FileSpreadsheet, ChevronDown, LucideIcon, Bug, Activity } from 'lucide-react';
+import { LayoutList, BarChart2, FileJson, Upload, Settings, ShieldCheck, MessageSquare, FileSpreadsheet, ChevronDown, LucideIcon, Bug, Activity, Database } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 
@@ -101,14 +101,9 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                                 <>
                                     <div className="h-px bg-slate-200 my-1" />
                                     <MenuItem
-                                        icon={FileJson}
-                                        label="Exportar Respaldo (JSON)"
-                                        onClick={() => { onExportJSON(); onClose(); }}
-                                    />
-                                    <MenuItem
-                                        icon={Upload}
-                                        label="Importar Respaldo"
-                                        onClick={onImportClick}
+                                        icon={Database}
+                                        label="Mantenimiento de Datos"
+                                        onClick={() => handleModuleChange('DATA_MAINTENANCE')}
                                     />
                                     <div className="h-px bg-slate-200 my-1" />
                                     <MenuItem
@@ -128,19 +123,14 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                                         onClick={() => handleModuleChange('WHATSAPP')}
                                     />
                                     <MenuItem
-                                        icon={Bug}
-                                        label="Monitor de Errores"
-                                        onClick={() => handleModuleChange('ERRORS')}
-                                    />
-                                    <MenuItem
                                         icon={Activity}
-                                        label="Dev Health"
-                                        onClick={() => handleModuleChange('DEV_DASHBOARD')}
+                                        label="Diagnóstico del Sistema"
+                                        onClick={() => handleModuleChange('DIAGNOSTICS')}
                                     />
                                     <MenuItem
-                                        icon={ShieldCheck}
-                                        label="Salud del Sistema"
-                                        onClick={() => handleModuleChange('HEALTH')}
+                                        icon={Database}
+                                        label="Base de Pacientes"
+                                        onClick={() => handleModuleChange('PATIENT_MASTER_INDEX')}
                                     />
                                 </>
                             )}

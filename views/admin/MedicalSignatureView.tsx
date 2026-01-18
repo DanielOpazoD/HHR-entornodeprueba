@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { HandoffView } from '@/views/handoff/HandoffView';
 import { PenTool, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export const MedicalSignatureView: React.FC = () => {
-    const { record, updateMedicalSignature } = useDailyRecordContext();
+    const { record } = useDailyRecordData();
+    const { updateMedicalSignature } = useDailyRecordActions();
     const [doctorName, setDoctorName] = useState('');
     const [isSignedLocal, setIsSignedLocal] = useState(false);
 

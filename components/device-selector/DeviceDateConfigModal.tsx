@@ -1,20 +1,47 @@
 import React from 'react';
-import { X, Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import { DeviceInfo } from '../../types';
 import { VVP_DEVICE_KEYS } from '../../constants';
 import { BaseModal } from '../shared/BaseModal';
 
-// Devices that require date tracking (IAAS surveillance)
+// Legacy tracked devices list (kept for backward compatibility)
 export const TRACKED_DEVICES = ['CUP', 'CVC', 'VMI', ...VVP_DEVICE_KEYS] as const;
 export type TrackedDevice = typeof TRACKED_DEVICES[number];
 
-export const DEVICE_LABELS: Record<TrackedDevice, string> = {
+// Labels for known devices
+export const DEVICE_LABELS: Record<string, string> = {
     'CUP': 'Sonda Foley',
     'CVC': 'Catéter Venoso Central',
     'VMI': 'Ventilación Mecánica Invasiva',
     'VVP#1': 'Vía Venosa Periférica #1',
     'VVP#2': 'Vía Venosa Periférica #2',
-    'VVP#3': 'Vía Venosa Periférica #3'
+    'VVP#3': 'Vía Venosa Periférica #3',
+    'SNG': 'Sonda Nasogástrica',
+    'SNY': 'Sonda Nasoyeyunal',
+    'TOT': 'Tubo Orotraqueal',
+    'FO': 'Fijador Ortopédico',
+    'Drenaje': 'Drenaje Quirúrgico',
+    'CVO': 'Catéter Venoso Onfalico',
+    'DAV': 'Dispositivo Acceso Venoso',
+    'NEF': 'Nefrostomía',
+    'DVE': 'Drenaje Ventricular Externo',
+    'VAP': 'Ventilación Asistida Proporcional',
+    'LQ': 'Línea Química',
+    'SV': 'Sonda Vesical',
+    'VA': 'Vía Aérea',
+    'DB': 'Dispositivo Biliar',
+    'WE': 'Wound VAC / Presión Negativa',
+    'PICC': 'Catéter Central de Inserción Periférica',
+    'TQ': 'Traqueostomía',
+    'VB': 'Vía Biliar'
+};
+
+/**
+ * Get display label for a device
+ * Returns known label or the device name itself for custom devices
+ */
+const getDeviceLabel = (device: string): string => {
+    return DEVICE_LABELS[device] || device;
 };
 
 /**
@@ -35,7 +62,7 @@ export const calculateDeviceDays = (installDate?: string, currentDate?: string):
 };
 
 interface DeviceDateConfigModalProps {
-    device: TrackedDevice;
+    device: string; // Any device name (predefined or custom)
     deviceInfo: DeviceInfo;
     currentDate?: string;
     onSave: (info: DeviceInfo) => void;
@@ -50,6 +77,8 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
     onClose
 }) => {
     const [tempDetails, setTempDetails] = React.useState<DeviceInfo>(deviceInfo);
+    const deviceLabel = getDeviceLabel(device);
+    const isVMI = device === 'VMI';
 
     const handleSave = () => {
         onSave(tempDetails);
@@ -60,7 +89,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
         <BaseModal
             isOpen={true}
             onClose={onClose}
-            title={`${device} - ${DEVICE_LABELS[device]}`}
+            title={`${device} - ${deviceLabel}`}
             icon={<Calendar size={18} />}
             size="sm"
             variant="white"
@@ -69,7 +98,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
             <div className="space-y-4">
                 <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
-                        {device === 'VMI' ? 'Fecha de Inicio' : 'Fecha de Instalación'}
+                        {isVMI ? 'Fecha de Inicio' : 'Fecha de Instalación'}
                     </label>
                     <input
                         type="date"
@@ -82,7 +111,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
 
                 <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
-                        {device === 'VMI' ? 'Fecha de Término' : 'Fecha de Retiro'}
+                        {isVMI ? 'Fecha de Término' : 'Fecha de Retiro'}
                         <span className="font-normal text-slate-400 ml-1">(opcional)</span>
                     </label>
                     <input

@@ -286,10 +286,34 @@ export const logPatientView = (bedId: string, patientName: string, rut: string, 
     );
 };
 
+// Internal helper for non-view throttling
+const shouldLogThrottledAction = (action: AuditAction, entityId: string): boolean => {
+    const stateKey = `hhr_audit_throttle_${action}_${entityId}`;
+    if (typeof sessionStorage === 'undefined') return true;
+
+    const lastLogged = sessionStorage.getItem(stateKey);
+    if (!lastLogged) return true;
+
+    const elapsed = Date.now() - new Date(lastLogged).getTime();
+    return elapsed >= 5 * 60 * 1000; // 5 minute window for edits
+};
+
+const markActionAsLogged = (action: AuditAction, entityId: string): void => {
+    const stateKey = `hhr_audit_throttle_${action}_${entityId}`;
+    if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(stateKey, new Date().toISOString());
+    }
+};
+
 /**
  * Log modification of nursing handoff note
  */
 export const logNurseHandoffModified = (bedId: string, patientName: string, rut: string, shift: string, note: string, oldNote: string, recordDate: string): Promise<void> => {
+    if (!shouldLogThrottledAction('NURSE_HANDOFF_MODIFIED', bedId)) {
+        return Promise.resolve();
+    }
+    markActionAsLogged('NURSE_HANDOFF_MODIFIED', bedId);
+
     return logAuditEvent(getCurrentUserEmail(), 'NURSE_HANDOFF_MODIFIED', 'patient', bedId, {
         patientName,
         bedId,
@@ -306,6 +330,11 @@ export const logNurseHandoffModified = (bedId: string, patientName: string, rut:
  * Log modification of medical handoff note
  */
 export const logMedicalHandoffModified = (bedId: string, patientName: string, rut: string, note: string, oldNote: string, recordDate: string): Promise<void> => {
+    if (!shouldLogThrottledAction('MEDICAL_HANDOFF_MODIFIED', bedId)) {
+        return Promise.resolve();
+    }
+    markActionAsLogged('MEDICAL_HANDOFF_MODIFIED', bedId);
+
     return logAuditEvent(getCurrentUserEmail(), 'MEDICAL_HANDOFF_MODIFIED', 'patient', bedId, {
         patientName,
         bedId,

@@ -253,22 +253,38 @@ export const CIE10_SPANISH_DATABASE: CIE10Entry[] = [
     { code: 'Z96.1', description: 'Presencia de lentes intraoculares', category: 'Factores' },
 ];
 
+import { preprocessQuery, scoreMatch, fuzzyMatch, normalizeText } from './nlpPreprocessor';
+
 /**
- * Search CIE-10 codes in Spanish
+ * Search CIE-10 codes in Spanish with NLP enhancement
+ * Uses synonym expansion, fuzzy matching, and relevance scoring
  * @param query Search term
- * @returns Matching CIE-10 entries
+ * @returns Matching CIE-10 entries sorted by relevance
  */
 export function searchCIE10Spanish(query: string): CIE10Entry[] {
     if (!query || query.length < 2) return [];
 
-    const normalizedQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const preprocessed = preprocessQuery(query);
 
-    return CIE10_SPANISH_DATABASE
-        .filter(entry => {
-            const normalizedDesc = entry.description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            const normalizedCode = entry.code.toLowerCase();
+    // Score all entries
+    const scoredEntries = CIE10_SPANISH_DATABASE.map(entry => {
+        const score = scoreMatch(entry.description, entry.code, preprocessed);
+        return { entry, score };
+    });
 
-            return normalizedDesc.includes(normalizedQuery) || normalizedCode.includes(normalizedQuery);
-        })
-        .slice(0, 15);
+    // Filter entries with score > 0
+    let results = scoredEntries
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ entry }) => entry);
+
+    // If no results, try fuzzy matching as fallback
+    if (results.length === 0) {
+        results = CIE10_SPANISH_DATABASE.filter(entry => {
+            const normalizedDesc = normalizeText(entry.description);
+            return fuzzyMatch(preprocessed.normalized, normalizedDesc, 0.7);
+        });
+    }
+
+    return results.slice(0, 15);
 }

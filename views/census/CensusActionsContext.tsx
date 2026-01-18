@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { DischargeData, TransferData } from '@/types';
 import { EVACUATION_METHODS, RECEIVING_CENTERS } from '@/constants';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
 
 // --- Types ---
@@ -59,10 +59,6 @@ interface CensusActionsContextType {
     executeTransfer: (data?: { time?: string }) => void;
     handleEditTransfer: (t: TransferData) => void;
 
-    // UI State
-    showCribConfig: boolean;
-    setShowCribConfig: (show: boolean) => void;
-
     // Row Action Handler
     handleRowAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => void;
 }
@@ -76,15 +72,15 @@ interface CensusActionsProviderProps {
 }
 
 export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ children }) => {
+    const { record } = useDailyRecordData();
     const {
-        record,
         clearPatient,
         moveOrCopyPatient,
         addDischarge,
         updateDischarge,
         addTransfer,
         updateTransfer
-    } = useDailyRecordContext();
+    } = useDailyRecordActions();
 
     const { confirm } = useConfirmDialog();
 
@@ -111,9 +107,6 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
         receivingCenterOther: '',
         transferEscort: 'Enfermera'
     });
-
-    // UI States
-    const [showCribConfig, setShowCribConfig] = useState(false);
 
     // --- Handlers ---
 
@@ -261,8 +254,6 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
         setTransferState,
         executeTransfer,
         handleEditTransfer,
-        showCribConfig,
-        setShowCribConfig,
         handleRowAction
     };
 

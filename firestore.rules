@@ -106,7 +106,8 @@ service cloud.firestore {
       match /auditLogs/{logId} {
         allow read: if isAdmin();
         allow create: if isAuthenticated();
-        allow update, delete: if false;
+        // Allow admins to update or delete during consolidation/maintenance
+        allow update, delete: if isAdmin();
       }
       
       // ----------------------------------------
@@ -143,6 +144,14 @@ service cloud.firestore {
         allow update: if isAdmin();
         allow delete: if isAdmin();
       }
+
+      // ----------------------------------------
+      // PATIENT MASTER INDEX
+      // ----------------------------------------
+      match /patients/{rut} {
+        allow read: if isAuthenticated();
+        allow write: if canEdit();
+      }
     }
     
     // ============================================
@@ -151,7 +160,8 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAuthenticated();
-      allow update, delete: if false;
+      // Allow admins to update or delete during consolidation/maintenance
+      allow update, delete: if isAdmin();
     }
     
     // ============================================

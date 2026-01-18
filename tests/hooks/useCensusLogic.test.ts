@@ -1,3 +1,4 @@
+
 /**
  * useCensusLogic Hook Tests
  * Tests for census view logic and data management
@@ -9,16 +10,18 @@ import { useCensusLogic } from '@/hooks/useCensusLogic';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
 import * as statsCalculator from '@/services/calculations/statsCalculator';
 
-// Mock contexts
+// Mock contexts with correct hook names
 vi.mock('@/context/DailyRecordContext', () => ({
-    useDailyRecordContext: () => ({
+    useDailyRecordData: () => ({
         record: {
             date: '2025-01-10',
             beds: {
                 R1: { patientName: 'Patient 1', status: 'ESTABLE' },
                 R2: { patientName: 'Patient 2', status: 'CRITICO' }
             }
-        },
+        }
+    }),
+    useDailyRecordActions: () => ({
         createDay: vi.fn(),
         resetDay: vi.fn(),
         updateNurse: vi.fn(),

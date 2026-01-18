@@ -19,16 +19,16 @@ import {
     AuditView,
     MedicalSignatureView,
     WhatsAppIntegrationView,
-    ErrorDashboard,
+    SystemDiagnosticsView,
     TransferManagementView,
     BackupFilesView,
     SharedCensusView,
-    DevDashboard,
-    SystemHealthDashboard
+    PatientMasterView,
+    DataMaintenanceView
 } from '@/views/LazyViews';
 import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
 
-export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'ERRORS' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'DEV_DASHBOARD' | 'HEALTH';
+export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS';
 export type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface AppRouterProps {
@@ -128,9 +128,9 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                                 <WhatsAppIntegrationView />
                             </SectionErrorBoundary>
                         )}
-                        {currentModule === 'ERRORS' && (
-                            <SectionErrorBoundary sectionName="Dashboard de Errores">
-                                <ErrorDashboard />
+                        {currentModule === 'DIAGNOSTICS' && role === 'admin' && (
+                            <SectionErrorBoundary sectionName="Diagnóstico del Sistema">
+                                <SystemDiagnosticsView />
                             </SectionErrorBoundary>
                         )}
                         {currentModule === 'TRANSFER_MANAGEMENT' && (
@@ -143,14 +143,14 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                                 <BackupFilesView backupType="handoff" />
                             </SectionErrorBoundary>
                         )}
-                        {currentModule === 'DEV_DASHBOARD' && (
-                            <SectionErrorBoundary sectionName="Dev Health">
-                                <DevDashboard />
+                        {currentModule === 'PATIENT_MASTER_INDEX' && role === 'admin' && (
+                            <SectionErrorBoundary sectionName="Base de Pacientes">
+                                <PatientMasterView />
                             </SectionErrorBoundary>
                         )}
-                        {currentModule === 'HEALTH' && role === 'admin' && (
-                            <SectionErrorBoundary sectionName="Salud del Sistema">
-                                <SystemHealthDashboard />
+                        {currentModule === 'DATA_MAINTENANCE' && role === 'admin' && (
+                            <SectionErrorBoundary sectionName="Mantenimiento de Datos">
+                                <DataMaintenanceView />
                             </SectionErrorBoundary>
                         )}
                     </>

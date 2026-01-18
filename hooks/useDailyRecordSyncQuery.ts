@@ -5,12 +5,19 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useDailyRecordQuery, useSaveDailyRecordMutation, usePatchDailyRecordMutation } from './useDailyRecordQuery';
+import {
+    useDailyRecordQuery,
+    useSaveDailyRecordMutation,
+    usePatchDailyRecordMutation,
+    useInitializeDailyRecordMutation,
+    useDeleteDailyRecordMutation,
+    useGenerateDemoMutation
+} from './useDailyRecordQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
-import { SyncStatus, UseDailyRecordSyncResult } from './useDailyRecordTypes';
+import { SyncStatus, UseDailyRecordSyncResult, DailyRecordPatch } from './useDailyRecordTypes';
 import { DailyRecord } from '../types';
-import { DailyRecordPatchLoose } from './useDailyRecordTypes';
+import { getPreviousDay } from '../services/repositories/DailyRecordRepository';
 import { useNotification } from '../context/UIContext';
 import { useVersion } from '../context/VersionContext';
 import { ConcurrencyError } from '../services/storage/firestoreService';
@@ -44,14 +51,21 @@ export const useDailyRecordSyncQuery = (
     // 2. Mutations
     const saveMutation = useSaveDailyRecordMutation();
     const patchMutation = usePatchDailyRecordMutation(currentDateString);
+    const initMutation = useInitializeDailyRecordMutation();
+    const deleteMutation = useDeleteDailyRecordMutation();
+    const demoMutation = useGenerateDemoMutation();
 
     // 3. Status Mapping
     const syncStatus = useMemo((): SyncStatus => {
-        if (saveMutation.isPending || patchMutation.isPending) return 'saving';
-        if (saveMutation.isError || patchMutation.isError) return 'error';
-        if (saveMutation.isSuccess || patchMutation.isSuccess) return 'saved';
+        if (saveMutation.isPending || patchMutation.isPending || initMutation.isPending || deleteMutation.isPending || demoMutation.isPending) return 'saving';
+        if (saveMutation.isError || patchMutation.isError || initMutation.isError || deleteMutation.isError || demoMutation.isError) return 'error';
+        if (saveMutation.isSuccess || patchMutation.isSuccess || initMutation.isSuccess || deleteMutation.isSuccess || demoMutation.isSuccess) return 'saved';
         return 'idle';
-    }, [saveMutation.isPending, patchMutation.isPending, saveMutation.isError, patchMutation.isError, saveMutation.isSuccess, patchMutation.isSuccess]);
+    }, [
+        saveMutation.isPending, patchMutation.isPending, initMutation.isPending, deleteMutation.isPending, demoMutation.isPending,
+        saveMutation.isError, patchMutation.isError, initMutation.isError, deleteMutation.isError, demoMutation.isError,
+        saveMutation.isSuccess, patchMutation.isSuccess, initMutation.isSuccess, deleteMutation.isSuccess, demoMutation.isSuccess
+    ]);
 
     const lastSyncTime = useMemo(() =>
         dataUpdatedAt ? new Date(dataUpdatedAt) : null,
@@ -88,7 +102,7 @@ export const useDailyRecordSyncQuery = (
         }
     }, [saveMutation, notifyError, refetch]);
 
-    const patchRecord = useCallback(async (partial: DailyRecordPatchLoose) => {
+    const patchRecord = useCallback(async (partial: DailyRecordPatch) => {
         await patchMutation.mutateAsync(partial);
     }, [patchMutation]);
 
@@ -107,6 +121,40 @@ export const useDailyRecordSyncQuery = (
         refetch();
     }, [refetch]);
 
+    const { success, warning } = useNotification();
+
+    const createDay = useCallback(async (copyFromPrevious: boolean, specificDate?: string) => {
+        let prevDate: string | undefined = undefined;
+
+        if (copyFromPrevious) {
+            if (specificDate) {
+                prevDate = specificDate;
+            } else {
+                const prevRecord = await getPreviousDay(currentDateString);
+                if (prevRecord) {
+                    prevDate = prevRecord.date;
+                } else {
+                    warning("No se encontró registro anterior", "No hay datos del día previo para copiar.");
+                    return;
+                }
+            }
+        }
+
+        await initMutation.mutateAsync({ date: currentDateString, copyFromDate: prevDate });
+        const sourceMsg = prevDate ? `Copiado desde ${prevDate}` : 'Registro en blanco';
+        success('Día creado', sourceMsg);
+    }, [currentDateString, initMutation, success, warning]);
+
+    const resetDay = useCallback(async () => {
+        await deleteMutation.mutateAsync(currentDateString);
+        success('Registro eliminado', 'El registro del día ha sido eliminado.');
+    }, [currentDateString, deleteMutation, success]);
+
+    const generateDemo = useCallback(async () => {
+        await demoMutation.mutateAsync(currentDateString);
+        success('Demo Generada', 'Se han cargado datos de prueba.');
+    }, [currentDateString, demoMutation, success]);
+
     return {
         record: record ?? null,
         setRecord,
@@ -115,6 +163,9 @@ export const useDailyRecordSyncQuery = (
         saveAndUpdate,
         patchRecord,
         markLocalChange,
-        refresh
+        refresh,
+        createDay,
+        resetDay,
+        generateDemo
     };
 };

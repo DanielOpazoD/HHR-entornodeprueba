@@ -55,32 +55,13 @@ export const DevDashboard: React.FC = () => {
     const { testStats, coverage, healthScore } = metrics;
 
     return (
-        <div className="p-8 max-w-6xl mx-auto space-y-8 animate-fade-in">
-            {/* Header with Health Score */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex items-center gap-5">
-                    <div className="relative">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-medical-500 to-indigo-500 rounded-2xl blur opacity-25" />
-                        <div className="relative p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                            <Activity size={32} className="text-medical-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-display font-black text-slate-950 tracking-tight">System Engineering Health</h1>
-                        <p className="text-slate-500 font-medium flex items-center gap-2">
-                            <code className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono font-bold">COMMIT_MAIN_STABLE</code>
-                            <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                            Developer Analytics Dashboard
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4 bg-white/80 backdrop-blur border border-white p-2 rounded-2xl shadow-sm">
-                    <div className="px-4 py-2 bg-slate-950 text-white rounded-xl flex items-center gap-3">
-                        <Trophy size={18} className="text-amber-400" />
-                        <div className="flex flex-col">
-                            <span className="text-[14px] font-black leading-none">RANK {healthScore}</span>
-                            <span className="text-[9px] uppercase tracking-widest text-slate-400">Project Integrity</span>
+        <div className="max-w-6xl mx-auto space-y-6">
+            <div className="flex justify-end">
+                <div className="flex items-center gap-4 bg-white/80 backdrop-blur border border-white p-1 rounded-xl shadow-sm">
+                    <div className="px-3 py-1.5 bg-slate-950 text-white rounded-lg flex items-center gap-2">
+                        <Trophy size={14} className="text-amber-400" />
+                        <div className="flex items-baseline gap-1.5">
+                            <span className="text-xs font-black">RANK {healthScore}</span>
                         </div>
                     </div>
                 </div>

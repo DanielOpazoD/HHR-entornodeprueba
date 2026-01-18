@@ -3,7 +3,7 @@
  * Utilities for applying partial updates with dot-notation paths.
  */
 
-import { DailyRecordPatchLoose } from '../hooks/useDailyRecordTypes';
+import { DailyRecordPatch } from '../types';
 
 /**
  * Applies dot-notation updates to an object.
@@ -18,7 +18,7 @@ import { DailyRecordPatchLoose } from '../hooks/useDailyRecordTypes';
  * @param patches - A flat object where keys are dot-paths and values are the new data
  * @returns A new object with the patches applied
  */
-export const applyPatches = <T>(obj: T, patches: DailyRecordPatchLoose): T => {
+export const applyPatches = <T>(obj: T, patches: DailyRecordPatch): T => {
     if (!obj) return obj;
 
     // Deep clone state to avoid mutation side-effects

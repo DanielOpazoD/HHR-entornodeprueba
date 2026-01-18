@@ -5,10 +5,16 @@ import {
     User, Upload, Download
 } from 'lucide-react';
 import { AuditAction, AuditLogEntry } from '@/types/audit';
+import { parseAuditTimestamp } from '../../../../services/admin/utils/auditUtils';
 
-// Format ISO timestamp to readable format
-export const formatTimestamp = (iso: string): string => {
-    const date = new Date(iso);
+// Safe parser for audit timestamps is now imported from auditUtils.ts
+export { parseAuditTimestamp };
+
+// Format any timestamp-like value to readable format
+export const formatTimestamp = (timestamp: any): string => {
+    const date = parseAuditTimestamp(timestamp);
+    if (date.getTime() === 0) return 'Fecha desconocida';
+
     return date.toLocaleString('es-CL', {
         day: '2-digit',
         month: '2-digit',

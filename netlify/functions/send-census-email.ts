@@ -115,7 +115,7 @@ export const handler = async (event: any) => {
 
         let attachmentBuffer = null;
         if (!shareLink) {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+             
             const XlsxPopulate = require('xlsx-populate');
             attachmentBuffer = await XlsxPopulate.fromDataAsync(attachmentBufferRaw)
                 .then((workbook: any) => workbook.outputAsync({ password }));

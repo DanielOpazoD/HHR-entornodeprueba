@@ -18,8 +18,7 @@ export const PatientInputSchema = z.object({
         .refine(val => val.trim().length > 0, 'El nombre no puede estar vacío'),
 
     rut: z.string()
-        .regex(/^[0-9kK.-]*$/, 'RUT contiene caracteres inválidos')
-        .max(15, 'RUT demasiado largo')
+        .max(20, 'Identificación demasiado larga')
         .optional()
         .or(z.literal('')),
 

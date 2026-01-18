@@ -1,20 +1,18 @@
 import React from 'react';
 import { TransferData } from '@/types';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useCensusActions } from './CensusActionsContext';
 import { ArrowRightLeft, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 
-interface TransfersSectionProps {
-    transfers: TransferData[];
-    onUndoTransfer: (id: string) => void;
-    onDeleteTransfer: (id: string) => void;
-}
+// Interface for props removed as data comes from context
 
-export const TransfersSection: React.FC<TransfersSectionProps> = ({
-    transfers,
-    onUndoTransfer,
-    onDeleteTransfer
-}) => {
+export const TransfersSection: React.FC = () => {
+    const { record } = useDailyRecordData();
+    const { undoTransfer, deleteTransfer } = useDailyRecordActions();
     const { handleEditTransfer } = useCensusActions();
+
+    if (!record) return null;
+    const transfers = record.transfers || [];
 
     return (
         <div className="card mt-6 animate-fade-in print:p-2 print:border-t-2 print:border-slate-800 print:shadow-none">
@@ -51,25 +49,25 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
                             <tbody>
                                 {transfers.map(t => (
                                     <tr key={t.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
-                                        <td className="p-2 font-medium">{t.bedName} <span className="text-[10px] text-slate-400">({t.bedType})</span></td>
-                                        <td className="p-2">{t.patientName}</td>
-                                        <td className="p-2 font-mono text-xs">{t.rut}</td>
-                                        <td className="p-2">{t.diagnosis}</td>
-                                        <td className="p-2">{t.evacuationMethod}</td>
-                                        <td className="p-2">
+                                        <td className="p-2 font-medium text-slate-700">{t.bedName} <span className="text-[10px] text-slate-400">({t.bedType})</span></td>
+                                        <td className="p-2 text-slate-800 font-medium">{t.patientName}</td>
+                                        <td className="p-2 font-mono text-xs text-slate-500">{t.rut}</td>
+                                        <td className="p-2 text-slate-600">{t.diagnosis}</td>
+                                        <td className="p-2 text-slate-600">{t.evacuationMethod}</td>
+                                        <td className="p-2 text-slate-600">
                                             {t.receivingCenter === 'Otro' ? t.receivingCenterOther : t.receivingCenter}
                                         </td>
                                         <td className="p-2 text-xs text-slate-500">
                                             {t.evacuationMethod === 'Avión comercial' ? t.transferEscort : '-'}
                                         </td>
                                         <td className="p-2 flex justify-end gap-2 print:hidden">
-                                            <button onClick={() => onUndoTransfer(t.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">
+                                            <button onClick={() => undoTransfer(t.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">
                                                 <RotateCcw size={14} />
                                             </button>
                                             <button onClick={() => handleEditTransfer(t)} className="text-medical-500 hover:text-medical-700" title="Editar">
                                                 <Pencil size={14} />
                                             </button>
-                                            <button onClick={() => onDeleteTransfer(t.id)} className="text-red-400 hover:text-red-600" title="Eliminar Registro">
+                                            <button onClick={() => deleteTransfer(t.id)} className="text-red-400 hover:text-red-600" title="Eliminar Registro">
                                                 <Trash2 size={14} />
                                             </button>
                                         </td>

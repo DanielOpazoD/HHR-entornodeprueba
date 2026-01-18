@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import { calculateDeviceDays, TRACKED_DEVICES, TrackedDevice } from './DeviceDateConfigModal';
+import { calculateDeviceDays } from './DeviceDateConfigModal';
 import { DeviceDetails } from '../../types';
 import { formatDateDDMMYYYY } from '../../services/dataService';
 
@@ -18,16 +18,22 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(({
     let badgeText = device;
     if (device === '2 VVP') badgeText = '2VVP';
 
-    const isTracked = TRACKED_DEVICES.includes(device as TrackedDevice);
-    const details = isTracked ? deviceDetails[device as TrackedDevice] : undefined;
+    // Get details for ANY device (no longer limited to TRACKED_DEVICES)
+    const details = deviceDetails[device];
     const days = details?.installationDate ? calculateDeviceDays(details.installationDate, currentDate) : null;
 
-    // Alert colors based on days (IAAS thresholds)
-    const isAlert = isTracked && days !== null && (
+    // Alert colors based on days (IAAS thresholds for known devices)
+    const isAlert = days !== null && (
         (device === 'CUP' && days >= 5) ||
         (device === 'CVC' && days >= 7) ||
-        (device === 'VMI' && days >= 5)
+        (device === 'VMI' && days >= 5) ||
+        (device.startsWith('VVP') && days >= 4)
     );
+
+    // Format tooltip text
+    const tooltipText = details?.installationDate
+        ? `FI: ${formatDateDDMMYYYY(details.installationDate)}${details.removalDate ? ` | FR: ${formatDateDDMMYYYY(details.removalDate)}` : ''}`
+        : null;
 
     return (
         <span className="relative group inline-flex">
@@ -45,9 +51,10 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(({
                 )}
             </span>
 
-            {isTracked && details?.installationDate && (
+            {/* Tooltip with installation date - shows for ALL devices with date */}
+            {tooltipText && (
                 <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-slate-900 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
-                    FI: {formatDateDDMMYYYY(details.installationDate)}
+                    {tooltipText}
                 </span>
             )}
         </span>

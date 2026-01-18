@@ -14,7 +14,7 @@ import { TransferDocumentPackageModal } from './components/TransferDocumentPacka
 import { TransferRequest, TransferFormData } from '@/types/transfers';
 import { QuestionnaireResponse, TransferPatientData, GeneratedDocument } from '@/types/transferDocuments';
 import { useTransferManagement } from '@/hooks/useTransferManagement';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { getHospitalConfigs, getHospitalConfigById } from '@/constants/hospitalConfigs';
 import { generateTransferDocuments, downloadAllDocuments } from '@/services/transfers/documentGeneratorService';
 import { FileDown } from 'lucide-react';
@@ -38,7 +38,7 @@ export const TransferManagementView: React.FC = () => {
     } = useTransferManagement();
 
     // Get current daily record to access up-to-date patient data (including birthDate)
-    const { record } = useDailyRecordContext();
+    const { record } = useDailyRecordData();
 
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);

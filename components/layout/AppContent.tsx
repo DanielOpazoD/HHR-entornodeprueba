@@ -62,6 +62,19 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
         return () => window.removeEventListener('navigate-module', handleNavigateModule);
     }, [ui]);
 
+    // Listen for set-shift events
+    useEffect(() => {
+        const handleSetShift = (event: Event) => {
+            const customEvent = event as CustomEvent<'day' | 'night'>;
+            if (customEvent.detail) {
+                ui.setSelectedShift(customEvent.detail);
+            }
+        };
+
+        window.addEventListener('set-shift', handleSetShift);
+        return () => window.removeEventListener('set-shift', handleSetShift);
+    }, [ui]);
+
     return (
         <AppProviders dailyRecordHook={dailyRecordHook} userId={auth.user?.uid || 'anon'}>
             <div className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0">
@@ -97,14 +110,12 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                             currentDateString={currentDateString}
                             daysInMonth={dateNav.daysInMonth}
                             existingDaysInMonth={dateNav.existingDaysInMonth}
-                            onExportPDF={ui.showPrintButton ? exportManager.handleExportPDF : undefined}
+                            onExportPDF={ui.showPrintButton && ui.currentModule !== 'CUDYR' ? exportManager.handleExportPDF : undefined}
                             onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
                             onExportExcel={
                                 ui.currentModule === 'CENSUS'
                                     ? () => generateCensusMasterExcel(dateNav.selectedYear, dateNav.selectedMonth, dateNav.selectedDay)
-                                    : ui.currentModule === 'CUDYR'
-                                        ? () => generateCudyrMonthlyExcel(dateNav.selectedYear, dateNav.selectedMonth, currentDateString)
-                                        : undefined
+                                    : undefined
                             }
                             onConfigureEmail={ui.currentModule === 'CENSUS' ? () => censusEmail.setShowEmailConfig(true) : undefined}
                             onSendEmail={ui.currentModule === 'CENSUS' ? censusEmail.sendEmail : undefined}

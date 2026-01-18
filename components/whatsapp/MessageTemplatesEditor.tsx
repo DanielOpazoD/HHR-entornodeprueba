@@ -9,7 +9,6 @@ import {
     FileText,
     Plus,
     Trash2,
-    Save,
     X,
     Edit2,
     Check
@@ -23,13 +22,8 @@ import {
 export const MessageTemplatesEditor: React.FC = () => {
     const [templates, setTemplates] = useState<MessageTemplate[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
-
-    useEffect(() => {
-        loadTemplates();
-    }, []);
 
     const loadTemplates = async () => {
         setLoading(true);
@@ -37,6 +31,10 @@ export const MessageTemplatesEditor: React.FC = () => {
         setTemplates(data);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadTemplates();
+    }, []);
 
     const handleEdit = (template: MessageTemplate) => {
         setEditingId(template.id || null);
@@ -48,11 +46,9 @@ export const MessageTemplatesEditor: React.FC = () => {
             t.id === templateId ? { ...t, content: editContent } : t
         );
 
-        setSaving(true);
         await saveMessageTemplates(updated);
         setTemplates(updated);
         setEditingId(null);
-        setSaving(false);
     };
 
     const handleCancelEdit = () => {
@@ -69,10 +65,8 @@ export const MessageTemplatesEditor: React.FC = () => {
         };
 
         const updated = [...templates, newTemplate];
-        setSaving(true);
         await saveMessageTemplates(updated);
         setTemplates(updated);
-        setSaving(false);
         handleEdit(newTemplate);
     };
 
@@ -80,10 +74,8 @@ export const MessageTemplatesEditor: React.FC = () => {
         if (!confirm('¿Eliminar esta plantilla?')) return;
 
         const updated = templates.filter(t => t.id !== templateId);
-        setSaving(true);
         await saveMessageTemplates(updated);
         setTemplates(updated);
-        setSaving(false);
     };
 
     if (loading) {
@@ -116,10 +108,10 @@ export const MessageTemplatesEditor: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <span className="font-medium">{template.name}</span>
                                 <span className={`text-xs px-2 py-0.5 rounded ${template.type === 'handoff'
-                                        ? 'bg-green-100 text-green-700'
-                                        : template.type === 'shift'
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-gray-100 text-gray-700'
+                                    ? 'bg-green-100 text-green-700'
+                                    : template.type === 'shift'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-gray-100 text-gray-700'
                                     }`}>
                                     {template.type === 'handoff' ? 'Entrega' :
                                         template.type === 'shift' ? 'Turno' : 'Custom'}

@@ -11,10 +11,28 @@ import {
 import { AuditAction } from '@/types/audit';
 
 /**
- * Format ISO timestamp to readable format (es-CL locale)
+ * Format timestamp-like value to readable format (es-CL locale)
  */
-export const formatAuditTimestamp = (iso: string): string => {
-    const date = new Date(iso);
+export const formatAuditTimestamp = (timestamp: any): string => {
+    if (!timestamp) return 'Fecha desconocida';
+
+    let date: Date;
+
+    // Handle Firebase Timestamp objects or direct Date objects
+    if (typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+    } else if (timestamp.seconds !== undefined) {
+        date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+        date = timestamp;
+    }
+    // Handle ISO strings or numbers (ms)
+    else {
+        date = new Date(timestamp);
+    }
+
+    if (isNaN(date.getTime())) return 'Fecha inválida';
+
     return date.toLocaleString('es-CL', {
         day: '2-digit',
         month: '2-digit',

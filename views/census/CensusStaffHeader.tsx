@@ -1,28 +1,30 @@
 import React from 'react';
-import clsx from 'clsx';
-import { DailyRecord, Statistics } from '@/types';
+import { Statistics } from '@/types';
 import { NurseSelector, TensSelector } from './';
 import { BedSummaryCard, CribSummaryCard, MovementSummaryCard } from '@/components/layout/SummaryCard';
+import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useStaffContext } from '@/context/StaffContext';
 
 interface CensusStaffHeaderProps {
-    record: DailyRecord;
-    nursesList: string[];
-    tensList: string[];
-    onUpdateNurse: (shift: 'day' | 'night', index: number, value: string) => void;
-    onUpdateTens: (shift: 'day' | 'night', index: number, value: string) => void;
     readOnly?: boolean;
     stats: Statistics | null;
 }
 
+/**
+ * CensusStaffHeader
+ * Displays staff selectors (Nurse/TENS) and summary statistics.
+ * Optimized to consume fragmented context.
+ */
 export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
-    record,
-    nursesList,
-    tensList,
-    onUpdateNurse,
-    onUpdateTens,
     readOnly = false,
     stats
 }) => {
+    const { record } = useDailyRecordData();
+    const { updateNurse, updateTens } = useDailyRecordActions();
+    const { nursesList, tensList } = useStaffContext();
+
+    if (!record) return null;
+
     // Safe arrays with defaults
     const safeNursesDayShift = record.nursesDayShift || [];
     const safeNursesNightShift = record.nursesNightShift || [];
@@ -36,14 +38,14 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 nursesDayShift={safeNursesDayShift}
                 nursesNightShift={safeNursesNightShift}
                 nursesList={nursesList}
-                onUpdateNurse={onUpdateNurse}
+                onUpdateNurse={updateNurse}
                 className={readOnly ? "pointer-events-none opacity-80" : ""}
             />
             <TensSelector
                 tensDayShift={safeTensDayShift}
                 tensNightShift={safeTensNightShift}
                 tensList={tensList}
-                onUpdateTens={onUpdateTens}
+                onUpdateTens={updateTens}
                 className={readOnly ? "pointer-events-none opacity-80" : ""}
             />
 
