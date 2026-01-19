@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark, BookmarkInput } from '@/types/bookmarks';
 import { BaseModal } from '../shared/BaseModal';
-import { Bookmark as BookmarkIcon, Globe, StickyNote, Hash } from 'lucide-react';
+import { Bookmark as BookmarkIcon } from 'lucide-react';
 
 interface BookmarkEditorModalProps {
     isOpen: boolean;

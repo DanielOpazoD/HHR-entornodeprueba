@@ -7,15 +7,12 @@ import {
     Trash2,
     Edit2,
     GripVertical,
-    Check,
-    X,
     Save
 } from 'lucide-react';
 import {
     reorderBookmarks,
     deleteBookmark
 } from '@/services/bookmarks/bookmarkService';
-import clsx from 'clsx';
 
 interface BookmarkManagerModalProps {
     isOpen: boolean;
