@@ -3,14 +3,14 @@
  * Tests the census view functionality with mock authentication and data.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { injectMockUser, injectMockData } from './fixtures/auth';
 
 /**
  * Helper to ensure a record exists for current day
  * Clicks "Registro en Blanco" if the empty day screen is shown
  */
-async function ensureRecordExists(page: any) {
+async function ensureRecordExists(page: Page) {
     // Wait for page to stabilize
     await page.waitForTimeout(500);
 

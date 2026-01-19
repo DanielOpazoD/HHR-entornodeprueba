@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { onAuthChange, signOut, AuthUser, hasActiveFirebaseSession, signInAnonymouslyForPassport } from '../services/auth/authService';
 import {
     getStoredPassport,

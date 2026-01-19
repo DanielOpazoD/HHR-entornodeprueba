@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { TransferRequest, TransferStatus, StatusChange, TRANSFER_STATUS_CONFIG } from '@/types/transfers';
+import { TransferRequest, TRANSFER_STATUS_CONFIG } from '@/types/transfers';
 import { getNextStatus } from '@/constants/transferConstants';
 
 interface StatusChangeModalProps {
@@ -123,7 +123,7 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
                                                 {TRANSFER_STATUS_CONFIG[change.to].label}
                                             </span>
                                             {change.notes && (
-                                                <p className="text-gray-500 mt-1 italic">"{change.notes}"</p>
+                                                <p className="text-gray-500 mt-1 italic">&quot;{change.notes}&quot;</p>
                                             )}
                                         </div>
                                         <span className="text-gray-400 text-xs whitespace-nowrap">

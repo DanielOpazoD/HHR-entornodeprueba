@@ -6,6 +6,7 @@ import { TimeSchema, ActionNoteSchema } from '../../../schemas/inputSchemas';
 import clsx from 'clsx';
 
 export type DischargeTarget = 'mother' | 'baby' | 'both';
+export type DischargeTypeUnion = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
 
 export interface DischargeModalProps {
     isOpen: boolean;
@@ -44,7 +45,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     dischargeTarget = 'both', onDischargeTargetChange,
     initialType, initialOtherDetails, initialTime
 }) => {
-    const [dischargeType, setDischargeType] = React.useState<'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra'>((initialType as any) || 'Domicilio (Habitual)');
+    const [dischargeType, setDischargeType] = React.useState<DischargeTypeUnion>((initialType as DischargeTypeUnion) || 'Domicilio (Habitual)');
     const [otherDetails, setOtherDetails] = React.useState(initialOtherDetails || '');
     const [dischargeTime, setDischargeTime] = React.useState('');
     const [errors, setErrors] = React.useState<{ time?: string, other?: string }>({});
@@ -53,7 +54,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     // Reset state when modal opens or initial props change
     React.useEffect(() => {
         if (isOpen) {
-            setDischargeType((initialType as any) || 'Domicilio (Habitual)');
+            setDischargeType((initialType as DischargeTypeUnion) || 'Domicilio (Habitual)');
             setOtherDetails(initialOtherDetails || '');
             const nowTime = getTimeRoundedToStep();
             setDischargeTime(initialTime || nowTime);
@@ -217,7 +218,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
                                                 type="radio"
                                                 name="dischargeType"
                                                 checked={dischargeType === item.id}
-                                                onChange={() => setDischargeType(item.id as any)}
+                                                onChange={() => setDischargeType(item.id as DischargeTypeUnion)}
                                                 className="w-4 h-4 text-emerald-600 focus:ring-emerald-500/20"
                                             />
                                             <span className={clsx("text-sm transition-colors", dischargeType === item.id ? "font-medium text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>

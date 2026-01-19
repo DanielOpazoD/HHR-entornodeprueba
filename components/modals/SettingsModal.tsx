@@ -158,7 +158,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-700">Tipografía Moderna</p>
-                <p className="text-[10px] text-slate-500">Usar fuente 'Plus Jakarta Sans'</p>
+                <p className="text-[10px] text-slate-500">Usar fuente &apos;Plus Jakarta Sans&apos;</p>
               </div>
             </div>
             <button

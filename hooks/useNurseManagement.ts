@@ -20,11 +20,11 @@
  * @see useHandoffLogic - Consumes the staff data for display in Handoff view
  */
 import { DailyRecord } from '../types';
-import { DailyRecordPatchLoose } from './useDailyRecordTypes';
+import { DailyRecordPatch } from './useDailyRecordTypes';
 
 export const useNurseManagement = (
     record: DailyRecord | null,
-    patchRecord: (partial: DailyRecordPatchLoose) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ) => {
 
     const updateNurse = async (shift: 'day' | 'night', index: number, name: string) => {
@@ -44,7 +44,7 @@ export const useNurseManagement = (
         currentArray[index] = name;
 
         // console.debug('[NurseManagement] Sending complete array:', field, '=', currentArray);
-        await patchRecord({ [field]: currentArray });
+        await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
     };
 
     return {
@@ -54,7 +54,7 @@ export const useNurseManagement = (
 
 export const useTensManagement = (
     record: DailyRecord | null,
-    patchRecord: (partial: DailyRecordPatchLoose) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ) => {
 
     const updateTens = async (shift: 'day' | 'night', index: number, name: string) => {
@@ -73,7 +73,7 @@ export const useTensManagement = (
         currentArray[index] = name;
 
         // console.debug('[TensManagement] Sending complete array:', field, '=', currentArray);
-        await patchRecord({ [field]: currentArray });
+        await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
     };
 
     return {

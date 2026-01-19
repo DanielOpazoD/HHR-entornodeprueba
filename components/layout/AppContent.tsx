@@ -6,7 +6,8 @@ import {
     TestAgent,
     SyncWatcher,
     DemoModePanel,
-    BookmarkBar
+    BookmarkBar,
+    ModuleType
 } from '@/components';
 import { AppRouter } from '@/components/AppRouter';
 import { AppProviders } from '@/components/AppProviders';
@@ -53,7 +54,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
         const handleNavigateModule = (event: Event) => {
             const customEvent = event as CustomEvent<string>;
             if (customEvent.detail) {
-                ui.setCurrentModule(customEvent.detail as React.SetStateAction<any>); // Type assertion workaround or strictly define event types
+                ui.setCurrentModule(customEvent.detail as ModuleType); // Type assertion to ModuleType
             }
         };
 

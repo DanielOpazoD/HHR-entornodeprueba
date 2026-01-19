@@ -25,7 +25,7 @@ export const ADMIN_EMAILS = [
 export const isInstitutionalAccount = (email: string | null | undefined): boolean => {
     if (!email) return false;
     const cleanEmail = email.toLowerCase().trim();
-    return Object.values(INSTITUTIONAL_ACCOUNTS).includes(cleanEmail as any);
+    return (Object.values(INSTITUTIONAL_ACCOUNTS) as string[]).includes(cleanEmail);
 };
 
 /**

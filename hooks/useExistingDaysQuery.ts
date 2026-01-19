@@ -6,7 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getRecordsForMonth } from '../services/storage/indexedDBService';
-import { DailyRecord, PatientData } from '../types';
+import { PatientData } from '../types';
 
 /**
  * Hook to calculate which days in the selected month have patient data.

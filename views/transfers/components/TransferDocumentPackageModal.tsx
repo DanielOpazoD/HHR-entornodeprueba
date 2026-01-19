@@ -138,7 +138,7 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
                         <div className="text-[11px] text-blue-800">
                             <p className="font-semibold">Sugerencia de Edición</p>
                             <p className="mt-0.5 opacity-90">
-                                Al pulsar "Editar", el documento se abrirá en Google Drive. Cualquier cambio que realices se guardará automáticamente en la nube.
+                                Al pulsar &quot;Editar&quot;, el documento se abrirá en Google Drive. Cualquier cambio que realices se guardará automáticamente en la nube.
                             </p>
                         </div>
                     </div>

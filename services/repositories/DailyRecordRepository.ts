@@ -33,9 +33,9 @@ import {
     moveRecordToTrash
 } from '../storage/firestoreService';
 import { CURRENT_SCHEMA_VERSION } from '../../constants/version';
-import {
-    getActiveHospitalId
-} from '../../constants/firestorePaths';
+// import {
+//     getActiveHospitalId
+// } from '../../constants/firestorePaths';
 import { createEmptyPatient, clonePatient } from '../factories/patientFactory';
 import { applyPatches } from '../../utils/patchUtils';
 import { checkRegression, DataRegressionError, calculateDensity, VersionMismatchError } from '../../utils/integrityGuard';
@@ -537,7 +537,7 @@ export const ensureMonthIntegrity = async (
 
                 await initializeDay(dateStr, prevDateStr);
                 initializedDays.push(dateStr);
-            } catch (error) {
+            } catch (_error) {
                 errors.push(dateStr);
             }
         }

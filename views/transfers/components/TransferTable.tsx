@@ -6,7 +6,7 @@
 import React from 'react';
 import { TransferRequest, TransferStatus } from '@/types/transfers';
 import { TransferStatusInteraction } from './TransferStatusInteraction';
-import { calculateDaysElapsed } from '@/constants/transferConstants';
+// import { calculateDaysElapsed } from '@/constants/transferConstants';
 import { FileDown, Eye, Undo2, Archive } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -27,7 +27,7 @@ interface TransferTableProps {
 export const TransferTable: React.FC<TransferTableProps> = ({
     transfers,
     onEdit,
-    onStatusChange,
+    onStatusChange: _onStatusChange,
     onQuickStatusChange,
     onMarkTransferred,
     onCancel,

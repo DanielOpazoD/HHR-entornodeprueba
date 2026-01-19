@@ -178,7 +178,7 @@ export const TransferStatusInteraction: React.FC<TransferStatusInteractionProps>
                                         <div className="mt-1 flex gap-1 items-start bg-white p-1.5 rounded border border-slate-100 shadow-sm">
                                             <MessageSquare size={10} className="text-slate-400 mt-0.5 shrink-0" />
                                             <p className="text-[10px] text-slate-600 leading-tight italic">
-                                                "{change.notes}"
+                                                &quot;{change.notes}&quot;
                                             </p>
                                         </div>
                                     )}

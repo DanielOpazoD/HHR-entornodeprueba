@@ -14,7 +14,7 @@ import {
 } from '@/types/transferDocuments';
 import { questionGroups } from '@/constants/hospitalConfigs';
 import clsx from 'clsx';
-import { useAuth } from '@/context/AuthContext';
+// import { useAuth } from '@/context/AuthContext';
 import { QuestionInput } from './QuestionInput';
 
 interface TransferQuestionnaireModalProps {
@@ -34,8 +34,8 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
     initialResponses,
     onComplete
 }) => {
-    // Get current user for completedBy field
-    const { user } = useAuth();
+    // Get current user for completedBy field (if needed in future)
+    // const { user } = useAuth();
 
     // Group questions by category (templates)
     const groupedQuestions = useMemo(() => {
@@ -100,7 +100,7 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
 
     const currentGroup = groupKeys[currentGroupIndex];
     const currentQuestions = groupedQuestions[currentGroup] || [];
-    const groupInfo = questionGroups[currentGroup as keyof typeof questionGroups] || { label: currentGroup, icon: 'FileText' };
+    // const groupInfo = questionGroups[currentGroup as keyof typeof questionGroups] || { label: currentGroup, icon: 'FileText' };
 
     // Check if a question should be visible based on showIf condition
     const isQuestionVisible = useCallback((question: TransferQuestion): boolean => {
@@ -116,9 +116,9 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
         setResponses(prev => ({ ...prev, [questionId]: value }));
     };
 
-    // Navigation
-    const canGoBack = currentGroupIndex > 0;
-    const canGoNext = currentGroupIndex < groupKeys.length - 1;
+    // Navigation state (currently managed by UI buttons directly iterating)
+    // const canGoBack = currentGroupIndex > 0;
+    // const canGoNext = currentGroupIndex < groupKeys.length - 1;
 
     const handleComplete = () => {
         const responseArray: QuestionResponse[] = Object.entries(responses).map(([questionId, value]) => ({
@@ -136,6 +136,7 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
     };
 
     // Validate current group
+    /*
     const isCurrentGroupValid = useMemo(() => {
         return visibleQuestions
             .filter(q => q.required)
@@ -146,6 +147,7 @@ export const TransferQuestionnaireModal: React.FC<TransferQuestionnaireModalProp
                 return true;
             });
     }, [visibleQuestions, responses]);
+    */
 
     if (!isOpen) return null;
 

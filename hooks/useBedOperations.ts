@@ -75,7 +75,7 @@ export const useBedOperations = (
         // Atomic replace of bed object
         patchRecord({
             [`beds.${bedId}`]: cleanPatient
-        } as any);
+        } as unknown as DailyRecordPatch);
     }, [record, patchRecord, logPatientCleared]);
 
     const clearAllBeds = useCallback(() => {
@@ -95,7 +95,7 @@ export const useBedOperations = (
             beds: updatedBeds,
             discharges: [],
             transfers: []
-        } as any);
+        } as unknown as DailyRecordPatch);
     }, [record, patchRecord]);
 
     // ========================================================================
@@ -129,7 +129,7 @@ export const useBedOperations = (
             patchRecord({
                 [`beds.${targetBedId}`]: targetPatient,
                 [`beds.${sourceBedId}`]: cleanSource
-            } as any);
+            } as unknown as DailyRecordPatch);
 
             // Audit
             logEvent(
@@ -159,7 +159,7 @@ export const useBedOperations = (
 
             patchRecord({
                 [`beds.${targetBedId}`]: targetPatient
-            } as any);
+            } as unknown as DailyRecordPatch);
 
             // Audit
             logEvent(
@@ -193,7 +193,7 @@ export const useBedOperations = (
         patchRecord({
             [`beds.${bedId}.isBlocked`]: newIsBlocked,
             [`beds.${bedId}.blockedReason`]: newIsBlocked ? (reason || '') : ''
-        } as any);
+        } as unknown as DailyRecordPatch);
 
         // Audit Log
         logEvent(
@@ -216,7 +216,7 @@ export const useBedOperations = (
 
         patchRecord({
             [`beds.${bedId}.blockedReason`]: reason || ''
-        } as any);
+        } as unknown as DailyRecordPatch);
 
         // Audit Log
         logEvent(

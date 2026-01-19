@@ -1,5 +1,5 @@
 import { db } from '../infrastructure/db';
-import { auth } from '../../firebaseConfig';
+
 import { AuditLogEntry, AuditAction, maskRut } from '../../types/audit';
 import {
     saveAuditLog,
