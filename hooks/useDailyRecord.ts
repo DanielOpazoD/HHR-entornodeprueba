@@ -11,15 +11,7 @@
  * - useCMA: Day hospitalization records
  */
 
-import { useCallback, useMemo } from 'react';
-import { useNotification } from '../context/UIContext';
-import {
-    logDailyRecordCreated,
-    logDailyRecordDeleted
-} from '../services/admin/auditService';
-
-import { generateDemoRecord } from '../services/utils/demoDataGenerator';
-import { DailyRecord } from '../types';
+import { useMemo } from 'react';
 
 // Sub-hooks
 import { usePersistence } from './usePersistence';
@@ -54,7 +46,6 @@ export const useDailyRecord = (
     isOfflineMode: boolean = false,
     isFirebaseConnected: boolean = false
 ): DailyRecordContextType => {
-    const { success, warning } = useNotification();
 
     // ========================================================================
     // Sync & State Management

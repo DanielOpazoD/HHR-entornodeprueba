@@ -46,15 +46,9 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
     isOpen,
     onToggle,
     onClose,
-    currentModule,
     setModule,
-    censusViewMode,
-    setCensusViewMode,
-    onExportJSON,
-    onImportClick,
     onOpenSettings,
     isUserAdmin,
-    visibleModules,
     disabled = false
 }) => {
     const handleModuleChange = (mod: ModuleType) => {

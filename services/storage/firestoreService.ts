@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { DailyRecord, DailyRecordPatch } from '../../types';
-import { DailyRecordSchema } from '../../schemas/zodSchemas';
+
 import { withRetry } from '../../utils/networkUtils';
 import { parseDailyRecordWithDefaults } from '../../schemas/zodSchemas';
 import {
@@ -55,18 +55,7 @@ const sanitizeForFirestore = (obj: unknown): unknown => {
     return obj;
 };
 
-// Sanitize beds to convert null clinicalCrib to undefined
-const sanitizeBeds = (beds: DailyRecord['beds']): DailyRecord['beds'] => {
-    const result: DailyRecord['beds'] = {};
-    for (const [bedId, patient] of Object.entries(beds)) {
-        result[bedId] = {
-            ...patient,
-            // Convert null clinicalCrib to undefined
-            clinicalCrib: patient.clinicalCrib === null ? undefined : patient.clinicalCrib
-        };
-    }
-    return result;
-};
+
 
 /**
  * Convert a value to an array, handling both arrays and objects with numeric keys.
@@ -418,7 +407,7 @@ export const isFirestoreAvailable = async (): Promise<boolean> => {
         const docRef = doc(db, 'hospitals', getActiveHospitalId());
         await getDoc(docRef); // Reverted to original getDoc as partialData was undefined
         return true;
-    } catch (error) {
+    } catch (_error) {
         return false;
     }
 };

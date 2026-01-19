@@ -25,7 +25,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { DailyRecord, PatientData, ClinicalEvent } from '@/types';
+import { ClinicalEvent } from '@/types';
 import { BEDS } from '@/constants';
 import { getShiftSchedule, isAdmittedDuringShift } from '@/utils/dateUtils';
 import { getWhatsAppConfig, getMessageTemplates } from '@/services/integrations/whatsapp/whatsappService';
@@ -62,8 +62,7 @@ export const useHandoffLogic = ({
     const isMedical = type === 'medical';
 
     // ========== MEMOS ==========
-    // Helper to check if a list is actually empty (void or all empty strings)
-    const isActuallyEmpty = (list: string[]) => !list || list.length === 0 || !list.some(name => name && name.trim().length > 0);
+
 
     const visibleBeds = useMemo(() => {
         if (!record) return [];
@@ -142,7 +141,7 @@ export const useHandoffLogic = ({
     }, [record, selectedShift]);
 
     // ========== HANDLERS ==========
-    const { logDebouncedEvent, userId: currentUserId } = useAuditContext();
+    const { logDebouncedEvent } = useAuditContext();
 
     /**
      * CLINICAL EVENTS HANDLERS
@@ -238,7 +237,7 @@ export const useHandoffLogic = ({
                 }
             }
         } else {
-            const shiftLabel = selectedShift === 'day' ? 'day' : 'night';
+
             const noteKey = selectedShift === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
 
             if (selectedShift === 'day') {

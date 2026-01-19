@@ -1,8 +1,8 @@
 import { db } from '../../firebaseConfig';
-import { doc, getDoc, setDoc, writeBatch, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { MasterPatient } from '../../types';
 import { formatRut, isValidRut } from '../../utils/rutUtils';
-import { getActiveHospitalId, HOSPITAL_COLLECTIONS, COLLECTIONS } from '../../constants/firestorePaths';
+import { getActiveHospitalId, HOSPITAL_COLLECTIONS } from '../../constants/firestorePaths';
 
 const COLLECTION_NAME = HOSPITAL_COLLECTIONS.PATIENTS;
 

@@ -13,11 +13,8 @@ import {
     getPreviousDayRecord as getPreviousDayFromIndexedDB,
     saveRecord as saveToIndexedDB,
     deleteRecord as deleteFromIndexedDB,
-    getAllRecords as getAllFromIndexedDB,
     getAllDates as getAllDatesFromIndexedDB,
     getAllDemoRecords as getAllDemoRecordsFromIndexedDB,
-    migrateFromLocalStorage,
-    isIndexedDBAvailable,
     saveDemoRecord,
     getDemoRecordForDate,
     getPreviousDemoDayRecord,
@@ -37,14 +34,13 @@ import {
 } from '../storage/firestoreService';
 import { CURRENT_SCHEMA_VERSION } from '../../constants/version';
 import {
-    getDailyRecordsPath,
     getActiveHospitalId
 } from '../../constants/firestorePaths';
 import { createEmptyPatient, clonePatient } from '../factories/patientFactory';
 import { applyPatches } from '../../utils/patchUtils';
 import { checkRegression, DataRegressionError, calculateDensity, VersionMismatchError } from '../../utils/integrityGuard';
 import { parseDailyRecordWithDefaults } from '../../schemas/zodSchemas';
-import { mapPatientToFhir, mapEncounterToFhir } from '../utils/fhirMappers';
+import { mapPatientToFhir } from '../utils/fhirMappers';
 
 // ============================================================================
 // Configuration
@@ -198,7 +194,6 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
     }
 
     // FHIR Enrichment Layer (Dual Mode)
-    const hospitalId = getActiveHospitalId();
     Object.keys(currentRecord.beds).forEach(bedId => {
         const patient = currentRecord.beds[bedId];
         if (patient && patient.patientName && patient.patientName.trim()) {
