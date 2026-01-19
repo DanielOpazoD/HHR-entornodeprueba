@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calculator } from 'lucide-react';
+import { User } from 'lucide-react';
 import { PatientData } from '../../types';
 import { ADMISSION_ORIGIN_OPTIONS } from '../../constants';
 import { BaseModal, ModalSection } from '../shared/BaseModal';
 import { PatientInputSchema } from '../../schemas/inputSchemas';
 import clsx from 'clsx';
+
+// Type aliases from PatientData for type-safe casting
+type BiologicalSex = 'Masculino' | 'Femenino' | 'Indeterminado';
+type Insurance = 'Fonasa' | 'Isapre' | 'Particular';
+type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+type Origin = 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
 
 interface DemographicsModalProps {
     isOpen: boolean;
@@ -87,12 +93,12 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
 
         onSave({
             birthDate: localData.birthDate,
-            insurance: localData.insurance as any,
-            admissionOrigin: localData.admissionOrigin as any,
+            insurance: localData.insurance as Insurance,
+            admissionOrigin: localData.admissionOrigin as AdmissionOrigin,
             admissionOriginDetails: localData.admissionOriginDetails,
-            origin: localData.origin as any,
+            origin: localData.origin as Origin,
             isRapanui: localData.isRapanui,
-            biologicalSex: localData.biologicalSex as any,
+            biologicalSex: localData.biologicalSex as BiologicalSex,
             age: age
         });
         onClose();
@@ -154,7 +160,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                 <select
                                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                                     value={localData.insurance}
-                                    onChange={(e) => setLocalData({ ...localData, insurance: e.target.value as any })}
+                                    onChange={(e) => setLocalData({ ...localData, insurance: e.target.value as Insurance })}
                                 >
                                     <option value="Fonasa">Fonasa</option>
                                     <option value="Isapre">Isapre</option>
@@ -171,7 +177,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                                 type="radio"
                                                 name="biologicalSex"
                                                 checked={localData.biologicalSex === sex}
-                                                onChange={() => setLocalData({ ...localData, biologicalSex: sex as any })}
+                                                onChange={() => setLocalData({ ...localData, biologicalSex: sex as BiologicalSex })}
                                                 className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500/20"
                                             />
                                             <span className={clsx("text-xs transition-colors", localData.biologicalSex === sex ? "font-bold text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
@@ -196,7 +202,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                     <select
                                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                                         value={localData.admissionOrigin}
-                                        onChange={(e) => setLocalData({ ...localData, admissionOrigin: e.target.value as any })}
+                                        onChange={(e) => setLocalData({ ...localData, admissionOrigin: e.target.value as AdmissionOrigin })}
                                     >
                                         <option value="">-- Seleccionar --</option>
                                         {ADMISSION_ORIGIN_OPTIONS.map(opt => (
@@ -221,7 +227,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
                                 <select
                                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                                     value={localData.origin}
-                                    onChange={(e) => setLocalData({ ...localData, origin: e.target.value as any })}
+                                    onChange={(e) => setLocalData({ ...localData, origin: e.target.value as Origin })}
                                 >
                                     <option value="Residente">Residente</option>
                                     <option value="Turista Nacional">Turista Nacional</option>
