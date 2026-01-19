@@ -50,17 +50,21 @@ export const CensusEmailConfigModal: React.FC<Props> = ({
     const defaultMessage = buildCensusEmailBody(date, nursesSignature);
     const dialogRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (isOpen) {
-            setError(null);
-            setNewRecipient('');
-            setShowBulkEditor(false);
-            setBulkRecipients(safeRecipients.join('\n'));
-            setEditingIndex(null);
-            setEditingValue('');
-            setShowAllRecipients(false);
-        }
-    }, [isOpen, recipients]);
+    // Reset state when opening (State derivation pattern)
+    const [wasOpen, setWasOpen] = useState(isOpen);
+    if (isOpen && !wasOpen) {
+        setWasOpen(true);
+        setError(null);
+        setNewRecipient('');
+        setShowBulkEditor(false);
+        setBulkRecipients(Array.isArray(recipients) ? recipients.join('\n') : '');
+        setEditingIndex(null);
+        setEditingValue('');
+        setShowAllRecipients(false);
+    }
+    if (!isOpen && wasOpen) {
+        setWasOpen(false);
+    }
 
     useEffect(() => {
         if (!isOpen) return;

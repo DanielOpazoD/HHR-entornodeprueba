@@ -32,11 +32,13 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
     const popoverRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    // Sync local state with props when they change
-    useEffect(() => {
+    // Sync local state with props when they change (State derivation pattern)
+    const [prevProps, setPrevProps] = useState({ route: deliveryRoute, date: deliveryDate });
+    if (deliveryRoute !== prevProps.route || deliveryDate !== prevProps.date) {
         setSelectedRoute(deliveryRoute);
         setSelectedDate(deliveryDate || '');
-    }, [deliveryRoute, deliveryDate]);
+        setPrevProps({ route: deliveryRoute, date: deliveryDate });
+    }
 
     // Close on click outside
     useEffect(() => {

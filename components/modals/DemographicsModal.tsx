@@ -36,11 +36,9 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
     const [error, setError] = useState<string | null>(null);
 
     // Sync when data changes and log view for MINSAL traceability
-    useEffect(() => {
-        if (isOpen && data.patientName) {
-            logPatientView(bedId, data.patientName, data.rut, recordDate);
-        }
-
+    // Sync state with props (State derivation pattern)
+    const [prevData, setPrevData] = useState(data);
+    if (data !== prevData) {
         setLocalData({
             birthDate: data.birthDate || '',
             insurance: data.insurance || 'Fonasa',
@@ -50,7 +48,15 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, on
             isRapanui: data.isRapanui || false,
             biologicalSex: data.biologicalSex || 'Indeterminado'
         });
-    }, [data, isOpen, bedId, recordDate]);
+        setPrevData(data);
+    }
+
+    // Log view for MINSAL traceability (Side effect remains in useEffect)
+    useEffect(() => {
+        if (isOpen && data.patientName) {
+            logPatientView(bedId, data.patientName, data.rut, recordDate);
+        }
+    }, [isOpen, data.patientName, data.rut, bedId, recordDate]);
 
     const calculateFormattedAge = (dob: string) => {
         if (!dob) return '';
