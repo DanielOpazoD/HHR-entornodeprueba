@@ -55,7 +55,7 @@ export const createMockDatabase = (): HangaRoaDatabase => {
                 toArray: () => Promise.resolve([])
             })
         }),
-        where: (key: string) => ({
+        where: (_key: string) => ({
             below: () => ({
                 reverse: () => ({
                     first: () => Promise.resolve(null)
@@ -69,7 +69,7 @@ export const createMockDatabase = (): HangaRoaDatabase => {
                 toArray: () => Promise.resolve([])
             })
         })
-    } as any;
+    } as unknown;
 
     return {
         dailyRecords: mockTable,
@@ -140,7 +140,7 @@ const ensureDbReady = async () => {
                 db = new HangaRoaDatabase();
                 await db.open();
 
-                console.info('[IndexedDB] ✨ Database successfully recreated and opened');
+                // console.info('[IndexedDB] ✨ Database successfully recreated and opened');
 
                 // Re-trigger migration since we started fresh
                 localStorage.removeItem(MIGRATION_FLAG);
@@ -463,7 +463,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         return false;
     }
 
-    console.info('🔄 Starting migration from localStorage to IndexedDB...');
+    // console.info('🔄 Starting migration from localStorage to IndexedDB...');
 
     try {
         await ensureDbReady();
@@ -474,7 +474,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const recordArray = Object.values(records);
             if (recordArray.length > 0) {
                 await db.dailyRecords.bulkPut(recordArray);
-                console.info(`✅ Migrated ${recordArray.length} daily records`);
+                // console.info(`✅ Migrated ${recordArray.length} daily records`);
             }
         }
 
@@ -483,7 +483,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         if (nursesData) {
             const nurses = JSON.parse(nursesData) as string[];
             await saveCatalog('nurses', nurses);
-            console.info(`✅ Migrated nurses catalog (${nurses.length} entries)`);
+            // console.info(`✅ Migrated nurses catalog (${nurses.length} entries)`);
         }
 
         // Migrate TENS list
@@ -491,7 +491,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         if (tensData) {
             const tens = JSON.parse(tensData) as string[];
             await saveCatalog('tens', tens);
-            console.info(`✅ Migrated TENS catalog (${tens.length} entries)`);
+            // console.info(`✅ Migrated TENS catalog (${tens.length} entries)`);
         }
 
         // Migrate audit logs
@@ -500,7 +500,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const logs = JSON.parse(auditData) as AuditLogEntry[];
             if (logs.length > 0) {
                 await db.auditLogs.bulkPut(logs);
-                console.info(`✅ Migrated ${logs.length} audit logs`);
+                // console.info(`✅ Migrated ${logs.length} audit logs`);
             }
         }
 
@@ -511,12 +511,12 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const recordArray = Object.values(records);
             if (recordArray.length > 0) {
                 await db.demoRecords.bulkPut(recordArray);
-                console.info(`✅ Migrated ${recordArray.length} demo records`);
+                // console.info(`✅ Migrated ${recordArray.length} demo records`);
             }
         }
 
         localStorage.setItem(MIGRATION_FLAG, 'true');
-        console.info('✅ Migration complete!');
+        // console.info('✅ Migration complete!');
 
         return true;
     } catch (error) {

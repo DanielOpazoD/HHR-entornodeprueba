@@ -46,7 +46,7 @@ exports.mirrorDailyRecords = functions.firestore
             const hoursElapsed = (now - docDate) / (1000 * 60 * 60);
 
             if (hoursElapsed > 48) {
-                console.log(`🔒 FROZEN: ${docId} tiene ${Math.round(hoursElapsed)}h de antigüedad (>48h). No se sincroniza.`);
+                console.info(`🔒 FROZEN: ${docId} tiene ${Math.round(hoursElapsed)}h de antigüedad (>48h). No se sincroniza.`);
                 return null;
             }
         } catch (dateError) {
@@ -58,7 +58,7 @@ exports.mirrorDailyRecords = functions.firestore
         try {
             // Si se borra en el oficial, NO se borra en el beta (preservar respaldo)
             if (!change.after.exists) {
-                console.log(`⚠️ Documento borrado en Oficial: ${path}. NO se borra en Beta.`);
+                console.warn(`⚠️ Documento borrado en Oficial: ${path}. NO se borra en Beta.`);
                 return null;
             }
 
@@ -76,13 +76,13 @@ exports.mirrorDailyRecords = functions.firestore
                 // Si ya sincronizamos en los últimos 5 segundos, ignorar
                 const now = Date.now();
                 if (now - betaSyncedAt < 5000) {
-                    console.log(`⏸️ DEBOUNCE: ${docId} sincronizado hace ${Math.round((now - betaSyncedAt) / 1000)}s. Ignorando.`);
+                    console.info(`⏸️ DEBOUNCE: ${docId} sincronizado hace ${Math.round((now - betaSyncedAt) / 1000)}s. Ignorando.`);
                     return null;
                 }
 
                 // Si el lastUpdated no cambió, no hay nada que sincronizar
                 if (sourceLastUpdated === betaLastUpdated) {
-                    console.log(`🔄 SIN CAMBIOS: ${docId} ya tiene los mismos datos. Ignorando.`);
+                    console.debug(`🔄 SIN CAMBIOS: ${docId} ya tiene los mismos datos. Ignorando.`);
                     return null;
                 }
             }
@@ -93,7 +93,7 @@ exports.mirrorDailyRecords = functions.firestore
                 _syncedAt: admin.firestore.FieldValue.serverTimestamp()
             };
 
-            console.log(`✅ Sincronizando ${docId} a Beta...`);
+            console.info(`✅ Sincronizando ${docId} a Beta...`);
             return await dbBeta.doc(path).set(dataToSync, { merge: true });
         } catch (error) {
             console.error(`ERROR sincronizando ${docId}:`, error);
@@ -140,12 +140,12 @@ exports.mirrorSettings = functions.firestore
 
         try {
             if (!change.after.exists) {
-                console.log(`Borrando setting en Beta: ${path}`);
+                console.info(`Borrando setting en Beta: ${path}`);
                 return await dbBeta.doc(path).delete();
             }
 
             const data = change.after.data();
-            console.log(`Sincronizando setting: ${docId}`);
+            console.info(`Sincronizando setting: ${docId}`);
             return await dbBeta.doc(path).set(data);
         } catch (error) {
             console.error(`ERROR sincronizando setting ${docId}:`, error);
@@ -167,12 +167,12 @@ exports.mirrorTransferRequests = functions.firestore
 
         try {
             if (!change.after.exists) {
-                console.log(`Borrando transfer request en Beta: ${path}`);
+                console.info(`Borrando transfer request en Beta: ${path}`);
                 return await dbBeta.doc(path).delete();
             }
 
             const data = change.after.data();
-            console.log(`Sincronizando transfer request: ${docId}`);
+            console.info(`Sincronizando transfer request: ${docId}`);
             return await dbBeta.doc(path).set(data);
         } catch (error) {
             console.error(`ERROR sincronizando transfer ${docId}:`, error);
