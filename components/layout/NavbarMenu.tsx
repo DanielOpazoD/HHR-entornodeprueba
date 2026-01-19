@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { LayoutList, BarChart2, FileJson, Upload, Settings, ShieldCheck, MessageSquare, FileSpreadsheet, ChevronDown, LucideIcon, Bug, Activity, Database } from 'lucide-react';
+import { Settings, ShieldCheck, MessageSquare, ChevronDown, LucideIcon, Activity, Database } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 

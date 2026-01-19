@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Baby, Share2, MapPin, ListFilter, Clock } from 'lucide-react';
+import { Baby, Share2 } from 'lucide-react';
 import { EVACUATION_METHODS, RECEIVING_CENTERS } from '../../../constants';
 import { getTimeRoundedToStep } from '../../../utils';
-import { BaseModal, ModalSection } from '../../shared/BaseModal';
+import { BaseModal } from '../../shared/BaseModal';
 import { TimeSchema, ActionNoteSchema } from '../../../schemas/inputSchemas';
 import clsx from 'clsx';
 

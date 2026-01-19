@@ -1,7 +1,7 @@
 import React from 'react';
-import { Baby, LogOut, Clock, UserCheck, User, Users } from 'lucide-react';
+import { Baby, LogOut, User, Users } from 'lucide-react';
 import { getTimeRoundedToStep } from '../../../utils';
-import { BaseModal, ModalSection } from '../../shared/BaseModal';
+import { BaseModal } from '../../shared/BaseModal';
 import { TimeSchema, ActionNoteSchema } from '../../../schemas/inputSchemas';
 import clsx from 'clsx';
 

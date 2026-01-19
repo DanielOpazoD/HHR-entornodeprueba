@@ -12,9 +12,7 @@ import {
     Link as LinkIcon,
     ChevronDown,
     Copy,
-    CloudUpload,
     Loader2,
-    CheckCircle2,
     Save,
     CheckCircle
 } from 'lucide-react';
