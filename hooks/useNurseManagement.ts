@@ -28,7 +28,7 @@ export const useNurseManagement = (
 ) => {
 
     const updateNurse = async (shift: 'day' | 'night', index: number, name: string) => {
-        console.log('[NurseManagement] updateNurse called:', shift, index, name, 'record:', !!record);
+        // console.debug('[NurseManagement] updateNurse called:', shift, index, name, 'record:', !!record);
         if (!record) return;
 
         const field = shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
@@ -43,7 +43,7 @@ export const useNurseManagement = (
         }
         currentArray[index] = name;
 
-        console.log('[NurseManagement] Sending complete array:', field, '=', currentArray);
+        // console.debug('[NurseManagement] Sending complete array:', field, '=', currentArray);
         await patchRecord({ [field]: currentArray });
     };
 
@@ -72,7 +72,7 @@ export const useTensManagement = (
         }
         currentArray[index] = name;
 
-        console.log('[TensManagement] Sending complete array:', field, '=', currentArray);
+        // console.debug('[TensManagement] Sending complete array:', field, '=', currentArray);
         await patchRecord({ [field]: currentArray });
     };
 

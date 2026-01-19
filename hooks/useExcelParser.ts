@@ -226,7 +226,7 @@ export function useExcelParser(): UseExcelParserReturn {
             await parseFromBlob(blob);
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                console.log('[useExcelParser] Fetch aborted');
+                console.warn('[useExcelParser] Fetch aborted');
                 return;
             }
             console.error('[useExcelParser] Error fetching file:', err);

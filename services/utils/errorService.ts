@@ -55,7 +55,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
  * @example
  * const result = await withRetry(() => saveToFirestore(data), {
  *   maxRetries: 3,
- *   onRetry: (attempt, error) => console.log(`Retry ${attempt}...`)
+ *   onRetry: (attempt, error) => console.debug(`Retry ${attempt}...`)
  * });
  */
 export async function withRetry<T>(

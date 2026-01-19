@@ -17,7 +17,7 @@ export const useExistingDaysQuery = (selectedYear: number, selectedMonth: number
     return useQuery({
         queryKey: ['existingDays', selectedYear, selectedMonth],
         queryFn: async () => {
-            console.log(`[useExistingDaysQuery] 🔍 Fetching existing days for ${selectedYear}-${selectedMonth + 1}...`);
+            // console.debug(`[useExistingDaysQuery] 🔍 Fetching existing days for ${selectedYear}-${selectedMonth + 1}...`);
 
             // selectedMonth is 0-indexed in JS (0=Jan), but our records use 1-indexed strings (01=Jan)
             const records = await getRecordsForMonth(selectedYear, selectedMonth + 1);

@@ -47,8 +47,8 @@ export interface CensusStatistics {
  * @example
  * ```typescript
  * const stats = calculateStats(record.beds);
- * console.log(stats.totalHospitalized); // Total patient count
- * console.log(stats.availableCapacity); // Available beds
+    // console.debug(stats.totalHospitalized); // Total patient count
+    // console.debug(stats.availableCapacity); // Available beds
  * ```
  */
 export const calculateStats = (beds: Record<string, PatientData>): CensusStatistics => {

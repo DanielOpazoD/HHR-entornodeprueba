@@ -171,7 +171,7 @@ export const importDataJSON = async (file: File): Promise<boolean> => {
                 const promises = records.map(record => saveRecord(record));
 
                 Promise.all(promises).then(() => {
-                    console.log(`✅ Imported ${records.length} records to IndexedDB`);
+                    // console.info(`✅ Imported ${records.length} records to IndexedDB`);
                     resolve(true);
                 }).catch(err => {
                     console.error("Import failed in DB stage", err);

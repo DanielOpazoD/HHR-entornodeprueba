@@ -33,7 +33,7 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
                 patientName: patientData.patientName,
                 patientRut: patientData.rut
             });
-            console.log(`[Transfers] File uploaded to: ${result.folderPath}`);
+            // console.info(`[Transfers] File uploaded to: ${result.folderPath}`);
 
             // Optional: make it editable by anyone with link if corporate account allows it
             await makeFilePubliclyEditable(result.fileId);

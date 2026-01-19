@@ -151,7 +151,7 @@ export const useAuthState = (): UseAuthStateReturn => {
     // Network status listeners
     useEffect(() => {
         const handleOnline = async () => {
-            console.log('[useAuthState] Network is ONLINE');
+            // console.debug('[useAuthState] Network is ONLINE');
             setIsOnline(true);
             const storedUser = await getSetting<AuthUser | null>('hhr_offline_user', null);
             if (storedUser) {
@@ -162,7 +162,7 @@ export const useAuthState = (): UseAuthStateReturn => {
         };
 
         const handleOffline = () => {
-            console.log('[useAuthState] Network is OFFLINE');
+            // console.debug('[useAuthState] Network is OFFLINE');
             setIsOnline(false);
         };
 
@@ -177,10 +177,10 @@ export const useAuthState = (): UseAuthStateReturn => {
 
     // Check for offline passport user on mount
     useEffect(() => {
-        console.log('[useAuthState] 🚀 Initializing Auth System...');
+        // console.debug('[useAuthState] 🚀 Initializing Auth System...');
 
         const checkOfflineUser = async () => {
-            console.log('[useAuthState] 🔍 Checking local storage for offline user...');
+            // console.debug('[useAuthState] 🔍 Checking local storage for offline user...');
             try {
                 let offlineUser = await getSetting<AuthUser | null>('hhr_offline_user', null);
 
@@ -198,7 +198,7 @@ export const useAuthState = (): UseAuthStateReturn => {
                     if (passport) {
                         const result = await validatePassport(passport);
                         if (result.valid) {
-                            console.log('[useAuthState] ✅ Valid offline passport found');
+                            // console.debug('[useAuthState] ✅ Valid offline passport found');
                             setUser(offlineUser);
                             setIsOfflineMode(true);
                             setAuthLoading(false);
@@ -218,11 +218,11 @@ export const useAuthState = (): UseAuthStateReturn => {
         };
 
         const initAuth = async () => {
-            console.log('[useAuthState] 📡 Subscribing to Firebase Auth changes...');
+            // console.debug('[useAuthState] 📡 Subscribing to Firebase Auth changes...');
 
             // Subscribe to Firebase Auth first (higher priority)
             const unsubscribe = onAuthChange(async (authUser) => {
-                console.log('[useAuthState] 🔔 Auth State Change received:', authUser ? authUser.email : 'NULL');
+                // console.debug('[useAuthState] 🔔 Auth State Change received:', authUser ? authUser.email : 'NULL');
 
                 if (authUser) {
                     const isAnonymousUser = authUser.email === null;
@@ -245,7 +245,7 @@ export const useAuthState = (): UseAuthStateReturn => {
                             setIsOfflineMode(false);
                         }
                     } else {
-                        console.log('[useAuthState] 👤 Real Google user detected. Overriding any local passport.');
+                        // console.debug('[useAuthState] 👤 Real Google user detected. Overriding any local passport.');
                         setUser(authUser);
                         setIsOfflineMode(false);
                         await saveSetting('hhr_offline_user', null);
@@ -253,7 +253,7 @@ export const useAuthState = (): UseAuthStateReturn => {
                         await clearStoredPassport();
                     }
                 } else {
-                    console.log('[useAuthState] 👤 Firebase user is NULL, checking offline fallback...');
+                    // console.debug('[useAuthState] 👤 Firebase user is NULL, checking offline fallback...');
                     // Only check offline if Firebase reports no user
                     const hasOffline = await checkOfflineUser();
                     if (!hasOffline) {
@@ -261,7 +261,7 @@ export const useAuthState = (): UseAuthStateReturn => {
                     }
                 }
 
-                console.log('[useAuthState] ✨ Auth transition finished');
+                // console.debug('[useAuthState] ✨ Auth transition finished');
                 setAuthLoading(false);
             });
 
@@ -283,7 +283,7 @@ export const useAuthState = (): UseAuthStateReturn => {
         });
 
         return () => {
-            console.log('[useAuthState] 🧹 Cleaning up Auth subscription');
+            // console.debug('[useAuthState] 🧹 Cleaning up Auth subscription');
             clearTimeout(safetyTimeout);
             if (unsubscribe) unsubscribe();
         };

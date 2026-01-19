@@ -50,7 +50,7 @@ export const generateTransferDocuments = async (
             const templateBlob = await fetchTemplateFromStorage(templateFileName);
 
             if (templateBlob) {
-                console.log(`[DocumentGenerator] Using original template for ${template.id}`);
+                // console.info(`[DocumentGenerator] Using original template for ${template.id}`);
                 let processedBlob: Blob;
                 if (template.format === 'docx') {
                     processedBlob = await generateDocxFromTemplate(templateBlob, tags);
@@ -71,7 +71,7 @@ export const generateTransferDocuments = async (
 
             // 2. Fallback to Code-based generation if no template found or processing failed
             if (!doc) {
-                console.log(`[DocumentGenerator] Template ${template.id} not found in Storage, using code fallback`);
+                console.warn(`[DocumentGenerator] Template ${template.id} not found in Storage, using code fallback`);
                 doc = await generateFallbackDocument(template.id, patientData, responses, hospital);
             }
 

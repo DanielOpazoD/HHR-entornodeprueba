@@ -120,7 +120,7 @@ export async function forceAISearch(query: string): Promise<TerminologyConcept[]
     if (!query || query.length < 2) return [];
 
     try {
-        console.log(`🔄 Forcing AI search for "${query}" (updating cache)`);
+        // console.debug(`🔄 Forcing AI search for "${query}" (updating cache)`);
 
         // Get local results first
         const localResults = searchCIE10Spanish(query);
@@ -138,7 +138,7 @@ export async function forceAISearch(query: string): Promise<TerminologyConcept[]
         if (aiResults.length > 0) {
             // Save fresh results to cache
             cacheAIResults(query, aiResults);
-            console.log(`💾 Cached ${aiResults.length} fresh AI results for "${query}"`);
+            // console.debug(`💾 Cached ${aiResults.length} fresh AI results for "${query}"`);
 
             const aiCodes = new Set(aiResults.map(c => c.code));
             const aiConcepts = aiResults.map((entry: CIE10Entry) => ({

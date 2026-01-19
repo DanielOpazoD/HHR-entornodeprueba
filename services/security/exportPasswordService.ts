@@ -44,7 +44,7 @@ export const getStoredPasswords = async (maxResults: number = 30): Promise<Expor
             records.push(doc.data() as ExportPasswordRecord);
         });
 
-        console.log(`[ExportPassword] Retrieved ${records.length} stored passwords`);
+        // console.debug(`[ExportPassword] Retrieved ${records.length} stored passwords`);
         return records;
     } catch (error) {
         console.error('[ExportPassword] Failed to get stored passwords:', error);
@@ -80,7 +80,7 @@ export const savePasswordToFirestore = async (
         };
 
         await setDoc(docRef, record, { merge: true });
-        console.log(`[ExportPassword] Saved password for ${date}`);
+        // console.info(`[ExportPassword] Saved password for ${date}`);
     } catch (error) {
         console.error(`[ExportPassword] Failed to save password for ${date}:`, error);
     }

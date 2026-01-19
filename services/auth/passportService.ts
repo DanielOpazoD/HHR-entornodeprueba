@@ -302,12 +302,12 @@ export const downloadPassport = async (user: AuthUser, targetRole?: string): Pro
             const writable = await handle.createWritable();
             await writable.write(base64Content);
             await writable.close();
-            console.log('[Passport] Interactive download successful');
+            // console.info('[Passport] Interactive download successful');
             return true;
         } catch (error: unknown) {
             // User cancelled or error - fallback to traditional method IF NOT a cancellation
             if (error instanceof Error && error.name === 'AbortError') {
-                console.log('[Passport] Download cancelled by user');
+                // console.info('[Passport] Download cancelled by user');
                 return false;
             }
             console.warn('[Passport] showSaveFilePicker failed, falling back to traditional method:', error);
@@ -327,7 +327,7 @@ export const downloadPassport = async (user: AuthUser, targetRole?: string): Pro
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.log('[Passport] Traditional download started for:', passport.email);
+    // console.info('[Passport] Traditional download started for:', passport.email);
     return true;
 };
 
@@ -364,7 +364,7 @@ export const parsePassportFile = async (file: File): Promise<OfflinePassport | n
 export const storePassportLocally = async (passport: OfflinePassport): Promise<void> => {
     try {
         await saveSetting('hhr_offline_passport', passport);
-        console.log('[Passport] Stored passport in IndexedDB for:', passport.email);
+        // console.info('[Passport] Stored passport in IndexedDB for:', passport.email);
         // Cleanup old localStorage
         localStorage.removeItem('hhr_offline_passport');
     } catch (error) {

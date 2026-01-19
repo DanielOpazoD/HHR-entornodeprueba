@@ -202,7 +202,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
             clearPatient(transfer.bedId);
 
             setError(null);
-            console.log(`✅ Traslado completado: ${transfer.patientSnapshot.name} → ${transfer.destinationHospital}`);
+            // console.info(`✅ Traslado completado: ${transfer.patientSnapshot.name} → ${transfer.destinationHospital}`);
         } catch (err) {
             console.error('Error completing transfer:', err);
             setError('Error al completar el traslado');
@@ -219,7 +219,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
         try {
             await changeTransferStatus(transfer.id, 'CANCELLED', user.email, reason);
             setError(null);
-            console.log(`❌ Traslado cancelado: ${transfer.patientSnapshot.name} - Razón: ${reason}`);
+            // console.info(`❌ Traslado cancelado: ${transfer.patientSnapshot.name} - Razón: ${reason}`);
         } catch (err) {
             console.error('Error cancelling transfer:', err);
             setError('Error al cancelar el traslado');
@@ -253,7 +253,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
         try {
             await changeTransferStatus(transfer.id, prevStatus, user.email, 'Traslado deshecho');
             setError(null);
-            console.log(`↩️ Traslado deshecho: ${transfer.patientSnapshot.name} → ${prevStatus}`);
+            // console.info(`↩️ Traslado deshecho: ${transfer.patientSnapshot.name} → ${prevStatus}`);
         } catch (err) {
             console.error('Error undoing transfer:', err);
             setError('Error al deshacer el traslado');
@@ -268,7 +268,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
                 archivedAt: new Date().toISOString()
             } as any);
             setError(null);
-            console.log(`📦 Traslado archivado: ${transfer.patientSnapshot.name}`);
+            // console.info(`📦 Traslado archivado: ${transfer.patientSnapshot.name}`);
         } catch (err) {
             console.error('Error archiving transfer:', err);
             setError('Error al archivar el traslado');
@@ -280,7 +280,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
         try {
             await deleteStatusHistoryEntry(transfer.id, historyIndex);
             setError(null);
-            console.log(`🗑️ Historial eliminado: ${transfer.patientSnapshot.name} índice ${historyIndex}`);
+            // console.info(`🗑️ Historial eliminado: ${transfer.patientSnapshot.name} índice ${historyIndex}`);
         } catch (err) {
             console.error('Error deleting history entry:', err);
             setError('Error al eliminar el registro del historial');

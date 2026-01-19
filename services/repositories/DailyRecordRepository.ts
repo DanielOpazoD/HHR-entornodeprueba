@@ -265,7 +265,7 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
  * Updates specific fields of a daily record without overwriting the entire document.
  */
 export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
-    console.log('[Repository] updatePartial called:', date, Object.keys(partialData));
+    // console.debug('[Repository] updatePartial called:', date, Object.keys(partialData));
 
     // Update local storage (IndexedDB)
     if (demoModeActive) {
@@ -287,7 +287,7 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatch)
     // 2. Update Firestore
     if (!demoModeActive) {
         try {
-            console.log('[Repository] Sending partial update to Firestore:', date);
+            // console.debug('[Repository] Sending partial update to Firestore:', date);
 
             // Determine if FHIR resource needs regeneration
             // If any patient field in any bed is changed, we should ideally update its fhir_resource.

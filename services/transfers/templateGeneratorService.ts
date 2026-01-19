@@ -221,7 +221,7 @@ const calculateAge = (birthDateStr: string): string => {
 export const fetchTemplateFromStorage = async (templateName: string): Promise<Blob | null> => {
     try {
         const templateRef = ref(storage, `templates/${templateName}`);
-        console.log(`[TemplateService] Fetching template: templates/${templateName}`);
+        // console.debug(`[TemplateService] Fetching template: templates/${templateName}`);
         return await getBlob(templateRef);
     } catch (error) {
         console.warn(`[TemplateService] Template ${templateName} not found in Storage:`, error);

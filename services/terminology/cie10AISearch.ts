@@ -145,7 +145,7 @@ export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
     // Fallback to local API (development mode)
     const localApiKey = getLocalApiKey();
     if (localApiKey) {
-        console.log('🔧 Using local Gemini API for development');
+        // console.info('🔧 Using local Gemini API for development');
         aiAvailabilityChecked = true;
         aiIsAvailable = true;
         return searchWithLocalAPI(query);

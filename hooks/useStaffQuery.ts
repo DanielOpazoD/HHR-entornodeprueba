@@ -21,7 +21,7 @@ export const useNursesQuery = () => {
     const query = useQuery({
         queryKey: [...queryKeys.staff.all, 'nurses'],
         queryFn: async () => {
-            console.log('[useStaffQuery] 📥 Fetching nurses catalog...');
+            // console.debug('[useStaffQuery] 📥 Fetching nurses catalog...');
             return await CatalogRepository.getNurses();
         },
         staleTime: Infinity, // Staff catalog changes rarely, manual invalidation or subscription will handle it
@@ -31,7 +31,7 @@ export const useNursesQuery = () => {
     useEffect(() => {
         if (!isFirebaseConnected) return;
 
-        console.log('[useStaffQuery] 📡 Subscribing to Nurses real-time catalog...');
+        // console.debug('[useStaffQuery] 📡 Subscribing to Nurses real-time catalog...');
         const unsubscribe = CatalogRepository.subscribeNurses((nurses) => {
             queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], nurses);
         });
@@ -53,7 +53,7 @@ export const useTensQuery = () => {
     const query = useQuery({
         queryKey: [...queryKeys.staff.all, 'tens'],
         queryFn: async () => {
-            console.log('[useStaffQuery] 📥 Fetching TENS catalog...');
+            // console.debug('[useStaffQuery] 📥 Fetching TENS catalog...');
             return await CatalogRepository.getTens();
         },
         staleTime: Infinity,
@@ -63,7 +63,7 @@ export const useTensQuery = () => {
     useEffect(() => {
         if (!isFirebaseConnected) return;
 
-        console.log('[useStaffQuery] 📡 Subscribing to TENS real-time catalog...');
+        // console.debug('[useStaffQuery] 📡 Subscribing to TENS real-time catalog...');
         const unsubscribe = CatalogRepository.subscribeTens((tens) => {
             queryClient.setQueryData([...queryKeys.staff.all, 'tens'], tens);
         });

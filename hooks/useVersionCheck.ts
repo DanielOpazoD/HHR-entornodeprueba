@@ -28,7 +28,7 @@ const clearServiceWorkerCaches = async (): Promise<void> => {
         try {
             const cacheNames = await caches.keys();
             await Promise.all(cacheNames.map(name => caches.delete(name)));
-            console.log('[VersionCheck] ✅ Cleared all SW caches');
+            // console.info('[VersionCheck] ✅ Cleared all SW caches');
         } catch (error) {
             console.warn('[VersionCheck] Failed to clear caches:', error);
         }
@@ -82,7 +82,7 @@ const clearStaleLocalStorage = (): void => {
         }
     });
 
-    console.log('[VersionCheck] ✅ Cleared stale localStorage');
+    // console.info('[VersionCheck] ✅ Cleared stale localStorage');
 };
 
 /**
@@ -107,24 +107,24 @@ export const useVersionCheck = (): void => {
 
                 if (!response.ok) {
                     // version.json might not exist in dev mode, that's ok
-                    console.log('[VersionCheck] version.json not found (dev mode?)');
+                    console.warn('[VersionCheck] version.json not found (dev mode?)');
                     return;
                 }
 
                 const serverVersion: VersionInfo = await response.json();
                 const localVersion = localStorage.getItem(VERSION_KEY);
 
-                console.log(`[VersionCheck] Server: ${serverVersion.version}, Local: ${localVersion || 'none'}`);
+                // console.info(`[VersionCheck] Server: ${serverVersion.version}, Local: ${localVersion || 'none'}`);
 
                 if (!localVersion) {
                     // First time user, just save version
                     localStorage.setItem(VERSION_KEY, serverVersion.version);
-                    console.log('[VersionCheck] ✅ First visit, version saved');
+                    // console.info('[VersionCheck] ✅ First visit, version saved');
                     return;
                 }
 
                 if (localVersion !== serverVersion.version) {
-                    console.log('[VersionCheck] 🔄 New version detected! Refreshing...');
+                    // console.info('[VersionCheck] 🔄 New version detected! Refreshing...');
 
                     // Clear caches
                     await clearServiceWorkerCaches();
@@ -139,7 +139,7 @@ export const useVersionCheck = (): void => {
                         window.location.reload();
                     }, 500);
                 } else {
-                    console.log('[VersionCheck] ✅ Version up to date');
+                    // console.info('[VersionCheck] ✅ Version up to date');
                 }
             } catch (error) {
                 // Network error or parsing error - not critical

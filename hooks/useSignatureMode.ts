@@ -29,7 +29,7 @@ export function useSignatureMode(
         // ONLY sign in anonymously if we are in signature mode AND have NO user whatsoever (real or passport)
         if (isSignatureMode && !user && !authLoading && !isSigningInRef.current) {
             isSigningInRef.current = true;
-            console.log("[useSignatureMode] 👤 No user found in signature mode, signing in anonymously...");
+            // console.debug("[useSignatureMode] 👤 No user found in signature mode, signing in anonymously...");
             signInAnonymously(auth).catch((err) => {
                 console.error("Anonymous auth failed", err);
                 isSigningInRef.current = false;

@@ -217,7 +217,7 @@ export const useCensusEmail = ({
         const [year, month, day] = currentDateString.split('-').map(Number);
         const dayNum = parseInt(selectedDay.toString(), 10);
 
-        console.log(`[useCensusEmail] Starting month integrity check up to ${currentDateString}`);
+        // console.info(`[useCensusEmail] Starting month integrity check up to ${currentDateString}`);
 
         for (let d = 1; d <= dayNum; d++) {
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -262,7 +262,7 @@ export const useCensusEmail = ({
 
       // 2. BACKUP TO STORAGE (Cloud Archive)
       try {
-        console.log(`[useCensusEmail] Starting cloud backup for ${currentDateString}...`);
+        // console.info(`[useCensusEmail] Starting cloud backup for ${currentDateString}...`);
         const workbook = await buildCensusMasterWorkbook(filteredRecords);
         const buffer = await workbook.xlsx.writeBuffer();
         const excelBlob = new Blob([buffer], {
@@ -270,7 +270,7 @@ export const useCensusEmail = ({
         });
 
         await uploadCensus(excelBlob, currentDateString);
-        console.log(`[useCensusEmail] Cloud backup successful for ${currentDateString}`);
+        // console.info(`[useCensusEmail] Cloud backup successful for ${currentDateString}`);
       } catch (backupErr) {
         console.error('[useCensusEmail] Cloud backup failed (but email was sent):', backupErr);
         // Don't fail the whole operation if backup fails, as long as email was sent
