@@ -47,7 +47,7 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
     // Check if backup exists on mount and when date/shift changes
     useEffect(() => {
         const check = async () => {
-            console.log(`[SaveBackupButton] 🔍 Init check for ${date} ${shiftType}`);
+            // console.debug(`[SaveBackupButton] 🔍 Init check for ${date} ${shiftType}`);
             setIsChecking(true);
             try {
                 const exists = await pdfExists(date, shiftType);
@@ -56,7 +56,7 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
                 console.error('[SaveBackupButton] ❌ Error checking backup:', err);
                 setBackupExists(false); // Default to false if error to let user try saving
             } finally {
-                console.log(`[SaveBackupButton] 🏁 Check finished for ${date} ${shiftType}`);
+                // console.debug(`[SaveBackupButton] 🏁 Check finished for ${date} ${shiftType}`);
                 setIsChecking(false);
             }
         };
@@ -124,13 +124,13 @@ export const SaveBackupButton: React.FC<SaveBackupButtonProps> = ({
             // If night shift, also backup CUDYR monthly Excel
             if (shiftType === 'night') {
                 try {
-                    console.log('[SaveBackupButton] 📊 Generating CUDYR backup...');
+                    // console.info('[SaveBackupButton] 📊 Generating CUDYR backup...');
                     const { generateCudyrMonthlyExcelBlob } = await import('../../services/exporters/cudyrExportService');
                     const [year, month] = date.split('-').map(Number);
                     // Pass current record to ensure we use the latest in-memory data instead of potentially stale Firestore data
                     const cudyrBlob = await generateCudyrMonthlyExcelBlob(year, month, date, record);
                     await uploadCudyrExcel(cudyrBlob, date);
-                    console.log('[SaveBackupButton] ✅ CUDYR backup uploaded');
+                    // console.info('[SaveBackupButton] ✅ CUDYR backup uploaded');
                     success('Respaldos guardados', 'PDF + CUDYR mensual');
                 } catch (cudyrErr) {
                     console.error('[SaveBackupButton] ⚠️ CUDYR backup failed:', cudyrErr);
