@@ -13,7 +13,6 @@ import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
 interface AppProvidersProps {
     children: ReactNode;
     dailyRecordHook: DailyRecordContextType;
-    _userId: string;
 }
 
 /**
@@ -22,12 +21,12 @@ interface AppProvidersProps {
  * 
  * @example
  * ```tsx
- * <AppProviders dailyRecordHook={dailyRecordHook} userId={userId}>
+ * <AppProviders dailyRecordHook={dailyRecordHook}>
  *   <AppContent />
  * </AppProviders>
  * ```
  */
-export const AppProviders: React.FC<AppProvidersProps> = ({ children, dailyRecordHook, _userId }) => {
+export const AppProviders: React.FC<AppProvidersProps> = ({ children, dailyRecordHook }) => {
     return (
         <DailyRecordProvider value={dailyRecordHook}>
             <StaffProvider>

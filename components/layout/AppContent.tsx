@@ -11,7 +11,6 @@ import {
 import { AppRouter } from '@/components/AppRouter';
 import { AppProviders } from '@/components/AppProviders';
 import { generateCensusMasterExcel } from '@/services';
-import { generateCudyrMonthlyExcel } from '@/services/exporters/cudyrExportService';
 import { CensusEmailConfigModal } from '@/components/census/CensusEmailConfigModal';
 
 import { useAuth } from '@/context/AuthContext';
@@ -54,7 +53,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
         const handleNavigateModule = (event: Event) => {
             const customEvent = event as CustomEvent<string>;
             if (customEvent.detail) {
-                ui.setCurrentModule(customEvent.detail as any);
+                ui.setCurrentModule(customEvent.detail as React.SetStateAction<any>); // Type assertion workaround or strictly define event types
             }
         };
 
@@ -76,7 +75,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
     }, [ui]);
 
     return (
-        <AppProviders dailyRecordHook={dailyRecordHook} userId={auth.user?.uid || 'anon'}>
+        <AppProviders dailyRecordHook={dailyRecordHook}>
             <div className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0">
                 {/* Navigation */}
                 {!isSignatureMode && (

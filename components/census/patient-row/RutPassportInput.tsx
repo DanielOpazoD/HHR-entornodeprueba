@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { DebouncedInput } from '../../ui/DebouncedInput';
 import { usePatientAutocomplete } from '../../../hooks/usePatientAutocomplete';
 import { PatientData } from '../../../types'; // Import generic to map
-import { MasterPatient } from '../../../types';
 
 interface RutPassportInputProps {
     value: string;
@@ -42,14 +41,14 @@ export const RutPassportInput: React.FC<RutPassportInputProps> = ({
             birthDate: suggestion.birthDate,
             // Cast insurance if it matches allowed values, otherwise ignore or set default
             insurance: ['Fonasa', 'Isapre', 'Particular'].includes(suggestion.forecast || '')
-                ? (suggestion.forecast as any)
+                ? (suggestion.forecast as PatientData['insurance'])
                 : undefined,
             // IDENTITY PROTECTION: When autofilling a new identity, clear clinical data
             // to prevent data leakage from previous patient.
             cie10Code: undefined,
             cie10Description: undefined,
             pathology: '',
-            clinicalEvents: [] as any,
+            clinicalEvents: [],
             cudyr: undefined,
             deviceDetails: {},
             devices: []

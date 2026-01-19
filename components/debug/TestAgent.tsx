@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bot, CheckCircle, XCircle, Loader2, Terminal } from 'lucide-react';
 import { DailyRecord, PatientData } from '../../types';
-import { BEDS } from '../../constants';
 import { calculateStats } from '../../services/calculations/statsCalculator';
 
 interface TestAgentProps {
@@ -54,7 +53,7 @@ export const TestAgent: React.FC<TestAgentProps> = ({ isRunning, onComplete, cur
             } else {
                 throw new Error("Read failed");
             }
-        } catch (e) {
+        } catch (_e) {
             updateLog(id1, 'error');
         }
         setProgress(25);

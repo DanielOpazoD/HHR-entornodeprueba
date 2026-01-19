@@ -6,7 +6,6 @@
 import React, { useRef, useState } from 'react';
 import { WifiOff } from 'lucide-react';
 import clsx from 'clsx';
-import { useDailyRecordContext } from '../../context/DailyRecordContext';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleModules, isAdmin } from '../../utils/permissions';
 import { NavbarMenu } from './NavbarMenu';

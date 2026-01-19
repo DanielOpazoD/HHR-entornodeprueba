@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, BedDouble, CheckCircle } from 'lucide-react';
+import { Lock, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { BEDS } from '../../constants';
 import { useDailyRecordContext } from '../../context/DailyRecordContext';
