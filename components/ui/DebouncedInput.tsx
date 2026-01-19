@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import clsx from 'clsx';
+
 
 interface DebouncedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
     value: string;
@@ -24,12 +24,12 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = ({
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Sync local value with prop when not focused
-    useEffect(() => {
-        if (!isFocused) {
-            setLocalValue(value);
-        }
-    }, [value, isFocused]);
+    // Sync local value with prop when not focused (State derivation pattern)
+    const [prevValue, setPrevValue] = useState(value);
+    if (value !== prevValue && !isFocused) {
+        setLocalValue(value);
+        setPrevValue(value);
+    }
 
     // Cleanup timer on unmount
     useEffect(() => {

@@ -36,12 +36,12 @@ export const DebouncedTextarea: React.FC<DebouncedTextareaProps> = ({
         }
     }, [minRows]);
 
-    // Sync local value with prop when not focused (initial load or remote update)
-    useEffect(() => {
-        if (!isFocused) {
-            setLocalValue(value);
-        }
-    }, [value, isFocused]);
+    // Sync local value with prop when not focused (State derivation pattern)
+    const [prevValue, setPrevValue] = useState(value);
+    if (value !== prevValue && !isFocused) {
+        setLocalValue(value);
+        setPrevValue(value);
+    }
 
     // Trigger resize on value change
     useEffect(() => {
