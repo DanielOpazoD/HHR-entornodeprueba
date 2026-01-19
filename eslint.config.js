@@ -36,7 +36,14 @@ export default tseslint.config(
             'react/no-unescaped-entities': 'warn',
             'react/display-name': 'warn',
             '@typescript-eslint/no-explicit-any': 'warn',
-            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+            '@typescript-eslint/no-unused-vars': [
+                'warn',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_'
+                }
+            ],
             'react-hooks/rules-of-hooks': 'warn',
             'react-hooks/exhaustive-deps': 'warn',
             'react-hooks/set-state-in-effect': 'warn',
