@@ -44,7 +44,7 @@ export const CensusAccessManager: React.FC = () => {
         try {
             const emails = await getAuthorizedEmails();
             setAuthorizedEmails(emails.sort((a, b) => a.email.localeCompare(b.email)));
-        } catch (err) {
+        } catch (_err) {
             setError('Error al cargar la lista de correos.');
         } finally {
             setIsLoading(false);
@@ -63,8 +63,9 @@ export const CensusAccessManager: React.FC = () => {
             setSuccessMessage(`Correo ${newEmail} autorizado exitosamente.`);
             setTimeout(() => setSuccessMessage(null), 3000);
             await loadEmails();
-        } catch (err: any) {
-            setError(err.message || 'Error al autorizar correo.');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Error al autorizar correo.';
+            setError(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -76,7 +77,7 @@ export const CensusAccessManager: React.FC = () => {
         try {
             await removeAuthorizedEmail(email);
             setAuthorizedEmails(prev => prev.filter(e => e.email !== email));
-        } catch (err) {
+        } catch (_err) {
             setError('Error al eliminar el correo.');
         }
     };

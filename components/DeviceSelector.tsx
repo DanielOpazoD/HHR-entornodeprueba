@@ -35,7 +35,7 @@ const normalizeDevices = (devices: string[]): string[] => {
     return [...nonVvpDevices, ...VVP_DEVICE_KEYS.slice(0, finalCount)];
 };
 
-const areArraysEqual = (a: string[], b: string[]) => {
+const _areArraysEqual = (a: string[], b: string[]) => {
     if (a.length !== b.length) return false;
     return a.every((val, idx) => val === b[idx]);
 };
