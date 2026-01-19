@@ -1,13 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { signIn, signInWithGoogle, signInAnonymouslyForPassport } from '../../services/auth/authService';
+import React, { useState, useCallback } from 'react';
+import { signInWithGoogle, signInAnonymouslyForPassport } from '../../services/auth/authService';
 import {
     parsePassportFile,
     validatePassport,
-    storePassportLocally,
-    getStoredPassport,
-    verifyPassportCredentials
+    storePassportLocally
 } from '../../services/auth/passportService';
-import { Hospital, Lock, Mail, AlertCircle, Loader2, FileKey, Upload } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { saveSetting } from '../../services/storage/indexedDBService';
 
 interface LoginPageProps {
@@ -30,9 +28,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     const [error, setError] = useState<string | null>(null);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isPassportLoading, setIsPassportLoading] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
+    const [_isDragging, setIsDragging] = useState(false);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const _fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleGoogleSignIn = async () => {
         setError(null);
@@ -88,14 +86,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
         }
     }, [onLoginSuccess]);
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const _handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             handlePassportFile(file);
         }
     };
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
+    const _handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
 
@@ -107,12 +105,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
         }
     }, [handlePassportFile]);
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
+    const _handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
     }, []);
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
+    const _handleDragLeave = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
     }, []);
