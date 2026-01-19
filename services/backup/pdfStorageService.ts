@@ -80,7 +80,7 @@ const parseFilePath = (path: string): { date: string; shiftType: 'day' | 'night'
         };
     }
 
-    console.log(`[PdfStorage] 🔍 Failed to parse path: "${path}"`);
+    // console.warn(`[PdfStorage] 🔍 Failed to parse path: "${path}"`);
     return null;
 };
 
@@ -94,7 +94,7 @@ export const uploadPdf = async (
     date: string,
     shiftType: 'day' | 'night'
 ): Promise<string> => {
-    console.log(`[PdfStorage] Starting upload for ${date}...`);
+    // console.info(`[PdfStorage] Starting upload for ${date}...`);
     await firebaseReady;
 
     const filePath = generatePdfPath(date, shiftType);
@@ -114,7 +114,7 @@ export const uploadPdf = async (
     await uploadBytes(storageRef, pdfBlob, metadata);
     const downloadUrl = await getDownloadURL(storageRef);
 
-    console.log(`✅ [PdfStorage] Upload complete: ${filePath}`);
+    // console.info(`✅ [PdfStorage] Upload complete: ${filePath}`);
     return downloadUrl;
 };
 
@@ -125,7 +125,7 @@ export const deletePdf = async (date: string, shiftType: 'day' | 'night'): Promi
     const filePath = generatePdfPath(date, shiftType);
     const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
-    console.log(`🗑️ PDF deleted: ${filePath}`);
+    // console.info(`🗑️ PDF deleted: ${filePath}`);
 };
 
 /**
@@ -148,7 +148,7 @@ export const getPdfUrl = async (date: string, shiftType: 'day' | 'night'): Promi
  * Check if a PDF exists
  */
 export const pdfExists = async (date: string, shiftType: 'day' | 'night'): Promise<boolean> => {
-    console.log(`[PdfStorage] 🔍 Checking existence: ${date} ${shiftType}`);
+    // console.debug(`[PdfStorage] 🔍 Checking existence: ${date} ${shiftType}`);
 
     // Create a timeout promise
     const TIMEOUT_MS = 4000;
@@ -168,11 +168,11 @@ export const pdfExists = async (date: string, shiftType: 'day' | 'night'): Promi
             const storageRef = ref(storage, filePath);
 
             await getMetadata(storageRef);
-            console.log(`[PdfStorage] ✅ Found: ${filePath}`);
+            // console.debug(`[PdfStorage] ✅ Found: ${filePath}`);
             return true;
         } catch (error: any) {
             if (error?.code === 'storage/object-not-found') {
-                console.log(`[PdfStorage] ℹ️ Not found: ${date} ${shiftType}`);
+                // console.debug(`[PdfStorage] ℹ️ Not found: ${date} ${shiftType}`);
                 return false;
             }
             console.warn(`[PdfStorage] ❌ Error (possibly CORS):`, error.message || error);

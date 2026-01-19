@@ -345,7 +345,7 @@ export function subscribeToCurrentShift(
 
     return onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
-            console.log('No hay turnos en Firestore');
+            // console.debug('No hay turnos en Firestore');
             callback(null);
             return;
         }
@@ -353,7 +353,7 @@ export function subscribeToCurrentShift(
         const docRef = snapshot.docs[0];
         const shift = docRef.data() as WeeklyShift;
 
-        console.log('Turno encontrado:', shift.startDate, '-', shift.endDate);
+        // console.debug('Turno encontrado:', shift.startDate, '-', shift.endDate);
 
         // Always show the most recent shift
         // The user can import a new one when needed
@@ -366,8 +366,8 @@ export function subscribeToCurrentShift(
  */
 export async function saveManualShift(messageText: string): Promise<{ success: boolean; error?: string }> {
     try {
-        console.log('Importando turno manual...');
-        console.log('Mensaje recibido:', messageText.substring(0, 100) + '...');
+        // console.info('Importando turno manual...');
+        // console.debug('Mensaje recibido:', messageText.substring(0, 100) + '...');
 
         // Parse dates from message
         const lowerMessage = messageText.toLowerCase();
@@ -375,7 +375,7 @@ export async function saveManualShift(messageText: string): Promise<{ success: b
             !lowerMessage.includes('turno pabellón') &&
             !lowerMessage.includes('envío turno') &&
             !lowerMessage.includes('envio turno')) {
-            console.log('ERROR: No se encontró palabra clave de turno');
+            console.warn('⚠️ No se encontró palabra clave de turno');
             return { success: false, error: 'El mensaje no parece ser un turno de pabellón' };
         }
 
@@ -384,7 +384,7 @@ export async function saveManualShift(messageText: string): Promise<{ success: b
         let endDate = '';
 
         const dateMatch = messageText.match(/del\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+hasta\s+el\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
-        console.log('Regex match:', dateMatch);
+        // console.debug('Regex match:', dateMatch);
 
         if (dateMatch) {
             const [, start, end] = dateMatch;
@@ -392,11 +392,11 @@ export async function saveManualShift(messageText: string): Promise<{ success: b
             const [endDay, endMonth, endYear] = end.split('/');
             startDate = `${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`;
             endDate = `${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`;
-            console.log('Fechas parseadas:', startDate, '-', endDate);
+            // console.debug('Fechas parseadas:', startDate, '-', endDate);
         }
 
         if (!startDate || !endDate) {
-            console.log('ERROR: No se encontraron fechas');
+            console.warn('⚠️ No se encontraron fechas');
             return { success: false, error: 'No se encontraron fechas en el mensaje (formato: del DD/MM/YYYY hasta el DD/MM/YYYY)' };
         }
 
@@ -410,13 +410,13 @@ export async function saveManualShift(messageText: string): Promise<{ success: b
             originalMessage: messageText
         };
 
-        console.log('Guardando en Firestore...');
+        // console.debug('Guardando en Firestore...');
 
         // Save to Firestore
         const shiftsRef = collection(db, 'shifts', 'weekly', 'data');
         await setDoc(doc(shiftsRef, startDate), shift);
 
-        console.log('✅ Turno guardado exitosamente');
+        // console.info('✅ Turno guardado exitosamente');
         return { success: true };
     } catch (error: unknown) {
         console.error('Error saving manual shift:', error);

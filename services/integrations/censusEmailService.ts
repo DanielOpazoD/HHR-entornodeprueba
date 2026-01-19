@@ -44,7 +44,7 @@ const saveExportPassword = async (date: string, password: string, createdBy?: st
             source: 'email'
         }, { merge: true });
 
-        console.log(`[CensusEmail] Password saved to Firestore for ${date}`);
+        // console.debug(`[CensusEmail] Password saved to Firestore for ${date}`);
     } catch (error) {
         console.error('[CensusEmail] Failed to save password to Firestore:', error);
         // Don't throw - email was sent successfully, this is just for audit
@@ -57,8 +57,8 @@ export const triggerCensusEmail = async (params: TriggerEmailParams): Promise<Em
 
     // In development, Netlify functions are not available
     if (isDevelopment) {
-        console.log('[CensusEmail] Modo desarrollo - el envío de correo solo funciona en Netlify.');
-        console.log('[CensusEmail] Datos que se enviarían:', {
+        console.warn('[CensusEmail] Modo desarrollo - el envío de correo solo funciona en Netlify.');
+        console.warn('[CensusEmail] Datos que se enviarían:', {
             date,
             recipientCount: recipients?.length || CENSUS_DEFAULT_RECIPIENTS.length,
             recordCount: records.length,

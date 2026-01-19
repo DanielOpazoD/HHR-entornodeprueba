@@ -36,10 +36,10 @@ export const generateCensusMasterExcel = async (year: number, month: number, sel
 
     try {
         if (isFirestoreEnabled()) {
-            console.log(`📊 Cargando datos del mes ${MONTH_NAMES[month]} ${year} desde Firestore...`);
+            console.info(`📊 Cargando datos del mes ${MONTH_NAMES[month]} ${year} desde Firestore...`);
             allMonthRecords = await getMonthRecordsFromFirestore(year, month);
         } else {
-            console.log(`📊 Cargando datos del mes ${MONTH_NAMES[month]} ${year} desde almacenamiento local...`);
+            console.info(`📊 Cargando datos del mes ${MONTH_NAMES[month]} ${year} desde almacenamiento local...`);
             const localRecords = getStoredRecords();
             allMonthRecords = Object.values(localRecords).filter(r => r.date.startsWith(monthPrefix));
         }
@@ -54,7 +54,7 @@ export const generateCensusMasterExcel = async (year: number, month: number, sel
             return;
         }
 
-        console.log(`✅ Se encontraron ${monthRecords.length} días con datos`);
+        console.info(`✅ Se encontraron ${monthRecords.length} días con datos`);
 
         // Generate the workbook (without encryption - xlsx-populate doesn't work in browsers)
         const workbook = await buildCensusMasterWorkbook(monthRecords);
@@ -72,7 +72,7 @@ export const generateCensusMasterExcel = async (year: number, month: number, sel
         const blob = new Blob([buffer], { type: XLSX_MIME_TYPE });
         saveAs(blob, filename);
 
-        console.log(`📥 Archivo descargado: ${filename} (${buffer.byteLength} bytes)`);
+        console.info(`📥 Archivo descargado: ${filename} (${buffer.byteLength} bytes)`);
     } catch (error) {
         console.error('❌ Error generando Excel:', error);
         const message = error instanceof Error ? error.message : 'Error desconocido';

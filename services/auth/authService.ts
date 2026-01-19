@@ -130,14 +130,14 @@ const getCachedRole = async (email: string): Promise<string | null> => {
  * @returns An object indicating if allowed and their assigned role.
  */
 const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean; role?: string }> => {
-    console.log(`[authService] 🔍 Checking whitelist for: ${email}`);
+    // console.debug(`[authService] 🔍 Checking whitelist for: ${email}`);
     try {
         const cleanEmail = normalizeEmail(email);
 
         // 0. CHECK CACHE (Fastest)
         const cachedRole = await getCachedRole(cleanEmail);
         if (cachedRole) {
-            console.log(`[authService] ⚡ Role recovered from cache: ${cachedRole}`);
+            // console.debug(`[authService] ⚡ Role recovered from cache: ${cachedRole}`);
             // We return but trigger a background check if possible (handled by caller)
             return { allowed: true, role: cachedRole };
         }
@@ -145,18 +145,18 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
         // 1. VERIFICACIÓN ESTÁTICA (Prioridad alta)
         for (const [staticEmail, staticRole] of Object.entries(STATIC_ROLES)) {
             if (cleanEmail.includes(staticEmail)) {
-                console.log(`[authService] ✅ Access granted via static rule: ${cleanEmail} -> ${staticRole}`);
+                // console.info(`[authService] ✅ Access granted via static rule: ${cleanEmail} -> ${staticRole}`);
                 await saveRoleToCache(cleanEmail, staticRole);
                 return { allowed: true, role: staticRole };
             }
         }
 
-        console.log(`[authService] 📡 Querying DB for whitelist...`);
+        // console.debug(`[authService] 📡 Querying DB for whitelist...`);
 
         const results = await db.getDocs<any>('allowedUsers', {
             where: [{ field: 'email', operator: '==', value: email.toLowerCase().trim() }]
         });
-        console.log(`[authService] 📥 DB response received. Results count: ${results.length}`);
+        // console.debug(`[authService] 📥 DB response received. Results count: ${results.length}`);
 
         if (results.length > 0) {
             const userDoc = results[0];
@@ -251,7 +251,7 @@ export const signInWithGoogle = async (): Promise<AuthUser> => {
         if (isSharedCensusMode) {
             // In shared census mode, we allow the login to proceed
             // Authorization is handled by useSharedCensusMode hook using local list
-            console.log('[authService] 🌐 Shared census mode - skipping strict whitelist check');
+            // console.info('[authService] 🌐 Shared census mode - skipping strict whitelist check');
             return {
                 uid: user.uid,
                 email: user.email,
@@ -351,9 +351,9 @@ export const signOut = async (): Promise<void> => {
  * @returns An unsubscribe function to stop listening.
  */
 export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => void) => {
-    console.log('[authService] 🎧 Setting up onAuthStateChanged observer');
+    // console.debug('[authService] 🎧 Setting up onAuthStateChanged observer');
     return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-        console.log('[authService] 👤 Firebase onAuthStateChanged triggered. User:', firebaseUser ? firebaseUser.email || 'Anonymous' : 'NULL');
+        // console.debug('[authService] 👤 Firebase onAuthStateChanged triggered. User:', firebaseUser ? firebaseUser.email || 'Anonymous' : 'NULL');
         if (firebaseUser) {
             // Check if anonymous (used for signature links)
             if (firebaseUser.isAnonymous) {
@@ -373,7 +373,7 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => 
             if (isSharedCensusMode) {
                 // In shared census mode, allow user through without Firestore check
                 // Authorization is handled locally by useSharedCensusMode
-                console.log('[authService] 🌐 Shared census mode - allowing user without Firestore whitelist check');
+                // console.info('[authService] 🌐 Shared census mode - allowing user without Firestore whitelist check');
                 callback({
                     uid: firebaseUser.uid,
                     email: firebaseUser.email,
@@ -450,7 +450,7 @@ export const signInAnonymouslyForPassport = async (): Promise<string | null> => 
     try {
         // Check if already signed in
         if (auth.currentUser) {
-            console.log('[Auth] Already signed in, uid:', auth.currentUser.uid);
+            // console.debug('[Auth] Already signed in, uid:', auth.currentUser.uid);
             return auth.currentUser.uid;
         }
 
@@ -464,7 +464,7 @@ export const signInAnonymouslyForPassport = async (): Promise<string | null> => 
         const result = await Promise.race([authPromise, timeoutPromise]) as { user: User } | null;
 
         if (result && result.user) {
-            console.log('[Auth] Signed in anonymously for passport user, uid:', result.user.uid);
+            // console.debug('[Auth] Signed in anonymously for passport user, uid:', result.user.uid);
             return result.user.uid;
         }
         return null;

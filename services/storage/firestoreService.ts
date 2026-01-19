@@ -78,7 +78,7 @@ const ensureArray = (value: unknown, defaultLength: number): string[] => {
         for (let i = 0; i < defaultLength; i++) {
             result.push(obj[String(i)] || '');
         }
-        console.log('[Firestore] Converted object to array:', value, '->', result);
+        // console.debug('[Firestore] Converted object to array:', value, '->', result);
         return result;
     }
 
@@ -155,7 +155,7 @@ const saveHistorySnapshot = async (date: string): Promise<void> => {
                 ...data,
                 snapshotTimestamp: Timestamp.now()
             });
-            console.log(`📜 History snapshot created for ${date}`);
+            // console.info(`📜 History snapshot created for ${date}`);
         }
     } catch (error) {
         // We log but don't throw to avoid blocking the main save operation
@@ -235,7 +235,7 @@ export const saveRecordToFirestore = async (record: DailyRecord, expectedLastUpd
         await withRetry(() => setDoc(docRef, sanitizedRecord as Record<string, unknown>), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} saving record ${record.date}:`, err)
         });
-        console.log('✅ Saved to Firestore:', record.date);
+        // console.info('✅ Saved to Firestore:', record.date);
     } catch (error) {
         console.error('❌ Error saving to Firestore:', error);
         throw error;
@@ -299,7 +299,7 @@ export const updateRecordPartial = async (date: string, partialData: DailyRecord
         await withRetry(() => updateDoc(docRef, sanitizedData as any), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
         });
-        console.log('✅ Partial update to Firestore (flattened):', date, Object.keys(flatData));
+        // console.info('✅ Partial update to Firestore (flattened):', date, Object.keys(flatData));
     } catch (error) {
         console.error('❌ Error in partial update to Firestore:', error);
         throw error;
@@ -334,7 +334,7 @@ export const deleteRecordFromFirestore = async (date: string): Promise<void> => 
         await withRetry(() => deleteDoc(docRef), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} deleting record ${date}:`, err)
         });
-        console.log('🗑️ Deleted from Firestore:', date);
+        // console.info('🗑️ Deleted from Firestore:', date);
     } catch (error) {
         console.error('❌ Error deleting from Firestore:', error);
         throw error;
@@ -445,7 +445,7 @@ export const saveNurseCatalogToFirestore = async (nurses: string[]): Promise<voi
             list: nurses,
             lastUpdated: new Date().toISOString()
         }));
-        console.log('✅ Nurse catalog saved to Firestore');
+        // console.info('✅ Nurse catalog saved to Firestore');
     } catch (error) {
         console.error('Error saving nurse catalog to Firestore:', error);
         throw error;
@@ -457,17 +457,17 @@ export const saveNurseCatalogToFirestore = async (nurses: string[]): Promise<voi
  */
 export const subscribeToNurseCatalog = (callback: (nurses: string[]) => void): (() => void) => {
     const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.NURSES);
-    console.log('[Firestore] Setting up nurse catalog subscription...');
+    // console.info('[Firestore] Setting up nurse catalog subscription...');
 
     return onSnapshot(docRef, (docSnap) => {
-        console.log('[Firestore] Nurse catalog snapshot received, exists:', docSnap.exists());
+        // console.debug('[Firestore] Nurse catalog snapshot received, exists:', docSnap.exists());
         if (docSnap.exists()) {
             const data = docSnap.data();
             const nurses = (data.list as string[]) || [];
-            console.log('[Firestore] Nurse catalog data:', nurses);
+            // console.debug('[Firestore] Nurse catalog data:', nurses);
             callback(nurses);
         } else {
-            console.log('[Firestore] Nurse catalog document does not exist');
+            // console.debug('[Firestore] Nurse catalog document does not exist');
             callback([]);
         }
     }, (error) => {
@@ -512,7 +512,7 @@ export const saveTensCatalogToFirestore = async (tens: string[]): Promise<void> 
             list: tens,
             lastUpdated: new Date().toISOString()
         }));
-        console.log('✅ TENS catalog saved to Firestore');
+        // console.info('✅ TENS catalog saved to Firestore');
     } catch (error) {
         console.error('Error saving TENS catalog to Firestore:', error);
         throw error;
@@ -524,17 +524,17 @@ export const saveTensCatalogToFirestore = async (tens: string[]): Promise<void> 
  */
 export const subscribeToTensCatalog = (callback: (tens: string[]) => void): (() => void) => {
     const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, SETTINGS_DOCS.TENS);
-    console.log('[Firestore] Setting up TENS catalog subscription...');
+    // console.info('[Firestore] Setting up TENS catalog subscription...');
 
     return onSnapshot(docRef, (docSnap) => {
-        console.log('[Firestore] TENS catalog snapshot received, exists:', docSnap.exists());
+        // console.debug('[Firestore] TENS catalog snapshot received, exists:', docSnap.exists());
         if (docSnap.exists()) {
             const data = docSnap.data();
             const tens = (data.list as string[]) || [];
-            console.log('[Firestore] TENS catalog data:', tens);
+            // console.debug('[Firestore] TENS catalog data:', tens);
             callback(tens);
         } else {
-            console.log('[Firestore] TENS catalog document does not exist');
+            // console.debug('[Firestore] TENS catalog document does not exist');
             callback([]);
         }
     }, (error) => {
@@ -566,7 +566,7 @@ export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
             deletedAt: Timestamp.now(),
             originalDate: record.date
         }));
-        console.log('♻️ Record moved to trash:', record.date);
+        // console.info('♻️ Record moved to trash:', record.date);
     } catch (error) {
         console.error('❌ Error moving record to trash:', error);
         throw error;

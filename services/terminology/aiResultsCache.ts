@@ -82,19 +82,19 @@ export function getCachedAIResults(query: string): CIE10Entry[] | null {
     const normalized = normalizeQuery(query);
     const cache = getCache();
 
-    console.log(`🔍 Looking for cache: "${query}" (normalized: "${normalized}")`);
-    console.log(`📋 Cache has ${cache.entries.length} entries:`, cache.entries.map(e => e.query));
+    // console.debug(`🔍 Looking for cache: "${query}" (normalized: "${normalized}")`);
+    // console.debug(`📋 Cache has ${cache.entries.length} entries:`, cache.entries.map(e => e.query));
 
     const entry = cache.entries.find(e =>
         normalizeQuery(e.query) === normalized && isValidEntry(e)
     );
 
     if (entry) {
-        console.log(`✅ Cache HIT for "${query}" (${entry.results.length} results)`);
+        // console.debug(`✅ Cache HIT for "${query}" (${entry.results.length} results)`);
         return entry.results;
     }
 
-    console.log(`❌ Cache MISS for "${query}"`);
+    // console.debug(`❌ Cache MISS for "${query}"`);
     return null;
 }
 
@@ -103,14 +103,14 @@ export function getCachedAIResults(query: string): CIE10Entry[] | null {
  */
 export function cacheAIResults(query: string, results: CIE10Entry[]): void {
     if (!query || results.length === 0) {
-        console.log('⚠️ cacheAIResults: skipping - no query or no results');
+        console.warn('⚠️ cacheAIResults: skipping - no query or no results');
         return;
     }
 
     const normalized = normalizeQuery(query);
     const cache = getCache();
 
-    console.log(`💾 Caching ${results.length} results for "${query}" (normalized: "${normalized}")`);
+    // console.debug(`💾 Caching ${results.length} results for "${query}" (normalized: "${normalized}")`);
 
     // Remove existing entry for same query (update)
     const prevCount = cache.entries.length;
@@ -118,7 +118,7 @@ export function cacheAIResults(query: string, results: CIE10Entry[]): void {
         normalizeQuery(e.query) !== normalized
     );
     if (cache.entries.length < prevCount) {
-        console.log(`🔄 Replaced existing cache entry for "${normalized}"`);
+        // console.debug(`🔄 Replaced existing cache entry for "${normalized}"`);
     }
 
     // Add new entry
@@ -138,7 +138,7 @@ export function cacheAIResults(query: string, results: CIE10Entry[]): void {
     }
 
     saveCache(cache);
-    console.log(`✅ Cache saved! Now has ${cache.entries.length} entries:`, cache.entries.map(e => e.query));
+    // console.debug(`✅ Cache saved! Now has ${cache.entries.length} entries:`, cache.entries.map(e => e.query));
 }
 
 /**
@@ -156,7 +156,7 @@ export function getCachedQueries(): string[] {
  */
 export function clearAICache(): void {
     localStorage.removeItem(CACHE_KEY);
-    console.log('🗑️ AI results cache cleared');
+    // console.info('🗑️ AI results cache cleared');
 }
 
 /**

@@ -132,7 +132,7 @@ const ensureDbReady = async () => {
         // try to delete and recreate the database once.
         if (errorName === 'UnknownError' || errorName === 'VersionError') {
             try {
-                console.log('[IndexedDB] 🛠️ Deleting corrupted database for recreation...');
+                console.warn('[IndexedDB] 🛠️ Deleting corrupted database for recreation...');
                 await db.close();
                 await Dexie.delete('HangaRoaDB');
 
@@ -140,7 +140,7 @@ const ensureDbReady = async () => {
                 db = new HangaRoaDatabase();
                 await db.open();
 
-                console.log('[IndexedDB] ✨ Database successfully recreated and opened');
+                console.info('[IndexedDB] ✨ Database successfully recreated and opened');
 
                 // Re-trigger migration since we started fresh
                 localStorage.removeItem(MIGRATION_FLAG);
@@ -463,7 +463,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         return false;
     }
 
-    console.log('🔄 Starting migration from localStorage to IndexedDB...');
+    console.info('🔄 Starting migration from localStorage to IndexedDB...');
 
     try {
         await ensureDbReady();
@@ -474,7 +474,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const recordArray = Object.values(records);
             if (recordArray.length > 0) {
                 await db.dailyRecords.bulkPut(recordArray);
-                console.log(`✅ Migrated ${recordArray.length} daily records`);
+                console.info(`✅ Migrated ${recordArray.length} daily records`);
             }
         }
 
@@ -483,7 +483,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         if (nursesData) {
             const nurses = JSON.parse(nursesData) as string[];
             await saveCatalog('nurses', nurses);
-            console.log(`✅ Migrated nurses catalog (${nurses.length} entries)`);
+            console.info(`✅ Migrated nurses catalog (${nurses.length} entries)`);
         }
 
         // Migrate TENS list
@@ -491,7 +491,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
         if (tensData) {
             const tens = JSON.parse(tensData) as string[];
             await saveCatalog('tens', tens);
-            console.log(`✅ Migrated TENS catalog (${tens.length} entries)`);
+            console.info(`✅ Migrated TENS catalog (${tens.length} entries)`);
         }
 
         // Migrate audit logs
@@ -500,7 +500,7 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const logs = JSON.parse(auditData) as AuditLogEntry[];
             if (logs.length > 0) {
                 await db.auditLogs.bulkPut(logs);
-                console.log(`✅ Migrated ${logs.length} audit logs`);
+                console.info(`✅ Migrated ${logs.length} audit logs`);
             }
         }
 
@@ -511,12 +511,12 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
             const recordArray = Object.values(records);
             if (recordArray.length > 0) {
                 await db.demoRecords.bulkPut(recordArray);
-                console.log(`✅ Migrated ${recordArray.length} demo records`);
+                console.info(`✅ Migrated ${recordArray.length} demo records`);
             }
         }
 
         localStorage.setItem(MIGRATION_FLAG, 'true');
-        console.log('✅ Migration complete!');
+        console.info('✅ Migration complete!');
 
         return true;
     } catch (error) {

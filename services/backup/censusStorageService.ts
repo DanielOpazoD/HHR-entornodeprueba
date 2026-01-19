@@ -65,7 +65,7 @@ export const uploadCensus = async (
     excelBlob: Blob,
     date: string
 ): Promise<string> => {
-    console.log(`[CensusStorage] Starting upload for ${date}...`);
+    // console.info(`[CensusStorage] Starting upload for ${date}...`);
     await firebaseReady;
 
     const filePath = generateCensusPath(date);
@@ -84,7 +84,7 @@ export const uploadCensus = async (
     await uploadBytes(storageRef, excelBlob, metadata);
     const downloadUrl = await getDownloadURL(storageRef);
 
-    console.log(`✅ [CensusStorage] Upload complete: ${filePath}`);
+    // console.info(`✅ [CensusStorage] Upload complete: ${filePath}`);
     return downloadUrl;
 };
 
@@ -115,7 +115,7 @@ export const deleteCensusFile = async (date: string): Promise<void> => {
     const filePath = generateCensusPath(date);
     const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
-    console.log(`🗑️ Census deleted: ${filePath}`);
+    // console.info(`🗑️ Census deleted: ${filePath}`);
 };
 
 /**

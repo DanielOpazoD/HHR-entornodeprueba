@@ -1,0 +1,5 @@
+
+> hanga-roa-hospital-tracker@0.0.1 lint
+> eslint . --report-unused-disable-directives --max-warnings 1500 --format unix
+
+The unix formatter is no longer part of core ESLint. Install it manually with `npm install -D eslint-formatter-unix`

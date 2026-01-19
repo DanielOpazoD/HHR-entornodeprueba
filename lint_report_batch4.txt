@@ -1,0 +1,4 @@
+
+> hanga-roa-hospital-tracker@0.0.1 lint
+> eslint . --report-unused-disable-directives --max-warnings 1500 -f compact --max-warnings=5000
+

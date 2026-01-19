@@ -62,7 +62,7 @@ export const requestAccessToken = (): Promise<string> => {
                     // Usually tokens expire in 3600 seconds
                     tokenExpiry = Date.now() + (response.expires_in || 3600) * 1000;
 
-                    console.log('[GoogleDrive] Access token acquired');
+                    // console.debug('[GoogleDrive] Access token acquired');
                     resolve(accessToken!);
                 },
             });
@@ -120,7 +120,7 @@ export const uploadToDrive = async (blob: Blob, fileName: string): Promise<{ fil
             closeDelimiter;
 
         // 3. Send request
-        console.log(`[GoogleDrive] Uploading ${fileName}...`);
+        // console.info(`[GoogleDrive] Uploading ${fileName}...`);
         const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
             method: 'POST',
             headers: {
@@ -137,7 +137,7 @@ export const uploadToDrive = async (blob: Blob, fileName: string): Promise<{ fil
         }
 
         const data = await response.json();
-        console.log('[GoogleDrive] Upload successful:', data.id);
+        // console.info('[GoogleDrive] Upload successful:', data.id);
 
         return {
             fileId: data.id,
@@ -297,7 +297,7 @@ const updateFileContent = async (
     }
 
     const data = await response.json();
-    console.log(`[GoogleDrive] File updated: ${fileId}`);
+    // console.info(`[GoogleDrive] File updated: ${fileId}`);
     return { fileId: data.id, webViewLink: data.webViewLink };
 };
 
@@ -334,7 +334,7 @@ const createFolder = async (
     }
 
     const data = await response.json();
-    console.log(`[GoogleDrive] Created folder: ${folderName} (${data.id})`);
+    // console.info(`[GoogleDrive] Created folder: ${folderName} (${data.id})`);
     return data.id;
 };
 
@@ -348,7 +348,7 @@ const getOrCreateFolder = async (
 ): Promise<string> => {
     const existingId = await findFolderByName(token, folderName, parentId);
     if (existingId) {
-        console.log(`[GoogleDrive] Found existing folder: ${folderName}`);
+        // console.debug(`[GoogleDrive] Found existing folder: ${folderName}`);
         return existingId;
     }
     return await createFolder(token, folderName, parentId);
@@ -368,12 +368,12 @@ const uploadToFolder = async (
     const existingFileId = await findFileByName(token, fileName, folderId);
 
     if (existingFileId) {
-        console.log(`[GoogleDrive] File "${fileName}" already exists, overwriting...`);
+        // console.info(`[GoogleDrive] File "${fileName}" already exists, overwriting...`);
         return await updateFileContent(token, existingFileId, blob);
     }
 
     // File doesn't exist, create new one
-    console.log(`[GoogleDrive] Creating new file: ${fileName}`);
+    // console.info(`[GoogleDrive] Creating new file: ${fileName}`);
     const metadata = {
         name: fileName,
         mimeType: blob.type,
@@ -451,7 +451,7 @@ export const uploadToTransferFolder = async (
     const cleanRut = options.patientRut.replace(/[.-]/g, '');
     const patientFolder = `${cleanName}_${cleanRut}`;
 
-    console.log(`[GoogleDrive] Creating folder structure: Traslados HHR / ${year} / ${month} / ${patientFolder}`);
+    // console.info(`[GoogleDrive] Creating folder structure: Traslados HHR / ${year} / ${month} / ${patientFolder}`);
 
     // Build folder hierarchy
     const rootFolderId = await getOrCreateFolder(token, 'Traslados HHR');
@@ -460,10 +460,10 @@ export const uploadToTransferFolder = async (
     const patientFolderId = await getOrCreateFolder(token, patientFolder, monthFolderId);
 
     // Upload file to patient folder
-    console.log(`[GoogleDrive] Uploading ${fileName} to patient folder...`);
+    // console.info(`[GoogleDrive] Uploading ${fileName} to patient folder...`);
     const result = await uploadToFolder(token, blob, fileName, patientFolderId);
 
-    console.log('[GoogleDrive] Upload to structured folder complete:', result.fileId);
+    // console.info('[GoogleDrive] Upload to structured folder complete:', result.fileId);
 
     return {
         ...result,

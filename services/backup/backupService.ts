@@ -139,7 +139,7 @@ export const saveNursingHandoffBackup = async (
     const docRef = doc(getBackupCollection(), backupId);
     await setDoc(docRef, backupData);
 
-    console.log(`✅ Backup saved/updated: ${backupId}`);
+    // console.info(`✅ Backup saved/updated: ${backupId}`);
     return backupId;
 };
 
@@ -226,7 +226,7 @@ export const listBackupFiles = async (
 export const deleteBackupFile = async (id: string): Promise<void> => {
     const docRef = doc(getBackupCollection(), id);
     await deleteDoc(docRef);
-    console.log(`🗑️ Backup deleted: ${id}`);
+    // console.info(`🗑️ Backup deleted: ${id}`);
 };
 
 // ============= Helpers =============

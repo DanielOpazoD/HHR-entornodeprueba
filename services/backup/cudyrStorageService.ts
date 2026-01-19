@@ -83,7 +83,7 @@ export const uploadCudyrExcel = async (
     excelBlob: Blob,
     date: string
 ): Promise<string> => {
-    console.log(`[CudyrStorage] Starting upload for ${date}...`);
+    // console.info(`[CudyrStorage] Starting upload for ${date}...`);
     await firebaseReady;
 
     if (!storage) {
@@ -103,10 +103,10 @@ export const uploadCudyrExcel = async (
         await getMetadata(legacyRef);
 
         // If found, delete it
-        console.log(`[CudyrStorage] Found legacy duplicate: ${legacyPath}, deleting...`);
+        // console.debug(`[CudyrStorage] Found legacy duplicate: ${legacyPath}, deleting...`);
         const { deleteObject } = await import('firebase/storage');
         await deleteObject(legacyRef);
-        console.log(`[CudyrStorage] ✅ Legacy duplicate deleted`);
+        // console.debug(`[CudyrStorage] ✅ Legacy duplicate deleted`);
     } catch (ignore) {
         // Legacy file doesn't exist, proceed normally
     }
@@ -126,7 +126,7 @@ export const uploadCudyrExcel = async (
     await uploadBytes(storageRef, excelBlob, metadata);
     const downloadUrl = await getDownloadURL(storageRef);
 
-    console.log(`✅ [CudyrStorage] Upload complete: ${filePath}`);
+    // console.info(`✅ [CudyrStorage] Upload complete: ${filePath}`);
     return downloadUrl;
 };
 
@@ -169,7 +169,7 @@ export const deleteCudyrFile = async (date: string): Promise<void> => {
     const filePath = generateCudyrPath(date);
     const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
-    console.log(`🗑️ CUDYR deleted: ${filePath}`);
+    // console.info(`🗑️ CUDYR deleted: ${filePath}`);
 };
 
 /**

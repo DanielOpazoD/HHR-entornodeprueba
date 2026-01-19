@@ -102,7 +102,7 @@ export const createTransferRequest = async (
         updatedAt: Timestamp.now()
     });
 
-    console.log('✅ Transfer request created:', id);
+    // console.info('✅ Transfer request created:', id);
     return transfer;
 };
 
@@ -119,7 +119,7 @@ export const updateTransferRequest = async (
         updatedAt: Timestamp.now()
     }, { merge: true });
 
-    console.log('✅ Transfer request updated:', id);
+    // console.info('✅ Transfer request updated:', id);
 };
 
 /**
@@ -153,7 +153,7 @@ export const changeTransferStatus = async (
         updatedAt: Timestamp.now()
     }, { merge: true });
 
-    console.log(`✅ Transfer ${id} status changed: ${current.status} → ${newStatus}`);
+    // console.info(`✅ Transfer ${id} status changed: ${current.status} → ${newStatus}`);
 };
 
 /**
@@ -194,7 +194,7 @@ export const completeTransfer = async (
     // Delete from active collection
     await deleteDoc(docRef);
 
-    console.log(`✅ Transfer ${id} completed and archived`);
+    // console.info(`✅ Transfer ${id} completed and archived`);
 };
 
 /**
@@ -267,7 +267,7 @@ export const getTransferById = async (id: string): Promise<TransferRequest | nul
 export const deleteTransferRequest = async (id: string): Promise<void> => {
     const docRef = doc(getTransfersCollection(), id);
     await deleteDoc(docRef);
-    console.log('🗑️ Transfer request deleted:', id);
+    // console.info('🗑️ Transfer request deleted:', id);
 };
 
 /**
@@ -303,5 +303,5 @@ export const deleteStatusHistoryEntry = async (
         updatedAt: Timestamp.now()
     }, { merge: true });
 
-    console.log(`✅ Transfer ${id} history entry ${historyIndex} deleted, status reverted to ${newStatus}`);
+    // console.info(`✅ Transfer ${id} history entry ${historyIndex} deleted, status reverted to ${newStatus}`);
 };

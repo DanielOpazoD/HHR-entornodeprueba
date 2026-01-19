@@ -137,7 +137,7 @@ export const createListFilesInMonth = <T extends BaseStoredFile>(config: ListFil
                     return [];
                 }
 
-                console.log(`[BaseStorage] 🔍 Found ${result.items.length} items in ${fullStoragePath}, fetching metadata in parallel...`);
+                // console.debug(`[BaseStorage] 🔍 Found ${result.items.length} items in ${fullStoragePath}, fetching metadata in parallel...`);
 
                 const filePromises = result.items.map(async (item) => {
                     try {
