@@ -8,20 +8,14 @@ import {
     exportBookmarksToJson,
     importBookmarksFromJson,
     subscribeToBookmarkPreferences,
-    saveBookmarkPreferences,
-    BookmarkBarPreferences
+    saveBookmarkPreferences
 } from '@/services/bookmarks/bookmarkService';
 import {
     Plus,
     Settings2,
-    ExternalLink,
-    MoreVertical,
-    Trash2,
     Edit2,
     Download,
     Upload,
-    ChevronRight,
-    Search,
     List,
     AlignLeft,
     AlignCenter,
@@ -40,7 +34,7 @@ export const BookmarkBar: React.FC = () => {
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [isManagerOpen, setIsManagerOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<Bookmark | undefined>();
-    const [isImporting, setIsImporting] = useState(false);
+    const [_isImporting, setIsImporting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Alignment state - synced with Firestore
@@ -107,7 +101,7 @@ export const BookmarkBar: React.FC = () => {
         setShowMenu(null);
     };
 
-    const handleDelete = async (id: string) => {
+    const _handleDelete = async (id: string) => {
         if (window.confirm('¿Eliminar este marcador?')) {
             await deleteBookmark(id);
         }
@@ -129,7 +123,7 @@ export const BookmarkBar: React.FC = () => {
                 const content = event.target?.result as string;
                 await importBookmarksFromJson(content);
                 alert('Marcadores importados con éxito');
-            } catch (error) {
+            } catch (_error) {
                 alert('Error al importar marcadores');
             } finally {
                 setIsImporting(false);

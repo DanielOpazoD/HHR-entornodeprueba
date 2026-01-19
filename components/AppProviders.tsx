@@ -5,7 +5,7 @@
  */
 
 import React, { ReactNode } from 'react';
-import { DailyRecordProvider, StaffProvider, AuditProvider } from '@/context';
+import { DailyRecordProvider, StaffProvider } from '@/context';
 import { TableConfigProvider } from '@/context/TableConfigContext';
 import { UISettingsProvider } from '@/context/UISettingsContext';
 import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
@@ -13,7 +13,7 @@ import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
 interface AppProvidersProps {
     children: ReactNode;
     dailyRecordHook: DailyRecordContextType;
-    userId: string;
+    _userId: string;
 }
 
 /**
@@ -27,7 +27,7 @@ interface AppProvidersProps {
  * </AppProviders>
  * ```
  */
-export const AppProviders: React.FC<AppProvidersProps> = ({ children, dailyRecordHook, userId }) => {
+export const AppProviders: React.FC<AppProvidersProps> = ({ children, dailyRecordHook, _userId }) => {
     return (
         <DailyRecordProvider value={dailyRecordHook}>
             <StaffProvider>
