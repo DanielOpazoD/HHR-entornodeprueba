@@ -5,7 +5,7 @@ import { Trash2, Save, X, Plus, Scissors, User } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
-import { DemographicsModal } from '@/components/modals/DemographicsModal';
+import { DemographicsModal, DemographicSubset } from '@/components/modals/DemographicsModal';
 import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
 import clsx from 'clsx';
 
@@ -44,14 +44,16 @@ export const CMASection: React.FC = () => {
         updateCMA(id, fields);
     }, [updateCMA]);
 
-    const handleUpdate = (id: string, field: keyof CMAData, value: any) => {
+    const handleUpdate = (id: string, field: keyof CMAData, value: CMAData[keyof CMAData]) => {
         updateCMA(id, { [field]: value });
     };
 
     // Helper to render Specialty Select/Input logic (similar to SpecialtySelect but adapted for CMA state)
     const renderSpecialtyCell = (item: Partial<CMAData>, isNew = false) => {
         const value = item.specialty || '';
-        const isOther = value && !SPECIALTY_OPTIONS.includes(value as any);
+        // Check if value is one of the predefined options
+        const isPredefined = SPECIALTY_OPTIONS.includes(value as typeof SPECIALTY_OPTIONS[number]);
+        const isOther = value && !isPredefined;
 
         const handleChange = (val: string) => {
             if (isNew) setNewEntry({ ...newEntry, specialty: val });
@@ -303,7 +305,7 @@ export const CMASection: React.FC = () => {
                                         <select
                                             className="w-full p-1.5 border border-orange-200 rounded text-xs text-slate-600 focus:outline-none focus:border-orange-400"
                                             value={newEntry.interventionType || 'Cirugía Mayor Ambulatoria'}
-                                            onChange={(e) => setNewEntry({ ...newEntry, interventionType: e.target.value as any })}
+                                            onChange={(e) => setNewEntry({ ...newEntry, interventionType: e.target.value as typeof INTERVENTION_TYPES[number] })}
                                         >
                                             {INTERVENTION_TYPES.map(opt => (
                                                 <option key={opt} value={opt}>{opt}</option>
@@ -415,7 +417,7 @@ export const CMASection: React.FC = () => {
                 <DemographicsModal
                     isOpen={true}
                     onClose={() => setShowDemoModal(null)}
-                    data={newEntry as any}
+                    data={newEntry as DemographicSubset}
                     onSave={(fields) => {
                         setNewEntry({ ...newEntry, ...fields });
                         setShowDemoModal(null);
@@ -431,7 +433,7 @@ export const CMASection: React.FC = () => {
                         key={item.id}
                         isOpen={true}
                         onClose={() => setShowDemoModal(null)}
-                        data={item as any}
+                        data={item}
                         onSave={(fields) => {
                             handleCmaUpdateMultiple(item.id, fields);
                             setShowDemoModal(null);

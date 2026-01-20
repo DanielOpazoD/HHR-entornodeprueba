@@ -14,13 +14,11 @@ import {
     ref,
     uploadBytes,
     getDownloadURL,
-    listAll,
     deleteObject,
     getMetadata
 } from 'firebase/storage';
 import { storage, auth, firebaseReady } from '../../firebaseConfig';
 import {
-    MONTH_NAMES,
     createListYears,
     createListMonths,
     createListFilesInMonth,
@@ -136,8 +134,9 @@ export const getPdfUrl = async (date: string, shiftType: 'day' | 'night'): Promi
         const filePath = generatePdfPath(date, shiftType);
         const storageRef = ref(storage, filePath);
         return await getDownloadURL(storageRef);
-    } catch (error: any) {
-        if (error?.code === 'storage/object-not-found') {
+    } catch (error: unknown) {
+        const storageError = error as { code?: string };
+        if (storageError?.code === 'storage/object-not-found') {
             return null;
         }
         throw error;
@@ -170,12 +169,13 @@ export const pdfExists = async (date: string, shiftType: 'day' | 'night'): Promi
             await getMetadata(storageRef);
             // console.debug(`[PdfStorage] ✅ Found: ${filePath}`);
             return true;
-        } catch (error: any) {
-            if (error?.code === 'storage/object-not-found') {
+        } catch (error: unknown) {
+            const storageError = error as { code?: string, message?: string };
+            if (storageError?.code === 'storage/object-not-found') {
                 // console.debug(`[PdfStorage] ℹ️ Not found: ${date} ${shiftType}`);
                 return false;
             }
-            console.warn(`[PdfStorage] ❌ Error (possibly CORS):`, error.message || error);
+            console.warn(`[PdfStorage] ❌ Error (possibly CORS):`, storageError.message || error);
             return false;
         }
     })();

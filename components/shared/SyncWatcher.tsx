@@ -42,7 +42,7 @@ export const SyncWatcher: React.FC = () => {
         //     success('Guardado', 'Cambios sincronizados correctamente');
         // }
 
-    }, [syncStatus, error, success, warning]);
+    }, [syncStatus, error, success, warning, isDemoMode, isFirebaseConnected]);
 
     return null; // This component doesn't render anything
 };

@@ -9,7 +9,7 @@ import {
     TableColumnConfig,
     getDefaultConfig,
     DEFAULT_COLUMN_WIDTHS,
-    loadTableConfig,
+
     saveTableConfig,
     subscribeToTableConfig,
     exportTableConfig,
@@ -53,7 +53,7 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     // Load initial config and subscribe
     useEffect(() => {
-        setIsLoading(true);
+        // isLoading is initialized to true, no need to set it again synchronously
 
         // Subscribe to real-time updates
         const unsubscribe = subscribeToTableConfig((newConfig) => {

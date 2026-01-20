@@ -1,5 +1,5 @@
 import React from 'react';
-import { TransferData } from '@/types';
+
 import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useCensusActions } from './CensusActionsContext';
 import { ArrowRightLeft, RotateCcw, Pencil, Trash2 } from 'lucide-react';

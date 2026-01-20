@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useFeatureFlag, useAllFeatureFlags } from '@/hooks/useFeatureFlag';
 import { featureFlags } from '@/services';
 
@@ -27,7 +27,7 @@ describe('useFeatureFlag', () => {
             vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
             const { result } = renderHook(() =>
-                useFeatureFlag('SHOW_DEBUG_PANEL' as any)
+                useFeatureFlag('SHOW_DEBUG_PANEL')
             );
 
             expect(result.current).toBe(false);
@@ -37,7 +37,7 @@ describe('useFeatureFlag', () => {
             vi.mocked(featureFlags.isEnabled).mockReturnValue(true);
 
             const { result } = renderHook(() =>
-                useFeatureFlag('SHOW_DEBUG_PANEL' as any)
+                useFeatureFlag('SHOW_DEBUG_PANEL')
             );
 
             expect(result.current).toBe(true);
@@ -48,7 +48,7 @@ describe('useFeatureFlag', () => {
         it('should subscribe to flag changes on mount', () => {
             vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
-            renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL' as any));
+            renderHook(() => useFeatureFlag('SHOW_DEBUG_PANEL'));
 
             expect(featureFlags.subscribe).toHaveBeenCalledWith(
                 'SHOW_DEBUG_PANEL',
@@ -62,7 +62,7 @@ describe('useFeatureFlag', () => {
             vi.mocked(featureFlags.isEnabled).mockReturnValue(false);
 
             const { unmount } = renderHook(() =>
-                useFeatureFlag('SHOW_DEBUG_PANEL' as any)
+                useFeatureFlag('SHOW_DEBUG_PANEL')
             );
 
             unmount();
@@ -81,13 +81,14 @@ describe('useFeatureFlag', () => {
             });
 
             const { result } = renderHook(() =>
-                useFeatureFlag('SHOW_DEBUG_PANEL' as any)
+                useFeatureFlag('SHOW_DEBUG_PANEL')
             );
 
             expect(result.current).toBe(false);
 
             // Simulate flag change
             act(() => {
+                vi.mocked(featureFlags.isEnabled).mockReturnValue(true);
                 subscribeCallback(true);
             });
 
@@ -109,14 +110,14 @@ describe('useAllFeatureFlags', () => {
     it('should return all flags', () => {
         vi.mocked(featureFlags.getAll).mockReturnValue({
             'SHOW_DEBUG_PANEL': true,
-            'ENABLE_WHATSAPP': false
+            'ENABLE_WHATSAPP_INTEGRATION': false
         } as any);
 
         const { result } = renderHook(() => useAllFeatureFlags());
 
         expect(result.current).toEqual({
             'SHOW_DEBUG_PANEL': true,
-            'ENABLE_WHATSAPP': false
+            'ENABLE_WHATSAPP_INTEGRATION': false
         });
     });
 });

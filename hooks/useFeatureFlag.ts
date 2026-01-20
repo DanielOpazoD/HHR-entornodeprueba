@@ -3,7 +3,7 @@
  * React hook for checking feature flag state with automatic re-renders.
  */
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore, useState, useEffect, useCallback } from 'react';
 import { featureFlags, FeatureFlag } from '../services';
 
 /**
@@ -15,19 +15,10 @@ import { featureFlags, FeatureFlag } from '../services';
  * if (showDebug) { ... }
  */
 export const useFeatureFlag = (flag: FeatureFlag): boolean => {
-    const [enabled, setEnabled] = useState(() => featureFlags.isEnabled(flag));
-
-    useEffect(() => {
-        // Subscribe to changes
-        const unsubscribe = featureFlags.subscribe(flag, setEnabled);
-
-        // Update in case it changed since initial render
-        setEnabled(featureFlags.isEnabled(flag));
-
-        return unsubscribe;
-    }, [flag]);
-
-    return enabled;
+    return useSyncExternalStore(
+        (callback) => featureFlags.subscribe(flag, callback),
+        () => featureFlags.isEnabled(flag)
+    );
 };
 
 /**
@@ -37,14 +28,15 @@ export const useFeatureFlag = (flag: FeatureFlag): boolean => {
 export const useAllFeatureFlags = (): Record<FeatureFlag, boolean> => {
     const [flags, setFlags] = useState(() => featureFlags.getAll());
 
+    const updateFlags = useCallback(() => {
+        setFlags(featureFlags.getAll());
+    }, []);
+
     useEffect(() => {
         // Simple approach: poll on interval for debug purposes
-        const interval = setInterval(() => {
-            setFlags(featureFlags.getAll());
-        }, 1000);
-
+        const interval = setInterval(updateFlags, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [updateFlags]);
 
     return flags;
 };

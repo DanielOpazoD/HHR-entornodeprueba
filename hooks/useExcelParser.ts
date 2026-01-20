@@ -14,8 +14,21 @@ import { createWorkbook } from '../services/exporters/excelUtils';
 // Types
 // ============================================================================
 
+interface ExcelRichText {
+    text: string;
+}
+
+interface ExcelFormula {
+    formula?: string;
+    result?: unknown;
+}
+
+interface ExcelErrorValue {
+    error: string;
+}
+
 export interface ParsedCell {
-    value: any;
+    value: string | number | Date | null | boolean;
     colSpan: number;
     rowSpan: number;
     hidden: boolean;
@@ -123,24 +136,23 @@ export function useExcelParser(): UseExcelParserReturn {
 
                         // Extract actual value from complex cell types
                         if (val && typeof val === 'object') {
-                            if ('formula' in val || 'result' in val) {
-                                // Formula cell - get the result
-                                const formulaRes = (val as any).result;
-
-                                // Default to 0 if result is missing (fix for ExcelJS dropping 0s or uncalculated formulas)
-                                val = (formulaRes === undefined || formulaRes === null) ? 0 : formulaRes;
-                            } else if ('richText' in val) {
+                            if ('richText' in val && Array.isArray((val as { richText: unknown }).richText)) {
                                 // Rich text - concatenate all text parts
-                                val = (val as any).richText.map((rt: any) => rt.text).join('');
+                                val = ((val as { richText: ExcelRichText[] }).richText).map((rt) => rt.text).join('');
+                            } else if ('formula' in val || 'result' in val) {
+                                // Formula cell - get the result
+                                const formulaRes = (val as ExcelFormula).result;
+                                // Default to 0 if result is missing
+                                val = (formulaRes === undefined || formulaRes === null) ? 0 : formulaRes as string | number | Date;
                             } else if ('text' in val) {
                                 // Hyperlink or similar
-                                val = (val as any).text;
+                                val = (val as { text: string }).text;
                             }
 
                             // Handle if the extracted result is STILL an object
                             if (val && typeof val === 'object') {
                                 if ('error' in val) {
-                                    val = (val as any).error;
+                                    val = (val as ExcelErrorValue).error;
                                 } else if (val instanceof Date) {
                                     // Keep as Date object
                                 } else {
@@ -148,6 +160,15 @@ export function useExcelParser(): UseExcelParserReturn {
                                     val = '';
                                 }
                             }
+                        }
+
+                        // Ensure val is of allowed type or cast to string
+                        let finalVal: string | number | Date | null | boolean = null;
+                        if (val === null || val === undefined) finalVal = null;
+                        else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean' || val instanceof Date) {
+                            finalVal = val;
+                        } else {
+                            finalVal = String(val);
                         }
 
                         let colSpan = 1;
@@ -179,7 +200,7 @@ export function useExcelParser(): UseExcelParserReturn {
                             }
                         }
 
-                        rowGrid.push({ value: val, colSpan, rowSpan, hidden: false });
+                        rowGrid.push({ value: finalVal, colSpan, rowSpan, hidden: false });
                     }
                     grid.push(rowGrid);
                 }

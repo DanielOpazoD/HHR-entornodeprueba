@@ -50,20 +50,20 @@ export const SpecialtySchema = z.preprocess((val) => {
 // ============================================================================
 
 export const CudyrScoreSchema = z.object({
-    changeClothes: z.number().default(0),
-    mobilization: z.number().default(0),
-    feeding: z.number().default(0),
-    elimination: z.number().default(0),
-    psychosocial: z.number().default(0),
-    surveillance: z.number().default(0),
-    vitalSigns: z.number().default(0),
-    fluidBalance: z.number().default(0),
-    oxygenTherapy: z.number().default(0),
-    airway: z.number().default(0),
-    proInterventions: z.number().default(0),
-    skinCare: z.number().default(0),
-    pharmacology: z.number().default(0),
-    invasiveElements: z.number().default(0),
+    changeClothes: z.number().min(0).max(4),
+    mobilization: z.number().min(0).max(4),
+    feeding: z.number().min(0).max(4),
+    elimination: z.number().min(0).max(4),
+    psychosocial: z.number().min(0).max(4),
+    surveillance: z.number().min(0).max(4),
+    vitalSigns: z.number().min(0).max(4),
+    fluidBalance: z.number().min(0).max(4),
+    oxygenTherapy: z.number().min(0).max(4),
+    airway: z.number().min(0).max(4),
+    proInterventions: z.number().min(0).max(4),
+    skinCare: z.number().min(0).max(4),
+    pharmacology: z.number().min(0).max(4),
+    invasiveElements: z.number().min(0).max(4),
 });
 
 export const DeviceInfoSchema = z.object({
@@ -149,7 +149,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
 // Discharge & Transfer Schemas
 // ============================================================================
 
-export const DischargeDataSchema: z.ZodType<DischargeData> = z.object({
+export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, any> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -169,7 +169,7 @@ export const DischargeDataSchema: z.ZodType<DischargeData> = z.object({
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> = z.object({
+export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, any> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -190,7 +190,7 @@ export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> 
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object({
+export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, any> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     patientName: z.string().default(''),
@@ -207,8 +207,8 @@ export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object
 // DailyRecord Schema
 // ============================================================================
 
-export const DailyRecordSchema: z.ZodType<DailyRecord> = z.object({
-    date: z.string(),
+export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, any> = z.object({
+    date: z.string().regex(DATE_REGEX),
     beds: z.record(z.string(), PatientDataSchema).default({}),
     discharges: z.array(DischargeDataSchema).default([]),
     transfers: z.array(TransferDataSchema).default([]),

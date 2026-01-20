@@ -116,8 +116,9 @@ export const saveNursingHandoffBackup = async (
     const userInfo = getCurrentUserInfo();
     const backupId = generateBackupId(date, shiftType);
 
-    const patientCount = content.beds
-        ? Object.values(content.beds as Record<string, any>).filter(b => b?.patientName).length
+    const beds = (content as { beds?: Record<string, { patientName?: string }> }).beds;
+    const patientCount = beds
+        ? Object.values(beds).filter(b => b?.patientName).length
         : 0;
 
     const backupData = {

@@ -23,7 +23,7 @@ export const useFileOperations = (
         try {
             ExportService.exportDataJSON();
             success('Datos exportados exitosamente', 'Export JSON');
-        } catch (err) {
+        } catch (_err) {
             error('Error al exportar datos', 'Export Error');
         }
     };
@@ -32,7 +32,7 @@ export const useFileOperations = (
         try {
             ExportService.exportDataCSV(record);
             success('CSV exportado exitosamente', 'Export CSV');
-        } catch (err) {
+        } catch (_err) {
             error('Error al exportar CSV', 'Export Error');
         }
     };
@@ -50,7 +50,7 @@ export const useFileOperations = (
                     } else {
                         error('Error al importar datos', 'Import Error');
                     }
-                } catch (err) {
+                } catch (_err) {
                     error('Error al procesar archivo', 'Import Error');
                 }
             } else {

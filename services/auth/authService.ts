@@ -11,7 +11,7 @@ import {
 import { auth } from '../../firebaseConfig';
 import { db } from '../infrastructure/db';
 import { saveSetting, getSetting } from '../storage/indexedDBService';
-import { INSTITUTIONAL_ACCOUNTS, ADMIN_EMAILS } from '../../constants/identities';
+import { INSTITUTIONAL_ACCOUNTS } from '../../constants/identities';
 
 /**
  * User information structure used within the application's authentication state.

@@ -7,13 +7,11 @@ import {
     ref,
     uploadBytes,
     getDownloadURL,
-    listAll,
     deleteObject,
     getMetadata
 } from 'firebase/storage';
 import { storage, auth, firebaseReady } from '../../firebaseConfig';
 import {
-    MONTH_NAMES,
     createListYears,
     createListMonths,
     createListFilesInMonth,
@@ -98,9 +96,10 @@ export const checkCensusExists = async (date: string): Promise<boolean> => {
         const storageRef = ref(storage, filePath);
         await getMetadata(storageRef);
         return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
         // If file doesn't exist, getMetadata throws
-        if (error.code === 'storage/object-not-found') {
+        const storageError = error as { code?: string };
+        if (storageError.code === 'storage/object-not-found') {
             return false;
         }
         console.warn('[CensusStorage] Error checking file existence:', error);

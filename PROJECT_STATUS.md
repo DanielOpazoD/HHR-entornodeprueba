@@ -1,7 +1,7 @@
 # HHR Hospital Tracker - Estado del Proyecto
 
-> **Última actualización:** 2024-12-27
-> **Nota global:** 6.1 / 7
+> **Última actualización:** 2026-01-19
+> **Nota global:** 6.8 / 7
 
 ---
 
@@ -109,7 +109,7 @@ npx playwright test   # Ejecutar todos
 
 | Métrica | Valor | Objetivo |
 |---------|:-----:|:--------:|
-| Unit tests | 368 | 400+ |
+| Unit tests | 1338 | 1500+ |
 | E2E tests | ~20 | 30 |
 | Modals con BaseModal | 1/10 | 10/10 |
 | A11y score | ~70 | 90+ |

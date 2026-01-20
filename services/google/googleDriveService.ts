@@ -5,9 +5,29 @@
  * This service uses the Google Identity Services (GSI) Token Model for authorization.
  */
 
+interface TokenClient {
+    requestAccessToken: () => void;
+}
+
+interface TokenResponse {
+    access_token: string;
+    expires_in: number;
+    error?: unknown;
+}
+
 declare global {
     interface Window {
-        google: any;
+        google: {
+            accounts: {
+                oauth2: {
+                    initTokenClient: (config: {
+                        client_id: string;
+                        scope: string;
+                        callback: (response: TokenResponse) => void;
+                    }) => TokenClient;
+                };
+            };
+        };
     }
 }
 
@@ -51,7 +71,7 @@ export const requestAccessToken = (): Promise<string> => {
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
                 scope: DRIVE_SCOPES,
-                callback: (response: any) => {
+                callback: (response: TokenResponse) => {
                     if (response.error) {
                         console.error('[GoogleDrive] Auth error:', response.error);
                         reject(response);
@@ -310,7 +330,7 @@ const createFolder = async (
     folderName: string,
     parentId?: string
 ): Promise<string> => {
-    const metadata: any = {
+    const metadata: { name: string; mimeType: string; parents?: string[] } = {
         name: folderName,
         mimeType: FOLDER_MIME_TYPE,
     };

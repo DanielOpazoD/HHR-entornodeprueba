@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from 'react';
-import { DailyRecord } from '../types';
+import { DailyRecord, DailyRecordPatch } from '../types';
 import { BEDS } from '../constants';
 import { useNotification } from '../context/UIContext';
 import { getPreviousDay } from '../services/repositories/DailyRecordRepository';
@@ -25,7 +25,7 @@ export interface HandoffManagementActions {
 export const useHandoffManagement = (
     record: DailyRecord | null,
     saveAndUpdate: (updatedRecord: DailyRecord) => Promise<void>,
-    patchRecord: (partial: Record<string, any>) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ): HandoffManagementActions => {
     const { success, error: notifyError } = useNotification();
     const { logEvent, logDebouncedEvent, userId } = useAuditContext();

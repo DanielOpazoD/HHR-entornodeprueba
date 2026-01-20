@@ -9,7 +9,7 @@ interface SendCensusEmailParams {
     nursesSignature?: string;
     subject?: string;
     body?: string;
-    requestedBy?: string;
+
     encryptionPin?: string;
 }
 
@@ -34,7 +34,7 @@ const base64UrlEncode = (value: Buffer) => value
     .replace(/=+$/, '');
 
 const buildMimeMessage = (params: SendCensusEmailParams) => {
-    const { date, recipients, attachmentBuffer, attachmentName, nursesSignature, subject, body, requestedBy, encryptionPin } = params;
+    const { date, recipients, attachmentBuffer, attachmentName, nursesSignature, subject, body, encryptionPin } = params;
 
     const boundary = '----=_Part_0_123456789.123456789';
     const mailSubject = subject || buildCensusEmailSubject(date);

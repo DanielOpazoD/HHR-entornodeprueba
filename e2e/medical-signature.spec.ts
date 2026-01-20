@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { injectMockUser, injectMockData, ensureRecordExists } from './fixtures/auth';
 
 test.describe('Medical Signature Flow', () => {
-    test('complete journey: sender signs -> link generated -> receiver signs', async ({ page, context }) => {
+    test('complete journey: sender signs -> link generated -> receiver signs', async ({ page }) => {
         // --- STEP 1: SENDER JOURNEY (Doctor A) ---
         await injectMockUser(page, 'admin');
         await injectMockData(page);

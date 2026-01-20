@@ -1,6 +1,6 @@
 # 🏥 Hospital Hanga Roa - Sistema de Gestión Clínica
 
-[![CI Status](https://img.shields.io/badge/Tests-701%20passing-brightgreen)](./tests)
+[![CI Status](https://img.shields.io/badge/Tests-1338%20passing-brightgreen)](./tests)
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org)
 [![Firebase](https://img.shields.io/badge/Firebase-12.6-FFCA28?logo=firebase)](https://firebase.google.com)

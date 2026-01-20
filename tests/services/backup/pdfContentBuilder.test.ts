@@ -37,9 +37,9 @@ describe('pdfContentBuilder', () => {
             line: vi.fn(),
             setPage: vi.fn(),
             splitTextToSize: vi.fn((text) => [text]),
-            lastAutoTable: { finalY: 100 }
+            lastAutoTable: { finalY: 100 },
+            getNumberOfPages: vi.fn(() => 1)
         };
-        (mockDoc.internal as any).getNumberOfPages = vi.fn(() => 1);
         mockAutoTable = vi.fn();
 
         // Mock global Image for getBase64ImageFromURL

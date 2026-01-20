@@ -58,5 +58,12 @@ export default tseslint.config(
             '@typescript-eslint/no-empty-object-type': 'warn',
             '@typescript-eslint/ban-ts-comment': 'warn'
         },
+    },
+    {
+        files: ['scripts/**/*.ts', 'scripts/**/*.js', '*.cjs'],
+        rules: {
+            'no-console': 'off',
+            '@typescript-eslint/no-var-requires': 'off'
+        }
     }
 );

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { BedDefinition, DailyRecord, PatientData, ClinicalEvent } from '@/types';
 import { HandoffRow } from './HandoffRow';
-import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
-import clsx from 'clsx';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 interface HandoffPatientTableProps {
     visibleBeds: BedDefinition[];

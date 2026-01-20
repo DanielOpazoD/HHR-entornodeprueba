@@ -95,7 +95,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                     action: 'list_files'
                 });
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('[SharedCensusView] Error fetching files:', err);
                 setLoadError('No se pudieron cargar los archivos del censo.');
             } finally {

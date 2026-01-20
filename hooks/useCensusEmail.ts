@@ -214,7 +214,7 @@ export const useCensusEmail = ({
       // 1. Ensure all days of the month up to the selected day are initialized
       // This is CRITICAL to ensure the report is complete and carries over patients correctly
       const ensureAllDaysInitialized = async () => {
-        const [year, month, day] = currentDateString.split('-').map(Number);
+        const [year, month] = currentDateString.split('-').map(Number);
         const dayNum = parseInt(selectedDay.toString(), 10);
 
         // console.info(`[useCensusEmail] Starting month integrity check up to ${currentDateString}`);
@@ -300,7 +300,9 @@ export const useCensusEmail = ({
     role,
     testModeEnabled,
     testRecipient,
-    isAdminUser
+    isAdminUser,
+    alert,
+    confirm
   ]);
 
   const generateShareLink = useCallback(async (_accessRole: CensusAccessRole = 'viewer'): Promise<string | null> => {
@@ -316,7 +318,7 @@ export const useCensusEmail = ({
       alert('No se pudo generar el link de acceso.');
       return null;
     }
-  }, []);
+  }, [alert]);
 
   const sendEmailWithLink = useCallback(async (accessRole: CensusAccessRole = 'viewer') => {
     if (!record) {
@@ -361,11 +363,12 @@ export const useCensusEmail = ({
       });
 
       setStatus('success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error sending email with link', err);
-      setError(err?.message || 'Error al enviar link.');
+      const errorMessage = (err as Error).message || 'Error al enviar link.';
+      setError(errorMessage);
       setStatus('error');
-      alert(err?.message || 'No se pudo enviar el link de acceso.');
+      alert(errorMessage || 'No se pudo enviar el link de acceso.');
     }
   }, [
     record,
@@ -377,7 +380,8 @@ export const useCensusEmail = ({
     message,
     user,
     role,
-    alert
+    alert,
+    confirm
   ]);
 
   const copyShareLink = useCallback(async (accessRole: CensusAccessRole = 'viewer') => {

@@ -10,14 +10,63 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
-declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: any };
+// Define proper types for Service Worker variables and events
+interface WBManifestEntry {
+    url: string;
+    revision: string | null;
+}
+
+interface ExtendableEvent extends Event {
+    waitUntil(fn: Promise<any>): void;
+}
+
+interface FetchEvent extends ExtendableEvent {
+    request: Request;
+    respondWith(response: Promise<Response> | Response): void;
+    preloadResponse: Promise<any>;
+}
+
+interface ExtendableMessageEvent extends ExtendableEvent {
+    data: any;
+    source: Client | ServiceWorker | MessagePort | null;
+    ports: readonly MessagePort[];
+}
+
+interface Client {
+    url: string;
+    type: ClientType;
+    id: string;
+    postMessage(message: any, transfer?: Transferable[]): void;
+}
+
+type ClientType = "window" | "worker" | "sharedworker" | "all";
+
+interface Clients {
+    get(id: string): Promise<Client | undefined>;
+    matchAll(options?: ClientMatchAllOptions): Promise<Client[]>;
+    openWindow(url: string): Promise<Client | null>;
+    claim(): Promise<void>;
+}
+
+interface ClientMatchAllOptions {
+    includeUncontrolled?: boolean;
+    type?: ClientType;
+}
+
+interface ServiceWorkerGlobalScope extends EventTarget {
+    readonly clients: Clients;
+    skipWaiting(): void;
+}
+
+// Use a typed constant for self to avoid redeclaration conflicts
+const sw = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<WBManifestEntry> };
 
 // ============================================
 // PRECHACING & CLEANUP
 // ============================================
 
 // VitePWA will inject the manifest here
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(sw.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 const CACHE_VERSION = 'v2.2.0';
@@ -108,8 +157,9 @@ registerRoute(
 );
 
 // Fallback for navigation failures
-setCatchHandler(async ({ event }: any) => {
-    if (event.request.mode === 'navigate') {
+setCatchHandler(async ({ event }) => {
+    const fetchEvent = event as FetchEvent;
+    if (fetchEvent.request.mode === 'navigate') {
         const cache = await caches.open(`offline-${CACHE_VERSION}`);
         return (await cache.match(OFFLINE_PAGE)) || Response.error();
     }
@@ -120,21 +170,22 @@ setCatchHandler(async ({ event }: any) => {
 // EVENT LISTENERS
 // ============================================
 
-const sw = (self as any);
-
-sw.addEventListener('install', (event: any) => {
-    event.waitUntil(
+sw.addEventListener('install', (event: Event) => {
+    const extendableEvent = event as ExtendableEvent;
+    extendableEvent.waitUntil(
         caches.open(`offline-${CACHE_VERSION}`).then((cache) => cache.add(OFFLINE_PAGE))
     );
     sw.skipWaiting();
 });
 
-sw.addEventListener('activate', (event: any) => {
-    event.waitUntil(sw.clients.claim());
+sw.addEventListener('activate', (event: Event) => {
+    const extendableEvent = event as ExtendableEvent;
+    extendableEvent.waitUntil(sw.clients.claim());
 });
 
-sw.addEventListener('message', (event: any) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+sw.addEventListener('message', (event: Event) => {
+    const messageEvent = event as ExtendableMessageEvent;
+    if (messageEvent.data && messageEvent.data.type === 'SKIP_WAITING') {
         sw.skipWaiting();
     }
 });

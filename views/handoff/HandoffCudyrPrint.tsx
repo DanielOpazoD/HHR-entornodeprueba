@@ -28,7 +28,7 @@ export const HandoffCudyrPrint: React.FC = () => {
 
         let categorized = 0;
 
-        Object.entries(record.beds).forEach(([bedId, data]) => {
+        Object.entries(record.beds).forEach(([_bedId, data]) => {
             if (data.isBlocked) return;
 
             // Check main patient

@@ -25,7 +25,7 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
     record,
     deliversList,
     receivesList,
-    tensList,
+    tensList: _tensList,
     nursesList,
     readOnly,
     schedule,

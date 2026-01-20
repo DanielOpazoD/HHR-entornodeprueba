@@ -5,7 +5,6 @@ import {
     Terminal,
     ShieldCheck,
     Zap,
-    Activity,
     AlertCircle,
     ChevronRight,
     Target,

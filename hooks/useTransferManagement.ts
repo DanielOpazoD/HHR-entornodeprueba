@@ -53,7 +53,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
 
     // Subscribe to transfers on mount
     useEffect(() => {
-        setIsLoading(true);
+        // isLoading initialized to true
         const unsubscribe = subscribeToTransfers((data) => {
             setTransfers(data);
             setIsLoading(false);
@@ -266,7 +266,7 @@ export const useTransferManagement = (): UseTransferManagementReturn => {
             await updateTransferRequest(transfer.id, {
                 archived: true,
                 archivedAt: new Date().toISOString()
-            } as any);
+            } as Partial<TransferRequest>);
             setError(null);
             // console.info(`📦 Traslado archivado: ${transfer.patientSnapshot.name}`);
         } catch (err) {

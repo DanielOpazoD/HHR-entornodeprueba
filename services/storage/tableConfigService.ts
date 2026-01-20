@@ -5,7 +5,7 @@
 
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
-import { COLLECTIONS, getActiveHospitalId, HOSPITAL_COLLECTIONS, SETTINGS_DOCS, getSettingsDocPath } from '../../constants/firestorePaths';
+import { SETTINGS_DOCS, getSettingsDocPath } from '../../constants/firestorePaths';
 
 // ============================================================================
 // Types
@@ -101,8 +101,8 @@ export const loadTableConfig = async (): Promise<TableConfig> => {
             };
         }
         return getDefaultConfig();
-    } catch (error) {
-        console.error('Error loading table config:', error);
+    } catch (_error) {
+        console.error('Error loading table config:', _error);
         return getDefaultConfig();
     }
 };
@@ -117,9 +117,9 @@ export const saveTableConfig = async (config: TableConfig): Promise<void> => {
             ...config,
             lastUpdated: new Date().toISOString()
         });
-    } catch (error) {
-        console.error('Error saving table config:', error);
-        throw error;
+    } catch (_error) {
+        console.error('Error saving table config:', _error);
+        throw _error;
     }
 };
 
@@ -205,7 +205,7 @@ export const importTableConfig = (file: File): Promise<TableConfig> => {
                 };
 
                 resolve(validConfig);
-            } catch (error) {
+            } catch {
                 reject(new Error('Invalid JSON file'));
             }
         };

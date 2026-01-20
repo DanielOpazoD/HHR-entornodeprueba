@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { exportDataJSON, exportDataCSV, importDataJSON, importDataCSV } from '@/services/exporters/exportService';
 import * as indexedDBService from '@/services/storage/indexedDBService';
-import * as validation from '@/schemas/validation';
+import * as validation from '@/schemas';
 import { DailyRecord } from '@/types';
 
 // Mock dependencies
@@ -10,7 +10,7 @@ vi.mock('@/services/storage/indexedDBService', () => ({
     saveRecord: vi.fn()
 }));
 
-vi.mock('@/schemas/validation', () => ({
+vi.mock('@/schemas', () => ({
     validateBackupData: vi.fn()
 }));
 

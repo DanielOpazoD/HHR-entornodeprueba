@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
-import { DailyRecord } from '@/types';
 import { MONTH_NAMES } from '@/constants';
-import { Calendar, Plus, Copy, ChevronDown, Check } from 'lucide-react';
+import { Copy, Calendar, Plus, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 
 interface EmptyDayPromptProps {
@@ -25,9 +25,9 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
 
     // Format date for display (DD de Mes)
     const formatDate = (dateStr: string) => {
-        const [year, month, day] = dateStr.split('-');
+        const [_year, month, day] = dateStr.split('-');
         const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
-        return `${parseInt(day, 10)} de ${monthName}`;
+        return `${parseInt(day, 10)} de ${monthName} `;
     };
 
     const handleSelectDate = (date: string) => {

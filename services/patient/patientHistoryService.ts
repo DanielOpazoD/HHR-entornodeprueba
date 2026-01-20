@@ -5,7 +5,7 @@
  * Searches by RUT to find all beds, discharges, and transfers.
  */
 
-import { DailyRecord, PatientData } from '../../types';
+import { DailyRecord } from '../../types';
 import { getAllRecords } from '../storage/indexedDBService';
 import { BEDS } from '../../constants';
 

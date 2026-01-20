@@ -6,7 +6,7 @@
 export interface QueryConstraint {
     field: string;
     operator: '==' | '!=' | '>' | '>=' | '<' | '<=' | 'array-contains' | 'in' | 'array-contains-any';
-    value: any;
+    value: unknown;
 }
 
 export interface OrderByConstraint {
@@ -18,7 +18,7 @@ export interface QueryOptions {
     where?: QueryConstraint[];
     orderBy?: OrderByConstraint[];
     limit?: number;
-    startAfter?: any;
+    startAfter?: unknown;
 }
 
 export interface IDatabaseProvider {
@@ -32,7 +32,7 @@ export interface IDatabaseProvider {
     setDoc<T>(collectionName: string, id: string, data: T): Promise<void>;
 
     /** Update specific fields in a document */
-    updateDoc(collectionName: string, id: string, data: Record<string, any>): Promise<void>;
+    updateDoc(collectionName: string, id: string, data: Record<string, unknown>): Promise<void>;
 
     /** Delete a document */
     deleteDoc(collectionName: string, id: string): Promise<void>;
@@ -49,6 +49,6 @@ export interface IDatabaseProvider {
 
 export interface IDatabaseBatch {
     set<T>(collectionName: string, id: string, data: T): void;
-    update(collectionName: string, id: string, data: Record<string, any>): void;
+    update(collectionName: string, id: string, data: Record<string, unknown>): void;
     delete(collectionName: string, id: string): void;
 }

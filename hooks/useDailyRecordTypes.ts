@@ -4,7 +4,7 @@
  * Separated for clarity and reusability.
  */
 
-import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DischargeData, DailyRecordPatch } from '../types';
+import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DailyRecordPatch } from '../types';
 export type { DailyRecordPatch };
 
 // ============================================================================
@@ -68,7 +68,7 @@ export interface DailyRecordActionsContextType {
     refresh: () => void;
 
     // Validation helpers
-    validateRecordSchema: (record: DailyRecord) => { isValid: boolean; errors: any[] };
+    validateRecordSchema: (record: DailyRecord) => { isValid: boolean; errors: import('zod').ZodIssue[] };
     canMovePatient: (sourceBedId: string, targetBedId: string, record: DailyRecord | null) => { canMove: boolean; reason?: string };
     canDischargePatient: (patient: PatientData) => boolean;
 

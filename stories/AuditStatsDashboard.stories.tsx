@@ -14,7 +14,7 @@ const meta: Meta<typeof AuditStatsDashboard> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const mockLogs = Array.from({ length: 50 }).map((_, i) => createMockAuditLog());
+const mockLogs = Array.from({ length: 50 }).map((_, _i) => createMockAuditLog());
 
 export const Default: Story = {
     args: {

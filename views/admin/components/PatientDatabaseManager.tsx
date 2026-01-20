@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, RefreshCw, CheckCircle, UploadCloud, AlertTriangle, Search, Users, Clock, MapPin, Activity, ChevronRight, Info, ExternalLink, Heart } from 'lucide-react';
+import { RefreshCw, CheckCircle, UploadCloud, AlertTriangle, Search, Users, Clock, MapPin, Activity, ChevronRight, Info, Heart } from 'lucide-react';
 import { DailyRecordRepository } from '@/services/repositories/DailyRecordRepository';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 import { MasterPatient, HospitalizationEvent } from '@/types';

@@ -16,6 +16,7 @@ import { uploadPdf, pdfExists } from '../../services/backup/pdfStorageService';
 import { validateCriticalFields, getMissingFieldsLabel } from '../../services/validation/criticalFieldsValidator';
 import { uploadCudyrExcel } from '../../services/backup/cudyrStorageService';
 import { DailyRecord } from '../../types';
+import { Schedule } from '../../services/backup/pdfContentBuilder';
 
 interface SaveBackupButtonProps {
     date: string;
@@ -23,7 +24,7 @@ interface SaveBackupButtonProps {
     deliveryStaff: string;
     receivingStaff: string;
     record: DailyRecord;
-    schedule: any;
+    schedule: Schedule;
     disabled?: boolean;
 }
 

@@ -43,7 +43,7 @@ const MONTHS_ES = [
 
 // Row positions in daily sheets (must match addDailySummaryTable layout)
 const DAILY_SHEET_CATEGORY_START_ROW = 4; // Categories start at row 4 (A1 is row 4, A2 is row 5, etc.)
-const DAILY_SHEET_TOTAL_ROW = 16; // Total row is at row 16
+
 const DAILY_SHEET_OCCUPIED_ROW = 19; // Occupied count at row 19
 const DAILY_SHEET_CATEGORIZED_ROW = 20; // Categorized count at row 20
 

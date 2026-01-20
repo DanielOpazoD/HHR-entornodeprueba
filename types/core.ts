@@ -256,7 +256,7 @@ export interface CMAData {
     birthDate?: string;
     biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
     insurance?: 'Fonasa' | 'Isapre' | 'Particular';
-    admissionOrigin?: string;
+    admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
     admissionOriginDetails?: string;
     origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
     isRapanui?: boolean;
@@ -418,6 +418,7 @@ export type DailyRecordPatchPath =
 /**
  * Type-safe patch object for DailyRecord updates.
  * Keys are dot-notation paths, values are the corresponding field types.
+ * The string index signature allows dynamic paths while known paths get type hints.
  */
 export type DailyRecordPatch = {
     [K in DailyRecordPatchPath]?:
@@ -434,4 +435,7 @@ export type DailyRecordPatch = {
     | number
     | null
     | undefined;
+} & {
+    // Fallback: Allow any string key with unknown value for truly dynamic paths
+    [key: string]: unknown;
 };

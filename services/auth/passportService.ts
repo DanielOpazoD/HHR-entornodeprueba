@@ -86,24 +86,7 @@ async function hashString(message: string): Promise<string> {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * Simple hash function for signature generation (Legacy/Synchronous for compatibility).
- * Keep for signature verification of existing passports if needed, 
- * but new passports will use the more robust hashString.
- */
-const generateSignatureLegacy = (data: string): string => {
-    let hash = 0;
-    const combined = data + SIGNATURE_KEY;
-    for (let i = 0; i < combined.length; i++) {
-        const char = combined.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    // Convert to hex and add some entropy
-    const hex = Math.abs(hash).toString(16).padStart(8, '0');
-    const timestamp = Date.now().toString(36);
-    return `v${PASSPORT_VERSION}-${hex}-${timestamp}`;
-};
+
 
 /**
  * Generate a modern signature using SHA-256.

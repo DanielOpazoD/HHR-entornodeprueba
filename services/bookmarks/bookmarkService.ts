@@ -7,7 +7,6 @@ import {
     onSnapshot,
     query,
     orderBy,
-    serverTimestamp,
     getDocs,
     writeBatch
 } from 'firebase/firestore';
@@ -115,7 +114,7 @@ export const importBookmarksFromJson = async (jsonContent: string) => {
         const colRef = getBookmarksCollection();
 
         // Note: This adds to existing ones. If we want to replace, we should delete first.
-        items.forEach((item, index) => {
+        items.forEach((item, _index) => {
             const newDocRef = doc(colRef);
             batch.set(newDocRef, {
                 name: item.name || 'Sin nombre',

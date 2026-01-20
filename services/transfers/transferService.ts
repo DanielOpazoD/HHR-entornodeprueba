@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { TransferRequest, TransferStatus, StatusChange } from '../../types/transfers';
-import { QuestionnaireResponse } from '../../types/transferDocuments';
+
 import { getActiveHospitalId, COLLECTIONS } from '../../constants/firestorePaths';
 
 // Collection paths

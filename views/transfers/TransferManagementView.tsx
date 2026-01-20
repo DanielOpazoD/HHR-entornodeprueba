@@ -15,9 +15,8 @@ import { TransferRequest, TransferFormData } from '@/types/transfers';
 import { QuestionnaireResponse, TransferPatientData, GeneratedDocument } from '@/types/transferDocuments';
 import { useTransferManagement } from '@/hooks/useTransferManagement';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { getHospitalConfigs, getHospitalConfigById } from '@/constants/hospitalConfigs';
-import { generateTransferDocuments, downloadAllDocuments } from '@/services/transfers/documentGeneratorService';
-import { FileDown } from 'lucide-react';
+import { getHospitalConfigById } from '@/constants/hospitalConfigs';
+import { generateTransferDocuments } from '@/services/transfers/documentGeneratorService';
 
 export const TransferManagementView: React.FC = () => {
     const {
@@ -54,7 +53,7 @@ export const TransferManagementView: React.FC = () => {
     const [patientDataForDocs, setPatientDataForDocs] = useState<TransferPatientData | null>(null);
 
     // Available hospitals for document generation
-    const hospitals = getHospitalConfigs();
+    // const hospitals = getHospitalConfigs();
 
     // Form Modal handlers
     const handleNewRequest = () => {
@@ -212,9 +211,7 @@ export const TransferManagementView: React.FC = () => {
         await handleQuestionnaireComplete(transfer.questionnaireResponses);
     };
 
-    const handleEditOnline = (_doc: GeneratedDocument) => {
-        // Handled internally by TransferDocumentPackageModal using googleDriveService
-    };
+
 
     return (
         <div className="p-4 max-w-7xl mx-auto">

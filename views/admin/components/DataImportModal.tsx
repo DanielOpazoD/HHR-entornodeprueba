@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, FileJson, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { MonthBackup, validateBackupFile, importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
-import clsx from 'clsx';
+
 
 interface DataImportModalProps {
     isOpen: boolean;
@@ -38,7 +38,7 @@ export const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClos
                     setError('El archivo no tiene el formato de respaldo válido de HospitalizadosHHR.');
                     setStatus('ERROR');
                 }
-            } catch (err) {
+            } catch (_err) {
                 setError('Error al leer el archivo JSON. Asegúrese de que sea un archivo válido.');
                 setStatus('ERROR');
             }
@@ -57,7 +57,7 @@ export const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClos
             setResults(res);
             setStatus('SUCCESS');
             onSuccess();
-        } catch (err) {
+        } catch (_err) {
             setError('Error crítico durante la importación. Algunos datos pueden no haberse guardado.');
             setStatus('ERROR');
         }

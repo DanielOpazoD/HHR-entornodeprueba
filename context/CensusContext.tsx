@@ -3,7 +3,7 @@ import { DailyRecordContextType } from '@/hooks/useDailyRecord';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { UseCensusEmailReturn } from '@/hooks/useCensusEmail';
 import { UseFileOperationsReturn } from '@/hooks/useFileOperations';
-import { UseNurseSignatureReturn } from '@/hooks/useNurseSignature';
+
 import { SharedCensusModeResult } from '@/hooks/useSharedCensusMode';
 
 // 1. Define the Context State Interface

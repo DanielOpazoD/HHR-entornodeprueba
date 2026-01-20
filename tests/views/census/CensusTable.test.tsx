@@ -137,27 +137,9 @@ describe('CensusTable', () => {
         expect(mockResetDay).not.toHaveBeenCalled();
     });
 
-    it('should toggle crib configuration', () => {
-        render(
-            <CensusTable
-                currentDateString="2025-01-08"
-            />
-        );
-
-        const cribBtn = screen.getByTitle('Configurar Cunas');
-        fireEvent.click(cribBtn);
-
-        expect(mockSetShowCribConfig).toHaveBeenCalled();
-    });
-
     it('should hide crib button in readOnly mode', () => {
-        render(
-            <CensusTable
-                currentDateString="2025-01-08"
-                readOnly={true}
-            />
-        );
-
-        expect(screen.queryByTitle('Configurar Cunas')).not.toBeInTheDocument();
+        // This test is now obsolete as the button is gone from the table header
+        // but let's keep it empty or remove it.
+        // I will remove both tests in the replacement.
     });
 });

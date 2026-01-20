@@ -54,7 +54,7 @@ export const useExportManager = ({
             console.error('Error generating PDF:', error);
             notifyError('Error al generar el PDF. Por favor intente nuevamente.');
         }
-    }, [record, selectedShift]);
+    }, [record, selectedShift, notifyError]);
 
     const handleBackupExcel = useCallback(async () => {
         // Build Excel and upload to Firebase Storage

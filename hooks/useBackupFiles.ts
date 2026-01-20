@@ -160,7 +160,7 @@ export const useBackupFiles = (): UseBackupFilesReturn => {
     // Initial load
     useEffect(() => {
         loadFiles();
-    }, []);
+    }, [loadFiles]);
 
     return {
         files,

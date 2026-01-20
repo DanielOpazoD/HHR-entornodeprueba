@@ -152,7 +152,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen]); // Stable trigger
+    }, [isOpen, initialFocusRef, onClose]); // Stable trigger
 
     // Don't render if not open
     if (!isOpen) return null;

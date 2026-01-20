@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Database, AlertTriangle, CheckCircle2, Loader2, ChevronRight, BarChart3, Trash2 } from 'lucide-react';
+import { Database, AlertTriangle, CheckCircle2, Loader2, BarChart3, Trash2 } from 'lucide-react';
 import { previewConsolidation, executeConsolidation, ConsolidationPreview, ConsolidationResult } from '../../../../services/admin/auditConsolidationService';
-import clsx from 'clsx';
+
 
 export const ConsolidationManager: React.FC = () => {
     const [loading, setLoading] = useState(false);

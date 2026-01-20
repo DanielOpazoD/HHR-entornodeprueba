@@ -460,7 +460,7 @@ export const calculateHospitalizedDays = (admissionDate?: string, currentDate?: 
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
         return diffDays < 1 ? 1 : diffDays;
-    } catch (e) {
+    } catch (_e) {
         return null;
     }
 };

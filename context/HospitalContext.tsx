@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { HospitalConfigService } from '../services/config/HospitalConfigService';
 
 export interface HospitalConfig {
@@ -30,7 +30,7 @@ const HospitalContext = createContext<HospitalContextType | undefined>(undefined
  */
 export const HospitalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [hospital, setHospital] = useState<HospitalConfig>(DEFAULT_HOSPITAL);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading] = useState(false);
 
     const setHospitalId = (id: string) => {
         // Update both React state and global singleton service

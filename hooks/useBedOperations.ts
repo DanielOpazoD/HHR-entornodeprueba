@@ -237,7 +237,7 @@ export const useBedOperations = (
             ? [...currentExtras, bedId]
             : currentExtras.filter(id => id !== bedId);
 
-        patchRecord({ activeExtraBeds: newExtras } as any);
+        patchRecord({ activeExtraBeds: newExtras } as unknown as DailyRecordPatch);
 
         // Audit Log
         logEvent(

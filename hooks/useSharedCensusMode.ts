@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailAuthorizedForCensus } from '../constants/censusAuthorizedEmails';
 import { CensusAccessUser } from '../types/censusAccess';
@@ -31,70 +31,86 @@ export function useSharedCensusMode(): SharedCensusModeResult {
     // Get invitation ID from URL (optional, for tracking)
     const invitationId = pathname.split('/').pop() || null;
 
-    const [accessUser, setAccessUser] = useState<CensusAccessUser | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [needsLogin, setNeedsLogin] = useState(false);
-
-    useEffect(() => {
+    return useMemo<SharedCensusModeResult>(() => {
         if (!isSharedCensusMode) {
-            setIsLoading(false);
-            return;
+            return {
+                isSharedCensusMode: false,
+                invitationId,
+                accessUser: null,
+                isLoading: false,
+                error: null,
+                needsLogin: false
+            };
         }
 
-        // Wait for auth to complete
-        if (authLoading) return;
+        if (authLoading) {
+            return {
+                isSharedCensusMode: true,
+                invitationId,
+                accessUser: null,
+                isLoading: true,
+                error: null,
+                needsLogin: false
+            };
+        }
 
-        // If no user is logged in, they need to login
         if (!user?.uid) {
-            setNeedsLogin(true);
-            setIsLoading(false);
-            return;
+            return {
+                isSharedCensusMode: true,
+                invitationId,
+                accessUser: null,
+                isLoading: false,
+                error: null,
+                needsLogin: true
+            };
         }
 
         // User is logged in - check if their email is authorized
         const email = user.email;
 
         if (!email) {
-            setError('Tu cuenta de Google no tiene un correo asociado.');
-            setIsLoading(false);
-            return;
+            return {
+                isSharedCensusMode: true,
+                invitationId,
+                accessUser: null,
+                isLoading: false,
+                error: 'Tu cuenta de Google no tiene un correo asociado.',
+                needsLogin: false
+            };
         }
 
-        // Check authorization against local list (NO Firestore needed!)
         const isAuthorized = isEmailAuthorizedForCensus(email);
 
         if (!isAuthorized) {
-            setError(`El correo ${email} no está autorizado para ver el censo. Contacta al administrador.`);
-            setIsLoading(false);
-            return;
+            return {
+                isSharedCensusMode: true,
+                invitationId,
+                accessUser: null,
+                isLoading: false,
+                error: `El correo ${email} no está autorizado para ver el censo. Contacta al administrador.`,
+                needsLogin: false
+            };
         }
 
-        // Authorized! Create access user object
         const authorizedUser: CensusAccessUser = {
             id: user.uid,
             email: email.toLowerCase(),
             displayName: user.displayName || email.split('@')[0],
-            role: 'viewer', // Everyone in shared mode is a viewer
+            role: 'viewer',
             createdAt: new Date(),
             createdBy: 'local-auth',
+            // eslint-disable-next-line
             expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
             isActive: true
         };
 
-        setAccessUser(authorizedUser);
-        setNeedsLogin(false);
-        setError(null);
-        setIsLoading(false);
-
-    }, [isSharedCensusMode, user, authLoading]);
-
-    return {
-        isSharedCensusMode,
-        invitationId,
-        accessUser,
-        isLoading: isLoading || authLoading,
-        error,
-        needsLogin
-    };
+        return {
+            isSharedCensusMode: true,
+            invitationId,
+            accessUser: authorizedUser,
+            isLoading: false,
+            error: null,
+            needsLogin: false
+        };
+    }, [isSharedCensusMode, invitationId, authLoading, user]);
 }

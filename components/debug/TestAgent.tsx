@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Bot, CheckCircle, XCircle, Loader2, Terminal } from 'lucide-react';
 import { DailyRecord, PatientData } from '../../types';
 import { calculateStats } from '../../services/calculations/statsCalculator';
@@ -19,25 +19,17 @@ export const TestAgent: React.FC<TestAgentProps> = ({ isRunning, onComplete, cur
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [progress, setProgress] = useState(0);
 
-    useEffect(() => {
-        if (isRunning) {
-            setLogs([]);
-            setProgress(0);
-            runDiagnostics();
-        }
-    }, [isRunning]);
-
-    const addLog = (message: string, status: 'pending' | 'success' | 'error' = 'pending') => {
+    const addLog = useCallback((message: string, status: 'pending' | 'success' | 'error' = 'pending') => {
         const id = Date.now() + Math.random();
         setLogs(prev => [...prev, { id, message, status }]);
         return id;
-    };
+    }, []);
 
-    const updateLog = (id: number, status: 'success' | 'error') => {
+    const updateLog = useCallback((id: number, status: 'success' | 'error') => {
         setLogs(prev => prev.map(log => log.id === id ? { ...log, status } : log));
-    };
+    }, []);
 
-    const runDiagnostics = async () => {
+    const runDiagnostics = useCallback(async () => {
         const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
         // STEP 1: Storage
@@ -100,7 +92,15 @@ export const TestAgent: React.FC<TestAgentProps> = ({ isRunning, onComplete, cur
 
         await wait(1500);
         onComplete();
-    };
+    }, [currentRecord, onComplete, addLog, updateLog]);
+
+    useEffect(() => {
+        if (isRunning) {
+            setLogs([]);
+            setProgress(0);
+            runDiagnostics();
+        }
+    }, [isRunning, runDiagnostics]);
 
     if (!isRunning) return null;
 

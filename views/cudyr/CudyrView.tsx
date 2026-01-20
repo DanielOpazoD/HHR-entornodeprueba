@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useCallback } from 'react';
 import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { BEDS } from '@/constants';
 import { CudyrScore } from '@/types';
-import { BarChart3, ArrowLeft } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 // Sub-components
 import { CudyrHeader } from './CudyrHeader';

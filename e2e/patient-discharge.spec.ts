@@ -20,9 +20,6 @@ test.describe('Patient Discharge Flow', () => {
         await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
 
         // 2. Find any occupied bed row with patient name
-        const patientInputs = page.locator('table input[type="text"]').filter({ hasText: /.+/ });
-        const firstPatientInput = page.locator('table tbody tr').first().locator('input[type="text"]').first();
-
         // 3. Look for discharge action buttons in the row
         const firstRow = page.locator('table tbody tr').first();
         const actionBtn = firstRow.locator('button').first();

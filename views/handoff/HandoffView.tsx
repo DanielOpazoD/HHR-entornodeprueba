@@ -1,28 +1,20 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
-import { BEDS } from '@/constants';
-import { MessageSquare, Stethoscope, Share2, Send, Printer } from 'lucide-react';
-import clsx from 'clsx';
-import { getShiftSchedule } from '@/utils/dateUtils';
-
-// Sub-components
+import { MessageSquare, Stethoscope } from 'lucide-react';
 import { HandoffHeader } from './HandoffHeader';
 import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffNovedades } from './HandoffNovedades';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
-import { HandoffShiftSelector } from './HandoffShiftSelector';
 import { MedicalHandoffHeader } from './MedicalHandoffHeader';
 import { MovementsSummary } from './MovementsSummary';
 import { HandoffPatientTable } from './HandoffPatientTable';
-import { SaveBackupButton } from '@/components/handoff/SaveBackupButton';
 
 import { useNotification } from '@/context/UIContext';
 import { useHandoffLogic } from '@/hooks';
 import { useAuditContext } from '@/context/AuditContext';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
-import { useEffect } from 'react';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 
 interface HandoffViewProps {
@@ -34,16 +26,11 @@ interface HandoffViewProps {
 export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', readOnly = false, ui: propUi }) => {
     const { record } = useDailyRecordData();
     const {
-        updatePatient,
-        updatePatientMultiple,
-        updateClinicalCrib,
-        updateClinicalCribMultiple,
         updateHandoffChecklist,
         updateHandoffNovedades,
         updateHandoffStaff,
         updateMedicalHandoffDoctor,
         markMedicalHandoffAsSent,
-        sendMedicalHandoff
     } = useDailyRecordActions();
     const { nursesList } = useStaffContext();
     const { success } = useNotification();
@@ -128,7 +115,7 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
         ? 'Entrega Turno Médicos'
         : `Entrega Turno Enfermería - ${selectedShift === 'day' ? 'Día' : 'Noche'} `;
     const Icon = isMedical ? Stethoscope : MessageSquare;
-    const headerColor = isMedical ? 'text-sky-600' : 'text-medical-600';
+    // Removed unused headerColor
     const tableHeaderClass = isMedical
         ? "bg-sky-100 text-sky-900 text-xs uppercase tracking-wider font-semibold border-b border-sky-100"
         : selectedShift === 'day'

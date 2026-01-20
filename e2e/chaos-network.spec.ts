@@ -23,8 +23,6 @@ test.describe('Chaos Network Simulation', () => {
         // 2. Go Offline
         await context.setOffline(true);
 
-        // Check for offline indicator (if the app has one in the UI)
-        const offlineBadge = page.locator('text=OFFLINE');
         // We trigger a change to force the UI to react to offline state
         await nameInput.fill('OFFLINE_CHANGE');
         await nameInput.blur();

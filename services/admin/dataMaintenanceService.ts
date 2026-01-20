@@ -106,13 +106,13 @@ export const importRecordsFromBackup = async (backup: MonthBackup, onProgress?: 
 /**
  * Validates if a file is a valid HHR Backup
  */
-export const validateBackupFile = (content: any): content is MonthBackup => {
+export const validateBackupFile = (content: unknown): content is MonthBackup => {
+    if (!content || typeof content !== 'object') return false;
+    const data = content as Record<string, unknown>;
     return (
-        content &&
-        typeof content === 'object' &&
-        content.version &&
-        Array.isArray(content.records) &&
-        content.records.length > 0 &&
-        content.records[0].date // Basic check for DailyRecord structure
+        typeof data.version === 'string' &&
+        Array.isArray(data.records) &&
+        data.records.length > 0 &&
+        typeof (data.records[0] as DailyRecord).date === 'string'
     );
 };

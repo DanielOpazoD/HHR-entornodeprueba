@@ -8,14 +8,14 @@
 
 import type jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable'; // Removed static import
-import { DailyRecord, PatientData, PatientStatus, ShiftType, DeviceDetails, CudyrScore } from '../../types';
+import { DailyRecord, PatientData, ShiftType, DeviceDetails } from '../../types';
 import { BEDS } from '../../constants';
 import { formatDateDDMMYYYY } from '../dataService';
 
 // Logo path
 const LOGO_PATH = '/images/logos/logo_HHR.png';
 
-interface Schedule {
+export interface Schedule {
     dayStart?: string;
     dayEnd?: string;
     nightStart?: string;
@@ -29,6 +29,19 @@ declare module 'jspdf' {
     }
 }
 
+// Basic types for autoTable to avoid 'any'
+interface AutoTableOptions {
+    startY?: number;
+    head?: (string | { content: string; colSpan?: number; styles?: Record<string, string | number | boolean | number[] | undefined | null>; } | string[])[][];
+    body: (string | { content: string; colSpan?: number; styles?: Record<string, string | number | boolean | number[] | undefined | null>; } | { content: string; styles: Record<string, string | number | boolean | number[] | undefined | null> } | string[])[][];
+    theme?: 'striped' | 'grid' | 'plain';
+    styles?: Record<string, string | number | boolean | number[] | undefined | null>;
+    headStyles?: Record<string, string | number | boolean | number[] | undefined | null>;
+    columnStyles?: Record<number | string, { cellWidth?: number | 'auto' } | Record<string, string | number | boolean | number[] | undefined | null>>;
+    margin?: { top?: number; right?: number; bottom?: number; left?: number };
+    didDrawCell?: (data: { section: string; column: { index: number }; row: { index: number }; cell: { x: number; y: number; width: number; height: number } }) => void;
+}
+
 /**
  * Build handoff PDF content into a jsPDF document
  */
@@ -37,7 +50,7 @@ export const buildHandoffPdfContent = async (
     record: DailyRecord,
     shiftType: ShiftType,
     schedule: Schedule,
-    autoTable: any // Injected dependency
+    autoTable: (doc: jsPDF, options: AutoTableOptions) => void // Injected dependency
 ): Promise<void> => {
     const pageWidth = doc.internal.pageSize.width;
     const margin = 14;
@@ -151,8 +164,10 @@ export const buildHandoffPdfContent = async (
     }
 
     // 3. PATIENT TABLE
-    const tableHeaders = [['Cama', 'Paciente', 'Diagnóstico', 'Est', 'DMI', 'Observaciones']];
-    type TableRow = (string | { content: string; colSpan?: number; styles?: any; } | { content: string; styles: any })[];
+    const tableHeaders: string[][] = [['Cama', 'Paciente', 'Diagnóstico', 'Est', 'DMI', 'Observaciones']];
+    type TableCellStyles = Record<string, string | number | boolean | number[] | undefined | null>;
+    type TableCell = string | { content: string; colSpan?: number; styles?: TableCellStyles; } | { content: string; styles: TableCellStyles };
+    type TableRow = TableCell[];
     const tableBody: TableRow[] = [];
 
     const formatDevices = (p: PatientData): string => {
@@ -180,10 +195,9 @@ export const buildHandoffPdfContent = async (
         if (!patient || !patient.patientName) return;
 
         const admission = patient.admissionDate ? formatDateDDMMYYYY(patient.admissionDate) : '';
-        const observationKey = shiftType === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift';
+        const observationKey = shiftType === 'day' ? 'handoffNoteDayShift' : 'handoffNoteNightShift' as const;
         // Safe access to observation
-        // @ts-ignore - Dynamic key usage
-        const observation = patient[observationKey] || '';
+        const observation = patient[observationKey as keyof PatientData] || '';
         const devicesStr = formatDevices(patient);
 
         tableBody.push([
@@ -198,8 +212,7 @@ export const buildHandoffPdfContent = async (
         // Clinical Crib
         if (patient.clinicalCrib && patient.clinicalCrib.patientName) {
             const crib = patient.clinicalCrib;
-            // @ts-ignore - Dynamic key usage
-            const cribObservation = crib[observationKey] || '';
+            const cribObservation = crib[observationKey as keyof PatientData] || '';
             const cribDevices = formatDevices(crib);
             const cribAdmission = crib.admissionDate ? formatDateDDMMYYYY(crib.admissionDate) : '';
 
@@ -247,7 +260,7 @@ export const buildHandoffPdfContent = async (
             5: { cellWidth: 'auto' }
         },
         margin: { left: margin, right: margin },
-        didDrawCell: (data: any) => {
+        didDrawCell: (data) => {
             if (data.section === 'body' && data.row.index > 0) {
                 doc.setDrawColor(220, 220, 220);
                 doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
@@ -257,9 +270,8 @@ export const buildHandoffPdfContent = async (
 
     // 4. NOVEDADES
     const finalY = doc.lastAutoTable?.finalY || currentY + 20;
-    const novedadesKey = shiftType === 'day' ? 'handoffNovedadesDayShift' : 'handoffNovedadesNightShift';
-    // @ts-ignore
-    const novedades = record[novedadesKey];
+    const novedadesKey = shiftType === 'day' ? 'handoffNovedadesDayShift' : 'handoffNovedadesNightShift' as const;
+    const novedades = record[novedadesKey as keyof DailyRecord] as string | undefined;
 
     if (novedades && finalY < 260) {
         doc.setFontSize(9);
@@ -272,7 +284,7 @@ export const buildHandoffPdfContent = async (
     }
 
     // Page numbering
-    const totalPages = (doc.internal as any).getNumberOfPages();
+    const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         doc.setFontSize(7);
@@ -308,16 +320,4 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
 };
 
 
-/**
- * Replicated calculator to match PDF LITE
- */
-const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string): number | null => {
-    if (!admissionDate || !currentDate) return null;
-    const start = new Date(admissionDate);
-    const end = new Date(currentDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays > 0 ? diffDays : 1;
-};
+

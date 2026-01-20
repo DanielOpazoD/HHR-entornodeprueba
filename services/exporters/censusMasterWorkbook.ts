@@ -1,6 +1,6 @@
-import type { Workbook, Worksheet, Fill, Borders, Font } from 'exceljs';
+import type { Workbook, Worksheet, Fill, Font } from 'exceljs';
 import { DailyRecord, PatientData, DischargeData, TransferData, CMAData } from '../../types';
-import { BEDS, MONTH_NAMES } from '../../constants';
+import { BEDS } from '../../constants';
 import { calculateStats, CensusStatistics } from '../calculations/statsCalculator';
 import { createWorkbook, BORDER_THIN, HEADER_FILL } from './excelUtils';
 
@@ -218,7 +218,7 @@ function addCensusTable(sheet: Worksheet, record: DailyRecord, startRow: number)
 
     let currentRow = startRow + 1;
     let index = 1;
-    const activeExtras = record.activeExtraBeds || [];
+
 
     BEDS.forEach(bed => {
         const patient = record.beds[bed.id];

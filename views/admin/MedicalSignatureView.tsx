@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { HandoffView } from '@/views/handoff/HandoffView';
-import { PenTool, CheckCircle, AlertTriangle } from 'lucide-react';
+import { PenTool, CheckCircle } from 'lucide-react';
 
 export const MedicalSignatureView: React.FC = () => {
     const { record } = useDailyRecordData();

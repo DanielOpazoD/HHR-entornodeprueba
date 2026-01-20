@@ -13,7 +13,8 @@ import {
     listAll,
     getDownloadURL,
     getMetadata,
-    StorageReference
+    StorageReference,
+    FullMetadata
 } from 'firebase/storage';
 import { storage, firebaseReady } from '../../firebaseConfig';
 
@@ -35,8 +36,8 @@ export interface BaseStoredFile {
 
 export interface ListFilesConfig<T> {
     storageRoot: string;
-    parseFilePath: (path: string) => { date: string;[key: string]: any } | null;
-    mapToFile: (item: StorageReference, metadata: any, downloadUrl: string, parsed: any) => T;
+    parseFilePath: (path: string) => { date: string;[key: string]: unknown } | null;
+    mapToFile: (item: StorageReference, metadata: FullMetadata, downloadUrl: string, parsed: { date: string;[key: string]: unknown }) => T;
 }
 
 // ============= Constants =============
@@ -73,7 +74,7 @@ export const createListYears = (storageRoot: string) => {
             })();
 
             return await Promise.race([listPromise, timeoutPromise]);
-        } catch (error) {
+        } catch (error: unknown) {
             console.warn(`[BaseStorage] Error listing years for ${storageRoot}:`, error);
             return [];
         }
@@ -105,7 +106,7 @@ export const createListMonths = (storageRoot: string) => {
             })();
 
             return await Promise.race([listPromise, timeoutPromise]);
-        } catch (error) {
+        } catch (error: unknown) {
             console.warn(`[BaseStorage] Error listing months for ${storageRoot}/${year}:`, error);
             return [];
         }
@@ -154,7 +155,7 @@ export const createListFilesInMonth = <T extends BaseStoredFile>(config: ListFil
                             console.warn(`[BaseStorage] ⚠️ File skipped (failed parsing): ${item.fullPath}`);
                             return null;
                         }
-                    } catch (error) {
+                    } catch (error: unknown) {
                         console.error(`[BaseStorage] ‼️ Error getting file info: ${item.name}`, error);
                         return null;
                     }
@@ -166,7 +167,7 @@ export const createListFilesInMonth = <T extends BaseStoredFile>(config: ListFil
             })();
 
             return await Promise.race([listPromise, timeoutPromise]);
-        } catch (error) {
+        } catch (error: unknown) {
             console.warn(`[BaseStorage] Error listing files for ${fullStoragePath}:`, error);
             return [];
         }

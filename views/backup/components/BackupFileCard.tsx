@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { FileText, Eye, Trash2, Download, Clock, User, Sun, Moon } from 'lucide-react';
-import { BackupFilePreview, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
+import { BackupFilePreview } from '@/types/backup';
 
 interface BackupFileCardProps {
     file: BackupFilePreview;
@@ -22,8 +22,6 @@ export const BackupFileCard: React.FC<BackupFileCardProps> = ({
     onDelete,
     canDelete = false
 }) => {
-    const typeConfig = BACKUP_TYPE_CONFIG[file.type];
-    const shiftConfig = file.shiftType ? SHIFT_TYPE_CONFIG[file.shiftType] : null;
     const isDay = file.shiftType === 'day';
 
     const formatDate = (dateStr: string) => {

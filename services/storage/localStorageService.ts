@@ -8,12 +8,8 @@ import { DailyRecord } from '../../types';
 
 import {
     saveDemoRecord as saveDemoToIndexedDB,
-    getDemoRecordForDate as getDemoFromIndexedDB,
-    getPreviousDemoDayRecord as getPreviousDemoFromIndexedDB,
-    getAllDemoRecords,
     clearAllDemoRecords,
     deleteDemoRecord as deleteDemoToIndexedDB,
-    getRecordForDate as getFromIndexedDB,
 } from './indexedDBService';
 
 // Storage keys

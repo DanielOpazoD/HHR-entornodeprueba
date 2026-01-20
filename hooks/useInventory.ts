@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { DailyRecord, PatientData } from '../types';
+import { DailyRecord } from '../types';
 import { BEDS, HOSPITAL_CAPACITY } from '../constants';
 
 /**

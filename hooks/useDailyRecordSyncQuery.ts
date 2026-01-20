@@ -4,7 +4,7 @@
  * Provides the same interface for compatibility.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import {
     useDailyRecordQuery,
     useSaveDailyRecordMutation,
@@ -22,7 +22,7 @@ import { useNotification } from '../context/UIContext';
 import { useVersion } from '../context/VersionContext';
 import { ConcurrencyError } from '../services/storage/firestoreService';
 import { DataRegressionError, VersionMismatchError } from '../utils/integrityGuard';
-import { useEffect } from 'react';
+
 
 export const useDailyRecordSyncQuery = (
     currentDateString: string,
@@ -35,9 +35,7 @@ export const useDailyRecordSyncQuery = (
     // 1. Fetching
     const {
         data: record,
-        status,
         dataUpdatedAt,
-        fetchStatus,
         refetch
     } = useDailyRecordQuery(currentDateString, _isOfflineMode, _isFirebaseConnected);
 

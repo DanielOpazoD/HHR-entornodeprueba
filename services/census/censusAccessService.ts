@@ -5,7 +5,6 @@ import {
     getDoc,
     addDoc,
     query,
-    where,
     getDocs,
     updateDoc,
     deleteDoc,
@@ -25,6 +24,18 @@ const INVITATIONS_COLLECTION = 'census-access-invitations';
 const USERS_COLLECTION = 'census-access-users';
 const LOGS_COLLECTION = 'census-access-logs';
 const AUTHORIZED_EMAILS_COLLECTION = 'census-authorized-emails';
+
+/**
+ * Normalizes a field that could be a Firestore Timestamp or a Date
+ */
+const toDate = (ts: Timestamp | Date | { toDate: () => Date } | undefined | null): Date => {
+    if (!ts) return new Date();
+    if (ts instanceof Date) return ts;
+    if (typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof (ts as { toDate?: unknown }).toDate === 'function') {
+        return (ts as { toDate: () => Date }).toDate();
+    }
+    return new Date(ts as unknown as string | number);
+};
 
 /**
  * Calculates the end of the next month relative to today
@@ -74,7 +85,7 @@ export const verifyInvitation = async (invitationId: string): Promise<CensusAcce
 
     const data = docSnap.data() as CensusAccessInvitation;
     const now = new Date();
-    const expiresAt = (data.expiresAt as any).toDate ? (data.expiresAt as any).toDate() : new Date(data.expiresAt as any);
+    const expiresAt = toDate(data.expiresAt);
 
     if (data.status !== 'pending' || expiresAt < now) {
         if (data.status === 'pending') {
@@ -141,7 +152,7 @@ export const checkUserAccess = async (userId: string): Promise<CensusAccessUser 
 
     const data = docSnap.data() as CensusAccessUser;
     const now = new Date();
-    const expiresAt = (data.expiresAt as any).toDate ? (data.expiresAt as any).toDate() : new Date(data.expiresAt as any);
+    const expiresAt = toDate(data.expiresAt);
 
     if (!data.isActive || expiresAt < now) {
         return null;

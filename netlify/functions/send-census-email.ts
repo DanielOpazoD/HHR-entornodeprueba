@@ -6,7 +6,14 @@ import type { DailyRecord } from '../../types';
 
 const ALLOWED_ROLES = ['nurse_hospital', 'admin'];
 
-export const handler = async (event: any) => {
+interface NetlifyEvent {
+    httpMethod: string;
+    headers: Record<string, string | undefined>;
+    body: string | null;
+    [key: string]: unknown;
+}
+
+export const handler = async (event: NetlifyEvent) => {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -15,7 +22,6 @@ export const handler = async (event: any) => {
     }
 
     const requesterRole = (event.headers['x-user-role'] || event.headers['X-User-Role']) as string | undefined;
-    const requesterEmail = (event.headers['x-user-email'] || event.headers['X-User-Email']) as string | undefined;
     if (!requesterRole || !ALLOWED_ROLES.includes(requesterRole)) {
         return {
             statusCode: 403,
@@ -115,9 +121,10 @@ export const handler = async (event: any) => {
 
         let attachmentBuffer = null;
         if (!shareLink) {
-             
+
             const XlsxPopulate = require('xlsx-populate');
             attachmentBuffer = await XlsxPopulate.fromDataAsync(attachmentBufferRaw)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .then((workbook: any) => workbook.outputAsync({ password }));
 
             // Validate encrypted buffer
@@ -150,10 +157,10 @@ export const handler = async (event: any) => {
             attachmentName: shareLink ? undefined : attachmentName,
             nursesSignature,
             body: finalBody,
-            requestedBy: requesterEmail,
             encryptionPin: password || undefined
         });
 
+        // eslint-disable-next-line no-console
         console.log('Gmail send response', gmailResponse);
 
         return {
@@ -166,9 +173,9 @@ export const handler = async (event: any) => {
                 exportPassword: password
             })
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error enviando correo de censo', error);
-        const message = error?.message || 'Error desconocido enviando el correo.';
+        const message = error instanceof Error ? error.message : 'Error desconocido enviando el correo.';
         return {
             statusCode: 500,
             body: message

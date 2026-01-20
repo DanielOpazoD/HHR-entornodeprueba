@@ -72,7 +72,7 @@ export const parseAuditTimestamp = (timestamp: any): Date => {
 export const getCurrentUserDisplayName = (): string | undefined => {
     try {
         return getAuth().currentUser?.displayName || undefined;
-    } catch (e) {
+    } catch (_e) {
         return undefined;
     }
 };
@@ -83,7 +83,7 @@ export const getCurrentUserDisplayName = (): string | undefined => {
 export const getCurrentUserUid = (): string | undefined => {
     try {
         return getAuth().currentUser?.uid || undefined;
-    } catch (e) {
+    } catch (_e) {
         return undefined;
     }
 };

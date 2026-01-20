@@ -65,6 +65,32 @@ export interface AuditDetailsBed {
     active?: boolean;
 }
 
+/**
+ * Device change details for tracking invasive device modifications.
+ */
+export interface AuditDeviceChange {
+    old: string | null | { installationDate?: string; notes?: string } | 'N/A';
+    new: string | null | { installationDate?: string; notes?: string } | 'Eliminado';
+}
+
+/**
+ * Generic field change tracking with old/new values.
+ */
+export interface AuditFieldChange {
+    old: AuditValue;
+    new: AuditValue;
+}
+
+/**
+ * Map of device changes keyed by device name.
+ */
+export type AuditDeviceChangesMap = Record<string, AuditDeviceChange>;
+
+/**
+ * Map of generic field changes keyed by field name.
+ */
+export type AuditFieldChangesMap = Record<string, AuditFieldChange>;
+
 export type AuditDetails = AuditDetailsPatient & AuditDetailsChange & AuditDetailsHandoff & AuditDetailsBed & Record<string, unknown>;
 
 export interface AuditLogEntry {

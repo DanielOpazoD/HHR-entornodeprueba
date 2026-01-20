@@ -64,7 +64,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
     selectedYear, setSelectedYear,
     selectedMonth, setSelectedMonth,
     selectedDay, setSelectedDay,
-    currentDateString,
+
     daysInMonth,
     existingDaysInMonth,
     // Actions

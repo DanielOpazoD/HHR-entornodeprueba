@@ -12,10 +12,12 @@ type Insurance = 'Fonasa' | 'Isapre' | 'Particular';
 type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
 type Origin = 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
 
+export type DemographicSubset = Pick<PatientData, 'patientName' | 'rut' | 'age' | 'birthDate' | 'insurance' | 'admissionOrigin' | 'admissionOriginDetails' | 'origin' | 'isRapanui' | 'biologicalSex'>;
+
 interface DemographicsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    data: PatientData;
+    data: DemographicSubset;
     onSave: (updatedFields: Partial<PatientData>) => void;
     bedId: string;
     recordDate: string;

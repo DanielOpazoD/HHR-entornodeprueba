@@ -65,7 +65,7 @@ export async function checkBotHealth(): Promise<{
         }
 
         return await response.json();
-    } catch (error) {
+    } catch (_error) {
         return {
             status: 'error',
             whatsapp: 'disconnected',
@@ -157,7 +157,7 @@ export async function fetchShiftsFromGroup(): Promise<{
             success: result.success,
             message: result.message
         };
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
         return {
             success: false,
             message: '',
@@ -196,8 +196,8 @@ export async function getWhatsAppConfig(): Promise<WhatsAppConfig | null> {
                 autoSendTime: '17:00'
             }
         };
-    } catch (error) {
-        console.error('Error getting WhatsApp config:', error);
+    } catch (_error) {
+        console.error('Error getting WhatsApp config:', _error);
         return null;
     }
 }
@@ -212,8 +212,8 @@ export async function updateWhatsAppConfig(
         const docRef = doc(db, 'whatsapp', 'config');
         await setDoc(docRef, config, { merge: true });
         return true;
-    } catch (error) {
-        console.error('Error updating WhatsApp config:', error);
+    } catch (_error) {
+        console.error('Error updating WhatsApp config:', _error);
         return false;
     }
 }
@@ -244,8 +244,8 @@ export async function getMessageTemplates(): Promise<MessageTemplate[]> {
 
         // Return default templates
         return getDefaultTemplates();
-    } catch (error) {
-        console.error('Error getting templates:', error);
+    } catch (_error) {
+        console.error('Error getting templates:', _error);
         return getDefaultTemplates();
     }
 }
@@ -260,8 +260,8 @@ export async function saveMessageTemplates(
         const docRef = doc(db, 'whatsapp', 'templates');
         await setDoc(docRef, { templates }, { merge: true });
         return true;
-    } catch (error) {
-        console.error('Error saving templates:', error);
+    } catch (_error) {
+        console.error('Error saving templates:', _error);
         return false;
     }
 }
@@ -323,8 +323,8 @@ export async function logWhatsAppOperation(log: Omit<WhatsAppLog, 'id' | 'timest
             ...log,
             timestamp: Timestamp.now()
         });
-    } catch (error) {
-        console.error('Error logging WhatsApp operation:', error);
+    } catch (_error) {
+        console.error('Error logging WhatsApp operation:', _error);
     }
 }
 

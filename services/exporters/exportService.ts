@@ -188,7 +188,7 @@ export const importDataJSON = async (file: File): Promise<boolean> => {
     });
 };
 
-export const importDataCSV = async (file: File): Promise<boolean> => {
+export const importDataCSV = async (_file: File): Promise<boolean> => {
     console.warn("CSV Import not fully implemented. Use JSON.");
     return Promise.resolve(false);
 };

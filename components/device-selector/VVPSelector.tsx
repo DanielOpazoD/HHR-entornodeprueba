@@ -8,7 +8,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { Settings } from 'lucide-react';
 import { DeviceDetails } from '../../types';
-import { VVP_DEVICE_KEYS } from '../../constants';
+
 import { TrackedDevice } from './index';
 
 interface VVPSelectorProps {

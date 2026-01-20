@@ -259,19 +259,20 @@ export const saveRecordToFirestore = async (record: DailyRecord, expectedLastUpd
  * Flattens a nested object into a single-level object with dot-notation keys.
  * Used for Firestore partial updates to avoid overwriting nested objects.
  */
-const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
-    return Object.keys(obj).reduce((acc: any, k) => {
+const flattenObject = (obj: Record<string, unknown>, prefix = ''): Record<string, unknown> => {
+    return Object.keys(obj).reduce((acc: Record<string, unknown>, k) => {
         const pre = prefix.length ? prefix + '.' : '';
+        const val = obj[k];
         if (
-            typeof obj[k] === 'object' &&
-            obj[k] !== null &&
-            !Array.isArray(obj[k]) &&
-            !(obj[k] instanceof Date) &&
-            !(obj[k] instanceof Timestamp)
+            typeof val === 'object' &&
+            val !== null &&
+            !Array.isArray(val) &&
+            !(val instanceof Date) &&
+            !(val instanceof Timestamp)
         ) {
-            Object.assign(acc, flattenObject(obj[k], pre + k));
+            Object.assign(acc, flattenObject(val as Record<string, unknown>, pre + k));
         } else {
-            acc[pre + k] = obj[k];
+            acc[pre + k] = val;
         }
         return acc;
     }, {});
@@ -296,7 +297,7 @@ export const updateRecordPartial = async (date: string, partialData: DailyRecord
             lastUpdated: Timestamp.now()
         });
 
-        await withRetry(() => updateDoc(docRef, sanitizedData as any), {
+        await withRetry(() => updateDoc(docRef, sanitizedData as Record<string, unknown>), {
             onRetry: (err, attempt) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
         });
         // console.info('✅ Partial update to Firestore (flattened):', date, Object.keys(flatData));

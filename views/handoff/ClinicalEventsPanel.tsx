@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import { ClinicalEvent } from '@/types/core';
-import { Plus, Pencil, Trash2, Check, X, Calendar, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ClinicalEventsPanelProps {

@@ -4,7 +4,7 @@
  * Uses localStorage injection to mock authenticated users.
  */
 
-import { test as base, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 // Mock user data for different roles
 export const MOCK_USERS = {
@@ -131,7 +131,7 @@ export async function injectMockUser(page: any, role: 'editor' | 'admin' | 'view
 export async function injectMockData(page: any, date?: string, populateWithPatient: boolean = false) {
     // If we're already on the page, we just inject data and reload
     const targetDate = date || new Date().toISOString().split('T')[0];
-    await page.evaluate(({ dateStr, populate }: { dateStr: string, populate: boolean }) => {
+    await page.evaluate(({ dateStr, _populate }: { dateStr: string, _populate: boolean }) => {
         const STORAGE_KEY = 'hanga_roa_hospital_data';
         // ... (simplified version for legacy support)
         const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');

@@ -153,11 +153,9 @@ test.describe('Audit Trail Flow', () => {
         ];
 
         // Check if any action type appears in table
-        let foundAction = false;
         for (const action of actionTypes) {
             const cell = page.locator(`td:has-text("${action}")`);
             if (await cell.isVisible({ timeout: 1000 }).catch(() => false)) {
-                foundAction = true;
                 break;
             }
         }

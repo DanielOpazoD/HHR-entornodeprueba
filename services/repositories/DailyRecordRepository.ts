@@ -310,7 +310,8 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatch)
                         if (patient && patient.patientName) {
                             patient.fhir_resource = mapPatientToFhir(patient);
                             // Add the fhir_resource update to the original patch
-                            (partialData as any)[`beds.${bedId}.fhir_resource`] = patient.fhir_resource;
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (partialData as Record<string, any>)[`beds.${bedId}.fhir_resource`] = patient.fhir_resource;
                         }
                     }
                 });
@@ -417,7 +418,14 @@ export const initializeDay = async (
             if (prevPatient) {
                 // Robust copy condition: Copy if patient has a name, is blocked OR has diagnosis data (CIE-10 or free text)
                 // This prevents losing diagnosis data if the name was not yet entered.
-                if (prevPatient.patientName || prevPatient.isBlocked || prevPatient.cie10Code || prevPatient.pathology) {
+                if (
+                    prevPatient.patientName ||
+                    prevPatient.isBlocked ||
+                    prevPatient.cie10Code ||
+                    prevPatient.cie10Description ||
+                    prevPatient.pathology ||
+                    prevPatient.diagnosisComments
+                ) {
                     initialBeds[bed.id] = clonePatient(prevPatient);
 
                     // Reset CUDYR for the new day to ensure re-categorization

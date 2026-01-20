@@ -25,15 +25,18 @@ export const MessageTemplatesEditor: React.FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
 
-    const loadTemplates = async () => {
-        setLoading(true);
-        const data = await getMessageTemplates();
-        setTemplates(data);
-        setLoading(false);
-    };
-
     useEffect(() => {
-        loadTemplates();
+        let isMounted = true;
+        const fetchTemplates = async () => {
+            // Loading is already true by default state
+            const data = await getMessageTemplates();
+            if (isMounted) {
+                setTemplates(data);
+                setLoading(false);
+            }
+        };
+        fetchTemplates();
+        return () => { isMounted = false; };
     }, []);
 
     const handleEdit = (template: MessageTemplate) => {

@@ -19,9 +19,7 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
     // Staff management from StaffContext
     const {
         nursesList,
-        setNursesList,
         tensList,
-        setTensList,
         showNurseManager,
         setShowNurseManager,
         showTensManager,

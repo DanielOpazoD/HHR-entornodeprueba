@@ -4,7 +4,7 @@
  * Supports multi-day generation with patient continuity.
  */
 
-import { DailyRecord, PatientData, PatientStatus, Specialty, DischargeData, TransferData, ClinicalEvent } from '../../types';
+import { DailyRecord, PatientData, PatientStatus, Specialty, DischargeData, TransferData } from '../../types';
 import { BEDS, DEVICE_OPTIONS, VVP_DEVICE_KEYS } from '../../constants';
 import { createEmptyPatient } from '../factories/patientFactory';
 import { getTimeRoundedToStep } from '../../utils';
@@ -147,7 +147,7 @@ const getDaysInMonth = (year: number, month: number): number => {
 
 const generateNewPatient = (bedId: string, admissionDate: string): PatientData => {
     const patient = createEmptyPatient(bedId);
-    const bedDef = BEDS.find(b => b.id === bedId);
+    const _bedDef = BEDS.find(b => b.id === bedId);
 
     patient.patientName = getUniqueName();
     patient.rut = randomItem(LOCAL_DEMO_RUTS);

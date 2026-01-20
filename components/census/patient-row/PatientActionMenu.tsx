@@ -10,7 +10,6 @@ interface PatientActionMenuProps {
     onViewHistory?: () => void;
     readOnly?: boolean;
     align?: 'top' | 'bottom';
-    hasPatient?: boolean;
 }
 
 export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
@@ -20,8 +19,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     onViewExamRequest,
     onViewHistory,
     readOnly = false,
-    align = 'top',
-    hasPatient = false
+    align = 'top'
 }) => {
     const [showMenu, setShowMenu] = useState(false);
 

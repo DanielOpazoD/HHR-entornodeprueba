@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PatientData, PatientStatus, ClinicalEvent } from '@/types';
 import { Baby, AlertCircle, Clock, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
@@ -32,7 +32,7 @@ interface HandoffRowProps {
 
 export const HandoffRow: React.FC<HandoffRowProps> = ({
     bedName,
-    bedType,
+    bedType: _bedType,
     patient,
     reportDate,
     isSubRow = false,

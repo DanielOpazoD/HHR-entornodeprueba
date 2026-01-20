@@ -3,185 +3,8 @@
 > eslint . --report-unused-disable-directives --max-warnings 1500
 
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/DeviceSelector.tsx
-  38:7  warning  '_areArraysEqual' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/admin/CensusAccessManager.tsx
-  47:18  warning  '_err' is defined but never used  @typescript-eslint/no-unused-vars
-  80:18  warning  '_err' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/auth/LoginPage.tsx
-   31:12  warning  '_isDragging' is assigned a value but never used        @typescript-eslint/no-unused-vars
-   33:11  warning  '_fileInputRef' is assigned a value but never used      @typescript-eslint/no-unused-vars
-   89:11  warning  '_handleFileSelect' is assigned a value but never used  @typescript-eslint/no-unused-vars
-   96:11  warning  '_handleDrop' is assigned a value but never used        @typescript-eslint/no-unused-vars
-  108:11  warning  '_handleDragOver' is assigned a value but never used    @typescript-eslint/no-unused-vars
-  113:11  warning  '_handleDragLeave' is assigned a value but never used   @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/bookmarks/BookmarkBar.tsx
-   37:12  warning  '_isImporting' is assigned a value but never used   @typescript-eslint/no-unused-vars
-  104:11  warning  '_handleDelete' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  126:22  warning  '_error' is defined but never used                  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/CensusEmailConfigModal.tsx
-  55:13  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/CensusEmailConfigModal.tsx:55:13
-  53 |     useEffect(() => {
-  54 |         if (isOpen) {
-> 55 |             setError(null);
-     |             ^^^^^^^^ Avoid calling setState() directly within an effect
-  56 |             setNewRecipient('');
-  57 |             setShowBulkEditor(false);
-  58 |             setBulkRecipients(safeRecipients.join('\n'));  react-hooks/set-state-in-effect
-  63:8   warning  React Hook useEffect has a missing dependency: 'safeRecipients'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/patient-row/DeliveryRoutePopover.tsx
-  37:9  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/patient-row/DeliveryRoutePopover.tsx:37:9
-  35 |     // Sync local state with props when they change
-  36 |     useEffect(() => {
-> 37 |         setSelectedRoute(deliveryRoute);
-     |         ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  38 |         setSelectedDate(deliveryDate || '');
-  39 |     }, [deliveryRoute, deliveryDate]);
-  40 |  react-hooks/set-state-in-effect
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/patient-row/PatientActionMenu.tsx
-  24:5  warning  'hasPatient' is assigned a value but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/patient-row/RutPassportInput.tsx
-   6:10  warning  'MasterPatient' is defined but never used  @typescript-eslint/no-unused-vars
-  45:43  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  52:35  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/census/patient-row/SpecialtySelect.tsx
   18:85  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/debug/TestAgent.tsx
-   4:10  warning  'BEDS' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
-  29:8   warning  React Hook useEffect has a missing dependency: 'runDiagnostics'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
-  57:18  warning  'e' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/device-selector/DeviceMenu.tsx
-  33:7  warning  'isTrackedDevice' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/device-selector/VVPSelector.tsx
-  11:10  warning  'VVP_DEVICE_KEYS' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/handoff/SaveBackupButton.tsx
-   26:15  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   50:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   59:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  127:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  133:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/layout/AppContent.tsx
-  14:10  warning  'generateCudyrMonthlyExcel' is defined but never used  @typescript-eslint/no-unused-vars
-  57:59  warning  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/layout/DateStrip.tsx
-  67:5  warning  'currentDateString' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/layout/Navbar.tsx
-  9:10  warning  'useDailyRecordContext' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/layout/NavbarMenu.tsx
-  49:5  warning  'currentModule' is defined but never used. Allowed unused args must match /^_/u      @typescript-eslint/no-unused-vars
-  51:5  warning  'censusViewMode' is defined but never used. Allowed unused args must match /^_/u     @typescript-eslint/no-unused-vars
-  52:5  warning  'setCensusViewMode' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-  53:5  warning  'onExportJSON' is defined but never used. Allowed unused args must match /^_/u       @typescript-eslint/no-unused-vars
-  54:5  warning  'onImportClick' is defined but never used. Allowed unused args must match /^_/u      @typescript-eslint/no-unused-vars
-  57:5  warning  'visibleModules' is defined but never used. Allowed unused args must match /^_/u     @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/layout/SyncStatusIndicator.tsx
-  7:17  warning  'CloudOff' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/modals/BedManagerModal.tsx
-  2:16  warning  'BedDouble' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/modals/DemographicsModal.tsx
-  44:9  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/modals/DemographicsModal.tsx:44:9
-  42 |         }
-  43 |
-> 44 |         setLocalData({
-     |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  45 |             birthDate: data.birthDate || '',
-  46 |             insurance: data.insurance || 'Fonasa',
-  47 |             admissionOrigin: data.admissionOrigin || '',  react-hooks/set-state-in-effect
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/modals/SettingsModal.tsx
-  161:71  warning  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
-  161:89  warning  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/modals/actions/DischargeModal.tsx
-   47:135  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   56:46   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  220:93   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/shared/BaseModal.tsx
-  155:8  warning  React Hook React.useEffect has missing dependencies: 'initialFocusRef' and 'onClose'. Either include them or remove the dependency array. If 'onClose' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/shared/SyncWatcher.tsx
-  45:8  warning  React Hook useEffect has missing dependencies: 'isDemoMode' and 'isFirebaseConnected'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/ui/DebouncedInput.tsx
-   2:8   warning  'clsx' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
-  30:13  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/ui/DebouncedInput.tsx:30:13
-  28 |     useEffect(() => {
-  29 |         if (!isFocused) {
-> 30 |             setLocalValue(value);
-     |             ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  31 |         }
-  32 |     }, [value, isFocused]);
-  33 |  react-hooks/set-state-in-effect
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/ui/DebouncedTextarea.tsx
-  42:13  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/ui/DebouncedTextarea.tsx:42:13
-  40 |     useEffect(() => {
-  41 |         if (!isFocused) {
-> 42 |             setLocalValue(value);
-     |             ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  43 |         }
-  44 |     }, [value, isFocused]);
-  45 |  react-hooks/set-state-in-effect
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/components/ui/VirtualizedTable.tsx
   38:25  warning  Compilation Skipped: Use of incompatible library
@@ -215,18 +38,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   38 |
   39 |     const handleEdit = (template: MessageTemplate) => {  react-hooks/set-state-in-effect
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/constants/identities.ts
-  28:73  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/context/CensusContext.tsx
-  6:10  warning  'UseNurseSignatureReturn' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/context/HospitalContext.tsx
-   1:54  warning  'useEffect' is defined but never used              @typescript-eslint/no-unused-vars
-  33:23  warning  'setIsLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/context/TableConfigContext.tsx
-  12:5  warning  'loadTableConfig' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
   56:9  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -244,40 +56,18 @@ Calling setState synchronously within an effect body causes cascading renders th
   58 |         // Subscribe to real-time updates
   59 |         const unsubscribe = subscribeToTableConfig((newConfig) => {  react-hooks/set-state-in-effect
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/audit-trail.spec.ts
-  160:17  warning  'foundAction' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/census-closing.spec.ts
   34:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/census-mocked.spec.ts
-  13:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/chaos-network.spec.ts
-  27:15  warning  'offlineBadge' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/fixtures/auth.ts
-    7:18  warning  'base' is defined but never used                                            @typescript-eslint/no-unused-vars
-   36:11  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-   85:40  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  127:44  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  131:44  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  134:37  warning  'populate' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-  149:39  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  160:48  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/medical-signature.spec.ts
-  5:95  warning  'context' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/patient-discharge.spec.ts
-  23:15  warning  'patientInputs' is assigned a value but never used      @typescript-eslint/no-unused-vars
-  24:15  warning  'firstPatientInput' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/e2e/patient-full-admission.spec.ts
-  49:15  warning  'rutInputs' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   36:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  160:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/firebaseConfig.ts
-    3:57  warning  'enableMultiTabIndexedDbPersistence' is defined but never used                     @typescript-eslint/no-unused-vars
    76:5   warning  Unnecessary try/catch wrapper                                                      no-useless-catch
   138:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
   146:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -290,76 +80,13 @@ Calling setState synchronously within an effect body causes cascading renders th
   84:96  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useAudit.ts
-  34:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  73:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  74:74  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  78:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useAuthState.ts
-    1:44  warning  'useRef' is defined but never used                                                 @typescript-eslint/no-unused-vars
-  154:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  165:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  180:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  183:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  201:29  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  221:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  225:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  248:25  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  256:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  264:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  286:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useBackupFiles.ts
-  163:8  warning  React Hook useEffect has a missing dependency: 'loadFiles'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  88:99  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useBackupFilesQuery.ts
-  29:11  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  41:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  52:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  54:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  62:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  64:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  75:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  77:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useBedManagement.ts
-    2:67  warning  'AuditAction' is defined but never used                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
-  151:83  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
-  152:73  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
-  156:49  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
-  208:8   warning  React Hook useCallback has an unnecessary dependency: 'logPatientAdmission'. Either exclude it or remove the dependency array. Outer scope values like 'logPatientAdmission' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useBedOperations.ts
-   78:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   98:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  132:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  162:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  196:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  219:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  240:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useCensusEmail.ts
-   96:20  warning  '_' is defined but never used                                                                                               @typescript-eslint/no-unused-vars
-  217:29  warning  'day' is assigned a value but never used                                                                                    @typescript-eslint/no-unused-vars
-  220:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error                                           no-console
-  265:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error                                           no-console
-  273:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error                                           no-console
-  289:6   warning  React Hook useCallback has missing dependencies: 'alert' and 'confirm'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
-  319:6   warning  React Hook useCallback has a missing dependency: 'alert'. Either include it or remove the dependency array                  react-hooks/exhaustive-deps
-  364:19  warning  Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
-  370:6   warning  React Hook useCallback has a missing dependency: 'confirm'. Either include it or remove the dependency array                react-hooks/exhaustive-deps
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useClinicalCrib.ts
-   21:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  106:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useDailyRecordSyncQuery.ts
-  38:9  warning  'status' is assigned a value but never used       @typescript-eslint/no-unused-vars
-  40:9  warning  'fetchStatus' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  29:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useDailyRecordTypes.ts
-   7:90  warning  'DischargeData' is defined but never used  @typescript-eslint/no-unused-vars
-  71:80  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  71:80  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useExamRequest.ts
   38:13  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
@@ -380,22 +107,8 @@ Calling setState synchronously within an effect body causes cascading renders th
   41 |     }, [isOpen, patient]);  react-hooks/set-state-in-effect
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useExcelParser.ts
-   18:12  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  128:60  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  134:47  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  134:70  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  137:47  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  143:51  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  167:57  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  227:23  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  229:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useExistingDaysQuery.ts
-   9:10  warning  'DailyRecord' is defined but never used                                            @typescript-eslint/no-unused-vars
-  20:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useExportManager.ts
-  57:8  warning  React Hook useCallback has a missing dependency: 'notifyError'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  188:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useFeatureFlag.ts
   25:9  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
@@ -415,31 +128,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   27 |         return unsubscribe;
   28 |     }, [flag]);  react-hooks/set-state-in-effect
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useFileOperations.ts
-  26:18  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
-  35:18  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
-  53:26  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useHandoffLogic.ts
-   28:10  warning  'DailyRecord' is defined but never used               @typescript-eslint/no-unused-vars
-   28:23  warning  'PatientData' is defined but never used               @typescript-eslint/no-unused-vars
-   66:11  warning  'isActuallyEmpty' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  145:40  warning  'currentUserId' is assigned a value but never used    @typescript-eslint/no-unused-vars
-  241:19  warning  'shiftLabel' is assigned a value but never used       @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useHandoffManagement.ts
-  28:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useInventory.ts
-  2:23  warning  'PatientData' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useNurseManagement.ts
-  31:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  46:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  75:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useSharedCensusMode.ts
-   1:21  warning  'useMemo' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
   41:13  warning  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -456,15 +145,6 @@ Calling setState synchronously within an effect body causes cascading renders th
   42 |             return;
   43 |         }
   44 |  react-hooks/set-state-in-effect
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useSignatureMode.ts
-  32:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useStaffQuery.ts
-  24:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  34:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  56:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  66:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useTransferManagement.ts
    56:9   warning  Error: Calling setState synchronously within an effect can trigger cascading renders
@@ -483,21 +163,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   57 |         const unsubscribe = subscribeToTransfers((data) => {
   58 |             setTransfers(data);
   59 |             setIsLoading(false);  react-hooks/set-state-in-effect
-  205:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-console
-  222:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-console
-  256:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-console
   269:18  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
-  271:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-console
-  283:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/hooks/useVersionCheck.ts
-   31:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   85:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  110:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  117:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  122:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  127:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  142:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/index.tsx
   21:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -513,167 +179,37 @@ Calling setState synchronously within an effect body causes cascading renders th
   21:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   75:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/scripts/consolidateAuditLogs.ts
-  145:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  146:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  147:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  148:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  149:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  150:15  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  151:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  160:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  162:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  179:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  218:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  219:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  220:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  221:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  224:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  225:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  230:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  231:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  233:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  234:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  235:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  236:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  247:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  248:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  249:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  250:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  253:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  254:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  255:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  260:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  261:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  285:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  286:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  287:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  288:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/scripts/initWhatsAppConfig.ts
-  33:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  52:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  53:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/schemas/zodSchemas.ts
+  152:74  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  172:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/scripts/testSendCensusEmail.ts
-  22:10  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  25:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  22:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/service-worker.ts
-   13:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  111:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  123:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  125:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  132:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  136:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/admin/auditService.ts
-  2:10  warning  'auth' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/admin/dataMaintenanceService.ts
-  109:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/admin/utils/auditUtils.ts
   46:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  75:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
-  86:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/auth/authService.ts
-   14:34  warning  'ADMIN_EMAILS' is defined but never used                                           @typescript-eslint/no-unused-vars
-  133:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  140:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  148:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  154:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  156:42  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  159:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  254:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  354:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  356:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  376:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  453:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  467:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/auth/passportService.ts
-   94:7   warning  'generateSignatureLegacy' is assigned a value but never used                       @typescript-eslint/no-unused-vars
-  305:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  310:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  330:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  367:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  156:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/backupService.ts
-  120:56  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  142:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  229:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  120:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/baseStorageService.ts
-   38:68  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   39:51  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   39:85  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  140:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  38:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:85  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/censusStorageService.ts
-   10:5   warning  'listAll' is defined but never used                                                @typescript-eslint/no-unused-vars
-   16:5   warning  'MONTH_NAMES' is defined but never used                                            @typescript-eslint/no-unused-vars
-   25:18  warning  An interface declaring no members is equivalent to its supertype                   @typescript-eslint/no-empty-object-type
-   68:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   87:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  101:21  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  118:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/cudyrStorageService.ts
-   86:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  106:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  109:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  110:14  warning  'ignore' is defined but never used                                                 @typescript-eslint/no-unused-vars
-  129:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  152:25  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  172:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/pdfContentBuilder.ts
-   11:36   warning  'PatientStatus' is defined but never used                                                                            @typescript-eslint/no-unused-vars
-   11:77   warning  'CudyrScore' is defined but never used                                                                               @typescript-eslint/no-unused-vars
-   40:16   warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
-  155:77   warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
-  155:113  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
-  185:9    warning  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
-  201:13   warning  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
-  250:29   warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
-  261:5    warning  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
-  275:41   warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
-  314:7    warning  'calculateHospitalizedDays' is assigned a value but never used                                                       @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/backup/pdfStorageService.ts
-   17:5   warning  'listAll' is defined but never used                                                @typescript-eslint/no-unused-vars
-   23:5   warning  'MONTH_NAMES' is defined but never used                                            @typescript-eslint/no-unused-vars
-   83:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   97:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  117:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  128:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  139:21  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  151:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  171:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  173:25  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  175:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/bookmarks/bookmarkService.ts
-   10:5   warning  'serverTimestamp' is defined but never used                              @typescript-eslint/no-unused-vars
-  118:30  warning  'index' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/calculations/cudyrSummary.ts
-  72:7  warning  'getBedById' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/census/censusAccessService.ts
-    8:5    warning  'where' is defined but never used         @typescript-eslint/no-unused-vars
-   13:5    warning  'Timestamp' is defined but never used     @typescript-eslint/no-unused-vars
-   77:42   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   77:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   77:118  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  144:42   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  144:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  144:118  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/email/gmailClient.ts
-  37:97  warning  'requestedBy' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  23:18  warning  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/exporters/censusMasterExport.ts
   39:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -681,219 +217,28 @@ Calling setState synchronously within an effect body causes cascading renders th
   57:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
   75:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/exporters/censusMasterWorkbook.ts
-    1:42  warning  'Borders' is defined but never used                @typescript-eslint/no-unused-vars
-    3:16  warning  'MONTH_NAMES' is defined but never used            @typescript-eslint/no-unused-vars
-  221:11  warning  'activeExtras' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/exporters/cudyrExportService.ts
-  46:7  warning  'DAILY_SHEET_TOTAL_ROW' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/exporters/exportService.ts
-  174:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  191:37  warning  'file' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/exporters/reportService.ts
-   4:10  warning  'DailyRecord' is defined but never used                                      @typescript-eslint/no-unused-vars
-  70:52  warning  'date' is defined but never used. Allowed unused args must match /^_/u       @typescript-eslint/no-unused-vars
-  75:52  warning  'startDate' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-  75:71  warning  'endDate' is defined but never used. Allowed unused args must match /^_/u    @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/google/googleDriveService.ts
-   10:17  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   54:38  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   65:21  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  123:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  140:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  300:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  313:21  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  337:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  351:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  371:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  376:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  454:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  463:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  466:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/infrastructure/db/FirestoreProvider.ts
-  17:5   warning  'Firestore' is defined but never used          @typescript-eslint/no-unused-vars
-  24:5   warning  'QueryConstraint' is defined but never used    @typescript-eslint/no-unused-vars
-  25:5   warning  'OrderByConstraint' is defined but never used  @typescript-eslint/no-unused-vars
-  48:38  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-  51:78  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-  79:81  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/infrastructure/db/types.ts
-   9:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  21:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  35:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  52:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/integrations/censusEmailService.ts
-  47:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  60:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  61:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/integrations/whatsapp/whatsappService.ts
-   68:14  warning  'error' is defined but never used                                                  @typescript-eslint/no-unused-vars
-  160:14  warning  'error' is defined but never used                                                  @typescript-eslint/no-unused-vars
-  348:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  356:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  369:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  370:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  378:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  387:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  395:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  399:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  413:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  419:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/patient/patientHistoryService.ts
-  8:23  warning  'PatientData' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/pdf/handoffPdfGenerator.ts
-    1:15  warning  'jsPDF' is defined but never used         @typescript-eslint/no-unused-vars
-  112:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/pdf/handoffPdfSections.ts
-   18:16   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   21:77   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   21:113  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   59:17   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   93:30   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  101:29   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  104:45   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  116:20   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  123:113  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  152:28   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  172:28   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  192:28   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  206:91   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  248:30   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  259:20   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/repositories/DailyRecordRepository.ts
-   16:22  warning  'getAllFromIndexedDB' is defined but never used                                    @typescript-eslint/no-unused-vars
-   19:5   warning  'migrateFromLocalStorage' is defined but never used                                @typescript-eslint/no-unused-vars
-   20:5   warning  'isIndexedDBAvailable' is defined but never used                                   @typescript-eslint/no-unused-vars
-   40:5   warning  'getDailyRecordsPath' is defined but never used                                    @typescript-eslint/no-unused-vars
-   47:28  warning  'mapEncounterToFhir' is defined but never used                                     @typescript-eslint/no-unused-vars
-  201:11  warning  'hospitalId' is assigned a value but never used                                    @typescript-eslint/no-unused-vars
-  273:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  295:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  318:45  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  545:22  warning  'error' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  313:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/repositories/PatientMasterRepository.ts
-   2:43  warning  'serverTimestamp' is defined but never used  @typescript-eslint/no-unused-vars
-   2:60  warning  'collection' is defined but never used       @typescript-eslint/no-unused-vars
-   2:72  warning  'Timestamp' is defined but never used        @typescript-eslint/no-unused-vars
-   5:53  warning  'COLLECTIONS' is defined but never used      @typescript-eslint/no-unused-vars
-  60:23  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/security/exportPasswordService.ts
-   9:29  warning  'getDoc' is defined but never used                                                 @typescript-eslint/no-unused-vars
-  47:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  83:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/storage/firestoreService.ts
-   17:10  warning  'DailyRecordSchema' is defined but never used                                      @typescript-eslint/no-unused-vars
-   59:7   warning  'sanitizeBeds' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
-   92:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  169:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  249:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  273:29  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  273:63  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  274:42  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  310:66  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  313:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  348:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  421:14  warning  'error' is defined but never used                                                  @typescript-eslint/no-unused-vars
-  459:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  471:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  474:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  478:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  481:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  526:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  538:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  541:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  545:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  548:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  580:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/storage/indexedDBService.ts
-   58:17  warning  'key' is defined but never used. Allowed unused args must match /^_/u              @typescript-eslint/no-unused-vars
-   72:10  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  135:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  143:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  466:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  477:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  486:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  494:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  503:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  514:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  519:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/storage/localStorageService.ts
-  11:29  warning  'getDemoFromIndexedDB' is defined but never used          @typescript-eslint/no-unused-vars
-  12:33  warning  'getPreviousDemoFromIndexedDB' is defined but never used  @typescript-eslint/no-unused-vars
-  13:5   warning  'getAllDemoRecords' is defined but never used             @typescript-eslint/no-unused-vars
-  16:25  warning  'getFromIndexedDB' is defined but never used              @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/storage/tableConfigService.ts
-    8:10  warning  'COLLECTIONS' is defined but never used           @typescript-eslint/no-unused-vars
-    8:23  warning  'getActiveHospitalId' is defined but never used   @typescript-eslint/no-unused-vars
-    8:44  warning  'HOSPITAL_COLLECTIONS' is defined but never used  @typescript-eslint/no-unused-vars
-  208:22  warning  'error' is defined but never used                 @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/terminology/aiResultsCache.ts
-   85:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   86:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   93:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   97:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  106:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  113:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  121:9  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  141:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  159:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  60:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/terminology/cie10AISearch.ts
-   28:32  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   29:29  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  148:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/terminology/terminologyService.ts
-  123:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  141:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/transfers/documentGeneratorService.ts
-  53:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  74:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  28:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/transfers/templateGeneratorService.ts
-    1:15  warning  'getDownloadURL' is defined but never used                                         @typescript-eslint/no-unused-vars
-    5:54  warning  'GeneratedDocument' is defined but never used                                      @typescript-eslint/no-unused-vars
-   14:19  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   33:32  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  213:14  warning  'e' is defined but never used                                                      @typescript-eslint/no-unused-vars
-  224:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  237:26  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  269:26  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   14:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  237:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  269:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/transfers/transferService.ts
-   21:10  warning  'QuestionnaireResponse' is defined but never used                                  @typescript-eslint/no-unused-vars
-   52:34  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-   58:50  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  105:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  122:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  156:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  197:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  270:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-  306:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/utils/demoDataGenerator.ts
-    7:91  warning  'ClinicalEvent' is defined but never used    @typescript-eslint/no-unused-vars
-  150:11  warning  'bedDef' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  52:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  58:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/services/utils/loggerService.ts
   138:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -916,9 +261,6 @@ Calling setState synchronously within an effect body causes cascading renders th
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/AuditLogRow.stories.tsx
   30:25  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
   74:14  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/AuditStatsDashboard.stories.tsx
-  17:53  warning  'i' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/AuditTable.stories.tsx
   28:32  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -950,10 +292,6 @@ Calling setState synchronously within an effect body causes cascading renders th
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/LoginPage.stories.tsx
   24:31  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/Page.tsx
-  39:13  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
-  39:18  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/stories/TransfersSection.stories.tsx
   28:33  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
   29:35  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
@@ -961,104 +299,113 @@ Calling setState synchronously within an effect body causes cascading renders th
   37:35  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/auth/passportAuth.test.ts
-   6:10  warning  'renderHook' is defined but never used                                      @typescript-eslint/no-unused-vars
-   7:10  warning  'useAuth' is defined but never used                                         @typescript-eslint/no-unused-vars
-   8:10  warning  'AuthProvider' is defined but never used                                    @typescript-eslint/no-unused-vars
-   9:8   warning  'React' is defined but never used                                           @typescript-eslint/no-unused-vars
-  13:26  warning  'callback' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   6:10  warning  'renderHook' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   7:10  warning  'useAuth' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   8:10  warning  'AuthProvider' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   9:8   warning  'React' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  13:26  warning  'callback' is defined but never used. Allowed unused args must match /^_/u      @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/components/DeviceMenu.test.tsx
-  6:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+  6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/components/DeviceSelector.test.tsx
   26:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/components/NavbarTabs.test.tsx
-  61:17  warning  'container' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  61:17  warning  'container' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/components/PatientRow.test.tsx
    97:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   120:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   143:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  166:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  189:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  238:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  266:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  298:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  331:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  356:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  377:90  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  392:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  417:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  436:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  451:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  467:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  482:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  197:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  250:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  310:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  343:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  368:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  389:90  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  404:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  433:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  456:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  471:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  487:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  502:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/components/Skeleton.test.tsx
-  7:18  warning  'screen' is defined but never used  @typescript-eslint/no-unused-vars
+  7:18  warning  'screen' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/context/UIContext.test.tsx
-  3:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+  3:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/bedOperations.test.ts
-   6:32  warning  'vi' is defined but never used            @typescript-eslint/no-unused-vars
-   7:23  warning  'DailyRecord' is defined but never used   @typescript-eslint/no-unused-vars
-  60:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  69:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  75:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+   7:23  warning  'DailyRecord' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  60:18  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  69:61  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  75:61  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/copyPreviousDay.test.ts
-    6:32  warning  'vi' is defined but never used            @typescript-eslint/no-unused-vars
-    7:62  warning  'CudyrScore' is defined but never used    @typescript-eslint/no-unused-vars
-  203:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  221:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  239:60  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+    7:62  warning  'CudyrScore' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  203:67  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  221:66  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  239:60  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useBedAudit.test.ts
+  28:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:78  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:78  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:80  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:99  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:73  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useBedOperations.test.ts
-   4:36  warning  'Specialty' is defined but never used           @typescript-eslint/no-unused-vars
-   4:47  warning  'PatientStatus' is defined but never used       @typescript-eslint/no-unused-vars
-   5:10  warning  'createEmptyPatient' is defined but never used  @typescript-eslint/no-unused-vars
-  65:10  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+   4:36  warning  'Specialty' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+   4:47  warning  'PatientStatus' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   5:10  warning  'createEmptyPatient' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  65:10  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useCensusEmail.test.ts
-    4:10  warning  'UseCensusEmailReturn' is defined but never used  @typescript-eslint/no-unused-vars
-   64:30  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   68:24  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   69:42  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   70:27  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   71:32  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   95:24  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-   96:34  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  168:46  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  169:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  174:43  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  191:46  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  192:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  197:43  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  198:30  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  212:46  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  213:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  214:31  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  227:46  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  228:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  248:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  265:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  283:36  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  299:47  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
-  309:47  warning  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+    4:10  warning  'UseCensusEmailReturn' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   64:30  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   68:24  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   69:42  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   70:27  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   71:32  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   95:24  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+   96:34  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  168:46  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  169:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  174:43  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  191:46  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  192:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  197:43  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  198:30  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  212:46  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  213:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  214:31  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  227:46  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  228:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  248:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  265:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  283:36  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  299:47  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
+  309:47  warning  Unexpected any. Specify a different type                                                @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useCensusLogic.test.ts
   54:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   62:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useDailyRecord.test.tsx
-    5:13  warning  'localStorageService' is defined but never used  @typescript-eslint/no-unused-vars
-   36:12  warning  Component definition is missing display name     react/display-name
-  136:63  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
-  137:63  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
-  171:63  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
-  197:22  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+    5:13  warning  'localStorageService' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   36:12  warning  Component definition is missing display name                                           react/display-name
+  136:63  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  137:63  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  171:63  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  197:22  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useDailyRecordSyncQuery.test.tsx
   26:12  warning  Component definition is missing display name  react/display-name
@@ -1085,13 +432,13 @@ Calling setState synchronously within an effect body causes cascading renders th
   126:94  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useFeatureFlag.test.ts
-    7:27  warning  'waitFor' is defined but never used       @typescript-eslint/no-unused-vars
-   30:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   40:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   51:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   65:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   84:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  113:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    7:27  warning  'waitFor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   30:54  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   40:54  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   51:67  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   65:54  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   84:54  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  113:14  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useHandoffLogic.test.ts
    49:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1106,12 +453,15 @@ Calling setState synchronously within an effect body causes cascading renders th
   135:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   136:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
+/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useHandoffVisibility.test.ts
+  21:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useModal.test.ts
-  5:36  warning  'beforeEach' is defined but never used  @typescript-eslint/no-unused-vars
-  5:48  warning  'afterEach' is defined but never used   @typescript-eslint/no-unused-vars
+  5:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  5:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/usePatientValidation.test.ts
-  1:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/hooks/useSignatureMode.test.ts
   21:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1120,51 +470,51 @@ Calling setState synchronously within an effect body causes cascading renders th
   45:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/audit-flow.test.ts
-   1:48  warning  'afterEach' is defined but never used          @typescript-eslint/no-unused-vars
-  10:5   warning  'getLocalAuditLogs' is defined but never used  @typescript-eslint/no-unused-vars
-  33:25  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-  47:22  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-  74:22  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
-  84:22  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  10:5   warning  'getLocalAuditLogs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  33:25  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  47:22  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  74:22  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  84:22  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/census-email.test.ts
-   21:19  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-   47:16  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-   67:6   warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-   74:21  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-  111:17  warning  'result' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   21:19  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   47:16  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   67:6   warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   74:21  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  111:17  warning  'result' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/census-export.test.ts
-  8:32  warning  'beforeEach' is defined but never used  @typescript-eslint/no-unused-vars
+  8:32  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/censusOperations.test.ts
-    6:32  warning  'vi' is defined but never used                  @typescript-eslint/no-unused-vars
-    6:36  warning  'beforeEach' is defined but never used          @typescript-eslint/no-unused-vars
-  261:19  warning  'totalBeds' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  285:18  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
-  296:18  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+    6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+    6:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  261:19  warning  'totalBeds' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  285:18  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  296:18  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/concurrency.test.tsx
-   1:48  warning  'afterEach' is defined but never used         @typescript-eslint/no-unused-vars
-  41:6   warning  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
-  50:12  warning  Component definition is missing display name  react/display-name
-  78:22  warning  'e' is defined but never used                 @typescript-eslint/no-unused-vars
+   1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  41:6   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  50:12  warning  Component definition is missing display name                                  react/display-name
+  78:22  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/critical-paths.test.tsx
-   17:10  warning  'DailyRecordProvider' is defined but never used                         @typescript-eslint/no-unused-vars
-   18:10  warning  'CudyrView' is defined but never used                                   @typescript-eslint/no-unused-vars
-   24:23  warning  'PatientData' is defined but never used                                 @typescript-eslint/no-unused-vars
-   34:23  warning  'date' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-   34:29  warning  'cb' is defined but never used. Allowed unused args must match /^_/u    @typescript-eslint/no-unused-vars
-   43:15  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-   44:35  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-   47:32  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-   68:19  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-   96:35  warning  'err' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
-   96:40  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-  177:29  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-  177:55  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
-  221:87  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+   17:10  warning  'DailyRecordProvider' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   18:10  warning  'CudyrView' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   24:23  warning  'PatientData' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   34:23  warning  'date' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+   34:29  warning  'cb' is defined but never used. Allowed unused args must match /^_/u                   @typescript-eslint/no-unused-vars
+   43:15  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   44:35  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   47:32  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   68:19  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   96:35  warning  'err' is defined but never used. Allowed unused args must match /^_/u                  @typescript-eslint/no-unused-vars
+   96:40  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  177:29  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  177:55  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  221:87  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/cudyrScoring.test.ts
    17:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1210,23 +560,23 @@ Calling setState synchronously within an effect body causes cascading renders th
   210:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/offline-persistence.test.ts
-  51:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  51:18  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/patientFlow.test.tsx
   50:12  warning  Component definition is missing display name  react/display-name
   60:24  warning  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/pwaOffline.test.ts
-   6:32  warning  'vi' is defined but never used            @typescript-eslint/no-unused-vars
-  72:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  72:23  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integration/setup.tsx
-    7:23  warning  'BedType' is defined but never used       @typescript-eslint/no-unused-vars
-  142:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  142:95  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    7:23  warning  'BedType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  142:67  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  142:95  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/integrations/fhir/fhirMapping.test.ts
-  3:49  warning  'BedType' is defined but never used  @typescript-eslint/no-unused-vars
+  3:49  warning  'BedType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/repro/cie10Copy.test.ts
    38:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1239,28 +589,28 @@ Calling setState synchronously within an effect body causes cascading renders th
   134:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/repro/identityChange.test.ts
-   4:23  warning  'PatientData' is defined but never used   @typescript-eslint/no-unused-vars
-  17:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  45:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  46:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  71:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   4:23  warning  'PatientData' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  17:51  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  45:22  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  46:24  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  71:22  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/schemas/validation.test.ts
-  10:10  warning  'Specialty' is defined but never used      @typescript-eslint/no-unused-vars
-  10:21  warning  'PatientStatus' is defined but never used  @typescript-eslint/no-unused-vars
-  16:40  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  10:10  warning  'Specialty' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  10:21  warning  'PatientStatus' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  16:40  warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/schemas/zodSchemas.test.ts
-   17:5   warning  'SpecialtySchema' is defined but never used      @typescript-eslint/no-unused-vars
-   18:5   warning  'PatientStatusSchema' is defined but never used  @typescript-eslint/no-unused-vars
-  131:32  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   17:5   warning  'SpecialtySchema' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   18:5   warning  'PatientStatusSchema' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  139:32  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/security/firestore-rules.test.ts
-    2:57  warning  'expect' is defined but never used        @typescript-eslint/no-unused-vars
-   50:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   66:19  warning  'doc' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  132:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  132:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    2:57  warning  'expect' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   50:38  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   66:19  warning  'doc' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  132:29  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  132:54  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/admin/auditConsolidationService.test.ts
    15:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1273,35 +623,35 @@ Calling setState synchronously within an effect body causes cascading renders th
   14:68  warning  'callback' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/admin/utils/auditUtils.test.ts
-    1:48  warning  'afterEach' is defined but never used     @typescript-eslint/no-unused-vars
-   30:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   38:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   48:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   56:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   64:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   72:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   93:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  101:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  119:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  148:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   30:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   38:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   48:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   56:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   64:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   72:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   93:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  101:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  119:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  148:18  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/auditService.test.ts
-   40:25  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
-   61:5   warning  'logAuditEvent' is defined but never used        @typescript-eslint/no-unused-vars
-   70:5   warning  'getLocalAuditLogs' is defined but never used    @typescript-eslint/no-unused-vars
-   77:11  warning  'mockUserId' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  159:76  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   40:25  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   61:5   warning  'logAuditEvent' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   70:5   warning  'getLocalAuditLogs' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   77:11  warning  'mockUserId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  159:76  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/auditServiceCoverage.test.ts
-    4:48  warning  'afterEach' is defined but never used                                       @typescript-eslint/no-unused-vars
-    6:10  warning  'auth' is defined but never used                                            @typescript-eslint/no-unused-vars
-   31:25  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-   49:37  warning  'details' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
-   49:46  warning  'entityId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-   52:7   warning  'AUDIT_STORAGE_KEY' is assigned a value but never used                      @typescript-eslint/no-unused-vars
-   63:20  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-   81:68  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  124:37  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+    4:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+    6:10  warning  'auth' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   31:25  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   49:37  warning  'details' is defined but never used. Allowed unused args must match /^_/u                     @typescript-eslint/no-unused-vars
+   49:46  warning  'entityId' is defined but never used. Allowed unused args must match /^_/u                    @typescript-eslint/no-unused-vars
+   52:7   warning  'AUDIT_STORAGE_KEY' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   63:20  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   81:68  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  124:37  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/auth/passportService.test.ts
    31:50  warning  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
@@ -1356,16 +706,15 @@ Calling setState synchronously within an effect body causes cascading renders th
   85:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/backup/cudyrStorageService.test.ts
-   5:5   warning  'deleteCudyrFile' is defined but never used  @typescript-eslint/no-unused-vars
-  11:5   warning  'ref' is defined but never used              @typescript-eslint/no-unused-vars
-  52:60  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-  54:60  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
-  65:60  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   5:5   warning  'deleteCudyrFile' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  11:5   warning  'ref' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  52:60  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  54:60  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  65:60  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/backup/pdfContentBuilder.test.ts
     6:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
     7:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   42:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    47:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    48:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    55:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1380,21 +729,21 @@ Calling setState synchronously within an effect body causes cascading renders th
   132:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/backup/pdfStorageService.test.ts
-  6:36  warning  'beforeEach' is defined but never used  @typescript-eslint/no-unused-vars
+  6:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/bookmarks/bookmarkService.test.ts
   93:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/calculations/cudyrSummary.test.ts
-   7:23  warning  'BedType' is defined but never used       @typescript-eslint/no-unused-vars
-  35:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  42:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  48:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  49:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  51:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  58:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  77:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  89:99  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   7:23  warning  'BedType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  35:48  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  42:48  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  48:52  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  49:22  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  51:14  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  58:10  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  77:22  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  89:99  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/calculations/statsCalculator.test.ts
   24:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1405,11 +754,11 @@ Calling setState synchronously within an effect body causes cascading renders th
   70:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/censusEmailService.test.ts
-  5:48  warning  'afterEach' is defined but never used  @typescript-eslint/no-unused-vars
+  5:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/censusMasterWorkbook.test.ts
-   5:62  warning  'getCensusMasterFilename' is defined but never used  @typescript-eslint/no-unused-vars
-  99:44  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+   5:62  warning  'getCensusMasterFilename' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  99:44  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/dailyRecordRepository.test.ts
    68:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1418,21 +767,21 @@ Calling setState synchronously within an effect body causes cascading renders th
   125:22   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/ensureArray.test.ts
-    1:32  warning  'vi' is defined but never used            @typescript-eslint/no-unused-vars
-    1:36  warning  'beforeEach' is defined but never used    @typescript-eslint/no-unused-vars
-  127:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  153:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+    1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  127:30  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  153:30  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/excelExport.test.ts
-    5:36  warning  'beforeEach' is defined but never used               @typescript-eslint/no-unused-vars
-    5:48  warning  'afterEach' is defined but never used                @typescript-eslint/no-unused-vars
-   27:19  warning  'viteConfigPath' is assigned a value but never used  @typescript-eslint/no-unused-vars
-   82:18  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
-   90:29  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
-  108:18  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
-  126:18  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
-  155:18  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
-  185:18  warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+    5:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    5:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+   27:19  warning  'viteConfigPath' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   82:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   90:29  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  108:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  126:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  155:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  185:18  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/exporters/cudyrExportService.test.ts
    50:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1444,19 +793,19 @@ Calling setState synchronously within an effect body causes cascading renders th
   60:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/exporters/exportService.test.ts
-   20:11  warning  'createPatientData' is assigned a value but never used  @typescript-eslint/no-unused-vars
-   20:51  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   50:18  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   61:15  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   73:15  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   93:80  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   94:92  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-   95:92  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
-  123:36  warning  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   20:11  warning  'createPatientData' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   20:51  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   50:18  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   61:15  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   73:15  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   93:80  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   94:92  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   95:92  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  123:36  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/featureFlags.test.ts
-   5:55  warning  'vi' is defined but never used                      @typescript-eslint/no-unused-vars
-  38:31  warning  'FEATURE_FLAGS' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   5:55  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+  38:31  warning  'FEATURE_FLAGS' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/firestoreService.test.ts
    62:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1483,26 +832,26 @@ Calling setState synchronously within an effect body causes cascading renders th
   45:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/integrations/whatsapp/whatsappService.test.ts
-   13:34  warning  'getDocs' is defined but never used       @typescript-eslint/no-unused-vars
-   47:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   57:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   67:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   80:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   87:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   96:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  129:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   13:34  warning  'getDocs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   47:18  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   57:18  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   67:18  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   80:18  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   87:62  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+   96:18  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+  129:66  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/loggerService.test.ts
-   9:9  warning  'consoleDebugSpy' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  10:9  warning  'consoleInfoSpy' is assigned a value but never used   @typescript-eslint/no-unused-vars
-  11:9  warning  'consoleWarnSpy' is assigned a value but never used   @typescript-eslint/no-unused-vars
-  12:9  warning  'consoleErrorSpy' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   9:9  warning  'consoleDebugSpy' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:9  warning  'consoleInfoSpy' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  11:9  warning  'consoleWarnSpy' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  12:9  warning  'consoleErrorSpy' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/pdf/handoffPdfUtils.test.ts
-  1:32  warning  'vi' is defined but never used                     @typescript-eslint/no-unused-vars
-  1:36  warning  'beforeEach' is defined but never used             @typescript-eslint/no-unused-vars
-  1:48  warning  'afterEach' is defined but never used              @typescript-eslint/no-unused-vars
-  5:5   warning  'getBase64ImageFromURL' is defined but never used  @typescript-eslint/no-unused-vars
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  5:5   warning  'getBase64ImageFromURL' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/repositories/DailyRecordRepository.test.ts
   100:35   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1511,20 +860,20 @@ Calling setState synchronously within an effect body causes cascading renders th
   216:100  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/storage/indexedDBService.test.ts
-    4:23   warning  'Specialty' is defined but never used      @typescript-eslint/no-unused-vars
-    4:34   warning  'PatientStatus' is defined but never used  @typescript-eslint/no-unused-vars
-    5:8    warning  'Dexie' is defined but never used          @typescript-eslint/no-unused-vars
-   77:119  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-   85:130  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  135:121  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  146:103  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  221:84   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  222:84   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  234:24   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
-  248:24   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+    4:23   warning  'Specialty' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+    4:34   warning  'PatientStatus' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    5:8    warning  'Dexie' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   77:119  warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+   85:130  warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  135:121  warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  146:103  warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  221:84   warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  222:84   warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  234:24   warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
+  248:24   warning  Unexpected any. Specify a different type                                         @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/storage/localStorageService.test.ts
-  6:48  warning  'afterEach' is defined but never used  @typescript-eslint/no-unused-vars
+  6:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/tableConfigService.test.ts
    42:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1541,17 +890,17 @@ Calling setState synchronously within an effect body causes cascading renders th
   54:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/transfers/transferService.test.ts
-   11:5   warning  'getActiveTransfers' is defined but never used  @typescript-eslint/no-unused-vars
-   16:26  warning  'getDocs' is defined but never used             @typescript-eslint/no-unused-vars
-   68:18  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
-   86:24  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
-  102:24  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
-  114:24  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+   11:5   warning  'getActiveTransfers' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   16:26  warning  'getDocs' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+   68:18  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   86:24  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  102:24  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  114:24  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/utils/demoDataGenerator.test.ts
-  1:32  warning  'vi' is defined but never used             @typescript-eslint/no-unused-vars
-  8:10  warning  'Specialty' is defined but never used      @typescript-eslint/no-unused-vars
-  8:21  warning  'PatientStatus' is defined but never used  @typescript-eslint/no-unused-vars
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  8:10  warning  'Specialty' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  8:21  warning  'PatientStatus' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/services/validation/criticalFieldsValidator.test.ts
   19:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1559,10 +908,10 @@ Calling setState synchronously within an effect body causes cascading renders th
   41:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/types/core.test.ts
-  17:5  warning  'CudyrScore' is defined but never used  @typescript-eslint/no-unused-vars
+  17:5  warning  'CudyrScore' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/utils/arrayUtils.test.ts
-  1:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/utils/csvUtils.test.ts
   57:73  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1583,15 +932,15 @@ Calling setState synchronously within an effect body causes cascading renders th
   23:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/validation/admissionDates.test.ts
-  6:32  warning  'vi' is defined but never used          @typescript-eslint/no-unused-vars
-  6:36  warning  'beforeEach' is defined but never used  @typescript-eslint/no-unused-vars
+  6:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  6:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/validation/schema-fuzzing.test.ts
-   3:5   warning  'DailyRecordSchema' is defined but never used  @typescript-eslint/no-unused-vars
-  61:27  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   3:5   warning  'DailyRecordSchema' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  61:27  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/views/admin/components/audit/AuditStatsDashboard.test.tsx
-  4:25  warning  'AuditAction' is defined but never used  @typescript-eslint/no-unused-vars
+  4:25  warning  'AuditAction' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/views/census/CensusTable.test.tsx
   34:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1630,22 +979,19 @@ Calling setState synchronously within an effect body causes cascading renders th
   25:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/views/handoff/HandoffRow.test.tsx
-  4:26  warning  'fireEvent' is defined but never used  @typescript-eslint/no-unused-vars
+  4:26  warning  'fireEvent' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/views/handoff/HandoffView.test.tsx
   28:86  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/tests/views/handoff/MovementsSummary.test.tsx
-  3:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+  3:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/types/backup.ts
   67:18  warning  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/types/whatsapp.ts
   136:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/utils/dateUtils.ts
-  463:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/utils/rutUtils.ts
   10:27  warning  Unnecessary escape character: \-  no-useless-escape
@@ -1657,50 +1003,16 @@ Calling setState synchronously within an effect body causes cascading renders th
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/DataMaintenanceView.tsx
   30:75  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/DevDashboard.tsx
-  8:5  warning  'Activity' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/ErrorDashboard.tsx
-  13:5  warning  'Bug' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/MedicalSignatureView.tsx
-  4:32  warning  'AlertTriangle' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/SystemHealthDashboard.tsx
-   5:5  warning  'AlertCircle' is defined but never used   @typescript-eslint/no-unused-vars
-   7:5  warning  'CloudOff' is defined but never used      @typescript-eslint/no-unused-vars
-  12:5  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/auditConstants.tsx
   16:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/DataImportModal.tsx
-   4:8   warning  'clsx' is defined but never used  @typescript-eslint/no-unused-vars
-  41:22  warning  'err' is defined but never used   @typescript-eslint/no-unused-vars
-  60:18  warning  'err' is defined but never used   @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/DataMaintenancePanel.tsx
-  2:38  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/PatientDatabaseManager.tsx
-    2:10   warning  'Database' is defined but never used      @typescript-eslint/no-unused-vars
-    2:132  warning  'ExternalLink' is defined but never used  @typescript-eslint/no-unused-vars
-  437:61   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/AuditFilters.tsx
-  2:26  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+  437:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/AuditLogRow.tsx
    28:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   131:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   185:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/AuditTable.tsx
-  3:5  warning  'RefreshCw' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/ConsolidationManager.tsx
-  2:58  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
-  4:8   warning  'clsx' is defined but never used          @typescript-eslint/no-unused-vars
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/DiffHighlight.tsx
   6:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1709,13 +1021,7 @@ Calling setState synchronously within an effect body causes cascading renders th
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/ExportKeysPanel.tsx
   20:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/PatientTraceability.tsx
-  2:24  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
-  2:34  warning  'MapPin' is defined but never used    @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/admin/components/audit/TraceabilityTimeline.tsx
-   2:19   warning  'Activity' is defined but never used      @typescript-eslint/no-unused-vars
-   2:29   warning  'Clock' is defined but never used         @typescript-eslint/no-unused-vars
   75:77   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   75:106  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   75:116  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -1745,142 +1051,21 @@ Calling setState synchronously within an effect body causes cascading renders th
   109:39  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
   136:35  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/backup/components/BackupDriveItems.tsx
-   7:42  warning  'MoreVertical' is defined but never used                                @typescript-eslint/no-unused-vars
-  54:5   warning  'date' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/backup/components/BackupFileCard.tsx
-  25:11  warning  'typeConfig' is assigned a value but never used   @typescript-eslint/no-unused-vars
-  26:11  warning  'shiftConfig' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/backup/components/BackupFilters.tsx
-  7:18  warning  'Filter' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/backup/components/BackupPreviewModal.tsx
-  7:13  warning  'Download' is defined but never used  @typescript-eslint/no-unused-vars
-  7:23  warning  'Clock' is defined but never used     @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/CMASection.tsx
-   47:68   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-   54:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  306:125  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  418:39   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  434:39   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/CensusModals.tsx
-  22:9  warning  'setNursesList' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  24:9  warning  'setTensList' is assigned a value but never used    @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/CensusView.tsx
-  47:9  warning  'resetDay' is assigned a value but never used         @typescript-eslint/no-unused-vars
-  48:9  warning  'updateNurse' is assigned a value but never used      @typescript-eslint/no-unused-vars
-  49:9  warning  'updateTens' is assigned a value but never used       @typescript-eslint/no-unused-vars
-  50:9  warning  'undoDischarge' is assigned a value but never used    @typescript-eslint/no-unused-vars
-  51:9  warning  'deleteDischarge' is assigned a value but never used  @typescript-eslint/no-unused-vars
-  52:9  warning  'undoTransfer' is assigned a value but never used     @typescript-eslint/no-unused-vars
-  53:9  warning  'deleteTransfer' is assigned a value but never used   @typescript-eslint/no-unused-vars
-  54:9  warning  'nursesList' is assigned a value but never used       @typescript-eslint/no-unused-vars
-  55:9  warning  'tensList' is assigned a value but never used         @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/DischargesSection.tsx
-  2:10  warning  'DischargeData' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/EmptyDayPrompt.tsx
-   2:10  warning  'DailyRecord' is defined but never used    @typescript-eslint/no-unused-vars
-   4:45  warning  'Check' is defined but never used          @typescript-eslint/no-unused-vars
-  28:16  warning  'year' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/SharedCensusView.tsx
-  98:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/census/TransfersSection.tsx
-  2:10  warning  'TransferData' is defined but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/cudyr/CudyrView.tsx
-    5:21  warning  'ArrowLeft' is defined but never used     @typescript-eslint/no-unused-vars
   309:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/ClinicalEventsPanel.tsx
-  7:42  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
-  7:52  warning  'FileText' is defined but never used  @typescript-eslint/no-unused-vars
-
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffChecklistSection.tsx
-  17:15  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
-  28:5   warning  'tensList' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffCudyrPrint.tsx
-  31:47  warning  'bedId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffPatientTable.tsx
-  4:10  warning  'ChevronDown' is defined but never used  @typescript-eslint/no-unused-vars
-  5:8   warning  'clsx' is defined but never used         @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffPrintHeader.tsx
-  24:5  warning  'Icon' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffRow.tsx
-   1:27  warning  'useCallback' is defined but never used                                    @typescript-eslint/no-unused-vars
-  35:5   warning  'bedType' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/handoff/HandoffView.tsx
-    1:17  warning  'useMemo' is defined but never used                              @typescript-eslint/no-unused-vars
-    1:26  warning  'useState' is defined but never used                             @typescript-eslint/no-unused-vars
-    1:36  warning  'useCallback' is defined but never used                          @typescript-eslint/no-unused-vars
-    4:10  warning  'BEDS' is defined but never used                                 @typescript-eslint/no-unused-vars
-    5:38  warning  'Share2' is defined but never used                               @typescript-eslint/no-unused-vars
-    5:46  warning  'Send' is defined but never used                                 @typescript-eslint/no-unused-vars
-    5:52  warning  'Printer' is defined but never used                              @typescript-eslint/no-unused-vars
-    6:8   warning  'clsx' is defined but never used                                 @typescript-eslint/no-unused-vars
-    7:10  warning  'getShiftSchedule' is defined but never used                     @typescript-eslint/no-unused-vars
-   15:10  warning  'HandoffShiftSelector' is defined but never used                 @typescript-eslint/no-unused-vars
-   19:10  warning  'SaveBackupButton' is defined but never used                     @typescript-eslint/no-unused-vars
-   37:9   warning  'updatePatient' is assigned a value but never used               @typescript-eslint/no-unused-vars
-   38:9   warning  'updatePatientMultiple' is assigned a value but never used       @typescript-eslint/no-unused-vars
-   39:9   warning  'updateClinicalCrib' is assigned a value but never used          @typescript-eslint/no-unused-vars
-   40:9   warning  'updateClinicalCribMultiple' is assigned a value but never used  @typescript-eslint/no-unused-vars
-   46:9   warning  'sendMedicalHandoff' is assigned a value but never used          @typescript-eslint/no-unused-vars
-  131:11  warning  'headerColor' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+  17:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/TransferManagementView.tsx
-   19:37  warning  'downloadAllDocuments' is defined but never used       @typescript-eslint/no-unused-vars
-   20:10  warning  'FileDown' is defined but never used                   @typescript-eslint/no-unused-vars
-   57:11  warning  'hospitals' is assigned a value but never used         @typescript-eslint/no-unused-vars
-  159:18  warning  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
-  163:66  warning  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
-  215:11  warning  'handleEditOnline' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/ConfirmTransferModal.tsx
-  8:10  warning  'TRANSFER_REASONS' is defined but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/StatusChangeModal.tsx
-    7:27   warning  'TransferStatus' is defined but never used                       @typescript-eslint/no-unused-vars
-    7:43   warning  'StatusChange' is defined but never used                         @typescript-eslint/no-unused-vars
-  126:90   warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
-  126:105  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  158:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/TransferDocumentPackageModal.tsx
-   36:13  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
-   41:25  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
-  141:43  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                    react/no-unescaped-entities
-  141:50  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                    react/no-unescaped-entities
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/TransferQuestionnaireModal.tsx
-   38:13  warning  'user' is assigned a value but never used                 @typescript-eslint/no-unused-vars
-  103:11  warning  'groupInfo' is assigned a value but never used            @typescript-eslint/no-unused-vars
-  120:11  warning  'canGoBack' is assigned a value but never used            @typescript-eslint/no-unused-vars
-  121:11  warning  'canGoNext' is assigned a value but never used            @typescript-eslint/no-unused-vars
-  139:11  warning  'isCurrentGroupValid' is assigned a value but never used  @typescript-eslint/no-unused-vars
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/TransferStatusInteraction.tsx
-  181:49  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
-  181:64  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
-
-/Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/transfers/components/TransferTable.tsx
-   9:10  warning  'calculateDaysElapsed' is defined but never used                                  @typescript-eslint/no-unused-vars
-  30:5   warning  'onStatusChange' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  41:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/danielopazodamiani/Downloads/HHR-entornoprueba enero 2026/views/whatsapp/WhatsAppConfigView.tsx
   303:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-✖ 1132 problems (0 errors, 1132 warnings)
+✖ 622 problems (0 errors, 622 warnings)
 

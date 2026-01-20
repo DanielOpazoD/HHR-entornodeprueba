@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Folder, FileText, ChevronRight, MoreVertical, Download, Eye, Trash2 } from 'lucide-react';
+import { Folder, FileText, ChevronRight, Download, Eye, Trash2 } from 'lucide-react';
 
 // ============= Folder Card =============
 
@@ -51,7 +51,7 @@ interface FileCardProps {
 
 export const FileCard: React.FC<FileCardProps> = ({
     name,
-    date,
+    date: _date,
     shift,
     size,
     onDownload,

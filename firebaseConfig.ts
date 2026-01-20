@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseOptions, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
-import { initializeFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence, type Firestore } from 'firebase/firestore';
+import { initializeFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
 
@@ -73,21 +73,17 @@ const getCachedConfig = (): FirebaseOptions | null => {
 };
 
 const fetchRuntimeConfig = async (): Promise<FirebaseOptions> => {
-    try {
-        const configUrl = `/.netlify/functions/firebase-config?t=${Date.now()}&mode=recovery`;
-        const response = await fetch(configUrl, {
-            headers: { 'Cache-Control': 'no-cache' }
-        });
+    const configUrl = `/.netlify/functions/firebase-config?t=${Date.now()}&mode=recovery`;
+    const response = await fetch(configUrl, {
+        headers: { 'Cache-Control': 'no-cache' }
+    });
 
-        if (!response.ok) {
-            throw new Error(`Runtime config request failed (${response.status})`);
-        }
-
-        const config = await response.json();
-        return config satisfies FirebaseOptions;
-    } catch (error) {
-        throw error;
+    if (!response.ok) {
+        throw new Error(`Runtime config request failed (${response.status})`);
     }
+
+    const config = await response.json();
+    return config satisfies FirebaseOptions;
 };
 
 const buildDevConfig = (): FirebaseOptions => {
@@ -135,6 +131,7 @@ let storage!: FirebaseStorage;
 let functions!: Functions;
 
 export const firebaseReady = (async () => {
+    // eslint-disable-next-line no-console
     console.log('[FirebaseConfig] 🚀 Starting Firebase Ready sequence...');
 
     // Safety timeout for the entire initialization
@@ -143,7 +140,9 @@ export const firebaseReady = (async () => {
     try {
         const configPromise = (async () => {
             const config = await loadFirebaseConfig();
+            // eslint-disable-next-line no-console
             console.log('[FirebaseConfig] 📁 Config loaded:', config.projectId);
+            // eslint-disable-next-line no-console
             console.log('[FirebaseConfig] 🪣 Storage Bucket:', config.storageBucket || 'not set');
 
             if (!config.apiKey) {
@@ -161,6 +160,7 @@ export const firebaseReady = (async () => {
                 console.warn('[FirebaseConfig] Failed to set auth persistence:', err);
             });
 
+            // eslint-disable-next-line no-console
             console.log('[FirebaseConfig] 🔥 Firebase initialized');
 
             const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST;
@@ -184,9 +184,10 @@ export const firebaseReady = (async () => {
             return { app, auth, db, storage, functions };
         })();
 
-        return await Promise.race([configPromise, timeout]) as any;
-    } catch (err: any) {
-        console.error('[FirebaseConfig] ❌ Critical initialization error:', err.message || err);
+        return await Promise.race([configPromise, timeout]);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[FirebaseConfig] ❌ Critical initialization error:', message);
         // We throw here because without Firebase the app can't function properly
         // but it will be caught by anyone awaiting firebaseReady
         throw err;

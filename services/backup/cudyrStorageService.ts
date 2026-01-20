@@ -107,7 +107,7 @@ export const uploadCudyrExcel = async (
         const { deleteObject } = await import('firebase/storage');
         await deleteObject(legacyRef);
         // console.debug(`[CudyrStorage] ✅ Legacy duplicate deleted`);
-    } catch (ignore) {
+    } catch (_ignore) {
         // Legacy file doesn't exist, proceed normally
     }
 
@@ -149,11 +149,12 @@ export const cudyrExists = async (date: string): Promise<boolean> => {
 
             await getMetadata(storageRef);
             return true;
-        } catch (error: any) {
-            if (error?.code === 'storage/object-not-found') {
+        } catch (error: unknown) {
+            const storageError = error as { code?: string, message?: string };
+            if (storageError?.code === 'storage/object-not-found') {
                 return false;
             }
-            console.warn(`[CudyrStorage] Error checking:`, error.message || error);
+            console.warn(`[CudyrStorage] Error checking:`, storageError.message || error);
             return false;
         }
     })();

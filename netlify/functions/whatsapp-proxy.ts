@@ -18,7 +18,17 @@ const getPathSuffix = (path: string | undefined) => {
     return suffix.startsWith('/') ? suffix : `/${suffix}`;
 };
 
-export const handler = async (event: any) => {
+interface NetlifyEvent {
+    httpMethod: string;
+    headers: Record<string, string | undefined>;
+    body: string | null;
+    path: string;
+    rawQuery?: string;
+    isBase64Encoded?: boolean;
+    [key: string]: unknown;
+}
+
+export const handler = async (event: NetlifyEvent) => {
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -72,14 +82,14 @@ export const handler = async (event: any) => {
             },
             body: text
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('WhatsApp proxy error', error);
         return {
             statusCode: 502,
             headers: corsHeaders,
             body: JSON.stringify({
                 error: 'Failed to reach WhatsApp bot server',
-                details: error?.message
+                details: error instanceof Error ? error.message : String(error)
             })
         };
     }

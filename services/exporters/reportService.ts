@@ -1,7 +1,7 @@
 
 import type { Workbook } from 'exceljs';
 import { saveAs } from 'file-saver';
-import { DailyRecord } from '../../types';
+
 import { getRecordForDate } from '../dataService';
 import { getAllRecords } from '../storage/indexedDBService';
 import { buildCensusDailyRawWorkbook, extractRowsFromRecord, getCensusRawHeader } from './censusRawWorkbook';
@@ -67,12 +67,12 @@ export const generateCensusMonthRaw = async (year: number, month: number) => {
 
 // --- PLACEHOLDERS FOR FORMATTED REPORTS ---
 
-export const generateCensusDailyFormatted = async (date: string) => {
+export const generateCensusDailyFormatted = async (_date: string) => {
     alert("Funcionalidad 'Formato Especial' en desarrollo.");
     // TODO: Implement complex styling here reflecting the visual request
 };
 
-export const generateCensusRangeFormatted = async (startDate: string, endDate: string) => {
+export const generateCensusRangeFormatted = async (_startDate: string, _endDate: string) => {
     alert("Funcionalidad 'Formato Especial' en desarrollo.");
 };
 

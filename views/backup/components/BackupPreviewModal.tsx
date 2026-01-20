@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { X, Download, Clock, User, FileText } from 'lucide-react';
+import { X, User, FileText } from 'lucide-react';
 import { BackupFile, BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
 
 interface BackupPreviewModalProps {

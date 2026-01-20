@@ -3,7 +3,7 @@
  * Manages state and logic for the laboratory exam request form.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { PatientData } from '@/types';
 
 interface UseExamRequestParams {
@@ -32,13 +32,17 @@ export const useExamRequest = ({ patient, isOpen }: UseExamRequestParams): UseEx
     const [procedencia, setProcedencia] = useState('Hospitalización');
     const [prevision, setPrevision] = useState(patient.insurance || 'FONASA');
 
-    // Reset state when opening
-    useEffect(() => {
+    // State to track previous isOpen prop for resetting
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+    // Reset state when opening (Render Phase Update)
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
         if (isOpen) {
             setSelectedExams(new Set());
             setPrevision(patient.insurance || 'FONASA');
         }
-    }, [isOpen, patient]);
+    }
 
     const toggleExam = useCallback((examKey: string) => {
         setSelectedExams(prev => {

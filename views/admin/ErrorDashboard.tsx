@@ -9,8 +9,7 @@ import {
     ChevronUp,
     Clock,
     User,
-    Database,
-    Bug
+    Database
 } from 'lucide-react';
 import clsx from 'clsx';
 

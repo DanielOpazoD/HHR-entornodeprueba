@@ -1,8 +1,8 @@
-import { ref, getDownloadURL, getBlob } from 'firebase/storage';
+import { ref, getBlob } from 'firebase/storage';
 import { storage } from '@/firebaseConfig';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { TransferPatientData, QuestionnaireResponse, GeneratedDocument } from '@/types/transferDocuments';
+import { TransferPatientData, QuestionnaireResponse } from '@/types/transferDocuments';
 // import ExcelJS from 'exceljs'; // Removed static import
 
 /**
@@ -210,7 +210,7 @@ const calculateAge = (birthDateStr: string): string => {
             age--;
         }
         return `${age} años`;
-    } catch (e) {
+    } catch (_e) {
         return 'N/A';
     }
 };

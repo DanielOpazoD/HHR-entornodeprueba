@@ -69,7 +69,7 @@ const createEmptyCounts = (): Record<CudyrCategory, number> => ({
 });
 
 /** Get bed definition by ID */
-const getBedById = (bedId: string) => BEDS.find(b => b.id === bedId);
+
 
 // ============================================================================
 // Main Functions

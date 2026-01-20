@@ -14,15 +14,14 @@ import {
     writeBatch,
     QueryConstraint as FirebaseQueryConstraint,
     startAfter,
-    Firestore
+    WithFieldValue,
+    UpdateData
 } from 'firebase/firestore';
 import { db as firebaseDb } from '../../../firebaseConfig';
 import {
     IDatabaseProvider,
     QueryOptions,
-    IDatabaseBatch,
-    QueryConstraint,
-    OrderByConstraint
+    IDatabaseBatch
 } from './types';
 
 export class FirestoreProvider implements IDatabaseProvider {
@@ -45,12 +44,12 @@ export class FirestoreProvider implements IDatabaseProvider {
 
     async setDoc<T>(collectionName: string, id: string, data: T): Promise<void> {
         const docRef = doc(firebaseDb, collectionName, id);
-        await setDoc(docRef, data as any);
+        await setDoc(docRef, data as WithFieldValue<T>);
     }
 
-    async updateDoc(collectionName: string, id: string, data: Record<string, any>): Promise<void> {
+    async updateDoc(collectionName: string, id: string, data: Record<string, unknown>): Promise<void> {
         const docRef = doc(firebaseDb, collectionName, id);
-        await updateDoc(docRef, data);
+        await updateDoc(docRef, data as UpdateData<Record<string, unknown>>);
     }
 
     async deleteDoc(collectionName: string, id: string): Promise<void> {
@@ -76,8 +75,8 @@ export class FirestoreProvider implements IDatabaseProvider {
     async runBatch(operations: (batch: IDatabaseBatch) => void): Promise<void> {
         const batch = writeBatch(firebaseDb);
         const dbBatch: IDatabaseBatch = {
-            set: (col, id, data) => batch.set(doc(firebaseDb, col, id), data as any),
-            update: (col, id, data) => batch.update(doc(firebaseDb, col, id), data),
+            set: (col, id, data) => batch.set(doc(firebaseDb, col, id), data as WithFieldValue<unknown>),
+            update: (col, id, data) => batch.update(doc(firebaseDb, col, id), data as UpdateData<Record<string, unknown>>),
             delete: (col, id) => batch.delete(doc(firebaseDb, col, id))
         };
         operations(dbBatch);

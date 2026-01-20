@@ -10,7 +10,7 @@ import { Plus, X, Check, Settings } from 'lucide-react';
 import { DeviceDetails } from '../../types';
 import { DEVICE_OPTIONS } from '../../constants';
 import { VVPSelector } from './VVPSelector';
-import { TRACKED_DEVICES, TrackedDevice } from './index';
+
 
 interface DeviceMenuProps {
     devices: string[];
@@ -30,8 +30,7 @@ interface DeviceMenuProps {
 const isAnyVvp = (device: string) => device === 'VVP' || device === '2 VVP' || device.startsWith('VVP#');
 
 // Helper to check if device is tracked
-const isTrackedDevice = (dev: string): dev is TrackedDevice =>
-    TRACKED_DEVICES.includes(dev as TrackedDevice);
+
 
 export const DeviceMenu: React.FC<DeviceMenuProps> = ({
     devices,

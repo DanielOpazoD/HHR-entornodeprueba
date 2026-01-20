@@ -1,12 +1,10 @@
 import { useCallback } from 'react';
-import { DailyRecord, PatientData, CudyrScore, PatientFieldValue, AuditAction } from '../types';
-import { useAuditContext } from '../context/AuditContext';
-import { getAttributedAuthors } from '../services/admin/attributionService';
+import { DailyRecord, PatientData, CudyrScore, PatientFieldValue, DailyRecordPatch } from '../types';
 import { usePatientValidation } from './usePatientValidation';
 import { useBedOperations } from './useBedOperations';
 import { useClinicalCrib } from './useClinicalCrib';
-import { logPatientAdmission } from '../services/admin/auditService';
-import { DailyRecordPatchLoose } from './useDailyRecordTypes';
+import { useBedAudit } from './useBedAudit';
+
 
 /**
  * Interface defining the actions available for bed management.
@@ -90,10 +88,8 @@ export interface BedManagementActions {
 export const useBedManagement = (
     record: DailyRecord | null,
     saveAndUpdate: (updatedRecord: DailyRecord) => void,
-    patchRecord: (partial: DailyRecordPatchLoose) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ): BedManagementActions => {
-    const { logDebouncedEvent, userId } = useAuditContext();
-
     // ========================================================================
     // Compose Specialized Hooks
     // ========================================================================
@@ -101,6 +97,7 @@ export const useBedManagement = (
     const validation = usePatientValidation();
     const bedOperations = useBedOperations(record, patchRecord);
     const cribActions = useClinicalCrib(record, saveAndUpdate, patchRecord);
+    const bedAudit = useBedAudit(record);
 
     // ========================================================================
     // Patient Updates
@@ -123,89 +120,36 @@ export const useBedManagement = (
 
         const processedValue = result.value;
         const oldPatient = record.beds[bedId];
-        const oldValue = oldPatient[field];
 
-        // Audit Logging for patient admission/modification
-        if (field === 'patientName') {
-            const oldName = oldPatient.patientName;
-            const newName = processedValue as string;
-            // Admission: Empty -> Name
-            if (!oldName && newName) {
-                logPatientAdmission(bedId, newName, oldPatient.rut, oldPatient.pathology, record.date);
-            } else if (oldName && newName && oldName !== newName) {
-                // Name modification
-                logDebouncedEvent(
-                    'PATIENT_MODIFIED',
-                    'patient',
-                    bedId,
-                    {
-                        patientName: newName,
-                        changes: { [field]: { old: oldName, new: newName } }
-                    },
-                    oldPatient.rut,
-                    record.date
-                );
-            }
-        } else if (field === 'deviceDetails') {
-            // Specialized auditing for invasive devices
-            const oldDevices = (oldPatient.deviceDetails || {}) as Record<string, any>;
-            const newDevices = (processedValue || {}) as Record<string, any>;
+        const patches: Record<string, unknown> = {
+            [`beds.${bedId}.${field}`]: processedValue
+        };
 
-            // Detect which device changed
-            const allKeys = Array.from(new Set([...Object.keys(oldDevices), ...Object.keys(newDevices)]));
-            const deviceChanges: Record<string, any> = {};
+        // Identity Change Detection:
+        // Clear clinical data if the patient's identity (RUT or Name) changes significantly.
+        // This prevents data leakage (e.g., patient A's diagnosis staying on Bed 1 after changing it to Patient B).
+        const isIdentityChange = (field === 'rut' || field === 'patientName') &&
+            processedValue &&
+            processedValue !== oldPatient[field];
 
-            allKeys.forEach(device => {
-                const oldD = oldDevices[device];
-                const newD = newDevices[device];
-                if (JSON.stringify(oldD) !== JSON.stringify(newD)) {
-                    deviceChanges[device] = { old: oldD || 'N/A', new: newD || 'Eliminado' };
-                }
+        if (isIdentityChange) {
+            Object.assign(patches, {
+                [`beds.${bedId}.cie10Code`]: undefined,
+                [`beds.${bedId}.cie10Description`]: undefined,
+                [`beds.${bedId}.pathology`]: '',
+                [`beds.${bedId}.clinicalEvents`]: [],
+                [`beds.${bedId}.cudyr`]: undefined,
+                [`beds.${bedId}.deviceDetails`]: {},
+                [`beds.${bedId}.devices`]: []
             });
-
-            if (Object.keys(deviceChanges).length > 0) {
-                logDebouncedEvent(
-                    'PATIENT_MODIFIED',
-                    'patient',
-                    bedId,
-                    {
-                        patientName: oldPatient.patientName,
-                        changes: { deviceDetails: deviceChanges }
-                    },
-                    oldPatient.rut,
-                    record.date
-                );
-            }
-        } else if (oldValue !== processedValue) {
-            // Critical fields logging
-            const criticalFields: (keyof PatientData)[] = [
-                'pathology', 'age', 'specialty', 'status', 'biologicalSex',
-                'insurance', 'admissionOrigin', 'origin', 'admissionDate'
-            ];
-
-            if (criticalFields.includes(field)) {
-                logDebouncedEvent(
-                    'PATIENT_MODIFIED',
-                    'patient',
-                    bedId,
-                    {
-                        patientName: oldPatient.patientName,
-                        changes: { [field]: { old: oldValue, new: processedValue } }
-                    },
-                    oldPatient.rut,
-                    record.date
-                );
-            }
         }
 
+        // Audit Logging (Delegated to specialized hook)
+        bedAudit.auditPatientChange(bedId, field, oldPatient, processedValue);
+
         // Send an atomic patch to the database.
-        // We use dot-notation (e.g., "beds.bed-1.patientName") so Firestore 
-        // only updates that specific leaf node. This is critical for concurrency
-        // as other users might be updating "beds.bed-2" at the same time.
-        patchRecord({
-            [`beds.${bedId}.${field}`]: processedValue
-        });
-    }, [record, validation, patchRecord, logPatientAdmission, logDebouncedEvent]);
+        patchRecord(patches as DailyRecordPatch);
+    }, [record, validation, patchRecord, bedAudit]);
 
     /**
      * Update multiple patient fields atomically
@@ -216,7 +160,7 @@ export const useBedManagement = (
     ) => {
         if (!record) return;
 
-        const patches: DailyRecordPatchLoose = {};
+        const patches: Record<string, unknown> = {};
 
         for (const [key, value] of Object.entries(fields)) {
             const field = key as keyof PatientData;
@@ -228,7 +172,7 @@ export const useBedManagement = (
         }
 
         if (Object.keys(patches).length > 0) {
-            patchRecord(patches);
+            patchRecord(patches as DailyRecordPatch);
         }
     }, [record, validation, patchRecord]);
 
@@ -243,32 +187,13 @@ export const useBedManagement = (
     ) => {
         if (!record) return;
 
-        // Audit Log (Smart/Debounced)
-        if (record.beds[bedId].patientName) {
-            // Attribution logic for shared accounts (MINSAL requirement)
-            const authors = getAttributedAuthors(userId, record);
-
-            logDebouncedEvent(
-                'CUDYR_MODIFIED',
-                'dailyRecord',
-                record.date,
-                {
-                    patientName: record.beds[bedId].patientName,
-                    bedId,
-                    field,
-                    value,
-                    oldValue: record.beds[bedId].cudyr?.[field] || 0
-                },
-                record.beds[bedId].rut,
-                record.date,
-                authors
-            );
-        }
+        // Audit Log (Delegated)
+        bedAudit.auditCudyrChange(bedId, field, value);
 
         patchRecord({
             [`beds.${bedId}.cudyr.${field}`]: value
-        });
-    }, [record, patchRecord, logDebouncedEvent, userId]);
+        } as DailyRecordPatch);
+    }, [record, patchRecord, bedAudit]);
 
     // ========================================================================
     // Clinical Crib Wrapper (maintains backwards compatibility)
@@ -305,30 +230,13 @@ export const useBedManagement = (
     ) => {
         if (!record) return;
 
-        const crib = record.beds[bedId]?.clinicalCrib;
-        if (crib?.patientName) {
-            const authors = getAttributedAuthors(userId, record);
-            logDebouncedEvent(
-                'CUDYR_MODIFIED',
-                'dailyRecord',
-                record.date,
-                {
-                    patientName: crib.patientName,
-                    bedId: `${bedId}-crib`,
-                    field,
-                    value,
-                    oldValue: crib.cudyr?.[field] || 0
-                },
-                crib.rut,
-                record.date,
-                authors
-            );
-        }
+        // Audit Log (Delegated)
+        bedAudit.auditCribCudyrChange(bedId, field, value);
 
         patchRecord({
             [`beds.${bedId}.clinicalCrib.cudyr.${field}`]: value
-        });
-    }, [record, patchRecord, logDebouncedEvent, userId]);
+        } as DailyRecordPatch);
+    }, [record, patchRecord, bedAudit]);
 
     // ========================================================================
     // Return API (composing all hooks)

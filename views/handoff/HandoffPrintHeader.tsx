@@ -21,7 +21,7 @@ interface HandoffPrintHeaderProps {
 export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
     title,
     dateString,
-    Icon,
+    Icon: _Icon,
     schedule,
     selectedShift,
     isMedical,

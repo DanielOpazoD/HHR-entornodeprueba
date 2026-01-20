@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from 'react';
-import { DailyRecord, PatientData, PatientFieldValue } from '../types';
+import { DailyRecord, PatientData, PatientFieldValue, DailyRecordPatch } from '../types';
 import { createEmptyPatient } from '../services/factories/patientFactory';
 
 export interface ClinicalCribActions {
@@ -18,7 +18,7 @@ export interface ClinicalCribActions {
 export const useClinicalCrib = (
     record: DailyRecord | null,
     saveAndUpdate: (updatedRecord: DailyRecord) => void,
-    patchRecord: (partial: Record<string, any>) => Promise<void>
+    patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ): ClinicalCribActions => {
 
     /**
@@ -41,7 +41,7 @@ export const useClinicalCrib = (
         patchRecord({
             [`beds.${bedId}.clinicalCrib`]: newCrib,
             [`beds.${bedId}.hasCompanionCrib`]: false
-        });
+        } as DailyRecordPatch);
     }, [record, patchRecord]);
 
     /**
@@ -52,7 +52,7 @@ export const useClinicalCrib = (
 
         patchRecord({
             [`beds.${bedId}.clinicalCrib`]: null
-        });
+        } as DailyRecordPatch);
     }, [record, patchRecord]);
 
     /**
@@ -81,7 +81,7 @@ export const useClinicalCrib = (
 
         patchRecord({
             [`beds.${bedId}.clinicalCrib.${field}`]: value
-        });
+        } as DailyRecordPatch);
     }, [record, patchRecord]);
 
     /**
@@ -103,9 +103,9 @@ export const useClinicalCrib = (
             }
         }
 
-        const patches: Record<string, any> = {};
+        const patches: DailyRecordPatch = {};
         Object.entries(updates).forEach(([key, value]) => {
-            patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
+            (patches as Record<string, unknown>)[`beds.${bedId}.clinicalCrib.${key}`] = value;
         });
 
         patchRecord(patches);

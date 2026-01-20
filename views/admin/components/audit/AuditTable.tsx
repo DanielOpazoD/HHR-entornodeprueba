@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    RefreshCw, Search, List, Rows3, Box, Boxes, FileDown, Download, ChevronLeft, ChevronRight
+    Search, List, Rows3, Box, Boxes, FileDown, Download, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
 import { AuditLogEntry } from '@/types/audit';

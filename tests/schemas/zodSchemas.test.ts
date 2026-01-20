@@ -38,21 +38,29 @@ describe('zodSchemas', () => {
                 changeClothes: 2,
                 mobilization: 3,
                 feeding: 1,
+                elimination: 0,
+                psychosocial: 0,
+                surveillance: 0,
+                vitalSigns: 0,
+                fluidBalance: 0,
+                oxygenTherapy: 0,
+                airway: 0,
+                proInterventions: 0,
+                skinCare: 0,
+                pharmacology: 0,
+                invasiveElements: 0,
             });
             expect(score.changeClothes).toBe(2);
             expect(score.mobilization).toBe(3);
             expect(score.feeding).toBe(1);
         });
 
-        it('should apply defaults for missing fields', () => {
-            const score = CudyrScoreSchema.parse({});
-            expect(score.changeClothes).toBe(0);
-            expect(score.mobilization).toBe(0);
+        it('should reject missing fields', () => {
+            expect(() => CudyrScoreSchema.parse({})).toThrow();
         });
 
-        it('should allow partial scores', () => {
-            const score = CudyrScoreSchema.parse({ feeding: 2 });
-            expect(score.feeding).toBe(2);
+        it('should reject partial scores', () => {
+            expect(() => CudyrScoreSchema.parse({ feeding: 2 })).toThrow();
         });
     });
 

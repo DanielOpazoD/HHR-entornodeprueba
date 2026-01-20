@@ -46,8 +46,6 @@ test.describe('Complete Patient Admission', () => {
         await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
 
         // Look for RUT inputs (could be in table or modal)
-        const rutInputs = page.locator('input[placeholder*="RUT"], input[name="rut"]');
-
         // RUT might be in the table directly or require opening a modal
         // Just verify table has data entry capabilities
         const anyInputs = page.locator('table input');

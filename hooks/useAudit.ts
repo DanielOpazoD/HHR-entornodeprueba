@@ -31,7 +31,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
     // Store timers for debounced events (key: action-entityId)
     // We use 'any' for timer to avoid NodeJS vs Browser type conflicts
     const timersRef = React.useRef<Record<string, {
-        timer: any,
+        timer: number,
         details: Record<string, unknown>,
         rut?: string,
         date?: string,
@@ -70,19 +70,22 @@ export const useAudit = (userId: string): UseAuditReturn => {
         // Merge changes if they exist
         let mergedDetails = { ...details };
         if (pending && pending.details && details.changes) {
-            const oldChanges = (pending.details.changes || {}) as Record<string, any>;
-            const newChanges = (details.changes || {}) as Record<string, any>;
+            const oldChanges = (pending.details.changes || {}) as Record<string, { old?: unknown; new?: unknown } | unknown>;
+            const newChanges = (details.changes || {}) as Record<string, { old?: unknown; new?: unknown } | unknown>;
 
             // Merge logic: Preserve the FIRST 'old' value in the chain
             // but take the LAST 'new' value.
-            const mergedChanges: Record<string, any> = { ...oldChanges };
+            const mergedChanges: Record<string, unknown> = { ...oldChanges };
 
             Object.keys(newChanges).forEach(field => {
-                if (mergedChanges[field]) {
+                const oldVal = mergedChanges[field] as Record<string, unknown> | undefined;
+                const newVal = newChanges[field] as Record<string, unknown> | undefined;
+
+                if (oldVal && typeof oldVal === 'object' && 'old' in oldVal) {
                     // Field already exists in pending log, keep its 'old' value
                     mergedChanges[field] = {
-                        old: mergedChanges[field].old,
-                        new: newChanges[field].new
+                        old: oldVal.old,
+                        new: newVal && typeof newVal === 'object' && 'new' in newVal ? (newVal as any).new : newChanges[field]
                     };
                 } else {
                     // New field being modified

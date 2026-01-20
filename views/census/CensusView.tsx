@@ -39,20 +39,11 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     // Custom Hook handles all logic, state, and context connections
     const {
         record,
-        stats,
         previousRecordAvailable,
         previousRecordDate,
         availableDates,
         createDay,
-        resetDay,
-        updateNurse,
-        updateTens,
-        undoDischarge,
-        deleteDischarge,
-        undoTransfer,
-        deleteTransfer,
-        nursesList,
-        tensList
+        stats
     } = useCensusLogic(currentDateString);
 
     // Get page margin from table config

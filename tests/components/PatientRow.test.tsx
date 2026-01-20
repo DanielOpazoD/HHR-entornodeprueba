@@ -143,8 +143,12 @@ describe('PatientRow Component', () => {
                 { contextValue: mockContext as any }
             );
 
-            // Click on the mode button (should be "Cama")
-            const modeButton = screen.getByText(/Cama/i);
+            // Open the config menu
+            const configBtn = screen.getByTitle('Configuración de cama');
+            fireEvent.click(configBtn);
+
+            // Click internal button (should be "Cambiar a Cuna Clínica" because mockPatient is in "Cama" mode)
+            const modeButton = screen.getByText(/Cambiar a Cuna Clínica/i);
             fireEvent.click(modeButton);
 
             expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'bedMode', 'Cuna');
@@ -166,8 +170,12 @@ describe('PatientRow Component', () => {
                 { contextValue: mockContext as any }
             );
 
-            // RN Sano button text is "+ RN Sano" or "RN Sano"
-            const companionBtn = screen.getByText(/\+ RN Sano/i);
+            // Open the config menu
+            const configBtn = screen.getByTitle('Configuración de cama');
+            fireEvent.click(configBtn);
+
+            // RN Sano button text is "RN Sano"
+            const companionBtn = screen.getByText(/^RN Sano$/i);
             fireEvent.click(companionBtn);
 
             expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', true);
@@ -189,8 +197,12 @@ describe('PatientRow Component', () => {
                 { contextValue: mockContext as any }
             );
 
-            // Cuna Clínica button text is "+ Cuna Cli"
-            const clinicalCribBtn = screen.getByText(/\+ Cuna Cli/i);
+            // Open the config menu
+            const configBtn = screen.getByTitle('Configuración de cama');
+            fireEvent.click(configBtn);
+
+            // Cuna Clínica button text is "Agregar Cuna Clínica"
+            const clinicalCribBtn = screen.getByText(/Agregar Cuna Clínica/i);
             fireEvent.click(clinicalCribBtn);
 
             expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'create');
@@ -392,9 +404,13 @@ describe('PatientRow Component', () => {
                 { contextValue: mockContext as any }
             );
 
-            // Button text is "Cuna Cli" when it exists
-            const clinicalCribBtn = screen.getByText(/Cuna Cli/i);
-            fireEvent.click(clinicalCribBtn);
+            // Open the config menu
+            const configBtn = screen.getByTitle('Configuración de cama');
+            fireEvent.click(configBtn);
+
+            // Button with title "Eliminar Cuna"
+            const removeCribBtn = screen.getByTitle('Eliminar Cuna');
+            fireEvent.click(removeCribBtn);
 
             expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
         });
@@ -417,7 +433,11 @@ describe('PatientRow Component', () => {
                 { contextValue: mockContext as any }
             );
 
-            const companionBtn = screen.getByText(/\+ RN Sano/i);
+            // Open the config menu
+            const configBtn = screen.getByTitle('Configuración de cama');
+            fireEvent.click(configBtn);
+
+            const companionBtn = screen.getByText(/^RN Sano$/i);
             fireEvent.click(companionBtn);
 
             expect(mockAlert).toHaveBeenCalled();

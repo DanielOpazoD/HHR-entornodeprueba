@@ -6,7 +6,7 @@
  * For pure password generation without Firebase deps, use passwordGenerator.ts directly.
  */
 
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { getExportPasswordsPath } from '../../constants/firestorePaths';
 
 // Re-export the pure generator for convenience
