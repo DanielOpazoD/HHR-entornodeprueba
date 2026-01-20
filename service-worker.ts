@@ -65,8 +65,10 @@ const sw = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<
 // PRECHACING & CLEANUP
 // ============================================
 
-// VitePWA will inject the manifest here
-precacheAndRoute(sw.__WB_MANIFEST);
+// VitePWA will inject the manifest here - MUST use self.__WB_MANIFEST literal
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const manifest = (self as any).__WB_MANIFEST;
+precacheAndRoute(manifest);
 cleanupOutdatedCaches();
 
 const CACHE_VERSION = 'v2.2.0';
