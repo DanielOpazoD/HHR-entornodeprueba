@@ -1,6 +1,7 @@
 import React from 'react';
 import { DailyRecord } from '@/types';
 import { HandoffStaffSelector } from './HandoffStaffSelector';
+import { HandoffStaffDisplay } from './HandoffStaffDisplay';
 import { HandoffChecklistDay } from './HandoffChecklistDay';
 import { HandoffChecklistNight } from './HandoffChecklistNight';
 import { SaveBackupButton } from '@/components/handoff/SaveBackupButton';
@@ -34,30 +35,41 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
 }) => {
     if (isMedical) return null;
 
+    // Recibe is editable on both shifts as long as not read-only
+    const isReceivesEditable = !readOnly;
+
     return (
         <div className="bg-white rounded-lg border border-slate-200 p-2 print:hidden">
             {/* Staff Selectors - Compact horizontal layout */}
             <div className="flex flex-wrap gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-slate-100">
-                <HandoffStaffSelector
+                {/* Entrega - Always read-only (inherited from census) */}
+                <HandoffStaffDisplay
                     label="Entrega"
                     type="delivers"
-                    bgClass=""
-                    selectedNurses={deliversList}
-                    availableNurses={nursesList}
-                    onUpdate={(list) => onUpdateStaff(selectedShift, 'delivers', list)}
-                    readOnly={readOnly}
+                    nurses={deliversList}
                     compact
                 />
-                <HandoffStaffSelector
-                    label="Recibe"
-                    type="receives"
-                    bgClass=""
-                    selectedNurses={receivesList}
-                    availableNurses={nursesList}
-                    onUpdate={(list) => onUpdateStaff(selectedShift, 'receives', list)}
-                    readOnly={readOnly}
-                    compact
-                />
+
+                {/* Recibe - Editable ONLY on night shift */}
+                {isReceivesEditable ? (
+                    <HandoffStaffSelector
+                        label="Recibe"
+                        type="receives"
+                        bgClass=""
+                        selectedNurses={receivesList}
+                        availableNurses={nursesList}
+                        onUpdate={(list) => onUpdateStaff(selectedShift, 'receives', list)}
+                        readOnly={false}
+                        compact
+                    />
+                ) : (
+                    <HandoffStaffDisplay
+                        label="Recibe"
+                        type="receives"
+                        nurses={receivesList}
+                        compact
+                    />
+                )}
 
                 {/* Spacer to push buttons to the right */}
                 <div className="flex-1" />

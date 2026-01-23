@@ -9,11 +9,18 @@ import clsx from 'clsx';
 
 export const DischargesSection: React.FC = () => {
     const { record } = useDailyRecordData();
-    const { undoDischarge, deleteDischarge } = useDailyRecordActions();
+    const { undoDischarge, deleteDischarge, updateDischarge } = useDailyRecordActions();
     const { handleEditDischarge } = useCensusActions();
 
     if (!record) return null;
     const discharges = record.discharges || [];
+
+    const handleTimeChange = (id: string, newTime: string) => {
+        const discharge = discharges.find(d => d.id === id);
+        if (discharge) {
+            updateDischarge(id, discharge.status, discharge.dischargeType, discharge.dischargeTypeOther, newTime);
+        }
+    };
 
     return (
         <div className="card mt-6 animate-fade-in print:p-2 print:border-t-2 print:border-slate-800 print:shadow-none">
@@ -41,9 +48,10 @@ export const DischargesSection: React.FC = () => {
                                     <th className="px-3 py-2.5">Cama Origen</th>
                                     <th className="px-3 py-2.5">Paciente</th>
                                     <th className="px-3 py-2.5">RUT / ID</th>
-                                    <th className="px-3 py-2.5">Diagnóstico Clínico</th>
+                                    <th className="px-3 py-2.5">Diagnóstico</th>
                                     <th className="px-3 py-2.5">Tipo Alta</th>
                                     <th className="px-3 py-2.5">Estado</th>
+                                    <th className="px-3 py-2.5 text-center">Hora Alta</th>
                                     <th className="px-3 py-2.5 text-right print:hidden">Acciones</th>
                                 </tr>
                             </thead>
@@ -59,6 +67,15 @@ export const DischargesSection: React.FC = () => {
                                             <span className={clsx("px-2 py-1 rounded-full text-[11px] font-bold print:border print:border-slate-400", d.status === 'Fallecido' ? 'bg-black text-white' : 'bg-green-100 text-green-700')}>
                                                 {d.status}
                                             </span>
+                                        </td>
+                                        <td className="p-2 text-center">
+                                            <input
+                                                type="time"
+                                                step="300"
+                                                className="text-xs font-medium text-slate-600 bg-green-50 px-2 py-1 rounded border border-green-200 w-20 text-center"
+                                                value={d.time || ''}
+                                                onChange={(e) => handleTimeChange(d.id, e.target.value)}
+                                            />
                                         </td>
                                         <td className="p-2 flex justify-end gap-2 print:hidden">
                                             <button onClick={() => undoDischarge(d.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">

@@ -57,7 +57,7 @@ export const upsertPatient = async (patient: Partial<MasterPatient> & { rut: str
 
     const now = Date.now();
 
-    const dataToSave: any = {
+    const dataToSave: Partial<MasterPatient> & { updatedAt: number } = {
         ...patient,
         rut: id, // Ensure ID format matches field
         updatedAt: now

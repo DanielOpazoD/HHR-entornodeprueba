@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PatientData, CudyrScore, Specialty, PatientStatus } from '../../types';
+import { PatientData, Specialty, PatientStatus } from '../../types';
 
 // CUDYR Categories (Legacy context):
 // C = Contagio (Infection)
@@ -13,8 +13,16 @@ import { PatientData, CudyrScore, Specialty, PatientStatus } from '../../types';
 // Y = Yatrogenia (Iatrogenic risk)
 // R = Riesgo (General risk)
 
+interface LegacyCudyrScore {
+    C: boolean;
+    U: boolean;
+    D: boolean;
+    Y: boolean;
+    R: boolean;
+}
+
 describe('CUDYR Integration', () => {
-    const createPatientWithCUDYR = (cudyr: any): PatientData => ({
+    const createPatientWithCUDYR = (cudyr: LegacyCudyrScore): PatientData => ({
         bedId: 'R1',
         patientName: 'Test Patient',
         rut: '12345678-9',
@@ -30,12 +38,12 @@ describe('CUDYR Integration', () => {
         bedMode: 'Cama',
         hasCompanionCrib: false,
         isBlocked: false,
-        cudyr: cudyr as CudyrScore,
+        cudyr: cudyr as any, // Cast to any here is acceptable as we are testing legacy bridge in an integration context
     });
 
     describe('CUDYR Scoring', () => {
         it('should start with no categories', () => {
-            const cudyr: any = {
+            const cudyr: LegacyCudyrScore = {
                 C: false,
                 U: false,
                 D: false,
@@ -48,7 +56,7 @@ describe('CUDYR Integration', () => {
         });
 
         it('should count single category', () => {
-            const cudyr: any = {
+            const cudyr: LegacyCudyrScore = {
                 C: true,
                 U: false,
                 D: false,
@@ -61,7 +69,7 @@ describe('CUDYR Integration', () => {
         });
 
         it('should count multiple categories', () => {
-            const cudyr: any = {
+            const cudyr: LegacyCudyrScore = {
                 C: true,
                 U: true,
                 D: true,
@@ -74,7 +82,7 @@ describe('CUDYR Integration', () => {
         });
 
         it('should identify high-risk patient (all categories)', () => {
-            const cudyr: any = {
+            const cudyr: LegacyCudyrScore = {
                 C: true,
                 U: true,
                 D: true,
@@ -100,7 +108,8 @@ describe('CUDYR Integration', () => {
 
             // Total categories marked
             const totalCategories = patients.reduce((sum, p) => {
-                return sum + Object.values((p.cudyr as any) || {}).filter(Boolean).length;
+                const cudyr = (p.cudyr as unknown as LegacyCudyrScore) || { C: false, U: false, D: false, Y: false, R: false };
+                return sum + Object.values(cudyr).filter(Boolean).length;
             }, 0);
 
             expect(totalCategories).toBe(3); // 1 + 2 + 0
@@ -113,17 +122,17 @@ describe('CUDYR Integration', () => {
                 createPatientWithCUDYR({ C: true, U: false, D: false, Y: false, R: true }),
             ];
 
-            const cCount = patients.filter(p => (p.cudyr as any)?.C).length;
-            const uCount = patients.filter(p => (p.cudyr as any)?.U).length;
-            const dCount = patients.filter(p => (p.cudyr as any)?.D).length;
-            const yCount = patients.filter(p => (p.cudyr as any)?.Y).length;
-            const rCount = patients.filter(p => (p.cudyr as any)?.R).length;
+            const getC = (p: PatientData) => (p.cudyr as unknown as LegacyCudyrScore)?.C;
+            const getU = (p: PatientData) => (p.cudyr as unknown as LegacyCudyrScore)?.U;
+            const getD = (p: PatientData) => (p.cudyr as unknown as LegacyCudyrScore)?.D;
+            const getY = (p: PatientData) => (p.cudyr as unknown as LegacyCudyrScore)?.Y;
+            const getR = (p: PatientData) => (p.cudyr as unknown as LegacyCudyrScore)?.R;
 
-            expect(cCount).toBe(3); // All have C
-            expect(uCount).toBe(1);
-            expect(dCount).toBe(2);
-            expect(yCount).toBe(0);
-            expect(rCount).toBe(1);
+            expect(patients.filter(getC).length).toBe(3);
+            expect(patients.filter(getU).length).toBe(1);
+            expect(patients.filter(getD).length).toBe(2);
+            expect(patients.filter(getY).length).toBe(0);
+            expect(patients.filter(getR).length).toBe(1);
         });
 
         it('should identify most common category', () => {
@@ -134,11 +143,11 @@ describe('CUDYR Integration', () => {
             ];
 
             const categoryCounts = {
-                C: patients.filter(p => (p.cudyr as any)?.C).length,
-                U: patients.filter(p => (p.cudyr as any)?.U).length,
-                D: patients.filter(p => (p.cudyr as any)?.D).length,
-                Y: patients.filter(p => (p.cudyr as any)?.Y).length,
-                R: patients.filter(p => (p.cudyr as any)?.R).length,
+                C: patients.filter(p => (p.cudyr as unknown as LegacyCudyrScore)?.C).length,
+                U: patients.filter(p => (p.cudyr as unknown as LegacyCudyrScore)?.U).length,
+                D: patients.filter(p => (p.cudyr as unknown as LegacyCudyrScore)?.D).length,
+                Y: patients.filter(p => (p.cudyr as unknown as LegacyCudyrScore)?.Y).length,
+                R: patients.filter(p => (p.cudyr as unknown as LegacyCudyrScore)?.R).length,
             };
 
             const mostCommon = Object.entries(categoryCounts)
@@ -175,7 +184,7 @@ describe('CUDYR Integration', () => {
 
             const occupiedBeds = Object.values(beds).filter(b => b.patientName);
             const withCUDYR = occupiedBeds.filter(b =>
-                b.cudyr && Object.values(b.cudyr as any).some(Boolean)
+                b.cudyr && Object.values(b.cudyr as unknown as LegacyCudyrScore).some(Boolean)
             );
 
             expect(occupiedBeds.length).toBe(2);
@@ -193,7 +202,7 @@ describe('CUDYR Integration', () => {
                 cudyr: undefined, // Reset for new day
             };
 
-            expect(originalPatient.cudyr && (originalPatient.cudyr as any).C).toBe(true);
+            expect(originalPatient.cudyr && (originalPatient.cudyr as unknown as LegacyCudyrScore).C).toBe(true);
             expect(copiedPatient.cudyr).toBeUndefined();
         });
     });

@@ -22,47 +22,60 @@ export function isAIAvailable(): boolean {
 
 /**
  * Get API key for local development
+ * Access import.meta.env directly so Vite's static replacement works
  */
 const getLocalApiKey = (): string | undefined => {
-    try {
-        return (import.meta as any).env?.GEMINI_API_KEY ||
-            (import.meta as any).env?.API_KEY;
-    } catch {
-        return undefined;
-    }
+    // Vite replaces these at build time, must be accessed directly
+    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || undefined;
 };
 
 /**
  * Search CIE-10 using local Gemini API (for development)
  */
-async function searchWithLocalAPI(query: string): Promise<CIE10Entry[]> {
+async function searchWithLocalAPI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
     const apiKey = getLocalApiKey();
     if (!apiKey) return [];
+    if (signal?.aborted) return [];
 
     try {
         const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
-Eres un experto en codificación CIE-10 (Clasificación Internacional de Enfermedades, 10a revisión) en español, especializado en terminología médica chilena.
+Eres un codificador experto de CIE-10 (Clasificación Internacional de Enfermedades, 10a edición) en español, trabajando para el Hospital Hanga Roa en Rapa Nui (Isla de Pascua).
 
-El usuario busca: "${query}"
+TU TAREA: Dada la consulta del usuario: "${query}", devuelve hasta 8 códigos CIE-10 que mejor representen el diagnóstico clínico.
 
-INTERPRETA el término considerando:
-1. ABREVIACIONES MÉDICAS: IAM, NAC, TVP, TEP, AKI, EPOC, ITU, AVE, ACV, HTA, IC, FA, DM, TEC, GEA, etc.
-2. TÉRMINOS COLOQUIALES CHILENOS: "presión alta" = hipertensión, "azúcar" = diabetes, "derrame" = ACV, "pulmonia" = neumonía
-3. ERRORES ORTOGRÁFICOS COMUNES: "neumonia" = neumonía, "diabetis" = diabetes
-4. TÉRMINOS EN INGLÉS: stroke, heart attack, pneumonia, kidney failure
+CONSIDERACIONES CRÍTICAS:
+1. ABREVIACIONES MÉDICAS CHILENAS: Interpretación obligatoria:
+   - IAM: Infarto agudo del miocardio (I21.9)
+   - ACV / AVE: Accidente cerebrovascular (I63.9 o I64)
+   - NAC: Neumonía adquirida en la comunidad (J18.9)
+   - TVP: Trombosis venosa profunda (I82.4)
+   - ITU: Infección del tracto urinario (N39.0)
+   - HTA: Hipertensión arterial (I10)
+   - DM / DM2: Diabetes mellitus (E11.9)
+   - EPOC: Enfermedad pulmonar obstructiva crónica (J44.9)
+   - AKI / IRA: Lesión renal aguda (N17.9)
+   - TEP: Tromboembolismo pulmonar (I26.9)
+   - GEA: Gastroenteritis aguda (A09.9)
+   - TEC: Traumatismo encéfalo craneano (S06.9)
+   - UPC: Unidad de Paciente Crítico (contexto grave)
 
-Responde ÚNICAMENTE con un array JSON de hasta 8 códigos CIE-10 más relevantes.
-Cada elemento debe tener: code (código CIE-10), description (descripción en español), category (categoría).
+2. CONTEXTO RAPA NUI:
+   - "Dengue": A90
+   - "Zika": A92.8
+   - "Mordedura de perro": W54.0
 
-Ejemplo de formato de respuesta (solo el JSON, sin texto adicional):
+3. CALIDAD DE RESPUESTA:
+   - Responde ÚNICAMENTE con un array JSON válido.
+   - Cada objeto debe tener: "code", "description" (en español formal), "category" (agregación médica).
+   - No incluyas markdown, bloques de código \`\`\`json, ni texto explicativo.
+
+Ejemplo:
 [
-  {"code": "J18.9", "description": "Neumonía, no especificada", "category": "Respiratorias"},
-  {"code": "J15.9", "description": "Neumonía bacteriana, no especificada", "category": "Respiratorias"}
+  {"code": "I21.9", "description": "Infarto agudo del miocardio, sin otra especificación", "category": "Cardiovasculares"},
+  {"code": "I10", "description": "Hipertensión esencial (primaria)", "category": "Cardiovasculares"}
 ]
-
-IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
 `;
 
         const response = await ai.models.generateContent({
@@ -104,12 +117,13 @@ IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
 /**
  * Search CIE-10 using Netlify serverless function
  */
-async function searchWithServerlessFunction(query: string): Promise<{ available: boolean; results: CIE10Entry[] }> {
+async function searchWithServerlessFunction(query: string, signal?: AbortSignal): Promise<{ available: boolean; results: CIE10Entry[] }> {
     try {
         const response = await fetch('/.netlify/functions/cie10-ai-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query }),
+            signal
         });
 
         if (!response.ok) {
@@ -130,11 +144,11 @@ async function searchWithServerlessFunction(query: string): Promise<{ available:
  * Searches for CIE-10 codes using Gemini AI
  * Uses serverless function in Netlify, or direct API in local dev
  */
-export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
+export async function searchCIE10WithAI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
     if (!query || query.length < 2) return [];
 
     // First try serverless function (Netlify)
-    const serverlessResult = await searchWithServerlessFunction(query);
+    const serverlessResult = await searchWithServerlessFunction(query, signal);
 
     if (serverlessResult.available) {
         aiAvailabilityChecked = true;
@@ -148,7 +162,7 @@ export async function searchCIE10WithAI(query: string): Promise<CIE10Entry[]> {
         // console.info('🔧 Using local Gemini API for development');
         aiAvailabilityChecked = true;
         aiIsAvailable = true;
-        return searchWithLocalAPI(query);
+        return searchWithLocalAPI(query, signal);
     }
 
     // No AI available

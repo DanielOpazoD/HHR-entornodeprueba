@@ -39,7 +39,8 @@ describe('TransfersSection', () => {
         vi.mocked(useCensusActions).mockReturnValue({ handleEditTransfer: mockHandleEdit } as any);
         (useDailyRecordActions as any).mockReturnValue({
             undoTransfer: mockOnUndo,
-            deleteTransfer: mockOnDelete
+            deleteTransfer: mockOnDelete,
+            updateTransfer: vi.fn()
         });
     });
 
@@ -61,7 +62,7 @@ describe('TransfersSection', () => {
 
         expect(screen.getByText('Jane Smith')).toBeInTheDocument();
         expect(screen.getByText('R2')).toBeInTheDocument();
-        expect(screen.getByText('Nurse X')).toBeInTheDocument();
+        expect(screen.getByText(/Nurse X/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
         expect(mockOnUndo).toHaveBeenCalledWith('t1');

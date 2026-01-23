@@ -2,9 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     saveRecordToFirestore,
     getRecordFromFirestore,
-    updateRecordPartial
+    updateRecordPartial,
+    subscribeToRecord,
+    getNurseCatalogFromFirestore,
+    saveNurseCatalogToFirestore,
+    subscribeToNurseCatalog,
+    saveTensCatalogToFirestore,
+    getTensCatalogFromFirestore,
+    deleteRecordFromFirestore,
+    getAllRecordsFromFirestore,
+    getMonthRecordsFromFirestore,
+    moveRecordToTrash,
+    subscribeToTensCatalog,
+    isFirestoreAvailable
 } from '../../services/storage/firestoreService';
 import * as firestore from 'firebase/firestore';
+import { DailyRecord } from '@/types';
+import { DocumentSnapshot, QuerySnapshot, Timestamp, DocumentData } from 'firebase/firestore';
 
 // Mock the modular Firestore SDK
 vi.mock('firebase/firestore', async () => {
@@ -45,7 +59,7 @@ describe('firestoreService', () => {
         nursesNightShift: ['', ''],
         tensDayShift: ['', '', ''],
         tensNightShift: ['', '', '']
-    };
+    } as unknown as DailyRecord;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -59,12 +73,11 @@ describe('firestoreService', () => {
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => ({ some: 'old data' })
-        } as any);
+        } as unknown as DocumentSnapshot);
 
-        await saveRecordToFirestore(mockRecord as any);
+        await saveRecordToFirestore(mockRecord);
 
         // Should have called setDoc twice: once for snapshot, once for main record
-        // Wait, saveHistorySnapshot calls setDoc.
         expect(setDocMock).toHaveBeenCalledTimes(2);
         expect(vi.mocked(firestore.doc)).toHaveBeenCalled();
     });
@@ -73,7 +86,7 @@ describe('firestoreService', () => {
         const getDocMock = vi.mocked(firestore.getDoc);
         getDocMock.mockResolvedValueOnce({
             exists: () => false
-        } as any);
+        } as unknown as DocumentSnapshot);
 
         const result = await getRecordFromFirestore(mockDate);
         expect(result).toBeNull();
@@ -86,9 +99,9 @@ describe('firestoreService', () => {
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => ({})
-        } as any);
+        } as unknown as DocumentSnapshot);
 
-        await updateRecordPartial(mockDate, { 'beds.BED_01.patientName': 'Jane Doe' } as any);
+        await updateRecordPartial(mockDate, { 'beds.BED_01.patientName': 'Jane Doe' } as Record<string, unknown>);
 
         expect(updateDocMock).toHaveBeenCalled();
     });
@@ -96,17 +109,17 @@ describe('firestoreService', () => {
     it('should sanitize corrupted array data from Firestore (object with numeric keys)', async () => {
         const getDocMock = vi.mocked(firestore.getDoc);
 
-        // Mock data where nursesDayShift is stored as an object instead of array (common Firestore corruption when using dot notation incorrectly)
+        // Mock data where nursesDayShift is stored as an object instead of array
         const corruptedData = {
             beds: {},
             nursesDayShift: { '0': 'Nurse A', '1': 'Nurse B' },
-            lastUpdated: firestore.Timestamp.now()
+            lastUpdated: Timestamp.now()
         };
 
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => corruptedData
-        } as any);
+        } as unknown as DocumentSnapshot);
 
         const record = await getRecordFromFirestore(mockDate);
 
@@ -118,17 +131,16 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((docRef, options, onNext) => {
-            // Trigger the callback manually
-            (onNext as any)({
-                exists: () => true,
-                data: () => ({ beds: {} }),
-                metadata: { hasPendingWrites: false }
-            });
+        onSnapshotMock.mockImplementationOnce((_docRef, _options, onNext) => {
+            if (typeof onNext === 'function') {
+                onNext({
+                    exists: () => true,
+                    data: () => ({ beds: {} }),
+                    metadata: { hasPendingWrites: false }
+                } as unknown as DocumentSnapshot);
+            }
             return vi.fn(); // Return unsubscribe
         });
-
-        const { subscribeToRecord } = await import('../../services/storage/firestoreService');
 
         const unsub = subscribeToRecord(mockDate, callback);
 
@@ -138,9 +150,8 @@ describe('firestoreService', () => {
 
     it('should check if firestore is available', async () => {
         const getDocMock = vi.mocked(firestore.getDoc);
-        getDocMock.mockResolvedValueOnce({ exists: () => true } as any);
+        getDocMock.mockResolvedValueOnce({ exists: () => true } as unknown as DocumentSnapshot);
 
-        const { isFirestoreAvailable } = await import('../../services/storage/firestoreService');
         const available = await isFirestoreAvailable();
         expect(available).toBe(true);
     });
@@ -150,17 +161,14 @@ describe('firestoreService', () => {
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => ({ list: ['Nurse 1', 'Nurse 2'] })
-        } as any);
+        } as unknown as DocumentSnapshot);
 
-        const { getNurseCatalogFromFirestore } = await import('../../services/storage/firestoreService');
         const list = await getNurseCatalogFromFirestore();
         expect(list).toEqual(['Nurse 1', 'Nurse 2']);
     });
 
     it('should save nurse catalog to firestore', async () => {
         const setDocMock = vi.mocked(firestore.setDoc);
-        const { saveNurseCatalogToFirestore } = await import('../../services/storage/firestoreService');
-
         await saveNurseCatalogToFirestore(['Nurse A']);
         expect(setDocMock).toHaveBeenCalled();
     });
@@ -169,15 +177,16 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((docRef, onNext) => {
-            (onNext as any)({
-                exists: () => true,
-                data: () => ({ list: ['Staff 1'] })
-            });
+        onSnapshotMock.mockImplementationOnce((_docRef, onNext) => {
+            if (typeof onNext === 'function') {
+                onNext({
+                    exists: () => true,
+                    data: () => ({ list: ['Staff 1'] })
+                } as unknown as DocumentSnapshot);
+            }
             return vi.fn();
         });
 
-        const { subscribeToNurseCatalog } = await import('../../services/storage/firestoreService');
         const unsub = subscribeToNurseCatalog(callback);
 
         expect(callback).toHaveBeenCalledWith(['Staff 1']);
@@ -186,8 +195,6 @@ describe('firestoreService', () => {
 
     it('should save TENS catalog to firestore', async () => {
         const setDocMock = vi.mocked(firestore.setDoc);
-        const { saveTensCatalogToFirestore } = await import('../../services/storage/firestoreService');
-
         await saveTensCatalogToFirestore(['TENS A']);
         expect(setDocMock).toHaveBeenCalled();
     });
@@ -197,9 +204,8 @@ describe('firestoreService', () => {
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => ({ list: ['TENS 1'] })
-        } as any);
+        } as unknown as DocumentSnapshot);
 
-        const { getTensCatalogFromFirestore } = await import('../../services/storage/firestoreService');
         const list = await getTensCatalogFromFirestore();
         expect(list).toEqual(['TENS 1']);
     });
@@ -208,24 +214,20 @@ describe('firestoreService', () => {
         const getDocMock = vi.mocked(firestore.getDoc);
         getDocMock.mockRejectedValue(new Error('Firestore error'));
 
-        const { getNurseCatalogFromFirestore } = await import('../../services/storage/firestoreService');
         const list = await getNurseCatalogFromFirestore();
         expect(list).toEqual([]);
     });
 
     it('should return empty array if catalog does not exist', async () => {
         const getDocMock = vi.mocked(firestore.getDoc);
-        getDocMock.mockResolvedValueOnce({ exists: () => false } as any);
+        getDocMock.mockResolvedValueOnce({ exists: () => false } as unknown as DocumentSnapshot);
 
-        const { getNurseCatalogFromFirestore } = await import('../../services/storage/firestoreService');
         const list = await getNurseCatalogFromFirestore();
         expect(list).toEqual([]);
     });
 
     it('should delete a record from firestore', async () => {
         const deleteDocMock = vi.mocked(firestore.deleteDoc);
-        const { deleteRecordFromFirestore } = await import('../../services/storage/firestoreService');
-
         await deleteRecordFromFirestore(mockDate);
         expect(deleteDocMock).toHaveBeenCalled();
     });
@@ -233,10 +235,9 @@ describe('firestoreService', () => {
     it('should fetch all records from firestore', async () => {
         const getDocsMock = vi.mocked(firestore.getDocs);
         getDocsMock.mockResolvedValueOnce({
-            forEach: (cb: any) => cb({ id: '2024-12-24', data: () => ({ date: '2024-12-24' }) })
-        } as any);
+            forEach: (cb: (doc: unknown) => void) => cb({ id: '2024-12-24', data: () => ({ date: '2024-12-24' }) })
+        } as unknown as QuerySnapshot);
 
-        const { getAllRecordsFromFirestore } = await import('../../services/storage/firestoreService');
         const records = await getAllRecordsFromFirestore();
         expect(records['2024-12-24']).toBeDefined();
     });
@@ -245,21 +246,17 @@ describe('firestoreService', () => {
         const getDocsMock = vi.mocked(firestore.getDocs);
         getDocsMock.mockResolvedValueOnce({
             docs: [{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }]
-        } as any);
+        } as unknown as QuerySnapshot);
 
-        const { getMonthRecordsFromFirestore } = await import('../../services/storage/firestoreService');
         const records = await getMonthRecordsFromFirestore(2024, 11); // December (0-indexed)
         expect(records).toHaveLength(1);
     });
 
     it('should move record to trash', async () => {
         const setDocMock = vi.mocked(firestore.setDoc);
-        const { moveRecordToTrash } = await import('../../services/storage/firestoreService');
-
-        await moveRecordToTrash(mockRecord as any);
+        await moveRecordToTrash(mockRecord);
         expect(setDocMock).toHaveBeenCalled();
 
-        // The path should contain 'deletedRecords'
         expect(vi.mocked(firestore.doc)).toHaveBeenCalledWith(
             expect.anything(),
             'hospitals',
@@ -275,11 +272,9 @@ describe('firestoreService', () => {
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
             data: () => ({ lastUpdated: '2025-01-01T00:00:00Z' })
-        } as any);
+        } as unknown as DocumentSnapshot);
 
-        const { saveRecordToFirestore } = await import('../../services/storage/firestoreService');
-
-        await expect(saveRecordToFirestore(mockRecord as any, '2024-01-01T00:00:00Z'))
+        await expect(saveRecordToFirestore(mockRecord, '2024-01-01T00:00:00Z'))
             .rejects.toThrow('El registro ha sido modificado por otro usuario');
     });
 
@@ -287,15 +282,16 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((docRef, onNext) => {
-            (onNext as any)({
-                exists: () => true,
-                data: () => ({ list: ['TENS A'] })
-            });
+        onSnapshotMock.mockImplementationOnce((_docRef, onNext) => {
+            if (typeof onNext === 'function') {
+                onNext({
+                    exists: () => true,
+                    data: () => ({ list: ['TENS A'] })
+                } as unknown as DocumentSnapshot);
+            }
             return vi.fn();
         });
 
-        const { subscribeToTensCatalog } = await import('../../services/storage/firestoreService');
         const unsub = subscribeToTensCatalog(callback);
 
         expect(callback).toHaveBeenCalledWith(['TENS A']);

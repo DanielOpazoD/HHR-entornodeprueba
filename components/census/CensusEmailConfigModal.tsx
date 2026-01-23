@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { X, Plus, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Plus, RefreshCw, Mail, Users, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { buildCensusEmailBody } from '../../constants/email';
+import { BaseModal, ModalSection } from '../shared/BaseModal';
 
 interface Props {
     isOpen: boolean;
@@ -48,7 +49,6 @@ export const CensusEmailConfigModal: React.FC<Props> = ({
     const [editingValue, setEditingValue] = useState('');
     const [showAllRecipients, setShowAllRecipients] = useState(false);
     const defaultMessage = buildCensusEmailBody(date, nursesSignature);
-    const dialogRef = useRef<HTMLDivElement>(null);
 
     // Reset state when opening (State derivation pattern)
     const [wasOpen, setWasOpen] = useState(isOpen);
@@ -65,27 +65,6 @@ export const CensusEmailConfigModal: React.FC<Props> = ({
     if (!isOpen && wasOpen) {
         setWasOpen(false);
     }
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
-
-    useEffect(() => {
-        if (isOpen) {
-            dialogRef.current?.focus();
-        }
-    }, [isOpen]);
-
-    if (!isOpen) return null;
 
     const handleAddRecipient = () => {
         const trimmed = normalizeEmail(newRecipient);
@@ -191,220 +170,220 @@ export const CensusEmailConfigModal: React.FC<Props> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div
-                ref={dialogRef}
-                tabIndex={-1}
-                className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 outline-none"
-                aria-modal="true"
-                role="dialog"
-            >
-                <div className="flex items-start justify-between mb-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800">Configuración del envío de correo</h2>
-                        <p className="text-sm text-slate-500">Personaliza destinatarios y el mensaje antes de enviar el censo.</p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
-                        aria-label="Cerrar"
-                    >
-                        <X size={18} />
-                    </button>
+        <BaseModal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800">Envío de Correo</h2>
+                    <p className="text-xs text-slate-500 font-medium">Personaliza destinatarios y el mensaje antes de enviar el censo.</p>
                 </div>
-
-                <div className="space-y-6">
-                    <section>
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-semibold text-slate-700">Destinatarios</h3>
-                            <div className="flex items-center gap-3">
-                                {safeRecipients.length > MAX_VISIBLE && !showBulkEditor && (
-                                    <button
-                                        onClick={() => setShowAllRecipients((prev) => !prev)}
-                                        className="text-[11px] font-semibold text-slate-600 hover:text-slate-800"
-                                    >
-                                        {showAllRecipients ? 'Ocultar lista' : 'Mostrar todos'}
-                                    </button>
-                                )}
+            }
+            icon={<Mail size={20} />}
+            size="full"
+            headerIconColor="text-blue-600"
+        >
+            <div className="space-y-6">
+                <ModalSection
+                    title="Destinatarios"
+                    icon={<Users size={16} className="text-blue-600" />}
+                    variant="info"
+                >
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                            {safeRecipients.length > MAX_VISIBLE && !showBulkEditor && (
                                 <button
-                                    onClick={() => {
-                                        setShowBulkEditor(!showBulkEditor);
-                                        setBulkRecipients(safeRecipients.join('\n'));
-                                        setError(null);
-                                    }}
-                                    className="text-xs font-semibold text-blue-700 hover:text-blue-800"
+                                    onClick={() => setShowAllRecipients((prev) => !prev)}
+                                    className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-4"
                                 >
-                                    {showBulkEditor ? 'Volver a edición individual' : 'Edición masiva'}
+                                    {showAllRecipients ? 'Ocultar lista' : `Mostrar todos (${safeRecipients.length})`}
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    setShowBulkEditor(!showBulkEditor);
+                                    setBulkRecipients(safeRecipients.join('\n'));
+                                    setError(null);
+                                }}
+                                className="text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+                            >
+                                {showBulkEditor ? '← Volver a edición individual' : 'Edición masiva'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {showBulkEditor ? (
+                        <div className="space-y-2">
+                            <p className="text-[11px] text-slate-500">
+                                Pega correos separados por salto de línea o comas. Se eliminarán duplicados automáticamente.
+                            </p>
+                            <textarea
+                                value={bulkRecipients}
+                                onChange={(e) => setBulkRecipients(e.target.value)}
+                                rows={6}
+                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                placeholder="ejemplo1@hospital.cl&#10;ejemplo2@hospital.cl"
+                            />
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={handleBulkCancel}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleBulkSave}
+                                    className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-100"
+                                >
+                                    Guardar Cambios
                                 </button>
                             </div>
                         </div>
-                        {showBulkEditor ? (
-                            <div className="space-y-2">
-                                <p className="text-xs text-slate-500">
-                                    Pega correos separados por salto de línea o comas. Se eliminarán duplicados y se validará cada correo al guardar.
-                                </p>
-                                <textarea
-                                    value={bulkRecipients}
-                                    onChange={(e) => setBulkRecipients(e.target.value)}
-                                    rows={6}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <div className="flex gap-2 justify-end">
-                                    <button
-                                        onClick={handleBulkCancel}
-                                        className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 text-sm hover:bg-slate-50"
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-slate-50/50 rounded-xl border border-slate-100">
+                                {safeRecipients.length === 0 && (
+                                    <p className="text-[11px] text-slate-400 italic px-2 py-1">No hay destinatarios configurados.</p>
+                                )}
+                                {visibleRecipients.map((email, index) => (
+                                    <div
+                                        key={`${email}-${index}`}
+                                        className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full pl-3 pr-1 py-1 text-[11px] font-medium text-slate-700 shadow-sm"
                                     >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        onClick={handleBulkSave}
-                                        className="px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold"
-                                    >
-                                        Guardar edición masiva
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                                    {safeRecipients.length === 0 && (
-                                        <p className="text-xs text-slate-500 col-span-3 md:col-span-4">No hay destinatarios configurados. Agrega los correos a los que deseas enviar el censo.</p>
-                                    )}
-                                    {visibleRecipients.map((email, index) => (
-                                        <div
-                                            key={`${email}-${index}`}
-                                            className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-full px-2 py-1 text-[10px] leading-tight text-slate-700"
-                                        >
-                                            {editingIndex === index ? (
-                                                <input
-                                                    type="email"
-                                                    value={editingValue}
-                                                    onChange={(e) => setEditingValue(e.target.value)}
-                                                    onBlur={handleSaveRecipient}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            handleSaveRecipient();
-                                                        }
-                                                        if (e.key === 'Escape') {
-                                                            e.preventDefault();
-                                                            handleCancelEditRecipient();
-                                                        }
-                                                    }}
-                                                    autoFocus
-                                                    className="text-[11px] px-2 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white w-full"
-                                                />
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleStartEditRecipient(index)}
-                                                    className="text-left px-1 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-md truncate"
-                                                    title={email}
-                                                >
-                                                    {email}
-                                                </button>
-                                            )}
+                                        {editingIndex === index ? (
+                                            <input
+                                                type="email"
+                                                value={editingValue}
+                                                onChange={(e) => setEditingValue(e.target.value)}
+                                                onBlur={handleSaveRecipient}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleSaveRecipient();
+                                                    }
+                                                    if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        handleCancelEditRecipient();
+                                                    }
+                                                }}
+                                                autoFocus
+                                                className="text-[11px] px-2 py-0.5 border-none focus:ring-0 bg-transparent w-full font-medium"
+                                            />
+                                        ) : (
                                             <button
-                                                onClick={() => handleRemoveRecipient(index)}
-                                                className="ml-1 p-1 text-red-600 hover:text-red-700 rounded-full hover:bg-white"
-                                                aria-label={`Eliminar ${email}`}
+                                                type="button"
+                                                onClick={() => handleStartEditRecipient(index)}
+                                                className="text-left focus:outline-none hover:text-blue-600 transition-colors truncate max-w-[150px]"
+                                                title={email}
                                             >
-                                                <X size={12} />
+                                                {email}
                                             </button>
-                                        </div>
-                                    ))}
-                                    {safeRecipients.length > visibleRecipients.length && (
-                                        <div className="text-[11px] text-slate-500 px-2 py-1">+ {safeRecipients.length - visibleRecipients.length} ocultos</div>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 w-full flex-wrap">
-                                    <input
-                                        type="email"
-                                        placeholder="nuevo@correo.cl"
-                                        value={newRecipient}
-                                        onChange={(e) => setNewRecipient(e.target.value)}
-                                        className="flex-1 min-w-[260px] sm:min-w-[340px] border border-slate-200 rounded-lg px-3 py-2 text-[12px] leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <button
-                                        onClick={handleAddRecipient}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[12px] font-semibold"
-                                    >
-                                        <Plus size={12} /> Agregar
-                                    </button>
-                                </div>
-
-                                {isAdminUser && (
-                                    <div className="border border-slate-200 bg-slate-50 rounded-lg p-3 space-y-2">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                            <div>
-                                                <h4 className="text-xs font-semibold text-slate-700">Modo prueba (solo administrador)</h4>
-                                                <p className="text-[11px] text-slate-500">Envía un correo manual a una dirección para validar el envío.</p>
-                                            </div>
-                                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={testModeEnabled}
-                                                    onChange={(e) => onTestModeChange(e.target.checked)}
-                                                    className="h-4 w-4 accent-blue-600"
-                                                />
-                                                Activar modo prueba
-                                            </label>
-                                        </div>
-                                        {testModeEnabled && (
-                                            <div className="space-y-2">
-                                                <input
-                                                    type="email"
-                                                    placeholder="correo.prueba@hospital.cl"
-                                                    value={testRecipient}
-                                                    onChange={(e) => onTestRecipientChange(e.target.value)}
-                                                    className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                                <p className="text-[11px] text-slate-500">Se enviará únicamente a este correo mientras el modo prueba esté activo.</p>
-                                            </div>
                                         )}
+                                        <button
+                                            onClick={() => handleRemoveRecipient(index)}
+                                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                                            aria-label={`Eliminar ${email}`}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {safeRecipients.length > visibleRecipients.length && (
+                                    <div className="text-[10px] text-slate-400 px-2 py-1 font-bold italic self-center">
+                                        + {safeRecipients.length - visibleRecipients.length} más
                                     </div>
                                 )}
                             </div>
-                        )}
-                        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-                    </section>
 
-                    <section>
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
-                                <h3 className="text-sm font-semibold text-slate-700">Mensaje</h3>
-                                <p className="text-xs text-slate-500">Puedes editar el texto que se enviará junto al censo diario.</p>
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="email"
+                                        placeholder="correo@ejemplo.cl"
+                                        value={newRecipient}
+                                        onChange={(e) => setNewRecipient(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddRecipient()}
+                                        className="w-full border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    />
+                                    <button
+                                        onClick={handleAddRecipient}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all"
+                                        title="Agregar"
+                                    >
+                                        <Plus size={16} />
+                                    </button>
+                                </div>
                             </div>
-                            <button
-                                onClick={handleResetMessage}
-                                className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-semibold"
-                                title="Restablecer mensaje predeterminado"
-                            >
-                                <RefreshCw size={12} /> Restablecer
-                            </button>
+
+                            {isAdminUser && (
+                                <div className="border border-blue-100 bg-blue-50/30 rounded-xl p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">Modo Prueba Administrativa</h4>
+                                            <p className="text-[10px] text-blue-600/80 font-medium">Envía el censo únicamente a una dirección de validación.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={testModeEnabled}
+                                                onChange={(e) => onTestModeChange(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                    {testModeEnabled && (
+                                        <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                            <input
+                                                type="email"
+                                                placeholder="correo.prueba@hospital.cl"
+                                                value={testRecipient}
+                                                onChange={(e) => onTestRecipientChange(e.target.value)}
+                                                className="w-full border border-blue-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                            />
+                                            <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest italic">⚠️ Envíos globales desactivados</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
+                    )}
+                    {error && <p className="text-[11px] text-red-600 mt-2 font-medium px-2">✕ {error}</p>}
+                </ModalSection>
+
+                <ModalSection
+                    title="Cuerpo del Mensaje"
+                    icon={<MessageSquare size={16} className="text-slate-600" />}
+                    description="Personaliza el texto que acompañará el archivo del censo."
+                >
+                    <div className="space-y-3">
                         <textarea
                             value={message}
                             onChange={(e) => onMessageChange(e.target.value)}
-                            rows={10}
-                            className={clsx(
-                                'w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
-                                'border-slate-200 min-h-[240px]'
-                            )}
+                            rows={8}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-h-[200px]"
+                            placeholder="Escribe el mensaje aquí..."
                         />
-                    </section>
-                </div>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={handleResetMessage}
+                                className="flex items-center gap-1.5 text-[11px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-wider transition-all"
+                            >
+                                <RefreshCw size={12} /> Restablecer Predeterminado
+                            </button>
+                        </div>
+                    </div>
+                </ModalSection>
 
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="flex justify-end pt-2">
                     <button
                         onClick={onClose}
-                        className="px-3.5 py-1.5 rounded-md border border-slate-200 text-slate-700 text-sm hover:bg-slate-50"
+                        className="px-8 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-all active:scale-95 shadow-sm"
                     >
-                        Cerrar
+                        Cerrar Configuración
                     </button>
                 </div>
             </div>
-        </div>
+        </BaseModal>
     );
 };
-

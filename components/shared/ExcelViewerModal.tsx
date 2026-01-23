@@ -3,20 +3,12 @@
  * 
  * A reusable modal for viewing Excel files with multi-sheet support.
  * Uses the useExcelParser hook for parsing logic.
- * 
- * Features:
- * - Multi-sheet navigation via tabs
- * - Merged cell support (colSpan/rowSpan)
- * - Compact data columns (dates, RUTs)
- * - Overflow labels for long headers
- * - Download button integration
  */
 
 import React, { useEffect } from 'react';
 import {
     FileSpreadsheet,
     Download,
-    X,
     Loader2,
     AlertCircle,
     Layout,
@@ -24,10 +16,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useExcelParser, ParsedCell } from '../../hooks/useExcelParser';
-
-// ============================================================================
-// Types
-// ============================================================================
+import { BaseModal } from './BaseModal';
 
 export interface ExcelViewerModalProps {
     /** File name to display in header */
@@ -44,24 +33,12 @@ export interface ExcelViewerModalProps {
     subtitle?: string;
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Check if cell value looks like a compact data type (date or RUT)
- */
 const isCompactData = (value: string): boolean => {
-    // Date format: DD-MM-YYYY or similar
     if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(value)) return true;
-    // Chilean RUT format
     if (/^\d{1,2}\.\d{3}\.\d{3}-[\dK]$/i.test(value)) return true;
     return false;
 };
 
-/**
- * Check if cell value is a label that should overflow visually
- */
 const isLabelOverflow = (value: string): boolean => {
     return (
         value.includes('CENSO') ||
@@ -74,10 +51,6 @@ const isLabelOverflow = (value: string): boolean => {
         value.includes('FALLECIDO')
     );
 };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
     fileName,
@@ -98,11 +71,8 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
         reset
     } = useExcelParser();
 
-    // Parse file on mount
     useEffect(() => {
         parseFromUrl(downloadUrl);
-
-        // Cleanup on unmount
         return () => reset();
     }, [downloadUrl, parseFromUrl, reset]);
 
@@ -114,47 +84,37 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
     const currentSheet = workbookData[activeSheet] || [];
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full h-full max-w-6xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-                {/* Compact Modal Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600 border border-green-100">
-                            <FileSpreadsheet size={20} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-slate-800 leading-tight">
-                                {fileName}
-                            </h2>
-                            <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
-                                {subtitle}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {canDownload && onDownload && (
-                            <button
-                                onClick={onDownload}
-                                className="hidden sm:flex bg-medical-600 hover:bg-medical-700 text-white font-bold h-10 px-6 rounded-xl text-xs transition-all items-center gap-2 shadow-sm shadow-medical-100"
-                            >
-                                <Download size={16} />
-                                Descargar Original
-                            </button>
-                        )}
-                        <button
-                            onClick={handleClose}
-                            className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
-                        >
-                            <X size={24} />
-                        </button>
-                    </div>
+        <BaseModal
+            isOpen={true}
+            onClose={handleClose}
+            title={
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 leading-tight">{fileName}</h2>
+                    <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{subtitle}</p>
                 </div>
-
-                {/* Modal Body */}
+            }
+            icon={<FileSpreadsheet size={20} />}
+            size="full"
+            variant="white"
+            headerIconColor="text-emerald-600"
+            headerActions={
+                canDownload && onDownload && (
+                    <button
+                        onClick={onDownload}
+                        className="hidden sm:flex bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 px-4 rounded-xl text-xs transition-all items-center gap-2 shadow-sm shadow-emerald-100 active:scale-95"
+                    >
+                        <Download size={14} />
+                        Descargar
+                    </button>
+                )
+            }
+        >
+            <div className="flex flex-col h-[70vh] -m-6 box-border">
+                {/* Modal Body Content */}
                 <div className="flex-1 bg-slate-50 relative overflow-hidden flex flex-col">
                     {isParsing ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-12 text-center">
-                            <Loader2 className="w-12 h-12 text-medical-600 animate-spin mb-4" />
+                            <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
                             <p className="text-slate-600 font-bold">Cargando censo diario...</p>
                             <p className="text-slate-400 text-xs mt-1">Optimizando visualización de todas las hojas</p>
                         </div>
@@ -166,7 +126,7 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
                             {canDownload && onDownload && (
                                 <button
                                     onClick={onDownload}
-                                    className="bg-medical-600 text-white font-bold py-3 px-8 rounded-2xl transition-all flex items-center gap-2 shadow-lg shadow-medical-200"
+                                    className="bg-emerald-600 text-white font-bold py-3 px-8 rounded-2xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-200"
                                 >
                                     <Download size={20} />
                                     Descargar para ver en Excel
@@ -181,7 +141,7 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
                                         {currentSheet.map((row, rowIndex) => (
                                             <tr
                                                 key={rowIndex}
-                                                className="hover:bg-medical-50/20 transition-colors group"
+                                                className="hover:bg-emerald-50/20 transition-colors group"
                                             >
                                                 {row.map((cell: ParsedCell, cellIndex: number) => {
                                                     if (cell.hidden) return null;
@@ -242,7 +202,7 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
                                     className={clsx(
                                         "h-full px-5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 whitespace-nowrap",
                                         activeSheet === name
-                                            ? "border-medical-500 text-medical-700 bg-medical-50/20"
+                                            ? "border-emerald-500 text-emerald-700 bg-emerald-50/20"
                                             : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
@@ -253,20 +213,20 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
                     )}
                 </div>
 
-                {/* Standard Modal Footer */}
+                {/* Footer Section inside Body */}
                 <div className="px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 text-slate-400 text-[9px] font-bold uppercase tracking-wider">
-                        <ShieldCheck size={14} className="text-green-500" />
+                        <ShieldCheck size={14} className="text-emerald-500" />
                         Acceso Seguro Directo
                     </div>
                     <button
                         onClick={handleClose}
                         className="bg-slate-100 text-slate-600 font-bold h-9 px-8 rounded-xl text-xs hover:bg-slate-200 transition-all active:scale-95"
                     >
-                        Cerrar Documento
+                        Cerrar Ventana
                     </button>
                 </div>
             </div>
-        </div>
+        </BaseModal>
     );
 };

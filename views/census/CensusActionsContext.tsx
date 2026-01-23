@@ -60,7 +60,7 @@ interface CensusActionsContextType {
     handleEditTransfer: (t: TransferData) => void;
 
     // Row Action Handler
-    handleRowAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => void;
+    handleRowAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => void;
 }
 
 const CensusActionsContext = createContext<CensusActionsContextType | undefined>(undefined);
@@ -79,7 +79,8 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
         addDischarge,
         updateDischarge,
         addTransfer,
-        updateTransfer
+        updateTransfer,
+        addCMA
     } = useDailyRecordActions();
 
     const { confirm } = useConfirmDialog();
@@ -110,7 +111,7 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
 
     // --- Handlers ---
 
-    const handleRowAction = useCallback(async (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => {
+    const handleRowAction = useCallback(async (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => {
         if (!record) return;
 
         if (action === 'clear') {
@@ -155,8 +156,50 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
                 hasClinicalCrib: hasBaby,
                 clinicalCribName: patient.clinicalCrib?.patientName
             });
+        } else if (action === 'cma') {
+            // Egreso CMA: Copy patient data to CMA list with discharge time
+            const patient = record.beds[bedId];
+            if (!patient.patientName) return;
+
+            const confirmed = await confirm({
+                title: 'Egreso CMA',
+                message: `¿Registrar a ${patient.patientName} como egreso de Hospitalización Diurna (CMA)?`,
+                confirmText: 'Sí, registrar',
+                cancelText: 'Cancelar',
+                variant: 'warning'
+            });
+
+            if (confirmed) {
+                const now = new Date();
+                const dischargeTime = now.toTimeString().slice(0, 5);
+
+                addCMA({
+                    bedName: bedId,
+                    patientName: patient.patientName,
+                    rut: patient.rut || '',
+                    age: patient.age || '',
+                    birthDate: patient.birthDate,
+                    biologicalSex: patient.biologicalSex,
+                    insurance: patient.insurance,
+                    admissionOrigin: patient.admissionOrigin,
+                    admissionOriginDetails: patient.admissionOriginDetails,
+                    origin: patient.origin,
+                    isRapanui: patient.isRapanui,
+                    diagnosis: patient.pathology || '',
+                    cie10Code: patient.cie10Code,
+                    cie10Description: patient.cie10Description,
+                    specialty: patient.specialty || '',
+                    interventionType: 'Cirugía Mayor Ambulatoria',
+                    dischargeTime,
+                    originalBedId: bedId,
+                    originalData: { ...patient }
+                });
+
+                // Clear the patient from the bed after CMA discharge
+                clearPatient(bedId);
+            }
         }
-    }, [record, confirm, clearPatient]);
+    }, [record, confirm, clearPatient, addCMA]);
 
     const executeMoveOrCopy = useCallback(() => {
         if (!actionState.sourceBedId || !actionState.targetBedId || !actionState.type) return;

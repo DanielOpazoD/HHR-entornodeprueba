@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText, History } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText, History, Scissors } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PatientActionMenuProps {
     isBlocked: boolean;
-    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => void;
+    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => void;
     onViewDemographics: () => void;
     onViewExamRequest?: () => void;
     onViewHistory?: () => void;
@@ -25,7 +25,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
 
     const toggleMenu = () => setShowMenu(!showMenu);
 
-    const handleMenuAction = (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => {
+    const handleMenuAction = (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => {
         onAction(action);
         setShowMenu(false);
     };
@@ -93,6 +93,9 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                                 </button>
                                 <button onClick={() => handleMenuAction('transfer')} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-blue-700 font-medium">
                                     <Ambulance size={14} /> Trasladar
+                                </button>
+                                <button onClick={() => handleMenuAction('cma')} className="w-full text-left px-4 py-2 hover:bg-orange-50 flex items-center gap-2 text-orange-700 font-medium">
+                                    <Scissors size={14} /> Egreso CMA
                                 </button>
                                 {onViewExamRequest && (
                                     <>

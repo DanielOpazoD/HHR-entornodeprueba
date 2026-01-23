@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { searchDiagnoses, forceAISearch, TerminologyConcept } from '../../services/terminology/terminologyService';
 import { checkAIAvailability } from '../../services/terminology/cie10AISearch';
 import { getCachedAIResults, cacheAIResults } from '../../services/terminology/aiResultsCache';
@@ -13,7 +12,6 @@ interface TerminologySuggestorProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    iconOffset?: boolean;
     cie10Code?: string; // Current CIE-10 code (shows as badge)
     freeTextValue?: string; // Original free-text diagnosis to auto-fill search
 }
@@ -23,35 +21,20 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
     onChange,
     placeholder,
     className,
-    disabled,
-    iconOffset = false,
+    disabled = false,
     cie10Code,
     freeTextValue
 }) => {
     const [query, setQuery] = useState(value);
     const [suggestions, setSuggestions] = useState<TerminologyConcept[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [aiEnabled, setAiEnabled] = useState<boolean | null>(null); // null = checking
-    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const searchIdRef = useRef(0); // For identifying the latest search
-
-    // Update position when opening
-    useEffect(() => {
-        if (isOpen && inputRef.current) {
-            const rect = inputRef.current.getBoundingClientRect();
-            setDropdownPos({
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX,
-                width: Math.max(rect.width, 300)
-            });
-        }
-    }, [isOpen, query]);
+    const modalJustClosedRef = useRef(false);
 
     // Check AI availability when modal opens
     useEffect(() => {
@@ -117,12 +100,13 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
 
     // Update internal state if value changes from outside
     useEffect(() => {
-        if (!isFocused && value !== query && value !== lastPushedValueRef.current) {
+        // Prevent updating query from props while the user is actively searching in the modal or focusing the input
+        if (!isFocused && !isModalOpen && value !== query && value !== lastPushedValueRef.current) {
             setQuery(value);
             lastPushedValueRef.current = value;
             currentQueryRef.current = value;
         }
-    }, [value, isFocused, query]);
+    }, [value, isFocused, isModalOpen, query]);
 
     // Cleanup timers and FLUSH on unmount
     useEffect(() => {
@@ -140,47 +124,35 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
 
     // Debounced search - waits for user to stop typing
     useEffect(() => {
+        const controller = new AbortController();
+
         const timer = setTimeout(async () => {
-            if (query.length >= 3 && isOpen) {
-                const currentId = ++searchIdRef.current;
+            // Only search if modal is open and we have minimal query length
+            if (query.length >= 2 && isModalOpen) {
                 setIsLoading(true);
 
                 try {
-                    const results = await searchDiagnoses(query);
-
-                    // Only update if this is still the latest search
-                    if (currentId === searchIdRef.current) {
-                        setSuggestions(results);
+                    const results = await searchDiagnoses(query, controller.signal);
+                    setSuggestions(results);
+                } catch (err: unknown) {
+                    if (err instanceof Error && err.name !== 'AbortError') {
+                        console.error('Search error:', err);
                     }
                 } finally {
-                    if (currentId === searchIdRef.current) {
+                    if (!controller.signal.aborted) {
                         setIsLoading(false);
                     }
                 }
-            } else if (query.length < 3) {
+            } else if (query.length < 2) {
                 setSuggestions([]);
             }
         }, 600);
 
-        return () => clearTimeout(timer);
-    }, [query, isOpen]);
-
-
-    // Handle click outside to close
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                // Check if click is on the portal dropdown
-                const dropdown = document.getElementById('terminology-dropdown');
-                if (dropdown && dropdown.contains(event.target as Node)) {
-                    return;
-                }
-                setIsOpen(false);
-            }
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [query, isModalOpen]);
 
     const handleSelect = (concept: TerminologyConcept) => {
         // Clear any pending debounced change to avoid overwriting selected concept
@@ -191,11 +163,14 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
 
         // Use the FULL display text for the pathology field to ensure data integrity
         // as requested by the user ("que el texto quede guardado")
-        const fullText = concept.display;
+        const fullText = `${concept.display}${concept.code ? ` [${concept.code}]` : ''}`;
         setQuery(fullText);
+        currentQueryRef.current = fullText;
         lastPushedValueRef.current = fullText;
+
+        setSuggestions([]);
         onChange(fullText, concept);
-        setIsOpen(false);
+        setIsModalOpen(false);
     };
 
     return (
@@ -205,175 +180,110 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                     ref={inputRef}
                     type="text"
                     className={clsx(
-                        "w-full pl-2",
-                        iconOffset ? "pr-14" : "pr-8", // Padding for search button
+                        "w-full pl-2 cursor-pointer bg-white group-hover:bg-slate-50 transition-all border border-slate-200 rounded px-2 py-1.5 text-sm",
+                        "focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500/50 outline-none shadow-sm",
                         className
                     )}
-                    placeholder={placeholder}
+                    placeholder={placeholder || 'Buscar diagnóstico...'}
                     value={query}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setQuery(val);
-                        debouncedOnChange(val);
-                        setIsOpen(true);
+                    onClick={() => {
+                        if (!modalJustClosedRef.current) setIsModalOpen(true);
                     }}
                     onFocus={() => {
+                        if (!modalJustClosedRef.current) setIsModalOpen(true);
                         setIsFocused(true);
-                        setIsOpen(true);
                     }}
                     onBlur={() => {
                         setIsFocused(false);
                         flushChanges(query);
                     }}
-                    disabled={disabled}
-                />
-                <div className={clsx(
-                    "absolute top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all duration-300",
-                    iconOffset ? "right-9" : "right-1"
-                )}>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // Auto-fill query with freeTextValue if current query is empty
-                            if (!query && freeTextValue) {
-                                setQuery(freeTextValue);
-                            }
-                            setIsOpen(true);
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
                             setIsModalOpen(true);
-                        }}
-                        className={clsx(
-                            "transition-all",
-                            cie10Code
-                                ? "text-[9px] font-mono text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200"
-                                : "p-1 text-slate-400 hover:text-medical-600 hover:bg-slate-100 rounded-md"
-                        )}
-                        title={cie10Code ? `${cie10Code} - Clic para cambiar` : "Búsqueda CIE-10"}
-                        disabled={disabled}
-                    >
-                        {isLoading ? (
-                            <Loader2 size={12} className="animate-spin" />
-                        ) : cie10Code ? (
-                            cie10Code
-                        ) : (
-                            <Search size={12} />
-                        )}
-                    </button>
+                        }
+                    }}
+                    disabled={disabled}
+                    readOnly // Direct editing is disabled in favor of the specialized modal
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-medical-500 transition-colors">
+                    <Search size={14} />
                 </div>
             </div>
 
-            {isOpen && suggestions.length > 0 && createPortal(
-                <div
-                    id="terminology-dropdown"
-                    className="absolute z-[9999] mt-1 bg-white border border-slate-200 rounded-lg shadow-xl animate-scale-in overflow-y-auto max-h-[250px]"
-                    style={{
-                        position: 'absolute',
-                        top: dropdownPos.top,
-                        left: dropdownPos.left,
-                        width: dropdownPos.width,
-                        pointerEvents: 'auto'
-                    }}
-                >
-                    <div className="p-1">
-                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider border-b border-slate-50 mb-1 flex justify-between items-center">
-                            <span>Diagnósticos CIE-10</span>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsOpen(false);
-                                }}
-                                className="hover:text-red-500"
-                            >
-                                <X size={10} />
-                            </button>
-                        </div>
-                        {suggestions.map((concept) => (
-                            <button
-                                key={concept.code}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelect(concept);
-                                }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-medical-50 rounded transition-colors flex flex-col gap-0.5 group"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[12px] font-medium text-slate-700 leading-tight group-hover:text-medical-700">
-                                        {concept.display}
-                                    </span>
-                                    <span className="text-[10px] bg-medical-100 text-medical-700 px-1.5 py-0.5 rounded font-bold">
-                                        {concept.code}
-                                    </span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            {/* Advanced Search Modal */}
+            {/* Complete Advanced Search Modal */}
             <BaseModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title="Buscar Diagnóstico"
-                size="md"
+                onClose={() => {
+                    setIsModalOpen(false);
+                    // Prevent immediate re-trigger by focus return
+                    modalJustClosedRef.current = true;
+                    setTimeout(() => { modalJustClosedRef.current = false; }, 200);
+                }}
+                title="Selector de Diagnóstico CIE-10"
+                icon={<Search className="text-medical-600" size={20} />}
+                size="lg" // Larger for a more "complete" feel
             >
-                <div className="space-y-3">
-                    {/* AI Status Indicator */}
-                    <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Base de datos CIE-10 local</span>
+                <div className="space-y-4">
+                    {/* Status area */}
+                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wider">
+                        <span className="text-slate-400">Base Local CIE-10</span>
                         {aiEnabled === null ? (
-                            <span className="flex items-center gap-1 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center gap-1.5 text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
                                 <Loader2 size={12} className="animate-spin" />
                                 Verificando IA...
                             </span>
                         ) : aiEnabled ? (
-                            <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                                 <Sparkles size={12} />
                                 IA Activa
                             </span>
                         ) : (
-                            <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                                Solo base local
+                            <span className="text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                                Modo Local
                             </span>
                         )}
                     </div>
 
+                    {/* Search Input in Modal */}
                     <div className="relative">
                         <input
                             autoFocus
                             type="text"
-                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-medical-500 focus:outline-none text-sm pl-9 pr-28"
-                            placeholder="Buscar diagnóstico..."
+                            className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-medical-500 focus:outline-none text-sm pl-11 pr-28 shadow-inner bg-slate-50/50"
+                            placeholder="Describa el diagnóstico o ingrese código..."
                             value={query}
                             onChange={(e) => {
                                 const val = e.target.value;
                                 setQuery(val);
                                 debouncedOnChange(val);
-                                setIsOpen(true);
                             }}
-                            onBlur={() => flushChanges(query)}
                         />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        {isLoading && <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 text-medical-500 animate-spin" size={16} />}
-                        {/* Force AI Search Button */}
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        {isLoading && <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 text-medical-500 animate-spin" size={18} />}
+
+                        {/* Clear Button */}
+                        {query && (
+                            <button
+                                onClick={() => { setQuery(''); debouncedOnChange(''); }}
+                                className="absolute right-12 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full text-slate-400 transition-colors mr-2"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+
                         <button
                             type="button"
                             onClick={async () => {
                                 const searchTerm = cie10Code || query || freeTextValue;
-                                if (!searchTerm || searchTerm.length < 2) return;
-
-                                const currentId = ++searchIdRef.current;
-                                const originalQuery = query;
-
+                                if (!searchTerm) return;
+                                const controller = new AbortController();
                                 setIsLoading(true);
                                 try {
-                                    const results = await forceAISearch(searchTerm);
+                                    const results = await forceAISearch(searchTerm, controller.signal);
 
                                     // For persistence: if we searched by code, ALSO cache results for the current text query
-                                    // This prevents the debounced search from MISSING if the user stays on the text
-                                    if (originalQuery && originalQuery.length >= 3 && originalQuery !== searchTerm) {
-                                        // Filter only AI results to cache as AI results
+                                    if (query && query.length >= 3 && query !== searchTerm) {
                                         const aiEntries = results
                                             .filter(r => r.fromAI)
                                             .map(r => ({
@@ -383,66 +293,85 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                                             }));
 
                                         if (aiEntries.length > 0) {
-                                            cacheAIResults(originalQuery, aiEntries);
+                                            cacheAIResults(query, aiEntries);
                                         }
                                     }
 
-                                    if (currentId === searchIdRef.current) {
-                                        setSuggestions(results);
+                                    setSuggestions(results);
+                                } catch (err: unknown) {
+                                    if (err instanceof Error && err.name !== 'AbortError') {
+                                        console.error('Force AI search error:', err);
                                     }
                                 } finally {
-                                    if (currentId === searchIdRef.current) {
-                                        setIsLoading(false);
-                                    }
+                                    setIsLoading(false);
                                 }
                             }}
-                            disabled={isLoading || (!cie10Code && !query && !freeTextValue)}
+                            disabled={isLoading || !query}
                             className={clsx(
-                                "absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                                isLoading || (!cie10Code && !query && !freeTextValue)
+                                "absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm",
+                                isLoading || !query
                                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                    : "bg-purple-100 text-purple-700 hover:bg-purple-200"
+                                    : "bg-purple-600 text-white hover:bg-purple-700 active:scale-95"
                             )}
-                            title="Forzar nueva búsqueda con IA"
                         >
                             <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
                             IA
                         </button>
                     </div>
 
-                    <div className="border border-slate-200 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+                    {/* Results List */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto bg-white shadow-sm">
                         {suggestions.length > 0 ? (
-                            suggestions.map((concept) => (
-                                <button
-                                    key={concept.code}
-                                    onClick={() => {
-                                        handleSelect(concept);
-                                        setIsModalOpen(false);
-                                    }}
-                                    className={clsx(
-                                        "w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors flex justify-between items-center border-b border-slate-100 last:border-b-0",
-                                        concept.fromAI && "bg-purple-50/50"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        {concept.fromAI && <Sparkles size={12} className="text-purple-500" />}
-                                        <span className="text-sm text-slate-700">
-                                            {concept.display}
-                                        </span>
-                                    </div>
-                                    <span className={clsx(
-                                        "text-xs font-mono px-2 py-0.5 rounded",
-                                        concept.fromAI ? "text-purple-600 bg-purple-100" : "text-slate-500 bg-slate-100"
-                                    )}>
-                                        {concept.code}
-                                    </span>
-                                </button>
-                            ))
+                            <div className="divide-y divide-slate-100">
+                                {suggestions.map((concept) => (
+                                    <button
+                                        key={concept.code}
+                                        onClick={() => handleSelect(concept)}
+                                        className={clsx(
+                                            "w-full text-left px-4 py-3 hover:bg-medical-50/50 transition-colors flex justify-between items-start group",
+                                            concept.fromAI && "bg-purple-50/30 hover:bg-purple-50/60"
+                                        )}
+                                    >
+                                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                {concept.fromAI ? (
+                                                    <Sparkles size={14} className="text-purple-500 shrink-0" />
+                                                ) : (
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-1" />
+                                                )}
+                                                <span className="text-sm font-semibold text-slate-700 leading-tight group-hover:text-medical-700">
+                                                    {concept.display}
+                                                </span>
+                                            </div>
+                                            {concept.category && (
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-5 truncate">
+                                                    {concept.category}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0 ml-4">
+                                            <span className={clsx(
+                                                "text-xs font-mono px-2 py-0.5 rounded-md font-bold border",
+                                                concept.fromAI
+                                                    ? "text-purple-700 bg-purple-100 border-purple-200"
+                                                    : "text-slate-600 bg-slate-100 border-slate-200"
+                                            )}>
+                                                {concept.code}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         ) : (
-                            <div className="p-8 text-center">
-                                <Search size={32} className="mx-auto text-slate-300 mb-2" strokeWidth={1} />
-                                <p className="text-sm text-slate-400">
-                                    {query.length < 3 ? 'Escriba al menos 3 caracteres...' : 'No se encontraron diagnósticos.'}
+                            <div className="p-12 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Search size={32} className="text-slate-300" strokeWidth={1} />
+                                </div>
+                                <p className="text-sm text-slate-500 font-medium">
+                                    {query.length < 2 ? 'Escriba al menos 2 caracteres...' : 'No se encontraron diagnósticos exactos.'}
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Pulse el botón <span className="text-purple-600 font-bold">IA</span> para una búsqueda avanzada.
                                 </p>
                             </div>
                         )}

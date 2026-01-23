@@ -67,6 +67,8 @@ export interface BaseModalProps {
     printable?: boolean;
     /** Optional ref to the element that should receive focus when modal opens */
     initialFocusRef?: React.RefObject<HTMLElement | null>;
+    /** Optional additional actions to display in the header (before the close button) */
+    headerActions?: React.ReactNode;
 }
 
 /**
@@ -88,7 +90,8 @@ export const BaseModal: React.FC<BaseModalProps> = ({
     headerIconColor = 'text-medical-600',
     variant = 'glass',
     printable = false,
-    initialFocusRef
+    initialFocusRef,
+    headerActions
 }) => {
     // Refs for focus management
     const modalRef = React.useRef<HTMLDivElement>(null);
@@ -197,20 +200,27 @@ export const BaseModal: React.FC<BaseModalProps> = ({
                         {icon && <span className={headerIconColor}>{icon}</span>}
                         {title}
                     </h3>
-                    {showCloseButton && (
-                        <button
-                            onClick={onClose}
-                            className={clsx(
-                                "transition-colors p-1.5 rounded-full",
-                                variant === 'white'
-                                    ? "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                                    : "text-slate-400 hover:text-slate-600 bg-white/50"
-                            )}
-                            aria-label="Cerrar modal"
-                        >
-                            <X size={18} />
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {headerActions && (
+                            <div className="flex items-center gap-1.6 mr-1">
+                                {headerActions}
+                            </div>
+                        )}
+                        {showCloseButton && (
+                            <button
+                                onClick={onClose}
+                                className={clsx(
+                                    "transition-colors p-1.5 rounded-full",
+                                    variant === 'white'
+                                        ? "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                        : "text-slate-400 hover:text-slate-600 bg-white/50"
+                                )}
+                                aria-label="Cerrar modal"
+                            >
+                                <X size={18} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Body */}

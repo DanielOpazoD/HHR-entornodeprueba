@@ -25,7 +25,7 @@ const MIN_LOCAL_RESULTS = 3;
  * Searches for diagnoses in CIE-10 (Spanish)
  * Uses local database first, then cached AI results, then live AI as fallback.
  */
-export async function searchDiagnoses(query: string): Promise<TerminologyConcept[]> {
+export async function searchDiagnoses(query: string, signal?: AbortSignal): Promise<TerminologyConcept[]> {
     if (!query || query.length < 2) return [];
 
     try {
@@ -69,7 +69,7 @@ export async function searchDiagnoses(query: string): Promise<TerminologyConcept
 
         // 4. No cache hit and few local results - call AI and cache the results
         try {
-            const aiResults = await searchCIE10WithAI(query);
+            const aiResults = await searchCIE10WithAI(query, signal);
 
             if (aiResults.length > 0) {
                 // Cache the AI results for future use
@@ -116,7 +116,7 @@ export function getCIE10Description(code: string): string | null {
  * Used when user explicitly wants fresh AI results
  * Results are cached to ensure persistence.
  */
-export async function forceAISearch(query: string): Promise<TerminologyConcept[]> {
+export async function forceAISearch(query: string, signal?: AbortSignal): Promise<TerminologyConcept[]> {
     if (!query || query.length < 2) return [];
 
     try {
@@ -133,7 +133,7 @@ export async function forceAISearch(query: string): Promise<TerminologyConcept[]
         }));
 
         // Force AI call (bypass cache but save new results)
-        const aiResults = await searchCIE10WithAI(query);
+        const aiResults = await searchCIE10WithAI(query, signal);
 
         if (aiResults.length > 0) {
             // Save fresh results to cache

@@ -18,7 +18,7 @@ interface PatientRowProps {
     bed: BedDefinition;
     data: PatientData;
     currentDateString: string;
-    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer', bedId: string) => void;
+    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => void;
     onViewHistory?: (rut: string, name: string) => void;
     showCribControls?: boolean; // Keep as optional if still used in CensusTable but unused here
     readOnly?: boolean;
@@ -149,7 +149,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
         }
     }, [hasClinicalCrib, updateClinicalCrib, bed.id]);
 
-    const handleAction = useCallback((action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer') => {
+    const handleAction = useCallback((action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => {
         onAction(action, bed.id);
     }, [onAction, bed.id]);
 
@@ -170,7 +170,6 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                         onViewDemographics={() => setShowDemographics(true)}
                         onViewExamRequest={data.patientName ? () => setShowExamRequest(true) : undefined}
                         onViewHistory={data.rut ? () => setShowHistory(true) : undefined}
-                        hasPatient={!!data.patientName}
                         readOnly={readOnly}
                         align={actionMenuAlign}
                     />
@@ -298,6 +297,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
 
             {/* Exam Request Modals */}
             <ExamRequestModal
+                key={`exam-request-${bed.id}-${showExamRequest}`}
                 isOpen={showExamRequest}
                 onClose={() => setShowExamRequest(false)}
                 patient={data}

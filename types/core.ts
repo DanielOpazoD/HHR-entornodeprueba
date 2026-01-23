@@ -265,8 +265,11 @@ export interface CMAData {
     cie10Description?: string;
     specialty: string;
     interventionType: 'Cirugía Mayor Ambulatoria' | 'Procedimiento Médico Ambulatorio'; // New field
+    dischargeTime?: string; // Time when patient was discharged (HH:MM format)
     enteredBy?: string; // Optional: user who added the record
     timestamp?: string; // Optional: creation time
+    originalBedId?: string; // For undo: original bed ID
+    originalData?: PatientData; // For undo: snapshot of original patient data
 }
 
 export interface DailyRecord {

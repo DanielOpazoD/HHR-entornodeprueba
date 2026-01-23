@@ -6,7 +6,7 @@
  * Includes internal tabs for switching between backup types.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Folder,
     Search,
@@ -52,8 +52,14 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({ backupType: in
     const { role } = useAuth();
     const canDelete = role === 'admin';
 
-    // Navigation state
-    const [path, setPath] = useState<string[]>([]);
+    // Navigation state: Default to current year and month for a better empty state experience
+    const [path, setPath] = useState<string[]>(() => {
+        const now = new Date();
+        const currentYear = now.getFullYear().toString();
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        return [currentYear, monthNames[now.getMonth()]];
+    });
 
     // View state
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -68,16 +74,6 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({ backupType: in
         refetch
     } = useBackupFilesQuery(selectedBackupType, path);
 
-    // Auto-navigate to current year/month on mount or type change
-    useEffect(() => {
-        const now = new Date();
-        const currentYear = now.getFullYear().toString();
-        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        const currentMonthName = monthNames[now.getMonth()];
-
-        setPath([currentYear, currentMonthName]);
-    }, [selectedBackupType]);
 
     // Derived states
     const filteredItems = useMemo(() => {
@@ -242,7 +238,14 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({ backupType: in
                         key={type}
                         onClick={() => {
                             setSelectedBackupType(type);
-                            setPath([]); // Reset navigation when switching tabs
+                            // Only reset to current month if we are deep in a path, 
+                            // otherwise we might want to stay at the root if that was the intent.
+                            // But for this UI, resetting to current month/year is the expected behavior.
+                            const now = new Date();
+                            const currentYear = now.getFullYear().toString();
+                            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                            setPath([currentYear, monthNames[now.getMonth()]]);
                         }}
                         className={clsx(
                             "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200",

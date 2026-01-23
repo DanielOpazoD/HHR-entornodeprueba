@@ -53,14 +53,12 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
                         className={clsx(
                             "w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7",
                             "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
-                            isSubRow && "text-xs h-6",
-                            isGinecobstetricia && "pr-8"
+                            isSubRow && "text-xs h-6"
                         )}
                         placeholder="Buscar diagnóstico CIE-10..."
                         value={data.cie10Description || (data.cie10Code ? getCIE10Description(data.cie10Code) : '') || ''}
                         cie10Code={data.cie10Code}
                         freeTextValue={data.pathology}
-                        iconOffset={isGinecobstetricia}
                         onChange={(text, concept) => {
                             if (concept) {
                                 if (onMultipleUpdate) {
@@ -81,17 +79,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
                         }}
                         disabled={readOnly}
                     />
-                    {/* Delivery Route icon for Ginecobstetricia */}
-                    {isGinecobstetricia && onDeliveryRouteChange && (
-                        <div className="absolute right-0.5 top-1/2 -translate-y-1/2 z-10">
-                            <DeliveryRoutePopover
-                                deliveryRoute={data.deliveryRoute}
-                                deliveryDate={data.deliveryDate}
-                                onSave={onDeliveryRouteChange}
-                                disabled={readOnly}
-                            />
-                        </div>
-                    )}
                 </div>
             </td>
         );
@@ -110,33 +97,35 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
                             : "border-slate-200 focus:ring-medical-500/20 focus:border-medical-500",
                         isSubRow && "text-xs h-6",
                         data.cie10Code && "pr-16",
-                        isGinecobstetricia && !data.cie10Code && "pr-8"
+                        isGinecobstetricia && "pr-8" // Always leave space for birth icon in Gyn
                     )}
                     placeholder="Diagnóstico (texto libre)"
                     value={data.pathology || ''}
                     onChange={onChange('pathology')}
                     disabled={readOnly}
                 />
-                {/* CIE-10 badge */}
-                {data.cie10Code && (
-                    <span
-                        className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
-                        title={`Código CIE-10: ${data.cie10Code}`}
-                    >
-                        {data.cie10Code}
-                    </span>
-                )}
-                {/* Delivery Route icon for Ginecobstetricia */}
-                {isGinecobstetricia && onDeliveryRouteChange && !data.cie10Code && (
-                    <div className="absolute right-0.5 top-1/2 -translate-y-1/2 z-10">
+
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {/* Delivery Route icon for Ginecobstetricia (Free Text mode ONLY) */}
+                    {isGinecobstetricia && onDeliveryRouteChange && (
                         <DeliveryRoutePopover
                             deliveryRoute={data.deliveryRoute}
                             deliveryDate={data.deliveryDate}
                             onSave={onDeliveryRouteChange}
                             disabled={readOnly}
                         />
-                    </div>
-                )}
+                    )}
+
+                    {/* CIE-10 badge */}
+                    {data.cie10Code && (
+                        <span
+                            className="text-[9px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                            title={`Código CIE-10: ${data.cie10Code}`}
+                        >
+                            {data.cie10Code}
+                        </span>
+                    )}
+                </div>
             </div>
         </td>
     );

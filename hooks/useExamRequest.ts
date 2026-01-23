@@ -3,12 +3,12 @@
  * Manages state and logic for the laboratory exam request form.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PatientData } from '@/types';
 
 interface UseExamRequestParams {
     patient: PatientData;
-    isOpen: boolean;
+    isOpen?: boolean;
 }
 
 interface UseExamRequestReturn {
@@ -30,19 +30,19 @@ interface UseExamRequestReturn {
 export const useExamRequest = ({ patient, isOpen }: UseExamRequestParams): UseExamRequestReturn => {
     const [selectedExams, setSelectedExams] = useState<Set<string>>(new Set());
     const [procedencia, setProcedencia] = useState('Hospitalización');
-    const [prevision, setPrevision] = useState(patient.insurance || 'FONASA');
+    const [prevision, setPrevision] = useState(() => patient.insurance || 'FONASA');
 
-    // State to track previous isOpen prop for resetting
-    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-
-    // Reset state when opening (Render Phase Update)
-    if (isOpen !== prevIsOpen) {
-        setPrevIsOpen(isOpen);
+    // Reset when modal opens - use timeout to avoid cascading render warning
+    useEffect(() => {
         if (isOpen) {
-            setSelectedExams(new Set());
-            setPrevision(patient.insurance || 'FONASA');
+            const timer = setTimeout(() => {
+                setSelectedExams(new Set());
+                setProcedencia('Hospitalización');
+                setPrevision(patient.insurance || 'FONASA');
+            }, 0);
+            return () => clearTimeout(timer);
         }
-    }
+    }, [isOpen, patient.insurance]);
 
     const toggleExam = useCallback((examKey: string) => {
         setSelectedExams(prev => {

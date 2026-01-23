@@ -49,16 +49,17 @@ const generateTransferId = (): string => {
 const docToTransfer = (docData: Record<string, unknown>, docId: string): TransferRequest => {
     // Normalize status for backward compatibility
     let status = docData.status as TransferStatus;
-    if (status === 'RECEIVED' as any) status = 'SENT';
+    // RECEIVED was a legacy status, now merged into SENT
+    if (status as string === 'RECEIVED') status = 'SENT';
 
     return {
         ...(docData as unknown as TransferRequest),
         id: docId,
         status,
-        statusHistory: (docData.statusHistory as any[])?.map(h => ({
+        statusHistory: (docData.statusHistory as StatusChange[])?.map(h => ({
             ...h,
-            from: h.from === 'RECEIVED' ? 'SENT' : h.from,
-            to: h.to === 'RECEIVED' ? 'SENT' : h.to
+            from: (h.from as string) === 'RECEIVED' ? 'SENT' : h.from,
+            to: (h.to as string) === 'RECEIVED' ? 'SENT' : h.to
         })) || [],
         requestDate: docData.requestDate instanceof Timestamp
             ? docData.requestDate.toDate().toISOString().split('T')[0]

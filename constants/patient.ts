@@ -23,6 +23,8 @@ export const EMPTY_PATIENT: Omit<PatientData, 'bedId'> = {
     origin: undefined,
     isRapanui: false,
     pathology: '',
+    cie10Code: undefined,
+    cie10Description: undefined,
     specialty: Specialty.EMPTY,
     status: PatientStatus.EMPTY,
     admissionDate: '',

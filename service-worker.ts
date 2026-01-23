@@ -68,7 +68,13 @@ const sw = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<
 // VitePWA will inject the manifest here - MUST use self.__WB_MANIFEST literal
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const manifest = (self as any).__WB_MANIFEST;
-precacheAndRoute(manifest);
+
+if (Array.isArray(manifest) && manifest.length > 0) {
+    precacheAndRoute(manifest);
+} else {
+    console.warn('[SW] precacheAndRoute skipped: manifest is empty or not an array');
+}
+
 cleanupOutdatedCaches();
 
 const CACHE_VERSION = 'v2.2.0';

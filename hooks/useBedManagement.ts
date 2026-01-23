@@ -126,10 +126,9 @@ export const useBedManagement = (
         };
 
         // Identity Change Detection:
-        // Clear clinical data if the patient's identity (RUT or Name) changes significantly.
+        // Clear clinical data if the patient's identity (RUT or Name) changes.
         // This prevents data leakage (e.g., patient A's diagnosis staying on Bed 1 after changing it to Patient B).
         const isIdentityChange = (field === 'rut' || field === 'patientName') &&
-            processedValue &&
             processedValue !== oldPatient[field];
 
         if (isIdentityChange) {
@@ -140,7 +139,20 @@ export const useBedManagement = (
                 [`beds.${bedId}.clinicalEvents`]: [],
                 [`beds.${bedId}.cudyr`]: undefined,
                 [`beds.${bedId}.deviceDetails`]: {},
-                [`beds.${bedId}.devices`]: []
+                [`beds.${bedId}.devices`]: [],
+                [`beds.${bedId}.handoffNoteDayShift`]: '',
+                [`beds.${bedId}.handoffNoteNightShift`]: '',
+                [`beds.${bedId}.medicalHandoffNote`]: '',
+                [`beds.${bedId}.deliveryRoute`]: undefined,
+                [`beds.${bedId}.deliveryDate`]: undefined
+            });
+        }
+
+        // Logic sync: If pathology (free text) is manually changed or cleared, clear CIE-10 codes
+        if (field === 'pathology' && processedValue !== oldPatient.pathology) {
+            Object.assign(patches, {
+                [`beds.${bedId}.cie10Code`]: undefined,
+                [`beds.${bedId}.cie10Description`]: undefined
             });
         }
 
@@ -161,14 +173,41 @@ export const useBedManagement = (
         if (!record) return;
 
         const patches: Record<string, unknown> = {};
+        const oldPatient = record.beds[bedId];
+        let hasIdentityChange = false;
 
         for (const [key, value] of Object.entries(fields)) {
             const field = key as keyof PatientData;
             const result = validation.processFieldValue(field, value as PatientFieldValue);
 
             if (result.valid) {
-                patches[`beds.${bedId}.${key}`] = result.value;
+                const processedValue = result.value;
+                patches[`beds.${bedId}.${key}`] = processedValue;
+
+                // Check for identity change in multiple update (e.g. Demographics Modal)
+                if ((field === 'rut' || field === 'patientName') &&
+                    processedValue !== oldPatient[field]) {
+                    hasIdentityChange = true;
+                }
             }
+        }
+
+        // If identity changed, clear all clinical metadata
+        if (hasIdentityChange) {
+            Object.assign(patches, {
+                [`beds.${bedId}.cie10Code`]: undefined,
+                [`beds.${bedId}.cie10Description`]: undefined,
+                [`beds.${bedId}.pathology`]: '',
+                [`beds.${bedId}.clinicalEvents`]: [],
+                [`beds.${bedId}.cudyr`]: undefined,
+                [`beds.${bedId}.deviceDetails`]: {},
+                [`beds.${bedId}.devices`]: [],
+                [`beds.${bedId}.handoffNoteDayShift`]: '',
+                [`beds.${bedId}.handoffNoteNightShift`]: '',
+                [`beds.${bedId}.medicalHandoffNote`]: '',
+                [`beds.${bedId}.deliveryRoute`]: undefined,
+                [`beds.${bedId}.deliveryDate`]: undefined
+            });
         }
 
         if (Object.keys(patches).length > 0) {

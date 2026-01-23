@@ -99,6 +99,32 @@ export const logThrottledViewEvent = async (
 
 const generateAuditId = (): string => `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+/**
+ * Sanitizes details object to ensure it is serializable for Firestore.
+ * Specifically converts Error objects to plain strings/objects.
+ */
+const sanitizeDetails = (details: Record<string, unknown>): Record<string, unknown> => {
+    const sanitized: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(details)) {
+        if (value instanceof Error) {
+            sanitized[key] = {
+                message: value.message,
+                name: value.name,
+                stack: value.stack,
+                context: (value as any).context // Preservar contexto si existe
+            };
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // Recurse for nested objects
+            sanitized[key] = sanitizeDetails(value as Record<string, unknown>);
+        } else {
+            sanitized[key] = value;
+        }
+    }
+
+    return sanitized;
+};
+
 const storeLocally = async (entry: AuditLogEntry): Promise<void> => {
     try {
         await saveAuditLog(entry);
@@ -139,13 +165,13 @@ export const logAuditEvent = async (
         entityType,
         entityId,
         summary: generateSummary(action, details, entityId),
-        details: {
+        details: sanitizeDetails({
             ...details,
             _metadata: {
                 userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
                 platform: typeof navigator !== 'undefined' ? navigator.platform : 'Unknown'
             }
-        },
+        }),
         patientIdentifier: patientRut ? maskRut(patientRut) : undefined,
         recordDate,
         authors

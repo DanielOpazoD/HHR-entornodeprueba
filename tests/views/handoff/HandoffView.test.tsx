@@ -112,11 +112,11 @@ describe('HandoffView Component', () => {
 
         render(<HandoffView type="nursing" />, { contextValue: mockContext });
 
-        // Target the interactive staff selector
-        const staffSections = screen.getAllByText('Entrega');
+        // Target the interactive staff selector (Recibe)
+        const staffSections = screen.getAllByText('Recibe');
         // Find the one that has selects in its container (the interactive one)
-        const deliversSection = staffSections.find(s => s.closest('div')?.parentElement?.querySelectorAll('select').length === 2);
-        const container = deliversSection!.closest('div')?.parentElement;
+        const receivesSection = staffSections.find(s => s.closest('div')?.parentElement?.querySelectorAll('select').length === 2);
+        const container = receivesSection!.closest('div')?.parentElement;
         const selects = within(container!).getAllByRole('combobox');
 
         fireEvent.change(selects[0], { target: { value: 'Test Nurse' } });
@@ -124,7 +124,7 @@ describe('HandoffView Component', () => {
         await waitFor(() => {
             expect(mockContext.updateHandoffStaff).toHaveBeenCalledWith(
                 'day',
-                'delivers',
+                'receives',
                 ['Test Nurse', '']
             );
         });

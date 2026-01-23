@@ -149,7 +149,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
 // Discharge & Transfer Schemas
 // ============================================================================
 
-export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, any> = z.object({
+export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -169,7 +169,7 @@ export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, any> = 
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, any> = z.object({
+export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     bedId: z.string().default(''),
@@ -190,7 +190,7 @@ export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, any> = z.
     isNested: z.boolean().optional(),
 }).passthrough();
 
-export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, any> = z.object({
+export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object({
     id: z.string(),
     bedName: z.string().default(''),
     patientName: z.string().default(''),
@@ -199,15 +199,18 @@ export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, any> = z.object({
     diagnosis: z.string().default(''),
     specialty: z.nativeEnum(Specialty).default(Specialty.EMPTY),
     interventionType: z.enum(['Cirugía Mayor Ambulatoria', 'Procedimiento Médico Ambulatorio']).default('Cirugía Mayor Ambulatoria'),
+    dischargeTime: z.string().optional(),
     enteredBy: z.string().optional(),
     timestamp: z.string().optional(),
+    originalBedId: z.string().optional(),
+    originalData: PatientDataSchema.optional(),
 }).passthrough();
 
 // ============================================================================
 // DailyRecord Schema
 // ============================================================================
 
-export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, any> = z.object({
+export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.object({
     date: z.string().regex(DATE_REGEX),
     beds: z.record(z.string(), PatientDataSchema).default({}),
     discharges: z.array(DischargeDataSchema).default([]),
@@ -218,16 +221,16 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, any> = z.ob
     schemaVersion: z.number().default(1),
     nurses: z.array(z.string()).default(['', '']),
     nurseName: z.string().optional(),
-    nursesDayShift: z.array(z.string()).optional(),
-    nursesNightShift: z.array(z.string()).optional(),
-    tensDayShift: z.array(z.string()).optional(),
-    tensNightShift: z.array(z.string()).optional(),
+    nursesDayShift: z.array(z.string()).default(['', '']),
+    nursesNightShift: z.array(z.string()).default(['', '']),
+    tensDayShift: z.array(z.string()).default(['', '', '']),
+    tensNightShift: z.array(z.string()).default(['', '', '']),
     activeExtraBeds: z.array(z.string()).default([]),
     handoffDayChecklist: z.object({
         escalaBraden: z.boolean().optional(),
         escalaRiesgoCaidas: z.boolean().optional(),
         escalaRiesgoLPP: z.boolean().optional(),
-    }).optional(),
+    }).default({}),
     handoffNightChecklist: z.object({
         estadistica: z.boolean().optional(),
         categorizacionCudyr: z.boolean().optional(),
@@ -236,7 +239,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, any> = z.ob
         conteoMedicamento: z.boolean().optional(),
         conteoNoControlados: z.boolean().optional(),
         conteoNoControladosProximaFecha: z.string().optional(),
-    }).optional(),
+    }).default({}),
     handoffNovedadesDayShift: z.string().optional(),
     handoffNovedadesNightShift: z.string().optional(),
     medicalHandoffNovedades: z.string().optional(),
@@ -250,7 +253,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, any> = z.ob
     cudyrLocked: z.boolean().optional(),
     cudyrLockedAt: z.string().optional(),
     cudyrLockedBy: z.string().optional(),
-    handoffNightReceives: z.array(z.string()).optional(),
+    handoffNightReceives: z.array(z.string()).default([]),
 }).passthrough();
 
 /**
@@ -335,9 +338,9 @@ export const parseDailyRecordWithDefaults = (data: unknown, docId: string): Dail
     try {
         const result = DailyRecordSchema.safeParse(data);
         if (result.success) return result.data as DailyRecord;
-        console.warn('⚠️ DailyRecord partial validation failure for date:', docId, result.error.issues.slice(0, 5));
-    } catch (err) {
-        console.warn('⚠️ Unexpected error parsing DailyRecord for date:', docId, err);
+        // console.debug('⚠️ DailyRecord partial validation failure for date:', docId, result.error.issues.slice(0, 3));
+    } catch (_err) {
+        // console.debug('⚠️ Unexpected error parsing DailyRecord for date:', docId, _err);
     }
 
     const raw = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;

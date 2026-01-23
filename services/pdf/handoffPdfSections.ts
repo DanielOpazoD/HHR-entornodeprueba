@@ -28,7 +28,23 @@ interface CellHookData {
     row: { index: number };
 }
 
-type AutoTableFunction = (doc: jsPDF, options: any) => void;
+// Partial interface for jsPDF-AutoTable options to replace 'any'
+interface AutoTableOptions {
+    startY?: number;
+    head?: (string | { content: string; colSpan?: number; styles?: Record<string, unknown> })[][];
+    body?: (string | number | { content: string; styles?: Record<string, unknown> } | Record<string, unknown>)[][];
+    theme?: 'striped' | 'grid' | 'plain';
+    styles?: Record<string, unknown>;
+    headStyles?: Record<string, unknown>;
+    bodyStyles?: Record<string, unknown>;
+    columnStyles?: Record<number | string, Record<string, unknown>>;
+    didParseCell?: (data: any) => void;
+    didDrawCell?: (data: any) => void;
+    margin?: number | { top?: number; right?: number; bottom?: number; left?: number };
+    pageBreak?: 'auto' | 'avoid' | 'always';
+}
+
+type AutoTableFunction = (doc: jsPDF, options: AutoTableOptions) => void;
 
 // Augmented jsPDF type for AutoTable plugin
 type JsPDFWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };

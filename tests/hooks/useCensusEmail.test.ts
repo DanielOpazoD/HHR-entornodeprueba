@@ -11,9 +11,7 @@ import { buildCensusMasterWorkbook } from '@/services/exporters/censusMasterWork
 import { uploadCensus } from '@/services/backup/censusStorageService';
 import { getSetting, saveSetting } from '@/services/storage/indexedDBService';
 import { useConfirmDialog } from '@/context/UIContext';
-import { UIContextType } from '@/context/UIContext';
 import { DailyRecord } from '@/types';
-import { EmailResponse } from '@/services/email/gmailClient';
 import { Workbook } from 'exceljs';
 
 // Mock Services
@@ -53,7 +51,7 @@ describe('useCensusEmail', () => {
     const mockAlert = vi.fn();
 
     const defaultParams = {
-        record: { date: '2025-01-08', beds: {}, discharges: [], transfers: [], lastUpdated: '', nurses: [], activeExtraBeds: [], cma: [] },
+        record: { date: '2025-01-08', beds: {}, discharges: [], transfers: [], lastUpdated: '', nurses: [], activeExtraBeds: [], cma: [] } as unknown as DailyRecord,
         currentDateString: '2025-01-08',
         nurseSignature: 'Nurse Name',
         selectedYear: 2025,
@@ -68,11 +66,15 @@ describe('useCensusEmail', () => {
         vi.mocked(useConfirmDialog).mockReturnValue({
             confirm: mockConfirm,
             alert: mockAlert
-        } as unknown as any);
+        } as unknown as ReturnType<typeof useConfirmDialog>);
         vi.mocked(getSetting).mockResolvedValue(['test@test.com']);
         vi.mocked(getMonthRecordsFromFirestore).mockResolvedValue([]);
-        vi.mocked(initializeDay).mockResolvedValue(undefined as unknown as DailyRecord);
-        vi.mocked(triggerCensusEmail).mockResolvedValue({ success: true, message: 'Sent', gmailId: '123' } as unknown as EmailResponse);
+        vi.mocked(initializeDay).mockResolvedValue({} as DailyRecord);
+        vi.mocked(triggerCensusEmail).mockResolvedValue({
+            success: true,
+            message: 'Sent',
+            gmailId: '123'
+        });
         vi.stubGlobal('localStorage', {
             getItem: vi.fn(),
             setItem: vi.fn(),
@@ -96,7 +98,7 @@ describe('useCensusEmail', () => {
     });
 
     it('should migrate legacy recipients from localStorage', async () => {
-        vi.mocked(getSetting).mockResolvedValue(null as unknown as string[]);
+        vi.mocked(getSetting).mockResolvedValue(null);
         vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify(['legacy@test.com']));
 
         const { result } = renderHook(() => useCensusEmail(defaultParams));
@@ -144,11 +146,6 @@ describe('useCensusEmail', () => {
             { initialProps: defaultParams }
         );
 
-        act(() => {
-            // Manually set a state that should be reset
-            // status is private-ish but we can trigger loading if we mock sendEmail
-        });
-
         rerender({ ...defaultParams, currentDateString: '2025-01-09' });
 
         expect(result.current.status).toBe('idle');
@@ -169,13 +166,13 @@ describe('useCensusEmail', () => {
 
         it('should handle successful email sending flow', async () => {
             mockConfirm.mockResolvedValue(true);
-            vi.mocked(getMonthRecordsFromFirestore).mockResolvedValue([defaultParams.record as unknown as DailyRecord]);
-            vi.mocked(triggerCensusEmail).mockResolvedValue({ success: true, message: 'Sent', gmailId: '123' } as unknown as EmailResponse);
+            vi.mocked(getMonthRecordsFromFirestore).mockResolvedValue([defaultParams.record as DailyRecord]);
+            vi.mocked(triggerCensusEmail).mockResolvedValue({ success: true, message: 'Sent', gmailId: '123' });
 
             const mockWorkbook = {
                 xlsx: { writeBuffer: vi.fn().mockResolvedValue(Buffer.from([])) }
             };
-            vi.mocked(buildCensusMasterWorkbook).mockResolvedValue(mockWorkbook as any);
+            vi.mocked(buildCensusMasterWorkbook).mockResolvedValue(mockWorkbook as unknown as Workbook);
 
             const { result } = renderHook(() => useCensusEmail(defaultParams));
 
@@ -198,7 +195,7 @@ describe('useCensusEmail', () => {
             const mockWorkbook = {
                 xlsx: { writeBuffer: vi.fn().mockResolvedValue(Buffer.from([])) }
             };
-            vi.mocked(buildCensusMasterWorkbook).mockResolvedValue(mockWorkbook as any);
+            vi.mocked(buildCensusMasterWorkbook).mockResolvedValue(mockWorkbook as unknown as Workbook);
             vi.mocked(uploadCensus).mockRejectedValue(new Error('Backup failed'));
 
             const { result } = renderHook(() => useCensusEmail(defaultParams));
@@ -282,8 +279,6 @@ describe('useCensusEmail', () => {
 
         it('should handle error when generating share link fails', async () => {
             mockConfirm.mockResolvedValue(true);
-            // triggerCensusEmail will fail if shareLink is null (though GenerateShareLink currently doesn't fail based on code)
-            // But we can test the catch block in SendEmailWithLink
             vi.mocked(triggerCensusEmail).mockImplementation(() => { throw new Error('Link trigger failed'); });
 
             const { result } = renderHook(() => useCensusEmail(defaultParams));
