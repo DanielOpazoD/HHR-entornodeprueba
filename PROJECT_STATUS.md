@@ -1,7 +1,8 @@
 # HHR Hospital Tracker - Estado del Proyecto
 
-> **Última actualización:** 2026-01-19
-> **Nota global:** 6.8 / 7
+> **Última actualización:** 2026-01-24
+> **Nota global:** 6.9 / 7
+> **Resumen reciente:** Refinamiento de navegación (RBAC mejorado), sincronización proactiva de estadísticas y restricciones en entrega de turno de enfermería.
 
 ---
 

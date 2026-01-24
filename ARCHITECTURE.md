@@ -246,4 +246,9 @@ flowchart LR
 
 ---
 
-*Última actualización: Enero 2026*
+### 5. Proactive Sync (Analytics)
+El hook `useMinsalStats` implementa una sincronización proactiva que detecta brechas de datos en IndexedDB comparando la cantidad de registros locales con los días esperados en el rango seleccionado. Si faltan datos, se dispara una sincronización automática desde Firestore.
+
+---
+
+*Última actualización: 24 de Enero 2026*

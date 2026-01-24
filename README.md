@@ -227,4 +227,4 @@ Propiedad del Hospital Hanga Roa. Uso privado e institucional.
 
 ---
 
-*Última actualización: Enero 2026*
+*Última actualización: 24 de Enero 2026*

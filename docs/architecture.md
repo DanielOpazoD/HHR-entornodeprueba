@@ -199,9 +199,9 @@ flowchart TB
 
 | Capa | Archivos |
 |------|----------|
-| **Views** | `CensusView.tsx`, `AnalyticsView.tsx` |
-| **Contexts** | `DailyRecordContext.tsx`, `StaffContext.tsx` |
-| **Hooks** | `useDailyRecord.ts`, `useDailyRecordSync.ts` |
-| **Repositories** | `DailyRecordRepository.ts` (incluye CatalogRepository) |
-| **Services** | `firestoreService.ts`, `localStorageService.ts` |
-| **Storage** | localStorage, IndexedDB (Dexie), Firestore |
+| **Views** | `CensusView.tsx`, `AnalyticsView.tsx`, `HandoffView.tsx` |
+| **Contexts** | `DailyRecordContext.tsx`, `StaffContext.tsx`, `AuthContext.tsx` |
+| **Hooks** | `useDailyRecord.ts`, `useMinsalStats.ts`, `useHandoffLogic.ts` |
+| **Repositories** | `DailyRecordRepository.ts`, `PatientHistoryRepository.ts` |
+| **Services** | `firestoreService.ts`, `indexedDBService.ts`, `pdfStorageService.ts` |
+| **Storage** | IndexedDB (Dexie), Firestore, Cloud Storage |
