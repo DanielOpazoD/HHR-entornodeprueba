@@ -48,7 +48,7 @@ export interface IDatabaseProvider {
 }
 
 export interface IDatabaseBatch {
-    set<T>(collectionName: string, id: string, data: T): void;
+    set<T>(collectionName: string, id: string, data: T, options?: { merge?: boolean }): void;
     update(collectionName: string, id: string, data: Record<string, unknown>): void;
     delete(collectionName: string, id: string): void;
 }

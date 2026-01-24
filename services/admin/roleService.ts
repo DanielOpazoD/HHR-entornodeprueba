@@ -1,7 +1,6 @@
 import { db } from '../infrastructure/db';
 import { functions } from '../../firebaseConfig';
 import { httpsCallable } from 'firebase/functions';
-import { deleteField } from 'firebase/firestore';
 
 export interface UserRoleMap {
     [email: string]: 'admin' | 'nurse_hospital' | 'doctor_urgency' | 'viewer';
@@ -30,21 +29,10 @@ export const roleService = {
     async setRole(email: string, role: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-
-            // 1. Check if the document exists first
-            const existingRoles = await db.getDoc<UserRoleMap>('config', 'roles');
-
-            if (existingRoles) {
-                // Document exists -> use updateDoc to only change the specific email
-                await db.updateDoc('config', 'roles', {
-                    [cleanEmail]: role
-                });
-            } else {
-                // Document doesn't exist -> use setDoc to create it with this first role
-                await db.setDoc('config', 'roles', {
-                    [cleanEmail]: role
-                });
-            }
+            // Use setDoc with merge: true to avoid dot-notation issues with updateDoc
+            await db.setDoc('config', 'roles', {
+                [cleanEmail]: role
+            }, { merge: true });
         } catch (error) {
             console.error(`[RoleService] Failed to set role for ${email}:`, error);
             throw error;
@@ -57,10 +45,14 @@ export const roleService = {
     async removeRole(email: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-            // Use updateDoc with deleteField to remove the key from the map
-            await db.updateDoc('config', 'roles', {
-                [cleanEmail]: deleteField()
-            });
+
+            // We fetch, modify and replace to avoid FieldPath/dot-notation issues
+            const currentRoles = await this.getRoles();
+            if (currentRoles[cleanEmail]) {
+                const updatedRoles = { ...currentRoles };
+                delete updatedRoles[cleanEmail];
+                await db.setDoc('config', 'roles', updatedRoles);
+            }
         } catch (error) {
             console.error(`[RoleService] Failed to remove role for ${email}:`, error);
             throw error;

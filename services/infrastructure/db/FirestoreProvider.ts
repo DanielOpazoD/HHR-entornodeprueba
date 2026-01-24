@@ -42,9 +42,13 @@ export class FirestoreProvider implements IDatabaseProvider {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     }
 
-    async setDoc<T>(collectionName: string, id: string, data: T): Promise<void> {
-        const docRef = doc(firebaseDb, collectionName, id);
-        await setDoc(docRef, data as WithFieldValue<T>);
+    async setDoc<T>(collectionName: string, id: string, data: T, options?: { merge?: boolean }): Promise<void> {
+        const docRef = doc(firebaseDb, collectionName, id) as any;
+        if (options?.merge) {
+            await setDoc(docRef, data as any, { merge: true });
+        } else {
+            await setDoc(docRef, data as any);
+        }
     }
 
     async updateDoc(collectionName: string, id: string, data: Record<string, unknown>): Promise<void> {
