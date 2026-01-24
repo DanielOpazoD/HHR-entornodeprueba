@@ -30,10 +30,21 @@ export const roleService = {
     async setRole(email: string, role: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-            // Use updateDoc to add/update the key in the map document
-            await db.updateDoc('config', 'roles', {
-                [cleanEmail]: role
-            });
+
+            // 1. Check if the document exists first
+            const existingRoles = await db.getDoc<UserRoleMap>('config', 'roles');
+
+            if (existingRoles) {
+                // Document exists -> use updateDoc to only change the specific email
+                await db.updateDoc('config', 'roles', {
+                    [cleanEmail]: role
+                });
+            } else {
+                // Document doesn't exist -> use setDoc to create it with this first role
+                await db.setDoc('config', 'roles', {
+                    [cleanEmail]: role
+                });
+            }
         } catch (error) {
             console.error(`[RoleService] Failed to set role for ${email}:`, error);
             throw error;
