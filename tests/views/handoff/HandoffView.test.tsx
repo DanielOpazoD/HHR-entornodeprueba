@@ -106,11 +106,13 @@ describe('HandoffView Component', () => {
         expect(within(nightTable).queryByText('PACIENTE MANANA')).not.toBeInTheDocument();
     });
 
-    it('updates handoff staff when selection changes', async () => {
+    it('updates handoff staff when selection changes (Night Shift only)', async () => {
         const record = createMockRecord('2024-12-11');
         const mockContext = createMockDailyRecordContext(record);
+        // We MUST be in Night Shift for 'Recibe' to be editable
+        const ui = createMockUIState({ selectedShift: 'night' });
 
-        render(<HandoffView type="nursing" />, { contextValue: mockContext });
+        render(<HandoffView type="nursing" ui={ui} />, { contextValue: mockContext });
 
         // Target the interactive staff selector (Recibe)
         const staffSections = screen.getAllByText('Recibe');
@@ -123,7 +125,7 @@ describe('HandoffView Component', () => {
 
         await waitFor(() => {
             expect(mockContext.updateHandoffStaff).toHaveBeenCalledWith(
-                'day',
+                'night',
                 'receives',
                 ['Test Nurse', '']
             );
