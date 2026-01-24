@@ -29,7 +29,7 @@ export interface IDatabaseProvider {
     getDocs<T>(collectionName: string, options?: QueryOptions): Promise<T[]>;
 
     /** Set (create or overwrite) a document */
-    setDoc<T>(collectionName: string, id: string, data: T): Promise<void>;
+    setDoc<T>(collectionName: string, id: string, data: T, options?: { merge?: boolean }): Promise<void>;
 
     /** Update specific fields in a document */
     updateDoc(collectionName: string, id: string, data: Record<string, unknown>): Promise<void>;

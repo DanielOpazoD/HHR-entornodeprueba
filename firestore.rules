@@ -24,7 +24,8 @@ service cloud.firestore {
           'daniel.opazo@hospitalhangaroa.cl',
           'd.opazo.damiani@gmail.com',
           'd.opazo.damiani@hospitalhangaroa.cl',
-          'danielopazodamiani@gmail.com'
+          'danielopazodamiani@gmail.com',
+          'danieel.aod@gmail.com'
         ]
       );
     }

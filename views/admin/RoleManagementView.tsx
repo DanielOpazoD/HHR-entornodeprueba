@@ -61,19 +61,27 @@ const RoleManagementView: React.FC = () => {
         setMessage(null);
 
         try {
+            // 🔥 FIX: If email was changed during edit, remove the old key (rename flow)
+            if (editingEmail && email !== editingEmail) {
+                console.log(`[RoleManagement] Renaming user: Removing old entry ${editingEmail}`);
+                await roleService.removeRole(editingEmail);
+            }
+
             console.log(`[RoleManagement] Writing to config/roles: ${email} = ${selectedRole}`);
             await roleService.setRole(email, selectedRole);
 
             setMessage({
                 type: 'success',
-                text: editingEmail ? 'Rol actualizado correctamente.' : `Acceso otorgado a ${email}.`
+                text: editingEmail
+                    ? (email !== editingEmail ? 'Usuario renombrado y actualizado.' : 'Rol actualizado correctamente.')
+                    : `Acceso otorgado a ${email}.`
             });
 
             resetForm();
             await loadRoles();
         } catch (error) {
             console.error('[RoleManagement] Save error:', error);
-            setMessage({ type: 'error', text: 'Permiso denegado. Verifica que las reglas de Firestore estén desplegadas.' });
+            setMessage({ type: 'error', text: 'Error al guardar cambios. Verifica tu conexión.' });
         } finally {
             setProcessing(false);
         }
@@ -163,8 +171,8 @@ const RoleManagementView: React.FC = () => {
             {/* Notifications */}
             {message && (
                 <div className={`p-5 mb-8 rounded-2xl border-2 flex items-center gap-4 shadow-sm animate-in zoom-in-95 duration-300 ${message.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                        : 'bg-rose-50 text-rose-700 border-rose-100'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                    : 'bg-rose-50 text-rose-700 border-rose-100'
                     }`}>
                     {message.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
                     <span className="flex-1 font-bold text-sm tracking-tight">{message.text}</span>
@@ -203,12 +211,11 @@ const RoleManagementView: React.FC = () => {
                                 <input
                                     type="email"
                                     required
-                                    readOnly={!!editingEmail}
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
                                     placeholder="usuario@dominio.cl"
                                     autoFocus
-                                    className={`w-full p-4 border-2 rounded-2xl focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-200 ${editingEmail ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-default' : 'border-slate-100 focus:border-indigo-500 bg-white'
+                                    className={`w-full p-4 border-2 rounded-2xl focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-200 ${editingEmail ? 'border-indigo-400 bg-indigo-50/10' : 'border-slate-100 focus:border-indigo-500 bg-white'
                                         }`}
                                 />
                                 {email && !isValidEmail && (
@@ -244,10 +251,10 @@ const RoleManagementView: React.FC = () => {
                                 type="submit"
                                 disabled={processing || !isValidEmail}
                                 className={`w-full p-5 rounded-2xl text-white font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-[0.96] flex items-center justify-center gap-3 ${processing || !isValidEmail
-                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                                        : editingEmail
-                                            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                                            : 'bg-slate-900 hover:bg-black shadow-slate-200'
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                    : editingEmail
+                                        ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                        : 'bg-slate-900 hover:bg-black shadow-slate-200'
                                     }`}
                             >
                                 {processing ? (
@@ -323,9 +330,9 @@ const RoleManagementView: React.FC = () => {
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className={`px-4 py-1.5 rounded-2xl text-[10px] font-black inline-flex items-center gap-2 border shadow-sm ${role === 'admin' ? 'bg-indigo-600 text-white border-indigo-700' :
-                                                            role === 'nurse_hospital' ? 'bg-emerald-500 text-white border-emerald-600' :
-                                                                role === 'doctor_urgency' ? 'bg-sky-500 text-white border-sky-600' :
-                                                                    'bg-slate-400 text-white border-slate-500'
+                                                        role === 'nurse_hospital' ? 'bg-emerald-500 text-white border-emerald-600' :
+                                                            role === 'doctor_urgency' ? 'bg-sky-500 text-white border-sky-600' :
+                                                                'bg-slate-400 text-white border-slate-500'
                                                         }`}>
                                                         {role === 'nurse_hospital' ? 'ENFERMERÍA' :
                                                             role === 'doctor_urgency' ? 'URGENCIA' :

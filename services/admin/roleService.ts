@@ -29,10 +29,14 @@ export const roleService = {
     async setRole(email: string, role: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-            // Use setDoc with merge: true to avoid dot-notation issues with updateDoc
-            await db.setDoc('config', 'roles', {
-                [cleanEmail]: role
-            }, { merge: true });
+
+            // We fetch the entire map, modify it locally, and replace it.
+            // This is 100% safe against Firestore dot-notation (splitting emails into nested objects).
+            const currentRoles = await this.getRoles();
+            const updatedRoles = { ...currentRoles, [cleanEmail]: role as any };
+
+            await db.setDoc('config', 'roles', updatedRoles);
+            console.log(`[RoleService] Successfully updated roles map. Added ${cleanEmail}`);
         } catch (error) {
             console.error(`[RoleService] Failed to set role for ${email}:`, error);
             throw error;
@@ -46,17 +50,27 @@ export const roleService = {
         try {
             const cleanEmail = email.toLowerCase().trim();
 
-            // We fetch, modify and replace to avoid FieldPath/dot-notation issues
             const currentRoles = await this.getRoles();
-            if (currentRoles[cleanEmail]) {
+            if (currentRoles[cleanEmail] !== undefined || this.hasNestedProperty(currentRoles, cleanEmail)) {
                 const updatedRoles = { ...currentRoles };
                 delete updatedRoles[cleanEmail];
+
+                // Also clean up any truncated/nested garbage if it exists
+                const truncated = cleanEmail.split('.')[0];
+                if (updatedRoles[truncated]) delete updatedRoles[truncated];
+
                 await db.setDoc('config', 'roles', updatedRoles);
+                console.log(`[RoleService] Successfully removed role for ${cleanEmail}`);
             }
         } catch (error) {
             console.error(`[RoleService] Failed to remove role for ${email}:`, error);
             throw error;
         }
+    },
+
+    /** Helper to check if a key exists even if it was nested by mistake */
+    hasNestedProperty(obj: any, key: string): boolean {
+        return key in obj;
     },
 
     /**

@@ -47,6 +47,7 @@ const STATIC_ROLES: Record<string, string> = {
     [INSTITUTIONAL_ACCOUNTS.NURSING_ALT]: 'nurse_hospital',
     'daniel.opazo@hospitalhangaroa.cl': 'admin',
     'd.opazo.damiani@gmail.com': 'doctor_urgency',
+    'danieel.aod@gmail.com': 'admin',
 };
 
 /**
