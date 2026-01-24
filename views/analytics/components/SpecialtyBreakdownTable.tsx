@@ -11,9 +11,9 @@ interface SpecialtyBreakdownTableProps {
 }
 
 export const SpecialtyBreakdownTable: React.FC<SpecialtyBreakdownTableProps> = ({
-    data,
+    data = [],
 }) => {
-    if (data.length === 0) {
+    if (!data || data.length === 0) {
         return (
             <div className="text-center py-8 text-slate-400">
                 No hay datos de especialidades para el período seleccionado.

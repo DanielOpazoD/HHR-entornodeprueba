@@ -246,16 +246,36 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
             let ocupadas = 0;
             let bloqueadas = 0;
 
-            // Count occupied/blocked
+            // Normalize specialty helper
+            const normalizeSpecialty = (s) => {
+                if (!s) return 'Sin Especialidad';
+                const n = s.trim();
+                const gynObstetricNames = ['Obstetricia', 'Ginecología', 'Ginecologia', 'Obstetricia y Ginecología', 'Ginecología y Obstetricia'];
+                if (gynObstetricNames.some(name => n.toLowerCase() === name.toLowerCase())) return 'Ginecobstetricia';
+                return n || 'Sin Especialidad';
+            };
+
+            // Count occupied/blocked and aggregate by specialty
             Object.keys(beds).forEach(bedId => {
                 const data = beds[bedId];
                 if (data.isBlocked) {
                     bloqueadas++;
                 } else if (data.patientName && data.patientName.trim()) {
                     ocupadas++;
+
+                    // Aggregate main patient
+                    const specialty = normalizeSpecialty(data.specialty);
+                    const existing = specialtyData.get(specialty) || { pacientes: 0, egresos: 0, fallecidos: 0, traslados: 0, diasOcupados: 0 };
+                    existing.diasOcupados++;
+                    specialtyData.set(specialty, existing);
+
                     // Nested cribs
                     if (data.clinicalCrib && data.clinicalCrib.patientName && data.clinicalCrib.patientName.trim()) {
                         ocupadas++;
+                        const cribSpecialty = normalizeSpecialty(data.clinicalCrib.specialty);
+                        const cribExisting = specialtyData.get(cribSpecialty) || { pacientes: 0, egresos: 0, fallecidos: 0, traslados: 0, diasOcupados: 0 };
+                        cribExisting.diasOcupados++;
+                        specialtyData.set(cribSpecialty, cribExisting);
                     }
                 }
             });
@@ -267,20 +287,49 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
             // Discharges
             if (record.discharges) {
                 record.discharges.forEach(d => {
-                    if (d.status === 'Fallecido') totalEgresosFallecidos++;
-                    else totalEgresosVivos++;
+                    const specialty = normalizeSpecialty(d.originalData?.specialty);
+                    const existing = specialtyData.get(specialty) || { pacientes: 0, egresos: 0, fallecidos: 0, traslados: 0, diasOcupados: 0 };
+                    existing.egresos++;
+                    if (d.status === 'Fallecido') {
+                        totalEgresosFallecidos++;
+                        existing.fallecidos++;
+                    } else {
+                        totalEgresosVivos++;
+                    }
+                    specialtyData.set(specialty, existing);
                 });
             }
 
             // Transfers
             if (record.transfers) {
                 totalEgresosTraslados += record.transfers.length;
+                record.transfers.forEach(t => {
+                    const specialty = normalizeSpecialty(t.originalData?.specialty);
+                    const existing = specialtyData.get(specialty) || { pacientes: 0, egresos: 0, fallecidos: 0, traslados: 0, diasOcupados: 0 };
+                    existing.traslados++;
+                    specialtyData.set(specialty, existing);
+                });
             }
         });
 
         const egresosTotal = totalEgresosVivos + totalEgresosFallecidos + totalEgresosTraslados;
         const tasaOcupacion = totalDiasCamaDisponibles > 0 ? (totalDiasCamaOcupados / totalDiasCamaDisponibles) * 100 : 0;
         const promedioDiasEstada = egresosTotal > 0 ? totalDiasCamaOcupados / egresosTotal : 0;
+
+        // Build specialty breakdown array
+        const porEspecialidad = Array.from(specialtyData.entries()).map(([specialty, data]) => {
+            const egresosEsp = data.egresos || 0;
+            return {
+                specialty,
+                egresos: data.egresos,
+                fallecidos: data.fallecidos,
+                traslados: data.traslados,
+                diasOcupados: data.diasOcupados,
+                contribucionRelativa: totalDiasCamaOcupados > 0 ? (data.diasOcupados / totalDiasCamaOcupados) * 100 : 0,
+                tasaMortalidad: egresosEsp > 0 ? (data.fallecidos / egresosEsp) * 100 : 0,
+                promedioDiasEstada: egresosEsp > 0 ? data.diasOcupados / egresosEsp : 0
+            };
+        }).sort((a, b) => b.diasOcupados - a.diasOcupados);
 
         return {
             periodStart: startDate,
@@ -294,7 +343,8 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
             egresosTraslados: totalEgresosTraslados,
             tasaOcupacion: Math.round(tasaOcupacion * 10) / 10,
             promedioDiasEstada: Math.round(promedioDiasEstada * 10) / 10,
-            mortalidadHospitalaria: egresosTotal > 0 ? Math.round((totalEgresosFallecidos / egresosTotal) * 1000) / 10 : 0
+            mortalidadHospitalaria: egresosTotal > 0 ? Math.round((totalEgresosFallecidos / egresosTotal) * 1000) / 10 : 0,
+            porEspecialidad
         };
 
     } catch (error) {

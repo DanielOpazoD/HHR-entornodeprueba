@@ -178,7 +178,7 @@ export const AnalyticsView: React.FC = () => {
                 <h3 className="font-bold text-slate-700 mb-4">
                     Ocupación por Especialidad
                 </h3>
-                <SpecialtyBreakdownTable data={stats.porEspecialidad} />
+                <SpecialtyBreakdownTable data={stats.porEspecialidad || []} />
             </div>
 
             {/* Footer Info */}
