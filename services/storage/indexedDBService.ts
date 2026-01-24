@@ -113,7 +113,22 @@ let isOpening = false;
  */
 const ensureDbReady = async () => {
     if (isUsingMock) return;
-    if (db.isOpen()) return;
+
+    // Check if open. If open, verify connection isn't "closed" but not reporting it.
+    if (db.isOpen()) {
+        try {
+            // Quick check to see if connection is healthy
+            await db.settings.get('__health_check__');
+            return;
+        } catch (err: unknown) {
+            if (err && typeof err === 'object' && (err as { name?: string }).name === 'DatabaseClosedError') {
+                console.warn('[IndexedDB] 🔄 Detected DatabaseClosedError, attempting to re-open...');
+                // Fall through to open logic
+            } else {
+                return;
+            }
+        }
+    }
 
     if (isOpening) {
         while (isOpening) {
@@ -562,6 +577,7 @@ export const resetLocalDatabase = async () => {
  */
 export const saveSetting = async (id: string, value: unknown): Promise<void> => {
     try {
+        await ensureDbReady();
         await db.settings.put({ id, value });
     } catch (e) {
         console.error(`[IndexedDB] Failed to save setting ${id}:`, e);
@@ -570,10 +586,13 @@ export const saveSetting = async (id: string, value: unknown): Promise<void> => 
 
 export const getSetting = async <T>(id: string, defaultValue: T): Promise<T> => {
     try {
+        await ensureDbReady();
         const item = await db.settings.get(id);
         return item ? (item.value as T) : defaultValue;
-    } catch (e) {
-        console.error(`[IndexedDB] Failed to get setting ${id}:`, e);
+    } catch (e: unknown) {
+        if (e && typeof e === 'object' && (e as { name?: string }).name !== 'DatabaseClosedError') {
+            console.error(`[IndexedDB] Failed to get setting ${id}:`, e);
+        }
         return defaultValue;
     }
 };
