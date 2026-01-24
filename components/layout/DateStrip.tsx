@@ -138,8 +138,8 @@ export const DateStrip: React.FC<DateStripProps> = ({
         >
             <div className="max-w-screen-2xl mx-auto px-4 py-1.5">
                 <div className="flex items-center gap-3">
-                    {/* Bookmark Toggle */}
-                    {onToggleBookmarks && (
+                    {/* Bookmark Toggle - Hidden for Guests */}
+                    {!isGuest && onToggleBookmarks && (
                         <button
                             onClick={onToggleBookmarks}
                             className={clsx(

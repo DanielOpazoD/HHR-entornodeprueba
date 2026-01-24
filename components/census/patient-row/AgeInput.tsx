@@ -15,7 +15,8 @@ export const AgeInput: React.FC<AgeInputProps> = ({
     data,
     isSubRow = false,
     isEmpty = false,
-    onOpenDemographics
+    onOpenDemographics,
+    readOnly = false
 }) => {
     const hasValidationError = !PatientInputSchema.pick({ age: true })
         .safeParse({ age: data.age }).success && !!data.age;
@@ -35,14 +36,16 @@ export const AgeInput: React.FC<AgeInputProps> = ({
             <input
                 type="text"
                 className={clsx(
-                    "w-full h-7 px-1 border border-slate-200 bg-slate-50 text-slate-600 rounded text-center cursor-pointer font-bold text-xs transition-all",
+                    "w-full h-7 px-1 border border-slate-200 bg-slate-50 text-slate-600 rounded text-center font-bold text-xs transition-all",
+                    !readOnly && "cursor-pointer",
+                    readOnly && "cursor-default",
                     isSubRow && "h-6",
                     hasValidationError && "border-red-400 bg-red-50 text-red-700"
                 )}
                 placeholder="Edad"
                 value={data.age || ''}
                 readOnly
-                onClick={onOpenDemographics}
+                onClick={!readOnly ? onOpenDemographics : undefined}
             />
         </td>
     );
