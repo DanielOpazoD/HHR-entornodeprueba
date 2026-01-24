@@ -155,7 +155,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                                 <DataMaintenanceView />
                             </SectionErrorBoundary>
                         )}
-                        {currentModule === 'ROLE_MANAGEMENT' && role === 'admin' && (
+                        {currentModule === 'ROLE_MANAGEMENT' && (role === 'admin' || role === undefined) && (
                             <SectionErrorBoundary sectionName="Gestión de Roles">
                                 <RoleManagementView />
                             </SectionErrorBoundary>
