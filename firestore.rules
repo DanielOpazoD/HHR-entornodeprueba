@@ -255,6 +255,13 @@ service cloud.firestore {
     }
 
     // ============================================
+    // SYSTEM CONFIGURATION
+    // ============================================
+    match /config/roles {
+      allow read, write: if isAdmin();
+    }
+
+    // ============================================
     // DENY ALL OTHER BY DEFAULT
     // ============================================
     match /{document=**} {
