@@ -16,13 +16,8 @@ export const roleService = {
      */
     async getRoles(): Promise<UserRoleMap> {
         try {
-            // Note: We use the generic db provider but typed as any here to access raw Firestore methods
-            // depending on implementation. If db is FirestoreProvider, it should return QuerySnapshot
-            const doc = await db.collection('config').doc('roles').get();
-            if (doc.exists) {
-                return doc.data() as UserRoleMap;
-            }
-            return {};
+            const data = await db.getDoc<UserRoleMap>('config', 'roles');
+            return data || {};
         } catch (error) {
             console.error('[RoleService] Failed to fetch roles:', error);
             throw error;
@@ -35,10 +30,10 @@ export const roleService = {
     async setRole(email: string, role: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-            // Use set with merge to update specific fields in the map
-            await db.collection('config').doc('roles').set({
+            // Use updateDoc to add/update the key in the map document
+            await db.updateDoc('config', 'roles', {
                 [cleanEmail]: role
-            }, { merge: true });
+            });
         } catch (error) {
             console.error(`[RoleService] Failed to set role for ${email}:`, error);
             throw error;
@@ -51,8 +46,8 @@ export const roleService = {
     async removeRole(email: string): Promise<void> {
         try {
             const cleanEmail = email.toLowerCase().trim();
-            // Use deleteField to remove the key from the map
-            await db.collection('config').doc('roles').update({
+            // Use updateDoc with deleteField to remove the key from the map
+            await db.updateDoc('config', 'roles', {
                 [cleanEmail]: deleteField()
             });
         } catch (error) {
