@@ -32,7 +32,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
 
     return (
         <div className="flex flex-col items-center gap-1 relative">
-            {!isBlocked && (
+            {!isBlocked && !readOnly && (
                 <div className="flex items-center gap-0.5">
                     <button
                         onClick={onViewDemographics}

@@ -125,6 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               visibleModules={visibleModules}
               censusViewMode={censusViewMode}
               setCensusViewMode={setCensusViewMode}
+              role={role}
             />
           </>
         )}

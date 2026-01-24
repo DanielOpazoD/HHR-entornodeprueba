@@ -243,13 +243,15 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({ bed, data, currentDate
                     </td>
                     <td className="p-0 text-right border-r border-slate-200 align-middle">
                         <div className="flex justify-center items-center h-full">
-                            <button
-                                onClick={() => setShowCribDemographics(true)}
-                                className="p-1 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
-                                title="Datos demográficos"
-                            >
-                                <User size={14} />
-                            </button>
+                            {!readOnly && (
+                                <button
+                                    onClick={() => setShowCribDemographics(true)}
+                                    className="p-1 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                                    title="Datos demográficos"
+                                >
+                                    <User size={14} />
+                                </button>
+                            )}
                         </div>
                     </td>
                     <td className="p-0 border-r border-slate-200 text-center">

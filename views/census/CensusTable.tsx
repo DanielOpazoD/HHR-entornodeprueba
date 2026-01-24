@@ -89,13 +89,15 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 onResize={handleColumnResize('actions')}
                                 className={clsx(headerClass, "print:hidden")}
                             >
-                                <button
-                                    onClick={handleClearAll}
-                                    className="p-1 rounded-md bg-slate-500/20 hover:bg-slate-500/40 text-slate-400 hover:text-slate-600 transition-all mx-auto block"
-                                    title="Limpiar todos los datos del día"
-                                >
-                                    <Trash2 size={12} />
-                                </button>
+                                {!readOnly && (
+                                    <button
+                                        onClick={handleClearAll}
+                                        className="p-1 rounded-md bg-slate-500/20 hover:bg-slate-500/40 text-slate-400 hover:text-slate-600 transition-all mx-auto block"
+                                        title="Limpiar todos los datos del día"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                )}
                             </ResizableHeader>
 
                             {/* Bed column */}

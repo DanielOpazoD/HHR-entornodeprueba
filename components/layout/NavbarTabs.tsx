@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutList, MessageSquare, Stethoscope, Truck, FolderArchive, LayoutGrid, BarChart3, LucideIcon } from 'lucide-react';
+import { LayoutList, MessageSquare, Stethoscope, Truck, FolderArchive, LayoutGrid, BarChart3, LucideIcon, ShieldCheck, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
+import { UserRole } from '@/hooks/useAuthState';
 
 interface NavTabProps {
     label: string;
@@ -63,6 +64,7 @@ interface NavbarTabsProps {
     visibleModules: readonly ModuleType[];
     censusViewMode: 'REGISTER' | 'ANALYTICS';
     setCensusViewMode: (mode: 'REGISTER' | 'ANALYTICS') => void;
+    role?: UserRole;
 }
 
 export const NavbarTabs: React.FC<NavbarTabsProps> = ({
@@ -70,7 +72,8 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
     onModuleChange,
     visibleModules,
     censusViewMode,
-    setCensusViewMode
+    setCensusViewMode,
+    role
 }) => {
     const [isUtilityMenuOpen, setIsUtilityMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -145,21 +148,23 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                     {isUtilityMenuOpen && (
                         <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="py-1">
-                                <DropdownItem
-                                    label="Estadística"
-                                    icon={BarChart3}
-                                    isActive={currentModule === 'CENSUS' && censusViewMode === 'ANALYTICS'}
-                                    onClick={() => {
-                                        if (currentModule !== 'CENSUS') {
-                                            onModuleChange('CENSUS');
-                                            // Handle the specific order so it stays in ANALYTICS
-                                            setTimeout(() => setCensusViewMode('ANALYTICS'), 0);
-                                        } else {
-                                            setCensusViewMode(censusViewMode === 'ANALYTICS' ? 'REGISTER' : 'ANALYTICS');
-                                        }
-                                        setIsUtilityMenuOpen(false);
-                                    }}
-                                />
+                                {role !== 'viewer' && (
+                                    <DropdownItem
+                                        label="Estadística"
+                                        icon={BarChart3}
+                                        isActive={currentModule === 'CENSUS' && censusViewMode === 'ANALYTICS'}
+                                        onClick={() => {
+                                            if (currentModule !== 'CENSUS') {
+                                                onModuleChange('CENSUS');
+                                                // Handle the specific order so it stays in ANALYTICS
+                                                setTimeout(() => setCensusViewMode('ANALYTICS'), 0);
+                                            } else {
+                                                setCensusViewMode(censusViewMode === 'ANALYTICS' ? 'REGISTER' : 'ANALYTICS');
+                                            }
+                                            setIsUtilityMenuOpen(false);
+                                        }}
+                                    />
+                                )}
                                 {visibleModules.includes('BACKUP_FILES') && (
                                     <DropdownItem
                                         label="Archivos"
