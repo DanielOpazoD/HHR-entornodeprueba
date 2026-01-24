@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Edit2, Trash2, UserPlus, X } from 'lucide-react';
 import { roleService, UserRoleMap } from '../../services/admin/roleService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,6 +9,7 @@ const RoleManagementView: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState('');
     const [selectedRole, setSelectedRole] = useState('viewer');
+    const [editingEmail, setEditingEmail] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -41,34 +43,54 @@ const RoleManagementView: React.FC = () => {
             // Attempt to force sync if function is available (optional but good ux)
             try {
                 await roleService.forceSyncUser(email, selectedRole);
-                setMessage({ type: 'success', text: `Rol ${selectedRole} asignado a ${email} y sincronizado.` });
+                setMessage({ type: 'success', text: editingEmail ? `Rol actualizado para ${email}.` : `Rol ${selectedRole} asignado a ${email} y sincronizado.` });
             } catch (syncError) {
                 console.warn('Sync failed (user might not exist yet), but config saved:', syncError);
-                setMessage({ type: 'success', text: `Rol configurado. Se aplicará cuando ${email} inicie sesión.` });
+                setMessage({ type: 'success', text: editingEmail ? `Rol actualizado.` : `Rol configurado. Se aplicará cuando ${email} inicie sesión.` });
             }
 
             setEmail('');
+            setEditingEmail(null);
+            setSelectedRole('viewer');
             await loadRoles();
         } catch (error) {
-            console.error('Error adding role:', error);
+            console.error('Error saving role:', error);
             setMessage({ type: 'error', text: 'Error al guardar el rol.' });
         } finally {
             setProcessing(false);
         }
     };
 
+    const handleEdit = (targetEmail: string, currentRole: string) => {
+        setEmail(targetEmail);
+        setSelectedRole(currentRole);
+        setEditingEmail(targetEmail);
+        setMessage(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        setEmail('');
+        setSelectedRole('viewer');
+        setEditingEmail(null);
+        setMessage(null);
+    };
+
     const handleDelete = async (targetEmail: string) => {
-        if (!window.confirm(`¿Estás seguro de quitar el rol a ${targetEmail}?`)) return;
+        // Simple confirmation
+        const confirmed = window.confirm(`¿Estás seguro de quitar el rol a ${targetEmail}?`);
+        if (!confirmed) return;
 
         try {
+            setProcessing(true);
             await roleService.removeRole(targetEmail);
-            // Optionally force sync to 'unauthorized' or 'viewer'
-            // await roleService.forceSyncUser(targetEmail, 'unauthorized'); 
             await loadRoles();
             setMessage({ type: 'success', text: `Rol eliminado para ${targetEmail}` });
         } catch (error) {
             console.error('Error removing role:', error);
             setMessage({ type: 'error', text: 'Error al eliminar rol.' });
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -87,42 +109,59 @@ const RoleManagementView: React.FC = () => {
                 </div>
             )}
 
-            {/* Add New Role Form */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
-                <h2 className="text-lg font-semibold mb-4 text-gray-700">Agregar Nuevo Usuario</h2>
-                <form onSubmit={handleAddRole} className="flex flex-col md:flex-row gap-4 align-bottom">
-                    <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+            {/* Add/Edit Role Form */}
+            <div className={`bg-white p-6 rounded-lg shadow-sm border ${editingEmail ? 'border-blue-400 ring-1 ring-blue-100' : 'border-gray-200'} mb-8 transition-all`}>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                        {editingEmail ? <Edit2 size={18} className="text-blue-500" /> : <UserPlus size={18} className="text-medical-600" />}
+                        {editingEmail ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}
+                    </h2>
+                    {editingEmail && (
+                        <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm">
+                            <X size={14} /> Cancelar edición
+                        </button>
+                    )}
+                </div>
+
+                <form onSubmit={handleAddRole} className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                        <label className="block text-sm font-medium text-gray-700 mb-1 font-display">Correo Electrónico</label>
                         <input
                             type="email"
                             required
+                            readOnly={!!editingEmail}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="ejemplo@hospital.cl"
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className={`w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${editingEmail ? 'bg-gray-50 text-gray-500 border-gray-200 cursor-not-allowed' : 'border-gray-300'
+                                }`}
                         />
                     </div>
-                    <div className="w-full md:w-48">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Rol Asignado</label>
+                    <div className="w-full md:w-56">
+                        <label className="block text-sm font-medium text-gray-700 mb-1 font-display">Rol Asignado</label>
                         <select
                             value={selectedRole}
                             onChange={(e) => setSelectedRole(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         >
-                            <option value="viewer">Invitado (Viewer)</option>
-                            <option value="nurse_hospital">Enfermería</option>
-                            <option value="doctor_urgency">Médico Urgencia</option>
-                            <option value="admin">Administrador</option>
+                            <option value="viewer">🎨 Invitado (Viewer)</option>
+                            <option value="nurse_hospital">👩‍⚕️ Enfermería</option>
+                            <option value="doctor_urgency">🩺 Médico Urgencia</option>
+                            <option value="admin">🔑 Administrador</option>
                         </select>
                     </div>
-                    <div className="flex items-end">
+                    <div className="w-full md:w-auto">
                         <button
                             type="submit"
                             disabled={processing}
-                            className={`px-6 py-2 rounded text-white font-medium transition-colors ${processing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                            className={`w-full px-6 py-2 rounded text-white font-medium transition-all shadow-sm flex items-center justify-center gap-2 ${processing
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : editingEmail
+                                    ? 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+                                    : 'bg-medical-600 hover:bg-medical-700 active:scale-95'
                                 }`}
                         >
-                            {processing ? 'Guardando...' : 'Asignar Rol'}
+                            {processing ? 'Procesando...' : editingEmail ? 'Guardar Cambios' : 'Asignar Rol'}
                         </button>
                     </div>
                 </form>
@@ -162,12 +201,20 @@ const RoleManagementView: React.FC = () => {
                                                     role.charAt(0).toUpperCase() + role.slice(1)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                                        <button
+                                            onClick={() => handleEdit(userEmail, role)}
+                                            disabled={processing}
+                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
+                                        >
+                                            <Edit2 size={14} /> Editar
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(userEmail)}
-                                            className="text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
+                                            disabled={processing}
+                                            className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
                                         >
-                                            Eliminar
+                                            <Trash2 size={14} /> Eliminar
                                         </button>
                                     </td>
                                 </tr>
