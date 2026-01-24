@@ -417,17 +417,39 @@ async function assignRole(user) {
     }
 
     try {
+        // Set custom claims - explicitly clear if 'unauthorized'
         await admin.auth().setCustomUserClaims(user.uid, { role });
 
         const statusIcon = role === 'unauthorized' ? '⛔' : '✅';
         console.info(`${statusIcon} Assigned role '${role}' to ${email}`);
 
-        // Also update Firestore for visibility
+        // Update Firestore mirror only if we have a defined role or unauthorized
         await admin.firestore().collection('allowedUsers').doc(user.uid).set({
             email: email,
             role: role,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+
+        // If unauthorized, ensure we also remove from config/roles if it was there
+        if (role === 'unauthorized') {
+            try {
+                const rolesRef = admin.firestore().collection('config').doc('roles');
+                await admin.firestore().runTransaction(async (t) => {
+                    const doc = await t.get(rolesRef);
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data[cleanEmail]) {
+                            const newData = { ...data };
+                            delete newData[cleanEmail];
+                            t.set(rolesRef, newData);
+                            console.info(`🧹 Cleaned up ${cleanEmail} from config/roles`);
+                        }
+                    }
+                });
+            } catch (cleanupError) {
+                console.warn(`⚠️ Could not cleanup config/roles for ${cleanEmail}: ${cleanupError.message}`);
+            }
+        }
 
         return role;
     } catch (error) {

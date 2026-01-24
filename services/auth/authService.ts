@@ -47,7 +47,6 @@ const STATIC_ROLES: Record<string, string> = {
     [INSTITUTIONAL_ACCOUNTS.NURSING_ALT]: 'nurse_hospital',
     'daniel.opazo@hospitalhangaroa.cl': 'admin',
     'd.opazo.damiani@gmail.com': 'doctor_urgency',
-    'danieel.aod@gmail.com': 'admin',
 };
 
 /**
@@ -353,7 +352,22 @@ export const createUser = async (email: string, password: string): Promise<AuthU
  * Signs out the current user from Firebase.
  */
 export const signOut = async (): Promise<void> => {
+    const userEmail = auth.currentUser?.email;
     await firebaseSignOut(auth);
+
+    // Clear role cache on sign out to ensure next login re-verifies
+    if (userEmail) {
+        try {
+            const cleanEmail = normalizeEmail(userEmail);
+            const key = `${ROLE_CACHE_PREFIX}${cleanEmail}`;
+            await saveSetting(key, null); // Clear IndexedDB
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.removeItem(key); // Clear Legacy
+            }
+        } catch (e) {
+            console.warn('[authService] Failed to clear role cache on signOut:', e);
+        }
+    }
 };
 
 // ============================================================================

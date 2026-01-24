@@ -37,7 +37,6 @@ export const CENSUS_AUTHORIZED_EMAILS: string[] = [
     // Admin/Development
     'd.opazo.damiani@gmail.com',
     'd.opazo.damiani@hospitalhangaroa.cl',
-    'danieel.aod@gmail.com',  // Test account
 ];
 
 /**
