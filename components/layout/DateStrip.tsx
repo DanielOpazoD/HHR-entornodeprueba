@@ -51,6 +51,7 @@ export interface SyncConfigProps {
 export interface BookmarkConfigProps {
     onToggleBookmarks?: () => void;
     showBookmarks?: boolean;
+    role?: string;
 }
 
 export interface DateStripProps extends DateNavigationProps, DateStripActionsProps, EmailConfigProps, SyncConfigProps, BookmarkConfigProps { }
@@ -85,12 +86,15 @@ export const DateStrip: React.FC<DateStripProps> = ({
     lastSyncTime: _lastSyncTime,
     // Bookmarks
     onToggleBookmarks,
-    showBookmarks
+    showBookmarks,
+    role
 }) => {
     const daysContainerRef = useRef<HTMLDivElement>(null);
     const [showSendMenu, setShowSendMenu] = React.useState(false);
     const [isBackingUp, setIsBackingUp] = React.useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    const isGuest = role === 'viewer';
 
     // Close menu when clicking outside
     React.useEffect(() => {
@@ -157,29 +161,33 @@ export const DateStrip: React.FC<DateStripProps> = ({
                     {/* PDF Buttons */}
                     <PdfButtons onExportPDF={onExportPDF} />
 
-                    {/* Excel Buttons */}
-                    <ExcelButtons
-                        onExportExcel={onExportExcel}
-                        onBackupExcel={onBackupExcel}
-                        isArchived={isArchived}
-                        isBackingUp={isBackingUp}
-                        setIsBackingUp={setIsBackingUp}
-                    />
+                    {/* Excel Buttons - Hidden for Guests */}
+                    {!isGuest && (
+                        <ExcelButtons
+                            onExportExcel={onExportExcel}
+                            onBackupExcel={onBackupExcel}
+                            isArchived={isArchived}
+                            isBackingUp={isBackingUp}
+                            setIsBackingUp={setIsBackingUp}
+                        />
+                    )}
 
-                    {/* Email Dropdown */}
-                    <EmailDropdown
-                        onSendEmail={onSendEmail}
-                        onGenerateShareLink={onGenerateShareLink}
-                        onCopyShareLink={onCopyShareLink}
-                        emailStatus={emailStatus}
-                        emailErrorMessage={emailErrorMessage}
-                        showMenu={showSendMenu}
-                        setShowMenu={setShowSendMenu}
-                        menuRef={menuRef}
-                    />
+                    {/* Email Dropdown - Hidden for Guests */}
+                    {!isGuest && (
+                        <EmailDropdown
+                            onSendEmail={onSendEmail}
+                            onGenerateShareLink={onGenerateShareLink}
+                            onCopyShareLink={onCopyShareLink}
+                            emailStatus={emailStatus}
+                            emailErrorMessage={emailErrorMessage}
+                            showMenu={showSendMenu}
+                            setShowMenu={setShowSendMenu}
+                            menuRef={menuRef}
+                        />
+                    )}
 
-                    {/* Configure Email Button */}
-                    {onConfigureEmail && (
+                    {/* Configure Email Button - Hidden for Guests */}
+                    {!isGuest && onConfigureEmail && (
                         <button
                             onClick={onConfigureEmail}
                             className="btn btn-secondary !p-1.5"

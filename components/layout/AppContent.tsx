@@ -132,6 +132,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
 
                             onToggleBookmarks={() => ui.setShowBookmarksBar(!ui.showBookmarksBar)}
                             showBookmarks={ui.showBookmarksBar}
+                            role={auth.role}
                         />
                     )}
 
