@@ -8,7 +8,8 @@ import {
     createUserWithEmailAndPassword,
     signInAnonymously
 } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { functions, auth } from '../../firebaseConfig';
+import { httpsCallable } from 'firebase/functions';
 import { db } from '../infrastructure/db';
 import { saveSetting, getSetting } from '../storage/indexedDBService';
 import { INSTITUTIONAL_ACCOUNTS } from '../../constants/identities';
@@ -151,24 +152,37 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
             }
         }
 
-        // 2. VERIFICACIÓN DINÁMICA (config/roles)
-        // console.debug(`[authService] 📡 Checking dynamic roles in config/roles...`);
+        // 2. VERIFICACIÓN DINÁMICA (Secure Cloud Discovery)
+        try {
+            console.warn('[authService] 📡 Fetching role via checkUserRole function...');
+            const checkRoleFunc = httpsCallable<{ email: string }, { role: string }>(functions, 'checkUserRole');
+            const response = await checkRoleFunc({ email: cleanEmail });
+
+            if (response.data && response.data.role && response.data.role !== 'unauthorized') {
+                const role = response.data.role;
+                await saveRoleToCache(cleanEmail, role);
+                return { allowed: true, role };
+            }
+        } catch (funcError: unknown) {
+            console.warn('[authService] ⚠️ Cloud discovery failed, falling back to read-only check:', funcError);
+        }
+
+        // 3. READ-ONLY FALLBACK (Only for backward compatibility if allowed by rules)
         try {
             const dynamicRoles = await db.getDoc<Record<string, string>>('config', 'roles');
             if (dynamicRoles && dynamicRoles[cleanEmail]) {
                 const role = dynamicRoles[cleanEmail];
-                // console.info(`[authService] ✅ Access granted via dynamic rule: ${cleanEmail} -> ${role}`);
                 await saveRoleToCache(cleanEmail, role);
                 return { allowed: true, role };
             }
-        } catch (dbError) {
-            console.warn('[authService] ⚠️ Could not fetch dynamic roles, falling back to other methods:', dbError);
+        } catch (_dbError) {
+            // This is expected to fail for guests due to strict firestore.rules
         }
 
         // 3. WHITELIST LEGACY (allowedUsers collection)
         // console.debug(`[authService] 📡 Querying DB for legacy whitelist...`);
 
-        const results = await db.getDocs<any>('allowedUsers', {
+        const results = await db.getDocs<unknown>('allowedUsers', {
             where: [{ field: 'email', operator: '==', value: email.toLowerCase().trim() }]
         });
         // console.debug(`[authService] 📥 DB response received. Results count: ${results.length}`);

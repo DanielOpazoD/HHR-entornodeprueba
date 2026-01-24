@@ -503,3 +503,30 @@ exports.setUserRole = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', error.message);
     }
 });
+/**
+ * Callable: Check specifically for own user's role.
+ * Secure mediator for guests to discover their own permissions.
+ */
+exports.checkUserRole = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be signed in.');
+    }
+
+    const email = context.auth.token.email ? context.auth.token.email.toLowerCase().trim() : '';
+    if (!email) {
+        throw new functions.https.HttpsError('invalid-argument', 'User has no email associated.');
+    }
+
+    try {
+        const db = admin.firestore();
+        const roleDoc = await db.collection('config').doc('roles').get();
+        const rolesMap = roleDoc.data() || {};
+        const role = rolesMap[email] || 'unauthorized';
+
+        console.info(`🔍 Discovery: Secured role lookup for ${email}: ${role}`);
+        return { role };
+    } catch (error) {
+        console.error(`❌ Discovery Error for ${email}:`, error);
+        throw new functions.https.HttpsError('internal', 'Error retrieving account permissions.');
+    }
+});

@@ -99,6 +99,11 @@ try {
         console.warn('[IndexedDB] ⏳ Database is blocked by another tab');
     });
 
+    // Handle sudden closure or version changes
+    db.on('close', () => {
+        console.warn('[IndexedDB] 🚪 Database connection closed unexpectedly. Re-readiness check will trigger on next operation.');
+    });
+
 } catch (e) {
     console.error('[IndexedDB] ❌ Failed to construct HangaRoaDatabase:', e);
     db = createMockDatabase();
@@ -140,6 +145,7 @@ const ensureDbReady = async () => {
 
     isOpening = true;
     try {
+        console.warn('[IndexedDB] 📡 Opening database connection...');
         await db.open();
     } catch (err: unknown) {
         const errorName = err && typeof err === 'object' && 'name' in err ? String(err.name) : 'Unknown';
