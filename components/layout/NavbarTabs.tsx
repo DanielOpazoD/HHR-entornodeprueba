@@ -176,17 +176,6 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                                         }}
                                     />
                                 )}
-                                {visibleModules.includes('BACKUP_FILES') && (
-                                    <DropdownItem
-                                        label="Archivos"
-                                        icon={FolderArchive}
-                                        isActive={currentModule === 'BACKUP_FILES'}
-                                        onClick={() => {
-                                            onModuleChange('BACKUP_FILES');
-                                            setIsUtilityMenuOpen(false);
-                                        }}
-                                    />
-                                )}
                             </div>
                         </div>
                     )}
