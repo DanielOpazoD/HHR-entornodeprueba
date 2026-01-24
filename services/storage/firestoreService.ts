@@ -366,6 +366,22 @@ export const getMonthRecordsFromFirestore = async (year: number, month: number):
         const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
 
+        return getRecordsRangeFromFirestore(startDate, endDate);
+    } catch (error) {
+        console.error('❌ Error getting month records:', error);
+        return [];
+    }
+};
+
+/**
+ * Retrieves daily records within a specific date range from Firestore.
+ * 
+ * @param startDate - Range start (YYYY-MM-DD)
+ * @param endDate - Range end (YYYY-MM-DD)
+ * @returns Array of DailyRecord objects
+ */
+export const getRecordsRangeFromFirestore = async (startDate: string, endDate: string): Promise<DailyRecord[]> => {
+    try {
         const q = query(
             getRecordsCollection(),
             where('date', '>=', startDate),
@@ -376,7 +392,7 @@ export const getMonthRecordsFromFirestore = async (year: number, month: number):
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => docToRecord(doc.data(), doc.id));
     } catch (error) {
-        console.error('❌ Error getting month records:', error);
+        console.error(`❌ Error getting records for range ${startDate} to ${endDate}:`, error);
         return [];
     }
 };

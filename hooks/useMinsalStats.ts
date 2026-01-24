@@ -15,6 +15,8 @@ import {
 import { functions } from '@/firebaseConfig';
 import { httpsCallable } from 'firebase/functions';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
+import { getRecordsRangeFromFirestore } from '@/services/storage/firestoreService';
+import { saveRecord as saveToIndexedDB } from '@/services/storage/indexedDBService';
 import {
     MinsalStatistics,
     DailyStatsSnapshot,
@@ -78,6 +80,33 @@ export function useMinsalStats(
         }
     }, []);
 
+    // Proactive sync logic: Fetch from Firestore if local is empty for the range
+    const syncFirestoreRange = useCallback(async (start: string, end: string) => {
+        try {
+            // console.info(`[useMinsalStats] Proactive Sync: Fetching range ${start} to ${end} from Firestore...`);
+            const remoteRecords = await getRecordsRangeFromFirestore(start, end);
+
+            if (remoteRecords.length > 0) {
+                // Save to IndexedDB for future fast access
+                for (const record of remoteRecords) {
+                    await saveToIndexedDB(record);
+                }
+                // Update local state
+                setAllRecords(prev => {
+                    const next = [...prev];
+                    remoteRecords.forEach(remote => {
+                        if (!next.find(l => l.date === remote.date)) {
+                            next.push(remote);
+                        }
+                    });
+                    return next.sort((a, b) => b.date.localeCompare(a.date));
+                });
+            }
+        } catch (err) {
+            console.warn('[useMinsalStats] Proactive sync failed:', err);
+        }
+    }, []);
+
     // Load on mount
     useEffect(() => {
         loadRecords();
@@ -100,6 +129,17 @@ export function useMinsalStats(
             return { startDate: today, endDate: today };
         }
     }, [dateRange]);
+
+    // Trigger proactive sync when range changes
+    useEffect(() => {
+        if (!isLoading) {
+            // If local records for this range are few, try sync
+            const localInRange = filterRecordsByDateRange(allRecords, startDate, endDate);
+            if (localInRange.length === 0) {
+                syncFirestoreRange(startDate, endDate);
+            }
+        }
+    }, [startDate, endDate, isLoading, allRecords.length, syncFirestoreRange]);
 
     // Remote Calculation Effect
     useEffect(() => {
@@ -132,8 +172,17 @@ export function useMinsalStats(
         return calculateMinsalStatsLocal(allRecords, startDate, endDate);
     }, [allRecords, startDate, endDate]);
 
-    // Final Stats: Remote if available, otherwise local
-    const stats = remoteStats || localStats;
+    // Final Stats: Remote if available (and complete), otherwise local
+    const stats = useMemo(() => {
+        // If remoteStats exists but is missing porEspecialidad (old CF version), 
+        // prefer localStats if it has data.
+        if (remoteStats && (!remoteStats.porEspecialidad || remoteStats.porEspecialidad.length === 0)) {
+            if (localStats && localStats.porEspecialidad && localStats.porEspecialidad.length > 0) {
+                return localStats;
+            }
+        }
+        return remoteStats || localStats;
+    }, [remoteStats, localStats]);
 
     // Generate trend data
     const trendData = useMemo(() => {
