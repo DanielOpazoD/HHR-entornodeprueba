@@ -1,21 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Trash2, UserPlus, X } from 'lucide-react';
+import { Edit2, Trash2, UserPlus, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { roleService, UserRoleMap } from '../../services/admin/roleService';
 import { useAuth } from '../../context/AuthContext';
+import { BaseModal } from '../../components/shared/BaseModal';
 
 const RoleManagementView: React.FC = () => {
     const { role: userRole } = useAuth();
     const [roles, setRoles] = useState<UserRoleMap>({});
     const [loading, setLoading] = useState(true);
+
+    // Form state
     const [email, setEmail] = useState('');
     const [selectedRole, setSelectedRole] = useState('viewer');
     const [editingEmail, setEditingEmail] = useState<string | null>(null);
+
+    // UI Feedback state
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    // Modal state
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     useEffect(() => {
         loadRoles();
     }, []);
+
+    // Auto-hide success messages after 5 seconds
+    useEffect(() => {
+        if (message?.type === 'success') {
+            const timer = setTimeout(() => setMessage(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [message]);
 
     const loadRoles = async () => {
         try {
@@ -24,38 +40,46 @@ const RoleManagementView: React.FC = () => {
             setRoles(data);
         } catch (error) {
             console.error('Error loading roles:', error);
-            setMessage({ type: 'error', text: 'Error al cargar roles.' });
+            setMessage({ type: 'error', text: 'Error al cargar los roles de la base de datos.' });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAddRole = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email) return;
+        if (!email || processing) return;
 
         setProcessing(true);
         setMessage(null);
 
         try {
+            // Save to Firestore
             await roleService.setRole(email, selectedRole);
 
-            // Attempt to force sync if function is available (optional but good ux)
+            // Force sync via Cloud Function
             try {
                 await roleService.forceSyncUser(email, selectedRole);
-                setMessage({ type: 'success', text: editingEmail ? `Rol actualizado para ${email}.` : `Rol ${selectedRole} asignado a ${email} y sincronizado.` });
+                setMessage({
+                    type: 'success',
+                    text: editingEmail
+                        ? `Rol actualizado correctamente para ${email}.`
+                        : `Usuario ${email} agregado con éxito.`
+                });
             } catch (syncError) {
-                console.warn('Sync failed (user might not exist yet), but config saved:', syncError);
-                setMessage({ type: 'success', text: editingEmail ? `Rol actualizado.` : `Rol configurado. Se aplicará cuando ${email} inicie sesión.` });
+                console.warn('Sync trace (warning only):', syncError);
+                setMessage({
+                    type: 'success',
+                    text: `Datos guardados. Los permisos se aplicarán la próxima vez que ${email} inicie sesión.`
+                });
             }
 
-            setEmail('');
-            setEditingEmail(null);
-            setSelectedRole('viewer');
+            // Reset form
+            resetForm();
             await loadRoles();
         } catch (error) {
             console.error('Error saving role:', error);
-            setMessage({ type: 'error', text: 'Error al guardar el rol.' });
+            setMessage({ type: 'error', text: 'No se pudo guardar el rol. Por favor, reintenta.' });
         } finally {
             setProcessing(false);
         }
@@ -69,160 +93,269 @@ const RoleManagementView: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const cancelEdit = () => {
+    const resetForm = () => {
         setEmail('');
         setSelectedRole('viewer');
         setEditingEmail(null);
-        setMessage(null);
     };
 
-    const handleDelete = async (targetEmail: string) => {
-        // Simple confirmation
-        const confirmed = window.confirm(`¿Estás seguro de quitar el rol a ${targetEmail}?`);
-        if (!confirmed) return;
+    const handleDeleteClick = (targetEmail: string) => {
+        setDeleteConfirm(targetEmail);
+    };
 
+    const confirmDelete = async () => {
+        if (!deleteConfirm) return;
+
+        setProcessing(true);
         try {
-            setProcessing(true);
-            await roleService.removeRole(targetEmail);
+            await roleService.removeRole(deleteConfirm);
+            setMessage({ type: 'success', text: `El usuario ${deleteConfirm} ha sido eliminado.` });
+            setDeleteConfirm(null);
             await loadRoles();
-            setMessage({ type: 'success', text: `Rol eliminado para ${targetEmail}` });
         } catch (error) {
             console.error('Error removing role:', error);
-            setMessage({ type: 'error', text: 'Error al eliminar rol.' });
+            setMessage({ type: 'error', text: 'Error al eliminar el usuario.' });
         } finally {
             setProcessing(false);
         }
     };
 
     if (userRole !== 'admin') {
-        return <div className="p-8 text-center text-red-600">Acceso Denegado. Solo administradores.</div>;
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-slate-500">
+                <ShieldAlert size={48} className="text-red-400 mb-4" />
+                <h2 className="text-xl font-bold text-slate-800">Acceso Restringido</h2>
+                <p>Solo los administradores pueden gestionar los roles del sistema.</p>
+            </div>
+        );
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">Gestión de Roles y Permisos</h1>
+        <div className="max-w-5xl mx-auto p-4 md:p-8 animate-in fade-in duration-500">
+            <header className="mb-8">
+                <h1 className="text-3xl font-display font-bold text-slate-900 flex items-center gap-3">
+                    <div className="bg-indigo-600 p-2 rounded-xl text-white">
+                        <CheckCircle2 size={24} />
+                    </div>
+                    Gestión de Roles Dinámicos
+                </h1>
+                <p className="mt-2 text-slate-600 max-w-2xl">
+                    Administra quién puede acceder al sistema y qué funciones puede realizar. Los cambios se aplican en tiempo real.
+                </p>
+            </header>
 
-            {/* Notification */}
+            {/* Notification Bar */}
             {message && (
-                <div className={`p-4 mb-6 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                    {message.text}
+                <div className={`p-4 mb-6 rounded-xl border flex items-center gap-3 animate-in slide-in-from-top-2 ${message.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}>
+                    {message.type === 'success' ? <CheckCircle2 size={18} /> : <ShieldAlert size={18} />}
+                    <span className="flex-1 font-medium">{message.text}</span>
+                    <button onClick={() => setMessage(null)} className="p-1 hover:bg-black/5 rounded">
+                        <X size={16} />
+                    </button>
                 </div>
             )}
 
-            {/* Add/Edit Role Form */}
-            <div className={`bg-white p-6 rounded-lg shadow-sm border ${editingEmail ? 'border-blue-400 ring-1 ring-blue-100' : 'border-gray-200'} mb-8 transition-all`}>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                        {editingEmail ? <Edit2 size={18} className="text-blue-500" /> : <UserPlus size={18} className="text-medical-600" />}
-                        {editingEmail ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}
-                    </h2>
-                    {editingEmail && (
-                        <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm">
-                            <X size={14} /> Cancelar edición
-                        </button>
-                    )}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Form Column */}
+                <div className="lg:col-span-4 space-y-6">
+                    <div className={`bg-white p-6 rounded-2xl shadow-sm border transition-all duration-300 ${editingEmail ? 'border-indigo-400 ring-4 ring-indigo-50' : 'border-slate-200'
+                        }`}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                {editingEmail ? <Edit2 size={20} className="text-indigo-600" /> : <UserPlus size={20} className="text-medical-600" />}
+                                {editingEmail ? 'Actualizar Usuario' : 'Nuevo Usuario'}
+                            </h2>
+                            {editingEmail && (
+                                <button
+                                    onClick={resetForm}
+                                    className="text-slate-400 hover:text-rose-500 transition-colors"
+                                    title="Cancelar edición"
+                                >
+                                    <X size={20} />
+                                </button>
+                            )}
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">
+                                    Correo Institucional
+                                </label>
+                                <input
+                                    type="email"
+                                    required
+                                    disabled={!!editingEmail || processing}
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
+                                    placeholder="usuario@hospitalhangaroa.cl"
+                                    className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all ${editingEmail ? 'bg-slate-50 text-slate-400 border-slate-200' : 'border-slate-300 bg-white'
+                                        }`}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">
+                                    Rol en el Sistema
+                                </label>
+                                <select
+                                    value={selectedRole}
+                                    disabled={processing}
+                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                    className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white transition-all"
+                                >
+                                    <option value="viewer">🎨 Invitado (Solo Lectura)</option>
+                                    <option value="nurse_hospital">👩‍⚕️ Enfermería</option>
+                                    <option value="doctor_urgency">🩺 Médico Urgencia</option>
+                                    <option value="admin">🔑 Administrador</option>
+                                </select>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className={`w-full p-4 rounded-xl text-white font-bold transition-all shadow-md active:scale-[0.98] ${processing
+                                        ? 'bg-slate-300 cursor-not-allowed'
+                                        : editingEmail
+                                            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                            : 'bg-medical-600 hover:bg-medical-700 shadow-medical-200'
+                                    }`}
+                            >
+                                {processing ? 'Procesando...' : editingEmail ? 'Guardar Cambios' : 'Añadir Usuario'}
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-start gap-3">
+                            <ShieldAlert size={18} className="text-slate-400 shrink-0 mt-0.5" />
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                <strong>Nota:</strong> Los usuarios con dominios institucionales que ya funcionan por defecto pueden ser registrados aquí para recibir permisos adicionales o cambiar su nivel de acceso de forma permanente.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                <form onSubmit={handleAddRole} className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                        <label className="block text-sm font-medium text-gray-700 mb-1 font-display">Correo Electrónico</label>
-                        <input
-                            type="email"
-                            required
-                            readOnly={!!editingEmail}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="ejemplo@hospital.cl"
-                            className={`w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${editingEmail ? 'bg-gray-50 text-gray-500 border-gray-200 cursor-not-allowed' : 'border-gray-300'
-                                }`}
-                        />
+                {/* Table Column */}
+                <div className="lg:col-span-8">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-200 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-slate-800">Cuentas con Acceso Dinámico</h2>
+                            <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500">
+                                {Object.keys(roles).length} registros
+                            </span>
+                        </div>
+
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center p-12">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+                                <span className="text-slate-400 font-medium">Sincronizando con la nube...</span>
+                            </div>
+                        ) : Object.keys(roles).length === 0 ? (
+                            <div className="p-16 text-center">
+                                <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                                    <UserPlus className="text-slate-300" size={32} />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800">Sin usuarios registrados</h3>
+                                <p className="text-slate-500 max-w-xs mx-auto mt-2">
+                                    Usa el formulario de la izquierda para empezar a dar acceso a nuevos correos.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-100 bg-slate-50/30">
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Usuario</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Nivel de Acceso</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest font-display text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {Object.entries(roles).map(([userEmail, role]) => (
+                                            <tr key={userEmail} className={`group hover:bg-slate-50/80 transition-all ${editingEmail === userEmail ? 'bg-indigo-50/50' : ''}`}>
+                                                <td className="px-6 py-5">
+                                                    <div className="font-bold text-slate-700">{userEmail}</div>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${role === 'admin' ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' :
+                                                            role === 'nurse_hospital' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
+                                                                role === 'doctor_urgency' ? 'bg-sky-50 text-sky-700 ring-sky-600/20' :
+                                                                    'bg-slate-100 text-slate-600 ring-slate-400/20'
+                                                        }`}>
+                                                        {role === 'nurse_hospital' ? 'Enfermería Hospitalizados' :
+                                                            role === 'doctor_urgency' ? 'Médico de Urgencia' :
+                                                                role === 'admin' ? 'Administrador Total' :
+                                                                    'Invitado (Censo)'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => handleEdit(userEmail, role)}
+                                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                            title="Editar permisos"
+                                                        >
+                                                            <Edit2 size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(userEmail)}
+                                                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                            title="Eliminar acceso"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
-                    <div className="w-full md:w-56">
-                        <label className="block text-sm font-medium text-gray-700 mb-1 font-display">Rol Asignado</label>
-                        <select
-                            value={selectedRole}
-                            onChange={(e) => setSelectedRole(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        >
-                            <option value="viewer">🎨 Invitado (Viewer)</option>
-                            <option value="nurse_hospital">👩‍⚕️ Enfermería</option>
-                            <option value="doctor_urgency">🩺 Médico Urgencia</option>
-                            <option value="admin">🔑 Administrador</option>
-                        </select>
+                </div>
+            </div>
+
+            {/* Custom Confirm Modal */}
+            <BaseModal
+                isOpen={!!deleteConfirm}
+                onClose={() => setDeleteConfirm(null)}
+                title="Confirmar Eliminación"
+                icon={<Trash2 size={18} />}
+                headerIconColor="text-rose-500"
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <div className="bg-rose-50 p-4 rounded-xl flex gap-3 text-rose-700 border border-rose-100">
+                        <ShieldAlert className="shrink-0" size={20} />
+                        <p className="text-sm font-medium leading-relaxed">
+                            Estás a punto de quitar el acceso dinámico para <strong>{deleteConfirm}</strong>.
+                        </p>
                     </div>
-                    <div className="w-full md:w-auto">
+                    <p className="text-slate-600 text-sm">
+                        Esta acción revocará sus permisos configurados manualmente. Si el usuario pertenece a una cuenta institucional fija, recuperará su rol por defecto.
+                    </p>
+                    <div className="flex flex-col gap-2 pt-2">
                         <button
-                            type="submit"
+                            onClick={confirmDelete}
                             disabled={processing}
-                            className={`w-full px-6 py-2 rounded text-white font-medium transition-all shadow-sm flex items-center justify-center gap-2 ${processing
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : editingEmail
-                                    ? 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                                    : 'bg-medical-600 hover:bg-medical-700 active:scale-95'
-                                }`}
+                            className="w-full p-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-all shadow-md shadow-rose-200 flex items-center justify-center gap-2"
                         >
-                            {processing ? 'Procesando...' : editingEmail ? 'Guardar Cambios' : 'Asignar Rol'}
+                            {processing ? 'Eliminando...' : 'Eliminar Permanentemente'}
+                        </button>
+                        <button
+                            onClick={() => setDeleteConfirm(null)}
+                            disabled={processing}
+                            className="w-full p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
+                        >
+                            Cancelar
                         </button>
                     </div>
-                </form>
-            </div>
-
-            {/* Roles List */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-700">Usuarios Configurados</h2>
                 </div>
-
-                {loading ? (
-                    <div className="p-8 text-center text-gray-500">Cargando roles...</div>
-                ) : Object.keys(roles).length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">No hay roles configurados en la base de datos dinámica.</div>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {Object.entries(roles).map(([userEmail, role]) => (
-                                <tr key={userEmail} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{userEmail}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                                            role === 'nurse_hospital' ? 'bg-green-100 text-green-800' :
-                                                role === 'doctor_urgency' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            {role === 'nurse_hospital' ? 'Enfermería' :
-                                                role === 'doctor_urgency' ? 'Médico' :
-                                                    role.charAt(0).toUpperCase() + role.slice(1)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                                        <button
-                                            onClick={() => handleEdit(userEmail, role)}
-                                            disabled={processing}
-                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
-                                        >
-                                            <Edit2 size={14} /> Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(userEmail)}
-                                            disabled={processing}
-                                            className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
-                                        >
-                                            <Trash2 size={14} /> Eliminar
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+            </BaseModal>
         </div>
     );
 };
