@@ -35,8 +35,9 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
 }) => {
     if (isMedical) return null;
 
-    // Recibe is editable on both shifts as long as not read-only
-    const isReceivesEditable = !readOnly;
+    // Recibe is editable ONLY on night shift as long as not read-only
+    // On day shift (Turno Largo), receiving nurses are automatically pulled from the Census (same day Night shift)
+    const isReceivesEditable = !readOnly && selectedShift === 'night';
 
     return (
         <div className="bg-white rounded-lg border border-slate-200 p-2 print:hidden">
