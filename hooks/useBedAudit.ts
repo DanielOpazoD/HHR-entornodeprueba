@@ -163,9 +163,22 @@ export const useBedAudit = (record: DailyRecord | null) => {
         }
     }, [record, logDebouncedEvent, userId]);
 
+    const auditPatientCleared = useCallback((bedId: string, patientName: string, rut?: string) => {
+        if (!record) return;
+        logDebouncedEvent(
+            'PATIENT_CLEARED',
+            'patient',
+            bedId,
+            { patientName, bedId },
+            rut,
+            record.date
+        );
+    }, [record, logDebouncedEvent]);
+
     return {
         auditPatientChange,
         auditCudyrChange,
-        auditCribCudyrChange
+        auditCribCudyrChange,
+        auditPatientCleared
     };
 };

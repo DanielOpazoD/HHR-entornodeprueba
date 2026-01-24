@@ -16,24 +16,29 @@ service cloud.firestore {
       return request.auth.token.email;
     }
     
-    // Check if user is admin
+    // Check if user is admin via Custom Claims OR Whitelist (Dual Stack)
     function isAdmin() {
-      return isAuthenticated() && 
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
         getUserEmail() in [
           'daniel.opazo@hospitalhangaroa.cl',
           'd.opazo.damiani@gmail.com',
           'd.opazo.damiani@hospitalhangaroa.cl',
           'danielopazodamiani@gmail.com'
-        ];
+        ]
+      );
     }
     
-    // Check if user is nurse
+    // Check if user is nurse via Custom Claims OR Whitelist
     function isNurse() {
-      return isAuthenticated() && 
+      return isAuthenticated() && (
+        request.auth.token.role == 'nurse_hospital' || 
+        request.auth.token.role == 'admin' ||
         getUserEmail() in [
           'hospitalizados@hospitalhangaroa.cl',
           'enfermeria.hospitalizados@hospitalhangaroa.cl'
-        ];
+        ]
+      );
     }
     
     // Check if user can edit (admin or nurse)

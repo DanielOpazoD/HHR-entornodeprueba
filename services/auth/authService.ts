@@ -384,22 +384,42 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => 
                 return;
             }
 
-            // Check if still allowed (in case user was removed from whitelist)
-            const { allowed, role } = await checkEmailInFirestore(firebaseUser.email || '');
-            if (!allowed) {
-                // User no longer authorized, sign them out
-                await firebaseSignOut(auth);
-                callback(null);
-                return;
-            }
+            // 1. Get Custom Claims (Role)
+            try {
+                const tokenResult = await firebaseUser.getIdTokenResult();
+                let role = (tokenResult.claims.role as string);
 
-            callback({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL,
-                role
-            });
+                // Fallback: If no claim (or viewer), check whitelist (Dual Stack Recovery)
+                if (!role || role === 'viewer') {
+                    // Force check legacy whitelist
+                    const whitelistResult = await checkEmailInFirestore(firebaseUser.email || '');
+                    if (whitelistResult.allowed && whitelistResult.role) {
+                        role = whitelistResult.role;
+                        // console.info('[Auth] 🛡️ Dual Stack: Recovered role from whitelist:', role);
+                    }
+                }
+
+                role = role || 'viewer';
+
+                callback({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    photoURL: firebaseUser.photoURL,
+                    role
+                });
+            } catch (error) {
+                console.error('[useAuthState] Error getting ID token result:', error);
+                // Last resort fallback
+                const { role } = await checkEmailInFirestore(firebaseUser.email || '');
+
+                callback({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    role: role || 'viewer'
+                });
+            }
         } else {
             callback(null);
         }

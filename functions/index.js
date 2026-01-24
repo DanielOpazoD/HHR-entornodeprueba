@@ -302,3 +302,120 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'Error calculating statistics: ' + error.message);
     }
 });
+
+// =============================================================================
+// AUTHENTICATION & CUSTOM CLAIMS
+// =============================================================================
+
+/**
+ * Roles configuration
+ * HARDCODED for now - in future could read from Firestore /config/roles
+ */
+const ADMIN_EMAILS = [
+    'daniel.opazo@hospitalhangaroa.cl',
+    'd.opazo.damiani@gmail.com',
+    'd.opazo.damiani@hospitalhangaroa.cl',
+    'danielopazodamiani@gmail.com'
+];
+
+const NURSE_EMAILS = [
+    'hospitalizados@hospitalhangaroa.cl',
+    'enfermeria.hospitalizados@hospitalhangaroa.cl'
+];
+
+const DOCTOR_EMAILS = [
+    'medico.urgencia@hospitalhangaroa.cl'
+];
+
+const GUEST_EMAILS = [
+    // Add specific guest emails here
+];
+
+/**
+ * Assigns a role to a user based on their email
+ */
+async function assignRole(user) {
+    const email = user.email ? user.email.toLowerCase() : '';
+    let role = 'unauthorized'; // STRICT DEFAULT: No longer 'viewer' by default
+
+    // Normalize email for comparison
+    const cleanEmail = email.trim();
+
+    if (ADMIN_EMAILS.includes(cleanEmail)) {
+        role = 'admin';
+    } else if (NURSE_EMAILS.includes(cleanEmail)) {
+        role = 'nurse_hospital';
+    } else if (DOCTOR_EMAILS.includes(cleanEmail)) {
+        role = 'doctor_urgency';
+    } else if (GUEST_EMAILS.includes(cleanEmail)) {
+        role = 'viewer';
+    }
+
+    try {
+        // If unauthorized, do not set claims (or set explicit unauthorized claim)
+        // Setting { role: 'unauthorized' } makes it explicit in the token
+        await admin.auth().setCustomUserClaims(user.uid, { role });
+
+        const statusIcon = role === 'unauthorized' ? '⛔' : '✅';
+        console.info(`${statusIcon} Assigned role '${role}' to ${email}`);
+
+        // Also update Firestore for visibility
+        // We might want to track unauthorized attempts too
+        await admin.firestore().collection('allowedUsers').doc(user.uid).set({
+            email: email,
+            role: role,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return role;
+    } catch (error) {
+        console.error(`❌ Error assigning role to ${email}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Trigger: On User Created
+ * Automatically assigns role when a new user signs up in Firebase Auth
+ */
+exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
+    return assignRole(user);
+});
+
+/**
+ * Callable: Manually set role (Admin only)
+ * Useful for updating existing users without them re-signing up
+ */
+exports.setUserRole = functions.https.onCall(async (data, context) => {
+    // 1. Verify caller is admin
+    if (!context.auth || !context.auth.token.role === 'admin') {
+        // Fallback for bootstrap: check against ADMIN_EMAILS list if no claim yet
+        const callerEmail = context.auth?.token?.email;
+        if (!callerEmail || !ADMIN_EMAILS.includes(callerEmail)) {
+            throw new functions.https.HttpsError('permission-denied', 'Only admins can set roles');
+        }
+    }
+
+    const { email, role } = data;
+    if (!email || !role) {
+        throw new functions.https.HttpsError('invalid-argument', 'Email and role are required');
+    }
+
+    try {
+        const userRecord = await admin.auth().getUserByEmail(email);
+        await admin.auth().setCustomUserClaims(userRecord.uid, { role });
+
+        // Update Firestore mirror
+        await admin.firestore().collection('allowedUsers').doc(userRecord.uid).set({
+            email: email,
+            role: role,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        console.info(`✅ Manually assigned role '${role}' to ${email} (by ${context.auth.token.email})`);
+        return { success: true, message: `Role ${role} assigned to ${email}` };
+    } catch (error) {
+        console.error(`Error setting role for ${email}:`, error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});

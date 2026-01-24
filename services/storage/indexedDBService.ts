@@ -10,28 +10,32 @@ import { DailyRecord } from '../../types';
 import { ErrorLog } from '../utils/errorService';
 import { AuditLogEntry } from '../../types/audit';
 
+import { SyncTask } from './syncQueueService';
+
 // ============================================================================
 // Database Schema
 // ============================================================================
 
-class HangaRoaDatabase extends Dexie {
+export class HangaRoaDatabase extends Dexie {
     dailyRecords!: Table<DailyRecord>;
     demoRecords!: Table<DailyRecord>;
     catalogs!: Table<{ id: string, list: string[], lastUpdated: string }>;
     errorLogs!: Table<ErrorLog>;
     auditLogs!: Table<AuditLogEntry>;
     settings!: Table<{ id: string, value: unknown }>;
+    syncQueue!: Table<SyncTask>;
 
     constructor() {
         super('HangaRoaDB');
 
-        this.version(5).stores({
+        this.version(6).stores({
             dailyRecords: 'date',
             demoRecords: 'date',
             catalogs: 'id',
             errorLogs: 'id, timestamp, severity',
             auditLogs: 'id, timestamp, action, entityId, recordDate',
-            settings: 'id'
+            settings: 'id',
+            syncQueue: '++id, status, timestamp'
         });
     }
 }
