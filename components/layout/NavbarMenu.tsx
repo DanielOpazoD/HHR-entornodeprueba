@@ -126,6 +126,17 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                                         label="Base de Pacientes"
                                         onClick={() => handleModuleChange('PATIENT_MASTER_INDEX')}
                                     />
+                                    <div className="h-px bg-slate-200 my-1" />
+                                    <MenuItem
+                                        icon={ShieldCheck}
+                                        label="Gestión de Roles"
+                                        onClick={() => handleModuleChange('ROLE_MANAGEMENT')}
+                                    />
+                                    <MenuItem
+                                        icon={Activity}
+                                        label="Panel de Errores"
+                                        onClick={() => handleModuleChange('ERRORS')}
+                                    />
                                 </>
                             )}
                         </div>

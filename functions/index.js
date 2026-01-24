@@ -336,31 +336,43 @@ const GUEST_EMAILS = [
  */
 async function assignRole(user) {
     const email = user.email ? user.email.toLowerCase() : '';
-    let role = 'unauthorized'; // STRICT DEFAULT: No longer 'viewer' by default
-
-    // Normalize email for comparison
     const cleanEmail = email.trim();
+    let role = 'unauthorized'; // STRICT DEFAULT
 
-    if (ADMIN_EMAILS.includes(cleanEmail)) {
-        role = 'admin';
-    } else if (NURSE_EMAILS.includes(cleanEmail)) {
-        role = 'nurse_hospital';
-    } else if (DOCTOR_EMAILS.includes(cleanEmail)) {
-        role = 'doctor_urgency';
-    } else if (GUEST_EMAILS.includes(cleanEmail)) {
-        role = 'viewer';
+    try {
+        // 1. DYNAMIC CHECK: Check Firestore config/roles
+        const roleDoc = await admin.firestore().collection('config').doc('roles').get();
+        if (roleDoc.exists) {
+            const rolesMap = roleDoc.data();
+            if (rolesMap && rolesMap[cleanEmail]) {
+                role = rolesMap[cleanEmail];
+                console.info(`⚡ Dynamic Role found for ${cleanEmail}: ${role}`);
+            }
+        }
+    } catch (e) {
+        console.warn(`⚠️ Failed to read dynamic roles: ${e.message}`);
+    }
+
+    // 2. STATIC FALLBACK: If dynamic check didn't assign a known role
+    if (role === 'unauthorized') {
+        if (ADMIN_EMAILS.includes(cleanEmail)) {
+            role = 'admin';
+        } else if (NURSE_EMAILS.includes(cleanEmail)) {
+            role = 'nurse_hospital';
+        } else if (DOCTOR_EMAILS.includes(cleanEmail)) {
+            role = 'doctor_urgency';
+        } else if (GUEST_EMAILS.includes(cleanEmail)) {
+            role = 'viewer';
+        }
     }
 
     try {
-        // If unauthorized, do not set claims (or set explicit unauthorized claim)
-        // Setting { role: 'unauthorized' } makes it explicit in the token
         await admin.auth().setCustomUserClaims(user.uid, { role });
 
         const statusIcon = role === 'unauthorized' ? '⛔' : '✅';
         console.info(`${statusIcon} Assigned role '${role}' to ${email}`);
 
         // Also update Firestore for visibility
-        // We might want to track unauthorized attempts too
         await admin.firestore().collection('allowedUsers').doc(user.uid).set({
             email: email,
             role: role,

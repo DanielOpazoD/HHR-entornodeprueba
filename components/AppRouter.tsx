@@ -18,17 +18,19 @@ import {
     HandoffView,
     AuditView,
     MedicalSignatureView,
+    ErrorDashboard,
     WhatsAppIntegrationView,
     SystemDiagnosticsView,
     TransferManagementView,
     BackupFilesView,
     SharedCensusView,
     PatientMasterView,
-    DataMaintenanceView
+    DataMaintenanceView,
+    RoleManagementView
 } from '@/views/LazyViews';
 import { useSharedCensusMode } from '@/hooks/useSharedCensusMode';
 
-export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS';
+export type AppModule = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS' | 'ROLE_MANAGEMENT' | 'ERRORS';
 export type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface AppRouterProps {
@@ -151,6 +153,16 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                         {currentModule === 'DATA_MAINTENANCE' && role === 'admin' && (
                             <SectionErrorBoundary sectionName="Mantenimiento de Datos">
                                 <DataMaintenanceView />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'ROLE_MANAGEMENT' && role === 'admin' && (
+                            <SectionErrorBoundary sectionName="Gestión de Roles">
+                                <RoleManagementView />
+                            </SectionErrorBoundary>
+                        )}
+                        {currentModule === 'ERRORS' && role === 'admin' && (
+                            <SectionErrorBoundary sectionName="Panel de Errores">
+                                <ErrorDashboard />
                             </SectionErrorBoundary>
                         )}
                     </>

@@ -171,6 +171,28 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                                         }}
                                     />
                                 )}
+                                {visibleModules.includes('ROLE_MANAGEMENT') && (
+                                    <DropdownItem
+                                        label="Gestión de Roles"
+                                        icon={ShieldCheck}
+                                        isActive={currentModule === 'ROLE_MANAGEMENT'}
+                                        onClick={() => {
+                                            onModuleChange('ROLE_MANAGEMENT');
+                                            setIsUtilityMenuOpen(false);
+                                        }}
+                                    />
+                                )}
+                                {visibleModules.includes('ERRORS') && (
+                                    <DropdownItem
+                                        label="Panel de Errores"
+                                        icon={Activity}
+                                        isActive={currentModule === 'ERRORS'}
+                                        onClick={() => {
+                                            onModuleChange('ERRORS');
+                                            setIsUtilityMenuOpen(false);
+                                        }}
+                                    />
+                                )}
                             </div>
                         </div>
                     )}

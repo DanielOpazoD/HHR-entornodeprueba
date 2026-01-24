@@ -47,6 +47,7 @@ export const BackupFilesView = lazy(() =>
 export const SystemDiagnosticsView = lazy(() => import('./admin/SystemDiagnosticsView').then(module => ({ default: module.SystemDiagnosticsView })));
 export const PatientMasterView = lazy(() => import('./admin/PatientMasterView').then(module => ({ default: module.PatientMasterView })));
 export const DataMaintenanceView = lazy(() => import('./admin/DataMaintenanceView').then(module => ({ default: module.DataMaintenanceView })));
+export const RoleManagementView = lazy(() => import('./admin/RoleManagementView').then(module => ({ default: module.default })));
 
 // WhatsApp module
 export const WhatsAppIntegrationView = lazy(() =>

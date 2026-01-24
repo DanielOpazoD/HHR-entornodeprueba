@@ -14,7 +14,7 @@ import { UserMenu } from './UserMenu';
 import { DemoModeBadge } from './DemoModeBadge';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
-export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS';
+export type ModuleType = 'CENSUS' | 'CUDYR' | 'NURSING_HANDOFF' | 'MEDICAL_HANDOFF' | 'AUDIT' | 'WHATSAPP' | 'TRANSFER_MANAGEMENT' | 'BACKUP_FILES' | 'PATIENT_MASTER_INDEX' | 'DATA_MAINTENANCE' | 'DIAGNOSTICS' | 'ROLE_MANAGEMENT' | 'ERRORS';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
 
 interface NavbarProps {
@@ -78,6 +78,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'PATIENT_MASTER_INDEX': return 'bg-blue-600 shadow-blue-600/20';
       case 'DATA_MAINTENANCE': return 'bg-emerald-800 shadow-emerald-800/20';
       case 'DIAGNOSTICS': return 'bg-slate-900 shadow-slate-900/20';
+      case 'ROLE_MANAGEMENT': return 'bg-indigo-700 shadow-indigo-700/20';
+      case 'ERRORS': return 'bg-rose-900 shadow-rose-900/20';
       default: return 'bg-medical-900 shadow-medical-900/20';
     }
   };
