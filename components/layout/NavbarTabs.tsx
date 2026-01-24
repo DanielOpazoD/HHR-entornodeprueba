@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutList, MessageSquare, Stethoscope, Truck, FolderArchive, LayoutGrid, BarChart3, LucideIcon, ShieldCheck, Activity } from 'lucide-react';
+import { LayoutList, MessageSquare, Stethoscope, Truck, FolderArchive, LayoutGrid, BarChart3, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType } from './Navbar';
 import { UserRole } from '@/hooks/useAuthState';
@@ -176,24 +176,13 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                                         }}
                                     />
                                 )}
-                                {visibleModules.includes('ROLE_MANAGEMENT') && (
+                                {visibleModules.includes('BACKUP_FILES') && (
                                     <DropdownItem
-                                        label="Gestión de Roles"
-                                        icon={ShieldCheck}
-                                        isActive={currentModule === 'ROLE_MANAGEMENT'}
+                                        label="Archivos"
+                                        icon={FolderArchive}
+                                        isActive={currentModule === 'BACKUP_FILES'}
                                         onClick={() => {
-                                            onModuleChange('ROLE_MANAGEMENT');
-                                            setIsUtilityMenuOpen(false);
-                                        }}
-                                    />
-                                )}
-                                {visibleModules.includes('ERRORS') && (
-                                    <DropdownItem
-                                        label="Panel de Errores"
-                                        icon={Activity}
-                                        isActive={currentModule === 'ERRORS'}
-                                        onClick={() => {
-                                            onModuleChange('ERRORS');
+                                            onModuleChange('BACKUP_FILES');
                                             setIsUtilityMenuOpen(false);
                                         }}
                                     />

@@ -130,12 +130,21 @@ export function useMinsalStats(
         }
     }, [dateRange]);
 
+    // Helper to calculate days in range
+    const getDaysInRange = (start: string, end: string) => {
+        const s = new Date(start + 'T00:00:00');
+        const e = new Date(end + 'T00:00:00');
+        return Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    };
+
     // Trigger proactive sync when range changes
     useEffect(() => {
         if (!isLoading) {
-            // If local records for this range are few, try sync
+            const expectedDays = getDaysInRange(startDate, endDate);
             const localInRange = filterRecordsByDateRange(allRecords, startDate, endDate);
-            if (localInRange.length === 0) {
+
+            // If we have fewer records than days in range, sync from Firestore
+            if (localInRange.length < expectedDays) {
                 syncFirestoreRange(startDate, endDate);
             }
         }
