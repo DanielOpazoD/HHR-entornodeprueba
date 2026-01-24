@@ -69,6 +69,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
                 previousRecordDate={previousRecordDate}
                 availableDates={availableDates}
                 onCreateDay={createDay}
+                readOnly={readOnly}
             />
         );
     }
