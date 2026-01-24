@@ -176,9 +176,11 @@ export const firebaseReady = (async () => {
             }
 
             if (import.meta.env.DEV) {
-                const functionsEmulatorHost = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST || 'localhost:5001';
-                const [host, port] = functionsEmulatorHost.split(':');
-                connectFunctionsEmulator(functions, host, Number(port));
+                const functionsEmulatorHost = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST;
+                if (functionsEmulatorHost) {
+                    const [host, port] = functionsEmulatorHost.split(':');
+                    connectFunctionsEmulator(functions, host, Number(port));
+                }
             }
 
             return { app, auth, db, storage, functions };

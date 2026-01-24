@@ -151,7 +151,22 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
             }
         }
 
-        // console.debug(`[authService] 📡 Querying DB for whitelist...`);
+        // 2. VERIFICACIÓN DINÁMICA (config/roles)
+        // console.debug(`[authService] 📡 Checking dynamic roles in config/roles...`);
+        try {
+            const dynamicRoles = await db.getDoc<Record<string, string>>('config', 'roles');
+            if (dynamicRoles && dynamicRoles[cleanEmail]) {
+                const role = dynamicRoles[cleanEmail];
+                // console.info(`[authService] ✅ Access granted via dynamic rule: ${cleanEmail} -> ${role}`);
+                await saveRoleToCache(cleanEmail, role);
+                return { allowed: true, role };
+            }
+        } catch (dbError) {
+            console.warn('[authService] ⚠️ Could not fetch dynamic roles, falling back to other methods:', dbError);
+        }
+
+        // 3. WHITELIST LEGACY (allowedUsers collection)
+        // console.debug(`[authService] 📡 Querying DB for legacy whitelist...`);
 
         const results = await db.getDocs<any>('allowedUsers', {
             where: [{ field: 'email', operator: '==', value: email.toLowerCase().trim() }]

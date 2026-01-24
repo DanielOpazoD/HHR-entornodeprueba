@@ -57,20 +57,32 @@ const RoleManagementView: React.FC = () => {
             // Save to Firestore
             await roleService.setRole(email, selectedRole);
 
-            // Force sync via Cloud Function
+            // Force sync via Cloud Function (Optional - helps apply changes immediately if user is active)
             try {
-                await roleService.forceSyncUser(email, selectedRole);
-                setMessage({
-                    type: 'success',
-                    text: editingEmail
-                        ? `Rol actualizado correctamente para ${email}.`
-                        : `Usuario ${email} agregado con éxito.`
-                });
+                // If in DEV and no emulator host, skip sync attempt to avoid connection errors
+                const skipSync = import.meta.env.DEV && !import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST;
+
+                if (!skipSync) {
+                    await roleService.forceSyncUser(email, selectedRole);
+                    setMessage({
+                        type: 'success',
+                        text: editingEmail
+                            ? `Rol actualizado correctamente para ${email}.`
+                            : `Usuario ${email} agregado con éxito.`
+                    });
+                } else {
+                    // Sync skipped because no emulator, but Firestore part worked
+                    setMessage({
+                        type: 'success',
+                        text: editingEmail ? 'Rol actualizado en la base de datos.' : 'Usuario guardado.'
+                    });
+                }
             } catch (syncError) {
-                console.warn('Sync trace (warning only):', syncError);
+                console.warn('[RoleManagement] Sync trace (non-critical):', syncError);
+                // Still show success because Firestore part worked
                 setMessage({
                     type: 'success',
-                    text: `Datos guardados. Los permisos se aplicarán la próxima vez que ${email} inicie sesión.`
+                    text: `Datos guardados en la nube. Los cambios se aplicarán en el siguiente inicio de sesión.`
                 });
             }
 
@@ -147,8 +159,8 @@ const RoleManagementView: React.FC = () => {
             {/* Notification Bar */}
             {message && (
                 <div className={`p-4 mb-6 rounded-xl border flex items-center gap-3 animate-in slide-in-from-top-2 ${message.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}>
                     {message.type === 'success' ? <CheckCircle2 size={18} /> : <ShieldAlert size={18} />}
                     <span className="flex-1 font-medium">{message.text}</span>
@@ -217,10 +229,10 @@ const RoleManagementView: React.FC = () => {
                                 type="submit"
                                 disabled={processing}
                                 className={`w-full p-4 rounded-xl text-white font-bold transition-all shadow-md active:scale-[0.98] ${processing
-                                        ? 'bg-slate-300 cursor-not-allowed'
-                                        : editingEmail
-                                            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                                            : 'bg-medical-600 hover:bg-medical-700 shadow-medical-200'
+                                    ? 'bg-slate-300 cursor-not-allowed'
+                                    : editingEmail
+                                        ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                        : 'bg-medical-600 hover:bg-medical-700 shadow-medical-200'
                                     }`}
                             >
                                 {processing ? 'Procesando...' : editingEmail ? 'Guardar Cambios' : 'Añadir Usuario'}
@@ -281,9 +293,9 @@ const RoleManagementView: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${role === 'admin' ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' :
-                                                            role === 'nurse_hospital' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
-                                                                role === 'doctor_urgency' ? 'bg-sky-50 text-sky-700 ring-sky-600/20' :
-                                                                    'bg-slate-100 text-slate-600 ring-slate-400/20'
+                                                        role === 'nurse_hospital' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
+                                                            role === 'doctor_urgency' ? 'bg-sky-50 text-sky-700 ring-sky-600/20' :
+                                                                'bg-slate-100 text-slate-600 ring-slate-400/20'
                                                         }`}>
                                                         {role === 'nurse_hospital' ? 'Enfermería Hospitalizados' :
                                                             role === 'doctor_urgency' ? 'Médico de Urgencia' :
