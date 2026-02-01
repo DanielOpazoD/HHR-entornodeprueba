@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { TraceabilitySummary } from '../views/admin/components/audit/TraceabilitySummary';
+import { TraceabilitySummary } from '@/views/admin/components/audit/TraceabilitySummary';
 
 const meta: Meta<typeof TraceabilitySummary> = {
     title: 'Audit/TraceabilitySummary',

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { HandoffRow } from '../views/handoff/HandoffRow';
-import { PatientStatus, Specialty, PatientData } from '../types';
+import { HandoffRow } from '@/views/handoff/HandoffRow';
+import { PatientStatus, Specialty, PatientData } from '@/types';
 
 const meta: Meta<typeof HandoffRow> = {
     title: 'Hospital/HandoffRow',

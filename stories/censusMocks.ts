@@ -2,10 +2,10 @@
  * Census & Cudyr Mocks for Storybook
  */
 
-import { DailyRecord, PatientData, Specialty, PatientStatus, Statistics, CudyrScore } from '../types';
-import { DailyRecordContextType } from '../hooks/useDailyRecordTypes';
-import { BEDS } from '../constants';
-import { createEmptyPatient } from '../services/factories/patientFactory';
+import { DailyRecord, PatientData, Specialty, PatientStatus, Statistics, CudyrScore } from '@/types';
+import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
+import { BEDS } from '@/constants';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 export const createMockPatient = (overrides: Partial<PatientData> = {}): PatientData => {
     const bedId = overrides.bedId || 'bed-1';

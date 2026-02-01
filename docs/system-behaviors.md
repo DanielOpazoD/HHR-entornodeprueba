@@ -85,6 +85,41 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 
 ---
 
+## 5. Respaldo Automático en la Nube
+
+### Descripción
+El sistema asegura la persistencia de documentos críticos (PDF de Handoff y Excel de Censo) respaldándolos automáticamente en Firebase Storage durante el proceso de exportación.
+
+### Comportamiento Esperado
+1. **Gatillos de Respaldo:**
+   - Al descargar el PDF local de Entrega de Turno.
+   - Al enviar el Censo por correo electrónico.
+   - Al descargar manualmente el Excel maestro del Censo.
+2. **Validación de Existencia:**
+   - El sistema verifica si ya existe un archivo para la fecha y turno actual.
+   - Si el archivo ya existe, el botón de "Guardar en Nube" cambia a color **Verde** y muestra el estado **Archivado**.
+3. **Flujo de Usuario:**
+   - La descarga local y el respaldo en la nube ocurren de forma concurrente para minimizar la espera del usuario.
+
+### Archivos Relacionados
+- `hooks/useExportManager.ts` - Orquestador central de exportaciones.
+- `services/backup/pdfStorageService.ts` - Manejo de archivos PDF.
+- `services/backup/censusStorageService.ts` - Manejo de archivos Excel.
+
+---
+
+## 6. Visibilidad Dinámica de Módulos (RBAC)
+
+### Descripción
+La interfaz se adapta dinámicamente según el rol del usuario y el contexto clínico.
+
+### Comportamiento Esperado (CUDYR)
+- El módulo CUDYR solo es accesible desde la **Entrega de Turno de Enfermería**.
+- Solo es visible cuando se selecciona el **Turno Noche**, ya que es el momento normativo de categorización.
+- Al activarse, mantiene el contexto de navegación del módulo padre (Handoff) resaltado en el Navbar.
+
+---
+
 ## Troubleshooting
 
 ### "La página se recarga sola al abrirla"
@@ -95,10 +130,14 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 **Causa posible:** Primera vez que se abre ese día sin datos previos.
 **Acción:** Usar "Copiar del día anterior" o "Registro en blanco".
 
+### "El botón de respaldo aparece en verde"
+**Causa:** El sistema ya realizó un respaldo automático exitoso para esa fecha.
+**Acción:** Ninguna, el dato ya está seguro en la nube.
+
 ### "Los cambios no se sincronizan"
 **Causa posible:** Sin conexión a internet o Firebase desconectado.
 **Acción:** Verificar conexión. Los datos se guardan localmente y se sincronizarán al reconectar.
 
 ---
 
-*Última actualización: 2026-01-01*
+*Última actualización: 25 de Enero 2026*

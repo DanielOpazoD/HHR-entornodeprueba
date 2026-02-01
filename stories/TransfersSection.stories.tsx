@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { TransfersSection } from '../views/census/TransfersSection';
+import { TransfersSection } from '@/views/census/TransfersSection';
 import { createMockDailyRecord } from './censusMocks';
 import { StoryContextWrapper } from './StoryContextWrapper';
 

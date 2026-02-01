@@ -212,9 +212,25 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
 
         if (snapshot.empty) {
             return {
+                periodStart: startDate,
+                periodEnd: endDate,
                 totalDays: 0,
+                diasCamaDisponibles: 0,
+                diasCamaOcupados: 0,
                 egresosTotal: 0,
+                egresosVivos: 0,
+                egresosFallecidos: 0,
+                egresosTraslados: 0,
                 tasaOcupacion: 0,
+                promedioDiasEstada: 0,
+                mortalidadHospitalaria: 0,
+                indiceRotacion: 0,
+                pacientesActuales: 0,
+                camasOcupadas: 0,
+                camasBloqueadas: 0,
+                camasDisponibles: HOSPITAL_CAPACITY,
+                camasLibres: HOSPITAL_CAPACITY,
+                tasaOcupacionActual: 0,
                 porEspecialidad: [],
                 message: 'No records found for the given range.'
             };
@@ -237,7 +253,6 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
         let totalEgresosVivos = 0;
         let totalEgresosFallecidos = 0;
         let totalEgresosTraslados = 0;
-        const HOSPITAL_CAPACITY = 18; // Standard capacity
 
         const specialtyData = new Map();
 
@@ -316,6 +331,13 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
         const tasaOcupacion = totalDiasCamaDisponibles > 0 ? (totalDiasCamaOcupados / totalDiasCamaDisponibles) * 100 : 0;
         const promedioDiasEstada = egresosTotal > 0 ? totalDiasCamaOcupados / egresosTotal : 0;
 
+        // Rotation Index Calculation (Simplified for CF)
+        const totalDaysInRange = (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1;
+        const avgAvailableBeds = filteredRecords.length > 0 ? totalDiasCamaDisponibles / filteredRecords.length : HOSPITAL_CAPACITY;
+        const indiceRotacion = (avgAvailableBeds > 0 && totalDaysInRange > 0)
+            ? (egresosTotal / avgAvailableBeds) * (30 / totalDaysInRange)
+            : 0;
+
         // Build specialty breakdown array
         const porEspecialidad = Array.from(specialtyData.entries()).map(([specialty, data]) => {
             const egresosEsp = data.egresos || 0;
@@ -344,6 +366,9 @@ exports.calculateMinsalStats = functions.https.onCall(async (data, context) => {
             tasaOcupacion: Math.round(tasaOcupacion * 10) / 10,
             promedioDiasEstada: Math.round(promedioDiasEstada * 10) / 10,
             mortalidadHospitalaria: egresosTotal > 0 ? Math.round((totalEgresosFallecidos / egresosTotal) * 1000) / 10 : 0,
+            indiceRotacion: Math.round(indiceRotacion * 10) / 10,
+            pacientesActuales: 0, // Situation indicators normally computed by frontend
+            camasLibres: 0,
             porEspecialidad
         };
 

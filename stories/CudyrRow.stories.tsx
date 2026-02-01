@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CudyrRow } from '../views/cudyr/CudyrRow';
+import { CudyrRow } from '@/views/cudyr/CudyrRow';
 import { createMockPatient, createMockCudyrScore } from './censusMocks';
-import { BEDS } from '../constants';
+import { BEDS } from '@/constants';
 import { StoryContextWrapper } from './StoryContextWrapper';
 
 const meta: Meta<typeof CudyrRow> = {

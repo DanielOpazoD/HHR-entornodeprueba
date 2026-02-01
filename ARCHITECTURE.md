@@ -43,73 +43,65 @@ flowchart TB
 
 ---
 
+## ✅ Enfoque de Estabilidad
+
+- **Offline-first:** IndexedDB como almacenamiento primario y Firestore como sync remoto.
+- **Integridad clínica:** validación estricta con Zod + guardas de regresión.
+- **Concurrencia segura:** control optimista y updates parciales por celda (LWW).
+- **Recuperación:** auto-repair de IndexedDB y fallback controlado.
+- **Observabilidad local:** métricas y logs guardados localmente para diagnóstico offline.
+- **Cola de sync:** cambios encolados con deduplicación y backoff.
+
+Para más detalle de flujos y decisiones, ver `docs/architecture.md`.
+Para resumen ejecutivo y stack, ver este documento.
+
+---
+
 ## 📦 Stack Tecnológico
 
 | Capa | Tecnología | Versión |
 |------|------------|---------|
-| **UI** | React | 19.2 |
-| **Language** | TypeScript | 5.8 |
-| **Build** | Vite | 6.4 |
-| **State Management** | TanStack Query | 5.x |
+| **UI** | React | 19.2.1 |
+| **Language** | TypeScript | 5.8.2 |
+| **Build** | Vite | 6.2.0 |
+| **State Management** | TanStack Query | 5.90.12 |
 | **Styling** | Vanilla CSS | - |
-| **Database** | Firestore | - |
-| **Local Storage** | IndexedDB (Dexie.js) | 4.x |
-| **Auth** | Firebase Auth | - |
-| **Validation** | Zod | 3.25 |
-| **Testing** | Vitest + Playwright | - |
+| **Database** | Firestore | 12.6.0 |
+| **Local Storage** | IndexedDB (Dexie.js) | 4.2.1 |
+| **Auth** | Firebase Auth | 12.6.0 |
+| **Validation** | Zod | 3.25.76 |
+| **Testing** | Vitest + Playwright | 4.0.15 / 1.57.0 |
 | **Hosting** | Netlify | - |
 
 ---
 
-## 🗂️ Estructura de Directorios
+## 🗂️ Estructura de Directorios (src/)
 
 ```
-├── components/                 # Componentes React
-│   ├── census/                 # Tabla de pacientes
-│   ├── modals/                 # Modales de acción
-│   ├── layout/                 # Navbar, DateStrip
-│   └── shared/                 # ErrorBoundary, Skeletons
+src/
+├── components/                 # Componentes UI (Layout, Census, Shared)
+├── features/                   # Módulos por funcionalidad
+│   ├── admin/                  # Auditoría, Configuración, Salud del Sistema
+│   ├── analytics/              # Estadísticas MINSAL, gráficos
+│   ├── census/                 # Gestión de camas y pacientes
+│   ├── cudyr/                  # Scoring de dependencia y categorización
+│   ├── handoff/                # Entrega de Turno (Enfermería/Médica)
+│   ├── whatsapp/               # Integración con bot de notificaciones
+│   └── errors/                 # Monitoreo de errores en runtime
 │
-├── views/                      # Páginas (lazy-loaded)
-│   ├── census/                 # CensusView + sub-componentes
-│   ├── cudyr/                  # CudyrView
-│   ├── handoff/                # HandoffView
-│   ├── backup/                 # BackupFilesView
-│   └── admin/                  # AuditView, ConfigView
+├── core/                       # Núcleo técnico (Auth, Firebase Config)
+├── services/                   # Lógica de negocio y persistencia
+│   ├── repositories/           # Patrón Repository para Firestore/IDB
+│   ├── storage/                # Implementación de persistencia física
+│   ├── backup/                 # Gestión de respaldos en la nube
+│   └── pdf/                    # Generación dinámica de documentos
 │
-├── hooks/                      # Custom Hooks
-│   ├── useDailyRecordQuery.ts  # TanStack Query wrapper
-│   ├── useStaffQuery.ts        # Catálogos de personal
-│   ├── useBedManagement.ts     # Operaciones de camas
-│   ├── usePatientHistoryQuery.ts
-│   └── useBackupFilesQuery.ts
-│
-├── services/                   # Lógica de negocio
-│   ├── storage/                # IndexedDB, Firestore
-│   ├── repositories/           # Patrón Repository
-│   ├── backup/                 # PDF/Excel Storage
-│   ├── pdf/                    # Generación de PDFs
-│   └── exporters/              # Excel exports
-│
-├── context/                    # React Contexts
-│   ├── AuthContext.tsx
-│   ├── UIContext.tsx
-│   ├── StaffContext.tsx
-│   └── DailyRecordContext.tsx
-│
-├── schemas/                    # Validación Zod
-│   ├── zodSchemas.ts           # Schemas principales
-│   └── validation.ts           # Helpers
-│
-├── types/                      # TypeScript types
-│   ├── core.ts                 # Tipos base
-│   └── index.ts                # Re-exports
-│
-└── tests/                      # Tests (701+)
-    ├── hooks/
-    ├── services/
-    ├── components/
-    └── integration/
+├── context/                    # Estado Global (Shared Contexts)
+├── hooks/                      # Hooks transversales (Query, UI, Validation)
+├── schemas/                    # Validación Zod (Seguridad en runtime)
+├── types/                      # Definiciones de tipos del dominio
+├── utils/                      # Helpers y utilidades técnicas
+└── tests/                      # Suite de tests automatizados (>1350)
 ```
 
 ---
@@ -147,108 +139,137 @@ sequenceDiagram
 
 ---
 
+## ⚡ Flujos Críticos (Resumen)
+
+### Guardado completo (online/offline)
+
+```mermaid
+sequenceDiagram
+    participant UI
+    participant Hook
+    participant Repo
+    participant IDB
+    participant SyncQ
+    participant FS
+
+    UI->>Hook: save(record)
+    Hook->>Repo: save()
+    Repo->>IDB: saveRecord()
+    Repo->>SyncQ: queueSyncTask(save)
+    alt Online
+        SyncQ->>FS: saveToFirestore()
+        FS-->>SyncQ: ok
+    else Offline
+        SyncQ-->>Repo: scheduled retry
+    end
+```
+
+### Patch parcial (LWW)
+
+```mermaid
+sequenceDiagram
+    participant UI
+    participant Hook
+    participant Repo
+    participant IDB
+    participant SyncQ
+    participant FS
+
+    UI->>Hook: patch(path, value)
+    Hook->>Repo: updatePartial()
+    Repo->>IDB: applyPatchLocal()
+    Repo->>SyncQ: queueSyncTask(patch)
+    SyncQ->>FS: applyPatchRemote()
+```
+
+### Lectura (con migración suave)
+
+```mermaid
+sequenceDiagram
+    participant UI
+    participant Hook
+    participant Repo
+    participant IDB
+    participant FS
+
+    UI->>Hook: load(date)
+    Hook->>Repo: getForDate()
+    Repo->>IDB: readRecord()
+    alt No local
+        Repo->>FS: fetchRecord()
+    end
+    Repo-->>Hook: migrated + validated
+```
+
+---
+
+## 🧩 Contratos de Datos (Resumen)
+
+- **DailyRecord:** `date` ISO, `beds` fijo por catálogo, `activeExtraBeds` coherente, `patients` con `id` único.
+- **Patch parcial:** `path` en dot-notation, `value` serializable, `lastUpdated` para LWW.
+- **SyncTask:** `type`, `key`, `status`, `attempts`, `nextAttemptAt`.
+
+---
+
+## 🧭 Cómo leer esta arquitectura (para novatos)
+
+1) **Empieza por el flujo de datos**: mira “Flujo de Datos” y “Flujos Críticos” para entender qué pasa cuando el usuario guarda o edita.
+2) **Ubica la capa donde ocurre cada cosa**: UI/Views dispara acciones, Hooks coordinan, Repositories persisten, Storage escribe/lee.
+3) **Aprende los contratos de datos**: estos “acuerdos” evitan errores al mover datos entre capas.
+4) **Revisa estabilidad y seguridad**: mira “Enfoque de Estabilidad” y “Seguridad” para entender por qué el sistema no se cae y protege datos.
+5) **Si algo falla**: busca en “Observabilidad” y “Flujos Críticos” para ubicar el punto de diagnóstico.
+
+---
+
+## ✅ Checklist de Consistencia (ARCHITECTURE vs docs/architecture)
+
+- **Principios**: offline-first, integridad clínica, concurrencia, recuperación.
+- **Capas**: UI → Contexts/Hooks → Repos → Storage.
+- **Flujos críticos**: save completo, patch parcial, lectura con migración suave.
+- **Contratos**: DailyRecord, Patch, SyncTask alineados.
+- **Observabilidad**: logs/health/pending sync reflejados en ambos documentos.
+- **Stack**: versiones en `ARCHITECTURE.md` coinciden con `package.json`.
+
+---
+
 ## 🧱 Patrones de Diseño
 
 ### 1. Repository Pattern
+Abstrae la complejidad de elegir entre almacenamiento local (IDB) o remoto (Firestore).
 ```typescript
-// Abstrae el acceso a datos
 import { DailyRecordRepository } from '@/services/repositories/DailyRecordRepository';
-
 const record = await DailyRecordRepository.getForDate('2026-01-08');
-await DailyRecordRepository.save(updatedRecord);
 ```
 
-### 2. TanStack Query Hooks
+### 2. Export & Backup Manager
+Manejador centralizado para la generación de documentos y su respaldo automático en la nube.
 ```typescript
-// Cache, sync, optimistic updates automatizados
-const { data, isLoading } = useDailyRecordQuery(dateString);
+const { handleBackupHandoff } = useExportManager();
+// Gatilla PDF local + Backup Cloud automáticamente
+```
+
+### 3. TanStack Query Hooks
+Gestiona el ciclo de vida de los datos, revalidación y estados de carga.
+```typescript
+const { data } = useDailyRecordQuery(dateString);
 const mutation = useSaveDailyRecordMutation();
-
-mutation.mutate(updatedRecord); // UI se actualiza inmediatamente
 ```
 
-### 3. Composición de Hooks
+### 4. Interoperabilidad (HL7 FHIR)
+Utiliza transformadores para convertir datos del dominio HHR a recursos estándar FHIR R4 (Core-CL).
 ```typescript
-// useDailyRecord compone múltiples hooks especializados
-function useDailyRecord(dateString: string) {
-    const query = useDailyRecordQuery(dateString);
-    const bedOps = useBedManagement(dateString);
-    const discharges = usePatientDischarges(dateString);
-    // ...
-}
+import { mapPatientToFhir } from '@/services/utils/fhirMappers';
+const fhirPatient = mapPatientToFhir(localPatient);
 ```
-
-### 4. Context para Estado Global
-- `AuthContext` - Autenticación y roles
-- `UIContext` - Estado de UI (modales, notificaciones)
-- `StaffContext` - Catálogos de enfermeras/TENS
-- `DailyRecordContext` - Registro diario actual
 
 ---
 
 ## 🔐 Seguridad
 
-### Cliente
-- RBAC (Role-Based Access Control) en `utils/permissions.ts`
-- Validación Zod antes de cada escritura
-- No hay secretos en el código cliente
-
-### Firebase
-- Security Rules en `firestore.rules`
-- Storage Rules en `storage.rules`
-- Autenticación obligatoria para todas las operaciones
-
-### Serverless
-- Validación de headers en Netlify Functions
-- Secretos en variables de entorno (no en código)
+- **RBAC:** Control de acceso en `utils/permissions.ts`.
+- **Validation:** Validación estricta con Zod antes de persistir cualquier dato.
+- **Auditoría:** Registro inmutable de cada cambio crítico en el sistema.
 
 ---
 
-## 📊 Módulos Principales
-
-| Módulo | Descripción | Archivos Clave |
-|--------|-------------|----------------|
-| **Census** | Gestión de camas y pacientes | `views/census/`, `useBedManagement.ts` |
-| **CUDYR** | Scoring de dependencia | `views/cudyr/`, `cudyrScoreUtils.ts` |
-| **Handoff** | Entrega de turno | `views/handoff/`, `handoffPdfGenerator.ts` |
-| **Backup** | Archivos históricos | `views/backup/`, `pdfStorageService.ts` |
-| **Audit** | Logs de acciones | `views/admin/AuditView.tsx`, `auditService.ts` |
-| **Reports** | Exportación Excel/PDF | `services/exporters/` |
-
----
-
-## 🚀 Despliegue
-
-```mermaid
-flowchart LR
-    subgraph Dev["Desarrollo"]
-        LOCAL["localhost:3000"]
-    end
-    
-    subgraph CI["GitHub Actions"]
-        TESTS["npm test"]
-        BUILD["npm run build"]
-    end
-    
-    subgraph Prod["Producción"]
-        NETLIFY["Netlify"]
-        FIREBASE["Firebase"]
-    end
-    
-    LOCAL -->|git push| CI
-    CI -->|Auto-deploy| NETLIFY
-    NETLIFY --> FIREBASE
-```
-
-1. **Netlify**: Auto-deploy desde branch `main`
-2. **Netlify Functions**: `netlify/functions/*.ts`
-3. **Firebase**: Firestore + Storage + Auth
-
----
-
-### 5. Proactive Sync (Analytics)
-El hook `useMinsalStats` implementa una sincronización proactiva que detecta brechas de datos en IndexedDB comparando la cantidad de registros locales con los días esperados en el rango seleccionado. Si faltan datos, se dispara una sincronización automática desde Firestore.
-
----
-
-*Última actualización: 24 de Enero 2026*
+*Última actualización: 31 de Enero 2026*

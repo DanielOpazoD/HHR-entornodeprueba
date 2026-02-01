@@ -1,0 +1,260 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>HHR Hospitalizados - API Documentation - v0.0.1</title><meta name="description" content="Documentation for HHR Hospitalizados - API Documentation"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">HHR Hospitalizados - API Documentation - v0.0.1</a><div id="tsd-toolbar-links"><a href="https://github.com/DanielOpazoD/HospitalizadosHHR">GitHub</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>HHR Hospitalizados - API Documentation - v0.0.1</h1></div><div class="tsd-panel tsd-typography"><h1 id="🏥-hospital-hanga-roa-sistema-de-gestión-clínica" class="tsd-anchor-link">🏥 Hospital Hanga Roa - Sistema de Gestión Clínica<a href="#🏥-hospital-hanga-roa-sistema-de-gestión-clínica" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1><p><a href="./tests"><img src="https://img.shields.io/badge/Tests-1345%20passing-brightgreen" alt="CI Status"></a>
+<a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.2-61DAFB?logo=react" alt="React"></a>
+<a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript" alt="TypeScript"></a>
+<a href="https://firebase.google.com"><img src="https://img.shields.io/badge/Firebase-12.6-FFCA28?logo=firebase" alt="Firebase"></a>
+<a href="https://tanstack.com/query"><img src="https://img.shields.io/badge/TanStack_Query-5.x-FF4154" alt="TanStack Query"></a></p>
+<p>Sistema integral de gestión hospitalaria para el <strong>Hospital Hanga Roa</strong> de Isla de Pascua, Chile. Desarrollado con React, TypeScript, Firebase y TanStack Query.</p>
+<hr>
+<h2 id="🚀-características-principales" class="tsd-anchor-link">🚀 Características Principales<a href="#🚀-características-principales" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Módulo</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>📋 Censo Diario</strong></td>
+<td>Registro en tiempo real de pacientes con 26 camas + extras. Automatización de envío de reportes.</td>
+</tr>
+<tr>
+<td><strong>🏥 CUDYR</strong></td>
+<td>Categorización de dependencia con scoring automático (Turno Noche).</td>
+</tr>
+<tr>
+<td><strong>🔄 Entrega de Turno</strong></td>
+<td>Handoff digital de enfermería y médico con firmas y respaldo automático.</td>
+</tr>
+<tr>
+<td><strong>📊 Reportes</strong></td>
+<td>Ventanilla única de exportación con sincronización inmediata a la nube.</td>
+</tr>
+<tr>
+<td><strong>📱 Modo Offline</strong></td>
+<td>Sincronización híbrida via TanStack Query e IndexedDB (Dexie).</td>
+</tr>
+<tr>
+<td><strong>📝 Auditoría</strong></td>
+<td>Trazabilidad completa de acciones clínicas inmutables.</td>
+</tr>
+<tr>
+<td><strong>💬 WhatsApp</strong></td>
+<td>Bot de notificaciones automáticas para comunicación de turno.</td>
+</tr>
+<tr>
+<td><strong>🧬 HL7 FHIR</strong></td>
+<td>Soporte nativo para interoperabilidad vía recursos FHIR (Core-CL).</td>
+</tr>
+<tr>
+<td><strong>☁️ Backup</strong></td>
+<td>Respaldo automático de documentos críticos en Firebase Storage.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="🏗️-arquitectura" class="tsd-anchor-link">🏗️ Arquitectura<a href="#🏗️-arquitectura" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="mermaid">flowchart TB
+    subgraph Cliente["🖥️ Cliente React"]
+        UI[Vistas & Componentes]
+        TQ[TanStack Query Cache]
+        CTX[React Contexts]
+        IDB[(IndexedDB / Dexie)]
+    end
+    
+    subgraph Firebase["☁️ Firebase"]
+        FS[(Firestore)]
+        AUTH[Firebase Auth]
+        STORAGE[Cloud Storage]
+    end
+    
+    subgraph Serverless["⚡ Netlify Functions"]
+        EMAIL[Gmail API]
+        WA[WhatsApp Proxy]
+    end
+    
+    UI --> CTX --> TQ
+    TQ <--> IDB
+    TQ <-->|Real-time Sync| FS
+    UI --> AUTH
+    UI --> EMAIL
+    UI --> WA
+    UI --> STORAGE
+</code><button type="button">Copy</button></pre>
+
+<h3 id="flujo-de-datos" class="tsd-anchor-link">Flujo de Datos<a href="#flujo-de-datos" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code><span class="hl-0">Usuario</span><span class="hl-1"> → </span><span class="hl-0">View</span><span class="hl-1"> → </span><span class="hl-0">Context</span><span class="hl-1"> → </span><span class="hl-0">TanStack</span><span class="hl-1"> </span><span class="hl-0">Query</span><span class="hl-1"> → </span><span class="hl-0">Repository</span><span class="hl-1"> → </span><span class="hl-0">Firebase</span><span class="hl-1">/</span><span class="hl-0">IndexedDB</span><br/><span class="hl-1">                    ↓              ↓              ↓</span><br/><span class="hl-1">                 </span><span class="hl-0">Estado</span><span class="hl-1">      </span><span class="hl-0">Optimistic</span><span class="hl-1">      </span><span class="hl-0">Validación</span><span class="hl-1"> </span><span class="hl-0">Zod</span><br/><span class="hl-1">                 </span><span class="hl-0">Global</span><span class="hl-1">        </span><span class="hl-0">Updates</span>
+</code><button>Copy</button></pre>
+
+<hr>
+<h2 id="📁-estructura-del-proyecto-src" class="tsd-anchor-link">📁 Estructura del Proyecto (src/)<a href="#📁-estructura-del-proyecto-src" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code><span class="hl-1">├── </span><span class="hl-0">components</span><span class="hl-1">/              # </span><span class="hl-0">Componentes</span><span class="hl-1"> </span><span class="hl-2">React</span><span class="hl-1"> (</span><span class="hl-0">Censo</span><span class="hl-1">, </span><span class="hl-0">Layout</span><span class="hl-1">, </span><span class="hl-0">Modales</span><span class="hl-1">)</span><br/><span class="hl-1">├── </span><span class="hl-0">features</span><span class="hl-1">/                # </span><span class="hl-0">Módulos</span><span class="hl-1"> </span><span class="hl-0">por</span><span class="hl-1"> </span><span class="hl-2">funcionalidad</span><span class="hl-1"> (</span><span class="hl-3">CUDYR</span><span class="hl-1">, </span><span class="hl-0">Handoff</span><span class="hl-1">, </span><span class="hl-0">Analytics</span><span class="hl-1">)</span><br/><span class="hl-1">├── </span><span class="hl-0">core</span><span class="hl-1">/                    # </span><span class="hl-0">Núcleo</span><span class="hl-1"> </span><span class="hl-0">del</span><span class="hl-1"> </span><span class="hl-2">sistema</span><span class="hl-1"> (</span><span class="hl-0">Auth</span><span class="hl-1">, </span><span class="hl-0">Database</span><span class="hl-1">)</span><br/><span class="hl-1">├── </span><span class="hl-0">hooks</span><span class="hl-1">/                   # </span><span class="hl-0">Hooks</span><span class="hl-1"> </span><span class="hl-2">transversales</span><span class="hl-1"> (</span><span class="hl-0">Query</span><span class="hl-1">, </span><span class="hl-3">UI</span><span class="hl-1">, </span><span class="hl-0">Validation</span><span class="hl-1">)</span><br/><span class="hl-1">├── </span><span class="hl-0">services</span><span class="hl-1">/                # </span><span class="hl-0">Lógica</span><span class="hl-1"> </span><span class="hl-0">de</span><span class="hl-1"> </span><span class="hl-0">negocio</span><span class="hl-1"> </span><span class="hl-0">y</span><span class="hl-1"> </span><span class="hl-0">repositorios</span><br/><span class="hl-1">├── </span><span class="hl-0">context</span><span class="hl-1">/                 # </span><span class="hl-0">Estado</span><span class="hl-1"> </span><span class="hl-0">global</span><span class="hl-1"> </span><span class="hl-0">compartido</span><br/><span class="hl-1">├── </span><span class="hl-0">constants</span><span class="hl-1">/               # </span><span class="hl-0">Configuración</span><span class="hl-1"> </span><span class="hl-0">estática</span><span class="hl-1"> </span><span class="hl-0">y</span><span class="hl-1"> </span><span class="hl-0">mapas</span><br/><span class="hl-1">├── </span><span class="hl-0">schemas</span><span class="hl-1">/                 # </span><span class="hl-0">Esquemas</span><span class="hl-1"> </span><span class="hl-0">de</span><span class="hl-1"> </span><span class="hl-0">validación</span><span class="hl-1"> </span><span class="hl-0">Zod</span><br/><span class="hl-1">├── </span><span class="hl-0">types</span><span class="hl-1">/                   # </span><span class="hl-0">Definiciones</span><span class="hl-1"> </span><span class="hl-0">TypeScript</span><br/><span class="hl-1">├── </span><span class="hl-0">utils</span><span class="hl-1">/                   # </span><span class="hl-0">Utilidades</span><span class="hl-1"> </span><span class="hl-0">puras</span><span class="hl-1"> </span><span class="hl-0">y</span><span class="hl-1"> </span><span class="hl-0">helpers</span><br/><span class="hl-1">└── </span><span class="hl-0">tests</span><span class="hl-1">/                   # </span><span class="hl-4">1350</span><span class="hl-1">+ </span><span class="hl-2">tests</span><span class="hl-1"> (</span><span class="hl-0">Vitest</span><span class="hl-1"> + </span><span class="hl-0">Playwright</span><span class="hl-1">)</span>
+</code><button>Copy</button></pre>
+
+<hr>
+<h2 id="🛠️-stack-tecnológico" class="tsd-anchor-link">🛠️ Stack Tecnológico<a href="#🛠️-stack-tecnológico" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Categoría</th>
+<th>Tecnología</th>
+<th>Propósito</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Frontend</strong></td>
+<td>React 19.2</td>
+<td>UI declarativa</td>
+</tr>
+<tr>
+<td><strong>State Management</strong></td>
+<td>TanStack Query 5</td>
+<td>Cache, sync, optimistic updates</td>
+</tr>
+<tr>
+<td><strong>Language</strong></td>
+<td>TypeScript 5.8</td>
+<td>Type safety</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>Vite 6.4</td>
+<td>Fast bundling, HMR</td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>Firestore + IndexedDB</td>
+<td>Cloud + Offline persistence</td>
+</tr>
+<tr>
+<td><strong>Auth</strong></td>
+<td>Firebase Auth</td>
+<td>Google Sign-In</td>
+</tr>
+<tr>
+<td><strong>Storage</strong></td>
+<td>Firebase Storage</td>
+<td>PDFs y Excels de backup</td>
+</tr>
+<tr>
+<td><strong>Validation</strong></td>
+<td>Zod 3.25</td>
+<td>Runtime type checking</td>
+</tr>
+<tr>
+<td><strong>Testing</strong></td>
+<td>Vitest + Playwright</td>
+<td>Unit, Integration, E2E</td>
+</tr>
+<tr>
+<td><strong>Styling</strong></td>
+<td>Vanilla CSS + Tailwind</td>
+<td>Design tokens system</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td>Netlify</td>
+<td>Auto-deploy + Serverless Functions</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="🏃♂️-inicio-rápido" class="tsd-anchor-link">🏃‍♂️ Inicio Rápido<a href="#🏃♂️-inicio-rápido" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="requisitos" class="tsd-anchor-link">Requisitos<a href="#requisitos" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><ul>
+<li>Node.js <strong>20.x</strong> o superior</li>
+<li>npm <strong>9.x</strong> o superior</li>
+</ul>
+<h3 id="instalación" class="tsd-anchor-link">Instalación<a href="#instalación" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-5"># Clonar repositorio</span><br/><span class="hl-2">git</span><span class="hl-1"> </span><span class="hl-6">clone</span><span class="hl-1"> </span><span class="hl-6">https://github.com/DanielOpazoD/HHR-entornodeprueba.git</span><br/><span class="hl-2">cd</span><span class="hl-1"> </span><span class="hl-6">HHR-entornodeprueba</span><br/><br/><span class="hl-5"># Instalar dependencias</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">install</span><br/><br/><span class="hl-5"># Configurar variables de entorno</span><br/><span class="hl-2">cp</span><span class="hl-1"> </span><span class="hl-6">.env.example</span><span class="hl-1"> </span><span class="hl-6">.env</span><br/><span class="hl-5"># Editar .env con tus credenciales de Firebase</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="desarrollo" class="tsd-anchor-link">Desarrollo<a href="#desarrollo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">run</span><span class="hl-1"> </span><span class="hl-6">dev</span><span class="hl-1">          </span><span class="hl-5"># Servidor de desarrollo (http://localhost:3000)</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">run</span><span class="hl-1"> </span><span class="hl-6">build</span><span class="hl-1">        </span><span class="hl-5"># Build de producción</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">run</span><span class="hl-1"> </span><span class="hl-6">preview</span><span class="hl-1">      </span><span class="hl-5"># Preview del build</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="testing" class="tsd-anchor-link">Testing<a href="#testing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">test</span><span class="hl-1">             </span><span class="hl-5"># Ejecutar todos los tests (1350+)</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-7">--watch</span><span class="hl-1">  </span><span class="hl-5"># Modo watch</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-6">run</span><span class="hl-1"> </span><span class="hl-6">test:e2e</span><span class="hl-1">     </span><span class="hl-5"># Tests E2E con Playwright</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="🔐-roles-y-permisos" class="tsd-anchor-link">🔐 Roles y Permisos<a href="#🔐-roles-y-permisos" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Rol</th>
+<th>Acceso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Admin</strong></td>
+<td>Acceso total, configuración, auditoría, gestión de personal</td>
+</tr>
+<tr>
+<td><strong>Enfermera Hospital</strong></td>
+<td>Editar Censo, CUDYR, Entrega de Enfermería</td>
+</tr>
+<tr>
+<td><strong>Médico</strong></td>
+<td>Entrega Médica, Vista de Censo (solo lectura)</td>
+</tr>
+<tr>
+<td><strong>Viewer</strong></td>
+<td>Solo lectura del Censo</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="📊-estado-del-proyecto" class="tsd-anchor-link">📊 Estado del Proyecto<a href="#📊-estado-del-proyecto" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tests Pasando</td>
+<td><strong>1340</strong></td>
+</tr>
+<tr>
+<td>Cobertura de Código</td>
+<td>~72%</td>
+</tr>
+<tr>
+<td>Lighthouse Performance</td>
+<td>92</td>
+</tr>
+<tr>
+<td>Build Size (Gzip)</td>
+<td>~450kb</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="📚-documentación-adicional" class="tsd-anchor-link">📚 Documentación Adicional<a href="#📚-documentación-adicional" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><ul>
+<li><a href="media/ARCHITECTURE.md">Arquitectura Detallada</a></li>
+<li><a href="media/CONTRIBUTING.md">Guía de Contribución</a></li>
+<li><a href="media/CHANGELOG.md">Changelog</a></li>
+<li><a href="media/PROJECT_STATUS.md">Estado del Proyecto</a></li>
+<li><a href="media/README.md">Testing Guide</a></li>
+<li><a href="media/whatsapp-deployment.md">WhatsApp Deployment</a></li>
+</ul>
+<hr>
+<h2 id="📝-variables-de-entorno" class="tsd-anchor-link">📝 Variables de Entorno<a href="#📝-variables-de-entorno" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="env"># Firebase (requerido)
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+
+# Gmail API (opcional, para envío de censo)
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+GMAIL_REFRESH_TOKEN=...
+
+# WhatsApp Bot (opcional)
+VITE_WHATSAPP_BOT_URL=...
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="👥-equipo" class="tsd-anchor-link">👥 Equipo<a href="#👥-equipo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><p><strong>Desarrollador Principal</strong>: Dr. Daniel Opazo<br>
+<strong>Email</strong>: <a href="mailto:daniel.opazo@hospitalhangaroa.cl">daniel.opazo@hospitalhangaroa.cl</a><br>
+<strong>Ubicación</strong>: Hospital Hanga Roa, Isla de Pascua, Chile</p>
+<hr>
+<h2 id="📝-licencia" class="tsd-anchor-link">📝 Licencia<a href="#📝-licencia" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Propiedad del Hospital Hanga Roa. Uso privado e institucional.</p>
+<hr>
+<p><em>Última actualización: 25 de Enero 2026</em></p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#🏥-hospital-hanga-roa-sistema-de-gestión-clínica"><span>🏥 <wbr/>Hospital <wbr/>Hanga <wbr/>Roa -<wbr/> <wbr/>Sistema de <wbr/>Gestión <wbr/>Clínica</span></a><ul><li><a href="#🚀-características-principales"><span>🚀 <wbr/>Características <wbr/>Principales</span></a></li><li><a href="#🏗️-arquitectura"><span>🏗️ <wbr/>Arquitectura</span></a></li><li><ul><li><a href="#flujo-de-datos"><span>Flujo de <wbr/>Datos</span></a></li></ul></li><li><a href="#📁-estructura-del-proyecto-src"><span>📁 <wbr/>Estructura del <wbr/>Proyecto (src/)</span></a></li><li><a href="#🛠️-stack-tecnológico"><span>🛠️ <wbr/>Stack <wbr/>Tecnológico</span></a></li><li><a href="#🏃♂️-inicio-rápido"><span>🏃‍♂️ <wbr/>Inicio <wbr/>Rápido</span></a></li><li><ul><li><a href="#requisitos"><span>Requisitos</span></a></li><li><a href="#instalación"><span>Instalación</span></a></li><li><a href="#desarrollo"><span>Desarrollo</span></a></li><li><a href="#testing"><span>Testing</span></a></li></ul></li><li><a href="#🔐-roles-y-permisos"><span>🔐 <wbr/>Roles y <wbr/>Permisos</span></a></li><li><a href="#📊-estado-del-proyecto"><span>📊 <wbr/>Estado del <wbr/>Proyecto</span></a></li><li><a href="#📚-documentación-adicional"><span>📚 <wbr/>Documentación <wbr/>Adicional</span></a></li><li><a href="#📝-variables-de-entorno"><span>📝 <wbr/>Variables de <wbr/>Entorno</span></a></li><li><a href="#👥-equipo"><span>👥 <wbr/>Equipo</span></a></li><li><a href="#📝-licencia"><span>📝 <wbr/>Licencia</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/DanielOpazoD/HospitalizadosHHR" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="modules.html">HHR Hospitalizados - API Documentation - v0.0.1</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

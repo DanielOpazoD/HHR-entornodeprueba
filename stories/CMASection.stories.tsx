@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CMASection } from '../views/census/CMASection';
+import { CMASection } from '@/views/census/CMASection';
 import { createMockDailyRecord } from './censusMocks';
 import { StoryContextWrapper } from './StoryContextWrapper';
 

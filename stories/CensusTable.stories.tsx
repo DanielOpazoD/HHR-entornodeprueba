@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CensusTable } from '../views/census/CensusTable';
+import { CensusTable } from '@/views/census/CensusTable';
 import { createMockDailyRecord } from './censusMocks';
 import { StoryContextWrapper } from './StoryContextWrapper';
 

@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { DailyRecordProvider } from '../context/DailyRecordContext';
-import { CensusActionsProvider } from '../views/census/CensusActionsContext';
-import { TableConfigProvider } from '../context/TableConfigContext';
-import { UIProvider } from '../context/UIContext';
-import { AuditProvider } from '../context/AuditContext';
-import { DailyRecord } from '../types';
+import { DailyRecordProvider } from '@/context/DailyRecordContext';
+import { CensusActionsProvider } from '@/views/census/CensusActionsContext';
+import { TableConfigProvider } from '@/context/TableConfigContext';
+import { UIProvider } from '@/context/UIContext';
+import { AuditProvider } from '@/context/AuditContext';
+import { DailyRecord } from '@/types';
 import { createMockDailyRecordContext, createMockDailyRecord } from './censusMocks';
 
 interface StoryContextWrapperProps {

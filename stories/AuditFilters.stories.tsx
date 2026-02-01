@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { AuditFilters } from '../views/admin/components/audit/AuditFilters';
+import { AuditFilters } from '@/views/admin/components/audit/AuditFilters';
 
 const meta: Meta<typeof AuditFilters> = {
     title: 'Audit/AuditFilters',

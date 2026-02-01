@@ -36,6 +36,10 @@ Pruebas de caja negra con **Playwright** que validan la experiencia de usuario e
 | `npm run test:ui` | Abre la interfaz visual de Vitest. |
 | `npm run coverage` | Genera reporte de cobertura de código. |
 
+Para reglas de Firestore (emulador):
+- Iniciar emulador: `npx firebase emulators:start --only firestore`
+- Ejecutar: `RUN_FIRESTORE_RULES_TESTS=1 npm test -- src/tests/security/firestore-rules.test.ts`
+
 ## 3. Mejores Prácticas
 
 1. **Mocks de Firebase**: Siempre usar los mocks definidos en `tests/setup.ts` para evitar llamadas reales a la red.

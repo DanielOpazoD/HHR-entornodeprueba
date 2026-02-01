@@ -1,4 +1,4 @@
-import { AuditLogEntry } from '../types/audit';
+import { AuditLogEntry } from '@/types/audit';
 
 export const createMockAuditLog = (overrides: Partial<AuditLogEntry> = {}): AuditLogEntry => ({
     id: `log-${Math.random().toString(36).substr(2, 9)}`,

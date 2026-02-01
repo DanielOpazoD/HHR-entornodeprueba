@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CudyrSummaryTable } from '../views/cudyr/CudyrSummaryTable';
+import { CudyrSummaryTable } from '@/views/cudyr/CudyrSummaryTable';
 
 const meta: Meta<typeof CudyrSummaryTable> = {
     title: 'Cudyr/CudyrSummaryTable',

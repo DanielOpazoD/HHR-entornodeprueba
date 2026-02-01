@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { SummaryCard } from '../components/layout/SummaryCard';
-import { Statistics } from '../types';
+import { SummaryCard } from '@/components/layout/SummaryCard';
+import { Statistics } from '@/types';
 
 const meta: Meta<typeof SummaryCard> = {
     title: 'Hospital/SummaryCard',

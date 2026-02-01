@@ -10,20 +10,18 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(dirname, '.')
+      '@': path.resolve(dirname, 'src')
     }
   },
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    setupFiles: ['./src/tests/setup.ts'],
+    include: ['src/tests/**/*.test.ts', 'src/tests/**/*.test.tsx'],
     exclude: ['stories/**/*', 'node_modules/**/*'],
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,
-    maxThreads: 4,
-    minThreads: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -36,7 +34,7 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'dist/',
-        'tests/setup.ts',
+        'src/tests/setup.ts',
         '**/*.d.ts',
         '**/*.test.ts',
         '**/*.test.tsx',

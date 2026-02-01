@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CensusStaffHeader } from '../views/census/CensusStaffHeader';
+import { CensusStaffHeader } from '@/views/census/CensusStaffHeader';
 import { createMockDailyRecord, MOCK_STAFF } from './censusMocks';
 import { StoryContextWrapper } from './StoryContextWrapper';
 

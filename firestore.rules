@@ -49,11 +49,20 @@ service cloud.firestore {
     // Check if a date (ms timestamp) is within the editing window (+/- 1 day)
     // Nurse window: Can edit yesterday, today and tomorrow.
     // Calculation: (CurrentTime - RecordTime) should be between -24h and +48h
+    // If dateTimestamp is null (legacy record), allow the edit (grace mode)
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
-      return recordTS != null && 
+      // Legacy records without dateTimestamp are allowed (they'll be fixed on save)
+      return recordTS == null || (
              now > (recordTS - 86400000) && 
-             now < (recordTS + 172800000);
+             now < (recordTS + 172800000)
+      );
+    }
+
+    // Check if the update is only for medical signature fields
+    function isMedicalUpdate() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return affectedKeys.hasOnly(['medicalSignature', 'medicalHandoffDoctor', 'medicalHandoffSentAt', 'lastUpdated']);
     }
     
     // ============================================
@@ -69,17 +78,19 @@ service cloud.firestore {
       // ----------------------------------------
       match /dailyRecords/{date} {
         allow read: if isAuthenticated();
-        // create: simplified for logic, usually same as update
+        // Create: Admin or Nurse
         allow create: if canEdit();
-        // Update: Admin can do anything. Nurse subject to window.
-        // Also allow doctors to sign regardless of window (using affectsKeys check).
-        allow update: if isAdmin() || (isNurse() && isWithinEditingWindow(resource.data.dateTimestamp)) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['medicalSignature', 'lastUpdated', 'medicalHandoffDoctor', 'medicalHandoffSentAt']));
+        // Update: Admin siempre, Enfermero en ventana, o Médico solo campos de firma
+        allow update: if isAdmin() || 
+                        (isNurse() && isWithinEditingWindow(resource.data.dateTimestamp)) ||
+                        (isAuthenticated() && isMedicalUpdate());
+        // Delete: Admin only
         allow delete: if isAdmin();
         
         // History subcollection
         match /history/{historyId} {
           allow read: if isAuthenticated();
-          allow create: if canEdit();
+          allow create: if isAuthenticated();
           allow update, delete: if isAdmin();
         }
       }

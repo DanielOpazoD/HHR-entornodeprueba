@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { AuditTable } from '../views/admin/components/audit/AuditTable';
+import { AuditTable } from '@/views/admin/components/audit/AuditTable';
 import { createMockAuditLog } from './auditMocks';
 
 const meta: Meta<typeof AuditTable> = {

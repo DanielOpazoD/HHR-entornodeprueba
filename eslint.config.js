@@ -65,5 +65,12 @@ export default tseslint.config(
             'no-console': 'off',
             '@typescript-eslint/no-var-requires': 'off'
         }
+    },
+    {
+        files: ['**/*.stories.{ts,tsx}', '**/*.test.{ts,tsx}'],
+        rules: {
+            'no-console': 'off',
+            '@typescript-eslint/no-explicit-any': 'off'
+        }
     }
 );

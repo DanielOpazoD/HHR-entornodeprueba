@@ -12,6 +12,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:vrt": "playwright test e2e/visual-regression.spec.ts",
+    "test:vrt:update": "playwright test e2e/visual-regression.spec.ts --update-snapshots",
     "test:send-email": "node --loader ts-node/esm scripts/testSendCensusEmail.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -20,13 +22,18 @@
     "lint": "eslint . --report-unused-disable-directives --max-warnings 1500",
     "lint:fix": "eslint . --fix",
     "clean": "bash scripts/cleanup.sh",
-    "ci": "npm run lint && npm run test && npm run build"
+    "ci": "npm run lint && npm run test && npm run build",
+    "test:rules": "RUN_FIRESTORE_RULES_TESTS=1 vitest run src/tests/security/firestore-rules.test.ts",
+    "emulator": "firebase emulators:start --only firestore"
   },
   "dependencies": {
     "@google/genai": "^1.31.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-virtual": "^3.13.13",
     "@types/file-saver": "^2.0.7",
+    "@types/three": "^0.182.0",
     "clsx": "^2.1.1",
     "dexie": "^4.2.1",
     "docx": "^9.5.1",
@@ -44,6 +51,7 @@
     "react-error-boundary": "^6.0.0",
     "react-is": "^19.2.3",
     "recharts": "^3.5.1",
+    "three": "^0.182.0",
     "xlsx-populate": "^1.21.0",
     "zod": "^3.25.76"
   },

@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => {
       // PWA plugin configuration
       VitePWA({
         strategies: 'injectManifest',
-        srcDir: '.',
+        srcDir: 'src',
         filename: 'service-worker.ts',
         registerType: 'autoUpdate',
         injectRegister: 'auto',
@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         devOptions: {
-          enabled: true, // Enable in dev to test PWA install
+          enabled: false, // Disabling SW in dev to prevent source code caching/interfering
           type: 'module'
         }
       }),
@@ -142,7 +142,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, 'src'),
       }
     },
     // Optimize dependencies - pre-bundle CommonJS packages for ESM compatibility

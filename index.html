@@ -4,7 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospitalizados HHR</title>
+    <title>HHR Hospital Tracker</title>
+    <script>
+        // Service Worker Kill-switch for Development
+        // This ensures stale cached code doesn't interfere during debugging
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                for (let registration of registrations) {
+                    console.log('[SW-Kill] 💀 Unregistering stale Service Worker...');
+                    registration.unregister();
+                }
+            });
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -18,15 +30,15 @@
     <meta name="apple-mobile-web-app-title" content="HHR">
     <link rel="apple-touch-icon" href="/images/icon-192.png">
 
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="/src/index.css">
 
     <!-- Google Identity Services (GSI) -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Firebase Auth popups handle their own communication, GSI is redundant and can conflict -->
 </head>
 
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
 </body>
 
 </html>

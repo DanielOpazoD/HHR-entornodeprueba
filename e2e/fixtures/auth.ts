@@ -4,7 +4,7 @@
  * Uses localStorage injection to mock authenticated users.
  */
 
-import { expect } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 
 // Mock user data for different roles
 export const MOCK_USERS = {
@@ -33,7 +33,7 @@ export const MOCK_USERS = {
  * This is more efficient and reliable than calling them separately.
  */
 export async function setupE2EContext(
-    page: any,
+    page: Page,
     role: 'editor' | 'admin' | 'viewer' = 'editor',
     populateWithPatient: boolean = false
 ) {
@@ -82,7 +82,7 @@ export async function setupE2EContext(
         const STORAGE_KEY = 'hanga_roa_hospital_data';
         const mockRecord = {
             date: dateStr,
-            beds: {} as Record<string, any>,
+            beds: {} as Record<string, unknown>,
             discharges: [],
             transfers: [],
             cma: [],
@@ -124,11 +124,11 @@ export async function setupE2EContext(
 /**
  * Legacy helpers (maintained for compatibility if needed, but setupE2EContext is preferred)
  */
-export async function injectMockUser(page: any, role: 'editor' | 'admin' | 'viewer' = 'editor') {
+export async function injectMockUser(page: Page, role: 'editor' | 'admin' | 'viewer' = 'editor') {
     await setupE2EContext(page, role);
 }
 
-export async function injectMockData(page: any, date?: string, populateWithPatient: boolean = false) {
+export async function injectMockData(page: Page, date?: string, populateWithPatient: boolean = false) {
     // If we're already on the page, we just inject data and reload
     const targetDate = date || new Date().toISOString().split('T')[0];
     await page.evaluate(({ dateStr, _populate }: { dateStr: string, _populate: boolean }) => {
@@ -139,14 +139,14 @@ export async function injectMockData(page: any, date?: string, populateWithPatie
             records[dateStr] = { date: dateStr, beds: {}, discharges: [], transfers: [], cma: [] };
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    }, { dateStr: targetDate, populate: populateWithPatient });
+    }, { dateStr: targetDate, _populate: populateWithPatient });
     await page.reload();
 }
 
 /**
  * Helper to clear authentication
  */
-export async function clearAuth(page: any) {
+export async function clearAuth(page: Page) {
     await page.evaluate(() => {
         localStorage.removeItem('hhr_offline_user');
         localStorage.removeItem('hhr_offline_passport');
@@ -157,7 +157,7 @@ export async function clearAuth(page: any) {
  * Helper to ensure a record exists for current day
  * Uses stable data-testid instead of text selectors
  */
-export async function ensureRecordExists(page: any) {
+export async function ensureRecordExists(page: Page) {
     const table = page.getByTestId('census-table');
     const blankBtn = page.getByTestId('blank-record-btn');
     const copyBtn = page.getByTestId('copy-previous-btn');

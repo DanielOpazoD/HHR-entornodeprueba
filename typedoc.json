@@ -1,18 +1,20 @@
 {
     "$schema": "https://typedoc.org/schema.json",
     "entryPoints": [
-        "./hooks/index.ts",
-        "./services/index.ts",
-        "./types/index.ts",
-        "./context/index.ts",
-        "./utils/index.ts"
+        "src/hooks",
+        "src/services/repositories",
+        "src/services/storage",
+        "src/types",
+        "src/utils"
     ],
+    "entryPointStrategy": "expand",
     "out": "./docs/api",
     "name": "HHR Hospitalizados - API Documentation",
     "readme": "./README.md",
     "excludePrivate": true,
     "excludeInternal": true,
     "includeVersion": true,
+    "skipErrorChecking": true,
     "navigationLinks": {
         "GitHub": "https://github.com/DanielOpazoD/HospitalizadosHHR"
     },

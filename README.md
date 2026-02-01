@@ -1,6 +1,6 @@
 # 🏥 Hospital Hanga Roa - Sistema de Gestión Clínica
 
-[![CI Status](https://img.shields.io/badge/Tests-1338%20passing-brightgreen)](./tests)
+[![CI Status](https://img.shields.io/badge/Tests-1345%20passing-brightgreen)](./tests)
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org)
 [![Firebase](https://img.shields.io/badge/Firebase-12.6-FFCA28?logo=firebase)](https://firebase.google.com)
@@ -14,13 +14,15 @@ Sistema integral de gestión hospitalaria para el **Hospital Hanga Roa** de Isla
 
 | Módulo | Descripción |
 |--------|-------------|
-| **📋 Censo Diario** | Registro en tiempo real de pacientes hospitalizados con 26 camas + camas extras |
-| **🏥 CUDYR** | Categorización de dependencia de pacientes con scoring automático |
-| **🔄 Entrega de Turno** | Handoff digital de enfermería y médico con checklist y firmas |
-| **📊 Reportes** | Exportación a Excel y PDF con análisis estadístico mensual |
-| **📱 Modo Offline** | Persistencia en IndexedDB con sincronización automática |
-| **📝 Auditoría** | Log inmutable de acciones críticas (admisiones, altas, traslados) |
-| **💬 WhatsApp** | Bot integrado para notificaciones automáticas de turno |
+| **📋 Censo Diario** | Registro en tiempo real de pacientes con 26 camas + extras. Automatización de envío de reportes. |
+| **🏥 CUDYR** | Categorización de dependencia con scoring automático (Turno Noche). |
+| **🔄 Entrega de Turno** | Handoff digital de enfermería y médico con firmas y respaldo automático. |
+| **📊 Reportes** | Ventanilla única de exportación con sincronización inmediata a la nube. |
+| **📱 Modo Offline** | Sincronización híbrida via TanStack Query e IndexedDB (Dexie). |
+| **📝 Auditoría** | Trazabilidad completa de acciones clínicas inmutables. |
+| **💬 WhatsApp** | Bot de notificaciones automáticas para comunicación de turno. |
+| **🧬 HL7 FHIR** | Soporte nativo para interoperabilidad vía recursos FHIR (Core-CL). |
+| **☁️ Backup** | Respaldo automático de documentos críticos en Firebase Storage. |
 
 ---
 
@@ -65,38 +67,20 @@ Usuario → View → Context → TanStack Query → Repository → Firebase/Inde
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📁 Estructura del Proyecto (src/)
 
 ```
-├── components/              # Componentes React reutilizables
-│   ├── census/              # Tabla de pacientes
-│   ├── modals/              # Modales de acción
-│   ├── layout/              # Navbar, DateStrip
-│   └── shared/              # ErrorBoundary, Skeletons
-│
-├── views/                   # Páginas principales (lazy-loaded)
-│   ├── census/              # Censo Diario
-│   ├── cudyr/               # CUDYR
-│   ├── handoff/             # Entrega de Turno
-│   ├── backup/              # Archivos de Respaldo
-│   └── admin/               # Auditoría y Configuración
-│
-├── hooks/                   # Custom Hooks
-│   ├── useDailyRecordQuery  # TanStack Query para registros
-│   ├── useStaffQuery        # Catálogos de personal
-│   ├── useBedManagement     # Operaciones de camas
-│   └── useHandoffLogic      # Lógica de entrega de turno
-│
-├── services/                # Lógica de negocio
-│   ├── storage/             # IndexedDB, Firestore
-│   ├── repositories/        # Patrón Repository
-│   ├── backup/              # PDF/Excel Storage
-│   └── pdf/                 # Generación de PDFs
-│
-├── context/                 # React Contexts
-├── schemas/                 # Validación Zod
-├── types/                   # TypeScript types
-└── tests/                   # 701+ tests (Vitest + Playwright)
+├── components/              # Componentes React (Censo, Layout, Modales)
+├── features/                # Módulos por funcionalidad (CUDYR, Handoff, Analytics)
+├── core/                    # Núcleo del sistema (Auth, Database)
+├── hooks/                   # Hooks transversales (Query, UI, Validation)
+├── services/                # Lógica de negocio y repositorios
+├── context/                 # Estado global compartido
+├── constants/               # Configuración estática y mapas
+├── schemas/                 # Esquemas de validación Zod
+├── types/                   # Definiciones TypeScript
+├── utils/                   # Utilidades puras y helpers
+└── tests/                   # 1350+ tests (Vitest + Playwright)
 ```
 
 ---
@@ -151,7 +135,7 @@ npm run preview      # Preview del build
 ### Testing
 
 ```bash
-npm test             # Ejecutar todos los tests (701+)
+npm test             # Ejecutar todos los tests (1350+)
 npm test -- --watch  # Modo watch
 npm run test:e2e     # Tests E2E con Playwright
 ```
@@ -173,8 +157,8 @@ npm run test:e2e     # Tests E2E con Playwright
 
 | Métrica | Valor |
 |---------|-------|
-| Tests Pasando | **701** |
-| Cobertura de Código | ~65% |
+| Tests Pasando | **1340** |
+| Cobertura de Código | ~72% |
 | Lighthouse Performance | 92 |
 | Build Size (Gzip) | ~450kb |
 
@@ -227,4 +211,4 @@ Propiedad del Hospital Hanga Roa. Uso privado e institucional.
 
 ---
 
-*Última actualización: 24 de Enero 2026*
+*Última actualización: 25 de Enero 2026*
