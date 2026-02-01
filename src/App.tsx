@@ -18,6 +18,8 @@ import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverl
 import { AuditProvider, DemoModeProvider, useAuth, AuthContextType, AuthProvider, UIProvider } from './context';
 import { HospitalProvider } from './context/HospitalContext';
 import { RepositoryProvider, defaultRepositories } from '@/services/RepositoryContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/config/queryClient';
 
 // ============================================================================
 // Sync Effect - Keeps repository in sync with Firebase connection status
@@ -157,18 +159,20 @@ const AppWithErrorBoundary = () => {
 
 export default function ProvidedApp() {
   return (
-    <AuthProvider>
-      <RepositoryProvider value={defaultRepositories}>
-        <HospitalProvider>
-          <UIProvider>
-            <DemoModeProvider>
-              <AuditProvider userId="anon">
-                <AppWithErrorBoundary />
-              </AuditProvider>
-            </DemoModeProvider>
-          </UIProvider>
-        </HospitalProvider>
-      </RepositoryProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RepositoryProvider value={defaultRepositories}>
+          <HospitalProvider>
+            <UIProvider>
+              <DemoModeProvider>
+                <AuditProvider userId="anon">
+                  <AppWithErrorBoundary />
+                </AuditProvider>
+              </DemoModeProvider>
+            </UIProvider>
+          </HospitalProvider>
+        </RepositoryProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
