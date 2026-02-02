@@ -49,3 +49,11 @@ export {
     DEMO_RUTS
 } from './demo';
 
+// Exam Request Form
+export {
+    EXAM_CATEGORIES,
+    PROCEDENCIA_OPTIONS,
+    FONASA_LEVELS
+} from './examCategories';
+export type { ExamCategory } from './examCategories';
+
