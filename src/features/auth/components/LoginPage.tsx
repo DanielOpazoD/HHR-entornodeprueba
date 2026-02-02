@@ -187,17 +187,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
                         )}
                     </button>
 
-                    {/* Secondary/Fallback Login for COOP issues */}
-                    <div className="mt-4">
-                        <button
-                            type="button"
-                            onClick={handleGoogleRedirectSignIn}
-                            disabled={isAnyLoading}
-                            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-500 text-[11px] font-bold py-2 px-4 rounded-xl transition-all border border-dashed border-slate-200 uppercase tracking-wider"
-                        >
-                            ¿Problemas con el Popup? Usar Acceso Alternativo
-                        </button>
-                    </div>
 
                     {/* Error Message */}
                     {error && (
