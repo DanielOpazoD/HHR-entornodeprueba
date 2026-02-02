@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { signInWithGoogle, signInWithGoogleRedirect, signInAnonymouslyForPassport } from '@/services/auth/authService';
+import { signInWithGoogle, signInAnonymouslyForPassport } from '@/services/auth/authService';
 import {
     parsePassportFile,
     validatePassport,
@@ -58,17 +58,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
         }
     };
 
-    const handleGoogleRedirectSignIn = async () => {
-        setError(null);
-        setIsGoogleLoading(true);
-        try {
-            await signInWithGoogleRedirect();
-        } catch (err: unknown) {
-            const error = err as any;
-            setError(error.message || 'Error en acceso alternativo');
-            setIsGoogleLoading(false);
-        }
-    };
 
     // ========== PASSPORT HANDLING ==========
     const handlePassportFile = useCallback(async (file: File) => {
