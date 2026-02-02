@@ -8,6 +8,7 @@ import { DemographicsModal } from '@/components/modals/DemographicsModal';
 import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
 import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
 import { DiagnosisMode } from '@/features/census/components/CensusTable';
+import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
 // Sub-components
 import { PatientActionMenu } from './patient-row/PatientActionMenu';
@@ -178,9 +179,12 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                         </div>
                     </td>
                     <td className="p-0 border-r border-slate-200 text-center w-16">
-                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full border block bg-purple-100 text-purple-700 border-purple-200">
+                        <MedicalBadge
+                            variant="pink"
+                            className="w-10 justify-center mx-auto"
+                        >
                             CUNA
-                        </span>
+                        </MedicalBadge>
                     </td>
                     <PatientInputCells
                         data={data}
@@ -240,14 +244,12 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                     />
 
                     <td className="p-0 border-r border-slate-100 text-center w-16">
-                        <span className={clsx(
-                            "text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border block tracking-tighter",
-                            bed.type === 'UTI'
-                                ? "bg-purple-50 text-purple-600 border-purple-100"
-                                : "bg-blue-50 text-blue-600 border-blue-100"
-                        )}>
+                        <MedicalBadge
+                            variant={bed.type === 'UTI' ? 'pink' : 'blue'}
+                            className="w-10 justify-center mx-auto"
+                        >
                             {bed.type}
-                        </span>
+                        </MedicalBadge>
                     </td>
 
                     {isBlocked ? (

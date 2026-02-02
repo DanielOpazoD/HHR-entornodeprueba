@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, History, Scissors, FileText } from 'lucide-react';
 import clsx from 'clsx';
+import { MedicalButton } from '@/components/ui/base/MedicalButton';
 
 interface PatientActionMenuProps {
     isBlocked: boolean;
@@ -34,23 +35,25 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
         <div className="flex flex-col items-center gap-1 relative">
             {!isBlocked && !readOnly && (
                 <div className="flex items-center gap-0.5">
-                    <button
+                    <MedicalButton
                         onClick={onViewDemographics}
-                        className="p-1 rounded-full text-medical-500 hover:text-medical-700 hover:bg-medical-50 transition-colors"
+                        variant="ghost"
+                        size="xs"
+                        className="text-medical-500 hover:text-medical-700"
                         title="Datos del Paciente"
-                    >
-                        <User size={16} />
-                    </button>
+                        icon={<User size={14} />}
+                    />
                 </div>
             )}
             {!readOnly && (
-                <button
+                <MedicalButton
                     onClick={toggleMenu}
-                    className="p-1.5 rounded-full hover:bg-slate-200 text-slate-500 transition-colors"
+                    variant="secondary"
+                    size="xs"
+                    className="p-1 rounded-full text-slate-500"
                     title="Acciones"
-                >
-                    <MoreHorizontal size={16} />
-                </button>
+                    icon={<MoreHorizontal size={14} />}
+                />
             )}
 
             {showMenu && (

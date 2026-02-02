@@ -1,8 +1,9 @@
 import React from 'react';
-import clsx from 'clsx';
 import { calculateDeviceDays } from './DeviceDateConfigModal';
 import { DeviceDetails } from '@/types';
 import { formatDateDDMMYYYY } from '@/services/dataService';
+
+import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
 interface DeviceBadgeProps {
     device: string;
@@ -37,19 +38,16 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(({
 
     return (
         <span className="relative group/badge inline-flex">
-            <span
-                className={clsx(
-                    "text-[9px] px-1 py-0.5 rounded border font-medium whitespace-nowrap flex items-center gap-0.5",
-                    isAlert
-                        ? "bg-orange-100 text-orange-700 border-orange-200"
-                        : "bg-medical-50 text-medical-700 border-medical-100"
-                )}
+            <MedicalBadge
+                variant={isAlert ? 'orange' : 'blue'}
+                className="whitespace-nowrap flex items-center gap-0.5"
+                pill={false}
             >
                 {badgeText}
                 {days !== null && (
                     <span className="text-[8px] opacity-70 ml-0.5">({days}d)</span>
                 )}
-            </span>
+            </MedicalBadge>
 
             {/* Tooltip with installation date - shows for ALL devices with date */}
             {tooltipText && (

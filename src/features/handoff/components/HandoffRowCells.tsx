@@ -7,6 +7,8 @@ import { ClinicalEventsPanel } from './ClinicalEventsPanel';
 import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
 import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
 
+import { MedicalBadge, MedicalBadgeVariant } from '@/components/ui/base/MedicalBadge';
+
 // ============================================================================
 // HandoffBedCell
 // ============================================================================
@@ -96,59 +98,60 @@ export const HandoffDiagnosisCell: React.FC<HandoffDiagnosisCellProps> = ({
     onClinicalEventAdd,
     onClinicalEventUpdate,
     onClinicalEventDelete
-}) => (
-    <td className="p-1.5 border-r border-slate-200 w-[260px] text-slate-700 align-top relative print:w-20 print:text-[10px] print:leading-tight print:p-1">
-        <div className="flex flex-col gap-1">
-            <div className="flex items-start justify-between gap-0">
-                <div className="font-medium leading-tight flex-1 pr-6">
-                    {patient.pathology}
+}) => {
+    const statusVariant: MedicalBadgeVariant =
+        patient.status === PatientStatus.GRAVE ? 'red' :
+            patient.status === PatientStatus.DE_CUIDADO ? 'orange' : 'green';
+
+    return (
+        <td className="p-1.5 border-r border-slate-200 w-[260px] text-slate-700 align-top relative print:w-20 print:text-[10px] print:leading-tight print:p-1">
+            <div className="flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-0">
+                    <div className="font-medium leading-tight flex-1 pr-6">
+                        {patient.pathology}
+                    </div>
+                    {!isMedical && !isSubRow && (onClinicalEventAdd || hasEvents) && (
+                        <button
+                            onClick={() => setShowEvents(!showEvents)}
+                            className={clsx(
+                                "absolute top-1 right-1 flex items-center gap-0.5 px-1 py-0.5 rounded transition-all print:hidden",
+                                hasEvents
+                                    ? "text-medical-600 bg-medical-50/80 hover:bg-medical-100 shadow-sm border border-medical-100"
+                                    : "text-slate-400 hover:text-slate-600 border border-transparent"
+                            )}
+                            title={showEvents ? "Ocultar eventos" : "Ver eventos clínicos"}
+                        >
+                            <ChevronDown
+                                size={10}
+                                className={clsx("transition-transform", showEvents && "rotate-180")}
+                            />
+                        </button>
+                    )}
                 </div>
-                {!isMedical && !isSubRow && (onClinicalEventAdd || hasEvents) && (
-                    <button
-                        onClick={() => setShowEvents(!showEvents)}
-                        className={clsx(
-                            "absolute top-1 right-1 flex items-center gap-0.5 px-1 py-0.5 rounded transition-all print:hidden",
-                            hasEvents
-                                ? "text-medical-600 bg-medical-50/80 hover:bg-medical-100 shadow-sm border border-medical-100"
-                                : "text-slate-400 hover:text-slate-600 border border-transparent"
-                        )}
-                        title={showEvents ? "Ocultar eventos" : "Ver eventos clínicos"}
-                    >
-                        <ChevronDown
-                            size={10}
-                            className={clsx("transition-transform", showEvents && "rotate-180")}
+
+                {!showEvents && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                        <MedicalBadge variant={statusVariant} className="text-center w-full justify-center">
+                            {patient.status}
+                        </MedicalBadge>
+                    </div>
+                )}
+
+                {showEvents && !isMedical && onClinicalEventAdd && onClinicalEventUpdate && onClinicalEventDelete && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                        <ClinicalEventsPanel
+                            events={patient.clinicalEvents || []}
+                            onAdd={onClinicalEventAdd}
+                            onUpdate={onClinicalEventUpdate}
+                            onDelete={onClinicalEventDelete}
+                            readOnly={isFieldReadOnly}
                         />
-                    </button>
+                    </div>
                 )}
             </div>
-
-            {!showEvents && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <span className={clsx(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap block text-center w-fit print:whitespace-normal print:text-[8px] print:px-1 print:py-0 print:leading-tight print:rounded-none print:border print:bg-transparent",
-                        patient.status === PatientStatus.GRAVE ? "bg-red-100 text-red-700 border-red-200" :
-                            patient.status === PatientStatus.DE_CUIDADO ? "bg-orange-100 text-orange-700 border-orange-200" :
-                                "bg-green-100 text-green-700 border-green-200"
-                    )}>
-                        {patient.status}
-                    </span>
-                </div>
-            )}
-
-            {showEvents && !isMedical && onClinicalEventAdd && onClinicalEventUpdate && onClinicalEventDelete && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <ClinicalEventsPanel
-                        events={patient.clinicalEvents || []}
-                        onAdd={onClinicalEventAdd}
-                        onUpdate={onClinicalEventUpdate}
-                        onDelete={onClinicalEventDelete}
-                        readOnly={isFieldReadOnly}
-                    />
-                </div>
-            )}
-        </div>
-    </td>
-);
+        </td>
+    );
+};
 
 // ============================================================================
 // HandoffDevicesCell
@@ -173,12 +176,12 @@ export const HandoffDevicesCell: React.FC<HandoffDevicesCellProps> = ({ patient,
                     }
                 }
                 return (
-                    <span key={d} className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 text-[10px] flex items-center gap-0.5 print:text-[9px] print:bg-transparent print:border-none print:p-0">
+                    <MedicalBadge key={d} variant="slate" pill={false}>
                         {d}
                         {deviceDays !== null && deviceDays > 0 && (
-                            <span className="font-bold text-slate-500">({deviceDays}d)</span>
+                            <span className="font-bold ml-0.5">({deviceDays}d)</span>
                         )}
-                    </span>
+                    </MedicalBadge>
                 );
             }) : <span className="text-slate-400 print:text-[9px]">-</span>}
         </div>
