@@ -58,22 +58,13 @@ interface ServiceWorkerGlobalScope extends EventTarget {
     skipWaiting(): void;
 }
 
-// Use a typed constant for self to avoid redeclaration conflicts
-const sw = self as unknown as ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<WBManifestEntry> };
+// Declare self for injection point
+declare let self: ServiceWorkerGlobalScope & {
+    __WB_MANIFEST: Array<WBManifestEntry>;
+};
 
-// ============================================
-// PRECHACING & CLEANUP
-// ============================================
-
-// VitePWA will inject the manifest here - MUST use sw.__WB_MANIFEST literal
-const manifest = sw.__WB_MANIFEST;
-
-if (Array.isArray(manifest) && manifest.length > 0) {
-    precacheAndRoute(manifest);
-} else {
-    console.warn('[SW] precacheAndRoute skipped: manifest is empty or not an array');
-}
-
+// VitePWA will inject the manifest here - MUST use self.__WB_MANIFEST literal
+precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 const CACHE_VERSION = 'v2.2.0';
@@ -179,22 +170,22 @@ setCatchHandler(async ({ event }) => {
 // EVENT LISTENERS
 // ============================================
 
-sw.addEventListener('install', (event: Event) => {
+self.addEventListener('install', (event: Event) => {
     const extendableEvent = event as ExtendableEvent;
     extendableEvent.waitUntil(
         caches.open(`offline-${CACHE_VERSION}`).then((cache) => cache.add(OFFLINE_PAGE))
     );
-    sw.skipWaiting();
+    self.skipWaiting();
 });
 
-sw.addEventListener('activate', (event: Event) => {
+self.addEventListener('activate', (event: Event) => {
     const extendableEvent = event as ExtendableEvent;
-    extendableEvent.waitUntil(sw.clients.claim());
+    extendableEvent.waitUntil(self.clients.claim());
 });
 
-sw.addEventListener('message', (event: Event) => {
+self.addEventListener('message', (event: Event) => {
     const messageEvent = event as ExtendableMessageEvent;
     if (messageEvent.data && typeof messageEvent.data === 'object' && 'type' in messageEvent.data && messageEvent.data.type === 'SKIP_WAITING') {
-        sw.skipWaiting();
+        self.skipWaiting();
     }
 });

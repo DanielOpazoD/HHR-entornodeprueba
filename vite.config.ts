@@ -56,7 +56,11 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',
-        filename: 'service-worker.ts',
+        filename: 'service-worker.js',
+        injectManifest: {
+          swSrc: 'src/service-worker.ts',
+          injectionPoint: 'self.__WB_MANIFEST',
+        },
         registerType: 'autoUpdate',
         injectRegister: 'auto',
         manifest: {
