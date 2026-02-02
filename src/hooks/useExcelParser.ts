@@ -185,8 +185,11 @@ export function useExcelParser(): UseExcelParserReturn {
                             }
 
                             // Get merge range from worksheet internal data
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ExcelJS internal property
-                            const range = (worksheet as any)._merges?.[cell.address];
+                            interface InternalWorksheet {
+                                _merges?: Record<string, { top: number; left: number; bottom: number; right: number }>;
+                            }
+                            const worksheetInternal = worksheet as unknown as InternalWorksheet;
+                            const range = worksheetInternal._merges?.[cell.address];
                             if (range) {
                                 colSpan = range.right - range.left + 1;
                                 rowSpan = range.bottom - range.top + 1;

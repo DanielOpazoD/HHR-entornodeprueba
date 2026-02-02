@@ -28,9 +28,10 @@ export const useExistingDays = (
                         if (!dayRecord || !dayRecord.beds) return false;
 
                         // Check if day has any patients
-                        return Object.values(dayRecord.beds).some((bed) =>
-                            (bed as PatientData).patientName && (bed as PatientData).patientName.trim() !== ''
-                        );
+                        return Object.values(dayRecord.beds).some((bed) => {
+                            const patient = bed as PatientData;
+                            return patient.patientName && patient.patientName.trim() !== '';
+                        });
                     })
                     .map(d => parseInt(d.date.split('-')[2]));
 

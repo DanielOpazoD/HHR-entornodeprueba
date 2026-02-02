@@ -40,18 +40,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
             await signInWithGoogle();
             onLoginSuccess();
         } catch (err: unknown) {
-            const error = err as any;
-            console.error('[LoginPage] Google sign-in failed', error);
+            console.error('[LoginPage] Google sign-in failed', err);
+
+            // Safer error handling without 'any'
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorCode = (err as { code?: string })?.code;
 
             // If it's a COOP or network error, we'll show a more helpful message
-            const isPopupIssue = error.code === 'auth/network-request-failed' ||
-                error.message?.includes('INTERNAL ASSERTION') ||
-                error.code === 'auth/popup-blocked';
+            const isPopupIssue = errorCode === 'auth/network-request-failed' ||
+                errorMessage.includes('INTERNAL ASSERTION') ||
+                errorCode === 'auth/popup-blocked';
 
             if (isPopupIssue) {
                 setError('El navegador bloqueó la conexión segura. Intenta con el botón de "Acceso Alternativo" abajo.');
             } else {
-                setError(error.message || 'Error al iniciar sesión con Google');
+                setError(errorMessage || 'Error al iniciar sesión con Google');
             }
         } finally {
             setIsGoogleLoading(false);
