@@ -248,7 +248,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
                 {/* Version/Footer */}
                 <div className="text-center mt-8 space-y-1">
                     <p className="text-medical-200/60 text-[10px] uppercase tracking-widest font-bold">
-                        v2.0.0
+                        V 3.0
                     </p>
                     <p className="text-medical-300/40 text-[9px]">
                         Desarrollo: daniel.opazo@hospitalhangaroa.cl
