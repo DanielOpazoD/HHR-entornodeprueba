@@ -32,6 +32,7 @@ interface PatientBedConfigProps {
     onUpdateClinicalCrib: (action: 'remove') => void;
     onShowCribDemographics: () => void;
     readOnly?: boolean;
+    align?: 'top' | 'bottom';
 }
 
 export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
@@ -48,7 +49,8 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
     onTextChange,
     onUpdateClinicalCrib,
     onShowCribDemographics,
-    readOnly = false
+    readOnly = false,
+    align = 'top'
 }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
@@ -120,7 +122,10 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
 
                     {/* Dropdown content */}
                     {isMenuOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-scale-in">
+                        <div className={clsx(
+                            "absolute left-0 w-56 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden animate-scale-in",
+                            align === 'top' ? "top-full mt-1" : "bottom-full mb-1"
+                        )}>
                             <div className="p-1.5 flex flex-col gap-1">
                                 <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-0.5 flex justify-between items-center">
                                     <span>Opciones</span>

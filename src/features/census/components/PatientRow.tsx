@@ -236,6 +236,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                         onUpdateClinicalCrib={(action) => updateClinicalCrib(bed.id, action)}
                         onShowCribDemographics={() => { }} // Not used in main row anymore as Cuna has its own row
                         readOnly={readOnly}
+                        align={actionMenuAlign}
                     />
 
                     <td className="p-0 border-r border-slate-100 text-center w-16">
