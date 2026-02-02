@@ -30,7 +30,7 @@ const buildConfig = () => {
   };
 };
 
-exports.handler = async () => {
+export const handler = async () => {
   const config = buildConfig();
   if (!config.apiKey) {
     return {

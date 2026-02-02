@@ -1,7 +1,7 @@
 import { doc, getDoc, collection, query, where, getDocs, type Firestore } from 'firebase/firestore';
 import { getFirebaseServer } from './lib/firebase-server';
-import { mapMasterPatientToFhir, mapEncounterToFhir } from '../../services/utils/fhirMappers';
-import { MasterPatient, DailyRecord } from '../../types';
+import { mapMasterPatientToFhir, mapEncounterToFhir } from '../../src/services/utils/fhirMappers';
+import { MasterPatient, DailyRecord } from '../../src/types';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
