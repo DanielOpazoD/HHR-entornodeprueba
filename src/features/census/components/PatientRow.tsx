@@ -5,8 +5,6 @@ import clsx from 'clsx';
 import { useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
 import { DemographicsModal } from '@/components/modals/DemographicsModal';
-import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
-import { ImageRequestModal } from '@/components/modals/ImageRequestModal';
 import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
 import { DiagnosisMode } from '@/features/census/components/CensusTable';
 
@@ -40,12 +38,10 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
     isSubRow = false,
     style
 }) => {
-    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple, copyPatientToDate } = useDailyRecordActions();
+    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } = useDailyRecordActions();
     const { confirm, alert } = useConfirmDialog();
 
     const [showDemographics, setShowDemographics] = useState(false);
-    const [showExamRequest, setShowExamRequest] = useState(false);
-    const [showImageRequest, setShowImageRequest] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
 
     // --- Handlers for Main Patient ---
@@ -148,15 +144,6 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
         onAction(action, bed.id);
     }, [onAction, bed.id]);
 
-    const handleCopyToDate = useCallback(async (targetDate: string) => {
-        try {
-            await copyPatientToDate(bed.id, targetDate);
-            await alert('Paciente copiado exitosamente.', 'Éxito');
-        } catch (error) {
-            await alert(`Error al copiar: ${(error as Error).message}`, 'Atención');
-        }
-    }, [copyPatientToDate, bed.id, alert]);
-
     // EARLY RETURN ONLY AFTER ALL HOOKS
     if (!data) return null;
 
@@ -225,12 +212,9 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                             isBlocked={!!isBlocked}
                             onAction={handleAction}
                             onViewDemographics={() => setShowDemographics(true)}
-                            onViewExamRequest={data.patientName ? () => setShowExamRequest(true) : undefined}
-                            onViewImageRequest={data.patientName ? () => setShowImageRequest(true) : undefined}
                             onViewHistory={data.rut ? () => setShowHistory(true) : undefined}
                             readOnly={readOnly}
                             align={actionMenuAlign}
-                            onCopyToDate={handleCopyToDate}
                         />
                     </td>
 
@@ -302,24 +286,6 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                 bedId={isSubRow ? `${bed.id}-cuna` : bed.id}
                 recordDate={currentDateString}
             />
-
-            {showExamRequest && (
-                <ExamRequestModal
-                    key={`exam-request-${bed.id}-${showExamRequest}`}
-                    isOpen={showExamRequest}
-                    onClose={() => setShowExamRequest(false)}
-                    patient={data}
-                />
-            )}
-
-            {showImageRequest && (
-                <ImageRequestModal
-                    isOpen={showImageRequest}
-                    onClose={() => setShowImageRequest(false)}
-                    patient={data}
-                    bedName={bed.name}
-                />
-            )}
 
             <PatientHistoryModal
                 isOpen={showHistory}

@@ -1,29 +1,23 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, FileText, History, Scissors, Camera } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, History, Scissors } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PatientActionMenuProps {
     isBlocked: boolean;
     onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => void;
     onViewDemographics: () => void;
-    onViewExamRequest?: () => void;
-    onViewImageRequest?: () => void;
     onViewHistory?: () => void;
     readOnly?: boolean;
     align?: 'top' | 'bottom';
-    onCopyToDate?: (targetDate: string) => Promise<void>;
 }
 
 export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     isBlocked,
     onAction,
     onViewDemographics,
-    onViewExamRequest,
-    onViewImageRequest,
     onViewHistory,
     readOnly = false,
-    align = 'top',
-    onCopyToDate
+    align = 'top'
 }) => {
     const [showMenu, setShowMenu] = useState(false);
 
@@ -81,7 +75,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                         )}
 
                         {/* 2. Utility Grid (Clean, Copy, Move) */}
-                        <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-100">
+                        <div className="grid grid-cols-2 gap-1 p-2 bg-slate-50 border-b border-slate-100">
                             <button
                                 onClick={() => handleMenuAction('clear')}
                                 className="flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm hover:text-red-600 text-slate-500 transition-all group"
@@ -101,23 +95,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                                         <Copy size={18} className="mb-1 group-hover:scale-110 transition-transform" />
                                         <span className="text-[10px] font-medium">Copiar</span>
                                     </button>
-
-                                    {onCopyToDate && (
-                                        <button
-                                            onClick={async () => {
-                                                const targetDate = prompt('Ingrese fecha destino (YYYY-MM-DD):');
-                                                if (targetDate) {
-                                                    await onCopyToDate(targetDate);
-                                                }
-                                                setShowMenu(false);
-                                            }}
-                                            className="flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm hover:text-indigo-600 text-slate-500 transition-all group"
-                                            title="Duplicar a otra fecha"
-                                        >
-                                            <FileText size={18} className="mb-1 group-hover:scale-110 transition-transform" />
-                                            <span className="text-[10px] font-medium">Duplicar</span>
-                                        </button>
-                                    )}
 
                                     <button
                                         onClick={() => handleMenuAction('move')}
@@ -149,33 +126,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                                     <Scissors size={16} className="text-orange-600 group-hover:translate-x-0.5 transition-transform" />
                                     <span className="text-sm">Egreso CMA</span>
                                 </button>
-                                {onViewExamRequest && (
-                                    <>
-                                        <div className="h-px bg-slate-100 mx-3 my-1"></div>
-                                        <button
-                                            onClick={() => {
-                                                onViewExamRequest();
-                                                setShowMenu(false);
-                                            }}
-                                            className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-3 text-slate-700 group"
-                                        >
-                                            <FileText size={16} className="text-slate-400 group-hover:text-medical-600 transition-colors" />
-                                            <span className="text-sm">Solicitud Exámenes</span>
-                                        </button>
-                                        {onViewImageRequest && (
-                                            <button
-                                                onClick={() => {
-                                                    onViewImageRequest();
-                                                    setShowMenu(false);
-                                                }}
-                                                className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-3 text-slate-700 group"
-                                            >
-                                                <Camera size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                                                <span className="text-sm">Solicitud Imágenes</span>
-                                            </button>
-                                        )}
-                                    </>
-                                )}
                             </div>
                         )}
                     </div>

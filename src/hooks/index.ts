@@ -42,8 +42,6 @@ export { useFileOperations } from './useFileOperations';
 export { useCensusEmail } from './useCensusEmail';
 export { useHandoffLogic } from './useHandoffLogic';
 
-// Exam Request
-export { useExamRequest } from './useExamRequest';
 
 // Re-export types from hooks that define them
 export type { DailyRecordContextType, DailyRecordPatch } from './useDailyRecordTypes';
@@ -64,7 +62,8 @@ export { useVersionCheck } from './useVersionCheck';
 
 // Audit Data Management
 export { useAuditData, AUDIT_SECTIONS } from './useAuditData';
-export type { AuditSection, AuditFiltersState, UseAuditDataReturn } from './useAuditData';
+export type { AuditFiltersState, UseAuditDataReturn } from './useAuditData';
+export type { AuditSection } from '@/types/audit';
 
 // Excel Parsing
 export { useExcelParser } from './useExcelParser';
