@@ -1,9 +1,21 @@
-import { DailyRecord } from '@/types';
+import { DailyRecord, PatientData } from '@/types';
 import { getAllRecords, getRecordsForMonth, saveRecord as saveToIndexedDB } from '@/services/storage/indexedDBService';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestoreService';
 
-export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
-    return getRecordsForMonth(year, month);
+export const fetchExistingDaysInMonth = async (year: number, month: number): Promise<number[]> => {
+    const records = await getRecordsForMonth(year, month);
+
+    return records
+        .filter(dayRecord => {
+            if (!dayRecord || !dayRecord.beds) return false;
+
+            // Check if day has any patients
+            return Object.values(dayRecord.beds).some((bed) => {
+                const patient = bed as PatientData;
+                return patient.patientName && patient.patientName.trim() !== '';
+            });
+        })
+        .map(d => parseInt(d.date.split('-')[2]));
 };
 
 export const fetchAllRecordsSorted = async (): Promise<DailyRecord[]> => {
