@@ -61,7 +61,6 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                     )}
                                 </div>
                             </th>
-                            <th className="p-2 border-r border-slate-200 w-20 text-center print:hidden">F. Ingreso</th>
                             <th className="p-2 border-r border-slate-200 w-20 print:w-[50px] print:text-[10px] print:p-1" title="Dispositivos médicos invasivos">DMI</th>
                             <th className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1">Observaciones</th>
                         </tr>
@@ -148,7 +147,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                         {/* If no occupied beds found */}
                         {!hasAnyPatients && (
                             <tr>
-                                <td colSpan={6} className="p-8 text-center text-slate-400 italic text-sm">
+                                <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
                                     No hay pacientes registrados en este turno.
                                 </td>
                             </tr>

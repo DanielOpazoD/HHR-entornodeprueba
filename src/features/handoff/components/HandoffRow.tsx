@@ -117,6 +117,12 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                             ({patient.age})
                         </div>
                     )}
+                    {/* Admission Date below Age */}
+                    {patient.admissionDate && (
+                        <div className="text-slate-400 font-bold text-[9px] mt-0.5">
+                            FI: {formatDateDDMMYYYY(patient.admissionDate)}
+                        </div>
+                    )}
                 </div>
             </td>
 
@@ -163,10 +169,6 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                         </div>
                     )}
 
-                    {/* Print: Admission Date below Diagnosis */}
-                    <div className="hidden print:block text-[8px] text-slate-500 mt-1 leading-none">
-                        FI: {formatDateDDMMYYYY(patient.admissionDate)}
-                    </div>
 
                     {/* Clinical Events Panel - Collapsible */}
                     {showEvents && !isMedical && onClinicalEventAdd && onClinicalEventUpdate && onClinicalEventDelete && (
@@ -181,14 +183,6 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                         </div>
                     )}
                 </div>
-            </td>
-
-            {/* F. Ingreso */}
-
-            {/* Fecha Ingreso */}
-            {/* F. Ingreso - Hidden in Print */}
-            <td className="p-2 border-r border-slate-200 w-20 text-center text-[10px] text-slate-500 align-middle print:hidden">
-                {formatDateDDMMYYYY(patient.admissionDate)}
             </td>
 
             {/* Dispositivos with days like census */}
