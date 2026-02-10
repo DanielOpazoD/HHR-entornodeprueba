@@ -131,9 +131,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     }, []);
 
     const isAnyLoading = isGoogleLoading || isPassportLoading;
+    const currentHour = new Date().getHours();
+    const isDayGradient = currentHour >= 8 && currentHour < 20;
+    const loginBackgroundClass = isDayGradient
+        ? 'bg-[linear-gradient(135deg,_#1d4ed8_0%,_#3b82f6_42%,_#93c5fd_74%,_#dbeafe_100%)]'
+        : 'bg-[linear-gradient(135deg,_#020617_0%,_#111827_38%,_#334155_72%,_#94a3b8_100%)]';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-medical-600 via-medical-700 to-medical-900 flex items-center justify-center p-4">
+        <div className={`min-h-screen ${loginBackgroundClass} flex items-center justify-center p-4`}>
             <div className="w-full max-w-sm">
                 {/* Logo/Header */}
                 <div className="text-center mb-10">
