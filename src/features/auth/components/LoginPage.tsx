@@ -147,23 +147,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
         });
     };
 
-    const backgroundModeLabel =
-        backgroundMode === 'auto'
-            ? `Automático (${isAutoDayWindow ? 'Día' : 'Noche'})`
-            : backgroundMode === 'day'
-                ? 'Manual: Día'
-                : 'Manual: Noche';
+
 
     return (
         <div className={`min-h-screen ${loginBackgroundClass} flex items-center justify-center p-4 relative overflow-hidden`}>
             <button
                 type="button"
                 onClick={toggleBackgroundMode}
-                className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-black/15 px-3 py-1.5 text-[11px] font-medium text-white/90 backdrop-blur-sm transition hover:bg-black/25"
+                className="absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/10 text-white/80 backdrop-blur-sm transition hover:bg-black/20"
+                aria-label="Cambiar modo de fondo"
                 title="Cambiar modo de fondo"
             >
                 <Palette className="h-3.5 w-3.5" />
-                {backgroundModeLabel}
             </button>
             <div className="w-full max-w-sm">
                 {/* Logo/Header */}
