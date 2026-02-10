@@ -40,7 +40,7 @@ describe('ExamFormHeader', () => {
 
             const hhrLogo = screen.getByAltText('Logo HHR');
             expect(hhrLogo).toBeInTheDocument();
-            expect(hhrLogo).toHaveAttribute('src', '/images/logos/logo_HHR.png');
+            expect(hhrLogo).toHaveAttribute('src', '/images/logos/logo_HHR.svg');
         });
 
         it('should render SSMO logo', () => {

@@ -13,7 +13,7 @@ import { BEDS } from '@/constants';
 import { formatDateDDMMYYYY } from '../dataService';
 
 // Logo path
-const LOGO_PATH = '/images/logos/logo_HHR.png';
+const LOGO_PATH = '/images/logos/logo_HHR.svg';
 
 export interface Schedule {
     dayStart?: string;

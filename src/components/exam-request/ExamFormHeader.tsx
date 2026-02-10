@@ -9,7 +9,7 @@ export const ExamFormHeader: React.FC = () => {
     return (
         <div className="flex justify-between items-center mb-0.5 border-b-2 border-slate-900 pb-0.5">
             <div className="flex gap-2 items-center">
-                <img src="/images/logos/logo_HHR.png" alt="Logo HHR" className="h-14 w-auto object-contain" />
+                <img src="/images/logos/logo_HHR.svg" alt="Logo HHR" className="h-14 w-auto object-contain" />
                 <div className="flex flex-col">
                     <span className="text-[12px] font-black leading-none uppercase text-slate-900">Hospital Hanga Roa</span>
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Unidad de Laboratorio</span>

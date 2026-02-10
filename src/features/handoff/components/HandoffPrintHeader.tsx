@@ -34,7 +34,7 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-start gap-4">
                     <img
-                        src="/images/logos/logo_HHR.png"
+                        src="/images/logos/logo_HHR.svg"
                         alt="Logo HHR"
                         className="w-12 h-12 print:w-10 print:h-10 object-contain shadow-sm border border-slate-100 p-1 print:p-0 print:border-0 print:shadow-none"
                     />

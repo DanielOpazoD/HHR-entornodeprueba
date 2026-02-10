@@ -77,7 +77,7 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
             >
                 <div className="bg-white p-1.5 rounded-xl shadow-sm">
                     <img
-                        src="/images/logos/logo_HHR.png"
+                        src="/images/logos/logo_HHR.svg"
                         alt="HHR"
                         className="w-7 h-7 object-contain"
                     />
