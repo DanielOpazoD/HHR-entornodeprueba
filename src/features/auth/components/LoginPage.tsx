@@ -139,7 +139,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-2xl shadow-xl mb-6 p-2">
                         <img
-                            src="/images/logos/logo_HHR.png"
+                            src="/images/logos/logo_HHR.svg"
                             alt="Hospital Hanga Roa"
                             className="w-full h-full object-contain"
                         />

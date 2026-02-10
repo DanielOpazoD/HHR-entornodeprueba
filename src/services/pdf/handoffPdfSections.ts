@@ -255,7 +255,7 @@ export const addHandoffHeader = async (
     const pageWidth = doc.internal.pageSize.width;
 
     try {
-        const logoData = await getBase64ImageFromURL('/images/logos/logo_HHR.png');
+        const logoData = await getBase64ImageFromURL('/images/logos/logo_HHR.svg');
         doc.addImage(logoData, 'PNG', margin, margin, logoSize, logoSize);
     } catch (e) {
         console.warn("Could not load logo for PDF", e);
