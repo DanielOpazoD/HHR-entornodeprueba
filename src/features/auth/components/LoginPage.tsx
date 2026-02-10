@@ -136,7 +136,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     const isAutoDayWindow = currentHour >= 8 && currentHour < 20;
     const isDayGradient = backgroundMode === 'auto' ? isAutoDayWindow : backgroundMode === 'day';
     const loginBackgroundClass = isDayGradient
-        ? 'bg-[linear-gradient(140deg,_#0f2f9f_0%,_#0d5fe8_28%,_#22b7ff_58%,_#9be8ff_82%,_#effbff_100%)]'
+        ? 'bg-[linear-gradient(180deg,_#39b5e8_0%,_#58c0ea_35%,_#7acde9_68%,_#a7dbe7_100%)]'
         : 'bg-[linear-gradient(140deg,_#020617_0%,_#0f172a_34%,_#1e293b_64%,_#334155_84%,_#94a3b8_100%)]';
 
     const toggleBackgroundMode = () => {
