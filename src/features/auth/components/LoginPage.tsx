@@ -5,7 +5,7 @@ import {
     validatePassport,
     storePassportLocally
 } from '@/services/auth/passportService';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Palette } from 'lucide-react';
 import { saveAppSetting } from '@/services';
 
 interface LoginPageProps {
@@ -28,6 +28,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     const [error, setError] = useState<string | null>(null);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isPassportLoading, setIsPassportLoading] = useState(false);
+    const [backgroundMode, setBackgroundMode] = useState<'auto' | 'day' | 'night'>('auto');
     const [_isDragging, setIsDragging] = useState(false);
 
     const _fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -131,9 +132,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     }, []);
 
     const isAnyLoading = isGoogleLoading || isPassportLoading;
+    const currentHour = new Date().getHours();
+    const isAutoDayWindow = currentHour >= 8 && currentHour < 20;
+    const isDayGradient = backgroundMode === 'auto' ? isAutoDayWindow : backgroundMode === 'day';
+    const loginBackgroundClass = isDayGradient
+        ? 'bg-[linear-gradient(180deg,_#39b5e8_0%,_#58c0ea_35%,_#7acde9_68%,_#a7dbe7_100%)]'
+        : 'bg-[linear-gradient(140deg,_#1b1b1b_0%,_#273244_34%,_#3f4d63_64%,_#5a6577_84%,_#7d8797_100%)]';
+
+    const toggleBackgroundMode = () => {
+        setBackgroundMode(prev => {
+            if (prev === 'auto') return 'day';
+            if (prev === 'day') return 'night';
+            return 'auto';
+        });
+    };
+
+
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-medical-600 via-medical-700 to-medical-900 flex items-center justify-center p-4">
+        <div className={`min-h-screen ${loginBackgroundClass} flex items-center justify-center p-4 relative overflow-hidden`}>
+            <button
+                type="button"
+                onClick={toggleBackgroundMode}
+                className="absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/10 text-white/80 backdrop-blur-sm transition hover:bg-black/20"
+                aria-label="Cambiar modo de fondo"
+                title="Cambiar modo de fondo"
+            >
+                <Palette className="h-3.5 w-3.5" />
+            </button>
             <div className="w-full max-w-sm">
                 {/* Logo/Header */}
                 <div className="text-center mb-10">
