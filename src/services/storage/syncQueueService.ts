@@ -35,12 +35,12 @@ const computeBackoffMs = (attempt: number): number => {
     return delay + jitter;
 };
 
-const getTaskKey = (type: SyncTask['type'], payload: unknown): string | null => {
+const getTaskKey = (type: SyncTask['type'], payload: unknown): string | undefined => {
     if (type === 'UPDATE_DAILY_RECORD') {
         const record = payload as DailyRecord;
-        return record?.date ? `daily:${record.date}` : null;
+        return record?.date ? `daily:${record.date}` : undefined;
     }
-    return null;
+    return undefined;
 };
 
 export const getSyncQueueStats = async (): Promise<{ pending: number; failed: number }> => {
@@ -138,7 +138,7 @@ export const processSyncQueue = async (): Promise<void> => {
                 // Mark as processing
                 await indexedDB.syncQueue.update(task.id, { status: 'PROCESSING' });
 
-            // Execute task based on type
+                // Execute task based on type
                 switch (task.type) {
                     case 'UPDATE_DAILY_RECORD':
                         await syncDailyRecord(task.payload as DailyRecord);
@@ -146,14 +146,14 @@ export const processSyncQueue = async (): Promise<void> => {
                     // Add other cases here
                 }
 
-            // Task successful - remove from queue
+                // Task successful - remove from queue
                 await indexedDB.syncQueue.delete(task.id);
                 console.warn(`[SyncQueue] Task ${task.id} completed successfully.`);
 
             } catch (error) {
                 console.error(`[SyncQueue] Task ${task.id} failed:`, error);
 
-            const newRetryCount = task.retryCount + 1;
+                const newRetryCount = task.retryCount + 1;
 
                 if (newRetryCount >= MAX_RETRIES) {
                     // Max retries reached - mark as failed (dead letter)

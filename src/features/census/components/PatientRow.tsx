@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { BedDefinition, PatientData, DeviceDetails, DeviceInstance } from '@/types';
-import { AlertCircle, User } from 'lucide-react';
+import { BedDefinition, PatientData, DeviceDetails, DeviceInstance, BedType } from '@/types';
+import { AlertCircle, User, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
@@ -9,6 +9,7 @@ import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
 import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
 import { DiagnosisMode } from '@/features/census/components/CensusTable';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
+import { isIntensiveBedType } from '@/utils/bedTypeUtils';
 
 // Sub-components
 import { PatientActionMenu } from './patient-row/PatientActionMenu';
@@ -19,13 +20,14 @@ interface PatientRowProps {
     bed: BedDefinition;
     data: PatientData;
     currentDateString: string;
-    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => void;
+    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string, patient: PatientData) => void;
     onViewHistory?: (rut: string, name: string) => void;
     showCribControls?: boolean; // Keep as optional if still used in CensusTable but unused here
     readOnly?: boolean;
     actionMenuAlign?: 'top' | 'bottom';
     diagnosisMode?: DiagnosisMode;
     isSubRow?: boolean;
+    bedType: BedType;
     style?: React.CSSProperties;
 }
 
@@ -38,9 +40,10 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
     actionMenuAlign = 'top',
     diagnosisMode = 'free',
     isSubRow = false,
+    bedType,
     style
 }) => {
-    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } = useDailyRecordActions();
+    const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple, toggleBedType } = useDailyRecordActions();
     const { confirm, alert } = useConfirmDialog();
 
     const [showDemographics, setShowDemographics] = useState(false);
@@ -144,8 +147,8 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
     }, [hasClinicalCrib, updateClinicalCrib, bed.id]);
 
     const handleAction = useCallback((action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => {
-        onAction(action, bed.id);
-    }, [onAction, bed.id]);
+        onAction(action, bed.id, data);
+    }, [onAction, bed.id, data]);
 
     // EARLY RETURN ONLY AFTER ALL HOOKS
     if (!data) return null;
@@ -165,22 +168,22 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                     <td className="border-r border-slate-200 text-center p-0 w-10">
                         {/* Action Column Spacer */}
                     </td>
-                    <td className="p-0 text-right border-r border-slate-200 align-middle">
+                    <td className="p-0 text-right border-r border-slate-200 align-middle group/crib-config">
                         <div className="flex justify-center items-center h-full gap-1">
                             {!readOnly && (
                                 <button
                                     onClick={() => setShowDemographics(true)}
-                                    className="p-1 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                                    className="p-0.5 rounded bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
                                     title="Datos demográficos"
                                 >
-                                    <User size={14} />
+                                    <User size={12} />
                                 </button>
                             )}
                         </div>
                     </td>
                     <td className="p-0 border-r border-slate-200 text-center w-16">
                         <MedicalBadge
-                            variant="pink"
+                            variant="purple"
                             className="w-10 justify-center mx-auto"
                         >
                             CUNA
@@ -208,10 +211,13 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                         "group/row relative border-b border-slate-100 transition-all duration-200 ease-in-out",
                         "hover:bg-slate-50 hover:shadow-sm hover:z-10",
                         isBlocked ? "bg-slate-50/50" : "bg-white",
-                        "text-[12px] leading-tight"
+                        "text-[12px] leading-tight",
+                        // Animate when row is freshly created (patientName is just whitespace)
+                        data.patientName?.trim() === '' && "animate-slide-fade-in"
                     )}
                     style={style}
                     data-testid="patient-row"
+                    data-bed-id={bed.id}
                 >
                     <td className="p-0 text-center border-r border-slate-200 relative w-10 print:hidden">
                         <PatientActionMenu
@@ -243,13 +249,24 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
                         align={actionMenuAlign}
                     />
 
-                    <td className="p-0 border-r border-slate-100 text-center w-16">
-                        <MedicalBadge
-                            variant={bed.type === 'UTI' ? 'pink' : 'blue'}
-                            className="w-10 justify-center mx-auto"
-                        >
-                            {bed.type}
-                        </MedicalBadge>
+                    <td className="p-0 border-r border-slate-100 text-center w-16 relative group/tipo-cell">
+                        <div className="flex flex-col items-center gap-1 py-1">
+                            <MedicalBadge
+                                variant={isIntensiveBedType(bedType) ? 'pink' : 'blue'}
+                                className="w-10 justify-center mx-auto"
+                            >
+                                {bedType}
+                            </MedicalBadge>
+                        </div>
+                        {!readOnly && !isEmpty && bed.id.startsWith('R') && (
+                            <button
+                                onClick={() => toggleBedType(bed.id)}
+                                className="absolute top-0.5 right-0.5 p-0.5 rounded-full text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all opacity-0 group-hover/tipo-cell:opacity-100"
+                                title="Cambiar nivel de cuidado (UCI/UTI)"
+                            >
+                                <RefreshCcw size={10} className="animate-hover-spin" />
+                            </button>
+                        )}
                     </td>
 
                     {isBlocked ? (

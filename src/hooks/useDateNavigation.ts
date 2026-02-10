@@ -21,6 +21,8 @@ export interface UseDateNavigationReturn {
     daysInMonth: number;
     /** Formatted date string in YYYY-MM-DD format */
     currentDateString: string;
+    /** Navigate days forward or backward, handling month/year transitions */
+    navigateDays: (delta: number) => void;
 }
 
 /**
@@ -79,6 +81,14 @@ export const useDateNavigation = (): UseDateNavigationReturn => {
         return `${y}-${m}-${d}`;
     }, [selectedYear, selectedMonth, selectedDay]);
 
+    // Navigate days forward or backward, handling month/year transitions
+    const navigateDays = React.useCallback((delta: number) => {
+        const nextDate = new Date(selectedYear, selectedMonth, selectedDay + delta);
+        setSelectedYear(nextDate.getFullYear());
+        setSelectedMonth(nextDate.getMonth());
+        setSelectedDay(nextDate.getDate());
+    }, [selectedYear, selectedMonth, selectedDay]);
+
     return {
         selectedYear,
         setSelectedYear,
@@ -87,6 +97,7 @@ export const useDateNavigation = (): UseDateNavigationReturn => {
         selectedDay,
         setSelectedDay,
         daysInMonth,
-        currentDateString
+        currentDateString,
+        navigateDays
     };
 };

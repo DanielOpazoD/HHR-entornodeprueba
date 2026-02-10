@@ -5,7 +5,7 @@
  * Supports demo mode with isolated storage.
  */
 
-import { DailyRecord, PatientData } from '@/types';
+import { DailyRecord, PatientData, BedType } from '@/types';
 import { DailyRecordPatch } from '@/types';
 import { BEDS } from '@/constants';
 import {
@@ -35,12 +35,12 @@ import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
 //     getActiveHospitalId
 // } from '@/constants/firestorePaths';
 import { createEmptyPatient, clonePatient } from '../factories/patientFactory';
+import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
+import { validateAndSalvageRecord } from './helpers/validationHelper';
 import { applyPatches } from '@/utils/patchUtils';
 import { checkRegression, DataRegressionError, calculateDensity, VersionMismatchError } from '@/utils/integrityGuard';
-import { parseDailyRecordWithDefaults, DailyRecordSchema } from '@/schemas/zodSchemas';
 import { mapPatientToFhir } from '@/services/utils/fhirMappers';
 import { logError } from '@/services/utils/errorService';
-import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 
 // ============================================================================
 // Configuration (imported from repositoryConfig)
@@ -228,34 +228,18 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
     }
 
     // 1. Mandatory Schema Validation (The "Lock")
-    // Use parse() for strict enforcement. If it fails, persistence is BLOCKED.
-    let validatedRecord: DailyRecord;
-    try {
-        // First try strict parse
-        validatedRecord = DailyRecordSchema.parse(record);
-    } catch (err) {
-        console.warn('[Repository] Strict validation failed, attempting salvage...', err);
-        // Fallback to salvage logic only if strict parse fails
-        const salvaged = parseDailyRecordWithDefaults(record, record.date);
-
-        // Re-validate the salvaged record to guarantee it meets the schema
-        try {
-            validatedRecord = DailyRecordSchema.parse(salvaged);
-        } catch (finalErr) {
-            console.error('[Repository] Salvage failed strict validation:', finalErr);
-            throw new Error('Crítico: El registro está corrupto y no pudo ser recuperado automáticamente para ser guardado.');
-        }
-    }
+    // Use the helper to ensure the document always contains required medical fields.
+    const recordWithSchemaDefaults = validateAndSalvageRecord(record, record.date);
 
     // Ensure dateTimestamp is present for security rules (legacy records fix)
-    if (!validatedRecord.dateTimestamp && validatedRecord.date) {
-        const dateObj = new Date(validatedRecord.date + 'T00:00:00');
-        validatedRecord.dateTimestamp = dateObj.getTime();
+    if (!recordWithSchemaDefaults.dateTimestamp && recordWithSchemaDefaults.date) {
+        const dateObj = new Date(recordWithSchemaDefaults.date + 'T00:00:00');
+        recordWithSchemaDefaults.dateTimestamp = dateObj.getTime();
     }
 
     // Enforce core invariants before enrichment/persist
-    const normalized = normalizeDailyRecordInvariants(validatedRecord);
-    validatedRecord = normalized.record;
+    const normalized = normalizeDailyRecordInvariants(recordWithSchemaDefaults);
+    const validatedRecord = normalized.record;
     if (Object.keys(normalized.patches).length > 0) {
         logError('Invariant repair applied on save', undefined, {
             date: validatedRecord.date,
@@ -316,7 +300,7 @@ export const save = async (record: DailyRecord, expectedLastUpdated?: string): P
         } catch (err) {
             console.warn('Firestore sync failed, data saved in IndexedDB:', err);
             // Re-throw critical errors only
-            if (err && ((err as Error).name === 'ConcurrencyError' || err instanceof DataRegressionError)) {
+            if (err instanceof Error && (err.name === 'ConcurrencyError' || err instanceof DataRegressionError)) {
                 throw err;
             }
         }
@@ -383,12 +367,10 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatch)
     }
 
     // 2. Apply Patches & Validate Merged Result (The "Lock")
-    const updated = applyPatches(current, partialData);
-    updated.lastUpdated = new Date().toISOString();
+    const updatedForInvariants = applyPatches(current, partialData);
+    const normalized = normalizeDailyRecordInvariants(updatedForInvariants);
+    const mergedPatches: DailyRecordPatch = { ...partialData, ...normalized.patches };
 
-    // Normalize invariants (bed ids, extras)
-    const normalized = normalizeDailyRecordInvariants(updated);
-    Object.assign(partialData, normalized.patches);
     if (Object.keys(normalized.patches).length > 0) {
         logError('Invariant repair applied on updatePartial', undefined, {
             date,
@@ -396,22 +378,10 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatch)
         });
     }
 
-    let validatedRecord: DailyRecord;
-    try {
-        // Strict validation: Ensure the final document state is valid
-        // We use the result of .parse() to ensure defaults from schema are applied
-        validatedRecord = DailyRecordSchema.parse(normalized.record);
-    } catch (err) {
-        console.warn('[Repository] Partial update failed strict validation, attempting salvage check...', err);
-        // If strict fails, we check if the salvaged version is acceptable
-        const salvaged = parseDailyRecordWithDefaults(normalized.record, date);
-        try {
-            validatedRecord = DailyRecordSchema.parse(salvaged);
-        } catch (finalErr) {
-            console.error('[Repository] Partial update salvage failed:', finalErr);
-            throw new Error('Integridad de Datos: El cambio solicitado resultaría en un registro corrupto y no puede ser procesado.');
-        }
-    }
+    const updated = applyPatches(current, mergedPatches);
+    updated.lastUpdated = new Date().toISOString();
+
+    const validatedRecord = validateAndSalvageRecord(updated, date);
 
     // 3. Local Persistence
     if (isDemoModeActive()) {
@@ -424,21 +394,21 @@ export const updatePartial = async (date: string, partialData: DailyRecordPatch)
     if (isFirestoreEnabled()) {
         try {
             // Enhancement: Automatically regenerate FHIR resources for affected beds
-            Object.keys(partialData).forEach(key => {
+            Object.keys(mergedPatches).forEach(key => {
                 if (key.startsWith('beds.')) {
                     const bedId = key.split('.')[1];
                     const patient = validatedRecord.beds[bedId];
                     if (patient && patient.patientName) {
                         const fhirPath = `beds.${bedId}.fhir_resource` as keyof DailyRecordPatch;
                         const fhirResource = mapPatientToFhir(patient);
-                        partialData[fhirPath] = fhirResource;
+                        mergedPatches[fhirPath] = fhirResource;
                     }
                 }
             });
 
             // Flattening and updating only the granular keys ensures that if User A 
             // edits Bed 1 and User B edits Bed 2, both successfully merge in Firestore (Cell-Level LWW).
-            await updateRecordPartial(date, partialData);
+            await updateRecordPartial(date, mergedPatches);
         } catch (err) {
             console.warn('[Repository] Firestore partial update failed:', err);
         }
@@ -527,6 +497,7 @@ export const initializeDay = async (
 
     const initialBeds: Record<string, PatientData> = {};
     let activeExtras: string[] = [];
+    let initialOverrides: Record<string, BedType> = {};
 
     BEDS.forEach(bed => {
         initialBeds[bed.id] = createEmptyPatient(bed.id);
@@ -546,11 +517,22 @@ export const initializeDay = async (
         // Priority Migration: Use shift-based arrays, fallback to legacy 'nurses' if exists or if shift arrays are "empty" (defaults)
         const isNightShiftEmpty = !prevRecord.nursesNightShift || prevRecord.nursesNightShift.every(n => !n);
         const prevNurses = !isNightShiftEmpty ? prevRecord.nursesNightShift : (prevRecord.nurses || ["", ""]);
-        nursesDay = [...prevNurses!];
+
+        // Ensure nursesDay is always length 2
+        nursesDay = [...(prevNurses || ["", ""])];
+        while (nursesDay.length < 2) nursesDay.push("");
+        nursesDay = nursesDay.slice(0, 2);
 
         const isNightTensEmpty = !prevRecord.tensNightShift || prevRecord.tensNightShift.every(t => !t);
-        tensDay = [...(!isNightTensEmpty ? prevRecord.tensNightShift! : (prevRecord.tensDayShift || ["", "", ""]))];
+        const rawTens = !isNightTensEmpty ? prevRecord.tensNightShift! : (prevRecord.tensDayShift || ["", "", ""]);
+
+        // Ensure tensDay is always length 3
+        tensDay = [...rawTens];
+        while (tensDay.length < 3) tensDay.push("");
+        tensDay = tensDay.slice(0, 3);
+
         activeExtras = [...(prevRecord.activeExtraBeds || [])];
+        initialOverrides = { ...(prevRecord.bedTypeOverrides || {}) };
 
         BEDS.forEach(bed => {
             const prevPatient = prevBeds[bed.id];
@@ -602,6 +584,7 @@ export const initializeDay = async (
         discharges: [],
         transfers: [],
         cma: [],
+        bedTypeOverrides: initialOverrides,
         lastUpdated: new Date().toISOString(),
         dateTimestamp: dateObj.getTime(),
         nurses: ["", ""],

@@ -1,8 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
-import { DailyRecord, Specialty, PatientStatus } from '@/types';
-import Dexie from 'dexie';
+import { DailyRecord } from '@/types';
 
 describe('indexedDBService', () => {
     const mockRecord: DailyRecord = {

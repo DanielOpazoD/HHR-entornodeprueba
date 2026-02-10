@@ -15,7 +15,7 @@ import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { RutPassportInput } from './RutPassportInput';
 import { AgeInput } from './AgeInput';
 import { DiagnosisInput } from './DiagnosisInput';
-import { SpecialtySelect } from './SpecialtySelect';
+import { DualSpecialtyCell } from './DualSpecialtyCell';
 import { StatusSelect } from './StatusSelect';
 import { AdmissionInput } from './AdmissionInput';
 import { DevicesCell } from './DevicesCell';
@@ -57,7 +57,7 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
     // Determine read-only status based on global readOnly prop OR stability rules
     // We check a generic field like 'patientName' for historical locking, 
     // since most census fields don't have specific shift locks.
-    const isLocked = readOnly || !stabilityRules.canEditField('patientName');
+    const isLocked = readOnly || !stabilityRules || !stabilityRules.canEditField('patientName');
 
     // Adapter: convert event-based handler to debounced value handler
     const handleDebouncedText = (field: keyof PatientData) => (value: string) => {
@@ -116,8 +116,8 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
                 onDeliveryRouteChange={onChange.deliveryRoute}
             />
 
-            {/* Specialty */}
-            <SpecialtySelect
+            {/* Specialty (Primary + Optional Secondary) */}
+            <DualSpecialtyCell
                 {...commonProps}
                 onChange={onChange.text}
             />

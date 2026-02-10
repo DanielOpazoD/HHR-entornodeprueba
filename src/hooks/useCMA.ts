@@ -1,3 +1,4 @@
+import { useMemo, useCallback, useRef, useEffect } from 'react';
 import { DailyRecord, CMAData } from '@/types';
 import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';
@@ -31,9 +32,12 @@ export const useCMA = (
     record: DailyRecord | null,
     saveAndUpdate: (updatedRecord: DailyRecord) => void
 ) => {
+    const recordRef = useRef(record);
+    useEffect(() => { recordRef.current = record; }, [record]);
 
-    const addCMA = (data: Omit<CMAData, 'id' | 'timestamp'>) => {
-        if (!record) return;
+    const addCMA = useCallback((data: Omit<CMAData, 'id' | 'timestamp'>) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
         // Normalize data before saving
         const normalizedData = normalizePatientData(data);
@@ -45,41 +49,43 @@ export const useCMA = (
             timestamp: new Date().toISOString()
         };
 
-        const currentList = record.cma || [];
+        const currentList = currentRecord.cma || [];
 
         saveAndUpdate({
-            ...record,
+            ...currentRecord,
             cma: [...currentList, newEntry]
         });
-    };
+    }, [saveAndUpdate]);
 
-    const deleteCMA = (id: string) => {
-        if (!record) return;
-        const currentList = record.cma || [];
+    const deleteCMA = useCallback((id: string) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const currentList = currentRecord.cma || [];
         saveAndUpdate({
-            ...record,
+            ...currentRecord,
             cma: currentList.filter(item => item.id !== id)
         });
-    };
+    }, [saveAndUpdate]);
 
-    const updateCMA = (id: string, updates: Partial<CMAData>) => {
-        if (!record) return;
+    const updateCMA = useCallback((id: string, updates: Partial<CMAData>) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
         // Normalize data before saving
         const normalizedUpdates = normalizePatientData(updates);
 
-        const currentList = record.cma || [];
+        const currentList = currentRecord.cma || [];
         saveAndUpdate({
-            ...record,
+            ...currentRecord,
             cma: currentList.map(item =>
                 item.id === id ? { ...item, ...normalizedUpdates } : item
             )
         });
-    };
+    }, [saveAndUpdate]);
 
-    return {
+    return useMemo(() => ({
         addCMA,
         deleteCMA,
         updateCMA
-    };
+    }), [addCMA, deleteCMA, updateCMA]);
 };

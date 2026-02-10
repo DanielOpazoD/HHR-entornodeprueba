@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 
-export type MedicalBadgeVariant = 'red' | 'orange' | 'green' | 'blue' | 'slate' | 'pink';
+export type MedicalBadgeVariant = 'red' | 'orange' | 'green' | 'blue' | 'slate' | 'pink' | 'purple';
 
 interface MedicalBadgeProps {
     children: React.ReactNode;
@@ -18,6 +18,7 @@ const variants: Record<MedicalBadgeVariant, string> = {
     blue: 'bg-blue-50 text-blue-700 border-blue-200 print:text-blue-800 print:bg-transparent',
     slate: 'bg-slate-50 text-slate-600 border-slate-200 print:text-slate-700 print:bg-transparent',
     pink: 'bg-pink-50 text-pink-700 border-pink-200 print:text-pink-800 print:bg-transparent',
+    purple: 'bg-purple-50 text-purple-600 border-purple-200 print:text-purple-700 print:bg-transparent',
 };
 
 const outlineVariants: Record<MedicalBadgeVariant, string> = {
@@ -27,6 +28,7 @@ const outlineVariants: Record<MedicalBadgeVariant, string> = {
     blue: 'bg-transparent text-blue-600 border-blue-400',
     slate: 'bg-transparent text-slate-500 border-slate-400',
     pink: 'bg-transparent text-pink-600 border-pink-400',
+    purple: 'bg-transparent text-purple-500 border-purple-400',
 };
 
 export const MedicalBadge: React.FC<MedicalBadgeProps> = ({

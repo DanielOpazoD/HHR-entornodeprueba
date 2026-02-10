@@ -31,7 +31,10 @@ export {
     type ShiftType,
     type FhirResource,
     type DailyRecordPatch,
-    type DailyRecordPatchPath
+    type DailyRecordPatchPath,
+    type OnDutyProfessional,
+    type OnDutySpecialty,
+    type ProfessionalCatalogItem
 } from './core';
 
 // Value types and utilities
@@ -72,3 +75,9 @@ export {
     type WhatsAppConfig,
     type WhatsAppLog
 } from './whatsapp';
+
+// Auth types
+export {
+    type AuthUser,
+    type UserRole
+} from './auth';

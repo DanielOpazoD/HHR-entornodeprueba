@@ -23,8 +23,8 @@ export interface TerminologyConcept {
  * Uses local database first, then cached AI results.
  * Live AI search must be triggered manually via forceAISearch.
  */
-export async function searchDiagnoses(query: string): Promise<TerminologyConcept[]> {
-    if (!query || query.length < 2) return [];
+export async function searchDiagnoses(query: string, signal?: AbortSignal): Promise<TerminologyConcept[]> {
+    if (!query || query.length < 2 || signal?.aborted) return [];
 
     try {
         // 1. First, search local database (instant)
@@ -67,6 +67,25 @@ export async function searchDiagnoses(query: string): Promise<TerminologyConcept
         return [];
     }
 }
+
+/**
+ * Searches for diagnoses using AI (Gemini)
+ * This function is intended to be called when AI results are specifically requested,
+ * or when local results are insufficient.
+ */
+export async function searchDiagnosesAI(query: string, signal?: AbortSignal): Promise<TerminologyConcept[]> {
+    try {
+        // This function should ideally call a dedicated AI search function,
+        // or forceAISearch if it's meant to update the cache.
+        // Assuming 'forceAISearch' is the intended target for live AI search.
+        const results = await forceAISearch(query, signal);
+        return results;
+    } catch (error) {
+        console.error('Error in searchDiagnosesAI:', error);
+        return [];
+    }
+}
+
 /**
  * Looks up a CIE-10 description by code from the local database
  */

@@ -1,13 +1,13 @@
 import React from 'react';
-import { useCensusActions } from './CensusActionsContext';
 import { useStaffContext } from '@/context/StaffContext';
 import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
 import { TensManagerModal } from '@/components/modals/TensManagerModal';
 import { BedManagerModal } from '@/components/modals/BedManagerModal';
 import { MoveCopyModal, DischargeModal, TransferModal } from '@/components/modals/ActionModals';
 
+import { useCensusActions } from './CensusActionsContext';
+
 interface CensusModalsProps {
-    // Bed Manager props
     showBedManagerModal: boolean;
     onCloseBedManagerModal: () => void;
 }
@@ -63,10 +63,10 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
             />
 
             <MoveCopyModal
-                isOpen={!!actionState.type}
-                type={actionState.type}
-                sourceBedId={actionState.sourceBedId}
-                targetBedId={actionState.targetBedId}
+                isOpen={actionState.type !== null}
+                type={actionState.type || 'move'}
+                sourceBedId={actionState.sourceBedId || ''}
+                targetBedId={actionState.targetBedId || ''}
                 onClose={() => setActionState({ type: null, sourceBedId: null, targetBedId: null })}
                 onSetTarget={(id) => setActionState({ ...actionState, targetBedId: id })}
                 onConfirm={executeMoveOrCopy}
@@ -94,6 +94,7 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
                 isOpen={transferState.isOpen}
                 isEditing={!!transferState.recordId}
                 evacuationMethod={transferState.evacuationMethod}
+                evacuationMethodOther={transferState.evacuationMethodOther || ''}
                 receivingCenter={transferState.receivingCenter}
                 receivingCenterOther={transferState.receivingCenterOther}
                 transferEscort={transferState.transferEscort}
@@ -101,11 +102,11 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
                 clinicalCribName={transferState.clinicalCribName}
                 initialTime={transferState.time}
                 onUpdate={(field, val) => {
-                    const updates: Record<string, string> = { [field]: val };
+                    const updates: Record<string, string | boolean> = { [field]: val };
                     if (field === 'evacuationMethod' && val === 'Aerocardal') {
                         updates.transferEscort = '';
                     }
-                    setTransferState({ ...transferState, ...updates });
+                    setTransferState({ ...transferState, ...updates } as any);
                 }}
                 onClose={() => setTransferState({ ...transferState, isOpen: false })}
                 onConfirm={executeTransfer}

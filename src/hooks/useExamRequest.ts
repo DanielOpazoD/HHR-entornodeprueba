@@ -30,7 +30,7 @@ interface UseExamRequestReturn {
 export const useExamRequest = ({ patient, isOpen }: UseExamRequestParams): UseExamRequestReturn => {
     const [selectedExams, setSelectedExams] = useState<Set<string>>(new Set());
     const [procedencia, setProcedencia] = useState('Hospitalización');
-    const [prevision, setPrevision] = useState(() => patient.insurance || 'FONASA');
+    const [prevision, setPrevision] = useState(() => (patient.insurance || 'FONASA').toUpperCase());
 
     // Reset when modal opens - use timeout to avoid cascading render warning
     useEffect(() => {
@@ -38,7 +38,7 @@ export const useExamRequest = ({ patient, isOpen }: UseExamRequestParams): UseEx
             const timer = setTimeout(() => {
                 setSelectedExams(new Set());
                 setProcedencia('Hospitalización');
-                setPrevision(patient.insurance || 'FONASA');
+                setPrevision((patient.insurance || 'FONASA').toUpperCase());
             }, 0);
             return () => clearTimeout(timer);
         }

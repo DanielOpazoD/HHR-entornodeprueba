@@ -58,7 +58,6 @@ vi.mock('../../services/admin/utils/auditSummaryGenerator', () => ({
 
 // Now import the service
 import {
-    logAuditEvent,
     logPatientAdmission,
     logPatientDischarge,
     logPatientTransfer,
@@ -67,14 +66,12 @@ import {
     logDailyRecordCreated,
     logSystemError,
     logThrottledViewEvent,
-    getLocalAuditLogs,
     getAuditLogs,
-    getAuditLogsForDate
+    getAuditLogsForDate,
 } from '@/services/admin/auditService';
 import * as auditUtils from '@/services/admin/utils/auditUtils';
 
 describe('AuditService', () => {
-    const mockUserId = 'tester@hospital.cl';
     const mockPatientRut = '12345678-9';
     const mockDate = '2025-01-01';
 
@@ -145,20 +142,13 @@ describe('AuditService', () => {
         it('should fetch recent logs and handle Timestamp vs String', async () => {
             // Mock Firestore response with Timestamp objects
             const Timestamp = (await import('firebase/firestore')).Timestamp;
-            const mockSnapshot = {
-                docs: [
-                    {
-                        id: 'log1',
-                        data: () => ({
-                            action: 'LOGIN',
-                            timestamp: Timestamp.now()
-                        })
-                    }
-                ]
+            const mockLog = {
+                id: 'log1',
+                action: 'LOGIN',
+                timestamp: Timestamp.now()
             };
-            vi.mocked(firestore.getDocs).mockResolvedValue(mockSnapshot as any);
-
-            const logs = await getAuditLogs(10);
+            vi.mocked(mockGetAuditLogs).mockResolvedValue([mockLog]); // Mock the indexedDBService's getAuditLogs
+            const logs = await getAuditLogs(); // Call the auditService's getAuditLogs (which now uses indexedDBService)
             expect(logs.length).toBe(1);
             expect(logs[0].action).toBe('LOGIN');
         });

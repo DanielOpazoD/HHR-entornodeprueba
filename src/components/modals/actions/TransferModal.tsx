@@ -10,6 +10,7 @@ export interface TransferModalProps {
     isOpen: boolean;
     isEditing: boolean;
     evacuationMethod: string;
+    evacuationMethodOther: string;
     receivingCenter: string;
     receivingCenterOther: string;
     transferEscort: string;
@@ -25,11 +26,11 @@ export interface TransferModalProps {
 }
 
 export const TransferModal: React.FC<TransferModalProps> = ({
-    isOpen, isEditing, evacuationMethod, receivingCenter, receivingCenterOther, transferEscort, onUpdate, onClose, onConfirm,
+    isOpen, isEditing, evacuationMethod, evacuationMethodOther, receivingCenter, receivingCenterOther, transferEscort, onUpdate, onClose, onConfirm,
     hasClinicalCrib, clinicalCribName, initialTime
 }) => {
     const [transferTime, setTransferTime] = useState('');
-    const [errors, setErrors] = useState<{ time?: string, otherCenter?: string }>({});
+    const [errors, setErrors] = useState<{ time?: string, otherCenter?: string, otherEvacuation?: string }>({});
 
     React.useEffect(() => {
         if (isOpen) {
@@ -43,6 +44,16 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             onUpdate('transferEscort', '');
         } else {
             onUpdate('transferEscort', val);
+        }
+    };
+
+    const handleEvacuationChange = (val: string) => {
+        onUpdate('evacuationMethod', val);
+        if (val === 'Avión comercial') {
+            onUpdate('transferEscort', 'Enfermera');
+        }
+        if (val !== 'Otro') {
+            onUpdate('evacuationMethodOther', '');
         }
     };
 
@@ -80,11 +91,29 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             <select
                                 className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                                 value={evacuationMethod}
-                                onChange={(e) => onUpdate('evacuationMethod', e.target.value)}
+                                onChange={(e) => handleEvacuationChange(e.target.value)}
                             >
                                 {EVACUATION_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                         </div>
+
+                        {evacuationMethod === 'Otro' && (
+                            <div className="animate-fade-in space-y-1.5 border-l-2 border-blue-50 pl-4">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Especifique Método</label>
+                                <input
+                                    type="text"
+                                    className={clsx(
+                                        "w-full p-2 bg-white border rounded-lg text-sm focus:ring-2 focus:outline-none transition-all",
+                                        errors.otherEvacuation ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:ring-blue-500/20 focus:border-blue-500"
+                                    )}
+                                    value={evacuationMethodOther}
+                                    onChange={(e) => { onUpdate('evacuationMethodOther', e.target.value); setErrors(prev => ({ ...prev, otherEvacuation: undefined })); }}
+                                    placeholder="Nombre del método..."
+                                    autoFocus
+                                />
+                                {errors.otherEvacuation && <p className="text-[9px] text-red-500 font-medium mt-1 pl-1">{errors.otherEvacuation}</p>}
+                            </div>
+                        )}
 
                         {evacuationMethod === 'Avión comercial' && (
                             <div className="space-y-1.5 pt-1 animate-fade-in border-l-2 border-blue-50 pl-4">
@@ -175,7 +204,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                     </button>
                     <button
                         onClick={() => {
-                            const newErrors: { time?: string, otherCenter?: string } = {};
+                            const newErrors: Record<string, string | undefined> = {};
 
                             // Validate Time
                             const timeResult = TimeSchema.safeParse(transferTime);
@@ -194,6 +223,16 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             if (Object.keys(newErrors).length > 0) {
                                 setErrors(newErrors);
                                 return;
+                            }
+
+                            // Validate Other Evacuation if selected
+                            if (evacuationMethod === 'Otro') {
+                                const evacResult = ActionNoteSchema.safeParse(evacuationMethodOther);
+                                if (!evacResult.success) {
+                                    newErrors.otherEvacuation = evacResult.error.issues[0].message;
+                                    setErrors(newErrors);
+                                    return;
+                                }
                             }
 
                             onConfirm({ time: transferTime });

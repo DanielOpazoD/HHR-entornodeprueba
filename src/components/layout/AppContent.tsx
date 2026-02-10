@@ -7,8 +7,10 @@ import {
     SyncWatcher,
     DemoModePanel,
     BookmarkBar,
+    StorageStatusBadge,
     ModuleType
 } from '@/components';
+import { PinLockScreen } from '@/components/security/PinLockScreen';
 import { AppRouter } from '@/components/AppRouter';
 import { AppProviders } from '@/components/AppProviders';
 import { generateCensusMasterExcel } from '@/services';
@@ -139,6 +141,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                             localViewMode={ui.censusLocalViewMode}
                             setLocalViewMode={ui.setCensusLocalViewMode}
                             onBackupPDF={exportManager.handleBackupHandoff}
+                            navigateDays={dateNav.navigateDays}
                         />
                     )}
 
@@ -211,6 +214,9 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
                         <DemoModePanel isOpen={ui.demoModal.isOpen} onClose={ui.demoModal.close} />
                     </>
                 )}
+
+                <PinLockScreen />
+                <StorageStatusBadge />
             </div>
         </AppProviders>
     );

@@ -10,7 +10,8 @@ import {
     addHandoffHeader,
     addStaffAndChecklist,
     addNovedadesSection,
-    addPageFooter
+    addPageFooter,
+    AutoTableFunction
 } from './handoffPdfSections';
 
 /**
@@ -22,14 +23,14 @@ export const generateHandoffPdf = async (
     isMedical: boolean,
     selectedShift: ShiftType,
     schedule: Schedule
-) => {
+): Promise<void> => {
     // Dynamic imports to reduce bundle size
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable')
     ]);
 
-    const doc = new jsPDF();
+    const doc = new jsPDF() as unknown as jsPDF;
     const margin = 14;
     const logoSize = 10;
 
@@ -42,11 +43,12 @@ export const generateHandoffPdf = async (
     }
 
     // 3. PATIENT TABLE
-    currentY = addPatientTable(doc, record, isMedical, selectedShift, currentY, autoTable);
+    const typedAutoTable = autoTable as unknown as AutoTableFunction;
+    currentY = addPatientTable(doc, record, isMedical, selectedShift, currentY, typedAutoTable);
     currentY += 8;
 
     // 4. MOVIMIENTOS DEL DÍA
-    currentY = addMovementsSummary(doc, record, margin, currentY, autoTable);
+    currentY = addMovementsSummary(doc, record, margin, currentY, typedAutoTable);
     currentY += 4;
 
     // 5. NOVEDADES
@@ -58,7 +60,7 @@ export const generateHandoffPdf = async (
 
     // 6. CUDYR (Only Nursing Night)
     if (!isMedical && selectedShift === 'night') {
-        addCudyrTable(doc, record, margin, autoTable);
+        addCudyrTable(doc, record, margin, typedAutoTable);
     }
 
     // 7. PAGE NUMBERS

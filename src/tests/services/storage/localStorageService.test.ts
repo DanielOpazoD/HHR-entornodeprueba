@@ -3,7 +3,7 @@
  * Tests localStorage operations for daily records and nurses
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     getStoredRecords,
     saveRecordLocal,

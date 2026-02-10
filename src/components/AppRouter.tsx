@@ -8,7 +8,7 @@ import React, { Suspense } from 'react';
 import { GlobalErrorBoundary, SectionErrorBoundary } from '@/components';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { canEditModule } from '@/utils/permissions';
-import { UserRole } from '@/hooks/useAuthState';
+import { UserRole } from '@/context';
 import { UseUIStateReturn } from '@/hooks/useUIState';
 
 // Lazy-loaded views

@@ -41,6 +41,7 @@ const DailyRecordStaffContext = createContext<{
   tensNightShift: string[];
   activeExtraBeds: string[];
 } | null | undefined>(undefined);
+const DailyRecordOverridesContext = createContext<Record<string, string> | undefined>(undefined);
 
 /**
  * Fragmented Provider
@@ -59,14 +60,15 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
     [value?.record?.beds]);
 
   // Movements Context
+  const record = value?.record;
   const movementsValue = useMemo(() => {
-    if (!value?.record) return null;
+    if (!record) return null;
     return {
-      discharges: value.record.discharges || [],
-      transfers: value.record.transfers || [],
-      cma: value.record.cma || []
+      discharges: record.discharges || [],
+      transfers: record.transfers || [],
+      cma: record.cma || []
     };
-  }, [value?.record]);
+  }, [record]);
 
   // Stability Context
   const stabilityValue = useMemo(() =>
@@ -80,26 +82,30 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
 
   // Staff Context
   const staffValue = useMemo(() => {
-    if (!value?.record) return null;
+    if (!record) return null;
     return {
-      nursesDayShift: value.record.nursesDayShift || ['', ''],
-      nursesNightShift: value.record.nursesNightShift || ['', ''],
-      tensDayShift: value.record.tensDayShift || ['', '', ''],
-      tensNightShift: value.record.tensNightShift || ['', '', ''],
-      activeExtraBeds: value.record.activeExtraBeds || []
+      nursesDayShift: record.nursesDayShift || ['', ''],
+      nursesNightShift: record.nursesNightShift || ['', ''],
+      tensDayShift: record.tensDayShift || ['', '', ''],
+      tensNightShift: record.tensNightShift || ['', '', ''],
+      activeExtraBeds: record.activeExtraBeds || []
     };
-  }, [value?.record]);
+  }, [record]);
+
+  // Overrides Context
+  const overridesValue = useMemo(() =>
+    value?.record?.bedTypeOverrides || {},
+    [value?.record?.bedTypeOverrides]);
 
   // Unified Data (Legacy/Heavy)
   const dataValue: DailyRecordDataContextType = useMemo(() => ({
     record: value?.record || null,
     syncStatus: value?.syncStatus || 'idle',
     lastSyncTime: value?.lastSyncTime || null,
-    inventory: value?.inventory as any,
-    stabilityRules: value?.stabilityRules as any
+    inventory: value?.inventory ?? { occupiedCount: 0, blockedCount: 0, availableCount: 0, occupancyRate: 0, occupiedBeds: [], freeBeds: [], blockedBeds: [], isFull: false },
+    stabilityRules: value?.stabilityRules ?? { isDateLocked: true, isDayShiftLocked: true, isNightShiftLocked: true, canEditField: () => false, canPerformActions: false }
   }), [value?.record, value?.syncStatus, value?.lastSyncTime, value?.inventory, value?.stabilityRules]);
 
-  const hasRecord = !!value?.record;
 
   // Stable Actions
   const actionsValue: DailyRecordActionsContextType = useMemo(() => ({
@@ -124,6 +130,7 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
     toggleBlockBed: value?.toggleBlockBed,
     updateBlockedReason: value?.updateBlockedReason,
     toggleExtraBed: value?.toggleExtraBed,
+    toggleBedType: value?.toggleBedType,
     updateNurse: value?.updateNurse,
     updateTens: value?.updateTens,
     addDischarge: value?.addDischarge,
@@ -144,9 +151,10 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
     updateMedicalHandoffDoctor: value?.updateMedicalHandoffDoctor,
     markMedicalHandoffAsSent: value?.markMedicalHandoffAsSent,
     sendMedicalHandoff: value?.sendMedicalHandoff,
-    copyPatientToDate: value?.copyPatientToDate
-  }) as any, [
-    hasRecord,
+    copyPatientToDate: value?.copyPatientToDate,
+    updateOnDutyProfessional: value?.updateOnDutyProfessional,
+    updateOnDutyProfessionalsFull: value?.updateOnDutyProfessionalsFull
+  } as DailyRecordActionsContextType), [
     value?.createDay, value?.generateDemo, value?.resetDay, value?.refresh,
     value?.validateRecordSchema, value?.canMovePatient, value?.canDischargePatient,
     value?.updatePatient, value?.updatePatientMultiple,
@@ -155,6 +163,7 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
     value?.updateCudyr, value?.updateCudyrMultiple,
     value?.clearPatient, value?.clearAllBeds, value?.moveOrCopyPatient,
     value?.toggleBlockBed, value?.updateBlockedReason, value?.toggleExtraBed,
+    value?.toggleBedType,
     value?.updateNurse, value?.updateTens,
     value?.addDischarge, value?.updateDischarge, value?.deleteDischarge, value?.undoDischarge,
     value?.addTransfer, value?.updateTransfer, value?.deleteTransfer, value?.undoTransfer,
@@ -162,7 +171,8 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
     value?.updateHandoffChecklist, value?.updateHandoffNovedades, value?.updateHandoffStaff,
     value?.updateMedicalSignature, value?.updateMedicalHandoffDoctor,
     value?.markMedicalHandoffAsSent, value?.sendMedicalHandoff,
-    value?.copyPatientToDate
+    value?.copyPatientToDate, value?.updateOnDutyProfessional,
+    value?.updateOnDutyProfessionalsFull
   ]);
 
   return (
@@ -174,7 +184,9 @@ export const DailyRecordProvider: React.FC<{ value: DailyRecordContextType; chil
               <DailyRecordMovementsContext.Provider value={movementsValue}>
                 <DailyRecordBedsContext.Provider value={bedsValue}>
                   <DailyRecordDataContext.Provider value={dataValue}>
-                    {children}
+                    <DailyRecordOverridesContext.Provider value={overridesValue}>
+                      {children}
+                    </DailyRecordOverridesContext.Provider>
                   </DailyRecordDataContext.Provider>
                 </DailyRecordBedsContext.Provider>
               </DailyRecordMovementsContext.Provider>
@@ -251,6 +263,15 @@ export const useDailyRecordStaff = () => {
   const context = useContext(DailyRecordStaffContext);
   if (context === undefined) throw new Error('useDailyRecordStaff must be used within a DailyRecordProvider');
   return context;
+};
+
+/**
+ * Access bed type overrides.
+ */
+export const useDailyRecordOverrides = () => {
+  const context = useContext(DailyRecordOverridesContext);
+  if (context === undefined) throw new Error('useDailyRecordOverrides must be used within a DailyRecordProvider');
+  return context || {};
 };
 
 /**

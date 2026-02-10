@@ -8,6 +8,7 @@ import { HandoffNovedades } from './HandoffNovedades';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { MedicalHandoffHeader } from './MedicalHandoffHeader';
+import { MedicalHandoffTabs } from './MedicalHandoffTabs';
 import { MovementsSummary } from './MovementsSummary';
 import { HandoffPatientTable } from './HandoffPatientTable';
 
@@ -192,21 +193,35 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
                 onUpdateChecklist={updateHandoffChecklist}
             />
 
-            <HandoffPatientTable
-                visibleBeds={visibleBeds}
-                record={record}
-                noteField={noteField}
-                onNoteChange={handleNursingNoteChange}
-                tableHeaderClass={tableHeaderClass}
-                readOnly={readOnly}
-                isMedical={isMedical}
-                hasAnyPatients={hasAnyPatients}
-                shouldShowPatient={shouldShowPatient}
-                // Clinical Events
-                onClinicalEventAdd={handleClinicalEventAdd}
-                onClinicalEventUpdate={handleClinicalEventUpdate}
-                onClinicalEventDelete={handleClinicalEventDelete}
-            />
+            {/* Patient Table - Tabbed UPC/Non-UPC for Medical Handoff */}
+            {isMedical ? (
+                <MedicalHandoffTabs
+                    visibleBeds={visibleBeds}
+                    record={record}
+                    noteField={noteField}
+                    onNoteChange={handleNursingNoteChange}
+                    tableHeaderClass={tableHeaderClass}
+                    readOnly={readOnly}
+                    isMedical={isMedical}
+                    shouldShowPatient={shouldShowPatient}
+                />
+            ) : (
+                <HandoffPatientTable
+                    visibleBeds={visibleBeds}
+                    record={record}
+                    noteField={noteField}
+                    onNoteChange={handleNursingNoteChange}
+                    tableHeaderClass={tableHeaderClass}
+                    readOnly={readOnly}
+                    isMedical={isMedical}
+                    hasAnyPatients={hasAnyPatients}
+                    shouldShowPatient={shouldShowPatient}
+                    // Clinical Events
+                    onClinicalEventAdd={handleClinicalEventAdd}
+                    onClinicalEventUpdate={handleClinicalEventUpdate}
+                    onClinicalEventDelete={handleClinicalEventDelete}
+                />
+            )}
 
             <div className="hidden print:block print:h-4" aria-hidden="true" />{/* Print-only spacer */}
 

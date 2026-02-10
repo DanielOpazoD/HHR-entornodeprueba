@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { onAuthChange, signOut, AuthUser, hasActiveFirebaseSession, signInAnonymouslyForPassport, handleSignInRedirectResult } from '@/services/auth/authService';
+import { onAuthChange, signOut, hasActiveFirebaseSession, signInAnonymouslyForPassport, handleSignInRedirectResult } from '@/services/auth/authService';
+import { AuthUser, UserRole } from '@/types';
+export type { UserRole };
 import {
     getStoredPassport,
     validatePassport,
@@ -11,18 +13,7 @@ import { logUserLogout, logUserLogin } from '@/services/admin/auditService';
 import { getAppSetting, saveAppSetting } from '@/services';
 import { safeJsonParse } from '@/utils/jsonUtils';
 
-/**
- * Available user roles in the application.
- * Controls access to different modules and features.
- * 
- * - `viewer`: Read-only access to all data
- * - `editor`: Can modify patient data and daily records
- * - `admin`: Full access including system configuration
- * - `nurse_hospital`: Hospital nurse with edit permissions (from passport)
- * - `doctor_urgency`: Emergency doctor with limited edit access
- * - `viewer_census`: Can only view census data
- */
-export type UserRole = 'viewer' | 'editor' | 'admin' | 'nurse_hospital' | 'doctor_urgency' | 'viewer_census';
+// UserRole and AuthUser are now imported from @/types
 
 /**
  * Return type for the useAuthState hook.
@@ -36,7 +27,7 @@ export interface UseAuthStateReturn {
     /** True if connected to Firebase (either real or anonymous auth) */
     isFirebaseConnected: boolean;
     /** Signs out the current user (clears Firebase and passport auth) */
-    handleLogout: () => Promise<void>;
+    handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>;
 
     // Role-based properties
     /** Current user's role */
@@ -54,7 +45,7 @@ export interface UseAuthStateReturn {
     /** True if current user can generate offline passports (admin only) */
     canDownloadPassport: boolean;
     /** Downloads a passport file for offline access with specified role */
-    handleDownloadPassport: (role: string) => Promise<boolean>;
+    handleDownloadPassport: (role: UserRole) => Promise<boolean>;
 }
 
 import { SESSION_TIMEOUT_MS, ACTIVITY_EVENTS } from '@/constants/security';
@@ -67,10 +58,10 @@ import { SESSION_TIMEOUT_MS, ACTIVITY_EVENTS } from '@/constants/security';
  * 
  * 1. **Firebase Auth**: Standard email/password authentication with real-time sync
  * 2. **Offline Passport**: Encrypted token-based auth for offline/island access
- * 
+ *
  * The hook automatically detects stored passports on mount and validates them.
  * Firebase connection status is monitored to enable/disable sync features.
- * 
+ *
  * @returns Authentication state, user info, role flags, and auth actions
  */
 export const useAuthState = (): UseAuthStateReturn => {
@@ -86,7 +77,7 @@ export const useAuthState = (): UseAuthStateReturn => {
 
     /**
      * Performs a full sign-out, clearing both Firebase sessions and local passport tokens.
-     * 
+     *
      * @param reason - Whether the logout was 'manual' (user clicked) or 'automatic' (session timeout).
      */
     const handleLogout = useCallback(async (reason: 'manual' | 'automatic' = 'manual') => {
@@ -340,15 +331,15 @@ export const useAuthState = (): UseAuthStateReturn => {
      * Generates and downloads a passport file for the current user.
      * Only admin can generate passports.
      * 
-     * @param role - The role to assign: 'admin' or 'nurse_hospital'
+     * @param role - The role to assign
      * @returns True if the download was successful, false otherwise.
      */
-    const handleDownloadPassport = useCallback(async (role: string) => {
+    const handleDownloadPassport = useCallback(async (role: UserRole) => {
         if (!user) return false;
         return await downloadPassport(user, role);
     }, [user]);
 
-    const role: UserRole = (user?.role as UserRole) || 'viewer';
+    const role: UserRole = user?.role || 'viewer';
     const isEditor = role === 'editor' || role === 'admin' || role === 'nurse_hospital';
     const isViewer = !isEditor;
     const canEdit = isEditor;

@@ -17,7 +17,10 @@ vi.mock('firebase/auth', () => {
         signOut: vi.fn(),
         onAuthStateChanged: vi.fn(),
         GoogleAuthProvider,
-        signInAnonymously: vi.fn()
+        signInAnonymously: vi.fn(),
+        createUserWithEmailAndPassword: vi.fn(),
+        signInWithRedirect: vi.fn(),
+        getRedirectResult: vi.fn(),
     };
 });
 
@@ -124,6 +127,80 @@ describe('authService', () => {
                 displayName: 'Anonymous Doctor',
                 role: 'viewer'
             }));
+        });
+    });
+
+    describe('createUser', () => {
+        it('should create a new user', async () => {
+            const mockUser = {
+                user: {
+                    uid: 'new-123',
+                    email: 'new@test.com',
+                    displayName: 'New User'
+                }
+            };
+            vi.mocked(firebaseAuth.createUserWithEmailAndPassword).mockResolvedValue(mockUser as any);
+
+            const result = await (await import('@/services/auth/authService')).createUser('new@test.com', 'password');
+            expect(result.uid).toBe('new-123');
+        });
+
+        it('should map Firebase error codes', async () => {
+            vi.mocked(firebaseAuth.createUserWithEmailAndPassword).mockRejectedValue({ code: 'auth/email-already-in-use' });
+
+            await expect((await import('@/services/auth/authService')).createUser('used@test.com', 'password'))
+                .rejects.toThrow('Este email ya está registrado');
+        });
+    });
+
+    describe('signOut', () => {
+        it('should sign out and clear cache', async () => {
+            await (await import('@/services/auth/authService')).signOut();
+            expect(firebaseAuth.signOut).toHaveBeenCalled();
+        });
+    });
+
+    describe('signInAnonymouslyForPassport', () => {
+        it('should return uid if user already signed in', async () => {
+            const auth = (await import('@/firebaseConfig')).auth;
+            Object.defineProperty(auth, 'currentUser', { value: { uid: 'existing-123' }, configurable: true });
+
+            const result = await (await import('@/services/auth/authService')).signInAnonymouslyForPassport();
+            expect(result).toBe('existing-123');
+        });
+
+        it('should sign in anonymously if not signed in', async () => {
+            const auth = (await import('@/firebaseConfig')).auth;
+            Object.defineProperty(auth, 'currentUser', { value: null, configurable: true });
+            vi.mocked(firebaseAuth.signInAnonymously).mockResolvedValue({ user: { uid: 'anon-456' } } as any);
+
+            const result = await (await import('@/services/auth/authService')).signInAnonymouslyForPassport();
+            expect(result).toBe('anon-456');
+        });
+    });
+
+    describe('handleSignInRedirectResult', () => {
+        it('should return null if no result', async () => {
+            vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue(null);
+            const result = await (await import('@/services/auth/authService')).handleSignInRedirectResult();
+            expect(result).toBeNull();
+        });
+
+        it('should return user for shared census mode', async () => {
+            // Mock window.location.pathname
+            const originalLocation = window.location;
+            delete (window as any).location;
+            (window as any).location = { ...originalLocation, pathname: '/censo-compartido/test' };
+
+            vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue({
+                user: { uid: 'shared-123', email: 'guest@test.com', displayName: 'Guest' }
+            } as any);
+
+            const result = await (await import('@/services/auth/authService')).handleSignInRedirectResult();
+            expect(result?.role).toBe('viewer_census');
+
+            // Restore location
+            (window as any).location = originalLocation;
         });
     });
 });

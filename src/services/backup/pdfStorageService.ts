@@ -204,7 +204,7 @@ export const listFilesInMonth = createListFilesInMonth<StoredPdfFile>({
         fullPath: item.fullPath,
         downloadUrl,
         date: parsed.date,
-        shiftType: parsed.shiftType,
+        shiftType: (parsed as any).shiftType,
         createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
         size: metadata.size
     })

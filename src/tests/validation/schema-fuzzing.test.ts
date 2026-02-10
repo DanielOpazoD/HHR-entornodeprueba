@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-    DailyRecordSchema,
     safeParseDailyRecord,
     parseDailyRecordWithDefaults
 } from '@/schemas/zodSchemas';

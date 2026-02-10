@@ -1,6 +1,6 @@
-
+import { describe, it, expect } from 'vitest';
 import { groupLogs, mergeDetails } from '@/services/admin/auditConsolidationService';
-import { AuditLogEntry } from '@/types/audit';
+import { AuditLogEntry, AuditAction } from '@/types/audit';
 
 // Type helper for tests
 interface AuditLogWithId extends AuditLogEntry {
@@ -10,27 +10,27 @@ interface AuditLogWithId extends AuditLogEntry {
 const mockLog = (
     id: string,
     timestamp: string | number,
-    action: string,
+    action: AuditAction,
     entityId: string,
-    details: any = {}
+    details: Record<string, unknown> = {}
 ): AuditLogWithId => ({
     id,
-    timestamp: timestamp as any,
+    timestamp: typeof timestamp === 'number' ? new Date(timestamp).toISOString() : timestamp,
     action,
     entityId,
+    entityType: 'patient',
     userId: 'user1',
-    userEmail: 'user@test.com',
+    userDisplayName: 'Test User',
     details,
-    metadata: {}
 });
 
 describe('Audit Consolidation Service', () => {
     describe('groupLogs', () => {
         it('should group logs that are within the time window', () => {
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1'),
-                mockLog('2', '2023-01-01T10:02:00Z', 'UPDATE', 'bed1'), // +2 mins
-                mockLog('3', '2023-01-01T10:04:00Z', 'UPDATE', 'bed1'), // +2 mins from prev, +4 from start. Should fit in 5 min window?
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('2', '2023-01-01T10:02:00Z', 'PATIENT_MODIFIED', 'bed1'), // +2 mins
+                mockLog('3', '2023-01-01T10:04:00Z', 'PATIENT_MODIFIED', 'bed1'), // +2 mins from prev, +4 from start. Should fit in 5 min window?
             ];
 
             const groups = groupLogs(logs, 5);
@@ -43,8 +43,8 @@ describe('Audit Consolidation Service', () => {
 
         it('should split logs that are outside the time window', () => {
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1'),
-                mockLog('2', '2023-01-01T10:06:00Z', 'UPDATE', 'bed1'), // +6 mins, outside 5 min window
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('2', '2023-01-01T10:06:00Z', 'PATIENT_MODIFIED', 'bed1'), // +6 mins, outside 5 min window
             ];
 
             const groups = groupLogs(logs, 5);
@@ -53,8 +53,8 @@ describe('Audit Consolidation Service', () => {
 
         it('should group separate entities separately', () => {
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1'),
-                mockLog('2', '2023-01-01T10:01:00Z', 'UPDATE', 'bed2'), // Different entity
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('2', '2023-01-01T10:01:00Z', 'PATIENT_MODIFIED', 'bed2'), // Different entity
             ];
 
             const groups = groupLogs(logs, 5);
@@ -66,9 +66,9 @@ describe('Audit Consolidation Service', () => {
             // Log 2: 10:04 (Fits with 1)
             // Log 3: 10:08 (Fits with 2, but is 8 mins from 1. The implementation allows joining if close to LAST log)
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1'),
-                mockLog('2', '2023-01-01T10:04:00Z', 'UPDATE', 'bed1'),
-                mockLog('3', '2023-01-01T10:08:00Z', 'UPDATE', 'bed1'),
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('2', '2023-01-01T10:04:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('3', '2023-01-01T10:08:00Z', 'PATIENT_MODIFIED', 'bed1'),
             ];
 
             const groups = groupLogs(logs, 5);
@@ -80,8 +80,8 @@ describe('Audit Consolidation Service', () => {
 
         it('should sort logs internally before grouping', () => {
             const logs = [
-                mockLog('2', '2023-01-01T10:02:00Z', 'UPDATE', 'bed1'),
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1'),
+                mockLog('2', '2023-01-01T10:02:00Z', 'PATIENT_MODIFIED', 'bed1'),
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1'),
             ];
 
             const groups = groupLogs(logs, 5);
@@ -95,8 +95,8 @@ describe('Audit Consolidation Service', () => {
     describe('mergeDetails', () => {
         it('should merge simple fields overwriting with latest', () => {
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1', { status: 'A', note: 'First' }),
-                mockLog('2', '2023-01-01T10:01:00Z', 'UPDATE', 'bed1', { status: 'B' }) // note missing in second
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1', { status: 'A', note: 'First' }),
+                mockLog('2', '2023-01-01T10:01:00Z', 'PATIENT_MODIFIED', 'bed1', { status: 'B' }) // note missing in second
             ];
 
             const merged = mergeDetails(logs);
@@ -111,13 +111,13 @@ describe('Audit Consolidation Service', () => {
             // Result should be: name: { old: 'Old', new: 'New' }
 
             const logs = [
-                mockLog('1', '2023-01-01T10:00:00Z', 'UPDATE', 'bed1', {
+                mockLog('1', '2023-01-01T10:00:00Z', 'PATIENT_MODIFIED', 'bed1', {
                     changes: {
                         name: { old: 'Old', new: 'Mid' },
                         age: { old: 20, new: 21 }
                     }
                 }),
-                mockLog('2', '2023-01-01T10:01:00Z', 'UPDATE', 'bed1', {
+                mockLog('2', '2023-01-01T10:01:00Z', 'PATIENT_MODIFIED', 'bed1', {
                     changes: {
                         name: { old: 'Mid', new: 'New' },
                         weight: { old: 70, new: 71 }

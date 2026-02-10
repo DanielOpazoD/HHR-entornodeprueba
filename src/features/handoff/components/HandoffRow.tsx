@@ -108,10 +108,13 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
                 onClinicalEventDelete={onClinicalEventDelete}
             />
 
-            <HandoffDevicesCell
-                patient={patient}
-                reportDate={reportDate}
-            />
+            {/* DMI column only shown in nursing handoff */}
+            {!isMedical && (
+                <HandoffDevicesCell
+                    patient={patient}
+                    reportDate={reportDate}
+                />
+            )}
 
             <HandoffObservationsCell
                 noteValue={noteValue}

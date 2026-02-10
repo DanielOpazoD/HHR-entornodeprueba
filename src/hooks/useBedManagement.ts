@@ -1,8 +1,11 @@
-import { useCallback } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import { DailyRecord, PatientData, CudyrScore, PatientFieldValue, DailyRecordPatch } from '@/types';
 import { usePatientValidation } from './usePatientValidation';
 import { useBedAudit } from './useBedAudit';
 import { BedAction, bedManagementReducer } from './useBedManagementReducer';
+import { BEDS } from '@/constants';
+import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
+import { BedType } from '@/types';
 
 
 /**
@@ -65,6 +68,11 @@ export interface BedManagementActions {
      * Toggles an extra bed visibility.
      */
     toggleExtraBed: (bedId: string) => void;
+
+    /**
+     * Toggles bed level of care (UTI/UCI)
+     */
+    toggleBedType: (bedId: string) => void;
 }
 
 // ============================================================================
@@ -83,18 +91,25 @@ export interface BedManagementActions {
  */
 export const useBedManagement = (
     record: DailyRecord | null,
-    saveAndUpdate: (updatedRecord: DailyRecord) => void, // Kept for legacy compat if needed, but reducer uses patches
+    saveAndUpdate: (updatedRecord: DailyRecord) => void, // Kept for legacy compat
     patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ): BedManagementActions => {
     const validation = usePatientValidation();
     const bedAudit = useBedAudit(record);
+
+    // Use a ref to keep record stable in callbacks
+    const recordRef = useRef(record);
+    useEffect(() => {
+        recordRef.current = record;
+    }, [record]);
 
     // ========================================================================
     // Dispatcher
     // ========================================================================
 
     const dispatch = useCallback((action: BedAction) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
         // 1. Validation (for specific actions)
         if (action.type === 'UPDATE_PATIENT') {
@@ -121,7 +136,7 @@ export const useBedManagement = (
         try {
             switch (action.type) {
                 case 'UPDATE_PATIENT':
-                    bedAudit.auditPatientChange(action.bedId, action.field, record.beds[action.bedId], action.value);
+                    bedAudit.auditPatientChange(action.bedId, action.field, currentRecord.beds[action.bedId], action.value);
                     break;
                 case 'UPDATE_CUDYR':
                     bedAudit.auditCudyrChange(action.bedId, action.field, action.value);
@@ -130,7 +145,7 @@ export const useBedManagement = (
                     bedAudit.auditCribCudyrChange(action.bedId, action.field, action.value);
                     break;
                 case 'CLEAR_PATIENT': {
-                    const bed = record.beds[action.bedId];
+                    const bed = currentRecord.beds[action.bedId];
                     if (bed.patientName) {
                         bedAudit.auditPatientCleared(action.bedId, bed.patientName, bed.rut);
                     }
@@ -141,6 +156,19 @@ export const useBedManagement = (
                     // For now, simple logging here or moving useBedOperations audit logic here.
                     // Ideally, audit should be decoupled (observer pattern), but we keep it direct for now.
                     break;
+                case 'TOGGLE_BED_TYPE': {
+                    const bedDef = BEDS.find(b => b.id === action.bedId);
+                    if (bedDef) {
+                        const fromType = getBedTypeForRecord(bedDef, currentRecord);
+                        const toType = fromType === BedType.UTI ? BedType.UCI : BedType.UTI;
+                        bedAudit.auditPatientModified(action.bedId, {
+                            action: 'toggle_bed_type',
+                            from: fromType,
+                            to: toType
+                        });
+                    }
+                    break;
+                }
             }
         } catch (e) {
             console.error('Audit logging failed', e);
@@ -148,14 +176,14 @@ export const useBedManagement = (
 
         // 3. Reducer (Calculate Patch) & 4. Apply Patch
         try {
-            const patch = bedManagementReducer(record, action);
+            const patch = bedManagementReducer(currentRecord, action);
             if (patch) {
                 patchRecord(patch);
             }
         } catch (e) {
             console.warn('Bed management action failed:', e);
         }
-    }, [record, validation, patchRecord, bedAudit]);
+    }, [validation, patchRecord, bedAudit]);
 
     // ========================================================================
     // Action Creators (Adapters to match BedManagementActions interface)
@@ -219,19 +247,40 @@ export const useBedManagement = (
         dispatch({ type: 'TOGGLE_EXTRA_BED', bedId });
     }, [dispatch]);
 
-    return {
+    const toggleBedType = useCallback((bedId: string) => {
+        dispatch({ type: 'TOGGLE_BED_TYPE', bedId });
+    }, [dispatch]);
+
+    // ========================================================================
+    // Public API
+    // ========================================================================
+    return useMemo(() => ({
         updatePatient,
         updatePatientMultiple,
-        updateCudyr,
         updateClinicalCrib,
         updateClinicalCribMultiple,
         updateClinicalCribCudyr,
+        updateCudyr,
         clearPatient,
-        clearAllBeds, // This needs fixing in reducer or here
+        clearAllBeds,
         moveOrCopyPatient,
         toggleBlockBed,
         updateBlockedReason,
-        toggleExtraBed
-    };
+        toggleExtraBed,
+        toggleBedType,
+    }), [
+        updatePatient,
+        updatePatientMultiple,
+        updateClinicalCrib,
+        updateClinicalCribMultiple,
+        updateClinicalCribCudyr,
+        updateCudyr,
+        clearPatient,
+        clearAllBeds,
+        moveOrCopyPatient,
+        toggleBlockBed,
+        updateBlockedReason,
+        toggleExtraBed,
+        toggleBedType
+    ]);
 };
-

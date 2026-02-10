@@ -1,9 +1,3 @@
-/**
- * Catalog Repository
- * Manages staff catalogs (nurses, TENS) with local IndexedDB and Firebase sync.
- * Extracted from DailyRecordRepository for better separation of concerns.
- */
-
 import {
     saveCatalog,
     getCatalog
@@ -14,10 +8,14 @@ import {
     subscribeToNurseCatalog,
     subscribeToTensCatalog,
     getNurseCatalogFromFirestore,
-    getTensCatalogFromFirestore
+    getTensCatalogFromFirestore,
+    getProfessionalsCatalogFromFirestore,
+    saveProfessionalsCatalogToFirestore,
+    subscribeToProfessionalsCatalog
 } from '../storage/firestoreService';
 import { getLegacyNurseCatalog, getLegacyTensCatalog } from '../storage/legacyFirebaseService';
 import { isFirestoreEnabled, isDemoModeActive } from '@/services/repositories/repositoryConfig';
+import { ProfessionalCatalogItem } from '@/types';
 
 export interface ICatalogRepository {
     getNurses(): Promise<string[]>;
@@ -26,6 +24,9 @@ export interface ICatalogRepository {
     getTens(): Promise<string[]>;
     saveTens(tens: string[]): Promise<void>;
     subscribeTens(callback: (tens: string[]) => void): () => void;
+    getProfessionals(): Promise<ProfessionalCatalogItem[]>;
+    saveProfessionals(professionals: ProfessionalCatalogItem[]): Promise<void>;
+    subscribeProfessionals(callback: (professionals: ProfessionalCatalogItem[]) => void): () => void;
 }
 
 // ============================================================================
@@ -53,7 +54,7 @@ export const getNurses = async (): Promise<string[]> => {
             // 3. Fallback to Legacy Production
             const legacyList = await getLegacyNurseCatalog();
             if (legacyList.length > 0) {
-                console.log('[Catalog] 🎯 Migrated nurse catalog from legacy');
+                console.warn('[Catalog] 🎯 Migrated nurse catalog from legacy');
                 await saveCatalog('nurses', legacyList);
                 // Also save to Beta so it persists there
                 await saveNurseCatalogToFirestore(legacyList);
@@ -79,7 +80,6 @@ export const saveNurses = async (nurses: string[]): Promise<void> => {
 
 /**
  * Subscribes to real-time updates for the nurses catalog from Firestore.
- * Returns an unsubscribe function.
  */
 export const subscribeNurses = (callback: (nurses: string[]) => void): (() => void) => {
     if (isDemoModeActive()) return () => { };
@@ -113,7 +113,7 @@ export const getTens = async (): Promise<string[]> => {
             // 3. Fallback to Legacy Production
             const legacyList = await getLegacyTensCatalog();
             if (legacyList.length > 0) {
-                console.log('[Catalog] 🎯 Migrated TENS catalog from legacy');
+                console.warn('[Catalog] 🎯 Migrated TENS catalog from legacy');
                 await saveCatalog('tens', legacyList);
                 // Also save to Beta
                 await saveTensCatalogToFirestore(legacyList);
@@ -124,7 +124,7 @@ export const getTens = async (): Promise<string[]> => {
         }
     }
 
-    return [];
+    return ["TENS 1", "TENS 2", "TENS 3"];
 };
 
 /**
@@ -139,13 +139,62 @@ export const saveTens = async (tens: string[]): Promise<void> => {
 
 /**
  * Subscribes to real-time updates for the TENS catalog from Firestore.
- * Returns an unsubscribe function.
  */
 export const subscribeTens = (callback: (tens: string[]) => void): (() => void) => {
     if (isDemoModeActive()) return () => { };
     return subscribeToTensCatalog(async (tens) => {
         await saveCatalog('tens', tens);
         callback(tens);
+    });
+};
+
+// ============================================================================
+// Professionals Catalog
+// ============================================================================
+
+/**
+ * Retrieves the list of professionals from local storage.
+ */
+export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => {
+    // 1. Try local
+    const localList = await getCatalog('professionals');
+    const parsedList = (localList as unknown as ProfessionalCatalogItem[]) || [];
+    if (parsedList.length > 0) return parsedList;
+
+    // 2. Try Beta Firestore
+    if (isFirestoreEnabled() && !isDemoModeActive()) {
+        try {
+            const remoteList = await getProfessionalsCatalogFromFirestore();
+            if (remoteList.length > 0) {
+                await saveCatalog('professionals', remoteList as unknown as string[]);
+                return remoteList;
+            }
+        } catch (err) {
+            console.warn('[Catalog] Failed to fetch professionals from remote:', err);
+        }
+    }
+
+    return [];
+};
+
+/**
+ * Saves the professionals list to local storage and syncs to Firestore if enabled.
+ */
+export const saveProfessionals = async (professionals: ProfessionalCatalogItem[]): Promise<void> => {
+    await saveCatalog('professionals', professionals as unknown as string[]);
+    if (isFirestoreEnabled() && !isDemoModeActive()) {
+        await saveProfessionalsCatalogToFirestore(professionals);
+    }
+};
+
+/**
+ * Subscribes to real-time updates for the professionals catalog from Firestore.
+ */
+export const subscribeProfessionals = (callback: (professionals: ProfessionalCatalogItem[]) => void): (() => void) => {
+    if (isDemoModeActive()) return () => { };
+    return subscribeToProfessionalsCatalog(async (professionals) => {
+        await saveCatalog('professionals', professionals as unknown as string[]);
+        callback(professionals);
     });
 };
 
@@ -159,5 +208,8 @@ export const CatalogRepository: ICatalogRepository = {
     subscribeNurses,
     getTens,
     saveTens,
-    subscribeTens
+    subscribeTens,
+    getProfessionals,
+    saveProfessionals,
+    subscribeProfessionals
 };

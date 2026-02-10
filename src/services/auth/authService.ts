@@ -15,23 +15,11 @@ import { httpsCallable } from 'firebase/functions';
 import { db } from '../infrastructure/db';
 import { saveSetting, getSetting } from '../storage/indexedDBService';
 import { safeJsonParse } from '@/utils/jsonUtils';
+export type { AuthUser, UserRole } from '@/types';
+import { AuthUser, UserRole } from '@/types';
 import { INSTITUTIONAL_ACCOUNTS } from '@/constants/identities';
 
-/**
- * User information structure used within the application's authentication state.
- */
-export interface AuthUser {
-    /** Unique Firebase User ID */
-    uid: string;
-    /** User's email address */
-    email: string | null;
-    /** User's display name (usually from Google) */
-    displayName: string | null;
-    /** URL to user's profile picture */
-    photoURL?: string | null;
-    /** User's role assigned via whitelist (admin, nurse, etc.) */
-    role?: string;
-}
+// AuthUser is now imported from @/types
 
 // ============================================================================
 // FIRESTORE WHITELIST CHECK
@@ -129,7 +117,7 @@ const getCachedRole = async (email: string): Promise<string | null> => {
  * @param email - The email address to check.
  * @returns An object indicating if allowed and their assigned role.
  */
-const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean; role?: string }> => {
+const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean; role?: UserRole }> => {
     // console.debug(`[authService] 🔍 Checking whitelist for: ${email}`);
     try {
         const cleanEmail = normalizeEmail(email);
@@ -138,8 +126,9 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
         for (const [staticEmail, staticRole] of Object.entries(STATIC_ROLES)) {
             if (cleanEmail.includes(staticEmail)) {
                 // console.info(`[authService] ✅ Access granted via static rule: ${cleanEmail} -> ${staticRole}`);
-                saveRoleToCache(cleanEmail, staticRole); // Non-blocking cache update
-                return { allowed: true, role: staticRole };
+                const role = staticRole as UserRole;
+                saveRoleToCache(cleanEmail, role); // Non-blocking cache update
+                return { allowed: true, role };
             }
         }
 
@@ -147,7 +136,7 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
         const cachedRole = await getCachedRole(cleanEmail);
         if (cachedRole) {
             // console.debug(`[authService] ⚡ Role recovered from cache: ${cachedRole}`);
-            return { allowed: true, role: cachedRole };
+            return { allowed: true, role: cachedRole as UserRole };
         }
 
         // 2. VERIFICACIÓN DINÁMICA (Secure Cloud Discovery)
@@ -157,7 +146,7 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
             const response = await checkRoleFunc({ email: cleanEmail });
 
             if (response.data && response.data.role && response.data.role !== 'unauthorized') {
-                const role = response.data.role;
+                const role = response.data.role as UserRole;
                 saveRoleToCache(cleanEmail, role); // Non-blocking cache update
                 return { allowed: true, role };
             }
@@ -169,7 +158,7 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
         try {
             const dynamicRoles = await db.getDoc<Record<string, string>>('config', 'roles');
             if (dynamicRoles && dynamicRoles[cleanEmail]) {
-                const role = dynamicRoles[cleanEmail];
+                const role = dynamicRoles[cleanEmail] as UserRole;
                 saveRoleToCache(cleanEmail, role); // Non-blocking cache update
                 return { allowed: true, role };
             }
@@ -180,14 +169,14 @@ const checkEmailInFirestore = async (email: string): Promise<{ allowed: boolean;
         // 3. WHITELIST LEGACY (allowedUsers collection)
         // console.debug(`[authService] 📡 Querying DB for legacy whitelist...`);
 
-        const results = await db.getDocs<unknown>('allowedUsers', {
+        const results = await db.getDocs<{ role?: string; email: string }>('allowedUsers', {
             where: [{ field: 'email', operator: '==', value: email.toLowerCase().trim() }]
         });
         // console.debug(`[authService] 📥 DB response received. Results count: ${results.length}`);
 
         if (results.length > 0) {
             const userDoc = results[0];
-            const rawRole = String(userDoc.role || 'viewer').toLowerCase().trim();
+            const rawRole = (userDoc.role || 'viewer').toLowerCase().trim() as UserRole;
             saveRoleToCache(cleanEmail, rawRole); // Non-blocking cache update
             return { allowed: true, role: rawRole };
         }
@@ -437,7 +426,7 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => 
             // 1. Get Custom Claims (Role)
             try {
                 const tokenResult = await firebaseUser.getIdTokenResult();
-                let role = (tokenResult.claims.role as string);
+                let role = (tokenResult.claims.role as UserRole);
 
                 // Fallback: If no claim (or viewer/editor), check whitelist (Dual Stack Recovery)
                 if (!role || role === 'viewer' || role === 'editor') {

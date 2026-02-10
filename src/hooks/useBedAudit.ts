@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { DailyRecord, PatientData, CudyrScore, PatientFieldValue } from '@/types';
 import { AuditDeviceChange, AuditDeviceChangesMap } from '@/types/audit';
 import { useAuditContext } from '@/context/AuditContext';
@@ -12,6 +12,11 @@ import { logPatientAdmission } from '@/services/admin/auditService';
  */
 export const useBedAudit = (record: DailyRecord | null) => {
     const { logDebouncedEvent, userId } = useAuditContext();
+    const recordRef = useRef(record);
+
+    useEffect(() => {
+        recordRef.current = record;
+    }, [record]);
 
     /**
      * Audit Logging for patient admission or modification
@@ -22,7 +27,8 @@ export const useBedAudit = (record: DailyRecord | null) => {
         oldPatient: PatientData,
         newValue: PatientFieldValue
     ) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
         const oldValue = oldPatient[field];
 
@@ -32,7 +38,7 @@ export const useBedAudit = (record: DailyRecord | null) => {
 
             // Admission: Empty -> Name
             if (!oldName && newName) {
-                logPatientAdmission(bedId, newName, oldPatient.rut, oldPatient.pathology, record.date);
+                logPatientAdmission(bedId, newName, oldPatient.rut, oldPatient.pathology, currentRecord.date);
             } else if (oldName && newName && oldName !== newName) {
                 // Name modification
                 logDebouncedEvent(
@@ -44,7 +50,7 @@ export const useBedAudit = (record: DailyRecord | null) => {
                         changes: { [field]: { old: oldName, new: newName } }
                     },
                     oldPatient.rut,
-                    record.date
+                    currentRecord.date
                 );
             }
         } else if (field === 'deviceDetails') {
@@ -73,7 +79,7 @@ export const useBedAudit = (record: DailyRecord | null) => {
                         changes: { deviceDetails: deviceChanges }
                     },
                     oldPatient.rut,
-                    record.date
+                    currentRecord.date
                 );
             }
         } else if (oldValue !== newValue) {
@@ -93,29 +99,30 @@ export const useBedAudit = (record: DailyRecord | null) => {
                         changes: { [field]: { old: oldValue, new: newValue } }
                     },
                     oldPatient.rut,
-                    record.date
+                    currentRecord.date
                 );
             }
         }
-    }, [record, logDebouncedEvent]);
+    }, [logDebouncedEvent]);
 
     const auditCudyrChange = useCallback((
         bedId: string,
         field: keyof CudyrScore,
         value: number
     ) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const patient = record.beds[bedId];
+        const patient = currentRecord.beds[bedId];
         if (patient?.patientName) {
-            const authors = getAttributedAuthors(userId, record);
+            const authors = getAttributedAuthors(userId, currentRecord);
             const oldValue = patient.cudyr?.[field] || 0;
 
             if (oldValue !== value) {
                 logDebouncedEvent(
                     'CUDYR_MODIFIED',
                     'dailyRecord',
-                    record.date,
+                    currentRecord.date,
                     {
                         patientName: patient.patientName,
                         bedId,
@@ -124,30 +131,31 @@ export const useBedAudit = (record: DailyRecord | null) => {
                         oldValue
                     },
                     patient.rut,
-                    record.date,
+                    currentRecord.date,
                     authors
                 );
             }
         }
-    }, [record, logDebouncedEvent, userId]);
+    }, [logDebouncedEvent, userId]);
 
     const auditCribCudyrChange = useCallback((
         bedId: string,
         field: keyof CudyrScore,
         value: number
     ) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const crib = record.beds[bedId]?.clinicalCrib;
+        const crib = currentRecord.beds[bedId]?.clinicalCrib;
         if (crib?.patientName) {
-            const authors = getAttributedAuthors(userId, record);
+            const authors = getAttributedAuthors(userId, currentRecord);
             const oldValue = crib.cudyr?.[field] || 0;
 
             if (oldValue !== value) {
                 logDebouncedEvent(
                     'CUDYR_MODIFIED',
                     'dailyRecord',
-                    record.date,
+                    currentRecord.date,
                     {
                         patientName: crib.patientName,
                         bedId: `${bedId}-crib`,
@@ -156,29 +164,48 @@ export const useBedAudit = (record: DailyRecord | null) => {
                         oldValue
                     },
                     crib.rut,
-                    record.date,
+                    currentRecord.date,
                     authors
                 );
             }
         }
-    }, [record, logDebouncedEvent, userId]);
+    }, [logDebouncedEvent, userId]);
 
     const auditPatientCleared = useCallback((bedId: string, patientName: string, rut?: string) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
         logDebouncedEvent(
             'PATIENT_CLEARED',
             'patient',
             bedId,
             { patientName, bedId },
             rut,
-            record.date
+            currentRecord.date
         );
-    }, [record, logDebouncedEvent]);
+    }, [logDebouncedEvent]);
+
+    const auditPatientModified = useCallback((bedId: string, details: Record<string, unknown>) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const patient = currentRecord.beds[bedId];
+        logDebouncedEvent(
+            'PATIENT_MODIFIED',
+            'patient',
+            bedId,
+            {
+                patientName: patient?.patientName,
+                ...details
+            },
+            patient?.rut,
+            currentRecord.date
+        );
+    }, [logDebouncedEvent]);
 
     return {
         auditPatientChange,
         auditCudyrChange,
         auditCribCudyrChange,
-        auditPatientCleared
+        auditPatientCleared,
+        auditPatientModified
     };
 };

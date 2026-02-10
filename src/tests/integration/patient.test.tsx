@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, createMockPatient } from './setup';
 import { PatientRow } from '@/features/census/components/PatientRow';
 import { BEDS } from '@/constants';
-import { PatientStatus, Specialty } from '@/types';
+import { PatientStatus, Specialty, BedType } from '@/types';
 
 // Mock callbacks
 const mockOnAction = vi.fn();
@@ -31,6 +31,7 @@ describe('Patient Management Integration', () => {
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -60,6 +61,7 @@ describe('Patient Management Integration', () => {
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -86,6 +88,7 @@ describe('Patient Management Integration', () => {
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -112,6 +115,7 @@ describe('Patient Management Integration', () => {
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -139,6 +143,7 @@ describe('Patient Management Integration', () => {
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>

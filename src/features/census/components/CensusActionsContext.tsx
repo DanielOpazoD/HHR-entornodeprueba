@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { DischargeData, TransferData } from '@/types';
+import { DischargeData, TransferData, PatientData } from '@/types';
 import { EVACUATION_METHODS, RECEIVING_CENTERS } from '@/constants';
 import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
+import { CensusManager } from '@/domain/CensusManager';
 
 // --- Types ---
 
@@ -33,6 +34,7 @@ export interface TransferState {
     recordId?: string;
     isOpen: boolean;
     evacuationMethod: string;
+    evacuationMethodOther: string;
     receivingCenter: string;
     receivingCenterOther: string;
     transferEscort: string;
@@ -60,7 +62,7 @@ interface CensusActionsContextType {
     handleEditTransfer: (t: TransferData) => void;
 
     // Row Action Handler
-    handleRowAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => void;
+    handleRowAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string, patient: PatientData) => void;
 }
 
 const CensusActionsContext = createContext<CensusActionsContextType | undefined>(undefined);
@@ -105,6 +107,7 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
         bedId: null,
         isOpen: false,
         evacuationMethod: EVACUATION_METHODS[0],
+        evacuationMethodOther: '',
         receivingCenter: RECEIVING_CENTERS[0],
         receivingCenterOther: '',
         transferEscort: 'Enfermera'
@@ -112,120 +115,77 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
 
     // --- Handlers ---
 
-    const handleRowAction = useCallback(async (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string) => {
-        if (!record) return;
-
-        // Stability Check: Prevent destructive actions on historically locked records
+    const handleRowAction = useCallback(async (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma', bedId: string, patient: PatientData) => {
         if (!stabilityRules.canPerformActions) {
             alert(stabilityRules.lockReason || 'Este registro está bloqueado para ediciones.');
             return;
         }
 
-        if (action === 'clear') {
-            const confirmed = await confirm({
-                title: 'Limpiar cama',
-                message: '¿Está seguro de limpiar los datos de esta cama?',
-                confirmText: 'Sí, limpiar',
-                cancelText: 'Cancelar',
-                variant: 'warning'
-            });
-            if (confirmed) {
-                clearPatient(bedId);
+        switch (action) {
+            case 'clear': {
+                const confirmedClear = await confirm({
+                    title: 'Limpiar cama',
+                    message: '¿Está seguro de limpiar los datos de esta cama?',
+                    confirmText: 'Sí, limpiar',
+                    variant: 'warning'
+                });
+                if (confirmedClear) clearPatient(bedId);
+                break;
             }
-        } else if (action === 'copy' || action === 'move') {
-            setActionState({ type: action, sourceBedId: bedId, targetBedId: null });
-        } else if (action === 'discharge') {
-            const patient = record.beds[bedId];
-            const hasBaby = !!patient.clinicalCrib;
-            setDischargeState({
-                bedId,
-                recordId: undefined,
-                isOpen: true,
-                status: 'Vivo',
-                hasClinicalCrib: hasBaby,
-                clinicalCribName: patient.clinicalCrib?.patientName,
-                clinicalCribStatus: 'Vivo',
-                time: undefined,
-                dischargeTarget: hasBaby ? 'both' : undefined
-            });
-        } else if (action === 'transfer') {
-            const patient = record.beds[bedId];
-            const hasBaby = !!patient.clinicalCrib;
-            setTransferState({
-                bedId,
-                recordId: undefined,
-                isOpen: true,
-                evacuationMethod: EVACUATION_METHODS[0],
-                receivingCenter: RECEIVING_CENTERS[0],
-                receivingCenterOther: '',
-                transferEscort: 'Enfermera',
-                time: undefined,
-                hasClinicalCrib: hasBaby,
-                clinicalCribName: patient.clinicalCrib?.patientName
-            });
-        } else if (action === 'cma') {
-            // Egreso CMA: Copy patient data to CMA list with discharge time
-            const patient = record.beds[bedId];
-            if (!patient.patientName) return;
 
-            const confirmed = await confirm({
-                title: 'Egreso CMA',
-                message: `¿Registrar a ${patient.patientName} como egreso de Hospitalización Diurna (CMA)?`,
-                confirmText: 'Sí, registrar',
-                cancelText: 'Cancelar',
-                variant: 'warning'
-            });
+            case 'copy':
+            case 'move':
+                setActionState({ type: action, sourceBedId: bedId, targetBedId: null });
+                break;
 
-            if (confirmed) {
-                const now = new Date();
-                const dischargeTime = now.toTimeString().slice(0, 5);
+            case 'discharge':
+                setDischargeState(prev => ({
+                    ...prev,
+                    ...CensusManager.prepareDischarge(patient, bedId)
+                }));
+                break;
 
-                addCMA({
-                    bedName: bedId,
-                    patientName: patient.patientName,
-                    rut: patient.rut || '',
-                    age: patient.age || '',
-                    birthDate: patient.birthDate,
-                    biologicalSex: patient.biologicalSex,
-                    insurance: patient.insurance,
-                    admissionOrigin: patient.admissionOrigin,
-                    admissionOriginDetails: patient.admissionOriginDetails,
-                    origin: patient.origin,
-                    isRapanui: patient.isRapanui,
-                    diagnosis: patient.pathology || '',
-                    cie10Code: patient.cie10Code,
-                    cie10Description: patient.cie10Description,
-                    specialty: patient.specialty || '',
-                    interventionType: 'Cirugía Mayor Ambulatoria',
-                    dischargeTime,
-                    originalBedId: bedId,
-                    originalData: { ...patient }
+            case 'transfer':
+                setTransferState(prev => ({
+                    ...prev,
+                    ...CensusManager.prepareTransfer(patient, bedId, {
+                        evacuation: EVACUATION_METHODS[0],
+                        center: RECEIVING_CENTERS[0]
+                    })
+                }));
+                break;
+
+            case 'cma': {
+                if (!patient.patientName) return;
+                const confirmedCMA = await confirm({
+                    title: 'Egreso CMA',
+                    message: `¿Registrar a ${patient.patientName} como egreso de Hospitalización Diurna (CMA)?`,
+                    variant: 'warning'
                 });
 
-                // Clear the patient from the bed after CMA discharge
-                clearPatient(bedId);
+                if (confirmedCMA) {
+                    addCMA(CensusManager.formatCMAData(patient, bedId) as any);
+                    clearPatient(bedId);
+                }
+                break;
             }
         }
-    }, [record, confirm, clearPatient, addCMA, stabilityRules]);
+    }, [confirm, clearPatient, addCMA, stabilityRules]);
 
     const executeMoveOrCopy = useCallback((targetDate?: string) => {
-        if (!actionState.sourceBedId || !actionState.targetBedId || !actionState.type) return;
-
-        if (!stabilityRules.canPerformActions) {
-            alert(stabilityRules.lockReason || 'Acción bloqueada.');
+        const validation = CensusManager.validateMovement(actionState, record!);
+        if (!validation.isValid) {
+            alert(validation.error);
             return;
         }
 
         if (actionState.type === 'copy' && targetDate) {
-            // Cross-date copy with specific target bed
-            copyPatientToDate(actionState.sourceBedId, targetDate, actionState.targetBedId);
-            setActionState({ type: null, sourceBedId: null, targetBedId: null });
-            return;
+            copyPatientToDate(actionState.sourceBedId!, targetDate, actionState.targetBedId!);
+        } else {
+            moveOrCopyPatient(actionState.type!, actionState.sourceBedId!, actionState.targetBedId!);
         }
-
-        moveOrCopyPatient(actionState.type, actionState.sourceBedId, actionState.targetBedId);
         setActionState({ type: null, sourceBedId: null, targetBedId: null });
-    }, [actionState, moveOrCopyPatient, copyPatientToDate, stabilityRules]);
+    }, [actionState, moveOrCopyPatient, copyPatientToDate, record]);
 
     const executeDischarge = useCallback((data?: { status: 'Vivo' | 'Fallecido', type?: string, typeOther?: string, time?: string, dischargeTarget?: 'mother' | 'baby' | 'both' }) => {
         if (!stabilityRules.canPerformActions && !dischargeState.recordId) {
@@ -308,6 +268,7 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
             recordId: t.id,
             isOpen: true,
             evacuationMethod: t.evacuationMethod,
+            evacuationMethodOther: '',
             receivingCenter: t.receivingCenter,
             receivingCenterOther: t.receivingCenterOther || '',
             transferEscort: t.transferEscort || 'Enfermera',

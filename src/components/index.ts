@@ -20,6 +20,7 @@ export type { BaseModalProps, ModalSectionProps } from './shared/BaseModal';
 export { Navbar } from './layout/Navbar';
 export { DateStrip } from './layout/DateStrip';
 export { SummaryCard } from './layout/SummaryCard';
+export { default as StorageStatusBadge } from './layout/StorageStatusBadge';
 export { BookmarkBar } from './bookmarks/BookmarkBar';
 export type { ModuleType } from '@/constants/navigationConfig';
 

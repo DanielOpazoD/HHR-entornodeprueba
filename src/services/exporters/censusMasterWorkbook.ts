@@ -3,6 +3,7 @@ import { DailyRecord, PatientData, DischargeData, TransferData, CMAData } from '
 import { BEDS } from '@/constants';
 import { calculateStats, CensusStatistics } from '../calculations/statsCalculator';
 import { createWorkbook, BORDER_THIN, HEADER_FILL } from './excelUtils';
+import { getBedTypeForRecord } from '../../utils/bedTypeUtils';
 
 // Local styles specific to this workbook
 const FREE_FILL: Fill = {
@@ -227,7 +228,11 @@ function addCensusTable(sheet: Worksheet, record: DailyRecord, startRow: number)
         if (!shouldRenderExtra) return;
 
         const hasClinicalCrib = Boolean(patient?.clinicalCrib?.patientName?.trim());
-        currentRow = addCensusRow(sheet, currentRow, index++, bed.id, bed.type, patient);
+
+        // Use dynamic bed type (UCI/UTI override support)
+        const realBedType = getBedTypeForRecord(bed, record);
+
+        currentRow = addCensusRow(sheet, currentRow, index++, bed.id, realBedType, patient);
 
         if (hasClinicalCrib && patient?.clinicalCrib) {
             currentRow = addCensusRow(sheet, currentRow, index++, `${bed.id}-C`, 'Cuna', patient.clinicalCrib, patient.location);
@@ -260,7 +265,9 @@ function addCensusRow(
         patient?.rut || '',
         formatAge(patient?.age),
         patient?.pathology || '',
-        patient?.specialty || '',
+        patient?.secondarySpecialty
+            ? `${patient.specialty} / ${patient.secondarySpecialty}`
+            : (patient?.specialty || ''),
         formatDateDDMMYYYY(patient?.admissionDate),
         isBlocked ? 'Bloqueada' : patient?.status || (isFree ? 'Libre' : ''),
         patient ? (patient.hasWristband ? 'Sí' : 'No') : 'No',

@@ -24,9 +24,28 @@ import {
 import { DailyRecord, PatientData } from '@/types';
 import * as firestoreService from '@/services/storage/firestoreService';
 import { clearAllRecords } from '@/services/storage/indexedDBService';
+
 vi.unmock('../../services/repositories/DailyRecordRepository');
 vi.unmock('@/services/repositories/DailyRecordRepository');
 vi.unmock('@/services/repositories/CatalogRepository');
+
+// Mock Firebase SDK
+vi.mock('firebase/firestore', () => ({
+    getFirestore: vi.fn(),
+    collection: vi.fn(),
+    doc: vi.fn(),
+    getDoc: vi.fn(),
+    setDoc: vi.fn(),
+    updateDoc: vi.fn(),
+    deleteDoc: vi.fn(),
+    onSnapshot: vi.fn(),
+    query: vi.fn(),
+    where: vi.fn(),
+    getDocs: vi.fn(),
+    enableNetwork: vi.fn(),
+    disableNetwork: vi.fn(),
+    initializeFirestore: vi.fn()
+}));
 
 // Mock Firestore Service
 vi.mock('../../services/storage/firestoreService', () => ({
@@ -54,8 +73,21 @@ const createMockRecord = (date: string): DailyRecord => ({
     nursesNightShift: ['', ''],
     tensDayShift: ['', '', ''],
     tensNightShift: ['', '', ''],
-    activeExtraBeds: []
+    activeExtraBeds: [],
+    schemaVersion: 1,
+    dateTimestamp: new Date(date).getTime()
 });
+
+// Helper for valid patients
+const createValidPatient = (id: string, overrides: Partial<PatientData> = {}): PatientData => ({
+    bedId: id,
+    patientName: 'Valid Name',
+    rut: '11.111.111-1',
+    bedMode: 'Cama',
+    biologicalSex: 'Indeterminado',
+    hasWristband: false,
+    ...overrides
+} as PatientData);
 
 describe('DailyRecordRepository (Expanded)', () => {
     beforeEach(async () => {
@@ -69,7 +101,7 @@ describe('DailyRecordRepository (Expanded)', () => {
     describe('updatePartial', () => {
         it('updates local and remote data using dot notation', async () => {
             const initial = createMockRecord('2024-12-28');
-            initial.beds = { 'R1': { patientName: 'Old', bedId: 'R1' } as unknown as PatientData };
+            initial.beds = { 'R1': createValidPatient('R1', { patientName: 'Old' }) };
             await save(initial);
 
             await updatePartial('2024-12-28', { 'beds.R1.patientName': 'New' });
@@ -98,12 +130,11 @@ describe('DailyRecordRepository (Expanded)', () => {
             prev.nursesNightShift = ['Nurse Night 1', 'Nurse Night 2'];
             prev.tensNightShift = ['Tens N1', 'Tens N2', 'Tens N3'];
             prev.beds = {
-                'R1': {
+                'R1': createValidPatient('R1', {
                     patientName: 'Patient 1',
                     handoffNoteNightShift: 'Night report',
-                    handoffNoteDayShift: 'Night report',
-                    bedId: 'R1'
-                } as unknown as PatientData
+                    handoffNoteDayShift: 'Night report'
+                })
             };
 
             await save(prev);
@@ -121,12 +152,15 @@ describe('DailyRecordRepository (Expanded)', () => {
 
         it('clears clinical crib notes during inheritance if they were empty', async () => {
             const prev = createMockRecord('2024-12-27');
+            const clinicalCrib = createValidPatient('C1', {
+                patientName: 'Baby',
+                handoffNoteNightShift: 'Baby report'
+            });
             prev.beds = {
-                'R1': {
+                'R1': createValidPatient('R1', {
                     patientName: 'Mother',
-                    clinicalCrib: { patientName: 'Baby', handoffNoteNightShift: 'Baby report' } as unknown as PatientData,
-                    bedId: 'R1'
-                } as unknown as PatientData
+                    clinicalCrib: clinicalCrib
+                })
             };
             await save(prev);
 
@@ -204,7 +238,7 @@ describe('DailyRecordRepository (Expanded)', () => {
         it('copies patient if they only have diagnosis data', async () => {
             const prev = createMockRecord('2024-12-27');
             prev.beds = {
-                'R1': { bedId: 'R1', cie10Code: 'A09' } as unknown as PatientData
+                'R1': createValidPatient('R1', { cie10Code: 'A09' })
             };
             await save(prev);
 
@@ -214,30 +248,30 @@ describe('DailyRecordRepository (Expanded)', () => {
 
         it('preserves location for extra beds', async () => {
             const prev = createMockRecord('2024-12-27');
-            // We need an extra bed ID from constants. BEDS has some.
             prev.beds = {
-                'Extra-1': { bedId: 'Extra-1', patientName: 'P1', location: 'Hallway' } as unknown as PatientData
+                'Extra-1': createValidPatient('Extra-1', { location: 'Hallway' })
             };
             await save(prev);
 
             const initialized = await initializeDay('2024-12-28', '2024-12-27');
-            // This depends on BEDS list having 'Extra-1'. 
-            // In our mock/Beds constants, we should check what's available.
-            // If Extra-1 is indeed an extra bed, it should copy location.
             if (initialized.beds['Extra-1']) {
                 expect(initialized.beds['Extra-1'].location).toBe('Hallway');
             }
         });
 
-        it('preserves bedMode and companionCrib', async () => {
+        it('preserves isBlocked and companionCrib', async () => {
             const prev = createMockRecord('2024-12-27');
             prev.beds = {
-                'R1': { bedId: 'R1', bedMode: 'BLOQUEADA', hasCompanionCrib: true } as unknown as PatientData
+                'R1': createValidPatient('R1', {
+                    isBlocked: true,
+                    bedMode: 'Cama',
+                    hasCompanionCrib: true
+                })
             };
             await save(prev);
 
             const initialized = await initializeDay('2024-12-28', '2024-12-27');
-            expect(initialized.beds['R1'].bedMode).toBe('BLOQUEADA');
+            expect(initialized.beds['R1'].isBlocked).toBe(true);
             expect(initialized.beds['R1'].hasCompanionCrib).toBe(true);
         });
 

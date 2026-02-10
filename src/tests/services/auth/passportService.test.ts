@@ -6,8 +6,10 @@ import {
     verifyPassportCredentials,
     parsePassportFile,
     storePassportLocally,
-    getStoredPassport
+    getStoredPassport,
+    OfflinePassport
 } from '@/services/auth/passportService';
+import { AuthUser, UserRole } from '@/types';
 import * as idbService from '@/services/storage/indexedDBService';
 
 // Mock IndexedDB
@@ -21,7 +23,7 @@ describe('passportService', () => {
         uid: 'user123',
         email: 'admin@hospital.cl',
         displayName: 'Admin User',
-        role: 'admin'
+        role: 'admin' as const
     };
 
     beforeEach(() => {
@@ -53,8 +55,23 @@ describe('passportService', () => {
         });
 
         it('should return false for other roles or null', () => {
-            expect(isEligibleForPassport({ ...mockUser, role: 'resident' })).toBe(false);
+            expect(isEligibleForPassport({ ...mockUser, role: 'resident' as UserRole })).toBe(false);
             expect(isEligibleForPassport(null)).toBe(false);
+        });
+
+        it('should handle case insensitive roles', () => {
+            expect(isEligibleForPassport({ ...mockUser, role: 'ADMIN' as UserRole })).toBe(true);
+            expect(isEligibleForPassport({ ...mockUser, role: 'Nurse_Hospital' as UserRole })).toBe(true);
+        });
+
+        it('should return false for user without role property', () => {
+            const userWithoutRole = { uid: '1', email: 'test@test.com', displayName: 'Test' };
+            expect(isEligibleForPassport(userWithoutRole)).toBe(false);
+        });
+
+        it('should return false for viewer and editor roles', () => {
+            expect(isEligibleForPassport({ ...mockUser, role: 'viewer' as UserRole })).toBe(false);
+            expect(isEligibleForPassport({ ...mockUser, role: 'editor' as UserRole })).toBe(false);
         });
     });
 
@@ -90,12 +107,73 @@ describe('passportService', () => {
                 expect(result.error).toContain('expirado');
             }
         });
+
+        it('should fail validation for passport with empty email', async () => {
+            const passport = await generatePassport(mockUser);
+            if (passport) {
+                passport.email = '';
+                passport.signature += '-e2e-test';
+                const result = await validatePassport(passport);
+                expect(result.valid).toBe(false);
+                expect(result.error).toContain('incompleto');
+            }
+        });
+
+        it('should fail validation for passport with empty role', async () => {
+            const passport = await generatePassport(mockUser as AuthUser);
+            if (passport) {
+                passport.role = '' as UserRole;
+                passport.signature += '-e2e-test';
+                const result = await validatePassport(passport);
+                expect(result.valid).toBe(false);
+            }
+        });
+
+        it('should fail validation for passport with invalid expiresAt date', async () => {
+            const issuedAt = new Date();
+            const passport: OfflinePassport = {
+                email: mockUser.email || '',
+                role: mockUser.role as UserRole,
+                displayName: mockUser.displayName || mockUser.email || 'Usuario',
+                issuedAt: issuedAt.toISOString(),
+                expiresAt: 'not-a-date', // This is the invalid date for the test
+                signature: 'mock-sig-e2e-test'
+            };
+            const result = await validatePassport(passport);
+            expect(result.valid).toBe(false);
+            expect(result.error).toContain('expiración');
+        });
+
+        it('should return null when non-admin tries to generate passport', async () => {
+            const nonAdminUser = { ...mockUser, role: 'nurse_hospital' as UserRole };
+            const passport = await generatePassport({ ...nonAdminUser, uid: 'nurse123' } as AuthUser);
+            expect(passport).toBeNull();
+        });
     });
 
     describe('verifyPassportCredentials', () => {
         it('should fail for old passports without hash', async () => {
             const passport = await generatePassport(mockUser);
             if (passport) {
+                const isValid = await verifyPassportCredentials(passport, mockUser.email, 'password');
+                expect(isValid).toBe(false);
+            }
+        });
+
+        it('should fail when email does not match', async () => {
+            const passport = await generatePassport(mockUser);
+            if (passport) {
+                passport.hash = 'somehash';
+                passport.salt = 'somesalt';
+                const isValid = await verifyPassportCredentials(passport, 'different@email.com', 'password');
+                expect(isValid).toBe(false);
+            }
+        });
+
+        it('should fail when passport has hash but no salt', async () => {
+            const passport = await generatePassport(mockUser);
+            if (passport) {
+                passport.hash = 'somehash';
                 const isValid = await verifyPassportCredentials(passport, mockUser.email, 'password');
                 expect(isValid).toBe(false);
             }

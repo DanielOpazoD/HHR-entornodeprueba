@@ -2,7 +2,8 @@ import React from 'react';
 import { Statistics } from '@/types';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
-import { BedSummaryCard, CribSummaryCard, MovementSummaryCard } from '@/components/layout/SummaryCard';
+// import { OnDutyProfessionalsCard } from './OnDutyProfessionalsCard';
+import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
 import { useDailyRecordActions, useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
 
@@ -20,13 +21,18 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     readOnly = false,
     stats
 }) => {
-    const {
-        nursesDayShift,
-        nursesNightShift,
-        tensDayShift,
-        tensNightShift
-    } = useDailyRecordStaff();
-    const { discharges, transfers, cma } = useDailyRecordMovements();
+    const staffData = useDailyRecordStaff();
+    const movementsData = useDailyRecordMovements();
+
+    const nursesDayShift = staffData?.nursesDayShift;
+    const nursesNightShift = staffData?.nursesNightShift;
+    const tensDayShift = staffData?.tensDayShift;
+    const tensNightShift = staffData?.tensNightShift;
+
+    const discharges = movementsData?.discharges;
+    const transfers = movementsData?.transfers;
+    const cma = movementsData?.cma;
+
     const { updateNurse, updateTens } = useDailyRecordActions();
     const { nursesList, tensList } = useStaffContext();
 
@@ -55,18 +61,18 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 className={readOnly ? "pointer-events-none opacity-80" : ""}
             />
 
-            {/* Stats Summary Cards */}
+            {/* Combined Stats Summary Card */}
             {stats && (
-                <>
-                    <BedSummaryCard stats={stats} />
-                    <CribSummaryCard stats={stats} />
-                    <MovementSummaryCard
-                        discharges={discharges || []}
-                        transfers={transfers || []}
-                        cmaCount={cma?.length || 0}
-                    />
-                </>
+                <CombinedSummaryCard
+                    stats={stats}
+                    discharges={discharges || []}
+                    transfers={transfers || []}
+                    cmaCount={cma?.length || 0}
+                />
             )}
+
+            {/* On-Duty Professionals Card (Hidden temporarily) */}
+            {/* <OnDutyProfessionalsCard readOnly={readOnly} /> */}
         </div>
     );
 };

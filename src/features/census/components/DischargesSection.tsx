@@ -8,7 +8,7 @@ import clsx from 'clsx';
 // Interface for props removed as data comes from context
 
 export const DischargesSection: React.FC = () => {
-    const { discharges } = useDailyRecordMovements();
+    const { discharges } = useDailyRecordMovements() || { discharges: [] };
     const { undoDischarge, deleteDischarge, updateDischarge } = useDailyRecordActions();
     const { handleEditDischarge } = useCensusActions();
 

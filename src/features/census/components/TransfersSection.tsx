@@ -7,7 +7,7 @@ import { ArrowRightLeft, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 // Interface for props removed as data comes from context
 
 export const TransfersSection: React.FC = () => {
-    const { transfers } = useDailyRecordMovements();
+    const { transfers } = useDailyRecordMovements() || { transfers: [] };
     const { undoTransfer, deleteTransfer, updateTransfer } = useDailyRecordActions();
     const { handleEditTransfer } = useCensusActions();
 

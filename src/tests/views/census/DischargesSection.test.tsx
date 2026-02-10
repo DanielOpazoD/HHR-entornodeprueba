@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
 import { useCensusActions } from '@/features/census/components/CensusActionsContext';
-import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
@@ -13,13 +13,15 @@ vi.mock('@/features/census/components/CensusActionsContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
     useDailyRecordData: vi.fn(),
-    useDailyRecordActions: vi.fn()
+    useDailyRecordActions: vi.fn(),
+    useDailyRecordMovements: vi.fn()
 }));
 
 describe('DischargesSection', () => {
     const mockOnUndo = vi.fn();
     const mockOnDelete = vi.fn();
     const mockHandleEdit = vi.fn();
+    const mockUpdateDischarge = vi.fn();
 
     const mockDischarges = [
         DataFactory.createMockDischarge({
@@ -35,13 +37,16 @@ describe('DischargesSection', () => {
         vi.mocked(useCensusActions).mockReturnValue({ handleEditDischarge: mockHandleEdit } as any);
         (useDailyRecordActions as any).mockReturnValue({
             undoDischarge: mockOnUndo,
-            deleteDischarge: mockOnDelete
+            deleteDischarge: mockOnDelete,
+            updateDischarge: mockUpdateDischarge
         });
+        // Default empty movements
+        (useDailyRecordMovements as any).mockReturnValue({ discharges: [] });
     });
 
     it('renders empty message when no discharges', () => {
-        (useDailyRecordData as any).mockReturnValue({
-            record: { discharges: [] }
+        (useDailyRecordMovements as any).mockReturnValue({
+            discharges: []
         });
 
         render(<DischargesSection />);
@@ -49,8 +54,8 @@ describe('DischargesSection', () => {
     });
 
     it('renders discharge list and triggers actions', () => {
-        (useDailyRecordData as any).mockReturnValue({
-            record: { discharges: mockDischarges }
+        (useDailyRecordMovements as any).mockReturnValue({
+            discharges: mockDischarges
         });
 
         render(<DischargesSection />);

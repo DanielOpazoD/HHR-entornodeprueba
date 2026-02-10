@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedOperations } from '@/hooks/useBedOperations';
-import { DailyRecord, PatientData, Specialty, PatientStatus } from '@/types';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { DailyRecord, PatientData } from '@/types';
+// patientFactory is mocked inline
 import { logPatientCleared } from '@/services/admin/auditService';
 
 // Mock patientFactory

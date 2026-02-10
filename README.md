@@ -72,9 +72,10 @@ Usuario → View → Context → TanStack Query → Repository → Firebase/Inde
 ```
 ├── components/              # Componentes React (Censo, Layout, Modales)
 ├── features/                # Módulos por funcionalidad (CUDYR, Handoff, Analytics)
-├── core/                    # Núcleo del sistema (Auth, Database)
+├── core/                    # Núcleo del sistema (@core/ui, Auth)
+├── domain/                  # Lógica de negocio pura (CensusManager)
 ├── hooks/                   # Hooks transversales (Query, UI, Validation)
-├── services/                # Lógica de negocio y repositorios
+├── services/                # Infraestructura y repositorios
 ├── context/                 # Estado global compartido
 ├── constants/               # Configuración estática y mapas
 ├── schemas/                 # Esquemas de validación Zod
@@ -211,4 +212,4 @@ Propiedad del Hospital Hanga Roa. Uso privado e institucional.
 
 ---
 
-*Última actualización: 25 de Enero 2026*
+*Última actualización: 08 de Febrero 2026*

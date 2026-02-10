@@ -33,6 +33,7 @@ export const NameInput: React.FC<NameInputProps> = ({
                 )}
                 <DebouncedInput
                     type="text"
+                    name="patientName"
                     className={clsx(
                         "w-full p-0.5 h-7 border rounded transition-all duration-200 focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 focus:outline-none text-[13px] font-medium",
                         isSubRow ? "border-pink-100 bg-white text-xs h-6" : "border-slate-200 bg-white",

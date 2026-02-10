@@ -6,7 +6,7 @@
  * Expiration: 3 years
  */
 
-import { AuthUser } from './authService';
+import { AuthUser, UserRole } from '@/types';
 import { getSetting, saveSetting } from '../storage/indexedDBService';
 import { safeJsonParse } from '@/utils/jsonUtils';
 
@@ -16,7 +16,7 @@ import { safeJsonParse } from '@/utils/jsonUtils';
 
 export interface OfflinePassport {
     email: string;
-    role: string;
+    role: UserRole;
     displayName: string;
     issuedAt: string;
     expiresAt: string;
@@ -168,7 +168,7 @@ export const generatePassport = async (user: AuthUser, targetRole?: string): Pro
 
     const passport: Omit<OfflinePassport, 'signature'> = {
         email: user.email || '',
-        role: roleToUse,
+        role: roleToUse as UserRole,
         displayName: user.displayName || user.email || 'Usuario',
         issuedAt,
         expiresAt: expiresAt.toISOString(),

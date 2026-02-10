@@ -24,6 +24,7 @@ export interface DateNavigationProps {
     currentDateString: string;
     daysInMonth: number;
     existingDaysInMonth: number[];
+    navigateDays: (delta: number) => void;
 }
 
 export interface DateStripActionsProps {
@@ -71,6 +72,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
     selectedYear, setSelectedYear,
     selectedMonth, setSelectedMonth,
     selectedDay, setSelectedDay,
+    navigateDays,
 
     daysInMonth,
     existingDaysInMonth,
@@ -139,15 +141,15 @@ export const DateStrip: React.FC<DateStripProps> = ({
             e.preventDefault();
 
             if (e.deltaY > 0) {
-                setSelectedDay(d => Math.min(d + 1, daysInMonth));
+                navigateDays(1);
             } else if (e.deltaY < 0) {
-                setSelectedDay(d => Math.max(d - 1, 1));
+                navigateDays(-1);
             }
         };
 
         container.addEventListener('wheel', handleNativeWheel, { passive: false });
         return () => container.removeEventListener('wheel', handleNativeWheel);
-    }, [daysInMonth, setSelectedDay]);
+    }, [navigateDays]);
 
     return (
         <div

@@ -97,10 +97,10 @@ flowchart TB
         Hooks
     end
 
-    subgraph Domain["Domain / Reglas"]
-        Validators["Zod Schemas + Validations"]
+    subgraph Domain["Domain / Reglas Puras"]
+        CensusManager["CensusManager (Class)"]
+        Validators["Zod Schemas"]
         Invariants["Record Invariants"]
-        Calculators["Stats + Calculations"]
     end
 
     subgraph Data["Data Access"]

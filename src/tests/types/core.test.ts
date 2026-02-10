@@ -14,7 +14,6 @@ import {
     CMAData,
     DailyRecord,
     Statistics,
-    CudyrScore,
 } from '@/types/core';
 
 describe('core types', () => {
@@ -23,13 +22,17 @@ describe('core types', () => {
             expect(BedType.UTI).toBe('UTI');
         });
 
+        it('should have UCI type', () => {
+            expect(BedType.UCI).toBe('UCI');
+        });
+
         it('should have MEDIA type', () => {
             expect(BedType.MEDIA).toBe('MEDIA');
         });
 
-        it('should have exactly 2 bed types', () => {
+        it('should have exactly 3 bed types', () => {
             const values = Object.values(BedType);
-            expect(values).toHaveLength(2);
+            expect(values).toHaveLength(3);
         });
     });
 
@@ -101,6 +104,10 @@ describe('core types', () => {
                 admissionDate: '2026-01-15',
                 admissionTime: '10:00',
                 age: '45',
+                hasWristband: false,
+                devices: [],
+                surgicalComplication: false,
+                isUPC: false,
             };
             expect(patient.patientName).toBe('Juan Pérez');
             expect(patient.specialty).toBe('Med Interna');
@@ -121,6 +128,10 @@ describe('core types', () => {
                 admissionDate: '',
                 admissionTime: '',
                 age: '',
+                hasWristband: false,
+                devices: [],
+                surgicalComplication: false,
+                isUPC: false,
             };
             expect(bed.isBlocked).toBe(true);
             expect(bed.blockedReason).toBe('Mantención');
@@ -156,6 +167,10 @@ describe('core types', () => {
                     pharmacology: 2,
                     invasiveElements: 1,
                 },
+                hasWristband: true,
+                devices: ['CVC'],
+                surgicalComplication: false,
+                isUPC: true,
             };
             expect(patient.cudyr?.changeClothes).toBe(2);
             expect(patient.cudyr?.mobilization).toBe(3);

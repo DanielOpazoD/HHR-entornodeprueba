@@ -3,7 +3,7 @@
  * Tests service worker behavior and offline data handling.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { DailyRecord, PatientData } from '@/types';
 
 // Mock localStorage

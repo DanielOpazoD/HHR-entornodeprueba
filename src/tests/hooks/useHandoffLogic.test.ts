@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useHandoffLogic } from '@/hooks/useHandoffLogic';
-import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { Specialty, PatientStatus } from '@/types';
 import * as dateUtils from '@/utils/dateUtils';
 
@@ -18,7 +18,8 @@ vi.mock('@/context/AuditContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
     useDailyRecordData: vi.fn(),
-    useDailyRecordActions: vi.fn()
+    useDailyRecordActions: vi.fn(),
+    useDailyRecordMovements: vi.fn()
 }));
 
 vi.mock('@/utils/dateUtils');
@@ -66,9 +67,11 @@ describe('useHandoffLogic', () => {
             record: mockRecord as any,
             syncStatus: 'synced' as any,
             lastSyncTime: null,
-            inventory: {} as any
+            inventory: {} as any,
+            stabilityRules: {} as any,
         });
         vi.mocked(useDailyRecordActions).mockReturnValue({} as any);
+        (useDailyRecordMovements as any).mockReturnValue({ discharges: [], transfers: [], cma: [] });
     });
 
     afterEach(() => {
@@ -148,7 +151,8 @@ describe('useHandoffLogic', () => {
             record: recordWithEvent as any,
             syncStatus: 'synced' as any,
             lastSyncTime: null,
-            inventory: {} as any
+            inventory: {} as any,
+            stabilityRules: {} as any,
         });
         vi.mocked(useDailyRecordActions).mockReturnValue({ updatePatient: mockUpdate2 } as any);
 

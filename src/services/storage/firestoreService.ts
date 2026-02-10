@@ -10,11 +10,10 @@ import {
     Timestamp,
     onSnapshot,
     where,
-    updateDoc,
-    limit
+    updateDoc
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { DailyRecord, DailyRecordPatch } from '@/types';
+import { DailyRecord, DailyRecordPatch, ProfessionalCatalogItem } from '@/types';
 import { withRetry } from '@/utils/networkUtils';
 
 import {
@@ -94,8 +93,7 @@ const ensureArray = (value: unknown, defaultLength: number): string[] => {
 export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
     try {
         const q = query(
-            getRecordsCollection(),
-            limit(100)
+            getRecordsCollection()
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => doc.id).sort().reverse();
@@ -264,7 +262,12 @@ export const saveRecordToFirestore = async (record: DailyRecord, expectedLastUpd
  * Used for Firestore partial updates to avoid overwriting nested objects.
  */
 const flattenObject = (obj: Record<string, unknown>, prefix = ''): Record<string, unknown> => {
-    return Object.keys(obj).reduce((acc: Record<string, unknown>, k) => {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) {
+        return prefix ? { [prefix]: {} } : {};
+    }
+
+    return keys.reduce((acc: Record<string, unknown>, k) => {
         const pre = prefix.length ? prefix + '.' : '';
         const val = obj[k];
         if (
@@ -295,14 +298,14 @@ export const updateRecordPartial = async (date: string, partialData: DailyRecord
 
         // Flatten the data to handle nested fields correctly (dot-notation)
         // and add timestamp
-        const flatData = flattenObject(partialData);
+        const flatData = flattenObject(partialData as unknown as Record<string, unknown>);
         const sanitizedData = sanitizeForFirestore({
             ...flatData,
             lastUpdated: Timestamp.now()
-        });
+        }) as Record<string, unknown>;
 
         try {
-            await withRetry(() => updateDoc(docRef, sanitizedData as Record<string, unknown>), {
+            await withRetry(() => updateDoc(docRef as any, sanitizedData as any), {
                 onRetry: (err: unknown, attempt: number) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
             });
         } catch (error: unknown) {
@@ -311,7 +314,7 @@ export const updateRecordPartial = async (date: string, partialData: DailyRecord
             if (storageError?.code === 'not-found') {
                 console.warn(`[Firestore] Document ${date} not found for partial update. Creating with setDoc.`);
                 // Use setDoc with merge: true to create the document
-                await withRetry(() => setDoc(docRef, sanitizedData as Record<string, unknown>, { merge: true }));
+                await withRetry(() => setDoc(docRef, sanitizedData, { merge: true }));
             } else {
                 throw error;
             }
@@ -604,4 +607,61 @@ export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
         console.error('❌ Error moving record to trash:', error);
         throw error;
     }
+};
+
+// ============================================================================
+// Professionals Catalog Persistence
+// ============================================================================
+
+/**
+ * Get the professionals catalog from Firestore
+ */
+export const getProfessionalsCatalogFromFirestore = async (): Promise<ProfessionalCatalogItem[]> => {
+    try {
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, 'professionals_catalog');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return (data.list as ProfessionalCatalogItem[]) || [];
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching professionals catalog from Firestore:', error);
+        return [];
+    }
+};
+
+/**
+ * Save the professionals catalog to Firestore
+ */
+export const saveProfessionalsCatalogToFirestore = async (professionals: ProfessionalCatalogItem[]): Promise<void> => {
+    try {
+        const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, 'professionals_catalog');
+        await withRetry(() => setDoc(docRef, {
+            list: professionals,
+            lastUpdated: new Date().toISOString()
+        }));
+    } catch (error) {
+        console.error('Error saving professionals catalog to Firestore:', error);
+        throw error;
+    }
+};
+
+/**
+ * Subscribe to professionals catalog changes in real-time
+ */
+export const subscribeToProfessionalsCatalog = (callback: (professionals: ProfessionalCatalogItem[]) => void): (() => void) => {
+    const docRef = doc(db, COLLECTIONS.HOSPITALS, getActiveHospitalId(), HOSPITAL_COLLECTIONS.SETTINGS, 'professionals_catalog');
+
+    return onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const professionals = (data.list as ProfessionalCatalogItem[]) || [];
+            callback(professionals);
+        }
+    }, (error) => {
+        console.error('❌ Error subscribing to professionals catalog:', error);
+        callback([]);
+    });
 };

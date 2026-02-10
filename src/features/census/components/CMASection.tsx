@@ -10,7 +10,7 @@ const INTERVENTION_TYPES = [
 ] as const;
 
 export const CMASection: React.FC = () => {
-    const { cma } = useDailyRecordMovements();
+    const { cma } = useDailyRecordMovements() || { cma: [] };
     const { deleteCMA, updateCMA, updatePatientMultiple } = useDailyRecordActions();
     const { confirm } = useConfirmDialog();
 

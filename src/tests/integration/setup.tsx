@@ -128,9 +128,14 @@ export const createMockDailyRecordContext = (record: DailyRecord | null): DailyR
 
     // Inventory - Required for data context
     inventory: {
-        beds: [],
-        nurses: [],
-        tens: [],
+        occupiedBeds: [],
+        freeBeds: [],
+        blockedBeds: [],
+        occupiedCount: 0,
+        blockedCount: 0,
+        availableCount: 0,
+        occupancyRate: 0,
+        isFull: false
     },
 
     // Day Management
@@ -145,13 +150,17 @@ export const createMockDailyRecordContext = (record: DailyRecord | null): DailyR
     updateClinicalCrib: vi.fn(),
     updateClinicalCribMultiple: vi.fn(),
     updateClinicalCribCudyr: vi.fn(),
+    updateClinicalCribCudyrMultiple: vi.fn(),
     updateCudyr: vi.fn(),
+    updateCudyrMultiple: vi.fn(),
     clearPatient: vi.fn(),
     clearAllBeds: vi.fn(),
     moveOrCopyPatient: vi.fn(),
     toggleBlockBed: vi.fn(),
     updateBlockedReason: vi.fn(),
     toggleExtraBed: vi.fn(),
+    toggleBedType: vi.fn(),
+    copyPatientToDate: vi.fn().mockResolvedValue(undefined),
 
     // Nurse/TENS Management
     updateNurse: vi.fn(),
@@ -182,6 +191,15 @@ export const createMockDailyRecordContext = (record: DailyRecord | null): DailyR
     updateMedicalHandoffDoctor: vi.fn().mockResolvedValue(undefined),
     markMedicalHandoffAsSent: vi.fn().mockResolvedValue(undefined),
     sendMedicalHandoff: vi.fn().mockResolvedValue(undefined),
+
+    // Validation helpers
+    validateRecordSchema: vi.fn(() => ({ isValid: true, errors: [] })),
+    canMovePatient: vi.fn(() => ({ canMove: true })),
+    canDischargePatient: vi.fn(() => true),
+
+    // Professional coverage
+    updateOnDutyProfessional: vi.fn(),
+    updateOnDutyProfessionalsFull: vi.fn(),
 });
 
 export const createMockModal = (overrides: Partial<UseModalReturn<any>> = {}): UseModalReturn<any> => ({
@@ -205,6 +223,8 @@ export const createMockUIState = (overrides: Partial<UseUIStateReturn> = {}): Us
     setIsTestAgentRunning: vi.fn(),
     selectedShift: 'day',
     setSelectedShift: vi.fn(),
+    censusLocalViewMode: 'TABLE',
+    setCensusLocalViewMode: vi.fn(),
     showPrintButton: true,
     showBookmarksBar: true,
     setShowBookmarksBar: vi.fn(),

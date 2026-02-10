@@ -23,6 +23,7 @@ export const AdmissionInput: React.FC<AdmissionInputProps> = ({
     onMultipleUpdate
 }) => {
     const [showTime, setShowTime] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const isCriticalEmpty = !data.admissionDate && !!data.patientName;
 
     if (isEmpty && !isSubRow) {
@@ -51,7 +52,11 @@ export const AdmissionInput: React.FC<AdmissionInputProps> = ({
     };
 
     return (
-        <td className="py-0.5 px-1 border-r border-slate-200 w-28">
+        <td
+            className="py-0.5 px-1 border-r border-slate-200 w-28"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
             <div
                 className="w-full relative"
                 onFocusCapture={() => setShowTime(true)}
@@ -66,6 +71,7 @@ export const AdmissionInput: React.FC<AdmissionInputProps> = ({
                     max={new Date().toISOString().split('T')[0]}
                     className={clsx(
                         "w-full p-0.5 h-7 border rounded focus:ring-2 focus:outline-none text-xs",
+                        isHovered || showTime ? "show-calendar-icon" : "hide-calendar-icon",
                         isCriticalEmpty
                             ? "border-red-400 border-2 bg-red-50 focus:ring-red-200 focus:border-red-500"
                             : "border-slate-300 focus:ring-medical-500",

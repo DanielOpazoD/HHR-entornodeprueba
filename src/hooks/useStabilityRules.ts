@@ -112,5 +112,5 @@ export const useStabilityRules = (record: DailyRecord | null): StabilityRules =>
             canPerformActions,
             lockReason
         };
-    }, [record, isAdmin, isEditor]);
+    }, [record?.date, isAdmin, isEditor]);
 };

@@ -28,7 +28,7 @@ import { BackupFolder } from '@/hooks/useBackupFilesQuery';
 import clsx from 'clsx';
 
 // Tab configuration for backup types
-const BACKUP_TABS: { type: BackupType; label: string; icon: React.ElementType }[] = [
+const BACKUP_TABS: { type: BackupType; label: string; icon: any }[] = [
     { type: 'handoff', label: 'Entregas', icon: MessageSquare },
     { type: 'census', label: 'Censo', icon: LayoutList },
     { type: 'cudyr', label: 'CUDYR', icon: BarChart3 },

@@ -60,6 +60,7 @@ describe('PatientRow Component', () => {
                         currentDateString="2023-01-01"
                         onAction={mockOnAction}
                         showCribControls={false}
+                        bedType={BedType.UTI}
                     />
                 </tbody>
             </table>
@@ -81,6 +82,7 @@ describe('PatientRow Component', () => {
                         currentDateString="2023-01-01"
                         onAction={mockOnAction}
                         showCribControls={false}
+                        bedType={BedType.UTI}
                     />
                 </tbody>
             </table>
@@ -103,6 +105,7 @@ describe('PatientRow Component', () => {
                         currentDateString="2023-01-01"
                         onAction={mockOnAction}
                         showCribControls={false}
+                        bedType={BedType.UTI}
                     />
                 </tbody>
             </table>
@@ -125,6 +128,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -151,6 +155,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -177,6 +182,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -206,6 +212,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -229,6 +236,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -256,6 +264,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -273,7 +282,7 @@ describe('PatientRow Component', () => {
                 const actionBtn = screen.getByText(new RegExp(actionText, 'i'));
                 fireEvent.click(actionBtn);
 
-                expect(mockOnAction).toHaveBeenCalledWith(expectedActions[index], 'R1');
+                expect(mockOnAction).toHaveBeenCalledWith(expectedActions[index], 'R1', mockPatient);
             });
         });
 
@@ -287,6 +296,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -316,6 +326,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -340,6 +351,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={false}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -378,6 +390,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -406,6 +419,7 @@ describe('PatientRow Component', () => {
                             currentDateString="2023-01-01"
                             onAction={mockOnAction}
                             showCribControls={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -444,6 +458,7 @@ describe('PatientRow Component', () => {
                             onAction={mockOnAction}
                             showCribControls={false}
                             isSubRow={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>
@@ -474,6 +489,7 @@ describe('PatientRow Component', () => {
                             onAction={mockOnAction}
                             showCribControls={false}
                             isSubRow={true}
+                            bedType={BedType.UTI}
                         />
                     </tbody>
                 </table>

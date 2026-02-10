@@ -104,10 +104,112 @@ export const MovementSummaryCard: React.FC<{ discharges: DischargeData[], transf
  */
 export const SummaryCard: React.FC<SummaryCardProps> = ({ stats, discharges = [], transfers = [], cmaCount = 0 }) => {
     return (
-        <div className="flex gap-3 flex-wrap">
-            <BedSummaryCard stats={stats} />
-            <CribSummaryCard stats={stats} />
-            <MovementSummaryCard discharges={discharges} transfers={transfers} cmaCount={cmaCount} />
+        <CombinedSummaryCard stats={stats} discharges={discharges} transfers={transfers} cmaCount={cmaCount} />
+    );
+};
+
+/**
+ * Combined Summary Card - All stats sections in one unified card (compact 2-row)
+ */
+export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({ stats, discharges = [], transfers = [], cmaCount = 0 }) => {
+    const capacidadServicio = stats.serviceCapacity - stats.blockedBeds;
+    const deaths = discharges.filter(d => d.status === 'Fallecido').length;
+    const totalDischarges = discharges.length;
+    const totalTransfers = transfers.length;
+
+    return (
+        <div className="card px-2 py-1.5 flex flex-row gap-0 hover:border-slate-300 transition-colors animate-fade-in">
+            {/* Section 1: Censo Camas */}
+            <div className="pr-3 flex flex-col gap-0.5">
+                <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
+                    <Bed size={11} className="text-medical-500" />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Censo Camas</span>
+                </div>
+                {/* Row 1: Ocu + Cap */}
+                <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-1 bg-slate-50/80 rounded px-1.5 py-0.5 border border-slate-100/50">
+                        <span className="text-slate-500 text-[9px]">Ocu.</span>
+                        <span className="font-bold text-medical-900 text-[10px]">{stats.occupiedBeds}</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-medical-50 rounded px-1.5 py-0.5 border border-medical-100/50">
+                        <span className="text-medical-700 font-bold text-[9px]">Cap:</span>
+                        <span className="font-bold text-medical-900 text-[10px]">{capacidadServicio}</span>
+                    </div>
+                </div>
+                {/* Row 2: Bloq + Lib */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 border border-transparent">
+                        <span className="text-red-500 text-[9px]">Bloq.</span>
+                        <span className="font-bold text-red-600 text-[10px]">{stats.blockedBeds}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 border border-transparent">
+                        <span className="text-slate-400 text-[9px]">Lib.</span>
+                        <span className="font-bold text-slate-600 text-[10px]">{stats.availableCapacity}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Vertical Separator */}
+            <div className="w-px bg-slate-200 mx-1 self-stretch" />
+
+            {/* Section 2: Recursos Cuna */}
+            <div className="px-3 flex flex-col gap-0.5">
+                <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
+                    <Baby size={11} className="text-medical-500" />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Recursos Cuna</span>
+                </div>
+                {/* Row 1: Clínicas + RN Sano */}
+                <div className="flex items-center gap-3 mt-0.5">
+                    <div className="flex items-center gap-1">
+                        <span className="text-slate-500 text-[9px]">Clínicas</span>
+                        <span className="font-bold text-medical-600 text-[10px]">{stats.clinicalCribsCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-slate-500 text-[9px]">RN Sano</span>
+                        <span className="font-bold text-green-600 text-[10px]">{stats.companionCribs}</span>
+                    </div>
+                </div>
+                {/* Row 2: Total */}
+                <div className="flex items-center gap-1">
+                    <span className="text-medical-900 font-bold text-[9px]">Total Uso</span>
+                    <span className="font-bold text-medical-800 text-[10px]">{stats.totalCribsUsed}</span>
+                </div>
+            </div>
+
+            {/* Vertical Separator */}
+            <div className="w-px bg-slate-200 mx-1 self-stretch" />
+
+            {/* Section 3: Movimientos */}
+            <div className="pl-3 flex flex-col gap-0.5">
+                <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
+                    <Activity size={11} className="text-medical-500" />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Movimientos</span>
+                </div>
+                {/* Row 1: Egresos + Traslados */}
+                <div className="flex items-center gap-3 mt-0.5">
+                    <div className="flex items-center gap-1 text-[9px]">
+                        <span className="text-slate-500">Egresos</span>
+                        <span className="font-bold text-green-600 text-[10px]">{totalDischarges}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[9px]">
+                        <span className="text-slate-500">Traslados</span>
+                        <span className="font-bold text-blue-600 text-[10px]">{totalTransfers}</span>
+                    </div>
+                </div>
+                {/* Row 2: H.Diurna + Fallecidos */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 text-[9px]">
+                        <span className="text-slate-500">H.Diurna</span>
+                        <span className="font-bold text-orange-600 text-[10px]">{cmaCount}</span>
+                    </div>
+                    {deaths > 0 && (
+                        <div className="flex items-center gap-1 text-[9px]">
+                            <span className="text-red-500 font-bold">Fall.</span>
+                            <span className="font-bold text-red-600 text-[10px]">{deaths}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

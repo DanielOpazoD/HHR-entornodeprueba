@@ -5,11 +5,12 @@
  */
 
 import { useCallback } from 'react';
-import { DailyRecord, PatientData } from '@/types';
+import { DailyRecord, PatientData, BedType } from '@/types';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants';
 import { useAuditContext } from '@/context/AuditContext';
 import { DailyRecordPatch } from './useDailyRecordTypes';
+import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 
 // ============================================================================
 // Types
@@ -41,6 +42,11 @@ export interface BedOperationsActions {
      * Toggle extra bed activation
      */
     toggleExtraBed: (bedId: string) => void;
+
+    /**
+     * Toggle bed type (UTI/UCI)
+     */
+    toggleBedType: (bedId: string) => void;
 }
 
 // ============================================================================
@@ -250,6 +256,41 @@ export const useBedOperations = (
         );
     }, [record, patchRecord, logEvent]);
 
+    const toggleBedType = useCallback((bedId: string) => {
+        if (!record) return;
+        const bedDef = BEDS.find(b => b.id === bedId);
+        if (!bedDef) return;
+
+        // Current type with overrides
+        const currentType = getBedTypeForRecord(bedDef, record);
+
+        // Cycle between UTI and UCI
+        const nextType = currentType === BedType.UTI ? BedType.UCI : BedType.UTI;
+
+        const updatedOverrides = { ...(record.bedTypeOverrides || {}) };
+
+        // If next type is same as base type, remove override to keep record clean
+        if (nextType === bedDef.type) {
+            delete updatedOverrides[bedId];
+        } else {
+            updatedOverrides[bedId] = nextType;
+        }
+
+        patchRecord({
+            bedTypeOverrides: updatedOverrides
+        } as unknown as DailyRecordPatch);
+
+        // Audit Log
+        logEvent(
+            'PATIENT_MODIFIED',
+            'patient',
+            bedId,
+            { action: 'toggle_bed_type', from: currentType, to: nextType },
+            record.beds[bedId]?.rut,
+            record.date
+        );
+    }, [record, patchRecord, logEvent]);
+
     // ========================================================================
     // Return API
     // ========================================================================
@@ -260,6 +301,7 @@ export const useBedOperations = (
         moveOrCopyPatient,
         toggleBlockBed,
         updateBlockedReason,
-        toggleExtraBed
+        toggleExtraBed,
+        toggleBedType
     };
 };

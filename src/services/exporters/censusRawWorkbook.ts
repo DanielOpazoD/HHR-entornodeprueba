@@ -3,7 +3,7 @@ import { DailyRecord, PatientData } from '@/types';
 import { BEDS } from '@/constants';
 import { formatDateDDMMYYYY } from '@/utils/dateUtils';
 import { createWorkbook } from './excelUtils';
-
+import { getBedTypeForRecord } from '../../utils/bedTypeUtils';
 
 const getRawHeader = () => [
     'FECHA', 'CAMA', 'TIPO_CAMA', 'UBICACION', 'MODO_CAMA', 'TIENE_ACOMPANANTE',
@@ -72,8 +72,10 @@ export const extractRowsFromRecord = (record: DailyRecord): CensusRawRow[] => {
         const isBlocked = p.isBlocked;
         const hasClinicalCrib = p.clinicalCrib && p.clinicalCrib.patientName;
 
+        const realBedType = getBedTypeForRecord(bed, record);
+
         if (isOccupied || isBlocked) {
-            rows.push(generateRawRow(date, bed.id, bed.type, p, nurses, record.lastUpdated));
+            rows.push(generateRawRow(date, bed.id, realBedType, p, nurses, record.lastUpdated));
         }
 
         if (hasClinicalCrib && p.clinicalCrib) {

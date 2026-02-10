@@ -18,7 +18,7 @@ export const SpecialtyBreakdownTable: React.FC<SpecialtyBreakdownTableProps> = (
         isOpen: boolean;
         title: string;
         patients: import('@/types/minsalTypes').PatientTraceability[];
-        type: 'dias-cama' | 'egresos';
+        type: 'dias-cama' | 'egresos' | 'fallecidos' | 'traslados';
     }>({
         isOpen: false,
         title: '',

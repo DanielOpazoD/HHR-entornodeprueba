@@ -130,8 +130,8 @@ export const HandoffDiagnosisCell: React.FC<HandoffDiagnosisCellProps> = ({
                 </div>
 
                 {!showEvents && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                        <MedicalBadge variant={statusVariant} className="text-center w-full justify-center">
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200 flex justify-start">
+                        <MedicalBadge variant={statusVariant} className="text-center">
                             {patient.status}
                         </MedicalBadge>
                     </div>
@@ -163,7 +163,7 @@ interface HandoffDevicesCellProps {
 }
 
 export const HandoffDevicesCell: React.FC<HandoffDevicesCellProps> = ({ patient, reportDate }) => (
-    <td className="p-2 border-r border-slate-200 w-20 text-xs align-middle print:w-auto print:text-[9px] print:p-1">
+    <td className="p-2 border-r border-slate-200 w-28 text-xs align-middle print:w-auto print:text-[9px] print:p-1">
         <div className="flex flex-wrap gap-1">
             {patient.devices.length > 0 ? patient.devices.map(d => {
                 let deviceDays: number | null = null;

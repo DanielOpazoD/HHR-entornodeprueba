@@ -7,7 +7,7 @@ interface ImportModalProps {
     onImport: () => void;
     onClose: () => void;
     importing: boolean;
-    error: string;
+    error: string | null;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({

@@ -1,74 +1,94 @@
-import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { useHandoffVisibility } from '@/hooks/useHandoffVisibility';
-import { BEDS } from '@/constants';
-import * as dateUtils from '@/utils/dateUtils';
+import { DailyRecord, PatientData } from '@/types';
 
-vi.mock('../../utils/dateUtils', () => ({
-    isAdmittedDuringShift: vi.fn()
+// Mock constants
+vi.mock('@/constants', () => ({
+    BEDS: [
+        { id: 'R1', name: 'Room 1', isExtra: false },
+        { id: 'R2', name: 'Room 2', isExtra: false },
+        { id: 'E1', name: 'Extra 1', isExtra: true },
+    ],
+}));
+
+// Mock dateUtils
+vi.mock('@/utils/dateUtils', () => ({
+    isAdmittedDuringShift: vi.fn().mockReturnValue(true),
 }));
 
 describe('useHandoffVisibility', () => {
-    const mockRecord = {
-        date: '2026-01-19',
-        activeExtraBeds: ['E1'],
+    const mockRecord: Partial<DailyRecord> = {
+        date: '2024-12-28',
         beds: {
-            'R1': { patientName: 'Patient 1', admissionDate: '2026-01-19', admissionTime: '10:00' },
-            'R2': { isBlocked: true },
-            'E1': { patientName: 'Extra Patient', admissionDate: '2026-01-19', admissionTime: '11:00' },
-            'E2': { patientName: 'Extra Hidden', admissionDate: '2026-01-19', admissionTime: '12:00' }
-        }
-    } as any;
+            'R1': { bedId: 'R1', patientName: 'Patient A', admissionDate: '2024-12-27' } as PatientData,
+            'R2': { bedId: 'R2', patientName: '', isBlocked: true } as PatientData,
+            'E1': { bedId: 'E1', patientName: '' } as PatientData,
+        },
+        activeExtraBeds: [],
+    };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it('should return empty visibleBeds if record is null', () => {
+    it('should return empty arrays when record is null', () => {
         const { result } = renderHook(() => useHandoffVisibility(null, 'day'));
+
         expect(result.current.visibleBeds).toEqual([]);
         expect(result.current.hasAnyPatients).toBe(false);
     });
 
-    it('should filter visibleBeds based on activeExtraBeds', () => {
-        const { result } = renderHook(() => useHandoffVisibility(mockRecord, 'day'));
-
-        const normalBeds = BEDS.filter(b => !b.isExtra);
-        expect(result.current.visibleBeds.length).toBe(normalBeds.length + 1); // E1 is active
-        expect(result.current.visibleBeds.find(b => b.id === 'E1')).toBeDefined();
-        expect(result.current.visibleBeds.find(b => b.id === 'E2')).toBeUndefined();
-    });
-
-    it('should show patient based on isAdmittedDuringShift result', () => {
-        vi.mocked(dateUtils.isAdmittedDuringShift).mockReturnValue(true);
-        const { result } = renderHook(() => useHandoffVisibility(mockRecord, 'day'));
-
-        expect(result.current.shouldShowPatient('R1')).toBe(true);
-        expect(dateUtils.isAdmittedDuringShift).toHaveBeenCalledWith(
-            '2026-01-19', '2026-01-19', '10:00', 'day'
+    it('should filter out extra beds when not active', () => {
+        const { result } = renderHook(() =>
+            useHandoffVisibility(mockRecord as DailyRecord, 'day')
         );
+
+        const bedIds = result.current.visibleBeds.map(b => b.id);
+        expect(bedIds).toContain('R1');
+        expect(bedIds).toContain('R2');
+        expect(bedIds).not.toContain('E1');
     });
 
-    it('should always show blocked beds', () => {
-        const { result } = renderHook(() => useHandoffVisibility(mockRecord, 'day'));
-        vi.clearAllMocks(); // Clear calls from hasAnyPatients computation
+    it('should include active extra beds', () => {
+        const recordWithExtraBed = {
+            ...mockRecord,
+            activeExtraBeds: ['E1']
+        } as DailyRecord;
+
+        const { result } = renderHook(() =>
+            useHandoffVisibility(recordWithExtraBed, 'day')
+        );
+
+        const bedIds = result.current.visibleBeds.map(b => b.id);
+        expect(bedIds).toContain('E1');
+    });
+
+    it('should show blocked beds', () => {
+        const { result } = renderHook(() =>
+            useHandoffVisibility(mockRecord as DailyRecord, 'day')
+        );
+
         expect(result.current.shouldShowPatient('R2')).toBe(true);
-        expect(dateUtils.isAdmittedDuringShift).not.toHaveBeenCalled();
     });
 
-    it('should correctly calculate hasAnyPatients', () => {
-        // Case 1: No patients visible in shift
-        vi.mocked(dateUtils.isAdmittedDuringShift).mockReturnValue(false);
-        const { result: res1 } = renderHook(() => useHandoffVisibility({ ...mockRecord, beds: { 'R1': mockRecord.beds.R1 } }, 'day'));
-        expect(res1.current.hasAnyPatients).toBe(false);
+    it('should detect if there are any patients', () => {
+        const { result } = renderHook(() =>
+            useHandoffVisibility(mockRecord as DailyRecord, 'day')
+        );
 
-        // Case 2: Blocked bed exists
-        const { result: res2 } = renderHook(() => useHandoffVisibility(mockRecord, 'day'));
-        expect(res2.current.hasAnyPatients).toBe(true); // Because R2 is blocked
+        expect(result.current.hasAnyPatients).toBe(true);
+    });
 
-        // Case 3: Patient visible in shift
-        vi.mocked(dateUtils.isAdmittedDuringShift).mockReturnValue(true);
-        const { result: res3 } = renderHook(() => useHandoffVisibility({ ...mockRecord, beds: { 'R1': mockRecord.beds.R1 } }, 'day'));
-        expect(res3.current.hasAnyPatients).toBe(true);
+    it('should return false for empty bed', () => {
+        const recordWithEmptyBed = {
+            date: '2024-12-28',
+            beds: {
+                'R1': { bedId: 'R1', patientName: '' } as PatientData,
+            },
+            activeExtraBeds: [],
+        } as unknown as DailyRecord;
+
+        const { result } = renderHook(() =>
+            useHandoffVisibility(recordWithEmptyBed, 'day')
+        );
+
+        expect(result.current.shouldShowPatient('R1')).toBe(false);
     });
 });

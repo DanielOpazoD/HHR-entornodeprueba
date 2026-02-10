@@ -1,5 +1,10 @@
 import { PatientData } from '@/types';
-import { SurveyData } from '@/hooks/useImageRequest';
+export interface SurveyData {
+    diagnostico: string;
+    peso: string;
+    telefono: string;
+    medicoTratante: string;
+}
 import { FieldDataSource } from '@/types/printTemplates';
 
 export const mapSourceToValue = (

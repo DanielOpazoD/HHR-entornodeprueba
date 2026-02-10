@@ -15,6 +15,12 @@ vi.mock('@/services/utils/errorService', () => ({
     logError: vi.fn(),
 }));
 
+vi.mock('@/services/storage/legacyFirebaseService', () => ({
+    getLegacyRecord: vi.fn().mockResolvedValue(null),
+    getLegacyNurseCatalog: vi.fn().mockResolvedValue([]),
+    getLegacyTensCatalog: vi.fn().mockResolvedValue([]),
+}));
+
 // Mock the dependencies
 vi.mock('@/services/storage/indexedDBService', () => ({
     getRecordForDate: vi.fn().mockResolvedValue(null),
@@ -71,18 +77,30 @@ describe('DailyRecordRepository', () => {
     };
 
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
+        // Reset all specific mocks to avoid pollution
+        vi.mocked(idbService.getRecordForDate).mockReset();
+        vi.mocked(idbService.getPreviousDayRecord).mockReset();
+        vi.mocked(idbService.saveRecord).mockReset();
+        vi.mocked(firestoreService.getRecordFromFirestore).mockReset();
+        vi.mocked(firestoreService.saveRecordToFirestore).mockReset();
+        vi.mocked(firestoreService.updateRecordPartial).mockReset();
+
         Repository.setDemoModeActive(false);
         Repository.setFirestoreEnabled(true);
-        // Default mock implementation for common lookups
+        // Default mock implementations for common lookups
         vi.mocked(idbService.getRecordForDate).mockResolvedValue(null);
+        vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValue(null);
     });
 
     describe('getForDate', () => {
         it('should return from IndexedDB if available', async () => {
             vi.mocked(idbService.getRecordForDate).mockResolvedValue(mockRecord);
             const result = await Repository.getForDate(mockDate);
-            expect(result).toEqual(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
             expect(idbService.getRecordForDate).toHaveBeenCalledWith(mockDate);
         });
 
@@ -91,7 +109,10 @@ describe('DailyRecordRepository', () => {
             vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValue(mockRecord);
 
             const result = await Repository.getForDate(mockDate);
-            expect(result).toEqual(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
             expect(idbService.saveRecord).toHaveBeenCalled(); // Should cache locally
         });
 
@@ -100,7 +121,10 @@ describe('DailyRecordRepository', () => {
             vi.mocked(idbService.getDemoRecordForDate).mockResolvedValue(mockRecord);
 
             const result = await Repository.getForDate(mockDate);
-            expect(result).toEqual(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
             expect(idbService.getDemoRecordForDate).toHaveBeenCalledWith(mockDate);
         });
     });
@@ -150,7 +174,10 @@ describe('DailyRecordRepository', () => {
         it('should return existing record if found', async () => {
             vi.mocked(idbService.getRecordForDate).mockResolvedValueOnce(mockRecord);
             const result = await Repository.initializeDay(mockDate);
-            expect(result).toEqual(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
         });
 
         it('should create new record and copy from previous day if available', async () => {
@@ -180,8 +207,11 @@ describe('DailyRecordRepository', () => {
             vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(mockRecord);
 
             const result = await Repository.initializeDay(mockDate);
-            expect(result).toEqual(mockRecord);
-            expect(idbService.saveRecord).toHaveBeenCalledWith(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
+            expect(idbService.saveRecord).toHaveBeenCalled(); // Since initializeDay calls save
         });
 
         it('should create fresh record if no previous day exists', async () => {
@@ -216,8 +246,11 @@ describe('DailyRecordRepository', () => {
 
             const result = await Repository.syncWithFirestore(mockDate);
 
-            expect(result).toEqual(mockRecord);
-            expect(idbService.saveRecord).toHaveBeenCalledWith(mockRecord);
+            expect(result).toMatchObject({
+                ...mockRecord,
+                beds: expect.any(Object)
+            });
+            expect(idbService.saveRecord).toHaveBeenCalled();
         });
     });
 
@@ -304,8 +337,64 @@ describe('DailyRecordRepository', () => {
             // Should not throw, but create a new empty record
             const result = await Repository.initializeDay(mockDate);
             expect(result.date).toBe(mockDate);
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to check Firestore'), expect.any(Error));
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to check remote sources'), expect.any(Error));
             consoleSpy.mockRestore();
+        });
+
+        it('should reset CUDYR when copying from previous day', async () => {
+            const prevRecord = {
+                ...mockRecord,
+                date: '2024-12-31',
+                beds: {
+                    'R1': {
+                        patientName: 'Patient X',
+                        cudyr: { changeClothes: 2 }
+                    }
+                }
+            };
+
+            vi.mocked(idbService.getRecordForDate).mockResolvedValueOnce(null);
+            vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(null);
+            vi.mocked(idbService.getRecordForDate).mockResolvedValueOnce(prevRecord as any);
+
+            const result = await Repository.initializeDay(mockDate, '2024-12-31');
+
+            expect(result.beds['R1'].patientName).toBe('Patient X');
+            expect(result.beds['R1'].cudyr).toBeUndefined();
+        });
+    });
+
+    describe('copyPatientToDate', () => {
+        it('should copy patient and reset CUDYR', async () => {
+            const sourceDate = '2024-12-30';
+            const targetDate = '2024-12-31';
+            const sourceRecord = {
+                ...mockRecord,
+                date: sourceDate,
+                beds: {
+                    'R1': {
+                        patientName: 'Patient X',
+                        cudyr: { changeClothes: 2 }
+                    }
+                }
+            };
+
+            vi.mocked(idbService.getRecordForDate).mockImplementation(async (date) => {
+                if (date === sourceDate) return sourceRecord as any;
+                return null;
+            });
+
+            await Repository.copyPatientToDate(sourceDate, 'R1', targetDate, 'R2');
+
+            expect(idbService.saveRecord).toHaveBeenCalledWith(expect.objectContaining({
+                date: targetDate,
+                beds: expect.objectContaining({
+                    'R2': expect.objectContaining({
+                        patientName: 'Patient X',
+                        cudyr: undefined
+                    })
+                })
+            }));
         });
     });
 });

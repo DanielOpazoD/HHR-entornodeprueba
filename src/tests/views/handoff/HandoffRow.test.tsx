@@ -60,7 +60,7 @@ describe('HandoffRow', () => {
                 </tbody>
             </table>
         );
-        expect(screen.getByText(PatientStatus.GRAVE)).toHaveClass('bg-red-100');
+        expect(screen.getByText(PatientStatus.GRAVE)).toHaveClass('bg-red-50');
 
         const cuidadoPatient = createMockPatient({ status: PatientStatus.DE_CUIDADO });
         rerender(
@@ -70,7 +70,7 @@ describe('HandoffRow', () => {
                 </tbody>
             </table>
         );
-        expect(screen.getByText(PatientStatus.DE_CUIDADO)).toHaveClass('bg-orange-100');
+        expect(screen.getByText(PatientStatus.DE_CUIDADO)).toHaveClass('bg-orange-50');
     });
 
     it('displays event indicator when clinicalEvents exist', () => {

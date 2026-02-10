@@ -30,7 +30,14 @@ vi.mock('@/context/DailyRecordContext', () => ({
         deleteDischarge: vi.fn(),
         undoTransfer: vi.fn(),
         deleteTransfer: vi.fn()
-    })
+    }),
+    useDailyRecordMovements: () => ({
+        discharges: [],
+        transfers: [],
+        cma: []
+    }),
+    useDailyRecordBeds: () => ({}),
+    useDailyRecordStaff: () => ({ activeExtraBeds: [] })
 }));
 
 vi.mock('@/context/StaffContext', () => ({
@@ -63,11 +70,11 @@ describe('useCensusLogic', () => {
     });
 
     describe('Initial State', () => {
-        it('should return record from context', async () => {
+        it('should return census data from context', async () => {
             const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 
-            expect(result.current.record).toBeDefined();
-            expect(result.current.record?.date).toBe('2025-01-10');
+            expect(result.current.beds).toBeDefined();
+            expect(result.current.movements).toBeDefined();
             await waitFor(() => {
                 expect(DailyRecordRepository.getPreviousDay).toHaveBeenCalled();
             });

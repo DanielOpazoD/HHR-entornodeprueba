@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { mapPatientToFhir, mapEncounterToFhir, mapRecordToFhirBundle, mapMasterPatientToFhir } from '@/services/utils/fhirMappers';
-import { PatientData, Specialty, PatientStatus, DailyRecord } from '@/types';
+import { PatientData, Specialty, PatientStatus, DailyRecord, FhirResource } from '@/types';
+
+// Local FHIR interfaces for convenience in testing
+interface FhirPatient extends FhirResource {
+    identifier?: Array<{ system: string; value: string; use?: string }>;
+    name?: Array<{ text: string; family?: string; given?: string[]; use?: string }>;
+    gender?: string;
+    birthDate?: string;
+}
+
+interface FhirEncounter extends FhirResource {
+    status?: string;
+    class: { code: string; system?: string; display?: string };
+    subject: { identifier: { value: string; system?: string } };
+}
+
+interface FhirBundle extends FhirResource {
+    type: string;
+    entry?: Array<{ fullUrl: string; resource: FhirResource }>;
+}
 
 describe('FhirMappingService', () => {
     const mockPatient: PatientData = {
@@ -24,7 +43,7 @@ describe('FhirMappingService', () => {
     };
 
     it('should map a patient to FHIR Patient resource', () => {
-        const fhirPatient = mapPatientToFhir(mockPatient);
+        const fhirPatient = mapPatientToFhir(mockPatient) as FhirPatient;
 
         expect(fhirPatient.resourceType).toBe('Patient');
         expect(fhirPatient.identifier![0].value).toBe('12.345.678-9');
@@ -34,14 +53,14 @@ describe('FhirMappingService', () => {
     });
 
     it('should map specific name fields (family and given)', () => {
-        const fhirPatient = mapPatientToFhir(mockPatient);
+        const fhirPatient = mapPatientToFhir(mockPatient) as FhirPatient;
         expect(fhirPatient.name![0].family).toBe('SOTO');
         expect(fhirPatient.name![0].given).toContain('JUAN');
         expect(fhirPatient.name![0].given).toContain('PEREZ');
     });
 
     it('should map patient to FHIR Encounter resource', () => {
-        const fhirEncounter = mapEncounterToFhir(mockPatient, 'hanga_roa');
+        const fhirEncounter = mapEncounterToFhir(mockPatient, 'hanga_roa') as FhirEncounter;
 
         expect(fhirEncounter.resourceType).toBe('Encounter');
         expect(fhirEncounter.status).toBe('in-progress');
@@ -57,7 +76,7 @@ describe('FhirMappingService', () => {
             gender: 'Femenino'
         };
 
-        const fhirPatient = mapMasterPatientToFhir(mockMaster);
+        const fhirPatient = mapMasterPatientToFhir(mockMaster) as FhirPatient;
         expect(fhirPatient.resourceType).toBe('Patient');
         expect(fhirPatient.identifier![0].value).toBe('98.765.432-1');
         expect(fhirPatient.name![0].family).toBe('TORRES');
@@ -78,12 +97,11 @@ describe('FhirMappingService', () => {
             activeExtraBeds: []
         };
 
-        const bundle = mapRecordToFhirBundle(mockRecord);
+        const bundle = mapRecordToFhirBundle(mockRecord) as FhirBundle;
         expect(bundle.resourceType).toBe('Bundle');
         expect(bundle.type).toBe('transaction');
         expect(bundle.entry).toBeDefined();
         // Since entries are mapped as [Patient, Encounter], we expect 2
-        // @ts-expect-error - entry is unknown in FhirResource by default but we know it's there
-        expect(bundle.entry.length).toBe(2);
+        expect(bundle.entry!.length).toBe(2);
     });
 });

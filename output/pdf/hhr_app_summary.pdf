@@ -1,0 +1,162 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 2471 >>
+stream
+BT
+/F1 18 Tf
+50.00 742.00 Td
+(Hospital Hanga Roa - App Summary) Tj
+ET
+BT
+/F1 12 Tf
+50.00 716.00 Td
+(What it is) Tj
+ET
+BT
+/F1 10 Tf
+50.00 700.00 Td
+(A web-based clinical management system for Hospital Hanga Roa \(Easter Island, Chile\) built) Tj
+ET
+BT
+50.00 688.00 Td
+(with React, TypeScript, and Firebase. It centralizes daily census, handoff, reporting, and) Tj
+ET
+BT
+50.00 676.00 Td
+(audit workflows for hospital operations.) Tj
+ET
+BT
+/F1 12 Tf
+50.00 660.00 Td
+(Who it is for) Tj
+ET
+BT
+/F1 10 Tf
+50.00 644.00 Td
+(Primary users are hospital clinical staff \(nurses and physicians\) with administrative) Tj
+ET
+BT
+50.00 632.00 Td
+(oversight.) Tj
+ET
+BT
+/F1 12 Tf
+50.00 616.00 Td
+(What it does) Tj
+ET
+BT
+/F1 10 Tf
+50.00 600.00 Td
+(- Real-time daily census tracking for beds and patients.) Tj
+ET
+BT
+50.00 588.00 Td
+(- CUDYR dependency scoring with automated categorization.) Tj
+ET
+BT
+50.00 576.00 Td
+(- Digital handoff for nursing and medical shifts with signatures.) Tj
+ET
+BT
+50.00 564.00 Td
+(- Centralized reporting and export with cloud sync.) Tj
+ET
+BT
+50.00 552.00 Td
+(- Offline-first operation with IndexedDB and background sync.) Tj
+ET
+BT
+50.00 540.00 Td
+(- Audit trail for immutable clinical actions.) Tj
+ET
+BT
+50.00 528.00 Td
+(- Automated WhatsApp notifications for shift communication.) Tj
+ET
+BT
+/F1 12 Tf
+50.00 512.00 Td
+(How it works \(architecture overview\)) Tj
+ET
+BT
+/F1 10 Tf
+50.00 496.00 Td
+(- Client: React views and components, React Contexts, and TanStack Query cache/sync.) Tj
+ET
+BT
+50.00 484.00 Td
+(- Local storage: IndexedDB via Dexie for offline-first persistence.) Tj
+ET
+BT
+50.00 472.00 Td
+(- Backend: Firebase Firestore for real-time data, Firebase Auth for login, and Cloud Storage) Tj
+ET
+BT
+62.00 460.00 Td
+(for backups.) Tj
+ET
+BT
+50.00 448.00 Td
+(- Serverless: Netlify Functions integrate with Gmail API and a WhatsApp proxy; external) Tj
+ET
+BT
+62.00 436.00 Td
+(WhatsApp bot handles messaging.) Tj
+ET
+BT
+50.00 424.00 Td
+(- Data flow: UI -> Context -> TanStack Query -> Repository -> Firestore/IndexedDB with) Tj
+ET
+BT
+62.00 412.00 Td
+(optimistic updates.) Tj
+ET
+BT
+/F1 12 Tf
+50.00 396.00 Td
+(How to run \(minimal steps\)) Tj
+ET
+BT
+/F1 10 Tf
+50.00 380.00 Td
+(- Install Node.js 20.x+ and npm 9.x+.) Tj
+ET
+BT
+50.00 368.00 Td
+(- Install dependencies: npm install) Tj
+ET
+BT
+50.00 356.00 Td
+(- Create env file: cp .env.example .env \(set Firebase credentials\).) Tj
+ET
+BT
+50.00 344.00 Td
+(- Start dev server: npm run dev \(http://localhost:3000\)) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2834
+%%EOF

@@ -59,6 +59,16 @@ service cloud.firestore {
       );
     }
 
+    // Check if the record is for the current calendar day
+    // This allows a 24-hour window from the record's start timestamp
+    function isCurrentDay(recordTS) {
+      let now = request.time.toMillis();
+      return recordTS != null && (
+             now >= recordTS && 
+             now < (recordTS + 86400000)
+      );
+    }
+
     // Check if the update is only for medical signature fields
     function isMedicalUpdate() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
@@ -84,8 +94,8 @@ service cloud.firestore {
         allow update: if isAdmin() || 
                         (isNurse() && isWithinEditingWindow(resource.data.dateTimestamp)) ||
                         (isAuthenticated() && isMedicalUpdate());
-        // Delete: Admin only
-        allow delete: if isAdmin();
+        // Delete: Admin always, Nurse only if it's the current day
+        allow delete: if isAdmin() || (isNurse() && isCurrentDay(resource.data.dateTimestamp));
         
         // History subcollection
         match /history/{historyId} {
@@ -105,7 +115,8 @@ service cloud.firestore {
       // ----------------------------------------
       match /settings/{settingId} {
         allow read: if isAuthenticated();
-        allow write: if isAdmin();
+        // Allow both Admins and Nurses to update catalogs and settings
+        allow write: if canEdit();
       }
       
       // ----------------------------------------

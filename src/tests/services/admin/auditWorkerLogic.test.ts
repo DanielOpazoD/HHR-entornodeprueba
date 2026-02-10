@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { filterLogs, groupLogs, calculateAuditStats, parseAuditTimestamp } from '@/services/admin/auditWorkerLogic';
 import { AuditLogEntry, AuditAction, WorkerFilterParams } from '@/types/audit';
 
@@ -79,9 +79,15 @@ describe('AuditWorkerLogic', () => {
     });
 
     it('should calculate stats correctly', () => {
+        // Mock system time to match log date (2026-01-31)
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-01-31T12:00:00Z'));
+
         const stats = calculateAuditStats(mockLogs, ['PATIENT_ADMITTED']);
         expect(stats.todayCount).toBe(2);
         expect(stats.criticalCount).toBe(1);
         expect(stats.activeUserCount).toBe(1);
+
+        vi.useRealTimers();
     });
 });

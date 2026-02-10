@@ -3,8 +3,8 @@
  * Tests basic bed operation logic without complex hook dependencies.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { PatientData, DailyRecord } from '@/types';
+import { describe, it, expect } from 'vitest';
+import { PatientData } from '@/types';
 
 // Test helper functions directly instead of hooks
 const createEmptyPatient = (bedId: string): PatientData => ({

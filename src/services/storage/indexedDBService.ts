@@ -46,21 +46,21 @@ export class HangaRoaDatabase extends Dexie {
  * Now includes a basic in-memory store to keep the session functional.
  */
 export const createMockDatabase = (): HangaRoaDatabase => {
-    const memoryStore: Record<string, Map<string, any>> = {
-        dailyRecords: new Map(),
-        demoRecords: new Map(),
-        catalogs: new Map(),
-        errorLogs: new Map(),
-        auditLogs: new Map(),
-        settings: new Map(),
-        syncQueue: new Map()
+    const memoryStore: Record<string, Map<string, unknown>> = {
+        dailyRecords: new Map<string, unknown>(),
+        demoRecords: new Map<string, unknown>(),
+        catalogs: new Map<string, unknown>(),
+        errorLogs: new Map<string, unknown>(),
+        auditLogs: new Map<string, unknown>(),
+        settings: new Map<string, unknown>(),
+        syncQueue: new Map<string, unknown>()
     };
 
     const createMockTable = (tableName: string) => ({
         toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values())),
         get: (key: string) => Promise.resolve(memoryStore[tableName].get(key) || null),
-        put: (item: any) => {
-            const key = item.date || item.id || 'default';
+        put: (item: Record<string, unknown>) => {
+            const key = (item.date as string) || (item.id as string) || 'default';
             memoryStore[tableName].set(key, item);
             return Promise.resolve(key);
         },
@@ -72,27 +72,31 @@ export const createMockDatabase = (): HangaRoaDatabase => {
             memoryStore[tableName].clear();
             return Promise.resolve();
         },
-        bulkPut: (items: any[]) => {
+        bulkPut: (items: Record<string, unknown>[]) => {
             items.forEach(item => {
-                const key = item.date || item.id || 'default';
+                const key = (item.date as string) || (item.id as string) || 'default';
                 memoryStore[tableName].set(key, item);
             });
             return Promise.resolve('');
         },
-        update: (id: any, changes: any) => {
-            const existing = Array.from(memoryStore[tableName].values()).find((item: any) => (item.id || item.date) === id);
+        update: (id: string, changes: Record<string, unknown>) => {
+            const existing = Array.from(memoryStore[tableName].values()).find((item) => {
+                const i = item as Record<string, unknown>;
+                return (i.id || i.date) === id;
+            }) as Record<string, unknown> | undefined;
+
             if (existing) {
                 Object.assign(existing, changes);
             }
             return Promise.resolve(existing ? 1 : 0);
         },
-        add: (item: any) => {
-            const id = item.id || Math.random().toString();
+        add: (item: Record<string, unknown>) => {
+            const id = (item.id as string) || Math.random().toString();
             const newItem = { ...item, id };
             memoryStore[tableName].set(id, newItem);
             return Promise.resolve(id);
         },
-        orderBy: (keyPath: string) => ({
+        orderBy: (_keyPath: string) => ({
             reverse: () => ({
                 limit: (n: number) => ({ toArray: () => Promise.resolve(Array.from(memoryStore[tableName].values()).slice(0, n)) }),
                 keys: () => Promise.resolve(Array.from(memoryStore[tableName].keys())),
@@ -110,24 +114,30 @@ export const createMockDatabase = (): HangaRoaDatabase => {
                     }
                 })
             }),
-            equals: (val: any) => ({
-                first: () => Promise.resolve(memoryStore[tableName].get(val) || null),
+            equals: (val: unknown) => ({
+                first: () => Promise.resolve(memoryStore[tableName].get(val as string) || null),
                 count: () => Promise.resolve(
-                    Array.from(memoryStore[tableName].values()).filter((item: any) => item[keyName] === val).length
+                    Array.from(memoryStore[tableName].values()).filter((item) => (item as Record<string, unknown>)[keyName] === val).length
                 ),
                 toArray: () => Promise.resolve(
-                    Array.from(memoryStore[tableName].values()).filter((item: any) => item[keyName] === val)
+                    Array.from(memoryStore[tableName].values()).filter((item) => (item as Record<string, unknown>)[keyName] === val)
                 ),
                 sortBy: (sortKey: string) => Promise.resolve(
                     Array.from(memoryStore[tableName].values())
-                        .filter((item: any) => item[keyName] === val)
-                        .sort((a: any, b: any) => (a[sortKey] > b[sortKey] ? 1 : -1))
+                        .filter((item) => (item as Record<string, unknown>)[keyName] === val)
+                        .sort((a, b) => {
+                            const valA = (a as Record<string, unknown>)[sortKey];
+                            const valB = (b as Record<string, unknown>)[sortKey];
+                            if (typeof valA === 'string' && typeof valB === 'string') return valA.localeCompare(valB);
+                            if (typeof valA === 'number' && typeof valB === 'number') return valA - valB;
+                            return 0;
+                        })
                 )
             }),
             startsWith: (prefix: string) => ({
                 toArray: () => Promise.resolve(
-                    Array.from(memoryStore[tableName].values()).filter((item: any) =>
-                        String(item[keyName] || '').startsWith(prefix)
+                    Array.from(memoryStore[tableName].values()).filter((item) =>
+                        String((item as Record<string, unknown>)[keyName] || '').startsWith(prefix)
                     )
                 )
             })
@@ -701,7 +711,7 @@ export const getSetting = async <T>(id: string, defaultValue: T): Promise<T> => 
             if (typeof window === 'undefined' || !window.localStorage) return defaultValue;
             const val = localStorage.getItem(id);
             if (val) {
-                return safeJsonParse<T>(val, val as unknown as T);
+                return safeJsonParse<T>(val, val as T);
             }
             return defaultValue;
         }

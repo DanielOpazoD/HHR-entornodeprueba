@@ -1,12 +1,6 @@
 /**
  * DeviceSelector Component
  * Main component for selecting and managing patient devices.
- * 
- * This component ORCHESTRATES sub-components:
- * - DeviceBadge: Individual device badge display
- * - DeviceMenu: Dropdown menu for device selection
- * - VVPSelector: VVP count selection (used within DeviceMenu)
- * - DeviceDateConfigModal: Modal for device date configuration
  */
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
@@ -17,8 +11,7 @@ import {
     DeviceDateConfigModal,
     DeviceBadge,
     DeviceMenu,
-    TRACKED_DEVICES,
-    TrackedDevice
+    DeviceRetireModal
 } from './device-selector';
 
 // ============================================================================
@@ -35,13 +28,8 @@ const normalizeDevices = (devices: string[]): string[] => {
     return [...nonVvpDevices, ...VVP_DEVICE_KEYS.slice(0, finalCount)];
 };
 
-const _areArraysEqual = (a: string[], b: string[]) => {
-    if (a.length !== b.length) return false;
-    return a.every((val, idx) => val === b[idx]);
-};
-
 // ============================================================================
-// Types
+// Component
 // ============================================================================
 
 interface DeviceSelectorProps {
@@ -53,10 +41,6 @@ interface DeviceSelectorProps {
     currentDate?: string;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     devices = [],
     deviceDetails = {},
@@ -66,9 +50,11 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     currentDate
 }) => {
     const [showMenu, setShowMenu] = useState(false);
-    const [editingDevice, setEditingDevice] = useState<string | null>(null); // Now supports any device
+    const [editingDevice, setEditingDevice] = useState<string | null>(null);
+    const [pendingAddition, setPendingAddition] = useState<string | null>(null);
+    const [retiringDevice, setRetiringDevice] = useState<string | null>(null);
     const anchorRef = useRef<HTMLDivElement>(null);
-    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; placement?: 'top' | 'bottom' }>({ top: 0, left: 0, placement: 'bottom' });
 
     // Stable refs for callbacks to prevent effect re-runs
     const onChangeRef = useRef(onChange);
@@ -80,71 +66,93 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     }, [onChange, onDetailsChange]);
 
     // ========================================================================
-    // Normalize legacy VVP representations
-    // We use useMemo to normalize for internal UI operations but do NOT 
-    // attempt to update the parent state. This prevents render loops and 
-    // hook count mismatches when switching between dates quickly.
+    // Logic
     // ========================================================================
     const normalizedDevices = useMemo(() => normalizeDevices(devices), [devices]);
 
-    // ========================================================================
-    // VVP State
-    // ========================================================================
-    const vvpCount = VVP_DEVICE_KEYS.filter(key => normalizedDevices.includes(key)).length;
-    const vvpDevices = VVP_DEVICE_KEYS.filter(key => normalizedDevices.includes(key));
+    const vvpCount = useMemo(() =>
+        VVP_DEVICE_KEYS.filter(key => normalizedDevices.includes(key)).length,
+        [normalizedDevices]);
+
+    const vvpDevices = useMemo(() =>
+        VVP_DEVICE_KEYS.filter(key => normalizedDevices.includes(key)),
+        [normalizedDevices]);
 
     // ========================================================================
     // Event Handlers
     // ========================================================================
 
-    const setVVPCount = useCallback((count: number) => {
-        const clampedCount = Math.max(0, Math.min(3, count));
-        const newDevices = normalizedDevices.filter(d => !isAnyVvp(d));
-        const vvpsToAdd = VVP_DEVICE_KEYS.slice(0, clampedCount);
-        onChange([...newDevices, ...vvpsToAdd]);
+    const handleRetireDevice = useCallback((data: { removalDate: string; note: string }) => {
+        if (!retiringDevice) return;
 
+        const updatedDetails = { ...deviceDetails };
+        updatedDetails[retiringDevice] = {
+            ...updatedDetails[retiringDevice],
+            removalDate: data.removalDate,
+            note: `${updatedDetails[retiringDevice]?.note || ''}\n[Retiro] ${data.note}`.trim()
+        };
 
-        if (onDetailsChange) {
-            const updatedDetails = { ...deviceDetails };
-            VVP_DEVICE_KEYS.slice(clampedCount).forEach(key => {
-                delete updatedDetails[key];
-            });
-            onDetailsChange(updatedDetails);
+        if (onDetailsChangeRef.current) {
+            onDetailsChangeRef.current(updatedDetails);
         }
-    }, [normalizedDevices, deviceDetails, onChange, onDetailsChange]);
+
+        // Remove from active list
+        if (onChangeRef.current) {
+            onChangeRef.current(normalizedDevices.filter(d => d !== retiringDevice));
+        }
+        setRetiringDevice(null);
+    }, [retiringDevice, deviceDetails, normalizedDevices]);
 
     const toggleDevice = useCallback((device: string) => {
-        if (normalizedDevices.includes(device)) {
-            onChange(normalizedDevices.filter(d => d !== device));
-            // Clear details if tracked device is removed
-            if (TRACKED_DEVICES.includes(device as TrackedDevice) && onDetailsChange) {
-                const newDetails = { ...deviceDetails };
-                delete newDetails[device as TrackedDevice];
-                onDetailsChange(newDetails);
+        // Special handling for adding VVP instances
+        if (device === 'VVP') {
+            const nextKey = VVP_DEVICE_KEYS.find(key => !normalizedDevices.includes(key));
+            if (nextKey) {
+                setPendingAddition(nextKey);
             }
-        } else {
-            onChange([...normalizedDevices, device]);
+            return;
         }
-    }, [normalizedDevices, deviceDetails, onChange, onDetailsChange]);
+
+        if (normalizedDevices.includes(device)) {
+            setRetiringDevice(device);
+        } else {
+            setPendingAddition(device);
+        }
+    }, [normalizedDevices]);
 
     const addCustomDevice = useCallback((device: string) => {
         if (!normalizedDevices.includes(device)) {
-            onChange([...normalizedDevices, device]);
+            setPendingAddition(device);
         }
-    }, [normalizedDevices, onChange]);
+    }, [normalizedDevices]);
 
     const removeDevice = useCallback((device: string) => {
-        onChange(normalizedDevices.filter(d => d !== device));
-    }, [normalizedDevices, onChange]);
+        setRetiringDevice(device);
+    }, []);
 
     const handleDeviceConfigSave = useCallback((info: DeviceInfo) => {
-        if (editingDevice && onDetailsChangeRef.current) {
+        const deviceToOperate = pendingAddition || editingDevice;
+        if (!deviceToOperate) return;
+
+        // If it was a pending addition, add it to the devices list
+        if (pendingAddition && onChangeRef.current) {
+            onChangeRef.current([...normalizedDevices, pendingAddition]);
+        }
+
+        // Ensure removalDate is cleared when adding or configuring an active device
+        const sanitizedInfo = { ...info };
+        delete sanitizedInfo.removalDate;
+
+        if (onDetailsChangeRef.current) {
             onDetailsChangeRef.current({
                 ...deviceDetails,
-                [editingDevice]: info
+                [deviceToOperate]: sanitizedInfo
             });
         }
-    }, [editingDevice, deviceDetails]);
+
+        setPendingAddition(null);
+        setEditingDevice(null);
+    }, [editingDevice, pendingAddition, deviceDetails, normalizedDevices]);
 
     // ========================================================================
     // Menu Position
@@ -153,47 +161,48 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     const updateMenuPosition = useCallback(() => {
         if (!anchorRef.current) return;
         const rect = anchorRef.current.getBoundingClientRect();
-        const width = 260;
-        const left = Math.min(rect.left, window.innerWidth - width - 12);
+        const menuWidth = 360;
+        const menuMaxHeight = 400; // Estimated maximum height
+        const margin = 8;
+
+        let left = Math.min(rect.left, window.innerWidth - menuWidth - 12);
+        left = Math.max(12, left); // Don't go off the left edge either
+
+        // Intelligent vertical positioning
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldShowAbove = spaceBelow < menuMaxHeight && rect.top > spaceBelow;
+
+        let top;
+        if (shouldShowAbove) {
+            top = rect.top - margin;
+        } else {
+            top = rect.bottom + margin;
+        }
+
         setMenuPosition({
-            top: rect.bottom + 6,
-            left
+            top,
+            left,
+            placement: shouldShowAbove ? 'top' : 'bottom'
         });
     }, []);
 
     useEffect(() => {
         if (!showMenu) return;
-
         updateMenuPosition();
-
-        const handle = () => updateMenuPosition();
-        window.addEventListener('resize', handle);
-        window.addEventListener('scroll', handle, true);
-
-        return () => {
-            window.removeEventListener('resize', handle);
-            window.removeEventListener('scroll', handle, true);
-        };
+        window.addEventListener('resize', updateMenuPosition);
+        return () => window.removeEventListener('resize', updateMenuPosition);
     }, [showMenu, updateMenuPosition]);
 
     // ========================================================================
     // Render
     // ========================================================================
 
-    // When disabled, show badges in read-only mode (no interaction)
     if (disabled) {
         return (
             <div className="flex flex-wrap gap-1 min-h-[26px] items-center justify-start p-1 rounded border border-transparent">
-                {devices.length === 0 && (
-                    <span className="text-slate-300 text-xs">-</span>
-                )}
+                {devices.length === 0 && <span className="text-slate-300 text-xs">-</span>}
                 {devices.map((dev, i) => (
-                    <DeviceBadge
-                        key={i}
-                        device={dev}
-                        deviceDetails={deviceDetails}
-                        currentDate={currentDate}
-                    />
+                    <DeviceBadge key={i} device={dev} deviceDetails={deviceDetails} currentDate={currentDate} />
                 ))}
             </div>
         );
@@ -201,12 +210,10 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
     return (
         <>
-            {/* Device Badges Display */}
             <div
                 ref={anchorRef}
                 className="flex flex-wrap gap-1 min-h-[26px] cursor-pointer items-center justify-start p-1 rounded hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-colors relative"
                 onClick={() => setShowMenu(!showMenu)}
-                title="Haga clic para gestionar dispositivos"
             >
                 {devices.length === 0 && (
                     <span className="text-slate-300 mx-auto flex items-center justify-center w-full opacity-50">
@@ -219,11 +226,11 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
                         device={dev}
                         deviceDetails={deviceDetails}
                         currentDate={currentDate}
+                        onRemove={removeDevice}
                     />
                 ))}
             </div>
 
-            {/* Dropdown Menu */}
             {showMenu && (
                 <DeviceMenu
                     devices={devices}
@@ -232,7 +239,6 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
                     vvpDevices={vvpDevices}
                     menuPosition={menuPosition}
                     onClose={() => setShowMenu(false)}
-                    onSetVVPCount={setVVPCount}
                     onToggleDevice={toggleDevice}
                     onAddCustomDevice={addCustomDevice}
                     onRemoveDevice={removeDevice}
@@ -240,17 +246,28 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
                 />
             )}
 
-            {/* Device Configuration Modal */}
-            {editingDevice && (
+            {(editingDevice || pendingAddition) && (
                 <DeviceDateConfigModal
-                    device={editingDevice}
-                    deviceInfo={deviceDetails[editingDevice] || {}}
+                    device={editingDevice || pendingAddition || ''}
+                    deviceInfo={pendingAddition ? {} : (deviceDetails[editingDevice || ''] || {})}
                     currentDate={currentDate}
                     onSave={handleDeviceConfigSave}
-                    onClose={() => setEditingDevice(null)}
+                    onClose={() => {
+                        setEditingDevice(null);
+                        setPendingAddition(null);
+                    }}
+                />
+            )}
+
+            {retiringDevice && (
+                <DeviceRetireModal
+                    deviceLabel={retiringDevice.startsWith('VVP#') ? `VVP #${retiringDevice.split('#')[1]}` : retiringDevice}
+                    installationDate={deviceDetails[retiringDevice]?.installationDate}
+                    currentDate={currentDate}
+                    onConfirm={handleRetireDevice}
+                    onClose={() => setRetiringDevice(null)}
                 />
             )}
         </>
     );
 };
-

@@ -104,6 +104,21 @@ class MockWorker {
 vi.stubGlobal('Worker', MockWorker);
 Object.defineProperty(global, 'Worker', { value: MockWorker, configurable: true });
 
+// Mock crypto.randomUUID
+if (!global.crypto) {
+    Object.defineProperty(global, 'crypto', {
+        value: { randomUUID: vi.fn(() => '00000000-0000-0000-0000-000000000000') },
+        configurable: true,
+        writable: true
+    });
+} else if (!global.crypto.randomUUID) {
+    Object.defineProperty(global.crypto, 'randomUUID', {
+        value: vi.fn(() => '00000000-0000-0000-0000-000000000000'),
+        configurable: true,
+        writable: true
+    });
+}
+
 // Mock Firebase Auth user
 const mockUser = {
     uid: 'test-user-123',
@@ -189,6 +204,13 @@ vi.mock('firebase/auth', () => ({
 
 // Mock firestore module
 vi.mock('firebase/firestore', () => {
+    const mockSnap = {
+        id: 'mock-doc-id',
+        data: () => ({}),
+        exists: () => true,
+        get: (_field: string) => undefined,
+    };
+
     class MockTimestamp {
         constructor(public seconds: number, public nanoseconds: number) { }
         static now() { return new MockTimestamp(Math.floor(Date.now() / 1000), 0); }
@@ -199,21 +221,22 @@ vi.mock('firebase/firestore', () => {
     }
 
     return {
-        collection: vi.fn(() => ({})),
-        doc: vi.fn(() => ({})),
-        getDoc: vi.fn().mockResolvedValue(mockDoc),
-        getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true }),
+        collection: vi.fn(() => ({ id: 'mock-collection' })),
+        doc: vi.fn(() => ({ id: 'mock-doc-path' })),
+        getDoc: vi.fn().mockResolvedValue(mockSnap),
+        getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true, size: 0 }),
         setDoc: vi.fn().mockResolvedValue(undefined),
         updateDoc: vi.fn().mockResolvedValue(undefined),
         deleteDoc: vi.fn().mockResolvedValue(undefined),
         query: vi.fn(() => ({})),
         where: vi.fn(() => ({})),
-        onSnapshot: vi.fn(() => vi.fn()),
+        onSnapshot: vi.fn(() => vi.fn(() => { })),
         orderBy: vi.fn(() => ({})),
         limit: vi.fn(() => ({})),
         startAfter: vi.fn(() => ({})),
         Timestamp: MockTimestamp,
         runTransaction: vi.fn(),
+        getFirestore: vi.fn(() => ({})),
         writeBatch: vi.fn(() => ({
             set: vi.fn(),
             update: vi.fn(),

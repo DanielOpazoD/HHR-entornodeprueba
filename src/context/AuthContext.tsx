@@ -8,11 +8,9 @@
  */
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { AuthUser } from '@/services/auth/authService';
-import { useAuthState, UserRole } from '@/hooks/useAuthState';
-
-// Re-export UserRole for consumers that import from AuthContext
-export type { UserRole } from '@/hooks/useAuthState';
+import { AuthUser, UserRole } from '@/types';
+export type { AuthUser, UserRole };
+import { useAuthState } from '@/hooks/useAuthState';
 
 // ============================================================================
 // Types
@@ -30,7 +28,7 @@ export interface AuthContextType {
     signOut: () => Promise<void>;
     // Passport utilities
     canDownloadPassport: boolean;
-    handleDownloadPassport: (role: string) => Promise<boolean>;
+    handleDownloadPassport: (role: UserRole) => Promise<boolean>;
 }
 
 // ============================================================================

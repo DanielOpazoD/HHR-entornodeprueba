@@ -1,23 +1,9 @@
-/**
- * useDailyRecord Hook
- * Central orchestrator for daily record management.
- * 
- * This hook composes smaller specialized hooks:
- * - useDailyRecordSync: Real-time sync with Firebase
- * - useBedManagement: Patient bed operations
- * - usePatientDischarges: Discharge workflow
- * - usePatientTransfers: Transfer workflow
- * - useNurseManagement: Nurse assignments
- * - useCMA: Day hospitalization records
- */
-
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef, useEffect } from 'react';
 
 // Sub-hooks
 import { usePersistence } from './usePersistence';
 import { useInventory } from './useInventory';
 import { useValidation } from './useValidation';
-import { useAuthState } from './useAuthState';
 
 // Sync hooks
 import { useDailyRecordSyncQuery } from './useDailyRecordSyncQuery';
@@ -34,11 +20,8 @@ import { useRepositories } from '@/services/RepositoryContext';
 
 // Types
 import { DailyRecordContextType } from './useDailyRecordTypes';
+import { OnDutyProfessional, OnDutySpecialty } from '@/types';
 
-
-// Re-export types for consumers
-export type { DailyRecordContextType } from './useDailyRecordTypes';
-export type { SyncStatus } from './useDailyRecordTypes';
 
 /**
  * Main hook for daily record management.
@@ -50,8 +33,6 @@ export const useDailyRecord = (
     isFirebaseConnected: boolean = false
 ): DailyRecordContextType => {
     const { dailyRecord } = useRepositories();
-    const authState = useAuthState();
-
 
     // ========================================================================
     // Sync & State Management
@@ -66,6 +47,9 @@ export const useDailyRecord = (
         refresh,
         patchRecord
     } = useDailyRecordSyncQuery(currentDateString, isOfflineMode, isFirebaseConnected);
+
+    const recordRef = useRef(record);
+    useEffect(() => { recordRef.current = record; }, [record]);
 
     // ========================================================================
     // Orchestrated Sub-hooks
@@ -92,24 +76,62 @@ export const useDailyRecord = (
     const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
 
     // ========================================================================
-    // Cross-date Copy (Defined outside useMemo)
+    // Cross-date Copy
     // ========================================================================
     const copyPatientToDate = useCallback(async (bedId: string, targetDate: string, targetBedId?: string) => {
-        if (!record) return;
-        const sourcePatient = record.beds[bedId];
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const sourcePatient = currentRecord.beds[bedId];
         if (!sourcePatient || !sourcePatient.patientName) return;
 
         const finalTargetBedId = targetBedId || bedId;
 
         try {
-            await dailyRecord.copyPatientToDate(record.date, bedId, targetDate, finalTargetBedId);
+            await dailyRecord.copyPatientToDate(currentRecord.date, bedId, targetDate, finalTargetBedId);
             await refresh();
         } catch (error) {
             console.error('Error copying patient to date:', error);
             throw error;
         }
-    }, [record, refresh, dailyRecord]);
+    }, [refresh, dailyRecord]);
 
+    // On-Duty Professionals Management
+    const updateOnDutyProfessional = useCallback((
+        specialty: string,
+        data: { name: string; phone: string; period: string }
+    ) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+
+        const currentProfessionals = currentRecord.onDutyProfessionals || [];
+        const existingIndex = currentProfessionals.findIndex(p => p.specialty === specialty);
+
+        let updatedProfessionals;
+        if (existingIndex >= 0) {
+            updatedProfessionals = [...currentProfessionals];
+            updatedProfessionals[existingIndex] = { specialty: specialty as OnDutySpecialty, ...data };
+        } else {
+            updatedProfessionals = [...currentProfessionals, { specialty: specialty as OnDutySpecialty, ...data }];
+        }
+
+        patchRecord({
+            onDutyProfessionals: updatedProfessionals,
+            onDutyProfessionalsUpdatedAt: new Date().toISOString()
+        });
+    }, [patchRecord]);
+
+    const updateOnDutyProfessionalsFull = useCallback((data: {
+        professionals: OnDutyProfessional[];
+        coverageStart?: string;
+        coverageEnd?: string;
+    }) => {
+        patchRecord({
+            onDutyProfessionals: data.professionals,
+            onDutyCoverageStart: data.coverageStart,
+            onDutyCoverageEnd: data.coverageEnd,
+            onDutyProfessionalsUpdatedAt: new Date().toISOString()
+        });
+    }, [patchRecord]);
 
 
     // ========================================================================
@@ -147,6 +169,7 @@ export const useDailyRecord = (
         toggleBlockBed: bedManagement.toggleBlockBed,
         updateBlockedReason: bedManagement.updateBlockedReason,
         toggleExtraBed: bedManagement.toggleExtraBed,
+        toggleBedType: bedManagement.toggleBedType,
 
         // Nurse Management
         updateNurse: nurseManagement.updateNurse,
@@ -181,13 +204,18 @@ export const useDailyRecord = (
         updateMedicalSignature: handoffManagement.updateMedicalSignature,
         updateMedicalHandoffDoctor: handoffManagement.updateMedicalHandoffDoctor,
         markMedicalHandoffAsSent: handoffManagement.markMedicalHandoffAsSent,
-        sendMedicalHandoff: handoffManagement.sendMedicalHandoff
+        sendMedicalHandoff: handoffManagement.sendMedicalHandoff,
+
+        // On-Duty Professionals
+        updateOnDutyProfessionalsFull,
+        updateOnDutyProfessional
     }), [
         record, syncStatus, lastSyncTime, inventory, stabilityRules,
         createDay, generateDemo, resetDay, refresh,
         validateRecordSchema, canMovePatient, canDischargePatient,
         bedManagement, nurseManagement, tensManagement,
         dischargeManagement, transferManagement, cmaManagement,
-        handoffManagement, copyPatientToDate
+        handoffManagement, copyPatientToDate, updateOnDutyProfessional,
+        updateOnDutyProfessionalsFull
     ]);
 };

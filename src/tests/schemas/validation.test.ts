@@ -143,22 +143,31 @@ describe('validation schema helpers', () => {
             expect(result.success).toBe(true);
         });
 
-        it('should return errors for out of bounds values', () => {
+        it('should handle out of bounds values gracefully (resilience)', () => {
             const invalidScore = {
                 changeClothes: 5, // max 4
                 mobilization: -1 // min 0
             };
             const result = validateCudyrScore(invalidScore);
-            expect(result.success).toBe(false);
-            expect(result.errors?.length).toBeGreaterThan(0);
+            // Schema now uses .catch(0), so it should succeed and replace with 0
+            expect(result.success).toBe(true);
+            if (result.success && result.data) {
+                expect(result.data.changeClothes).toBe(0); // 5 -> 0
+                expect(result.data.mobilization).toBe(0); // -1 -> 0
+            }
         });
 
-        it('should return errors for missing fields', () => {
+        it('should handle missing fields gracefully (resilience)', () => {
             const incompleteScore = {
                 changeClothes: 1
             };
             const result = validateCudyrScore(incompleteScore);
-            expect(result.success).toBe(false);
+            expect(result.success).toBe(true);
+            if (result.success && result.data) {
+                expect(result.data.changeClothes).toBe(1);
+                // Missing fields defaulted to 0
+                expect(result.data.mobilization).toBe(0);
+            }
         });
     });
 

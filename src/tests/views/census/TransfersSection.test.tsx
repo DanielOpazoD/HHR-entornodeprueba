@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
 import { useCensusActions } from '@/features/census/components/CensusActionsContext';
-import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
@@ -13,7 +13,8 @@ vi.mock('@/features/census/components/CensusActionsContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
     useDailyRecordData: vi.fn(),
-    useDailyRecordActions: vi.fn()
+    useDailyRecordActions: vi.fn(),
+    useDailyRecordMovements: vi.fn()
 }));
 
 describe('TransfersSection', () => {
@@ -39,6 +40,9 @@ describe('TransfersSection', () => {
             deleteTransfer: mockOnDelete,
             updateTransfer: vi.fn()
         });
+        (useDailyRecordMovements as any).mockReturnValue({
+            transfers: []
+        });
     });
 
     it('renders empty message when no transfers', () => {
@@ -51,8 +55,8 @@ describe('TransfersSection', () => {
     });
 
     it('renders transfer list and triggers actions', () => {
-        (useDailyRecordData as any).mockReturnValue({
-            record: { transfers: mockTransfers }
+        (useDailyRecordMovements as any).mockReturnValue({
+            transfers: mockTransfers
         });
 
         render(<TransfersSection />);
@@ -69,5 +73,70 @@ describe('TransfersSection', () => {
 
         fireEvent.click(screen.getByTitle('Eliminar Registro'));
         expect(mockOnDelete).toHaveBeenCalledWith('t1');
+    });
+
+    it('renders "Otro" receiving center and escort logic', () => {
+        const customTransfers = [
+            DataFactory.createMockTransfer({
+                id: 't2',
+                receivingCenter: 'Otro',
+                receivingCenterOther: 'Custom Clinic',
+                transferEscort: 'Medic Y',
+                evacuationMethod: 'Ambulancia'
+            }),
+            DataFactory.createMockTransfer({
+                id: 't3',
+                receivingCenter: 'Hospital B',
+                transferEscort: 'Medic Z',
+                evacuationMethod: 'Aerocardal'
+            })
+        ];
+        vi.mocked(useDailyRecordMovements).mockReturnValue({
+            transfers: customTransfers,
+            discharges: [],
+            cma: []
+        });
+
+        render(<TransfersSection />);
+
+        expect(screen.getByText('Custom Clinic')).toBeInTheDocument();
+        expect(screen.getByText('Hospital B')).toBeInTheDocument();
+
+        // Escort should show for t2 (Ambulancia) but NOT for t3 (Aerocardal)
+        expect(screen.getByText(/Acompaña: Medic Y/)).toBeInTheDocument();
+        expect(screen.queryByText(/Acompaña: Medic Z/)).not.toBeInTheDocument();
+    });
+
+    it('handles time changes', () => {
+        const mockUpdate = vi.fn();
+        vi.mocked(useDailyRecordActions).mockReturnValue({
+            updateTransfer: mockUpdate,
+            undoTransfer: vi.fn(),
+            deleteTransfer: vi.fn()
+        } as any);
+        vi.mocked(useDailyRecordMovements).mockReturnValue({
+            transfers: mockTransfers,
+            discharges: [],
+            cma: []
+        });
+
+        render(<TransfersSection />);
+
+        const timeInput = screen.getByDisplayValue('12:00'); // Default from DataFactory
+        fireEvent.change(timeInput, { target: { value: '14:30' } });
+
+        expect(mockUpdate).toHaveBeenCalledWith('t1', expect.objectContaining({
+            time: '14:30'
+        }));
+    });
+
+    it('returns null if transfers is null', () => {
+        vi.mocked(useDailyRecordMovements).mockReturnValue({
+            transfers: null as any,
+            discharges: [],
+            cma: []
+        });
+        const { container } = render(<TransfersSection />);
+        expect(container.firstChild).toBeNull();
     });
 });

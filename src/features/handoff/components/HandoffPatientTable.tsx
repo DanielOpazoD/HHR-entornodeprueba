@@ -42,7 +42,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                     <thead>
                         <tr className={tableHeaderClass}>
                             <th className="p-2 border-r border-slate-200 w-16 print:w-[35px] print:text-[10px] print:p-1">Cama</th>
-                            <th className="p-2 border-r border-slate-200 w-44 print:w-[20%] print:text-[10px] print:p-1">Nombre Paciente</th>
+                            <th className="p-2 border-r border-slate-200 w-44 print:w-[20%] print:text-[10px] print:p-1" title="Nombre, RUT, Edad, Fecha de Ingreso">Paciente</th>
                             <th className="p-2 border-r border-slate-200 w-[260px] print:w-[30%] print:text-[10px] print:p-1">
                                 <div className="flex items-center justify-between">
                                     <span>Diagnóstico</span>
@@ -61,7 +61,9 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                                     )}
                                 </div>
                             </th>
-                            <th className="p-2 border-r border-slate-200 w-20 print:w-[50px] print:text-[10px] print:p-1" title="Dispositivos médicos invasivos">DMI</th>
+                            {!isMedical && (
+                                <th className="p-2 border-r border-slate-200 w-28 print:w-[50px] print:text-[10px] print:p-1" title="Dispositivos médicos invasivos">DMI</th>
+                            )}
                             <th className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1">Observaciones</th>
                         </tr>
                     </thead>
@@ -147,7 +149,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                         {/* If no occupied beds found */}
                         {!hasAnyPatients && (
                             <tr>
-                                <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
+                                <td colSpan={isMedical ? 4 : 5} className="p-8 text-center text-slate-400 italic text-sm">
                                     No hay pacientes registrados en este turno.
                                 </td>
                             </tr>

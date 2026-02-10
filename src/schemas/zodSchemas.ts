@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { PatientData, Specialty, PatientStatus, DischargeData, TransferData, CMAData, DailyRecord, CudyrScore } from '@/types';
+import { PatientData, Specialty, PatientStatus, DischargeData, TransferData, CMAData, DailyRecord, CudyrScore, BedType } from '@/types';
 
 // ============================================================================
 // Constants & Regex
@@ -29,7 +29,7 @@ const nullableOptional = <T extends z.ZodTypeAny>(schema: T) =>
 // Enums
 // ============================================================================
 
-export const BedTypeSchema = z.enum(['UTI', 'MEDIA']);
+export const BedTypeSchema = z.nativeEnum(BedType) as z.ZodType<BedType>;
 export const PatientStatusSchema = z.nativeEnum(PatientStatus);
 
 // ============================================================================
@@ -126,6 +126,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
         cie10Description: nullableOptional(z.string()),
         diagnosisComments: nullableOptional(z.string()),
         specialty: SpecialtySchema.default(Specialty.EMPTY),
+        secondarySpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), z.string()])),
         status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
         admissionDate: z.string().default(''),
         admissionTime: z.string().default(''),
@@ -159,12 +160,12 @@ export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown
     diagnosis: z.string().default(''),
     time: z.string().default(''),
     status: z.enum(['Vivo', 'Fallecido']).default('Vivo'),
-    dischargeType: z.enum(['Domicilio (Habitual)', 'Voluntaria', 'Fuga', 'Otra']).optional(),
+    dischargeType: nullableOptional(z.enum(['Domicilio (Habitual)', 'Voluntaria', 'Fuga', 'Otra'])),
     dischargeTypeOther: nullableOptional(z.string()),
-    age: z.string().optional(),
-    insurance: z.string().optional(),
-    origin: z.string().optional(),
-    isRapanui: z.boolean().optional(),
+    age: nullableOptional(z.string()),
+    insurance: nullableOptional(z.string()),
+    origin: nullableOptional(z.string()),
+    isRapanui: nullableOptional(z.boolean()),
     originalData: PatientDataSchema.optional(),
     isNested: z.boolean().optional(),
 }).passthrough();
@@ -180,12 +181,12 @@ export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> 
     time: z.string().default(''),
     evacuationMethod: z.string().default(''),
     receivingCenter: z.string().default(''),
-    receivingCenterOther: z.string().optional(),
-    transferEscort: z.string().optional(),
-    age: z.string().optional(),
-    insurance: z.string().optional(),
-    origin: z.string().optional(),
-    isRapanui: z.boolean().optional(),
+    receivingCenterOther: nullableOptional(z.string()),
+    transferEscort: nullableOptional(z.string()),
+    age: nullableOptional(z.string()),
+    insurance: nullableOptional(z.string()),
+    origin: nullableOptional(z.string()),
+    isRapanui: nullableOptional(z.boolean()),
     originalData: PatientDataSchema.optional(),
     isNested: z.boolean().optional(),
 }).passthrough();
@@ -199,10 +200,10 @@ export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object
     diagnosis: z.string().default(''),
     specialty: z.nativeEnum(Specialty).default(Specialty.EMPTY),
     interventionType: z.enum(['Cirugía Mayor Ambulatoria', 'Procedimiento Médico Ambulatorio']).default('Cirugía Mayor Ambulatoria'),
-    dischargeTime: z.string().optional(),
-    enteredBy: z.string().optional(),
-    timestamp: z.string().optional(),
-    originalBedId: z.string().optional(),
+    dischargeTime: nullableOptional(z.string()),
+    enteredBy: nullableOptional(z.string()),
+    timestamp: nullableOptional(z.string()),
+    originalBedId: nullableOptional(z.string()),
     originalData: PatientDataSchema.optional(),
 }).passthrough();
 
@@ -213,6 +214,18 @@ export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z.object
 export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.object({
     date: z.string().regex(DATE_REGEX),
     beds: z.record(z.string(), PatientDataSchema).default({}),
+    bedTypeOverrides: z.preprocess(
+        (val) => {
+            if (!val || typeof val !== 'object') return {};
+            const record: Record<string, unknown> = { ...(val as Record<string, unknown>) };
+            // Filter out null/undefined values which might come from Firestore deletes or reverts
+            Object.keys(record).forEach(key => {
+                if (record[key] === null || record[key] === undefined) delete record[key];
+            });
+            return record;
+        },
+        z.record(z.string(), BedTypeSchema)
+    ).default({}),
     discharges: z.array(DischargeDataSchema).default([]),
     transfers: z.array(TransferDataSchema).default([]),
     cma: z.array(CMADataSchema).default([]),
@@ -254,6 +267,15 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
     cudyrLockedAt: z.string().optional(),
     cudyrLockedBy: z.string().optional(),
     handoffNightReceives: z.array(z.string()).default([]),
+    onDutyProfessionals: z.array(z.object({
+        specialty: z.enum(['Medicina Interna', 'Cirugía', 'Ginecobstetricia', 'Anestesia', 'Kinesiología']),
+        name: z.string(),
+        phone: z.string(),
+        period: z.string(),
+    })).default([]),
+    onDutyProfessionalsUpdatedAt: z.string().optional(),
+    onDutyCoverageStart: z.string().optional(),
+    onDutyCoverageEnd: z.string().optional(),
 }).passthrough();
 
 /**
@@ -352,12 +374,39 @@ export const parseDailyRecordWithDefaults = (data: unknown, docId: string): Dail
         });
     }
 
+    const salvagedDischarges: DischargeData[] = [];
+    if (Array.isArray(raw.discharges)) {
+        raw.discharges.forEach((item) => {
+            const parsed = DischargeDataSchema.safeParse(item);
+            if (parsed.success) salvagedDischarges.push(parsed.data);
+            else console.warn('⚠️ Discharge item salvage failed:', parsed.error.issues);
+        });
+    }
+
+    const salvagedTransfers: TransferData[] = [];
+    if (Array.isArray(raw.transfers)) {
+        raw.transfers.forEach((item) => {
+            const parsed = TransferDataSchema.safeParse(item);
+            if (parsed.success) salvagedTransfers.push(parsed.data);
+            else console.warn('⚠️ Transfer item salvage failed:', parsed.error.issues);
+        });
+    }
+
+    const salvagedCMA: CMAData[] = [];
+    if (Array.isArray(raw.cma)) {
+        raw.cma.forEach((item) => {
+            const parsed = CMADataSchema.safeParse(item);
+            if (parsed.success) salvagedCMA.push(parsed.data);
+            else console.warn('⚠️ CMA item salvage failed:', parsed.error.issues);
+        });
+    }
+
     return {
         date: typeof raw.date === 'string' ? raw.date : docId,
         beds: salvagedBeds,
-        discharges: Array.isArray(raw.discharges) ? raw.discharges : [],
-        transfers: Array.isArray(raw.transfers) ? raw.transfers : [],
-        cma: Array.isArray(raw.cma) ? raw.cma : [],
+        discharges: salvagedDischarges,
+        transfers: salvagedTransfers,
+        cma: salvagedCMA,
         lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
         nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
         nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
@@ -371,6 +420,11 @@ export const parseDailyRecordWithDefaults = (data: unknown, docId: string): Dail
         handoffNovedadesNightShift: typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
         medicalHandoffNovedades: typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
         handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
+        onDutyProfessionals: Array.isArray(raw.onDutyProfessionals) ? raw.onDutyProfessionals : [],
+        onDutyProfessionalsUpdatedAt: typeof raw.onDutyProfessionalsUpdatedAt === 'string' ? raw.onDutyProfessionalsUpdatedAt : undefined,
+        onDutyCoverageStart: typeof raw.onDutyCoverageStart === 'string' ? raw.onDutyCoverageStart : undefined,
+        onDutyCoverageEnd: typeof raw.onDutyCoverageEnd === 'string' ? raw.onDutyCoverageEnd : undefined,
+        bedTypeOverrides: (raw.bedTypeOverrides as Record<string, BedType>) || {},
         schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
     } as DailyRecord;
 };

@@ -3,6 +3,7 @@ import { DeviceSelector } from '@/components/DeviceSelector';
 import { BaseCellProps, DeviceHandlers } from './inputCellTypes';
 import { History } from 'lucide-react';
 import { DeviceHistoryModal } from './DeviceHistoryModal';
+import { DeviceInstance } from '@/types';
 
 interface DevicesCellProps extends BaseCellProps, DeviceHandlers {
     currentDateString: string;
@@ -23,7 +24,7 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
     // Memoize to prevent unnecessary re-renders
     const memoizedDevices = useMemo(() => data.devices || [], [data.devices]);
     const memoizedDeviceDetails = useMemo(() => data.deviceDetails || {}, [data.deviceDetails]);
-    const memoizedHistory = useMemo(() => data.deviceInstanceHistory || [], [data.deviceInstanceHistory]);
+    const memoizedHistory = useMemo(() => (data.deviceInstanceHistory || []) as DeviceInstance[], [data.deviceInstanceHistory]);
 
     if (isEmpty && !isSubRow) {
         return (
@@ -187,23 +188,11 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
                     onSave={(newHistory) => {
                         onDeviceHistoryChange(newHistory);
 
-                        // Sync basic 'devices' list if history has active devices not in the list
-                        // This is a basic integration to keep summaries somewhat working
+                        // Strict sync: The devices list in the census should exactly match the 'Active' items in history
                         const activeTypes = Array.from(new Set(newHistory.filter(h => h.status === 'Active').map(h => h.type)));
-                        if (activeTypes.length > 0) {
-                            const currentSet = new Set(memoizedDevices);
-                            let changed = false;
-                            activeTypes.forEach(t => {
-                                if (!currentSet.has(t)) {
-                                    currentSet.add(t);
-                                    changed = true;
-                                }
-                            });
-                            // Note: We don't remove types automatically to avoid data loss if user manages both separately
-                            if (changed) {
-                                onDevicesChange(Array.from(currentSet));
-                            }
-                        }
+
+                        // Sort activeTypes if needed (optional, keeping it simple for now)
+                        onDevicesChange(activeTypes);
                     }}
                     onClose={() => setShowHistoryModal(false)}
                 />

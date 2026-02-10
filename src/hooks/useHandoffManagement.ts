@@ -1,9 +1,4 @@
-/**
- * useHandoffManagement Hook
- * Manages nursing handoff checklists, novedades, and staff identification.
- */
-
-import { useCallback } from 'react';
+import { useMemo, useCallback, useRef, useEffect } from 'react';
 import { DailyRecord, DailyRecordPatch } from '@/types';
 import { BEDS } from '@/constants';
 import { useNotification } from '@/context/UIContext';
@@ -29,11 +24,14 @@ export const useHandoffManagement = (
 ): HandoffManagementActions => {
     const { success, error: notifyError } = useNotification();
     const { logEvent, logDebouncedEvent, userId } = useAuditContext();
+    const recordRef = useRef(record);
+    useEffect(() => { recordRef.current = record; }, [record]);
 
     const updateHandoffChecklist = useCallback((shift: 'day' | 'night', field: string, value: boolean | string) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const updatedRecord = { ...record };
+        const updatedRecord = { ...currentRecord };
 
         if (shift === 'day') {
             updatedRecord.handoffDayChecklist = {
@@ -49,12 +47,13 @@ export const useHandoffManagement = (
 
         updatedRecord.lastUpdated = new Date().toISOString();
         saveAndUpdate(updatedRecord);
-    }, [record, saveAndUpdate]);
+    }, [saveAndUpdate]);
 
     const updateHandoffNovedades = useCallback((shift: 'day' | 'night' | 'medical', value: string) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const updatedRecord = { ...record };
+        const updatedRecord = { ...currentRecord };
 
         if (shift === 'day') {
             updatedRecord.handoffNovedadesDayShift = value;
@@ -68,16 +67,16 @@ export const useHandoffManagement = (
         saveAndUpdate(updatedRecord);
 
         // Audit Log (Smart/Debounced)
-        const authors = getAttributedAuthors(userId, record, shift === 'medical' ? undefined : (shift as 'day' | 'night'));
+        const authors = getAttributedAuthors(userId, currentRecord, shift === 'medical' ? undefined : (shift as 'day' | 'night'));
 
         const oldContent = shift === 'day'
-            ? record.handoffNovedadesDayShift
-            : (shift === 'night' ? record.handoffNovedadesNightShift : record.medicalHandoffNovedades);
+            ? currentRecord.handoffNovedadesDayShift
+            : (shift === 'night' ? currentRecord.handoffNovedadesNightShift : currentRecord.medicalHandoffNovedades);
 
         logDebouncedEvent(
             'HANDOFF_NOVEDADES_MODIFIED',
             'dailyRecord',
-            record.date,
+            currentRecord.date,
             {
                 shift,
                 value,
@@ -86,15 +85,16 @@ export const useHandoffManagement = (
                 }
             },
             undefined,
-            record.date,
+            currentRecord.date,
             authors
         );
-    }, [record, saveAndUpdate, logDebouncedEvent, userId]);
+    }, [saveAndUpdate, logDebouncedEvent, userId]);
 
     const updateHandoffStaff = useCallback((shift: 'day' | 'night', type: 'delivers' | 'receives' | 'tens', staffList: string[]) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const updatedRecord = { ...record };
+        const updatedRecord = { ...currentRecord };
 
         if (shift === 'day') {
             if (type === 'delivers') {
@@ -116,12 +116,13 @@ export const useHandoffManagement = (
 
         updatedRecord.lastUpdated = new Date().toISOString();
         saveAndUpdate(updatedRecord);
-    }, [record, saveAndUpdate]);
+    }, [saveAndUpdate]);
 
     const updateMedicalSignature = useCallback(async (doctorName: string) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const updatedRecord = { ...record };
+        const updatedRecord = { ...currentRecord };
         const signedAt = new Date().toISOString();
 
         updatedRecord.medicalSignature = {
@@ -136,27 +137,29 @@ export const useHandoffManagement = (
         logEvent(
             'MEDICAL_HANDOFF_SIGNED',
             'dailyRecord',
-            record.date,
+            currentRecord.date,
             {
                 doctorName,
                 signedAt
             },
             undefined,
-            record.date
+            currentRecord.date
         );
-    }, [record, saveAndUpdate, logEvent]);
+    }, [saveAndUpdate, logEvent]);
 
     const updateMedicalHandoffDoctor = useCallback(async (doctorName: string): Promise<void> => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
-        const updatedRecord = { ...record };
+        const updatedRecord = { ...currentRecord };
         updatedRecord.medicalHandoffDoctor = doctorName;
         updatedRecord.lastUpdated = new Date().toISOString();
         await saveAndUpdate(updatedRecord);
-    }, [record, saveAndUpdate]);
+    }, [saveAndUpdate]);
 
     const markMedicalHandoffAsSent = useCallback((doctorName?: string) => {
-        if (!record) return Promise.resolve();
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return Promise.resolve();
 
         const updates: Partial<DailyRecord> = {
             medicalHandoffSentAt: new Date().toISOString()
@@ -165,33 +168,34 @@ export const useHandoffManagement = (
             updates.medicalHandoffDoctor = doctorName;
         }
         return patchRecord(updates);
-    }, [record, patchRecord]);
+    }, [patchRecord]);
 
     const sendMedicalHandoff = useCallback(async (templateContent: string, targetGroupId: string) => {
-        if (!record) return;
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
 
         try {
             // 1. Get Doctor Name (Auto-fill from previous if empty)
-            let doctorName = record.medicalHandoffDoctor;
+            let doctorName = currentRecord.medicalHandoffDoctor;
             if (!doctorName) {
-                const previousRecord = await getPreviousDay(record.date);
+                const previousRecord = await getPreviousDay(currentRecord.date);
                 doctorName = previousRecord?.medicalHandoffDoctor || 'Sin especificar';
             }
 
             // 2. Calculate Stats (Replica of HandoffView logic)
-            const activeExtras = record.activeExtraBeds || [];
+            const activeExtras = currentRecord.activeExtraBeds || [];
             const visibleBeds = BEDS.filter(bed => !bed.isExtra || activeExtras.includes(bed.id));
 
             const hospitalized = visibleBeds.filter(b =>
-                record.beds[b.id].patientName && !record.beds[b.id].isBlocked
+                currentRecord.beds[b.id].patientName && !currentRecord.beds[b.id].isBlocked
             ).length;
-            const blockedBeds = visibleBeds.filter(b => record.beds[b.id].isBlocked).length;
+            const blockedBeds = visibleBeds.filter(b => currentRecord.beds[b.id].isBlocked).length;
             const freeBeds = visibleBeds.length - hospitalized - blockedBeds;
 
             // 3. Format Message
-            const [year, month, day] = record.date.split('-');
+            const [year, month, day] = currentRecord.date.split('-');
             const dateStr = `${day}-${month}-${year}`;
-            const handoffUrl = `${window.location.origin}?mode=signature&date=${record.date}`;
+            const handoffUrl = `${window.location.origin}?mode=signature&date=${currentRecord.date}`;
 
             const message = formatHandoffMessage(templateContent, {
                 date: dateStr,
@@ -223,9 +227,9 @@ export const useHandoffManagement = (
             const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
             notifyError('Error al enviar', errorMessage);
         }
-    }, [record, patchRecord, success, notifyError]);
+    }, [patchRecord, success, notifyError]);
 
-    return {
+    return useMemo(() => ({
         updateHandoffChecklist,
         updateHandoffNovedades,
         updateHandoffStaff,
@@ -233,5 +237,13 @@ export const useHandoffManagement = (
         updateMedicalHandoffDoctor,
         markMedicalHandoffAsSent,
         sendMedicalHandoff
-    };
+    }), [
+        updateHandoffChecklist,
+        updateHandoffNovedades,
+        updateHandoffStaff,
+        updateMedicalSignature,
+        updateMedicalHandoffDoctor,
+        markMedicalHandoffAsSent,
+        sendMedicalHandoff
+    ]);
 };

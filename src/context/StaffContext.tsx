@@ -5,7 +5,8 @@
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { useNursesQuery, useTensQuery, useSaveNursesMutation, useSaveTensMutation } from '@/hooks/useStaffQuery';
+import { useNursesQuery, useTensQuery, useSaveNursesMutation, useSaveTensMutation, useProfessionalsQuery, useSaveProfessionalsMutation } from '@/hooks/useStaffQuery';
+import { ProfessionalCatalogItem } from '@/types';
 
 // ============================================================================
 // Types
@@ -21,6 +22,11 @@ interface StaffContextType {
     tensList: string[];
     setTensList: (tens: string[]) => void;
     tensLoading: boolean;
+
+    // Professionals catalog
+    professionalsCatalog: ProfessionalCatalogItem[];
+    setProfessionalsCatalog: (professionals: ProfessionalCatalogItem[]) => void;
+    professionalsLoading: boolean;
 
     // Manager modal visibility
     showNurseManager: boolean;
@@ -43,10 +49,12 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     // 1. Data Fetching via TanStack Query
     const { data: nurses = [], isLoading: nursesLoading } = useNursesQuery();
     const { data: tens = [], isLoading: tensLoading } = useTensQuery();
+    const { data: professionals = [], isLoading: professionalsLoading } = useProfessionalsQuery();
 
     // 2. Mutations for saving
     const saveNursesMutation = useSaveNursesMutation();
     const saveTensMutation = useSaveTensMutation();
+    const saveProfessionalsMutation = useSaveProfessionalsMutation();
 
     // 3. Manager modal visibility state
     const [showNurseManager, setShowNurseManager] = useState(false);
@@ -61,6 +69,10 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
         saveTensMutation.mutate(updatedTens);
     };
 
+    const setProfessionalsCatalog = (updatedProfessionals: ProfessionalCatalogItem[]) => {
+        saveProfessionalsMutation.mutate(updatedProfessionals);
+    };
+
     const value: StaffContextType = {
         nursesList: nurses,
         setNursesList,
@@ -68,6 +80,9 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
         tensList: tens,
         setTensList,
         tensLoading,
+        professionalsCatalog: professionals,
+        setProfessionalsCatalog,
+        professionalsLoading,
         showNurseManager,
         setShowNurseManager,
         showTensManager,

@@ -96,7 +96,7 @@ describe('useBedAudit', () => {
     });
 
     it('should log CUDYR changes with attributed authors', () => {
-        vi.mocked(getAttributedAuthors).mockReturnValue(['Author 1']);
+        vi.mocked(getAttributedAuthors).mockReturnValue('Author 1');
         const { result } = renderHook(() => useBedAudit(mockRecord));
 
         result.current.auditCudyrChange('B1', 'mobilization', 3);
@@ -104,12 +104,12 @@ describe('useBedAudit', () => {
         expect(mockLogDebouncedEvent).toHaveBeenCalledWith(
             'CUDYR_MODIFIED', 'dailyRecord', '2026-01-19',
             expect.objectContaining({ value: 3, oldValue: 1 }),
-            '123-4', '2026-01-19', ['Author 1']
+            '123-4', '2026-01-19', 'Author 1'
         );
     });
 
     it('should log Crib CUDYR changes', () => {
-        vi.mocked(getAttributedAuthors).mockReturnValue(['Author 1']);
+        vi.mocked(getAttributedAuthors).mockReturnValue('Author 1');
         const { result } = renderHook(() => useBedAudit(mockRecord));
 
         result.current.auditCribCudyrChange('B2', 'feeding', 5);
@@ -117,7 +117,7 @@ describe('useBedAudit', () => {
         expect(mockLogDebouncedEvent).toHaveBeenCalledWith(
             'CUDYR_MODIFIED', 'dailyRecord', '2026-01-19',
             expect.objectContaining({ patientName: 'Baby Doe', value: 5, oldValue: 2 }),
-            '567-8', '2026-01-19', ['Author 1']
+            '567-8', '2026-01-19', 'Author 1'
         );
     });
 });

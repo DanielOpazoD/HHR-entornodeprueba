@@ -42,9 +42,10 @@ describe('CensusView', () => {
 
     const mockCensusLogic = {
         record: null,
+        beds: null,
+        movements: { discharges: [], transfers: [], cma: [] },
         stats: {},
         previousRecordAvailable: false,
-        previousRecordDate: '',
         availableDates: [],
         createDay: vi.fn(),
         resetDay: vi.fn(),
@@ -76,7 +77,7 @@ describe('CensusView', () => {
 
     it('renders main census sections when record is present', () => {
         const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
 
         render(<CensusView {...defaultProps} />);
 
@@ -89,7 +90,7 @@ describe('CensusView', () => {
 
     it('renders CensusModals when not in readOnly mode', () => {
         const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
 
         render(<CensusView {...defaultProps} readOnly={false} />);
         expect(screen.getByTestId('census-modals')).toBeInTheDocument();
@@ -97,7 +98,7 @@ describe('CensusView', () => {
 
     it('hides CensusModals in readOnly mode', () => {
         const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
 
         render(<CensusView {...defaultProps} readOnly={true} />);
         expect(screen.queryByTestId('census-modals')).not.toBeInTheDocument();

@@ -29,21 +29,28 @@ export const applyPatches = <T extends object>(obj: T, patches: DailyRecordPatch
 /**
  * Recursively applies a path of keys to an object, cloning only the path.
  */
-function applySinglePath(obj: any, parts: string[], value: any): any {
-    if (parts.length === 0) return value;
+/**
+ * Recursively applies a path of keys to an object, cloning only the path.
+ * Uses generics to maintain as much type information as possible.
+ */
+function applySinglePath<T>(obj: T, parts: string[], value: unknown): T {
+    if (parts.length === 0) return value as T;
 
     const [currentPart, ...remainingParts] = parts;
 
     // Handle array or object
-    const currentValue = (obj && typeof obj === 'object') ? obj[currentPart] : undefined;
+    const isObj = obj && typeof obj === 'object';
+    const currentValue = isObj ? (obj as any)[currentPart] : undefined;
 
     // Create new level
-    let nextValue;
+    let nextValue: unknown;
     if (remainingParts.length === 0) {
         nextValue = value;
     } else {
         // If it's a nested update, we need to clone the current level
-        nextValue = applySinglePath(currentValue || {}, remainingParts, value);
+        // Use an empty object fallback if the current level doesn't exist
+        const baseForNext = (currentValue && typeof currentValue === 'object') ? currentValue : {};
+        nextValue = applySinglePath(baseForNext, remainingParts, value);
     }
 
     // Optimization: If the value is already the same reference, return original obj
@@ -53,11 +60,11 @@ function applySinglePath(obj: any, parts: string[], value: any): any {
     if (Array.isArray(obj)) {
         const newArr = [...obj];
         newArr[Number(currentPart)] = nextValue;
-        return newArr;
+        return newArr as unknown as T;
     } else {
         return {
-            ...obj,
+            ...(obj || {}),
             [currentPart]: nextValue
-        };
+        } as unknown as T;
     }
 }

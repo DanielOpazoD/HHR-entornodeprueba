@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ExcelParsingService, ParsedCell } from '@/services/ExcelParsingService';
+export type { ParsedCell };
 
 export interface UseExcelParserReturn {
     // Data

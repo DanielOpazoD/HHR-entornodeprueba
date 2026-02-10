@@ -3,7 +3,7 @@
  * Verifies that admission dates are validated correctly.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Test date validation logic
 describe('Admission Date Validation', () => {

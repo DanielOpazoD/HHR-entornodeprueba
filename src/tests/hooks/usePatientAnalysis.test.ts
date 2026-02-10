@@ -313,4 +313,52 @@ describe('usePatientAnalysis', () => {
 
         expect(result.current.migrationResult?.successes).toBe(1);
     });
+
+    it('should handle migration failure', async () => {
+        const mockDates = ['2025-01-01'];
+        const record1 = { date: '2025-01-01', beds: { 'B1': { rut: '11.111.111-1', patientName: 'John' } } };
+        vi.mocked(DailyRecordRepository.getAllDates).mockResolvedValue(mockDates);
+        vi.mocked(DailyRecordRepository.getForDate).mockResolvedValue(record1 as any);
+        vi.mocked(PatientMasterRepository.bulkUpsertPatients).mockRejectedValue(new Error('Migration fail'));
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+        const { result } = renderHook(() => usePatientAnalysis());
+        await act(async () => { await result.current.runAnalysis(); });
+        await act(async () => { await result.current.runMigration(); });
+
+        expect(consoleSpy).toHaveBeenCalledWith('Migration failed', expect.any(Error));
+        consoleSpy.mockRestore();
+    });
+
+    it('should handle analysis failure', async () => {
+        vi.mocked(DailyRecordRepository.getAllDates).mockRejectedValue(new Error('Analysis fail'));
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+        const { result } = renderHook(() => usePatientAnalysis());
+        await act(async () => { await result.current.runAnalysis(); });
+
+        expect(consoleSpy).toHaveBeenCalledWith('Analysis failed', expect.any(Error));
+        consoleSpy.mockRestore();
+    });
+
+    it('should detect name conflicts across 3+ variations/days', async () => {
+        const mockDates = ['2025-01-01', '2025-01-02', '2025-01-03'];
+        const records = [
+            { date: '2025-01-01', beds: { 'B1': { rut: '11.111.111-1', patientName: 'N1' } } },
+            { date: '2025-01-02', beds: { 'B1': { rut: '11.111.111-1', patientName: 'N2' } } },
+            { date: '2025-01-03', beds: { 'B1': { rut: '11.111.111-1', patientName: 'N3' } } }
+        ];
+
+        vi.mocked(DailyRecordRepository.getAllDates).mockResolvedValue(mockDates);
+        vi.mocked(DailyRecordRepository.getForDate)
+            .mockResolvedValueOnce(records[0] as any)
+            .mockResolvedValueOnce(records[1] as any)
+            .mockResolvedValueOnce(records[2] as any);
+
+        const { result } = renderHook(() => usePatientAnalysis());
+        await act(async () => { await result.current.runAnalysis(); });
+
+        expect(result.current.analysis?.conflicts[0].options).toHaveLength(3);
+        expect(result.current.analysis?.conflicts[0].records).toHaveLength(2); // First record is base, next 2 are conflicts
+    });
 });

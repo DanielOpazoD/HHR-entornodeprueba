@@ -1,5 +1,7 @@
-import { DailyRecord, DailyRecordPatch, PatientData, PatientFieldValue, CudyrScore } from '@/types';
+import { DailyRecord, DailyRecordPatch, PatientData, PatientFieldValue, CudyrScore, BedType } from '@/types';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { BEDS } from '@/constants';
+import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 
 // ============================================================================
 // Actions
@@ -20,7 +22,8 @@ export type BedAction =
     | { type: 'REMOVE_CLINICAL_CRIB'; bedId: string }
     | { type: 'UPDATE_CLINICAL_CRIB'; bedId: string; field: keyof PatientData; value: PatientFieldValue }
     | { type: 'UPDATE_CLINICAL_CRIB_MULTIPLE'; bedId: string; fields: Partial<PatientData> }
-    | { type: 'UPDATE_CLINICAL_CRIB_CUDYR'; bedId: string; field: keyof CudyrScore; value: number };
+    | { type: 'UPDATE_CLINICAL_CRIB_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
+    | { type: 'TOGGLE_BED_TYPE'; bedId: string };
 
 // ============================================================================
 // Reducer Logic (Pure Function)
@@ -52,10 +55,8 @@ export const bedManagementReducer = (
             }
 
             if (field === 'pathology' && value !== oldPatient.pathology) {
-                Object.assign(patches, {
-                    [`beds.${bedId}.cie10Code`]: undefined,
-                    [`beds.${bedId}.cie10Description`]: undefined
-                });
+                patches[`beds.${bedId}.cie10Code`] = undefined;
+                patches[`beds.${bedId}.cie10Description`] = undefined;
             }
 
             return patches as DailyRecordPatch;
@@ -94,7 +95,7 @@ export const bedManagementReducer = (
             cleanPatient.location = state.beds[bedId].location;
             return {
                 [`beds.${bedId}`]: cleanPatient
-            } as unknown as DailyRecordPatch;
+            } as DailyRecordPatch;
         }
 
         case 'CLEAR_ALL_BEDS': {
@@ -123,7 +124,7 @@ export const bedManagementReducer = (
             return {
                 [`beds.${targetBedId}`]: targetPatient,
                 [`beds.${sourceBedId}`]: cleanSource
-            } as unknown as DailyRecordPatch;
+            } as DailyRecordPatch;
         }
 
         case 'COPY_PATIENT': {
@@ -137,7 +138,7 @@ export const bedManagementReducer = (
 
             return {
                 [`beds.${targetBedId}`]: targetPatient
-            } as unknown as DailyRecordPatch;
+            } as DailyRecordPatch;
         }
 
         case 'TOGGLE_BLOCK_BED': {
@@ -205,6 +206,26 @@ export const bedManagementReducer = (
             const { bedId, field, value } = action;
             return {
                 [`beds.${bedId}.clinicalCrib.cudyr.${field}`]: value
+            } as DailyRecordPatch;
+        }
+
+        case 'TOGGLE_BED_TYPE': {
+            const { bedId } = action;
+            const bedDef = BEDS.find(b => b.id === bedId);
+            if (!bedDef) return null;
+
+            // Current type with overrides
+            const currentType = getBedTypeForRecord(bedDef, state);
+
+            // Cycle between UTI and UCI
+            const nextType = currentType === BedType.UTI ? BedType.UCI : BedType.UTI;
+
+            // If next type is same as base type, we set to undefined 
+            // so applyPatches/Firestore removes/nulls the specific override
+            const patchValue = nextType === bedDef.type ? undefined : nextType;
+
+            return {
+                [`bedTypeOverrides.${bedId}`]: patchValue
             } as DailyRecordPatch;
         }
 

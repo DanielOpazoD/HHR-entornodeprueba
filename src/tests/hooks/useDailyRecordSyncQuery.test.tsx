@@ -6,12 +6,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock Repository
-vi.mock('@/services/repositories/DailyRecordRepository', () => ({
-    getForDate: vi.fn(),
-    save: vi.fn().mockResolvedValue(undefined),
-    subscribe: vi.fn(() => vi.fn()),
-    updatePartial: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('@/services/repositories/DailyRecordRepository', () => {
+    const mockImpl = {
+        getForDate: vi.fn(),
+        save: vi.fn().mockResolvedValue(undefined),
+        subscribe: vi.fn(() => vi.fn()),
+        updatePartial: vi.fn().mockResolvedValue(undefined),
+    };
+    return {
+        ...mockImpl,
+        DailyRecordRepository: mockImpl
+    };
+});
 
 import { UIProvider } from '@/context/UIContext';
 

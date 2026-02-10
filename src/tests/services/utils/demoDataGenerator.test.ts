@@ -1,11 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
     generateDemoRecord,
     generateDemoForDay,
     generateDemoForWeek,
     generateDemoForMonth
 } from '@/services/utils/demoDataGenerator';
-import { Specialty, PatientStatus } from '@/types';
 
 describe('demoDataGenerator', () => {
     describe('generateDemoRecord', () => {

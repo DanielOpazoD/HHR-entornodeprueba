@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Unmock auditService to test the REAL logic
 vi.unmock('../../services/admin/auditService');
@@ -6,8 +6,7 @@ vi.unmock('../../services/admin/auditService');
 import {
     logPatientAdmission,
     logPatientDischarge,
-    logPatientView,
-    getLocalAuditLogs
+    logPatientView
 } from '@/services/admin/auditService';
 import { auth } from '@/firebaseConfig';
 

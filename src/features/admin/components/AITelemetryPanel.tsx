@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { aiTelemetryService, AIMetrics } from '@/services/ai/aiTelemetryService';
 import {
     Activity,

@@ -89,8 +89,14 @@ src/
 │   ├── whatsapp/               # Integración con bot de notificaciones
 │   └── errors/                 # Monitoreo de errores en runtime
 │
-├── core/                       # Núcleo técnico (Auth, Firebase Config)
-├── services/                   # Lógica de negocio y persistencia
+├── core/                       # Núcleo técnico
+│   ├── ui/                     # Sistema de Diseño (@core/ui) - Botones, Modales, Inputs
+│   └── auth/                   # Lógica de Autenticación
+│
+├── domain/                     # Lógica de Negocio Pura (Agnóstica de Framework)
+│   └── CensusManager.ts        # Reglas de movimiento, alta y egreso
+│
+├── services/                   # Infraestructura y Persistencia
 │   ├── repositories/           # Patrón Repository para Firestore/IDB
 │   ├── storage/                # Implementación de persistencia física
 │   ├── backup/                 # Gestión de respaldos en la nube
@@ -272,4 +278,4 @@ const fhirPatient = mapPatientToFhir(localPatient);
 
 ---
 
-*Última actualización: 31 de Enero 2026*
+*Última actualización: 08 de Febrero 2026*

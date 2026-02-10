@@ -3,8 +3,8 @@
  * Verifies that copying from previous day works correctly.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { DailyRecord, PatientData, Specialty, PatientStatus, CudyrScore } from '@/types';
+import { describe, it, expect } from 'vitest';
+import { DailyRecord, PatientData, Specialty, PatientStatus } from '@/types';
 
 // Simulate the copy logic from DailyRecordRepository
 const copyPatientsFromPrevious = (

@@ -22,16 +22,22 @@ const mockSave = vi.fn();
 const mockUpdatePartial = vi.fn();
 const mockGetForDate = vi.fn();
 
-vi.mock('../../services/repositories/DailyRecordRepository', () => ({
-    getForDate: (date: string) => mockGetForDate(date),
-    save: (record: DailyRecord) => mockSave(record),
-    updatePartial: (date: string, partial: any) => mockUpdatePartial(date, partial),
-    subscribe: (date: string, cb: any) => {
-        mockSubscribe(date, cb);
-        return () => { }; // Unsubscribe
-    },
-    syncWithFirestore: (date: string) => mockSyncWithFirestore(date),
-}));
+vi.mock('../../services/repositories/DailyRecordRepository', () => {
+    const mockImpl = {
+        getForDate: (date: string) => mockGetForDate(date),
+        save: (record: DailyRecord) => mockSave(record),
+        updatePartial: (date: string, partial: any) => mockUpdatePartial(date, partial),
+        subscribe: (date: string, cb: any) => {
+            mockSubscribe(date, cb);
+            return () => { }; // Unsubscribe
+        },
+        syncWithFirestore: (date: string) => mockSyncWithFirestore(date),
+    };
+    return {
+        ...mockImpl,
+        DailyRecordRepository: mockImpl
+    };
+});
 
 // Mock Firebase Auth
 vi.mock('../../firebaseConfig', () => ({

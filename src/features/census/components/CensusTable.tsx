@@ -1,13 +1,18 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { BEDS } from '@/constants';
 import { PatientRow } from '@/features/census/components/PatientRow';
-import { useDailyRecordBeds, useDailyRecordActions, useDailyRecordStaff } from '@/context/DailyRecordContext';
+import { EmptyBedRow } from '@/features/census/components/EmptyBedRow';
+import { useDailyRecordBeds, useDailyRecordActions, useDailyRecordStaff, useDailyRecordOverrides } from '@/context/DailyRecordContext';
 import { useCensusActions } from './CensusActionsContext';
-import { useConfirmDialog } from '@/context/UIContext';
+import { useConfirmDialog, useNotification } from '@/context/UIContext';
+import { useAuth } from '@/context/AuthContext';
 import { useTableConfig, TableColumnConfig } from '@/context/TableConfigContext';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
-import { Trash2, FileText, Stethoscope } from 'lucide-react';
-import { PatientData, BedDefinition } from '@/types';
+import { Trash2, FileText, Stethoscope, Bed, ShieldAlert } from 'lucide-react';
+import { BedDefinition, PatientData, BedType } from '@/types';
+import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
+import { canDoAction, ACTIONS, isAdmin } from '@/utils/permissions';
+import { getTodayISO } from '@/utils/dateUtils';
 import clsx from 'clsx';
 
 // Type for diagnosis input mode
@@ -23,11 +28,25 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     readOnly = false
 }) => {
     const beds = useDailyRecordBeds();
-    const { activeExtraBeds } = useDailyRecordStaff();
-    const { resetDay } = useDailyRecordActions();
+    const staff = useDailyRecordStaff();
+    const { resetDay, updatePatient } = useDailyRecordActions();
     const { handleRowAction } = useCensusActions();
     const { confirm } = useConfirmDialog();
+    const { warning } = useNotification();
+    const { role } = useAuth();
+    const overrides = useDailyRecordOverrides();
     const { config, isEditMode, updateColumnWidth } = useTableConfig();
+
+    const today = getTodayISO();
+    const isToday = currentDateString === today;
+    const isUserAdmin = isAdmin(role);
+
+    // Permission check for deleting the record
+    const canDeleteRecord = useMemo(() => {
+        if (isUserAdmin) return true;
+        // User is nurse or other with delete permission: only if it's today
+        return canDoAction(role, ACTIONS.RECORD_DELETE) && isToday;
+    }, [role, isUserAdmin, isToday]);
 
     // Diagnosis mode: 'free' (text libre) or 'cie10' (CIE-10 search)
     const [diagnosisMode, setDiagnosisMode] = useState<DiagnosisMode>(() => {
@@ -45,33 +64,57 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
     // Filter beds to display: All normal beds + Enabled extra beds
     const visibleBeds = useMemo(() => {
-        const activeExtras = activeExtraBeds || [];
+        const activeExtras = staff?.activeExtraBeds || [];
         return BEDS.filter(b => !b.isExtra || activeExtras.includes(b.id));
-    }, [activeExtraBeds]);
+    }, [staff?.activeExtraBeds]);
 
-    // Flatten rows (Main and Sub rows)
-    const flatRows = useMemo(() => {
-        const rows: { id: string; bed: BedDefinition; data: PatientData; isSubRow: boolean }[] = [];
+    // Flatten rows (Main and Sub rows) and separate occupied from empty
+    const { occupiedRows, emptyBeds } = useMemo(() => {
+        const occupied: { id: string; bed: BedDefinition; data: PatientData; isSubRow: boolean }[] = [];
+        const empty: BedDefinition[] = [];
 
         visibleBeds.forEach(bed => {
-            const bedData = beds[bed.id];
-            rows.push({ id: bed.id, bed, data: bedData, isSubRow: false });
+            const bedData = beds ? beds[bed.id] : undefined;
+            const hasPatient = bedData?.patientName || bedData?.isBlocked;
 
-            // Add clinical crib as a separate row item if it exists and bed isn't blocked
-            if (bedData && bedData.clinicalCrib && !bedData.isBlocked) {
-                rows.push({
-                    id: `${bed.id}-cuna`,
-                    bed,
-                    data: bedData.clinicalCrib,
-                    isSubRow: true
-                });
+            if (hasPatient) {
+                occupied.push({ id: bed.id, bed, data: bedData, isSubRow: false });
+
+                // Add clinical crib as a separate row item if it exists and bed isn't blocked
+                if (bedData && bedData.clinicalCrib && !bedData.isBlocked) {
+                    occupied.push({
+                        id: `${bed.id}-cuna`,
+                        bed,
+                        data: bedData.clinicalCrib,
+                        isSubRow: true
+                    });
+                }
+            } else {
+                empty.push(bed);
             }
         });
 
-        return rows;
+        return { occupiedRows: occupied, emptyBeds: empty };
     }, [beds, visibleBeds]);
 
+    // Calculate bed types memoized
+    const bedTypes = useMemo(() => {
+        const types: Record<string, BedType> = {};
+        visibleBeds.forEach(bed => {
+            types[bed.id] = getBedTypeForRecord(bed, { bedTypeOverrides: overrides } as any);
+        });
+        return types;
+    }, [visibleBeds, overrides]);
+
     const handleClearAll = useCallback(async () => {
+        if (!canDeleteRecord) {
+            warning(
+                'Acceso Denegado',
+                isUserAdmin ? 'No puedes eliminar este registro.' : 'Solo el administrador puede eliminar registros de días anteriores. Los enfermeros solo pueden reiniciar el día actual.'
+            );
+            return;
+        }
+
         const confirmed = await confirm({
             title: '⚠️ Reiniciar registro del día',
             message: '¿Está seguro de que desea ELIMINAR todos los datos del día?\n\nEsto eliminará el registro completo y podrá crear uno nuevo (copiar del anterior o en blanco).',
@@ -83,7 +126,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
         if (confirmed) {
             resetDay();
         }
-    }, [confirm, resetDay]);
+    }, [confirm, resetDay, canDeleteRecord, isUserAdmin, warning]);
 
     const handleColumnResize = useCallback((column: keyof TableColumnConfig) => (width: number) => {
         updateColumnWidth(column, width);
@@ -116,13 +159,18 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 onResize={handleColumnResize('actions')}
                                 className={clsx(headerClass, "print:hidden")}
                             >
-                                {!readOnly && (
+                                {(!readOnly || canDeleteRecord) && (
                                     <button
                                         onClick={handleClearAll}
-                                        className="p-1 rounded-md bg-slate-500/20 hover:bg-slate-500/40 text-slate-400 hover:text-slate-600 transition-all mx-auto block"
-                                        title="Limpiar todos los datos del día"
+                                        className={clsx(
+                                            "p-1 rounded-md transition-all mx-auto block",
+                                            canDeleteRecord
+                                                ? "bg-slate-500/10 hover:bg-rose-500/20 text-slate-400 hover:text-rose-600"
+                                                : "bg-slate-100 text-slate-300 cursor-not-allowed opacity-50"
+                                        )}
+                                        title={canDeleteRecord ? "Limpiar todos los datos del día" : "No tienes permisos para eliminar este día"}
                                     >
-                                        <Trash2 size={12} />
+                                        {canDeleteRecord ? <Trash2 size={12} /> : <ShieldAlert size={10} />}
                                     </button>
                                 )}
                             </ResizableHeader>
@@ -269,7 +317,8 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {flatRows.map((row, index) => (
+                        {/* Occupied beds - full rows */}
+                        {occupiedRows.map((row, index) => (
                             <PatientRow
                                 key={row.id}
                                 bed={row.bed}
@@ -277,9 +326,43 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                                 currentDateString={currentDateString}
                                 onAction={handleRowAction}
                                 readOnly={readOnly}
-                                actionMenuAlign={index >= flatRows.length - 4 ? 'bottom' : 'top'}
+                                actionMenuAlign={index >= occupiedRows.length - 4 ? 'bottom' : 'top'}
                                 diagnosisMode={diagnosisMode}
                                 isSubRow={row.isSubRow}
+                                bedType={bedTypes[row.bed.id]}
+                            />
+                        ))}
+
+                        {/* Separator row for empty beds */}
+                        {emptyBeds.length > 0 && (
+                            <tr className="border-t-2 border-slate-200 print:hidden">
+                                <td colSpan={12} className="py-2 px-3 bg-slate-50/50">
+                                    <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
+                                        <Bed size={14} />
+                                        <span>Camas disponibles ({emptyBeds.length})</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+
+                        {/* Empty beds - compact rows */}
+                        {emptyBeds.map(bed => (
+                            <EmptyBedRow
+                                key={bed.id}
+                                bed={bed}
+                                readOnly={readOnly}
+                                onClick={() => {
+                                    // Initialize the bed with a placeholder to trigger PatientRow rendering
+                                    updatePatient(bed.id, 'patientName', ' ');
+                                    // Focus on the name input after React re-renders
+                                    requestAnimationFrame(() => {
+                                        const nameInput = document.querySelector(`[data-bed-id="${bed.id}"] input[name="patientName"]`) as HTMLInputElement;
+                                        if (nameInput) {
+                                            nameInput.value = ''; // Clear the placeholder
+                                            nameInput.focus();
+                                        }
+                                    });
+                                }}
                             />
                         ))}
                     </tbody>

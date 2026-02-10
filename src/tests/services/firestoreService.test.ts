@@ -66,20 +66,18 @@ describe('firestoreService', () => {
     });
 
     it('should save a record with integrity snapshot', async () => {
-        const setDocMock = vi.mocked(firestore.setDoc);
-        const getDocMock = vi.mocked(firestore.getDoc);
-
-        // Mock getDoc for history snapshot (it checks if doc exists before snapshotting)
-        getDocMock.mockResolvedValueOnce({
+        vi.mocked(firestore.setDoc);
+        vi.mocked(firestore.getDoc).mockResolvedValueOnce({
             exists: () => true,
-            data: () => ({ some: 'old data' })
-        } as unknown as DocumentSnapshot);
+            data: () => ({ some: 'old data' }),
+            id: 'mock-id'
+        } as unknown as DocumentSnapshot<DocumentData>);
 
         await saveRecordToFirestore(mockRecord);
 
         // Should have called setDoc twice: once for snapshot, once for main record
-        expect(setDocMock).toHaveBeenCalledTimes(2);
-        expect(vi.mocked(firestore.doc)).toHaveBeenCalled();
+        expect(firestore.setDoc).toHaveBeenCalledTimes(2);
+        expect(firestore.doc).toHaveBeenCalled();
     });
 
     it('should return null if record does not exist', async () => {
@@ -98,10 +96,11 @@ describe('firestoreService', () => {
 
         getDocMock.mockResolvedValueOnce({
             exists: () => true,
+            id: 'mock-id',
             data: () => ({})
-        } as unknown as DocumentSnapshot);
+        } as unknown as DocumentSnapshot<DocumentData>);
 
-        await updateRecordPartial(mockDate, { 'beds.BED_01.patientName': 'Jane Doe' } as Record<string, unknown>);
+        await updateRecordPartial(mockDate, { 'beds.BED_01.patientName': 'Jane Doe' } as any);
 
         expect(updateDocMock).toHaveBeenCalled();
     });
@@ -131,13 +130,15 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((_docRef, _options, onNext) => {
-            if (typeof onNext === 'function') {
-                onNext({
+        onSnapshotMock.mockImplementationOnce((_docRef: any, _options: any, onNext?: any) => {
+            const actualOnNext = typeof _options === 'function' ? _options : onNext;
+            if (typeof actualOnNext === 'function') {
+                actualOnNext({
                     exists: () => true,
                     data: () => ({ beds: {} }),
+                    id: 'mock-id',
                     metadata: { hasPendingWrites: false }
-                } as unknown as DocumentSnapshot);
+                } as unknown as DocumentSnapshot<DocumentData>);
             }
             return vi.fn(); // Return unsubscribe
         });
@@ -177,12 +178,13 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((_docRef, onNext) => {
+        onSnapshotMock.mockImplementationOnce((_docRef: any, onNext?: any) => {
             if (typeof onNext === 'function') {
                 onNext({
                     exists: () => true,
+                    id: 'mock-id',
                     data: () => ({ list: ['Staff 1'] })
-                } as unknown as DocumentSnapshot);
+                } as unknown as DocumentSnapshot<DocumentData>);
             }
             return vi.fn();
         });
@@ -282,12 +284,13 @@ describe('firestoreService', () => {
         const onSnapshotMock = vi.mocked(firestore.onSnapshot);
         const callback = vi.fn();
 
-        onSnapshotMock.mockImplementationOnce((_docRef, onNext) => {
+        onSnapshotMock.mockImplementationOnce((_docRef: any, onNext?: any) => {
             if (typeof onNext === 'function') {
                 onNext({
                     exists: () => true,
+                    id: 'mock-id',
                     data: () => ({ list: ['TENS A'] })
-                } as unknown as DocumentSnapshot);
+                } as unknown as DocumentSnapshot<DocumentData>);
             }
             return vi.fn();
         });

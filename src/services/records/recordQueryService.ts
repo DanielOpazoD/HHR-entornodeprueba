@@ -2,6 +2,10 @@ import { DailyRecord, PatientData } from '@/types';
 import { getAllRecords, getRecordsForMonth, saveRecord as saveToIndexedDB } from '@/services/storage/indexedDBService';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestoreService';
 
+export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
+    return getRecordsForMonth(year, month);
+};
+
 export const fetchExistingDaysInMonth = async (year: number, month: number): Promise<number[]> => {
     const records = await getRecordsForMonth(year, month);
 

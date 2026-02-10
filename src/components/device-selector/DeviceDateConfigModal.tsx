@@ -12,7 +12,7 @@ export type TrackedDevice = typeof TRACKED_DEVICES[number];
 export const DEVICE_LABELS: Record<string, string> = {
     'CUP': 'Sonda Foley',
     'CVC': 'Catéter Venoso Central',
-    'VMI': 'Ventilación Mecánica Invasiva',
+    'TET': 'Tubo Orotraqueal',
     'VVP#1': 'Vía Venosa Periférica #1',
     'VVP#2': 'Vía Venosa Periférica #2',
     'VVP#3': 'Vía Venosa Periférica #3',
@@ -76,9 +76,15 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
     onSave,
     onClose
 }) => {
-    const [tempDetails, setTempDetails] = React.useState<DeviceInfo>(deviceInfo);
+    const [tempDetails, setTempDetails] = React.useState<DeviceInfo>(() => {
+        // Default to currentDate (today) for new installations
+        if (!deviceInfo.installationDate && currentDate) {
+            return { ...deviceInfo, installationDate: currentDate };
+        }
+        return deviceInfo;
+    });
     const deviceLabel = getDeviceLabel(device);
-    const isVMI = device === 'VMI';
+    const isTET = device === 'TET';
 
     const handleSave = () => {
         onSave(tempDetails);
@@ -98,7 +104,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
             <div className="space-y-4">
                 <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
-                        {isVMI ? 'Fecha de Inicio' : 'Fecha de Instalación'}
+                        {isTET ? 'Fecha de Inicio' : 'Fecha de Instalación'}
                     </label>
                     <input
                         type="date"
@@ -109,20 +115,6 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
                     />
                 </div>
 
-                <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
-                        {isVMI ? 'Fecha de Término' : 'Fecha de Retiro'}
-                        <span className="font-normal text-slate-400 ml-1">(opcional)</span>
-                    </label>
-                    <input
-                        type="date"
-                        className="w-full p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-medical-500 focus:outline-none transition-all shadow-sm"
-                        value={tempDetails.removalDate || ''}
-                        min={tempDetails.installationDate}
-                        max={currentDate}
-                        onChange={(e) => setTempDetails({ ...tempDetails, removalDate: e.target.value })}
-                    />
-                </div>
 
                 <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
@@ -155,9 +147,10 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-6 py-2 bg-medical-600 text-white rounded-xl text-sm font-bold hover:bg-medical-700 transition-all shadow-lg shadow-medical-600/20 active:scale-95"
+                        disabled={!tempDetails.installationDate}
+                        className="px-6 py-2 bg-medical-600 text-white rounded-xl text-sm font-bold hover:bg-medical-700 transition-all shadow-lg shadow-medical-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
-                        Guardar
+                        Confirmar e Instalar
                     </button>
                 </div>
             </div>

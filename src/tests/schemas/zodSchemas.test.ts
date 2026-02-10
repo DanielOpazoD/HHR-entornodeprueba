@@ -55,12 +55,16 @@ describe('zodSchemas', () => {
             expect(score.feeding).toBe(1);
         });
 
-        it('should reject missing fields', () => {
-            expect(() => CudyrScoreSchema.parse({})).toThrow();
+        it('should handle missing fields gracefully (resilience)', () => {
+            const score = CudyrScoreSchema.parse({});
+            expect(score.changeClothes).toBe(0);
+            expect(score.mobilization).toBe(0);
         });
 
-        it('should reject partial scores', () => {
-            expect(() => CudyrScoreSchema.parse({ feeding: 2 })).toThrow();
+        it('should handle partial scores gracefully', () => {
+            const score = CudyrScoreSchema.parse({ feeding: 2 });
+            expect(score.feeding).toBe(2);
+            expect(score.changeClothes).toBe(0);
         });
     });
 

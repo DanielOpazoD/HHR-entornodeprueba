@@ -1,3 +1,4 @@
+import { useMemo, useCallback, useRef, useEffect } from 'react';
 import { DailyRecord, DischargeData, DischargeType, PatientData } from '@/types';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants';
@@ -9,8 +10,10 @@ export const usePatientDischarges = (
     record: DailyRecord | null,
     saveAndUpdate: (updatedRecord: DailyRecord) => void
 ) => {
+    const recordRef = useRef(record);
+    useEffect(() => { recordRef.current = record; }, [record]);
 
-    const addDischarge = (
+    const addDischarge = useCallback((
         bedId: string,
         status: 'Vivo' | 'Fallecido',
         cribStatus?: 'Vivo' | 'Fallecido',
@@ -19,8 +22,9 @@ export const usePatientDischarges = (
         time?: string,
         target: DischargeTarget = 'both'
     ) => {
-        if (!record) return;
-        const patient = record.beds[bedId];
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const patient = currentRecord.beds[bedId];
         const bedDef = BEDS.find(b => b.id === bedId);
 
         // Prevent ghost patients (empty bed discharge)
@@ -30,7 +34,7 @@ export const usePatientDischarges = (
         }
 
         const newDischarges: DischargeData[] = [];
-        const updatedBeds = { ...record.beds };
+        const updatedBeds = { ...currentRecord.beds };
 
         // Handle based on target
         if (target === 'mother' || target === 'both') {
@@ -56,7 +60,7 @@ export const usePatientDischarges = (
             });
 
             // Audit Logging for Main Patient
-            logPatientDischarge(bedId, patient.patientName, patient.rut, status, record.date);
+            logPatientDischarge(bedId, patient.patientName, patient.rut, status, currentRecord.date);
         }
 
         if (target === 'baby' || target === 'both') {
@@ -81,7 +85,7 @@ export const usePatientDischarges = (
                 });
 
                 // Audit Logging for RN
-                logPatientDischarge(bedId, patient.clinicalCrib.patientName, patient.clinicalCrib.rut, cribStatus, record.date);
+                logPatientDischarge(bedId, patient.clinicalCrib.patientName, patient.clinicalCrib.rut, cribStatus, currentRecord.date);
             }
         }
 
@@ -118,41 +122,44 @@ export const usePatientDischarges = (
         }
 
         saveAndUpdate({
-            ...record,
+            ...currentRecord,
             beds: updatedBeds,
-            discharges: [...(record.discharges || []), ...newDischarges]
+            discharges: [...(currentRecord.discharges || []), ...newDischarges]
         });
-    };
+    }, [saveAndUpdate]);
 
-    const updateDischarge = (
+    const updateDischarge = useCallback((
         id: string,
         status: 'Vivo' | 'Fallecido',
         dischargeType?: string,
         dischargeTypeOther?: string,
         time?: string
     ) => {
-        if (!record) return;
-        const updatedDischarges = record.discharges.map(d => d.id === id ? {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const updatedDischarges = currentRecord.discharges.map(d => d.id === id ? {
             ...d,
             status,
             dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
             dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
             time: time ?? d.time
         } : d);
-        saveAndUpdate({ ...record, discharges: updatedDischarges });
-    };
+        saveAndUpdate({ ...currentRecord, discharges: updatedDischarges });
+    }, [saveAndUpdate]);
 
-    const deleteDischarge = (id: string) => {
-        if (!record) return;
-        saveAndUpdate({ ...record, discharges: record.discharges.filter(d => d.id !== id) });
-    };
+    const deleteDischarge = useCallback((id: string) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        saveAndUpdate({ ...currentRecord, discharges: currentRecord.discharges.filter(d => d.id !== id) });
+    }, [saveAndUpdate]);
 
-    const undoDischarge = (id: string) => {
-        if (!record) return;
-        const discharge = record.discharges.find(d => d.id === id);
+    const undoDischarge = useCallback((id: string) => {
+        const currentRecord = recordRef.current;
+        if (!currentRecord) return;
+        const discharge = currentRecord.discharges.find(d => d.id === id);
         if (!discharge || !discharge.originalData) return;
 
-        const updatedBeds = { ...record.beds };
+        const updatedBeds = { ...currentRecord.beds };
         const bedData = updatedBeds[discharge.bedId];
 
         // Logic for undoing
@@ -186,16 +193,16 @@ export const usePatientDischarges = (
         }
 
         saveAndUpdate({
-            ...record,
+            ...currentRecord,
             beds: updatedBeds,
-            discharges: record.discharges.filter(d => d.id !== id)
+            discharges: currentRecord.discharges.filter(d => d.id !== id)
         });
-    };
+    }, [saveAndUpdate]);
 
-    return {
+    return useMemo(() => ({
         addDischarge,
         updateDischarge,
         deleteDischarge,
         undoDischarge
-    };
+    }), [addDischarge, updateDischarge, deleteDischarge, undoDischarge]);
 };

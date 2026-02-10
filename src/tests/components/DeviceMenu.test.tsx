@@ -3,15 +3,15 @@
  * Verifies device menu logic without complex component rendering.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DeviceDetails } from '@/types';
 
 describe('DeviceMenu Logic', () => {
     describe('Device State', () => {
         const defaultDevice: DeviceDetails = {
-            CUP: undefined,
-            CVC: undefined,
-            VMI: undefined,
+            CUP: {},
+            CVC: {},
+            VMI: {},
         };
 
         it('should have all device options', () => {
@@ -25,7 +25,7 @@ describe('DeviceMenu Logic', () => {
         });
 
         it('should count 0 active devices when none enabled', () => {
-            const count = Object.values(defaultDevice).filter(Boolean).length;
+            const count = Object.values(defaultDevice).filter(d => d && Object.keys(d).length > 0).length;
             expect(count).toBe(0);
         });
 
@@ -33,20 +33,21 @@ describe('DeviceMenu Logic', () => {
             const activeDevice: DeviceDetails = {
                 CUP: { installationDate: '2024-01-01' },
                 CVC: { installationDate: '2024-01-01' },
-                VMI: undefined,
+                VMI: {},
             };
 
-            const count = Object.values(activeDevice).filter(Boolean).length;
+            const count = Object.values(activeDevice).filter(d => d.installationDate).length;
             expect(count).toBe(2);
         });
 
         it('should toggle device state', () => {
             const device = { ...defaultDevice };
-            device.CUP = device.CUP ? undefined : { installationDate: '2024-01-01' };
-            expect(device.CUP).toBeDefined();
+            // Toggle CUP from disabled to enabled
+            device.CUP = device.CUP.installationDate ? {} : { installationDate: '2024-01-01' };
+            expect(device.CUP.installationDate).toBeDefined();
 
-            device.CUP = undefined;
-            expect(device.CUP).toBeUndefined();
+            device.CUP = {};
+            expect(device.CUP.installationDate).toBeUndefined();
         });
     });
 

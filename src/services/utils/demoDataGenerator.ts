@@ -49,6 +49,7 @@ const CLINICAL_PROFILES: Record<Specialty, Array<{ dx: string, status: PatientSt
         { dx: 'Artroplastia de cadera', status: PatientStatus.ESTABLE, upc: false, avgStay: 5, cie10: 'Z96.6', events: ['Cirugía de reemplazo articular', 'Protocolo analgesia'] },
     ],
     [Specialty.PSIQUIATRIA]: [],
+    [Specialty.ODONTOLOGIA]: [],
     [Specialty.OTRO]: [],
     [Specialty.EMPTY]: [],
 };

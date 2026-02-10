@@ -1,15 +1,11 @@
-/**
- * SettingsModal Component
- * 
- * Application configuration modal using the BaseModal pattern.
- * Includes table config, offline passport, demo data, and test agent sections.
- */
-
 import React, { useRef, useState } from 'react';
-import { Settings, Database, Bot, FileKey, Download, TableProperties, Upload, RotateCcw, Sparkles, MousePointer2, Move, Type } from 'lucide-react';
-import { BaseModal, ModalSection } from '@/components/shared/BaseModal';
+import { Settings, Database, Bot, FileKey, Download, TableProperties, Upload, RotateCcw, Sparkles, MousePointer2, Move, Type, Shield } from 'lucide-react';
+import { Modal, ModalSection, Button } from '@/core/ui';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
+import { SecuritySettings } from './SecuritySettings';
+
+import { UserRole } from '@/types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,7 +13,7 @@ interface SettingsModalProps {
   onGenerateDemo: () => void;
   onRunTest: () => void;
   canDownloadPassport?: boolean;
-  onDownloadPassport?: (role: string) => Promise<boolean>;
+  onDownloadPassport?: (role: UserRole) => Promise<boolean>;
   isOfflineMode?: boolean;
 }
 
@@ -78,97 +74,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <BaseModal
+    <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Configuración"
       icon={<Settings size={18} />}
       size="md"
     >
-      {/* Premium Aesthetics Section */}
+      {/* Security Section */}
+      <ModalSection
+        title="Seguridad y Bloqueo"
+        icon={<Shield size={16} />}
+        description="Configure un PIN de acceso y tiempos de bloqueo automático."
+        variant="warning"
+      >
+        <SecuritySettings />
+      </ModalSection>
+
+      {/* Aesthetics Section */}
       <ModalSection
         title="Estética Premium"
         icon={<Sparkles size={16} />}
         description="Personalice la apariencia y sensaciones táctiles del sistema."
         variant="info"
       >
-        <div className="space-y-4">
-          {/* Glassmorphism Toggle */}
-          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">Glassmorphism</p>
-                <p className="text-[10px] text-slate-500">Efecto de cristal y profundidad</p>
-              </div>
-            </div>
-            <button
-              onClick={() => updateSetting('glassmorphism', !settings.glassmorphism)}
-              className={`w-12 h-6 rounded-full transition-all relative ${settings.glassmorphism ? 'bg-medical-600' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.glassmorphism ? 'left-7' : 'left-1'}`} />
-            </button>
-          </div>
+        {(['glassmorphism', 'animations', 'hoverEffects', 'modernTypography'] as const).map((id) => {
+          const item = {
+            glassmorphism: { label: 'Glassmorphism', desc: 'Efecto de cristal y profundidad', icon: Sparkles, color: 'blue' },
+            animations: { label: 'Micro-interacciones', desc: 'Transiciones y animaciones suaves', icon: Move, color: 'purple' },
+            hoverEffects: { label: 'Efectos Hover', desc: 'Iluminación al pasar el mouse', icon: MousePointer2, color: 'pink' },
+            modernTypography: { label: 'Tipografía Moderna', desc: 'Usar fuente "Plus Jakarta Sans"', icon: Type, color: 'emerald' },
+          }[id];
 
-          {/* Animations Toggle */}
-          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                <Move size={18} />
+          return (
+            <div key={id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 bg-${item.color}-50 text-${item.color}-600 rounded-lg`}>
+                  <item.icon size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">{item.label}</p>
+                  <p className="text-[10px] text-slate-500">{item.desc}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">Micro-interacciones</p>
-                <p className="text-[10px] text-slate-500">Transiciones y animaciones suaves</p>
-              </div>
+              <button
+                onClick={() => updateSetting(id, !settings[id])}
+                className={`w-12 h-6 rounded-full transition-all relative ${settings[id] ? 'bg-medical-600' : 'bg-slate-300'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings[id] ? 'left-7' : 'left-1'}`} />
+              </button>
             </div>
-            <button
-              onClick={() => updateSetting('animations', !settings.animations)}
-              className={`w-12 h-6 rounded-full transition-all relative ${settings.animations ? 'bg-medical-600' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.animations ? 'left-7' : 'left-1'}`} />
-            </button>
-          </div>
-
-          {/* Hover Effects Toggle */}
-          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-pink-50 text-pink-600 rounded-lg">
-                <MousePointer2 size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">Efectos Hover</p>
-                <p className="text-[10px] text-slate-500">Iluminación al pasar el mouse</p>
-              </div>
-            </div>
-            <button
-              onClick={() => updateSetting('hoverEffects', !settings.hoverEffects)}
-              className={`w-12 h-6 rounded-full transition-all relative ${settings.hoverEffects ? 'bg-medical-600' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.hoverEffects ? 'left-7' : 'left-1'}`} />
-            </button>
-          </div>
-
-          {/* Typography Toggle */}
-          <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <Type size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-700">Tipografía Moderna</p>
-                <p className="text-[10px] text-slate-500">Usar fuente &apos;Plus Jakarta Sans&apos;</p>
-              </div>
-            </div>
-            <button
-              onClick={() => updateSetting('modernTypography', !settings.modernTypography)}
-              className={`w-12 h-6 rounded-full transition-all relative ${settings.modernTypography ? 'bg-medical-600' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.modernTypography ? 'left-7' : 'left-1'}`} />
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </ModalSection>
 
       {/* Table Configuration Section */}
@@ -177,7 +134,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         icon={<TableProperties size={16} />}
         description="Personalice el ancho de las columnas y márgenes de la tabla de Censo Diario."
       >
-        {/* Page Margin Control */}
         <div className="mb-4 p-3 bg-slate-100/50 rounded-xl">
           <label className="text-xs font-bold text-slate-700 mb-2 block">
             Margen de Página: {config.pageMargin}px
@@ -191,48 +147,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onChange={(e) => updatePageMargin(parseInt(e.target.value))}
             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
-          <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-            <span>Sin margen</span>
-            <span>Máximo</span>
-          </div>
         </div>
 
         <div className="space-y-2">
-          <button
+          <Button
+            variant={isEditMode ? 'primary' : 'secondary'}
             onClick={() => { setEditMode(!isEditMode); onClose(); }}
-            className={`w-full py-2 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${isEditMode
-              ? 'bg-blue-500 text-white shadow-blue-500/20'
-              : 'bg-slate-200 text-slate-700 shadow-slate-300/20 hover:bg-slate-300'
-              }`}
+            className="w-full"
+            icon={<TableProperties size={16} />}
           >
-            <TableProperties size={16} />
             {isEditMode ? 'Desactivar Modo Edición' : 'Activar Modo Edición'}
-          </button>
+          </Button>
 
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={exportConfig}
-              className="flex-1 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-slate-600/20 active:scale-95 flex items-center justify-center gap-2"
+              className="flex-1"
+              icon={<Download size={14} />}
             >
-              <Download size={14} />
               Exportar
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={handleImportClick}
-              className="flex-1 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-slate-600/20 active:scale-95 flex items-center justify-center gap-2"
+              className="flex-1"
+              icon={<Upload size={14} />}
             >
-              <Upload size={14} />
               Importar
-            </button>
+            </Button>
           </div>
 
-          <button
+          <Button
+            variant="danger"
             onClick={handleReset}
-            className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-2"
+            className="w-full"
+            icon={<RotateCcw size={14} />}
           >
-            <RotateCcw size={14} />
             Resetear a Valores por Defecto
-          </button>
+          </Button>
         </div>
 
         <input
@@ -244,85 +197,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         />
       </ModalSection>
 
-      {/* Passport Download Section - Only for admin users */}
+      {/* Passport Download Section */}
       {canDownloadPassport && !isOfflineMode && onDownloadPassport && (
         <ModalSection
           title="Generar Pasaporte Offline"
           icon={<FileKey size={16} />}
-          description={<>Genere un archivo pasaporte para acceder al sistema <strong>sin conexión a internet</strong>.<br /><span className="font-bold text-emerald-700">Válido por 3 años. Solo usted como admin puede generar estos pasaportes.</span></>}
+          description={<>Genere un archivo pasaporte para acceder al sistema <strong>sin conexión a internet</strong>.<br /><span className="font-bold text-emerald-700 text-[10px]">Válido por 3 años. Solo administradores pueden generar estos archivos.</span></>}
           variant="success"
         >
           <div className="space-y-3">
-            {/* Role Selector */}
             <div className="flex gap-2">
-              <button
+              <Button
+                variant={selectedPassportRole === 'admin' ? 'primary' : 'outline'}
                 onClick={() => setSelectedPassportRole('admin')}
-                className={`flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${selectedPassportRole === 'admin'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
-                  }`}
+                className={`flex-1 ${selectedPassportRole === 'admin' ? 'bg-emerald-600 border-emerald-600' : ''}`}
+                icon={<FileKey size={14} />}
               >
-                <FileKey size={14} />
                 Admin
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={selectedPassportRole === 'nurse_hospital' ? 'primary' : 'outline'}
                 onClick={() => setSelectedPassportRole('nurse_hospital')}
-                className={`flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${selectedPassportRole === 'nurse_hospital'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
-                  }`}
+                className={`flex-1 ${selectedPassportRole === 'nurse_hospital' ? 'bg-emerald-600 border-emerald-600' : ''}`}
+                icon={<FileKey size={14} />}
               >
-                <FileKey size={14} />
                 Enfermería
-              </button>
+              </Button>
             </div>
 
-            <button
+            <Button
               onClick={handlePassportDownload}
-              disabled={isGenerating}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-2"
+              isLoading={isGenerating}
+              variant="primary"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+              icon={<Download size={16} />}
             >
-              {isGenerating ? (
-                <>Generando...</>
-              ) : (
-                <>
-                  <Download size={16} />
-                  Descargar Pasaporte {selectedPassportRole === 'admin' ? 'Admin' : 'Enfermería'}
-                </>
-              )}
-            </button>
+              Descargar Pasaporte {selectedPassportRole === 'admin' ? 'Admin' : 'Enfermería'}
+            </Button>
           </div>
         </ModalSection>
       )}
 
-      {/* Demo Data Section */}
-      <ModalSection
-        title="Datos de Prueba (Demo)"
-        icon={<Database size={16} />}
-        description={<>Rellena la tabla actual con pacientes ficticios. Útil para practicar o ver cómo funciona el sistema.<br /><span className="font-bold text-blue-700">Nota: Sobrescribirá los datos del día actual.</span></>}
-        variant="info"
-      >
-        <button
-          onClick={() => { onGenerateDemo(); onClose(); }}
-          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+      {/* Demo and Diagnostics Section */}
+      <div className="grid grid-cols-2 gap-4">
+        <ModalSection
+          title="Datos Demo"
+          icon={<Database size={16} />}
+          variant="info"
         >
-          Generar Pacientes Demo
-        </button>
-      </ModalSection>
+          <Button
+            onClick={() => { onGenerateDemo(); onClose(); }}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            Generar Demo
+          </Button>
+        </ModalSection>
 
-      {/* Test Agent Section */}
-      <ModalSection
-        title="Agente de Prueba (Auto-Test)"
-        icon={<Bot size={16} />}
-        description="Ejecuta un script automático que verifica la integridad del sistema, almacenamiento y cálculos matemáticos."
-      >
-        <button
-          onClick={() => { onRunTest(); onClose(); }}
-          className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-purple-600/20 active:scale-95"
+        <ModalSection
+          title="Diagnóstico"
+          icon={<Bot size={16} />}
         >
-          Ejecutar Diagnóstico
-        </button>
-      </ModalSection>
-    </BaseModal>
+          <Button
+            onClick={() => { onRunTest(); onClose(); }}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            Ejecutar Test
+          </Button>
+        </ModalSection>
+      </div>
+    </Modal>
   );
 };

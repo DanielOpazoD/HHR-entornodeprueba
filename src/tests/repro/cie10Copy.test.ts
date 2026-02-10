@@ -11,6 +11,11 @@ vi.unmock('../../services/repositories/DailyRecordRepository');
 // Mock services
 vi.mock('../../services/storage/indexedDBService');
 vi.mock('../../services/storage/firestoreService');
+vi.mock('../../services/storage/legacyFirebaseService', () => ({
+    getLegacyRecord: vi.fn().mockResolvedValue(null),
+    getLegacyNurseCatalog: vi.fn().mockResolvedValue([]),
+    getLegacyTensCatalog: vi.fn().mockResolvedValue([]),
+}));
 
 describe('CIE-10 Copy Bug Reproduction', () => {
     it('should copy CIE-10 fields from previous day', async () => {

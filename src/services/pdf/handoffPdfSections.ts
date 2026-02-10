@@ -14,7 +14,7 @@ interface CellHookData {
     section: 'head' | 'body' | 'foot';
     column: { index: number };
     cell: {
-        raw: string | number;
+        raw: unknown;
         x: number;
         y: number;
         width: number;
@@ -32,7 +32,7 @@ interface CellHookData {
 interface AutoTableOptions {
     startY?: number;
     head?: (string | { content: string; colSpan?: number; styles?: Record<string, unknown> })[][];
-    body?: (string | number | { content: string; styles?: Record<string, unknown> } | Record<string, unknown>)[][];
+    body?: (string | number | boolean | null | { content: string; styles?: Record<string, unknown> } | Record<string, unknown>)[][];
     theme?: 'striped' | 'grid' | 'plain';
     styles?: Record<string, unknown>;
     headStyles?: Record<string, unknown>;
@@ -44,10 +44,10 @@ interface AutoTableOptions {
     pageBreak?: 'auto' | 'avoid' | 'always';
 }
 
-type AutoTableFunction = (doc: jsPDF, options: AutoTableOptions) => void;
+export type AutoTableFunction = (doc: jsPDF, options: AutoTableOptions) => void;
 
 // Augmented jsPDF type for AutoTable plugin
-type JsPDFWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
+export type JsPDFWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
 
 export const addPatientTable = (
     doc: jsPDF,

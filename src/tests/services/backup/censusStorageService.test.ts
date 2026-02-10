@@ -68,15 +68,13 @@ describe('censusStorageService', () => {
             expect(exists).toBe(false);
         });
 
-        it('should return false and log error for other errors', async () => {
+        it('should return false for other errors', async () => {
             vi.mocked(getMetadata).mockRejectedValue(new Error('Other Error'));
-            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+            // console.warn/error is commented out in implementation
 
             const exists = await checkCensusExists(mockDate);
 
             expect(exists).toBe(false);
-            expect(consoleSpy).toHaveBeenCalled();
-            consoleSpy.mockRestore();
         });
     });
 

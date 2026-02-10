@@ -7,6 +7,7 @@ import { PatientFieldValue } from './valueTypes';
 
 export enum BedType {
     UTI = 'UTI',
+    UCI = 'UCI',
     MEDIA = 'MEDIA',
 }
 
@@ -171,6 +172,8 @@ export interface PatientData {
     cie10Description?: string; // Official CIE-10 description recorded at selection
     diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
     specialty: Specialty;
+    /** Optional secondary specialty for co-managed patients. Not used for statistics. */
+    secondarySpecialty?: Specialty | string;
     status: PatientStatus;
     admissionDate: string;
     admissionTime?: string;
@@ -245,6 +248,8 @@ export interface DeviceInfo {
 export type DeviceDetails = Record<string, DeviceInfo>;
 
 // Extracted type for reuse
+export type DeviceType = 'CVC' | 'LA' | 'CUP' | 'VMNI' | 'CNAF' | 'TET' | 'VVP#1' | 'VVP#2' | 'VVP#3' | string;
+
 export type DischargeType = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
 
 export interface DischargeData {
@@ -277,6 +282,7 @@ export interface TransferData {
     diagnosis: string;
     time: string;
     evacuationMethod: string;
+    evacuationMethodOther?: string;
     receivingCenter: string;
     receivingCenterOther?: string;
     transferEscort?: string;
@@ -313,9 +319,23 @@ export interface CMAData {
     originalData?: PatientData; // For undo: snapshot of original patient data
 }
 
+/**
+ * On-Duty Professional
+ * Tracks medical professionals assigned to a shift
+ */
+export type OnDutySpecialty = 'Medicina Interna' | 'Cirugía' | 'Ginecobstetricia' | 'Anestesia' | 'Kinesiología';
+
+export interface OnDutyProfessional {
+    specialty: OnDutySpecialty;
+    name: string;
+    phone: string;
+    period: string; // e.g., "08:00 - 20:00" or "Lunes a Viernes"
+}
+
 export interface DailyRecord {
     date: string;
     beds: Record<string, PatientData>;
+    bedTypeOverrides?: Record<string, BedType>;
     discharges: DischargeData[];
     transfers: TransferData[];
     cma: CMAData[]; // Cirugía Mayor Ambulatoria
@@ -384,7 +404,27 @@ export interface DailyRecord {
     /** User ID who locked the CUDYR */
     cudyrLockedBy?: string;
 
+    // ===== On-Duty Professionals =====
+    /** Medical professionals on duty for the day */
+    onDutyProfessionals?: OnDutyProfessional[];
+    /** Last time on-duty professionals were updated */
+    onDutyProfessionalsUpdatedAt?: string;
+    /** Coverage period start (ISO string) */
+    onDutyCoverageStart?: string;
+    /** Coverage period end (ISO string) */
+    onDutyCoverageEnd?: string;
+}
 
+/**
+ * Professional Catalog Item
+ * Used for the persistent professionals catalog
+ */
+export interface ProfessionalCatalogItem {
+    name: string;
+    phone: string;
+    specialty: OnDutySpecialty;
+    period?: string;
+    lastUsed?: string;
 }
 
 export interface Statistics {
@@ -438,6 +478,10 @@ type TopLevelPath = keyof Pick<DailyRecord,
     | 'cudyrLocked'
     | 'cudyrLockedAt'
     | 'cudyrLockedBy'
+    | 'onDutyProfessionals'
+    | 'onDutyProfessionalsUpdatedAt'
+    | 'onDutyCoverageStart'
+    | 'onDutyCoverageEnd'
 >;
 
 // Type-safe paths for Handoff Checklist

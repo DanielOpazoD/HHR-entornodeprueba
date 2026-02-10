@@ -4,7 +4,7 @@
  * Separated for clarity and reusability.
  */
 
-import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DailyRecordPatch } from '@/types';
+import { DailyRecord, PatientData, CudyrScore, TransferData, PatientFieldValue, CMAData, DailyRecordPatch, OnDutyProfessional } from '@/types';
 export type { DailyRecordPatch };
 
 // ============================================================================
@@ -88,6 +88,7 @@ export interface DailyRecordActionsContextType {
     toggleBlockBed: (bedId: string, reason?: string) => void;
     updateBlockedReason: (bedId: string, reason: string) => void;
     toggleExtraBed: (bedId: string) => void;
+    toggleBedType: (bedId: string) => void;
     copyPatientToDate: (bedId: string, targetDate: string, targetBedId?: string) => Promise<void>;
 
     // Nurse Management (from useNurseManagement)
@@ -122,7 +123,13 @@ export interface DailyRecordActionsContextType {
     markMedicalHandoffAsSent: (doctorName?: string) => Promise<void>;
     sendMedicalHandoff: (templateContent: string, targetGroupId: string) => Promise<void>;
 
-
+    // On-Duty Professionals Management
+    updateOnDutyProfessional: (specialty: string, data: { name: string; phone: string; period: string }) => void;
+    updateOnDutyProfessionalsFull: (data: {
+        professionals: OnDutyProfessional[];
+        coverageStart?: string;
+        coverageEnd?: string;
+    }) => void;
 }
 
 /**

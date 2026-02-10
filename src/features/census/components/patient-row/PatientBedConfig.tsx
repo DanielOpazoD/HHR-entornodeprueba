@@ -99,7 +99,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
                     <div className="flex gap-1 mt-1">
                         {isCunaMode && <span className="text-[8px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200">CUNA</span>}
                         {hasCompanion && <span className="text-[8px] bg-emerald-100 text-emerald-700 font-bold px-1 rounded-sm border border-emerald-200" title="RN Sano">RN</span>}
-                        {hasClinicalCrib && <span className="text-[8px] bg-purple-100 text-purple-700 font-bold px-1 rounded-sm border border-purple-200" title="Cuna Clínica">+CC</span>}
+                        {hasClinicalCrib && <span className="text-[8px] bg-slate-100 text-slate-600 font-bold px-1 rounded-sm border border-slate-200" title="Cuna Clínica">+CC</span>}
                     </div>
                 )}
             </div>
