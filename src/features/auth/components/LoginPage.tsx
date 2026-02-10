@@ -5,7 +5,7 @@ import {
     validatePassport,
     storePassportLocally
 } from '@/services/auth/passportService';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Palette } from 'lucide-react';
 import { saveAppSetting } from '@/services';
 
 interface LoginPageProps {
@@ -28,6 +28,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
     const [error, setError] = useState<string | null>(null);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isPassportLoading, setIsPassportLoading] = useState(false);
+    const [backgroundMode, setBackgroundMode] = useState<'auto' | 'day' | 'night'>('auto');
     const [_isDragging, setIsDragging] = useState(false);
 
     const _fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -132,13 +133,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isSharedCe
 
     const isAnyLoading = isGoogleLoading || isPassportLoading;
     const currentHour = new Date().getHours();
-    const isDayGradient = currentHour >= 8 && currentHour < 20;
+    const isAutoDayWindow = currentHour >= 8 && currentHour < 20;
+    const isDayGradient = backgroundMode === 'auto' ? isAutoDayWindow : backgroundMode === 'day';
     const loginBackgroundClass = isDayGradient
-        ? 'bg-[linear-gradient(135deg,_#1d4ed8_0%,_#3b82f6_42%,_#93c5fd_74%,_#dbeafe_100%)]'
-        : 'bg-[linear-gradient(135deg,_#020617_0%,_#111827_38%,_#334155_72%,_#94a3b8_100%)]';
+        ? 'bg-[linear-gradient(140deg,_#0f2f9f_0%,_#0d5fe8_28%,_#22b7ff_58%,_#9be8ff_82%,_#effbff_100%)]'
+        : 'bg-[linear-gradient(140deg,_#020617_0%,_#0f172a_34%,_#1e293b_64%,_#334155_84%,_#94a3b8_100%)]';
+
+    const toggleBackgroundMode = () => {
+        setBackgroundMode(prev => {
+            if (prev === 'auto') return 'day';
+            if (prev === 'day') return 'night';
+            return 'auto';
+        });
+    };
+
+    const backgroundModeLabel =
+        backgroundMode === 'auto'
+            ? `Automático (${isAutoDayWindow ? 'Día' : 'Noche'})`
+            : backgroundMode === 'day'
+                ? 'Manual: Día'
+                : 'Manual: Noche';
 
     return (
-        <div className={`min-h-screen ${loginBackgroundClass} flex items-center justify-center p-4`}>
+        <div className={`min-h-screen ${loginBackgroundClass} flex items-center justify-center p-4 relative overflow-hidden`}>
+            <button
+                type="button"
+                onClick={toggleBackgroundMode}
+                className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-black/15 px-3 py-1.5 text-[11px] font-medium text-white/90 backdrop-blur-sm transition hover:bg-black/25"
+                title="Cambiar modo de fondo"
+            >
+                <Palette className="h-3.5 w-3.5" />
+                {backgroundModeLabel}
+            </button>
             <div className="w-full max-w-sm">
                 {/* Logo/Header */}
                 <div className="text-center mb-10">
