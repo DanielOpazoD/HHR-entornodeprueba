@@ -1,215 +1,196 @@
-# 🏥 Hospital Hanga Roa - Sistema de Gestión Clínica
+# HHR (Hospital Handoff Record)
 
-[![CI Status](https://img.shields.io/badge/Tests-1345%20passing-brightgreen)](./tests)
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org)
-[![Firebase](https://img.shields.io/badge/Firebase-12.6-FFCA28?logo=firebase)](https://firebase.google.com)
-[![TanStack Query](https://img.shields.io/badge/TanStack_Query-5.x-FF4154)](https://tanstack.com/query)
+Aplicación web médica para censo hospitalario, entrega de turno y gestión operativa clínica.
 
-Sistema integral de gestión hospitalaria para el **Hospital Hanga Roa** de Isla de Pascua, Chile. Desarrollado con React, TypeScript, Firebase y TanStack Query.
-
----
-
-## 🚀 Características Principales
-
-| Módulo | Descripción |
-|--------|-------------|
-| **📋 Censo Diario** | Registro en tiempo real de pacientes con 26 camas + extras. Automatización de envío de reportes. |
-| **🏥 CUDYR** | Categorización de dependencia con scoring automático (Turno Noche). |
-| **🔄 Entrega de Turno** | Handoff digital de enfermería y médico con firmas y respaldo automático. |
-| **📊 Reportes** | Ventanilla única de exportación con sincronización inmediata a la nube. |
-| **📱 Modo Offline** | Sincronización híbrida via TanStack Query e IndexedDB (Dexie). |
-| **📝 Auditoría** | Trazabilidad completa de acciones clínicas inmutables. |
-| **💬 WhatsApp** | Bot de notificaciones automáticas para comunicación de turno. |
-| **🧬 HL7 FHIR** | Soporte nativo para interoperabilidad vía recursos FHIR (Core-CL). |
-| **☁️ Backup** | Respaldo automático de documentos críticos en Firebase Storage. |
-
----
-
-## 🏗️ Arquitectura
-
-```mermaid
-flowchart TB
-    subgraph Cliente["🖥️ Cliente React"]
-        UI[Vistas & Componentes]
-        TQ[TanStack Query Cache]
-        CTX[React Contexts]
-        IDB[(IndexedDB / Dexie)]
-    end
-    
-    subgraph Firebase["☁️ Firebase"]
-        FS[(Firestore)]
-        AUTH[Firebase Auth]
-        STORAGE[Cloud Storage]
-    end
-    
-    subgraph Serverless["⚡ Netlify Functions"]
-        EMAIL[Gmail API]
-        WA[WhatsApp Proxy]
-    end
-    
-    UI --> CTX --> TQ
-    TQ <--> IDB
-    TQ <-->|Real-time Sync| FS
-    UI --> AUTH
-    UI --> EMAIL
-    UI --> WA
-    UI --> STORAGE
-```
-
-### Flujo de Datos
-```
-Usuario → View → Context → TanStack Query → Repository → Firebase/IndexedDB
-                    ↓              ↓              ↓
-                 Estado      Optimistic      Validación Zod
-                 Global        Updates
-```
-
----
-
-## 📁 Estructura del Proyecto (src/)
-
-```
-├── components/              # Componentes React (Censo, Layout, Modales)
-├── features/                # Módulos por funcionalidad (CUDYR, Handoff, Analytics)
-├── core/                    # Núcleo del sistema (@core/ui, Auth)
-├── domain/                  # Lógica de negocio pura (CensusManager)
-├── hooks/                   # Hooks transversales (Query, UI, Validation)
-├── services/                # Infraestructura y repositorios
-├── context/                 # Estado global compartido
-├── constants/               # Configuración estática y mapas
-├── schemas/                 # Esquemas de validación Zod
-├── types/                   # Definiciones TypeScript
-├── utils/                   # Utilidades puras y helpers
-└── tests/                   # 1350+ tests (Vitest + Playwright)
-```
-
----
-
-## 🛠️ Stack Tecnológico
-
-| Categoría | Tecnología | Propósito |
-|-----------|------------|-----------|
-| **Frontend** | React 19.2 | UI declarativa |
-| **State Management** | TanStack Query 5 | Cache, sync, optimistic updates |
-| **Language** | TypeScript 5.8 | Type safety |
-| **Build** | Vite 6.4 | Fast bundling, HMR |
-| **Database** | Firestore + IndexedDB | Cloud + Offline persistence |
-| **Auth** | Firebase Auth | Google Sign-In |
-| **Storage** | Firebase Storage | PDFs y Excels de backup |
-| **Validation** | Zod 3.25 | Runtime type checking |
-| **Testing** | Vitest + Playwright | Unit, Integration, E2E |
-| **Styling** | Vanilla CSS + Tailwind | Design tokens system |
-| **Deployment** | Netlify | Auto-deploy + Serverless Functions |
-
----
-
-## 🏃‍♂️ Inicio Rápido
+## Quick Start
 
 ### Requisitos
-- Node.js **20.x** o superior
-- npm **9.x** o superior
+
+- Node.js 20+
+- npm 10+
+- Firebase project (variables de entorno en `.env`)
 
 ### Instalación
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/DanielOpazoD/HHR-entornodeprueba.git
-cd HHR-entornodeprueba
-
-# Instalar dependencias
 npm install
-
-# Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus credenciales de Firebase
 ```
 
 ### Desarrollo
 
 ```bash
-npm run dev          # Servidor de desarrollo (http://localhost:3000)
-npm run build        # Build de producción
-npm run preview      # Preview del build
+npm run dev
 ```
 
-### Testing
+Por defecto Vite inicia en `http://localhost:3000`.
+
+Si necesitas `3005`:
 
 ```bash
-npm test             # Ejecutar todos los tests (1350+)
-npm test -- --watch  # Modo watch
-npm run test:e2e     # Tests E2E con Playwright
+npm run dev -- --port 3005
 ```
 
----
+### Build y preview
 
-## 🔐 Roles y Permisos
-
-| Rol | Acceso |
-|-----|--------|
-| **Admin** | Acceso total, configuración, auditoría, gestión de personal |
-| **Enfermera Hospital** | Editar Censo, CUDYR, Entrega de Enfermería |
-| **Médico** | Entrega Médica, Vista de Censo (solo lectura) |
-| **Viewer** | Solo lectura del Censo |
-
----
-
-## 📊 Estado del Proyecto
-
-| Métrica | Valor |
-|---------|-------|
-| Tests Pasando | **1340** |
-| Cobertura de Código | ~72% |
-| Lighthouse Performance | 92 |
-| Build Size (Gzip) | ~450kb |
-
----
-
-## 📚 Documentación Adicional
-
-- [Arquitectura Detallada](./ARCHITECTURE.md)
-- [Guía de Contribución](./CONTRIBUTING.md)
-- [Changelog](./CHANGELOG.md)
-- [Estado del Proyecto](./PROJECT_STATUS.md)
-- [Testing Guide](./docs/testing/README.md)
-- [WhatsApp Deployment](./docs/whatsapp-deployment.md)
-
----
-
-## 📝 Variables de Entorno
-
-```env
-# Firebase (requerido)
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...
-
-# Gmail API (opcional, para envío de censo)
-GMAIL_CLIENT_ID=...
-GMAIL_CLIENT_SECRET=...
-GMAIL_REFRESH_TOKEN=...
-
-# WhatsApp Bot (opcional)
-VITE_WHATSAPP_BOT_URL=...
+```bash
+npm run build
+npm run preview
 ```
 
----
+## Tech Stack
 
-## 👥 Equipo
+| Capa                  | Tecnología                          | Uso                                          |
+| --------------------- | ----------------------------------- | -------------------------------------------- |
+| Frontend              | React 19 + TypeScript               | UI tipada y composición por hooks            |
+| Bundler               | Vite 6                              | Dev server, build, alias `@`                 |
+| Estilos               | Tailwind CSS 4 + CSS variables      | Design system clínico y temas                |
+| Estado servidor/cache | TanStack Query                      | Cache, invalidación, sincronización reactiva |
+| Estado app            | Context API + hooks especializados  | Estado global, auth, UI y censo              |
+| Persistencia local    | IndexedDB (Dexie) + localStorage    | Offline-first + fallback                     |
+| Persistencia remota   | Firebase Firestore + Auth + Storage | Datos clínicos, autenticación, backup        |
+| Validación            | Zod + validaciones de dominio       | Integridad de entrada y contratos            |
+| Testing               | Vitest + RTL + Playwright           | Unit, integración y e2e                      |
 
-**Desarrollador Principal**: Dr. Daniel Opazo  
-**Email**: daniel.opazo@hospitalhangaroa.cl  
-**Ubicación**: Hospital Hanga Roa, Isla de Pascua, Chile
+## Comandos Principales
 
----
+| Comando                 | Objetivo                                                      |
+| ----------------------- | ------------------------------------------------------------- |
+| `npm run dev`           | Levantar app en modo desarrollo                               |
+| `npm run build`         | Build de producción                                           |
+| `npm run preview`       | Preview local del build                                       |
+| `npm run typecheck`     | Verificación TypeScript                                       |
+| `npm run test`          | Suite Vitest completa                                         |
+| `npm run test:watch`    | Vitest en watch mode                                          |
+| `npm run test:coverage` | Cobertura de tests                                            |
+| `npm run test:e2e`      | End-to-end (Playwright)                                       |
+| `npm run lint`          | Lint global                                                   |
+| `npm run check:quality` | Checks de arquitectura, tamaño de módulo y boundaries runtime |
+| `npm run test:rules`    | Tests de reglas Firestore                                     |
 
-## 📝 Licencia
+## Estructura del Proyecto
 
-Propiedad del Hospital Hanga Roa. Uso privado e institucional.
+### Raíz
 
----
+| Path               | Propósito                                      |
+| ------------------ | ---------------------------------------------- |
+| `src/`             | Código fuente principal                        |
+| `docs/`            | Documentación técnica y operativa              |
+| `scripts/`         | Scripts de calidad/arquitectura y utilidades   |
+| `e2e/`             | Tests end-to-end y visuales                    |
+| `public/`          | Assets estáticos públicos                      |
+| `functions/`       | Firebase Functions                             |
+| `firestore.rules`  | Reglas de seguridad de Firestore               |
+| `vite.config.ts`   | Configuración Vite y plugins                   |
+| `vitest.config.ts` | Configuración de pruebas unitarias/integración |
 
-*Última actualización: 08 de Febrero 2026*
+### Capas en `src/`
+
+| Capa/Directorio   | Rol                                                                               |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `src/features/`   | Módulos de negocio por feature (census, handoff, transfers, etc.)                 |
+| `src/components/` | Componentes UI reutilizables y layout global                                      |
+| `src/hooks/`      | Hooks de orquestación y lógica de aplicación                                      |
+| `src/context/`    | Context providers y contratos de estado global                                    |
+| `src/services/`   | Acceso a datos, repositorios, integración externa y utilidades de infraestructura |
+| `src/domain/`     | Lógica de dominio transversal                                                     |
+| `src/shared/`     | Runtime adapters y tipos transversales de UI                                      |
+| `src/types/`      | Contratos TypeScript de entidades y DTOs                                          |
+| `src/schemas/`    | Esquemas de validación                                                            |
+| `src/utils/`      | Helpers puros transversales                                                       |
+| `src/tests/`      | Pruebas por capa y por feature                                                    |
+
+## Path Aliases
+
+Definidos en `tsconfig.json` y `vite.config.ts`:
+
+| Alias | Resuelve a |
+| ----- | ---------- |
+| `@/`  | `src/`     |
+
+Ejemplo:
+
+```ts
+import { useDailyRecord } from '@/hooks/useDailyRecord';
+```
+
+## Índice de Documentación
+
+### Documentos troncales
+
+- [Arquitectura global](docs/ARCHITECTURE.md)
+- [Mapa de código fuente](src/README.md)
+
+### Documentación existente relevante
+
+- [docs/architecture.md](docs/architecture.md)
+- [docs/data-flow.md](docs/data-flow.md)
+- [docs/system-behaviors.md](docs/system-behaviors.md)
+- [docs/testing/README.md](docs/testing/README.md)
+
+### READMEs por directorio principal de `src/`
+
+- [src/adapters/README.md](src/adapters/README.md)
+- [src/assets/README.md](src/assets/README.md)
+- [src/components/README.md](src/components/README.md)
+- [src/config/README.md](src/config/README.md)
+- [src/constants/README.md](src/constants/README.md)
+- [src/context/README.md](src/context/README.md)
+- [src/core/README.md](src/core/README.md)
+- [src/docs/README.md](src/docs/README.md)
+- [src/domain/README.md](src/domain/README.md)
+- [src/features/README.md](src/features/README.md)
+- [src/hooks/README.md](src/hooks/README.md)
+- [src/infrastructure/README.md](src/infrastructure/README.md)
+- [src/schemas/README.md](src/schemas/README.md)
+- [src/services/README.md](src/services/README.md)
+- [src/shared/README.md](src/shared/README.md)
+- [src/styles/README.md](src/styles/README.md)
+- [src/tests/README.md](src/tests/README.md)
+- [src/types/README.md](src/types/README.md)
+- [src/utils/README.md](src/utils/README.md)
+- [src/views/README.md](src/views/README.md)
+
+### READMEs de profundización (módulos críticos)
+
+- [src/features/census/README.md](src/features/census/README.md)
+- [src/hooks/controllers/README.md](src/hooks/controllers/README.md)
+- [src/components/modals/README.md](src/components/modals/README.md)
+- [src/services/repositories/README.md](src/services/repositories/README.md)
+- [src/services/storage/README.md](src/services/storage/README.md)
+
+## Testing
+
+### Validación rápida recomendada
+
+```bash
+npm run typecheck
+npm run check:quality
+npx vitest run src/tests/views/census
+```
+
+### Suite completa
+
+```bash
+npm run test
+```
+
+### Cobertura
+
+```bash
+npm run test:coverage
+```
+
+### End-to-end
+
+```bash
+npm run test:e2e
+```
+
+## Convenciones de Calidad (resumen)
+
+- Controladores (`controllers`) y hooks no deben importar implementaciones de componentes.
+- Se controla deuda arquitectónica con `scripts/check-architecture.mjs`.
+- Se controla tamaño máximo por módulo con `scripts/check-module-size.mjs`.
+- Se controlan boundaries runtime para evitar acoplamiento directo a `window/alert/confirm` en zonas críticas.
+
+> ⚠️ IMPORTANT: When modifying any layer, update the corresponding README.md in that directory.
