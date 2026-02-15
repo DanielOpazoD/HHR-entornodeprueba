@@ -1,4 +1,5 @@
 import type { TransferData } from '@/types';
+import { resolveMovementSectionState } from '@/features/census/controllers/censusMovementSectionController';
 
 export interface TransfersSectionState {
   isRenderable: boolean;
@@ -9,19 +10,11 @@ export interface TransfersSectionState {
 export const resolveTransfersSectionState = (
   transfers: TransferData[] | null | undefined
 ): TransfersSectionState => {
-  if (transfers === null) {
-    return {
-      isRenderable: false,
-      isEmpty: true,
-      transfers: [],
-    };
-  }
-
-  const safeTransfers = transfers || [];
+  const state = resolveMovementSectionState(transfers);
 
   return {
-    isRenderable: true,
-    isEmpty: safeTransfers.length === 0,
-    transfers: safeTransfers,
+    isRenderable: state.isRenderable,
+    isEmpty: state.isEmpty,
+    transfers: state.items,
   };
 };

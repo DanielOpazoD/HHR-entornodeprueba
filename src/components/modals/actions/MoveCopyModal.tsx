@@ -3,6 +3,7 @@ import { Copy, Move, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { BEDS } from '@/constants';
 import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useNotification } from '@/context/UIContext';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useRepositories } from '@/services/RepositoryContext';
 import { getTodayISO } from '@/utils/dateUtils';
@@ -34,6 +35,7 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   onConfirm,
 }) => {
   const { record: currentRecord } = useDailyRecordContext();
+  const { error: notifyError } = useNotification();
   const { dailyRecord } = useRepositories();
   const [selectedDate, setSelectedDate] = useState<string>('');
 
@@ -43,11 +45,19 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   );
   const dateOptions = useMemo(() => buildMoveCopyDateOptions(baseDate), [baseDate]);
   const sourceBedName = resolveMoveCopySourceBedName(BEDS, sourceBedId);
+  const handleTargetRecordError = React.useCallback(
+    (error: unknown) => {
+      const detail = error instanceof Error ? error.message : 'Error inesperado';
+      notifyError('No se pudo cargar disponibilidad', detail);
+    },
+    [notifyError]
+  );
   const { targetRecord, isLoading } = useMoveCopyTargetRecord({
     isOpen,
     selectedDate,
     currentRecord,
     getRecordForDate: dailyRecord.getForDate,
+    onError: handleTargetRecordError,
   });
   const bedOptions = currentRecord
     ? resolveMoveCopyBedOptions({

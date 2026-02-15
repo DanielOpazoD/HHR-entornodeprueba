@@ -11,7 +11,6 @@ import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 
 // Atomic sub-components
 import { NameInput } from './NameInput';
-import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { RutPassportInput } from './RutPassportInput';
 import { AgeInput } from './AgeInput';
 import { DiagnosisInput } from './DiagnosisInput';
@@ -20,8 +19,8 @@ import { StatusSelect } from './StatusSelect';
 import { AdmissionInput } from './AdmissionInput';
 import { DevicesCell } from './DevicesCell';
 import { CheckboxCell } from './CheckboxCell';
-import { PatientInputSchema } from '@/schemas/inputSchemas';
 import type { PatientInputChangeHandlers } from './inputCellTypes';
+import { usePatientInputCellsModel } from '@/features/census/components/patient-row/usePatientInputCellsModel';
 
 interface PatientInputCellsProps {
   data: PatientData;
@@ -44,18 +43,11 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
   readOnly = false,
   diagnosisMode = 'free',
 }) => {
-  const stabilityRules = useDailyRecordStability();
-
-  // Determine read-only status based on global readOnly prop OR stability rules
-  // We check a generic field like 'patientName' for historical locking,
-  // since most census fields don't have specific shift locks.
-  const isLocked = readOnly || !stabilityRules || !stabilityRules.canEditField('patientName');
-
-  // Adapter: convert event-based handler to debounced value handler
-  const handleDebouncedText = (field: keyof PatientData) => (value: string) => {
-    const syntheticEvent = { target: { value } } as React.ChangeEvent<HTMLInputElement>;
-    onChange.text(field)(syntheticEvent);
-  };
+  const { isLocked, hasRutError, handleDebouncedText } = usePatientInputCellsModel({
+    data,
+    readOnly,
+    textChange: onChange.text,
+  });
 
   // Common props for all cells
   const commonProps = {
@@ -83,11 +75,7 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
         onChange={handleDebouncedText('rut')}
         onToggleType={onChange.toggleDocType}
         readOnly={isLocked}
-        hasError={
-          data.documentType === 'RUT' &&
-          !!data.rut &&
-          !PatientInputSchema.pick({ rut: true }).safeParse({ rut: data.rut }).success
-        }
+        hasError={hasRutError}
       />
 
       {/* Age */}

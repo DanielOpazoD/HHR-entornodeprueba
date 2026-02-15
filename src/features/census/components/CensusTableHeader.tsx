@@ -3,11 +3,11 @@ import clsx from 'clsx';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
 import { CensusActionHeaderCell } from '@/features/census/components/CensusActionHeaderCell';
 import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
-import { CENSUS_HEADER_COLUMNS } from '@/features/census/controllers/censusTableHeaderController';
+import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 
-interface CensusTableHeaderProps {
+export interface CensusTableHeaderProps {
   readOnly: boolean;
   columns: TableColumnConfig;
   isEditMode: boolean;
@@ -32,6 +32,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
 }) => {
   const headerClassName =
     'sticky top-0 z-20 bg-slate-50 py-1 px-1 border-r border-slate-100 text-center text-slate-500 text-[10px] uppercase tracking-wider font-bold shadow-sm';
+  const headerCells = buildCensusHeaderCellModels();
 
   return (
     <thead className="sticky top-0 z-30 bg-white">
@@ -47,28 +48,28 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
           onClearAll={onClearAll}
         />
 
-        {CENSUS_HEADER_COLUMNS.map(column =>
-          column.key === 'diagnosis' ? (
+        {headerCells.map(cell =>
+          cell.kind === 'diagnosis' ? (
             <CensusDiagnosisHeaderCell
-              key={column.key}
+              key={cell.key}
               width={columns.diagnosis}
               isEditMode={isEditMode}
               onResize={onResizeColumn('diagnosis')}
-              headerClassName={clsx(headerClassName, column.className)}
+              headerClassName={clsx(headerClassName, cell.className)}
               readOnly={readOnly}
               diagnosisMode={diagnosisMode}
               onToggleDiagnosisMode={onToggleDiagnosisMode}
             />
           ) : (
             <ResizableHeader
-              key={column.key}
-              width={columns[column.key]}
+              key={cell.key}
+              width={columns[cell.key]}
               isEditMode={isEditMode}
-              onResize={onResizeColumn(column.key)}
-              className={clsx(headerClassName, column.className)}
-              title={column.title}
+              onResize={onResizeColumn(cell.key)}
+              className={clsx(headerClassName, cell.className)}
+              title={cell.title}
             >
-              {column.label}
+              {cell.label}
             </ResizableHeader>
           )
         )}

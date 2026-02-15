@@ -2,6 +2,7 @@ import React from 'react';
 import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableViewModel';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
+import { buildCensusTableLayoutBindings } from '@/features/census/controllers/censusTableLayoutController';
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 
 interface CensusTableProps {
@@ -33,35 +34,35 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
   if (!beds) return null;
 
+  const { headerProps, bodyProps, tableStyle } = buildCensusTableLayoutBindings({
+    currentDateString,
+    readOnly,
+    columns,
+    isEditMode,
+    canDeleteRecord,
+    resetDayDeniedMessage,
+    onClearAll: handleClearAll,
+    diagnosisMode,
+    onToggleDiagnosisMode: toggleDiagnosisMode,
+    onResizeColumn: handleColumnResize,
+    occupiedRows,
+    emptyBeds,
+    bedTypes,
+    onAction: handleRowAction,
+    onActivateEmptyBed: activateEmptyBed,
+    totalWidth,
+  });
+
   return (
     <div className="card print:border-none print:shadow-none !overflow-visible">
       <div className="overflow-x-auto overflow-y-hidden">
         <table
           data-testid="census-table"
           className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
-          style={{ width: `${totalWidth}px`, minWidth: '100%' }}
+          style={tableStyle}
         >
-          <CensusTableHeader
-            readOnly={readOnly}
-            columns={columns}
-            isEditMode={isEditMode}
-            canDeleteRecord={canDeleteRecord}
-            resetDayDeniedMessage={resetDayDeniedMessage}
-            onClearAll={handleClearAll}
-            diagnosisMode={diagnosisMode}
-            onToggleDiagnosisMode={toggleDiagnosisMode}
-            onResizeColumn={handleColumnResize}
-          />
-          <CensusTableBody
-            occupiedRows={occupiedRows}
-            emptyBeds={emptyBeds}
-            currentDateString={currentDateString}
-            readOnly={readOnly}
-            diagnosisMode={diagnosisMode}
-            bedTypes={bedTypes}
-            onAction={handleRowAction}
-            onActivateEmptyBed={activateEmptyBed}
-          />
+          <CensusTableHeader {...headerProps} />
+          <CensusTableBody {...bodyProps} />
         </table>
       </div>
     </div>

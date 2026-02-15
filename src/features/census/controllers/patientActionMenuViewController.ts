@@ -32,3 +32,6 @@ export const resolvePatientActionMenuViewState = ({
     showExamRequestAction: showClinicalSection && hasExamRequestAction,
   };
 };
+
+export const resolvePatientActionMenuPanelClassName = (align: 'top' | 'bottom'): string =>
+  align === 'top' ? 'top-0' : 'bottom-0';

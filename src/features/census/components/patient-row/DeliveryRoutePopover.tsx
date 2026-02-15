@@ -5,7 +5,7 @@
  * Uses React Portal to escape ANY parent clipping and transform constraints.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HeartPulse, X, Trash2, Check } from 'lucide-react';
 import clsx from 'clsx';
@@ -16,6 +16,7 @@ import {
   resolveDeliveryRouteTitle,
 } from '@/features/census/controllers/deliveryRoutePopoverController';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
+import { useDeliveryRoutePopoverState } from '@/features/census/components/patient-row/useDeliveryRoutePopoverState';
 
 interface DeliveryRoutePopoverProps {
   deliveryRoute?: DeliveryRoute;
@@ -32,15 +33,21 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
 }) => {
   const POPOVER_WIDTH = 208;
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<DeliveryRoute | undefined>(deliveryRoute);
-  const [selectedDate, setSelectedDate] = useState<string>(deliveryDate || '');
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setSelectedRoute(deliveryRoute);
-    setSelectedDate(deliveryDate || '');
-  }, [deliveryDate, deliveryRoute]);
+  const {
+    selectedRoute,
+    selectedDate,
+    canSave,
+    setSelectedRoute,
+    setSelectedDate,
+    saveAndClose,
+    clearAndClose,
+  } = useDeliveryRoutePopoverState({
+    deliveryRoute,
+    deliveryDate,
+    onSave,
+  });
 
   const closePopover = useCallback(() => {
     setIsOpen(false);
@@ -78,18 +85,6 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
       updatePosition();
     }
     setIsOpen(previous => !previous);
-  };
-
-  const handleSave = () => {
-    onSave(selectedRoute, selectedDate || undefined);
-    setIsOpen(false);
-  };
-
-  const handleClear = () => {
-    setSelectedRoute(undefined);
-    setSelectedDate('');
-    onSave(undefined, undefined);
-    setIsOpen(false);
   };
 
   const hasPersistedData = !!deliveryRoute;
@@ -186,7 +181,7 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
                 {hasPersistedData && (
                   <button
                     type="button"
-                    onClick={handleClear}
+                    onClick={() => clearAndClose(closePopover)}
                     className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Limpiar"
                   >
@@ -195,11 +190,11 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={handleSave}
-                  disabled={!selectedRoute}
+                  onClick={() => saveAndClose(closePopover)}
+                  disabled={!canSave}
                   className={clsx(
                     'flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all',
-                    selectedRoute
+                    canSave
                       ? 'bg-medical-600 text-white hover:bg-medical-500 shadow-sm'
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                   )}

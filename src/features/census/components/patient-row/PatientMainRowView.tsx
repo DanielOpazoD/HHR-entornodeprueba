@@ -1,6 +1,5 @@
 import React from 'react';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
-import clsx from 'clsx';
 import { BedDefinition, BedType, PatientData } from '@/types';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
@@ -8,7 +7,11 @@ import { isIntensiveBedType } from '@/utils/bedTypeUtils';
 import { PatientActionMenu } from './PatientActionMenu';
 import { PatientBedConfig } from './PatientBedConfig';
 import { PatientInputCells } from './PatientInputCells';
-import { shouldShowBedTypeToggle } from '@/features/census/controllers/patientRowMainViewController';
+import {
+  resolvePatientMainRowActionsAvailability,
+  resolvePatientMainRowClassName,
+  shouldShowBedTypeToggle,
+} from '@/features/census/controllers/patientRowMainViewController';
 import type { PatientInputChangeHandlers } from './inputCellTypes';
 import type {
   PatientActionMenuCallbacks,
@@ -16,7 +19,7 @@ import type {
   RowMenuAlign,
 } from './patientRowContracts';
 
-interface PatientMainRowViewProps
+export interface PatientMainRowViewProps
   extends
     Omit<PatientActionMenuCallbacks, 'onViewDemographics' | 'onViewExamRequest' | 'onViewHistory'>,
     PatientBedConfigCallbacks {
@@ -70,27 +73,23 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
     readOnly,
     isEmpty,
   });
+  const rowClassName = resolvePatientMainRowClassName({
+    isBlocked,
+    patientName: data.patientName,
+  });
+  const rowActionsAvailability = resolvePatientMainRowActionsAvailability(data);
 
   return (
-    <tr
-      className={clsx(
-        'group/row relative border-b border-slate-100 transition-all duration-200 ease-in-out',
-        'hover:bg-slate-50 hover:shadow-sm hover:z-10',
-        isBlocked ? 'bg-slate-50/50' : 'bg-white',
-        'text-[12px] leading-tight',
-        data.patientName?.trim() === '' && 'animate-slide-fade-in'
-      )}
-      style={style}
-      data-testid="patient-row"
-      data-bed-id={bed.id}
-    >
+    <tr className={rowClassName} style={style} data-testid="patient-row" data-bed-id={bed.id}>
       <td className="p-0 text-center border-r border-slate-200 relative w-10 print:hidden">
         <PatientActionMenu
           isBlocked={isBlocked}
           onAction={onAction}
           onViewDemographics={onOpenDemographics}
-          onViewExamRequest={data.patientName ? onOpenExamRequest : undefined}
-          onViewHistory={data.rut ? onOpenHistory : undefined}
+          onViewExamRequest={
+            rowActionsAvailability.canOpenExamRequest ? onOpenExamRequest : undefined
+          }
+          onViewHistory={rowActionsAvailability.canOpenHistory ? onOpenHistory : undefined}
           readOnly={readOnly}
           align={actionMenuAlign}
         />

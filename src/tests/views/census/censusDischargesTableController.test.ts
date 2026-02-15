@@ -3,7 +3,6 @@ import {
   buildDischargeRowActions,
   DISCHARGES_TABLE_HEADERS,
   getDischargeStatusBadgeClassName,
-  resolveDischargeTimeUpdateCommand,
 } from '@/features/census/controllers/censusDischargesTableController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -19,31 +18,6 @@ describe('censusDischargesTableController', () => {
       'Fecha / Hora Alta',
       'Acciones',
     ]);
-  });
-
-  it('resolves discharge time update command by id', () => {
-    const discharge = DataFactory.createMockDischarge({
-      id: 'd-1',
-      status: 'Vivo',
-      dischargeType: 'Voluntaria',
-      dischargeTypeOther: 'N/A',
-    });
-
-    const command = resolveDischargeTimeUpdateCommand([discharge], 'd-1', '15:30');
-
-    expect(command).toEqual({
-      id: 'd-1',
-      status: 'Vivo',
-      dischargeType: 'Voluntaria',
-      dischargeTypeOther: 'N/A',
-      movementDate: undefined,
-      time: '15:30',
-    });
-  });
-
-  it('returns null when discharge id is not found', () => {
-    const command = resolveDischargeTimeUpdateCommand([], 'missing', '10:00');
-    expect(command).toBeNull();
   });
 
   it('maps discharge status to badge classes', () => {

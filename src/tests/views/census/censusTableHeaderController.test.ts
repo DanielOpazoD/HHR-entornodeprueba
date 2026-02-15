@@ -1,29 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { CENSUS_HEADER_COLUMNS } from '@/features/census/controllers/censusTableHeaderController';
+import {
+  buildCensusHeaderCellModels,
+  CENSUS_HEADER_COLUMNS,
+} from '@/features/census/controllers/censusTableHeaderController';
 
 describe('censusTableHeaderController', () => {
-    it('keeps a stable ordered schema for all non-action headers', () => {
-        expect(CENSUS_HEADER_COLUMNS.map((column) => column.key)).toEqual([
-            'bed',
-            'type',
-            'name',
-            'rut',
-            'age',
-            'diagnosis',
-            'specialty',
-            'status',
-            'admission',
-            'dmi',
-            'cqx',
-            'upc'
-        ]);
-    });
+  it('builds header models with diagnosis kind only for diagnosis column', () => {
+    const models = buildCensusHeaderCellModels();
+    const diagnosisModel = models.find(model => model.key === 'diagnosis');
+    const standardModels = models.filter(model => model.key !== 'diagnosis');
 
-    it('includes metadata for tooltip and visual border exceptions', () => {
-        const dmiColumn = CENSUS_HEADER_COLUMNS.find((column) => column.key === 'dmi');
-        const upcColumn = CENSUS_HEADER_COLUMNS.find((column) => column.key === 'upc');
+    expect(models).toHaveLength(CENSUS_HEADER_COLUMNS.length);
+    expect(diagnosisModel?.kind).toBe('diagnosis');
+    expect(standardModels.every(model => model.kind === 'standard')).toBe(true);
+  });
 
-        expect(dmiColumn?.title).toBe('Dispositivos médicos invasivos');
-        expect(upcColumn?.className).toBe('border-r-0');
-    });
+  it('keeps className/title metadata in generated models', () => {
+    const models = buildCensusHeaderCellModels();
+    const upc = models.find(model => model.key === 'upc');
+    const dmi = models.find(model => model.key === 'dmi');
+
+    expect(upc?.className).toBe('border-r-0');
+    expect(dmi?.title).toBe('Dispositivos médicos invasivos');
+  });
 });

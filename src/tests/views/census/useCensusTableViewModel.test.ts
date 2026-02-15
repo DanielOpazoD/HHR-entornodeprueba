@@ -1,123 +1,125 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useCensusTableViewModel } from '@/features/census/hooks/useCensusTableViewModel';
+import { useCensusTableDependencies } from '@/features/census/hooks/useCensusTableDependencies';
+import { useEmptyBedActivation } from '@/features/census/components/useEmptyBedActivation';
+import { useCensusTableModel } from '@/features/census/hooks/useCensusTableModel';
+import { useCensusColumnResize } from '@/features/census/hooks/useCensusColumnResize';
+import { getDefaultConfig } from '@/services/storage/tableConfigService';
 
-const mockedUseDailyRecordBeds = vi.fn();
-const mockedUseDailyRecordStaff = vi.fn();
-const mockedUseDailyRecordOverrides = vi.fn();
-const mockedUseDailyRecordActions = vi.fn();
-const mockedUseCensusActionCommands = vi.fn();
-const mockedUseConfirmDialog = vi.fn();
-const mockedUseNotification = vi.fn();
-const mockedUseAuth = vi.fn();
-const mockedUseTableConfig = vi.fn();
-const mockedUseEmptyBedActivation = vi.fn();
-const mockedUseDiagnosisMode = vi.fn();
-const mockedUseCensusTableModel = vi.fn();
-
-vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordBeds: () => mockedUseDailyRecordBeds(),
-  useDailyRecordStaff: () => mockedUseDailyRecordStaff(),
-  useDailyRecordOverrides: () => mockedUseDailyRecordOverrides(),
-  useDailyRecordActions: () => mockedUseDailyRecordActions(),
-}));
-
-vi.mock('@/features/census/components/CensusActionsContext', () => ({
-  useCensusActionCommands: () => mockedUseCensusActionCommands(),
-}));
-
-vi.mock('@/context/UIContext', () => ({
-  useConfirmDialog: () => mockedUseConfirmDialog(),
-  useNotification: () => mockedUseNotification(),
-}));
-
-vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => mockedUseAuth(),
-}));
-
-vi.mock('@/context/TableConfigContext', () => ({
-  useTableConfig: () => mockedUseTableConfig(),
+vi.mock('@/features/census/hooks/useCensusTableDependencies', () => ({
+  useCensusTableDependencies: vi.fn(),
 }));
 
 vi.mock('@/features/census/components/useEmptyBedActivation', () => ({
-  useEmptyBedActivation: (...args: unknown[]) => mockedUseEmptyBedActivation(...args),
-}));
-
-vi.mock('@/features/census/hooks/useDiagnosisMode', () => ({
-  useDiagnosisMode: () => mockedUseDiagnosisMode(),
+  useEmptyBedActivation: vi.fn(),
 }));
 
 vi.mock('@/features/census/hooks/useCensusTableModel', () => ({
-  useCensusTableModel: (...args: unknown[]) => mockedUseCensusTableModel(...args),
+  useCensusTableModel: vi.fn(),
 }));
+
+vi.mock('@/features/census/hooks/useCensusColumnResize', () => ({
+  useCensusColumnResize: vi.fn(),
+}));
+
+const asHookValue = <T>(value: Partial<T>): T => value as T;
 
 describe('useCensusTableViewModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockedUseDailyRecordBeds.mockReturnValue({});
-    mockedUseDailyRecordStaff.mockReturnValue({ activeExtraBeds: ['E1'] });
-    mockedUseDailyRecordOverrides.mockReturnValue({});
-    mockedUseDailyRecordActions.mockReturnValue({
-      resetDay: vi.fn(),
-      updatePatient: vi.fn(),
-    });
-    mockedUseCensusActionCommands.mockReturnValue({
-      handleRowAction: vi.fn(),
-    });
-    mockedUseConfirmDialog.mockReturnValue({ confirm: vi.fn() });
-    mockedUseNotification.mockReturnValue({ warning: vi.fn() });
-    mockedUseAuth.mockReturnValue({ role: 'admin' });
-    mockedUseTableConfig.mockReturnValue({
-      config: { columns: { actions: 50, diagnosis: 200, bed: 80 } },
-      isEditMode: true,
-      updateColumnWidth: vi.fn(),
-    });
-    mockedUseEmptyBedActivation.mockReturnValue({ activateEmptyBed: vi.fn() });
-    mockedUseDiagnosisMode.mockReturnValue({
-      diagnosisMode: 'free',
-      toggleDiagnosisMode: vi.fn(),
-    });
-    mockedUseCensusTableModel.mockReturnValue({
-      canDeleteRecord: true,
-      resetDayDeniedMessage: '',
-      occupiedRows: [],
-      emptyBeds: [],
-      bedTypes: {},
-      totalWidth: 1200,
-      handleClearAll: vi.fn(),
-    });
+    vi.mocked(useCensusTableDependencies).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableDependencies>>({
+        beds: {},
+        staff: {
+          nursesDayShift: [],
+          nursesNightShift: [],
+          tensDayShift: [],
+          tensNightShift: [],
+          activeExtraBeds: ['E1'],
+        },
+        overrides: {},
+        resetDay: vi.fn(),
+        updatePatient: vi.fn(),
+        handleRowAction: vi.fn(),
+        confirm: vi.fn(),
+        warning: vi.fn(),
+        role: 'admin',
+        config: getDefaultConfig(),
+        isEditMode: true,
+        updateColumnWidth: vi.fn(),
+        diagnosisMode: 'free',
+        toggleDiagnosisMode: vi.fn(),
+      })
+    );
+
+    vi.mocked(useEmptyBedActivation).mockReturnValue(
+      asHookValue<ReturnType<typeof useEmptyBedActivation>>({
+        activateEmptyBed: vi.fn(),
+      })
+    );
+
+    vi.mocked(useCensusTableModel).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableModel>>({
+        canDeleteRecord: true,
+        resetDayDeniedMessage: '',
+        occupiedRows: [],
+        emptyBeds: [],
+        bedTypes: {},
+        totalWidth: 1000,
+        handleClearAll: vi.fn(),
+      })
+    );
+
+    vi.mocked(useCensusColumnResize).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusColumnResize>>({
+        handleColumnResize: vi.fn(),
+      })
+    );
   });
 
-  it('delegates data to useCensusTableModel with context-driven params', () => {
+  it('delegates model creation using dependency hook values', () => {
     renderHook(() => useCensusTableViewModel({ currentDateString: '2026-02-15' }));
 
-    expect(mockedUseCensusTableModel).toHaveBeenCalledWith({
+    expect(useCensusTableModel).toHaveBeenCalledWith({
       currentDateString: '2026-02-15',
       role: 'admin',
       beds: {},
       activeExtraBeds: ['E1'],
       overrides: {},
-      columns: { actions: 50, diagnosis: 200, bed: 80 },
+      columns: getDefaultConfig().columns,
       resetDay: expect.any(Function),
       confirm: expect.any(Function),
       warning: expect.any(Function),
     });
   });
 
-  it('exposes column resize callback wired to updateColumnWidth', () => {
-    const updateColumnWidth = vi.fn();
-    mockedUseTableConfig.mockReturnValue({
-      config: { columns: { actions: 50, diagnosis: 200, bed: 80 } },
-      isEditMode: false,
-      updateColumnWidth,
-    });
-
-    const { result } = renderHook(() =>
-      useCensusTableViewModel({ currentDateString: '2026-02-15' })
+  it('falls back to empty extra beds when staff payload is missing', () => {
+    vi.mocked(useCensusTableDependencies).mockReturnValue(
+      asHookValue<ReturnType<typeof useCensusTableDependencies>>({
+        beds: {},
+        staff: undefined,
+        overrides: {},
+        resetDay: vi.fn(),
+        updatePatient: vi.fn(),
+        handleRowAction: vi.fn(),
+        confirm: vi.fn(),
+        warning: vi.fn(),
+        role: 'admin',
+        config: getDefaultConfig(),
+        isEditMode: false,
+        updateColumnWidth: vi.fn(),
+        diagnosisMode: 'cie10',
+        toggleDiagnosisMode: vi.fn(),
+      })
     );
 
-    result.current.handleColumnResize('bed')(130);
-    expect(updateColumnWidth).toHaveBeenCalledWith('bed', 130);
+    renderHook(() => useCensusTableViewModel({ currentDateString: '2026-02-15' }));
+
+    expect(useCensusTableModel).toHaveBeenCalledWith(
+      expect.objectContaining({ activeExtraBeds: [] })
+    );
   });
 });

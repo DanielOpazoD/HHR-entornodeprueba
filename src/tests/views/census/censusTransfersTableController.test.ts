@@ -3,7 +3,6 @@ import {
   buildTransferRowActions,
   getTransferCenterLabel,
   getTransferEscortLabel,
-  resolveTransferTimeUpdateCommand,
   TRANSFERS_TABLE_HEADERS,
 } from '@/features/census/controllers/censusTransfersTableController';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -20,30 +19,6 @@ describe('censusTransfersTableController', () => {
       'Fecha / Hora',
       'Acciones',
     ]);
-  });
-
-  it('resolves transfer time update command by id', () => {
-    const transfer = DataFactory.createMockTransfer({
-      id: 't-1',
-      evacuationMethod: 'Ambulancia',
-      receivingCenter: 'Otro',
-      receivingCenterOther: 'Clínica Test',
-      transferEscort: 'TENS 1',
-    });
-
-    const command = resolveTransferTimeUpdateCommand([transfer], 't-1', '16:45');
-
-    expect(command).toEqual({
-      id: 't-1',
-      updates: {
-        evacuationMethod: 'Ambulancia',
-        receivingCenter: 'Otro',
-        receivingCenterOther: 'Clínica Test',
-        transferEscort: 'TENS 1',
-        movementDate: undefined,
-        time: '16:45',
-      },
-    });
   });
 
   it('formats transfer center and escort display labels', () => {

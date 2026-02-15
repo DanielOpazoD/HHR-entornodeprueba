@@ -1,217 +1,270 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { CensusTable } from '@/features/census/components/CensusTable';
-import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
-import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import { useTableConfig } from '@/context/TableConfigContext';
-import { useDailyRecordData, useDailyRecordActions, useDailyRecordMovements, useDailyRecordBeds, useDailyRecordStaff, useDailyRecordOverrides } from '@/context/DailyRecordContext';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { REGULAR_BEDS } from '@/constants/beds';
+import {
+  useDailyRecordActions,
+  useDailyRecordBeds,
+  useDailyRecordData,
+  useDailyRecordMovements,
+  useDailyRecordOverrides,
+  useDailyRecordStaff,
+} from '@/context/DailyRecordContext';
+import { useTableConfig } from '@/context/TableConfigContext';
+import { useConfirmDialog, useNotification } from '@/context/UIContext';
+import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
+import { CensusTable } from '@/features/census/components/CensusTable';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@tanstack/react-virtual', () => ({
-    useVirtualizer: vi.fn((config) => ({
-        getVirtualItems: () => Array.from({ length: config.count }, (_, i) => ({
-            index: i,
-            size: 44,
-            start: i * 44
-        })),
-        getTotalSize: () => config.count * 44,
-        scrollToIndex: vi.fn(),
-        scrollToOffset: vi.fn(),
-    }))
+  useVirtualizer: vi.fn(config => ({
+    getVirtualItems: () =>
+      Array.from({ length: config.count }, (_, i) => ({
+        index: i,
+        size: 44,
+        start: i * 44,
+      })),
+    getTotalSize: () => config.count * 44,
+    scrollToIndex: vi.fn(),
+    scrollToOffset: vi.fn(),
+  })),
 }));
 
-// Mock dependencies
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
-    useCensusActionCommands: vi.fn()
+  useCensusActionCommands: vi.fn(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
-    useConfirmDialog: vi.fn(),
-    useNotification: vi.fn()
+  useConfirmDialog: vi.fn(),
+  useNotification: vi.fn(),
 }));
 
 vi.mock('@/context/TableConfigContext', () => ({
-    useTableConfig: vi.fn()
+  useTableConfig: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
-    useDailyRecordData: vi.fn(),
-    useDailyRecordActions: vi.fn(),
-    useDailyRecordMovements: vi.fn(),
-    useDailyRecordBeds: vi.fn(),
-    useDailyRecordStaff: vi.fn(),
-    useDailyRecordOverrides: vi.fn()
+  useDailyRecordData: vi.fn(),
+  useDailyRecordActions: vi.fn(),
+  useDailyRecordMovements: vi.fn(),
+  useDailyRecordBeds: vi.fn(),
+  useDailyRecordStaff: vi.fn(),
+  useDailyRecordOverrides: vi.fn(),
 }));
 
 vi.mock('@/features/census/components/PatientRow', () => ({
-    PatientRow: () => <tr data-testid="patient-row" />
+  PatientRow: () => <tr data-testid="patient-row" />,
 }));
 
 vi.mock('@/features/census/components/EmptyBedRow', () => ({
-    EmptyBedRow: ({ bed, onClick }: any) => (
-        <tr data-testid="empty-bed-row" onClick={onClick}>
-            <td>{bed.id}</td>
-        </tr>
-    )
+  EmptyBedRow: ({ bed, onClick }: { bed: { id: string }; onClick: () => void }) => (
+    <tr data-testid="empty-bed-row" onClick={onClick}>
+      <td>{bed.id}</td>
+    </tr>
+  ),
 }));
 
 vi.mock('@/components/ui/ResizableHeader', () => ({
-    ResizableHeader: ({ children, className, onResize }: any) => (
-        <th className={className}>
-            <span
-                role="button"
-                tabIndex={0}
-                data-testid={`resize-${String(children)}`}
-                onClick={() => onResize?.(120)}
-                onKeyDown={() => onResize?.(120)}
-            >
-                {children}
-            </span>
-        </th>
-    )
+  ResizableHeader: ({
+    children,
+    className,
+    onResize,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onResize?: (width: number) => void;
+  }) => (
+    <th className={className}>
+      <span
+        role="button"
+        tabIndex={0}
+        data-testid={`resize-${String(children)}`}
+        onClick={() => onResize?.(120)}
+        onKeyDown={() => onResize?.(120)}
+      >
+        {children}
+      </span>
+    </th>
+  ),
 }));
 
+const asContextReturn = <T,>(value: Partial<T>): T => value as T;
+
 describe('CensusTable', () => {
-    const mockRecord = DataFactory.createMockDailyRecord('2025-01-08', {
-        activeExtraBeds: ['E1']
+  const mockRecord = DataFactory.createMockDailyRecord('2025-01-08', {
+    activeExtraBeds: ['E1'],
+  });
+  const mockConfirm = vi.fn();
+  const mockHandleRowAction = vi.fn();
+  const mockUpdateColumnWidth = vi.fn();
+  const mockResetDay = vi.fn();
+
+  const createUiMock = (): ReturnType<typeof useConfirmDialog> =>
+    asContextReturn<ReturnType<typeof useConfirmDialog>>({
+      notifications: [],
+      notify: vi.fn(),
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      dismiss: vi.fn(),
+      dismissAll: vi.fn(),
+      confirm: mockConfirm,
+      alert: vi.fn(),
     });
 
-    const mockConfirm = vi.fn();
-    const mockHandleRowAction = vi.fn();
-    const mockUpdateColumnWidth = vi.fn();
-    const mockResetDay = vi.fn();
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-
-        vi.mocked(useDailyRecordData).mockReturnValue({
-            record: mockRecord
-        } as any);
-
-        vi.mocked(useDailyRecordActions).mockReturnValue({
-            resetDay: mockResetDay
-        } as any);
-
-        (useDailyRecordMovements as any).mockReturnValue({
-            discharges: [],
-            transfers: [],
-            cma: []
-        });
-
-        (useDailyRecordBeds as any).mockReturnValue({});
-        (useDailyRecordStaff as any).mockReturnValue({
-            activeExtraBeds: ['E1']
-        });
-
-        vi.mocked(useDailyRecordOverrides as any).mockReturnValue({});
-
-        vi.mocked(useCensusActionCommands).mockReturnValue({
-            handleRowAction: mockHandleRowAction
-        } as any);
-
-        vi.mocked(useConfirmDialog).mockReturnValue({
-            confirm: mockConfirm
-        } as any);
-
-        vi.mocked(useNotification as any).mockReturnValue({
-            warning: vi.fn(),
-            success: vi.fn(),
-            error: vi.fn(),
-            info: vi.fn()
-        });
-
-        vi.mocked(useTableConfig).mockReturnValue({
-            config: {
-                columns: {
-                    actions: 50, bed: 80, type: 60, name: 200, rut: 100, age: 50,
-                    diagnosis: 200, specialty: 80, status: 100, admission: 100,
-                    dmi: 60, cqx: 60, upc: 60
-                }
-            },
-            isEditMode: false,
-            setEditMode: vi.fn(),
-            updateColumnWidth: mockUpdateColumnWidth
-        } as any);
+  const createTableConfigMock = (): ReturnType<typeof useTableConfig> =>
+    asContextReturn<ReturnType<typeof useTableConfig>>({
+      config: {
+        columns: {
+          actions: 50,
+          bed: 80,
+          type: 60,
+          name: 200,
+          rut: 100,
+          age: 50,
+          diagnosis: 200,
+          specialty: 80,
+          status: 100,
+          admission: 100,
+          dmi: 60,
+          cqx: 60,
+          upc: 60,
+        },
+        pageMargin: 20,
+        version: 1,
+        lastUpdated: new Date().toISOString(),
+      },
+      isEditMode: false,
+      isLoading: false,
+      setEditMode: vi.fn(),
+      updateColumnWidth: mockUpdateColumnWidth,
+      updatePageMargin: vi.fn(),
+      resetToDefaults: vi.fn(),
+      exportConfig: vi.fn(),
+      importConfig: vi.fn(),
     });
 
-    it('should render correct number of beds (normal + active extras)', () => {
-        render(
-            <CensusTable
-                currentDateString="2025-01-08"
-            />
-        );
+  const applyDefaultMocks = () => {
+    vi.mocked(useDailyRecordData).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordData>>({
+        record: mockRecord,
+      })
+    );
 
-        const emptyRows = screen.getAllByTestId('empty-bed-row');
-        expect(emptyRows).toHaveLength(REGULAR_BEDS.length + 1);
-        expect(screen.getByText('E1')).toBeInTheDocument();
-        expect(screen.queryByText('E2')).not.toBeInTheDocument();
+    vi.mocked(useDailyRecordActions).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordActions>>({
+        resetDay: mockResetDay,
+      })
+    );
+
+    vi.mocked(useDailyRecordMovements).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordMovements>>({
+        discharges: [],
+        transfers: [],
+        cma: [],
+      })
+    );
+
+    vi.mocked(useDailyRecordBeds).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordBeds>>({})
+    );
+    vi.mocked(useDailyRecordStaff).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordStaff>>({
+        activeExtraBeds: ['E1'],
+      })
+    );
+    vi.mocked(useDailyRecordOverrides).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordOverrides>>({})
+    );
+
+    vi.mocked(useCensusActionCommands).mockReturnValue(
+      asContextReturn<ReturnType<typeof useCensusActionCommands>>({
+        handleRowAction: mockHandleRowAction,
+      })
+    );
+
+    const uiMock = createUiMock();
+    vi.mocked(useConfirmDialog).mockReturnValue(uiMock);
+    vi.mocked(useNotification).mockReturnValue(uiMock);
+    vi.mocked(useTableConfig).mockReturnValue(createTableConfigMock());
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    applyDefaultMocks();
+  });
+
+  it('should render correct number of beds (normal + active extras)', () => {
+    render(<CensusTable currentDateString="2025-01-08" />);
+
+    const emptyRows = screen.getAllByTestId('empty-bed-row');
+    expect(emptyRows).toHaveLength(REGULAR_BEDS.length + 1);
+    expect(screen.getByText('E1')).toBeInTheDocument();
+    expect(screen.queryByText('E2')).not.toBeInTheDocument();
+  });
+
+  it('should handle "Clear All" with confirmation', async () => {
+    mockConfirm.mockResolvedValue(true);
+    render(<CensusTable currentDateString="2025-01-08" />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle('Limpiar todos los datos del día'));
     });
 
-    it('should handle "Clear All" with confirmation', async () => {
-        mockConfirm.mockResolvedValue(true);
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(mockResetDay).toHaveBeenCalled();
+  });
 
-        render(
-            <CensusTable
-                currentDateString="2025-01-08"
-            />
-        );
+  it('should toggle diagnosis mode', () => {
+    render(<CensusTable currentDateString="2025-01-08" />);
 
-        const clearBtn = screen.getByTitle('Limpiar todos los datos del día');
+    fireEvent.click(screen.getByTitle(/Modo texto libre/));
+    expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('cie10');
+    expect(screen.getByTitle(/Modo CIE-10/)).toBeInTheDocument();
 
-        await act(async () => {
-            fireEvent.click(clearBtn);
-        });
+    fireEvent.click(screen.getByTitle(/Modo CIE-10/));
+    expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('free');
+  });
 
-        expect(mockConfirm).toHaveBeenCalled();
-        expect(mockResetDay).toHaveBeenCalled();
+  it('should render clinical crib as separate rows', () => {
+    const mainPatient = DataFactory.createMockPatient('R1', {
+      patientName: 'Mother',
+      rut: '11.111.111-1',
+    });
+    mainPatient.clinicalCrib = DataFactory.createMockPatient('R1-crib', {
+      patientName: 'Baby',
+      rut: '1-1',
     });
 
-    it('should toggle diagnosis mode', () => {
-        render(<CensusTable currentDateString="2025-01-08" />);
+    vi.mocked(useDailyRecordBeds).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordBeds>>({
+        R1: mainPatient,
+      })
+    );
 
-        const toggleBtn = screen.getByTitle(/Modo texto libre/);
-        fireEvent.click(toggleBtn);
+    render(<CensusTable currentDateString="2025-01-08" />);
+    expect(screen.getAllByTestId('patient-row')).toHaveLength(2);
+  });
 
-        expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('cie10');
-        expect(screen.getByTitle(/Modo CIE-10/)).toBeInTheDocument();
+  it('should handle column resize', () => {
+    render(<CensusTable currentDateString="2025-01-08" />);
+    fireEvent.click(screen.getByTestId('resize-Cama'));
+    expect(mockUpdateColumnWidth).toHaveBeenCalledWith('bed', 120);
+  });
 
-        fireEvent.click(screen.getByTitle(/Modo CIE-10/));
-        expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('free');
-    });
+  it('should initialize empty bed on click', () => {
+    const updatePatientMock = vi.fn();
+    vi.mocked(useDailyRecordActions).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordActions>>({
+        updatePatient: updatePatientMock,
+        resetDay: vi.fn(),
+      })
+    );
 
-    it('should render clinical crib as separate rows', () => {
-        const bedsWithCrib = {
-            'R1': { patientName: 'Mother', rut: '11.111.111-1', clinicalCrib: { patientName: 'Baby', rut: '1-1' } }
-        };
-        vi.mocked(useDailyRecordBeds).mockReturnValue(bedsWithCrib as any);
-
-        render(<CensusTable currentDateString="2025-01-08" />);
-
-        // Should have 2 patient rows: one for Mother, one for Baby
-        const rows = screen.getAllByTestId('patient-row');
-        expect(rows).toHaveLength(2);
-    });
-
-    it('should handle column resize', () => {
-        render(<CensusTable currentDateString="2025-01-08" />);
-
-        fireEvent.click(screen.getByTestId('resize-Cama'));
-        expect(mockUpdateColumnWidth).toHaveBeenCalledWith('bed', 120);
-    });
-
-    it('should initialize empty bed on click', () => {
-        const updatePatientMock = vi.fn();
-        vi.mocked(useDailyRecordActions).mockReturnValue({
-            updatePatient: updatePatientMock,
-            resetDay: vi.fn()
-        } as any);
-
-        render(<CensusTable currentDateString="2025-01-08" />);
-
-        const emptyBed = screen.getByText('R2'); // Assuming R2 is empty
-        fireEvent.click(emptyBed);
-
-        expect(updatePatientMock).toHaveBeenCalledWith('R2', 'patientName', ' ');
-    });
+    render(<CensusTable currentDateString="2025-01-08" />);
+    fireEvent.click(screen.getByText('R2'));
+    expect(updatePatientMock).toHaveBeenCalledWith('R2', 'patientName', ' ');
+  });
 });

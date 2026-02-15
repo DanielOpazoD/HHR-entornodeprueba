@@ -10,6 +10,13 @@ import type {
   RowMenuAlign,
 } from './patientRowContracts';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
+import {
+  resolveBedModeButtonModel,
+  resolveClinicalCribButtonModel,
+  resolveCompanionButtonModel,
+  resolvePatientBedIndicators,
+} from '@/features/census/controllers/patientBedConfigMenuController';
+import { runPatientRowAsyncActionSafely } from '@/features/census/controllers/patientRowAsyncActionController';
 
 interface PatientBedConfigProps extends PatientBedConfigCallbacks {
   bed: BedDefinition;
@@ -47,9 +54,15 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
     currentDate: currentDateString,
   });
   const hasPatient = !!data.patientName;
-  const runAsyncSafe = (action: () => MaybePromiseVoid) => {
-    void Promise.resolve(action()).catch(() => undefined);
-  };
+  const indicators = resolvePatientBedIndicators({
+    isCunaMode,
+    hasCompanion,
+    hasClinicalCrib,
+  });
+  const bedModeModel = resolveBedModeButtonModel(isCunaMode);
+  const companionModel = resolveCompanionButtonModel(hasCompanion);
+  const clinicalCribModel = resolveClinicalCribButtonModel(hasClinicalCrib);
+  const runAsyncSafe = (action: () => MaybePromiseVoid) => runPatientRowAsyncActionSafely(action);
 
   return (
     <td className="p-[2px] border-r border-slate-200 text-center w-24 relative">
@@ -74,27 +87,11 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
         {/* Static Indicators (Persistent information) */}
         {!isBlocked && (
           <div className="flex gap-1 mt-1">
-            {isCunaMode && (
-              <span className="text-[8px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200">
-                CUNA
+            {indicators.map(indicator => (
+              <span key={indicator.key} className={indicator.className} title={indicator.title}>
+                {indicator.label}
               </span>
-            )}
-            {hasCompanion && (
-              <span
-                className="text-[8px] bg-emerald-100 text-emerald-700 font-bold px-1 rounded-sm border border-emerald-200"
-                title="RN Sano"
-              >
-                RN
-              </span>
-            )}
-            {hasClinicalCrib && (
-              <span
-                className="text-[8px] bg-slate-100 text-slate-600 font-bold px-1 rounded-sm border border-slate-200"
-                title="Cuna Clínica"
-              >
-                +CC
-              </span>
-            )}
+            ))}
           </div>
         )}
       </div>
@@ -132,76 +129,35 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
                 {/* Mode Toggle - DYNAMIC TEXT AS REQUESTED */}
                 <button
                   onClick={() => runAsyncSafe(onToggleMode)}
-                  className={clsx(
-                    'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-                    isCunaMode
-                      ? 'bg-pink-50 text-pink-700 hover:bg-pink-100'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  )}
+                  className={bedModeModel.className}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{isCunaMode ? '🛏️' : '👶'}</span>
-                    <span className="text-left leading-none">
-                      {isCunaMode ? 'Cambiar a Cama' : 'Cambiar a Cuna Clínica'}
-                    </span>
+                    <span className="text-sm">{bedModeModel.emoji}</span>
+                    <span className="text-left leading-none">{bedModeModel.label}</span>
                   </div>
-                  <div
-                    className={clsx(
-                      'w-1.5 h-1.5 rounded-full transition-all',
-                      isCunaMode
-                        ? 'bg-pink-500 scale-125 shadow-[0_0_8px_rgba(236,72,153,0.5)]'
-                        : 'bg-slate-300'
-                    )}
-                  />
+                  <div className={bedModeModel.dotClassName} />
                 </button>
 
                 {/* Companion Toggle */}
                 <button
                   onClick={() => runAsyncSafe(onToggleCompanion)}
-                  className={clsx(
-                    'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-                    hasCompanion
-                      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  )}
+                  className={companionModel.className}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🤱</span>
                     <span>RN Sano</span>
                   </div>
-                  <div
-                    className={clsx(
-                      'w-1.5 h-1.5 rounded-full transition-all',
-                      hasCompanion
-                        ? 'bg-emerald-500 scale-125 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                        : 'bg-slate-300'
-                    )}
-                  />
+                  <div className={companionModel.dotClassName} />
                 </button>
 
                 {/* Clinical Crib Toggle */}
                 {!isCunaMode && (
-                  <button
-                    onClick={onToggleClinicalCrib}
-                    className={clsx(
-                      'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-                      hasClinicalCrib
-                        ? 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    )}
-                  >
+                  <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>
                     <div className="flex items-center gap-2">
                       <span className="text-sm">➕</span>
                       <span>Agregar Cuna Clínica</span>
                     </div>
-                    <div
-                      className={clsx(
-                        'w-1.5 h-1.5 rounded-full transition-all',
-                        hasClinicalCrib
-                          ? 'bg-purple-500 scale-125 shadow-[0_0_8px_rgba(168,85,247,0.5)]'
-                          : 'bg-slate-300'
-                      )}
-                    />
+                    <div className={clinicalCribModel.dotClassName} />
                   </button>
                 )}
 

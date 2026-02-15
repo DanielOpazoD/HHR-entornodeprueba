@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePatientActionMenuViewState } from '@/features/census/controllers/patientActionMenuViewController';
+import {
+  resolvePatientActionMenuPanelClassName,
+  resolvePatientActionMenuViewState,
+} from '@/features/census/controllers/patientActionMenuViewController';
 
 describe('patientActionMenuViewController', () => {
   it('shows all interactive actions for editable, unblocked rows', () => {
@@ -47,5 +50,10 @@ describe('patientActionMenuViewController', () => {
     expect(view.showHistoryAction).toBe(false);
     expect(view.showClinicalSection).toBe(false);
     expect(view.showExamRequestAction).toBe(false);
+  });
+
+  it('resolves panel anchor class from row menu alignment', () => {
+    expect(resolvePatientActionMenuPanelClassName('top')).toBe('top-0');
+    expect(resolvePatientActionMenuPanelClassName('bottom')).toBe('bottom-0');
   });
 });

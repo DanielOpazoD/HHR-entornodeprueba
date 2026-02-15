@@ -1,4 +1,5 @@
 import type { DischargeData } from '@/types';
+import { resolveMovementSectionState } from '@/features/census/controllers/censusMovementSectionController';
 
 export interface DischargesSectionState {
   isRenderable: boolean;
@@ -9,19 +10,11 @@ export interface DischargesSectionState {
 export const resolveDischargesSectionState = (
   discharges: DischargeData[] | null | undefined
 ): DischargesSectionState => {
-  if (discharges === null) {
-    return {
-      isRenderable: false,
-      isEmpty: true,
-      discharges: [],
-    };
-  }
-
-  const safeDischarges = discharges || [];
+  const state = resolveMovementSectionState(discharges);
 
   return {
-    isRenderable: true,
-    isEmpty: safeDischarges.length === 0,
-    discharges: safeDischarges,
+    isRenderable: state.isRenderable,
+    isEmpty: state.isEmpty,
+    discharges: state.items,
   };
 };

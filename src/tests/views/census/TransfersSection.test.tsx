@@ -8,7 +8,7 @@ import {
   useDailyRecordActions,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
-import { useConfirmDialog } from '@/context/UIContext';
+import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
@@ -23,6 +23,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 
 vi.mock('@/context/UIContext', () => ({
   useConfirmDialog: vi.fn(),
+  useNotification: vi.fn(),
 }));
 
 describe('TransfersSection', () => {
@@ -30,6 +31,7 @@ describe('TransfersSection', () => {
   const mockOnDelete = vi.fn();
   const mockHandleEdit = vi.fn();
   const mockConfirm = vi.fn();
+  const mockNotifyError = vi.fn();
 
   const mockTransfers = [
     DataFactory.createMockTransfer({
@@ -47,6 +49,7 @@ describe('TransfersSection', () => {
       handleEditTransfer: mockHandleEdit,
     } as any);
     vi.mocked(useConfirmDialog).mockReturnValue({ confirm: mockConfirm } as any);
+    vi.mocked(useNotification).mockReturnValue({ error: mockNotifyError } as any);
     mockConfirm.mockResolvedValue(true);
     (useDailyRecordData as any).mockReturnValue({
       record: { date: '2024-12-11' },
@@ -154,7 +157,7 @@ describe('TransfersSection', () => {
     expect(screen.getByText('(12-12-2024)')).toBeInTheDocument();
   });
 
-  it('does not execute undo/delete when confirmation is rejected', async () => {
+  it('does not execute undo/delete when confirmation is rejected and ignores re-entrant click', async () => {
     mockConfirm.mockResolvedValue(false);
     vi.mocked(useDailyRecordMovements).mockReturnValue({
       transfers: mockTransfers,
@@ -168,9 +171,30 @@ describe('TransfersSection', () => {
     fireEvent.click(screen.getByTitle('Eliminar Registro'));
 
     await waitFor(() => {
-      expect(mockConfirm).toHaveBeenCalledTimes(2);
+      expect(mockConfirm).toHaveBeenCalledTimes(1);
     });
     expect(mockOnUndo).not.toHaveBeenCalled();
     expect(mockOnDelete).not.toHaveBeenCalled();
+  });
+
+  it('shows error notification when confirm dialog fails', async () => {
+    mockConfirm.mockRejectedValue(new Error('dialog failed'));
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      transfers: mockTransfers,
+      discharges: [],
+      cma: [],
+    });
+
+    render(<TransfersSection />);
+
+    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+
+    await waitFor(() => {
+      expect(mockNotifyError).toHaveBeenCalledWith(
+        'No se pudo deshacer traslado',
+        expect.stringContaining('dialog failed')
+      );
+    });
+    expect(mockOnUndo).not.toHaveBeenCalled();
   });
 });
