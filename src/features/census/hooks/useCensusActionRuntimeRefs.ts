@@ -17,7 +17,7 @@ import type {
   TransferState,
 } from '@/features/census/types/censusActionTypes';
 
-interface UseCensusActionRuntimeRefsParams {
+export interface UseCensusActionRuntimeRefsParams {
   actionState: ActionState;
   dischargeState: DischargeState;
   transferState: TransferState;

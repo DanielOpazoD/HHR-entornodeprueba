@@ -1,11 +1,4 @@
 import React from 'react';
-import type {
-  BedTypesById,
-  DiagnosisMode,
-  OccupiedBedRow,
-} from '@/features/census/types/censusTableTypes';
-import type { BedDefinition, PatientData } from '@/types';
-import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import { EmptyBedRow } from '@/features/census/components/EmptyBedRow';
 import { PatientRow } from '@/features/census/components/PatientRow';
 import { CensusEmptyBedsDividerRow } from '@/features/census/components/CensusEmptyBedsDividerRow';
@@ -13,17 +6,7 @@ import {
   resolvePatientRowMenuAlign,
   shouldRenderEmptyBedsDivider,
 } from '@/features/census/controllers/censusTableBodyController';
-
-export interface CensusTableBodyProps {
-  occupiedRows: OccupiedBedRow[];
-  emptyBeds: BedDefinition[];
-  currentDateString: string;
-  readOnly: boolean;
-  diagnosisMode: DiagnosisMode;
-  bedTypes: BedTypesById;
-  onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
-  onActivateEmptyBed: (bedId: string) => void;
-}
+import type { CensusTableBodyProps } from '@/features/census/types/censusTableComponentContracts';
 
 export const CensusTableBody: React.FC<CensusTableBodyProps> = ({
   occupiedRows,

@@ -14,16 +14,7 @@ import {
   resolveMoveCopySourceBedName,
 } from '@/features/census/controllers/moveCopyModalController';
 import { useMoveCopyTargetRecord } from '@/features/census/hooks/useMoveCopyTargetRecord';
-
-export interface MoveCopyModalProps {
-  isOpen: boolean;
-  type: 'move' | 'copy' | null;
-  sourceBedId: string | null;
-  targetBedId: string | null;
-  onClose: () => void;
-  onSetTarget: (id: string) => void;
-  onConfirm: (targetDate?: string) => void;
-}
+import type { MoveCopyModalProps } from '@/features/census/types/censusActionModalContracts';
 
 export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   isOpen,
@@ -44,7 +35,10 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
     [currentRecord?.date]
   );
   const dateOptions = useMemo(() => buildMoveCopyDateOptions(baseDate), [baseDate]);
-  const sourceBedName = resolveMoveCopySourceBedName(BEDS, sourceBedId);
+  const sourceBedName = useMemo(
+    () => resolveMoveCopySourceBedName(BEDS, sourceBedId),
+    [sourceBedId]
+  );
   const handleTargetRecordError = React.useCallback(
     (error: unknown) => {
       const detail = error instanceof Error ? error.message : 'Error inesperado';
@@ -59,15 +53,19 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
     getRecordForDate: dailyRecord.getForDate,
     onError: handleTargetRecordError,
   });
-  const bedOptions = currentRecord
-    ? resolveMoveCopyBedOptions({
-        allBeds: BEDS,
-        currentRecord,
-        targetRecord,
-        sourceBedId,
-        targetBedId,
-      })
-    : [];
+  const bedOptions = useMemo(
+    () =>
+      currentRecord
+        ? resolveMoveCopyBedOptions({
+            allBeds: BEDS,
+            currentRecord,
+            targetRecord,
+            sourceBedId,
+            targetBedId,
+          })
+        : [],
+    [currentRecord, sourceBedId, targetBedId, targetRecord]
+  );
 
   // Initial State Setup
   useEffect(() => {
@@ -79,9 +77,24 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
   if (!type || !currentRecord) return null;
 
   const handleDateSelect = (targetDate: string) => {
+    if (targetDate === selectedDate) {
+      return;
+    }
+
     setSelectedDate(targetDate);
     // Reset target bed since availability changes
     onSetTarget('');
+  };
+
+  const canConfirm =
+    Boolean(targetBedId) && !isLoading && (type !== 'copy' || Boolean(selectedDate));
+
+  const handleConfirm = () => {
+    if (!canConfirm) {
+      return;
+    }
+
+    onConfirm(type === 'copy' ? selectedDate : undefined);
   };
 
   return (
@@ -107,7 +120,7 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
 
                 return (
                   <button
-                    key={opt.label}
+                    key={opt.isoDate}
                     onClick={() => handleDateSelect(opt.isoDate)}
                     className={clsx(
                       'flex-1 py-2 px-3 rounded-lg border text-xs font-semibold transition-all flex items-center justify-center gap-2',
@@ -197,8 +210,8 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
             Cancelar
           </button>
           <button
-            disabled={!targetBedId || isLoading}
-            onClick={() => onConfirm(selectedDate)}
+            disabled={!canConfirm}
+            onClick={handleConfirm}
             className="px-5 py-2 bg-medical-600 text-white rounded-lg text-xs font-bold shadow-md shadow-medical-600/10 hover:bg-medical-700 transition-all transform active:scale-95 disabled:opacity-50 disabled:transform-none"
           >
             Confirmar {type === 'move' ? 'Traslado' : 'Copia'}

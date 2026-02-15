@@ -4,15 +4,18 @@ import type { DischargeTarget } from '@/features/census/types/censusActionTypes'
 import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
-  hasDischargeValidationErrors,
   mapDischargeValidationErrors,
   type DischargeConfirmPayload,
   type DischargeModalFieldErrors,
 } from '@/features/census/controllers/dischargeModalController';
 import {
-  isMovementDateTimeAllowed,
+  resolveMovementDateTimeValidationError,
   resolveMovementDateTimeBounds,
-} from '@/features/census/controllers/censusMovementDatePresentationController';
+} from '@/features/census/controllers/clinicalShiftCalendarController';
+import {
+  clearModalFieldErrors,
+  submitModalForm,
+} from '@/features/census/controllers/modalFormController';
 import { useLatestRef } from '@/hooks/useLatestRef';
 
 interface UseDischargeModalFormParams {
@@ -103,22 +106,22 @@ export const useDischargeModalForm = ({
 
   const setDischargeType = useCallback((nextType: DischargeType) => {
     setDischargeTypeState(nextType);
-    setErrors(prev => ({ ...prev, other: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['other']));
   }, []);
 
   const setOtherDetails = useCallback((nextDetails: string) => {
     setOtherDetailsState(nextDetails);
-    setErrors(prev => ({ ...prev, other: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['other']));
   }, []);
 
   const setDischargeTime = useCallback((nextTime: string) => {
     setDischargeTimeState(nextTime);
-    setErrors(prev => ({ ...prev, time: undefined, dateTime: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['time', 'dateTime']));
   }, []);
 
   const setDischargeDate = useCallback((nextDate: string) => {
     setDischargeDateState(nextDate);
-    setErrors(prev => ({ ...prev, dateTime: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['dateTime']));
   }, []);
 
   const setLocalTarget = useCallback((nextTarget: DischargeTarget) => {
@@ -126,37 +129,52 @@ export const useDischargeModalForm = ({
   }, []);
 
   const submit = useCallback((): boolean => {
-    const fieldErrors = mapDischargeValidationErrors(
-      status,
-      dischargeType,
-      otherDetails,
-      dischargeTime
-    );
-    if (
-      includeMovementDate &&
-      !isMovementDateTimeAllowed(recordDate, dischargeDate, dischargeTime)
-    ) {
-      fieldErrors.dateTime = 'Fecha/hora fuera de rango para el turno.';
-    }
-
-    if (hasDischargeValidationErrors(fieldErrors)) {
-      setErrors(fieldErrors);
-      return false;
-    }
-
-    onConfirm(
-      buildDischargeConfirmPayload({
+    return submitModalForm({
+      state: {
         status,
         dischargeType,
         otherDetails,
         dischargeTime,
-        movementDate: includeMovementDate ? dischargeDate : undefined,
+        dischargeDate,
+        includeMovementDate,
+        recordDate,
         hasClinicalCrib,
         localTarget,
-      })
-    );
+      },
+      validate: state => {
+        const fieldErrors = mapDischargeValidationErrors(
+          state.status,
+          state.dischargeType,
+          state.otherDetails,
+          state.dischargeTime
+        );
 
-    return true;
+        if (state.includeMovementDate) {
+          const dateTimeError = resolveMovementDateTimeValidationError({
+            recordDate: state.recordDate,
+            movementDate: state.dischargeDate,
+            movementTime: state.dischargeTime,
+          });
+          if (dateTimeError) {
+            fieldErrors.dateTime = dateTimeError;
+          }
+        }
+
+        return fieldErrors;
+      },
+      buildPayload: state =>
+        buildDischargeConfirmPayload({
+          status: state.status,
+          dischargeType: state.dischargeType,
+          otherDetails: state.otherDetails,
+          dischargeTime: state.dischargeTime,
+          movementDate: state.includeMovementDate ? state.dischargeDate : undefined,
+          hasClinicalCrib: state.hasClinicalCrib,
+          localTarget: state.localTarget,
+        }),
+      onValidationErrors: setErrors,
+      onConfirm,
+    });
   }, [
     dischargeDate,
     dischargeTime,

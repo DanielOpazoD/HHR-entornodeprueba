@@ -6,7 +6,9 @@ import {
 } from '@/constants';
 import { validateDischargeExecutionInput } from '@/features/census/validation/censusActionValidation';
 import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
-import { resolveMovementEditorInitialDate } from '@/features/census/controllers/censusMovementDatePresentationController';
+import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';
+import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
+import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
 
 export interface DischargeModalFieldErrors {
   time?: string;
@@ -62,7 +64,7 @@ export const buildInitialDischargeFormState = ({
 }: BuildInitialDischargeFormStateParams): DischargeModalFormState => ({
   dischargeType: (initialType as DischargeType) || DEFAULT_DISCHARGE_TYPE,
   otherDetails: initialOtherDetails || '',
-  dischargeTime: initialTime || defaultTime,
+  dischargeTime: resolveValidHourMinuteOrFallback(initialTime, defaultTime),
   movementDate: resolveMovementEditorInitialDate(recordDate, initialMovementDate, initialTime),
   localTarget: dischargeTarget,
 });
@@ -94,7 +96,7 @@ export const mapDischargeValidationErrors = (
 };
 
 export const hasDischargeValidationErrors = (fieldErrors: DischargeModalFieldErrors): boolean =>
-  Object.keys(fieldErrors).length > 0;
+  hasModalFieldErrors(fieldErrors);
 
 export const buildDischargeConfirmPayload = ({
   status,

@@ -6,6 +6,7 @@ export interface BrowserWindowRuntime {
   getLocationOrigin: () => string;
   getLocationPathname: () => string;
   getLocationHref: () => string;
+  getViewportWidth: () => number;
   getLocalStorageItem: (key: string) => string | null;
   setLocalStorageItem: (key: string, value: string) => void;
   removeLocalStorageItem: (key: string) => void;
@@ -62,6 +63,13 @@ export const createBrowserWindowRuntime = (): BrowserWindowRuntime => ({
     }
 
     return window.location.href;
+  },
+  getViewportWidth: () => {
+    if (!hasWindow()) {
+      return 0;
+    }
+
+    return window.innerWidth;
   },
   getLocalStorageItem: key => {
     if (!hasWindow()) {

@@ -38,3 +38,36 @@ export const resolvePatientMainRowActionsAvailability = (
   canOpenExamRequest: Boolean(data?.patientName),
   canOpenHistory: Boolean(data?.rut),
 });
+
+interface BuildPatientMainRowViewStateParams {
+  bedId: string;
+  readOnly: boolean;
+  isEmpty: boolean;
+  isBlocked: boolean;
+  patientName?: string;
+  rut?: string;
+}
+
+export interface PatientMainRowViewState {
+  canToggleBedType: boolean;
+  rowClassName: string;
+  rowActionsAvailability: {
+    canOpenExamRequest: boolean;
+    canOpenHistory: boolean;
+  };
+  showBlockedContent: boolean;
+}
+
+export const buildPatientMainRowViewState = ({
+  bedId,
+  readOnly,
+  isEmpty,
+  isBlocked,
+  patientName,
+  rut,
+}: BuildPatientMainRowViewStateParams): PatientMainRowViewState => ({
+  canToggleBedType: shouldShowBedTypeToggle({ bedId, readOnly, isEmpty }),
+  rowClassName: resolvePatientMainRowClassName({ isBlocked, patientName }),
+  rowActionsAvailability: resolvePatientMainRowActionsAvailability({ patientName, rut }),
+  showBlockedContent: isBlocked,
+});

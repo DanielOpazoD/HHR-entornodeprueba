@@ -7,8 +7,10 @@ import type {
 } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition, PatientData } from '@/types';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
-import type { CensusTableHeaderProps } from '@/features/census/components/CensusTableHeader';
-import type { CensusTableBodyProps } from '@/features/census/components/CensusTableBody';
+import type {
+  CensusTableBodyProps,
+  CensusTableHeaderProps,
+} from '@/features/census/types/censusTableComponentContracts';
 
 export interface CensusTableLayoutParams {
   currentDateString: string;

@@ -1,37 +1,22 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
-import type { BedDefinition, BedType, PatientData } from '@/types';
+import type { BedDefinition, PatientData } from '@/types';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import { usePatientRowUiState } from '@/features/census/components/patient-row/usePatientRowUiState';
 import { derivePatientRowState } from '@/features/census/controllers/patientRowStateController';
-import {
-  usePatientRowCribInputHandlers,
-  usePatientRowMainInputHandlers,
-} from '@/features/census/components/patient-row/usePatientRowInputHandlers';
 import { usePatientRowBedConfigActions } from '@/features/census/components/patient-row/usePatientRowBedConfigActions';
-import { usePatientRowChangeHandlers } from '@/features/census/components/patient-row/usePatientRowChangeHandlers';
 import { usePatientRowDependencies } from '@/features/census/components/patient-row/usePatientRowDependencies';
+import {
+  buildPatientRowActionDispatcher,
+  buildPatientRowBedTypeToggles,
+} from '@/features/census/controllers/patientRowRuntimeController';
+import type { PatientRowRuntime } from '@/features/census/components/patient-row/patientRowRuntimeContracts';
+import { usePatientRowHandlersModel } from '@/features/census/components/patient-row/usePatientRowHandlersModel';
 
 interface UsePatientRowRuntimeParams {
   bed: BedDefinition;
   data: PatientData;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
-}
-
-export interface PatientRowRuntime {
-  bedTypeToggles: {
-    onToggleBedType: () => void;
-    onUpdateClinicalCrib: (action: 'remove') => void;
-  };
-  rowState: ReturnType<typeof derivePatientRowState>;
-  uiState: ReturnType<typeof usePatientRowUiState>;
-  handlers: ReturnType<typeof usePatientRowChangeHandlers>;
-  modalSavers: {
-    onSaveDemographics: (fields: Partial<PatientData>) => void;
-    onSaveCribDemographics: (fields: Partial<PatientData>) => void;
-  };
-  bedConfigActions: ReturnType<typeof usePatientRowBedConfigActions>;
-  handleAction: (action: PatientRowAction) => void;
 }
 
 export const usePatientRowRuntime = ({
@@ -49,32 +34,11 @@ export const usePatientRowRuntime = ({
     alert,
   } = usePatientRowDependencies();
   const uiState = usePatientRowUiState();
-
-  const {
-    handleTextChange,
-    handleCheckboxChange,
-    handleDevicesChange,
-    handleDeviceDetailsChange,
-    handleDeviceHistoryChange,
-    handleDemographicsSave,
-    toggleDocumentType,
-    handleDeliveryRouteChange,
-  } = usePatientRowMainInputHandlers({
+  const { handlers, modalSavers } = usePatientRowHandlersModel({
     bedId: bed.id,
     documentType: data?.documentType,
     updatePatient,
     updatePatientMultiple,
-  });
-
-  const {
-    handleCribTextChange,
-    handleCribCheckboxChange,
-    handleCribDevicesChange,
-    handleCribDeviceDetailsChange,
-    handleCribDeviceHistoryChange,
-    handleCribDemographicsSave,
-  } = usePatientRowCribInputHandlers({
-    bedId: bed.id,
     updateClinicalCrib,
     updateClinicalCribMultiple,
   });
@@ -93,49 +57,27 @@ export const usePatientRowRuntime = ({
   });
 
   const handleAction = useCallback(
-    (action: PatientRowAction) => {
-      onAction(action, bed.id, data);
-    },
+    (action: PatientRowAction) =>
+      buildPatientRowActionDispatcher({ onAction, bedId: bed.id, patient: data })(action),
     [onAction, bed.id, data]
   );
 
-  const handlers = usePatientRowChangeHandlers({
-    handleTextChange,
-    handleCheckboxChange,
-    handleDevicesChange,
-    handleDeviceDetailsChange,
-    handleDeviceHistoryChange,
-    handleDemographicsSave,
-    toggleDocumentType,
-    handleDeliveryRouteChange,
-    handleCribTextChange,
-    handleCribCheckboxChange,
-    handleCribDevicesChange,
-    handleCribDeviceDetailsChange,
-    handleCribDeviceHistoryChange,
-    handleCribDemographicsSave,
-  });
-
-  const onToggleBedType = useCallback(() => toggleBedType(bed.id), [bed.id, toggleBedType]);
-  const onUpdateClinicalCrib = useCallback(
-    (action: 'remove') => {
-      updateClinicalCrib(bed.id, action);
-    },
-    [bed.id, updateClinicalCrib]
+  const bedTypeToggles = useMemo(
+    () =>
+      buildPatientRowBedTypeToggles({
+        bedId: bed.id,
+        toggleBedType,
+        updateClinicalCrib,
+      }),
+    [bed.id, toggleBedType, updateClinicalCrib]
   );
 
   return {
-    bedTypeToggles: {
-      onToggleBedType,
-      onUpdateClinicalCrib,
-    },
+    bedTypeToggles,
     rowState,
     uiState,
     handlers,
-    modalSavers: {
-      onSaveDemographics: handleDemographicsSave,
-      onSaveCribDemographics: handleCribDemographicsSave,
-    },
+    modalSavers,
     bedConfigActions,
     handleAction,
   };

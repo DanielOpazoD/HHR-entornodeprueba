@@ -1,47 +1,10 @@
 import React from 'react';
-import { AlertCircle, RefreshCcw } from 'lucide-react';
-import { BedDefinition, BedType, PatientData } from '@/types';
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
-import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
-import { isIntensiveBedType } from '@/utils/bedTypeUtils';
-import { PatientActionMenu } from './PatientActionMenu';
 import { PatientBedConfig } from './PatientBedConfig';
 import { PatientInputCells } from './PatientInputCells';
-import {
-  resolvePatientMainRowActionsAvailability,
-  resolvePatientMainRowClassName,
-  shouldShowBedTypeToggle,
-} from '@/features/census/controllers/patientRowMainViewController';
-import type { PatientInputChangeHandlers } from './inputCellTypes';
-import type {
-  PatientActionMenuCallbacks,
-  PatientBedConfigCallbacks,
-  RowMenuAlign,
-} from './patientRowContracts';
-
-export interface PatientMainRowViewProps
-  extends
-    Omit<PatientActionMenuCallbacks, 'onViewDemographics' | 'onViewExamRequest' | 'onViewHistory'>,
-    PatientBedConfigCallbacks {
-  bed: BedDefinition;
-  bedType: BedType;
-  data: PatientData;
-  currentDateString: string;
-  style?: React.CSSProperties;
-  readOnly: boolean;
-  actionMenuAlign: RowMenuAlign;
-  diagnosisMode: DiagnosisMode;
-  isBlocked: boolean;
-  isEmpty: boolean;
-  hasCompanion: boolean;
-  hasClinicalCrib: boolean;
-  isCunaMode: boolean;
-  onOpenDemographics: () => void;
-  onOpenExamRequest: () => void;
-  onOpenHistory: () => void;
-  onToggleBedType: () => void;
-  onChange: PatientInputChangeHandlers;
-}
+import { PatientMainRowActionCell } from '@/features/census/components/patient-row/PatientMainRowActionCell';
+import { PatientMainRowBedTypeCell } from '@/features/census/components/patient-row/PatientMainRowBedTypeCell';
+import { PatientMainRowBlockedCell } from '@/features/census/components/patient-row/PatientMainRowBlockedCell';
+import type { PatientMainRowViewProps } from '@/features/census/components/patient-row/patientRowViewContracts';
 
 export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
   bed,
@@ -57,6 +20,7 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
   hasCompanion,
   hasClinicalCrib,
   isCunaMode,
+  mainRowViewState,
   onAction,
   onOpenDemographics,
   onOpenExamRequest,
@@ -68,32 +32,26 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
   onUpdateClinicalCrib,
   onChange,
 }) => {
-  const canToggleBedType = shouldShowBedTypeToggle({
-    bedId: bed.id,
-    readOnly,
-    isEmpty,
-  });
-  const rowClassName = resolvePatientMainRowClassName({
-    isBlocked,
-    patientName: data.patientName,
-  });
-  const rowActionsAvailability = resolvePatientMainRowActionsAvailability(data);
-
   return (
-    <tr className={rowClassName} style={style} data-testid="patient-row" data-bed-id={bed.id}>
-      <td className="p-0 text-center border-r border-slate-200 relative w-10 print:hidden">
-        <PatientActionMenu
-          isBlocked={isBlocked}
-          onAction={onAction}
-          onViewDemographics={onOpenDemographics}
-          onViewExamRequest={
-            rowActionsAvailability.canOpenExamRequest ? onOpenExamRequest : undefined
-          }
-          onViewHistory={rowActionsAvailability.canOpenHistory ? onOpenHistory : undefined}
-          readOnly={readOnly}
-          align={actionMenuAlign}
-        />
-      </td>
+    <tr
+      className={mainRowViewState.rowClassName}
+      style={style}
+      data-testid="patient-row"
+      data-bed-id={bed.id}
+    >
+      <PatientMainRowActionCell
+        isBlocked={isBlocked}
+        readOnly={readOnly}
+        align={actionMenuAlign}
+        onAction={onAction}
+        onViewDemographics={onOpenDemographics}
+        onViewExamRequest={
+          mainRowViewState.rowActionsAvailability.canOpenExamRequest ? onOpenExamRequest : undefined
+        }
+        onViewHistory={
+          mainRowViewState.rowActionsAvailability.canOpenHistory ? onOpenHistory : undefined
+        }
+      />
 
       <PatientBedConfig
         bed={bed}
@@ -112,36 +70,14 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
         align={actionMenuAlign}
       />
 
-      <td className="p-0 border-r border-slate-100 text-center w-16 relative group/tipo-cell">
-        <div className="flex flex-col items-center gap-1 py-1">
-          <MedicalBadge
-            variant={isIntensiveBedType(bedType) ? 'pink' : 'blue'}
-            className="w-10 justify-center mx-auto"
-          >
-            {bedType}
-          </MedicalBadge>
-        </div>
-        {canToggleBedType && (
-          <button
-            onClick={onToggleBedType}
-            className="absolute top-0.5 right-0.5 p-0.5 rounded-full text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all opacity-0 group-hover/tipo-cell:opacity-100"
-            title="Cambiar nivel de cuidado (UCI/UTI)"
-          >
-            <RefreshCcw size={10} className="animate-hover-spin" />
-          </button>
-        )}
-      </td>
+      <PatientMainRowBedTypeCell
+        bedType={bedType}
+        canToggleBedType={mainRowViewState.canToggleBedType}
+        onToggleBedType={onToggleBedType}
+      />
 
-      {isBlocked ? (
-        <td colSpan={10} className="p-1 bg-slate-50/50 text-center">
-          <div className="text-slate-400 text-sm flex items-center justify-center gap-2 italic">
-            <AlertCircle size={14} className="text-red-300/60" />
-            <span>Cama Bloqueada</span>
-            {data.blockedReason && (
-              <span className="text-xs opacity-70">({data.blockedReason})</span>
-            )}
-          </div>
-        </td>
+      {mainRowViewState.showBlockedContent ? (
+        <PatientMainRowBlockedCell blockedReason={data.blockedReason} />
       ) : (
         <PatientInputCells
           data={data}

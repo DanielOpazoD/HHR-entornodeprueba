@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type {
   ClinicalCribInputChangeHandlers,
+  MainPatientInputChangeHandlers,
   PatientInputChangeHandlers,
 } from '@/features/census/components/patient-row/inputCellTypes';
 
@@ -10,9 +11,9 @@ interface UsePatientRowChangeHandlersParams {
   handleDevicesChange: PatientInputChangeHandlers['devices'];
   handleDeviceDetailsChange: PatientInputChangeHandlers['deviceDetails'];
   handleDeviceHistoryChange: PatientInputChangeHandlers['deviceHistory'];
-  handleDemographicsSave: PatientInputChangeHandlers['multiple'];
-  toggleDocumentType: PatientInputChangeHandlers['toggleDocType'];
-  handleDeliveryRouteChange: PatientInputChangeHandlers['deliveryRoute'];
+  handleDemographicsSave: NonNullable<PatientInputChangeHandlers['multiple']>;
+  toggleDocumentType: NonNullable<PatientInputChangeHandlers['toggleDocType']>;
+  handleDeliveryRouteChange: NonNullable<PatientInputChangeHandlers['deliveryRoute']>;
   handleCribTextChange: ClinicalCribInputChangeHandlers['text'];
   handleCribCheckboxChange: ClinicalCribInputChangeHandlers['check'];
   handleCribDevicesChange: ClinicalCribInputChangeHandlers['devices'];
@@ -22,7 +23,7 @@ interface UsePatientRowChangeHandlersParams {
 }
 
 interface UsePatientRowChangeHandlersResult {
-  mainInputChangeHandlers: PatientInputChangeHandlers;
+  mainInputChangeHandlers: MainPatientInputChangeHandlers;
   cribInputChangeHandlers: ClinicalCribInputChangeHandlers;
 }
 
@@ -61,7 +62,7 @@ export const usePatientRowChangeHandlers = ({
     ]
   );
 
-  const mainInputChangeHandlers = useMemo<PatientInputChangeHandlers>(
+  const mainInputChangeHandlers = useMemo<MainPatientInputChangeHandlers>(
     () => ({
       text: handleTextChange,
       check: handleCheckboxChange,

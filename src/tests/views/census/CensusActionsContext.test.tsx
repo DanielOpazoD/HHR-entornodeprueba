@@ -321,4 +321,80 @@ describe('CensusActionsContext hooks', () => {
       'Ocurrió un error inesperado al procesar la acción del paciente.'
     );
   });
+
+  it('ignores concurrent discharge execution while one request is in flight', () => {
+    const addDischarge = vi.fn();
+    mockedUseDailyRecordActions.mockReturnValue({
+      clearPatient: vi.fn(),
+      moveOrCopyPatient: vi.fn(),
+      addDischarge,
+      updateDischarge: vi.fn(),
+      addTransfer: vi.fn(),
+      updateTransfer: vi.fn(),
+      addCMA: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = renderHook(
+      () => ({
+        state: useCensusActionState(),
+        commands: useCensusActionCommands(),
+      }),
+      { wrapper }
+    );
+
+    act(() => {
+      result.current.state.setDischargeState(prev => ({
+        ...prev,
+        bedId: 'R1',
+        isOpen: true,
+        time: '10:00',
+      }));
+    });
+
+    act(() => {
+      result.current.commands.executeDischarge();
+      result.current.commands.executeDischarge();
+    });
+
+    expect(addDischarge).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores concurrent transfer execution while one request is in flight', () => {
+    const addTransfer = vi.fn();
+    mockedUseDailyRecordActions.mockReturnValue({
+      clearPatient: vi.fn(),
+      moveOrCopyPatient: vi.fn(),
+      addDischarge: vi.fn(),
+      updateDischarge: vi.fn(),
+      addTransfer,
+      updateTransfer: vi.fn(),
+      addCMA: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = renderHook(
+      () => ({
+        state: useCensusActionState(),
+        commands: useCensusActionCommands(),
+      }),
+      { wrapper }
+    );
+
+    act(() => {
+      result.current.state.setTransferState(prev => ({
+        ...prev,
+        bedId: 'R1',
+        isOpen: true,
+        time: '10:00',
+      }));
+    });
+
+    act(() => {
+      result.current.commands.executeTransfer();
+      result.current.commands.executeTransfer();
+    });
+
+    expect(addTransfer).toHaveBeenCalledTimes(1);
+  });
 });

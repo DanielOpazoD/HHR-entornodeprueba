@@ -1,20 +1,16 @@
+import { useMemo } from 'react';
 import { useDailyRecordActions, useDailyRecordData } from '@/context/DailyRecordContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
+import {
+  buildCensusActionDependencies,
+  type CensusActionDependenciesData,
+  type CensusActionDependenciesRuntime,
+  type CensusActionDependenciesUi,
+} from '@/features/census/controllers/censusActionDependenciesController';
 
-export interface CensusActionDependencies {
-  record: ReturnType<typeof useDailyRecordData>['record'];
-  stabilityRules: ReturnType<typeof useDailyRecordData>['stabilityRules'];
-  clearPatient: ReturnType<typeof useDailyRecordActions>['clearPatient'];
-  moveOrCopyPatient: ReturnType<typeof useDailyRecordActions>['moveOrCopyPatient'];
-  addDischarge: ReturnType<typeof useDailyRecordActions>['addDischarge'];
-  updateDischarge: ReturnType<typeof useDailyRecordActions>['updateDischarge'];
-  addTransfer: ReturnType<typeof useDailyRecordActions>['addTransfer'];
-  updateTransfer: ReturnType<typeof useDailyRecordActions>['updateTransfer'];
-  addCMA: ReturnType<typeof useDailyRecordActions>['addCMA'];
-  copyPatientToDate: ReturnType<typeof useDailyRecordActions>['copyPatientToDate'];
-  confirm: ReturnType<typeof useConfirmDialog>['confirm'];
-  notifyError: ReturnType<typeof useNotification>['error'];
-}
+export type CensusActionDependencies = CensusActionDependenciesData &
+  CensusActionDependenciesRuntime &
+  CensusActionDependenciesUi;
 
 export const useCensusActionDependencies = (): CensusActionDependencies => {
   const { record, stabilityRules } = useDailyRecordData();
@@ -31,18 +27,41 @@ export const useCensusActionDependencies = (): CensusActionDependencies => {
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
 
-  return {
-    record,
-    stabilityRules,
-    clearPatient,
-    moveOrCopyPatient,
-    addDischarge,
-    updateDischarge,
-    addTransfer,
-    updateTransfer,
-    addCMA,
-    copyPatientToDate,
-    confirm,
-    notifyError,
-  };
+  return useMemo(
+    () =>
+      buildCensusActionDependencies({
+        data: {
+          record,
+          stabilityRules,
+        },
+        runtime: {
+          clearPatient,
+          moveOrCopyPatient,
+          addDischarge,
+          updateDischarge,
+          addTransfer,
+          updateTransfer,
+          addCMA,
+          copyPatientToDate,
+        },
+        ui: {
+          confirm,
+          notifyError,
+        },
+      }),
+    [
+      addCMA,
+      addDischarge,
+      addTransfer,
+      clearPatient,
+      confirm,
+      copyPatientToDate,
+      moveOrCopyPatient,
+      notifyError,
+      record,
+      stabilityRules,
+      updateDischarge,
+      updateTransfer,
+    ]
+  );
 };

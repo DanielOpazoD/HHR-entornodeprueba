@@ -30,7 +30,7 @@ import {
 import type {
   DischargeExecutionInput,
   TransferExecutionInput,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/types/censusActionCommandContracts';
 import type {
   ActionState,
   DischargeState,
@@ -74,7 +74,9 @@ export const useCensusActionCommandsController = ({
   setTransferState,
   getCurrentTime,
 }: UseCensusActionCommandsControllerParams): CensusActionCommandsController => {
-  const { runSingleFlight, isMounted } = useSingleFlightAsyncCommand();
+  const { runSingleFlight: runMoveOrCopySingleFlight, isMounted } = useSingleFlightAsyncCommand();
+  const { runSingleFlight: runDischargeSingleFlight } = useSingleFlightAsyncCommand();
+  const { runSingleFlight: runTransferSingleFlight } = useSingleFlightAsyncCommand();
   const notifyError = useCallback(
     ({ title, message }: CensusActionNotification) => {
       notifyErrorRef.current(title, message);
@@ -121,7 +123,7 @@ export const useCensusActionCommandsController = ({
 
   const executeMoveOrCopy = useCallback(
     (targetDate?: string) => {
-      const started = runSingleFlight(async () => {
+      const started = runMoveOrCopySingleFlight(async () => {
         try {
           const result = await executeMoveOrCopyController({
             actionState: actionStateRef.current,
@@ -163,33 +165,43 @@ export const useCensusActionCommandsController = ({
       moveOrCopyPatientRef,
       notifyError,
       recordRef,
-      runSingleFlight,
+      runMoveOrCopySingleFlight,
       setActionState,
     ]
   );
 
   const executeDischarge = useCallback(
     (data?: DischargeExecutionInput) => {
-      const result = executeDischargeController({
-        dischargeState: dischargeStateRef.current,
-        data,
-        stabilityRules: stabilityRulesRef.current,
-        nowTime: getCurrentTime(),
-        actions: buildDischargeRuntimeActions(addDischargeRef.current, updateDischargeRef.current),
+      const started = runDischargeSingleFlight(async () => {
+        const result = executeDischargeController({
+          dischargeState: dischargeStateRef.current,
+          data,
+          stabilityRules: stabilityRulesRef.current,
+          nowTime: getCurrentTime(),
+          actions: buildDischargeRuntimeActions(
+            addDischargeRef.current,
+            updateDischargeRef.current
+          ),
+        });
+
+        if (!result.ok) {
+          notifyError(buildDischargeErrorNotification(result.error.code, result.error.message));
+          return;
+        }
+
+        setDischargeState(prev => applyDischargePatch(prev, result.value.closeModalPatch));
       });
 
-      if (!result.ok) {
-        notifyError(buildDischargeErrorNotification(result.error.code, result.error.message));
+      if (!started) {
         return;
       }
-
-      setDischargeState(prev => applyDischargePatch(prev, result.value.closeModalPatch));
     },
     [
       addDischargeRef,
       dischargeStateRef,
       getCurrentTime,
       notifyError,
+      runDischargeSingleFlight,
       setDischargeState,
       stabilityRulesRef,
       updateDischargeRef,
@@ -198,25 +210,32 @@ export const useCensusActionCommandsController = ({
 
   const executeTransfer = useCallback(
     (data?: TransferExecutionInput) => {
-      const result = executeTransferController({
-        transferState: transferStateRef.current,
-        data,
-        stabilityRules: stabilityRulesRef.current,
-        nowTime: getCurrentTime(),
-        actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
+      const started = runTransferSingleFlight(async () => {
+        const result = executeTransferController({
+          transferState: transferStateRef.current,
+          data,
+          stabilityRules: stabilityRulesRef.current,
+          nowTime: getCurrentTime(),
+          actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
+        });
+
+        if (!result.ok) {
+          notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
+          return;
+        }
+
+        setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
       });
 
-      if (!result.ok) {
-        notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
+      if (!started) {
         return;
       }
-
-      setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
     },
     [
       addTransferRef,
       getCurrentTime,
       notifyError,
+      runTransferSingleFlight,
       setTransferState,
       stabilityRulesRef,
       transferStateRef,

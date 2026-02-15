@@ -7,9 +7,11 @@ import {
 } from '@/constants';
 import { validateTransferExecutionInput } from '@/features/census/validation/censusActionValidation';
 import {
-  isMovementDateTimeAllowed,
+  resolveMovementDateTimeValidationError,
   resolveMovementEditorInitialDate,
-} from '@/features/census/controllers/censusMovementDatePresentationController';
+} from '@/features/census/controllers/clinicalShiftCalendarController';
+import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
+import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
 
 export interface TransferModalFieldErrors {
   time?: string;
@@ -42,7 +44,7 @@ export interface TransferMethodChangeEffects {
 export const resolveTransferInitialTime = (
   initialTime: string | undefined,
   defaultTime: string
-): string => initialTime || defaultTime;
+): string => resolveValidHourMinuteOrFallback(initialTime, defaultTime);
 
 export const resolveTransferInitialMovementDate = (
   recordDate: string,
@@ -85,19 +87,22 @@ export const buildTransferValidationErrors = ({
     }
   });
 
-  if (
-    recordDate &&
-    movementDate &&
-    !isMovementDateTimeAllowed(recordDate, movementDate, transferTime)
-  ) {
-    fieldErrors.dateTime = 'Fecha/hora fuera de rango para el turno.';
+  if (recordDate && movementDate) {
+    const dateTimeError = resolveMovementDateTimeValidationError({
+      recordDate,
+      movementDate,
+      movementTime: transferTime,
+    });
+    if (dateTimeError) {
+      fieldErrors.dateTime = dateTimeError;
+    }
   }
 
   return fieldErrors;
 };
 
 export const hasTransferValidationErrors = (fieldErrors: TransferModalFieldErrors): boolean =>
-  Object.keys(fieldErrors).length > 0;
+  hasModalFieldErrors(fieldErrors);
 
 export const resolveTransferMethodChangeEffects = ({
   nextMethod,

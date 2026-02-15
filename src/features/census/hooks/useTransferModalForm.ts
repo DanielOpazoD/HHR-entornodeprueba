@@ -3,14 +3,18 @@ import type { EvacuationMethod, ReceivingCenter } from '@/constants';
 import { isTransferEscortOption } from '@/constants';
 import {
   buildTransferValidationErrors,
-  hasTransferValidationErrors,
   resolveTransferInitialMovementDate,
   resolveTransferInitialTime,
   resolveTransferMethodChangeEffects,
   type TransferModalFieldErrors,
 } from '@/features/census/controllers/transferModalController';
-import { resolveMovementDateTimeBounds } from '@/features/census/controllers/censusMovementDatePresentationController';
+import { resolveMovementDateTimeBounds } from '@/features/census/controllers/clinicalShiftCalendarController';
+import {
+  clearModalFieldErrors,
+  submitModalForm,
+} from '@/features/census/controllers/modalFormController';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 
 interface UseTransferModalFormParams {
   isOpen: boolean;
@@ -27,13 +31,6 @@ interface UseTransferModalFormParams {
   onConfirm: (data: { time: string; movementDate?: string }) => void;
   resolveDefaultTime: () => string;
 }
-
-export type TransferUpdateField =
-  | 'evacuationMethod'
-  | 'evacuationMethodOther'
-  | 'receivingCenter'
-  | 'receivingCenterOther'
-  | 'transferEscort';
 
 interface UseTransferModalFormResult {
   transferDate: string;
@@ -86,18 +83,18 @@ export const useTransferModalForm = ({
 
   const setTransferDate = useCallback((nextDate: string) => {
     setTransferDateState(nextDate);
-    setErrors(prev => ({ ...prev, dateTime: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['dateTime']));
   }, []);
 
   const setTransferTime = useCallback((nextTime: string) => {
     setTransferTimeState(nextTime);
-    setErrors(prev => ({ ...prev, time: undefined, dateTime: undefined }));
+    setErrors(prev => clearModalFieldErrors(prev, ['time', 'dateTime']));
   }, []);
 
   const setReceivingCenterOther = useCallback(
     (value: string) => {
       onUpdate('receivingCenterOther', value);
-      setErrors(prev => ({ ...prev, otherCenter: undefined }));
+      setErrors(prev => clearModalFieldErrors(prev, ['otherCenter']));
     },
     [onUpdate]
   );
@@ -105,7 +102,7 @@ export const useTransferModalForm = ({
   const setEvacuationMethodOther = useCallback(
     (value: string) => {
       onUpdate('evacuationMethodOther', value);
-      setErrors(prev => ({ ...prev, otherEvacuation: undefined }));
+      setErrors(prev => clearModalFieldErrors(prev, ['otherEvacuation']));
     },
     [onUpdate]
   );
@@ -113,7 +110,7 @@ export const useTransferModalForm = ({
   const setTransferEscortValue = useCallback(
     (value: string) => {
       onUpdate('transferEscort', value);
-      setErrors(prev => ({ ...prev, escort: undefined }));
+      setErrors(prev => clearModalFieldErrors(prev, ['escort']));
     },
     [onUpdate]
   );
@@ -125,7 +122,7 @@ export const useTransferModalForm = ({
       } else {
         onUpdate('transferEscort', value);
       }
-      setErrors(prev => ({ ...prev, escort: undefined }));
+      setErrors(prev => clearModalFieldErrors(prev, ['escort']));
     },
     [onUpdate]
   );
@@ -142,30 +139,42 @@ export const useTransferModalForm = ({
         onUpdate('evacuationMethodOther', '');
       }
 
-      setErrors(prev => ({ ...prev, otherEvacuation: undefined, escort: undefined }));
+      setErrors(prev => clearModalFieldErrors(prev, ['otherEvacuation', 'escort']));
     },
     [onUpdate]
   );
 
   const submit = useCallback((): boolean => {
-    const fieldErrors = buildTransferValidationErrors({
-      recordDate,
-      movementDate: includeMovementDate ? transferDate : '',
-      evacuationMethod,
-      evacuationMethodOther,
-      receivingCenter,
-      receivingCenterOther,
-      transferEscort,
-      transferTime,
+    return submitModalForm({
+      state: {
+        recordDate,
+        includeMovementDate,
+        transferDate,
+        evacuationMethod,
+        evacuationMethodOther,
+        receivingCenter,
+        receivingCenterOther,
+        transferEscort,
+        transferTime,
+      },
+      validate: state =>
+        buildTransferValidationErrors({
+          recordDate: state.recordDate,
+          movementDate: state.includeMovementDate ? state.transferDate : '',
+          evacuationMethod: state.evacuationMethod,
+          evacuationMethodOther: state.evacuationMethodOther,
+          receivingCenter: state.receivingCenter,
+          receivingCenterOther: state.receivingCenterOther,
+          transferEscort: state.transferEscort,
+          transferTime: state.transferTime,
+        }),
+      buildPayload: state => ({
+        time: state.transferTime,
+        movementDate: state.includeMovementDate ? state.transferDate : undefined,
+      }),
+      onValidationErrors: setErrors,
+      onConfirm,
     });
-
-    if (hasTransferValidationErrors(fieldErrors)) {
-      setErrors(fieldErrors);
-      return false;
-    }
-
-    onConfirm({ time: transferTime, movementDate: includeMovementDate ? transferDate : undefined });
-    return true;
   }, [
     evacuationMethod,
     evacuationMethodOther,

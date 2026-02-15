@@ -4,19 +4,20 @@
 
 import type { ChangeEvent } from 'react';
 import { PatientData, DeviceDetails, DeviceInstance } from '@/types';
+import type { PatientDeviceCallbacks } from './patientRowContracts';
 
 /**
  * Common props shared by all input cell components
  */
 export interface BaseCellProps {
-    /** Patient data object */
-    data: PatientData;
-    /** Whether this is a sub-row (clinical crib) */
-    isSubRow?: boolean;
-    /** Whether the row is empty (no patient) */
-    isEmpty?: boolean;
-    /** Whether the field is read-only */
-    readOnly?: boolean;
+  /** Patient data object */
+  data: PatientData;
+  /** Whether this is a sub-row (clinical crib) */
+  isSubRow?: boolean;
+  /** Whether the row is empty (no patient) */
+  isEmpty?: boolean;
+  /** Whether the field is read-only */
+  readOnly?: boolean;
 }
 
 /**
@@ -27,7 +28,9 @@ export type DebouncedTextHandler = (field: keyof PatientData) => (value: string)
 /**
  * Handler for native event-based changes (selects, etc.)
  */
-export type EventTextHandler = (field: keyof PatientData) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+export type EventTextHandler = (
+  field: keyof PatientData
+) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 
 /**
  * Handler for checkbox changes
@@ -38,29 +41,37 @@ export type CheckHandler = (field: keyof PatientData) => (e: ChangeEvent<HTMLInp
  * Props for components that need multiple field updates atomically
  */
 export interface MultipleUpdateProps {
-    onMultipleUpdate?: (fields: Partial<PatientData>) => void;
+  onMultipleUpdate?: (fields: Partial<PatientData>) => void;
 }
 
 /**
  * Props for device-related components
  */
-export interface DeviceHandlers {
-    onDevicesChange: (newDevices: string[]) => void;
-    onDeviceDetailsChange: (details: DeviceDetails) => void;
-    onDeviceHistoryChange: (history: DeviceInstance[]) => void;
-}
+export type DeviceHandlers = PatientDeviceCallbacks;
 
 export interface PatientInputChangeHandlers {
-    text: EventTextHandler;
-    check: CheckHandler;
-    devices: (newDevices: string[]) => void;
-    deviceDetails: (details: DeviceDetails) => void;
-    deviceHistory: (history: DeviceInstance[]) => void;
-    toggleDocType?: () => void;
-    deliveryRoute?: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
-    multiple?: (fields: Partial<PatientData>) => void;
+  text: EventTextHandler;
+  check: CheckHandler;
+  devices: (newDevices: string[]) => void;
+  deviceDetails: (details: DeviceDetails) => void;
+  deviceHistory: (history: DeviceInstance[]) => void;
+  toggleDocType?: () => void;
+  deliveryRoute?: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
+  multiple?: (fields: Partial<PatientData>) => void;
 }
 
-export interface ClinicalCribInputChangeHandlers extends Omit<PatientInputChangeHandlers, 'toggleDocType' | 'deliveryRoute'> {
-    multiple: (fields: Partial<PatientData>) => void;
+export interface MainPatientInputChangeHandlers extends Omit<
+  PatientInputChangeHandlers,
+  'toggleDocType' | 'deliveryRoute' | 'multiple'
+> {
+  toggleDocType: () => void;
+  deliveryRoute: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
+  multiple: (fields: Partial<PatientData>) => void;
+}
+
+export interface ClinicalCribInputChangeHandlers extends Omit<
+  PatientInputChangeHandlers,
+  'toggleDocType' | 'deliveryRoute'
+> {
+  multiple: (fields: Partial<PatientData>) => void;
 }

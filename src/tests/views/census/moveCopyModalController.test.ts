@@ -27,8 +27,15 @@ describe('moveCopyModalController', () => {
 
   it('falls back to fallback date when current record date is invalid', () => {
     expect(resolveMoveCopyBaseDate('invalid-date', '2026-02-15')).toBe('2026-02-15');
+    expect(resolveMoveCopyBaseDate('2026-02-31', '2026-02-15')).toBe('2026-02-15');
+    expect(resolveMoveCopyBaseDate(' 2026-02-14 ', '2026-02-15')).toBe('2026-02-14');
     expect(resolveMoveCopyBaseDate(undefined, '2026-02-15')).toBe('2026-02-15');
     expect(resolveMoveCopyBaseDate('2026-02-14', '2026-02-15')).toBe('2026-02-14');
+  });
+
+  it('keeps input unchanged when addDays receives malformed iso date', () => {
+    expect(addDaysToIsoDate('2026/02/14', 1)).toBe('2026/02/14');
+    expect(addDaysToIsoDate('2026-02-31', -1)).toBe('2026-02-31');
   });
 
   it('resolves source bed name and builds bed options filtering source bed', () => {

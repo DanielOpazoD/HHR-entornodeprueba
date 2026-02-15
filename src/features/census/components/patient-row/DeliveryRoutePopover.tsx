@@ -5,18 +5,17 @@
  * Uses React Portal to escape ANY parent clipping and transform constraints.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
-import { HeartPulse, X, Trash2, Check } from 'lucide-react';
+import { HeartPulse } from 'lucide-react';
 import clsx from 'clsx';
 import {
   type DeliveryRoute,
   resolveDeliveryRouteIconColor,
-  resolveDeliveryRoutePopoverPosition,
   resolveDeliveryRouteTitle,
 } from '@/features/census/controllers/deliveryRoutePopoverController';
-import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
-import { useDeliveryRoutePopoverState } from '@/features/census/components/patient-row/useDeliveryRoutePopoverState';
+import { useDeliveryRoutePopoverController } from '@/features/census/components/patient-row/useDeliveryRoutePopoverController';
+import { DeliveryRoutePopoverPanel } from '@/features/census/components/patient-row/DeliveryRoutePopoverPanel';
 
 interface DeliveryRoutePopoverProps {
   deliveryRoute?: DeliveryRoute;
@@ -32,62 +31,29 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
   disabled = false,
 }) => {
   const POPOVER_WIDTH = 208;
-  const [isOpen, setIsOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const {
+    isOpen,
+    popoverRef,
+    buttonRef,
+    popoverPos,
     selectedRoute,
     selectedDate,
     canSave,
+    routeButtonModels,
+    hasPersistedData,
     setSelectedRoute,
     setSelectedDate,
     saveAndClose,
     clearAndClose,
-  } = useDeliveryRoutePopoverState({
+    closePopover,
+    togglePopover,
+  } = useDeliveryRoutePopoverController({
     deliveryRoute,
     deliveryDate,
     onSave,
+    disabled,
+    panelWidth: POPOVER_WIDTH,
   });
-
-  const closePopover = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  const resolvePopoverPosition = useCallback(() => {
-    if (!buttonRef.current) {
-      return null;
-    }
-
-    const rect = buttonRef.current.getBoundingClientRect();
-    return resolveDeliveryRoutePopoverPosition({
-      buttonRect: rect,
-      panelWidth: POPOVER_WIDTH,
-      viewportWidth: window.innerWidth,
-    });
-  }, []);
-
-  const { position: popoverPos, updatePosition } = usePortalPopoverRuntime({
-    isOpen,
-    anchorRef: buttonRef,
-    popoverRef,
-    initialPosition: { top: 0, left: 0 },
-    resolvePosition: resolvePopoverPosition,
-    onClose: closePopover,
-  });
-
-  const togglePopover = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (disabled) return;
-
-    if (!isOpen) {
-      updatePosition();
-    }
-    setIsOpen(previous => !previous);
-  };
-
-  const hasPersistedData = !!deliveryRoute;
 
   return (
     <div className="inline-flex items-center">
@@ -111,7 +77,6 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
         createPortal(
           <div
             ref={popoverRef}
-            className="fixed w-52 bg-white rounded-xl shadow-2xl border border-slate-200 z-[9999] animate-in fade-in slide-in-from-top-1 duration-150"
             style={{
               top: popoverPos.top,
               left: popoverPos.left,
@@ -119,90 +84,17 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Vía del Parto
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
-              >
-                <X size={12} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-3 space-y-3">
-              {/* Route Selection */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRoute('Vaginal')}
-                  className={clsx(
-                    'px-2 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center justify-center gap-1',
-                    selectedRoute === 'Vaginal'
-                      ? 'border-pink-200 bg-pink-50 text-pink-700 shadow-sm'
-                      : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
-                  )}
-                >
-                  {selectedRoute === 'Vaginal' && <Check size={10} />}
-                  Vaginal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRoute('Cesárea')}
-                  className={clsx(
-                    'px-2 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center justify-center gap-1',
-                    selectedRoute === 'Cesárea'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
-                  )}
-                >
-                  {selectedRoute === 'Cesárea' && <Check size={10} />}
-                  Cesárea
-                </button>
-              </div>
-
-              {/* Date Selection */}
-              <div className="space-y-1">
-                <label className="block text-[10px] font-medium text-slate-400 px-0.5">Fecha</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="w-full px-2 py-1 text-[12px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-medical-500/10 focus:border-medical-500 transition-all font-medium"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                {hasPersistedData && (
-                  <button
-                    type="button"
-                    onClick={() => clearAndClose(closePopover)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Limpiar"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => saveAndClose(closePopover)}
-                  disabled={!canSave}
-                  className={clsx(
-                    'flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all',
-                    canSave
-                      ? 'bg-medical-600 text-white hover:bg-medical-500 shadow-sm'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  )}
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
+            <DeliveryRoutePopoverPanel
+              selectedDate={selectedDate}
+              canSave={canSave}
+              hasPersistedData={hasPersistedData}
+              routeButtonModels={routeButtonModels}
+              onClose={closePopover}
+              onRouteSelect={setSelectedRoute}
+              onDateChange={setSelectedDate}
+              onClear={() => clearAndClose(closePopover)}
+              onSave={() => saveAndClose(closePopover)}
+            />
           </div>,
           document.body
         )}

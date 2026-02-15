@@ -26,10 +26,20 @@ export const useSingleFlightAsyncCommand = (): SingleFlightCommandRunner => {
     }
 
     isInFlightRef.current = true;
+    let taskPromise: Promise<void>;
 
-    void task().finally(() => {
+    try {
+      taskPromise = task();
+    } catch {
       isInFlightRef.current = false;
-    });
+      return true;
+    }
+
+    void taskPromise
+      .catch(() => undefined)
+      .finally(() => {
+        isInFlightRef.current = false;
+      });
 
     return true;
   }, []);

@@ -26,6 +26,17 @@ describe('dischargeModalController', () => {
     });
   });
 
+  it('uses default time when initial discharge time is invalid', () => {
+    const state = buildInitialDischargeFormState({
+      recordDate: '2024-12-11',
+      initialTime: '24:70',
+      defaultTime: '12:00',
+      dischargeTarget: 'both',
+    });
+
+    expect(state.dischargeTime).toBe('12:00');
+  });
+
   it('maps discharge validation errors for time and typeOther', () => {
     const errors = mapDischargeValidationErrors('Vivo', 'Otra', '', '99:99');
 

@@ -7,55 +7,29 @@ import type {
   TransferState,
 } from '@/features/census/types/censusActionTypes';
 import {
-  type CensusActionValidationError,
-  type CensusActionValidationErrorCode,
   normalizeOptionalText,
   validateDischargeExecutionInput,
   validateTransferExecutionInput,
 } from '@/features/census/validation/censusActionValidation';
-import {
-  ControllerError,
-  ControllerResult,
-  fail,
-  failWithCode,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { fail, failWithCode, ok } from '@/features/census/controllers/controllerResult';
 import type {
+  CensusActionError,
+  CensusActionCommandResult,
   DischargeCommand,
   DischargeExecutionInput,
+  MoveOrCopyCommand,
   TransferCommand,
   TransferExecutionInput,
-} from '@/features/census/types/patientMovementCommandTypes';
-
+} from '@/features/census/types/censusActionCommandContracts';
 export type {
   DischargeCommand,
   DischargeExecutionInput,
+  MoveOrCopyCommand,
   TransferCommand,
   TransferExecutionInput,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/types/censusActionCommandContracts';
 
-export type CensusActionErrorCode =
-  | 'RECORD_NOT_AVAILABLE'
-  | 'ACTION_TYPE_NOT_SELECTED'
-  | 'BED_REFERENCE_MISSING'
-  | 'MOVEMENT_VALIDATION_FAILED'
-  | 'ACTIONS_LOCKED'
-  | 'DISCHARGE_TARGET_MISSING'
-  | 'TRANSFER_TARGET_MISSING'
-  | CensusActionValidationErrorCode;
-
-export type CensusActionError = ControllerError<CensusActionErrorCode> & {
-  field?: CensusActionValidationError['field'];
-};
-type CensusControllerResult<TValue> = ControllerResult<
-  TValue,
-  CensusActionErrorCode,
-  CensusActionError
->;
-
-export type MoveOrCopyCommand =
-  | { kind: 'copyToDate'; sourceBedId: string; targetBedId: string; targetDate: string }
-  | { kind: 'moveOrCopy'; movementType: 'move' | 'copy'; sourceBedId: string; targetBedId: string };
+type CensusControllerResult<TValue> = CensusActionCommandResult<TValue, CensusActionError>;
 
 interface ResolveMoveOrCopyParams {
   actionState: ActionState;

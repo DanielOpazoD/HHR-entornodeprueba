@@ -9,32 +9,13 @@ import {
   TransferReceivingSection,
   TransferTimeField,
 } from '@/components/modals/actions/transfer';
-import {
-  useTransferModalForm,
-  type TransferUpdateField,
-} from '@/features/census/hooks/useTransferModalForm';
+import { useTransferModalForm } from '@/features/census/hooks/useTransferModalForm';
+import type {
+  TransferModalProps,
+  TransferUpdateField,
+} from '@/features/census/types/censusActionModalContracts';
 
-export type { TransferUpdateField } from '@/features/census/hooks/useTransferModalForm';
-
-export interface TransferModalProps {
-  isOpen: boolean;
-  isEditing: boolean;
-  recordDate?: string;
-  evacuationMethod: EvacuationMethod;
-  evacuationMethodOther: string;
-  receivingCenter: ReceivingCenter;
-  receivingCenterOther: string;
-  transferEscort: string;
-  initialTime?: string;
-  initialMovementDate?: string;
-
-  hasClinicalCrib?: boolean;
-  clinicalCribName?: string;
-
-  onUpdate: (field: TransferUpdateField, value: string) => void;
-  onClose: () => void;
-  onConfirm: (data: { time: string; movementDate?: string }) => void;
-}
+export type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 
 export const TransferModal: React.FC<TransferModalProps> = ({
   isOpen,

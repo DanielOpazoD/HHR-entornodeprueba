@@ -12,6 +12,7 @@ import { getCIE10Description } from '@/services/terminology/terminologyService';
 import { PatientData } from '@/types';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
+import { PatientEmptyCell } from './PatientEmptyCell';
 
 interface DiagnosisInputProps extends BaseCellProps {
   diagnosisMode: DiagnosisMode;
@@ -39,13 +40,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
       .success && !!data.pathology;
 
   if (isEmpty && !isSubRow) {
-    return (
-      <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px]">
-        <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">
-          -
-        </div>
-      </td>
-    );
+    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 min-w-[160px]" />;
   }
 
   // CIE-10 Mode

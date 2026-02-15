@@ -7,39 +7,18 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Toast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import type { ConfirmOptions, DialogState, Notification } from '@/context/uiContracts';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type NotificationType = 'success' | 'error' | 'warning' | 'info';
-
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message?: string;
-  duration?: number;
-}
-
-export interface ConfirmOptions {
-  title?: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
-}
-
-export interface DialogState {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  variant: 'danger' | 'warning' | 'info';
-  isAlert: boolean;
-  resolve: ((value: boolean) => void) | null;
-}
+export type {
+  ConfirmOptions,
+  DialogState,
+  Notification,
+  NotificationType,
+} from '@/context/uiContracts';
 
 // Combined context type
 export interface UIContextType {

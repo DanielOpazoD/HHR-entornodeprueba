@@ -46,7 +46,6 @@ describe('hospitalFloorMapRuntimeController', () => {
       setItem: vi.fn(),
       removeItem: vi.fn(),
       confirm: vi.fn().mockReturnValue(true),
-      reload: vi.fn(),
     };
 
     persistSavedLayout(runtime, 'storage-key', defaultLayout);
@@ -60,7 +59,6 @@ describe('hospitalFloorMapRuntimeController', () => {
 
     expect(resetResult).toBe(true);
     expect(runtime.removeItem).toHaveBeenCalledWith('storage-key');
-    expect(runtime.reload).toHaveBeenCalled();
   });
 
   it('does not reset when confirmation is rejected', () => {
@@ -69,7 +67,6 @@ describe('hospitalFloorMapRuntimeController', () => {
       setItem: vi.fn(),
       removeItem: vi.fn(),
       confirm: vi.fn().mockReturnValue(false),
-      reload: vi.fn(),
     };
 
     const resetResult = executeResetLayout({
@@ -80,6 +77,5 @@ describe('hospitalFloorMapRuntimeController', () => {
 
     expect(resetResult).toBe(false);
     expect(runtime.removeItem).not.toHaveBeenCalled();
-    expect(runtime.reload).not.toHaveBeenCalled();
   });
 });

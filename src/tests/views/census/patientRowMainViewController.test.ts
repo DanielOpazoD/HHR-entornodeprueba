@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPatientMainRowViewState,
   resolvePatientMainRowActionsAvailability,
   resolvePatientMainRowClassName,
   shouldShowBedTypeToggle,
@@ -70,5 +71,21 @@ describe('patientRowMainViewController', () => {
       canOpenExamRequest: false,
       canOpenHistory: false,
     });
+  });
+
+  it('builds consolidated view state for main row', () => {
+    const viewState = buildPatientMainRowViewState({
+      bedId: 'R1',
+      readOnly: false,
+      isEmpty: false,
+      isBlocked: true,
+      patientName: 'Paciente',
+      rut: '',
+    });
+
+    expect(viewState.canToggleBedType).toBe(true);
+    expect(viewState.rowActionsAvailability.canOpenExamRequest).toBe(true);
+    expect(viewState.rowActionsAvailability.canOpenHistory).toBe(false);
+    expect(viewState.showBlockedContent).toBe(true);
   });
 });

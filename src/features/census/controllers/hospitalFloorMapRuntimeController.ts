@@ -1,4 +1,7 @@
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import {
+  createCensusDialogRuntime,
+  createCensusStorageRuntime,
+} from '@/features/census/controllers/censusBrowserRuntimeAdapter';
 
 export interface SavedBedTransform {
   x: number;
@@ -21,25 +24,14 @@ export interface HospitalFloorMapRuntime {
   setItem: (key: string, value: string) => void;
   removeItem: (key: string) => void;
   confirm: (message: string) => boolean;
-  reload: () => void;
 }
 
+const storageRuntime = createCensusStorageRuntime();
+const dialogRuntime = createCensusDialogRuntime();
+
 export const createHospitalFloorMapRuntime = (): HospitalFloorMapRuntime => ({
-  getItem: key => {
-    return defaultBrowserWindowRuntime.getLocalStorageItem(key);
-  },
-  setItem: (key, value) => {
-    defaultBrowserWindowRuntime.setLocalStorageItem(key, value);
-  },
-  removeItem: key => {
-    defaultBrowserWindowRuntime.removeLocalStorageItem(key);
-  },
-  confirm: message => {
-    return defaultBrowserWindowRuntime.confirm(message);
-  },
-  reload: () => {
-    defaultBrowserWindowRuntime.reload();
-  },
+  ...storageRuntime,
+  confirm: message => dialogRuntime.confirm(message),
 });
 
 export const resolveSavedLayoutState = (
@@ -86,6 +78,5 @@ export const executeResetLayout = ({
   }
 
   runtime.removeItem(storageKey);
-  runtime.reload();
   return true;
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { BedDefinition, DailyRecord } from '@/types';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
-import { CensusTable } from './index';
+import { CensusTable } from './CensusTable';
 
 interface CensusRegisterMainContentProps {
   localViewMode: 'TABLE' | '3D';

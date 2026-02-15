@@ -1,15 +1,9 @@
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import { createCensusDialogRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
 
 export interface SharedCensusBrowserRuntime {
   alert: (message: string) => void;
   open: (url: string, target?: string) => void;
 }
 
-export const defaultSharedCensusBrowserRuntime: SharedCensusBrowserRuntime = {
-  alert: message => {
-    defaultBrowserWindowRuntime.alert(message);
-  },
-  open: (url, target = '_blank') => {
-    defaultBrowserWindowRuntime.open(url, target);
-  },
-};
+export const defaultSharedCensusBrowserRuntime: SharedCensusBrowserRuntime =
+  createCensusDialogRuntime();

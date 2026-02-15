@@ -6,6 +6,7 @@ import {
   EVACUATION_METHOD_COMMERCIAL,
 } from '@/constants';
 import { useTransferModalForm } from '@/features/census/hooks/useTransferModalForm';
+import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/features/census/controllers/censusMovementDatePresentationController';
 
 describe('useTransferModalForm', () => {
   it('applies evacuation side effects and clears dependent fields', () => {
@@ -75,5 +76,55 @@ describe('useTransferModalForm', () => {
     });
 
     expect(onConfirm).toHaveBeenCalledWith({ time: '11:00', movementDate: undefined });
+  });
+
+  it('blocks submit with canonical dateTime error when movement is out of shift range', () => {
+    const onConfirm = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTransferModalForm({
+        isOpen: true,
+        recordDate: '2024-12-11',
+        includeMovementDate: true,
+        initialTime: '10:00',
+        initialMovementDate: '2024-12-12',
+        evacuationMethod: EVACUATION_METHOD_COMMERCIAL,
+        evacuationMethodOther: '',
+        receivingCenter: DEFAULT_RECEIVING_CENTER,
+        receivingCenterOther: '',
+        transferEscort: 'Enfermera',
+        onUpdate: vi.fn(),
+        onConfirm,
+        resolveDefaultTime: () => '09:00',
+      })
+    );
+
+    act(() => {
+      result.current.submit();
+    });
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(result.current.errors.dateTime).toBe(MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR);
+  });
+
+  it('falls back to default time when initial transfer time is invalid', () => {
+    const { result } = renderHook(() =>
+      useTransferModalForm({
+        isOpen: true,
+        recordDate: '2024-12-11',
+        includeMovementDate: false,
+        initialTime: '99:99',
+        evacuationMethod: EVACUATION_METHOD_COMMERCIAL,
+        evacuationMethodOther: '',
+        receivingCenter: DEFAULT_RECEIVING_CENTER,
+        receivingCenterOther: '',
+        transferEscort: 'Enfermera',
+        onUpdate: vi.fn(),
+        onConfirm: vi.fn(),
+        resolveDefaultTime: () => '09:00',
+      })
+    );
+
+    expect(result.current.transferTime).toBe('09:00');
   });
 });

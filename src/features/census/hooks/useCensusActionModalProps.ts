@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
-import type { ComponentProps } from 'react';
-import { DischargeModal, MoveCopyModal, TransferModal } from '@/components/modals/ActionModals';
 import type { CensusActionCommandsContextType } from '@/features/census/types/censusActionContextTypes';
 import type { CensusModalBindingsModel } from '@/features/census/hooks/useCensusModalBindings';
 import type { useCensusModalsHandlers } from '@/features/census/hooks/useCensusModalsHandlers';
+import type {
+  DischargeModalProps,
+  MoveCopyModalProps,
+  TransferModalProps,
+} from '@/features/census/types/censusActionModalContracts';
 
 type CensusModalsHandlersModel = ReturnType<typeof useCensusModalsHandlers>;
 
@@ -18,9 +21,9 @@ interface UseCensusActionModalPropsParams {
 }
 
 export interface CensusActionModalPropsModel {
-  moveCopyProps: ComponentProps<typeof MoveCopyModal>;
-  dischargeProps: ComponentProps<typeof DischargeModal>;
-  transferProps: ComponentProps<typeof TransferModal>;
+  moveCopyProps: MoveCopyModalProps;
+  dischargeProps: DischargeModalProps;
+  transferProps: TransferModalProps;
 }
 
 export const useCensusActionModalProps = ({

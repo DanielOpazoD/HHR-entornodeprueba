@@ -5,19 +5,26 @@ import { useSingleFlightAsyncCommand } from '@/features/census/hooks/useSingleFl
 type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
 };
 
 const createDeferred = <T>(): Deferred<T> => {
   let resolve: ((value: T) => void) | null = null;
-  const promise = new Promise<T>(res => {
+  let reject: ((reason?: unknown) => void) | null = null;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
 
   if (!resolve) {
     throw new Error('Deferred resolver was not initialized');
   }
 
-  return { promise, resolve };
+  if (!reject) {
+    throw new Error('Deferred rejecter was not initialized');
+  }
+
+  return { promise, resolve, reject };
 };
 
 describe('useSingleFlightAsyncCommand', () => {
@@ -57,5 +64,47 @@ describe('useSingleFlightAsyncCommand', () => {
     expect(isMounted()).toBe(true);
     unmount();
     expect(isMounted()).toBe(false);
+  });
+
+  it('releases lock when task rejects', async () => {
+    const { result } = renderHook(() => useSingleFlightAsyncCommand());
+    const deferred = createDeferred<void>();
+    const task = vi.fn(async () => deferred.promise);
+
+    act(() => {
+      result.current.runSingleFlight(task);
+    });
+
+    await act(async () => {
+      deferred.reject(new Error('failed'));
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.runSingleFlight(task);
+    });
+
+    expect(task).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases lock when task throws synchronously', async () => {
+    const { result } = renderHook(() => useSingleFlightAsyncCommand());
+    const throwingTask = vi.fn(() => {
+      throw new Error('sync failure');
+    });
+
+    act(() => {
+      result.current.runSingleFlight(throwingTask as unknown as () => Promise<void>);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.runSingleFlight(throwingTask as unknown as () => Promise<void>);
+    });
+
+    expect(throwingTask).toHaveBeenCalledTimes(2);
   });
 });

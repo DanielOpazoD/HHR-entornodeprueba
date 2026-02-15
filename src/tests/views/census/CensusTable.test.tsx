@@ -12,7 +12,7 @@ import {
 } from '@/context/DailyRecordContext';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
+import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { CensusTable } from '@/features/census/components/CensusTable';
 import { DataFactory } from '../../factories/DataFactory';
 
@@ -30,7 +30,7 @@ vi.mock('@tanstack/react-virtual', () => ({
   })),
 }));
 
-vi.mock('@/features/census/components/CensusActionsContext', () => ({
+vi.mock('@/features/census/context/censusActionContexts', () => ({
   useCensusActionCommands: vi.fn(),
 }));
 

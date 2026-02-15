@@ -79,4 +79,18 @@ describe('censusMigrationBootstrapController', () => {
     expect(getItemSpy).toHaveBeenCalledWith('migration-key');
     expect(setItemSpy).toHaveBeenCalledWith('migration-key', 'SKIPPED');
   });
+
+  it('supports injecting browser runtime adapters', () => {
+    const runtime = createCensusMigrationStorageRuntime({
+      getItem: vi.fn().mockReturnValue('DONE'),
+      setItem: vi.fn(),
+    });
+
+    const result = executeCensusMigrationBootstrapController(runtime);
+
+    expect(result).toEqual({
+      ok: true,
+      value: { outcome: 'already_done' },
+    });
+  });
 });

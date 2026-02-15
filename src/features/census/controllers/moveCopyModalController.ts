@@ -26,6 +26,10 @@ const MOVE_COPY_DATE_OPTIONS: readonly MoveCopyDateOption[] = [
 ] as const;
 
 const parseIsoDate = (isoDate: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return null;
+  }
+
   const [year, month, day] = isoDate.split('-').map(Number);
   if (!year || !month || !day) {
     return null;
@@ -33,6 +37,15 @@ const parseIsoDate = (isoDate: string): Date | null => {
 
   const parsed = new Date(year, month - 1, day, 12, 0, 0, 0);
   if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  // Reject overflowed dates (e.g. 2026-02-31 => Mar 03).
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
     return null;
   }
 
@@ -73,11 +86,12 @@ export const resolveMoveCopyBaseDate = (
   currentRecordDate: string | undefined,
   fallbackDate: string
 ): string => {
-  if (!currentRecordDate) {
+  const normalizedCurrentDate = currentRecordDate?.trim();
+  if (!normalizedCurrentDate) {
     return fallbackDate;
   }
 
-  return parseIsoDate(currentRecordDate) ? currentRecordDate : fallbackDate;
+  return parseIsoDate(normalizedCurrentDate) ? normalizedCurrentDate : fallbackDate;
 };
 
 interface ResolveMoveCopyBedOptionsParams {

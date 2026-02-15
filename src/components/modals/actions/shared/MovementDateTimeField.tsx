@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { resolveMovementTimeInputMax } from '@/features/census/controllers/clinicalShiftCalendarController';
 
 export type MovementDateTimeFieldTone = 'emerald' | 'blue';
 
@@ -82,7 +83,7 @@ export const MovementDateTimeField: React.FC<MovementDateTimeFieldProps> = ({
             toneClassName
           )}
           step={300}
-          max={dateValue === nextDay ? nextDayMaxTime : undefined}
+          max={resolveMovementTimeInputMax({ dateValue, nextDay, nextDayMaxTime })}
           value={timeValue}
           onChange={event => onTimeChange(event.target.value)}
         />

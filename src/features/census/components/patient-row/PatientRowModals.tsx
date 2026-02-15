@@ -1,24 +1,9 @@
 import React from 'react';
-import { PatientData } from '@/types';
 import { DemographicsModal } from '@/components/modals/DemographicsModal';
 import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
 import { PatientHistoryModal } from '@/components/modals/PatientHistoryModal';
 import { resolvePatientRowDemographicsBinding } from '@/features/census/controllers/patientRowModalController';
-
-export interface PatientRowModalsProps {
-  bedId: string;
-  data: PatientData;
-  currentDateString: string;
-  isSubRow: boolean;
-  showDemographics: boolean;
-  showExamRequest: boolean;
-  showHistory: boolean;
-  onCloseDemographics: () => void;
-  onCloseExamRequest: () => void;
-  onCloseHistory: () => void;
-  onSaveDemographics: (fields: Partial<PatientData>) => void;
-  onSaveCribDemographics: (fields: Partial<PatientData>) => void;
-}
+import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowViewContracts';
 
 export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
   bedId,

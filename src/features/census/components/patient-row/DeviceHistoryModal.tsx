@@ -3,15 +3,12 @@
  * Detailed history management for medical devices (VVP, CUP, CVC, etc.)
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Calendar, MapPin, History, AlertCircle, Trash2 } from 'lucide-react';
 import { DeviceInstance, DeviceDetails } from '@/types';
 import { BaseModal as Modal } from '@/components/shared/BaseModal';
 import clsx from 'clsx';
-import {
-  buildDeviceHistoryTimestamp,
-  buildInitialDeviceHistory,
-} from '@/features/census/controllers/deviceHistoryController';
+import { useDeviceHistoryEditor } from '@/features/census/components/patient-row/useDeviceHistoryEditor';
 
 interface DeviceHistoryModalProps {
   patientName: string;
@@ -30,27 +27,11 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
   onSave,
   onClose,
 }) => {
-  const [localHistory, setLocalHistory] = useState<DeviceInstance[]>(() => {
-    return buildInitialDeviceHistory({
-      history,
-      currentDevices,
-      deviceDetails,
-      timestamp: buildDeviceHistoryTimestamp({ now: new Date() }),
-      createId: () => crypto.randomUUID(),
-    });
+  const { localHistory, deleteRecord, updateRecord } = useDeviceHistoryEditor({
+    history,
+    currentDevices,
+    deviceDetails,
   });
-
-  const handleDeleteRecord = (id: string) => {
-    setLocalHistory(localHistory.filter(item => item.id !== id));
-  };
-
-  const handleUpdateRecord = (id: string, updates: Partial<DeviceInstance>) => {
-    setLocalHistory(
-      localHistory.map(item =>
-        item.id === id ? { ...item, ...updates, updatedAt: Date.now() } : item
-      )
-    );
-  };
 
   const handleSave = () => {
     onSave(localHistory);
@@ -128,7 +109,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                             type="date"
                             value={item.installationDate}
                             onChange={e =>
-                              handleUpdateRecord(item.id, { installationDate: e.target.value })
+                              updateRecord(item.id, { installationDate: e.target.value })
                             }
                             className="text-[10px] bg-transparent border-none p-0 focus:ring-0 text-slate-500 hover:text-medical-600 cursor-pointer"
                           />
@@ -140,9 +121,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                           <input
                             type="text"
                             value={item.location || ''}
-                            onChange={e =>
-                              handleUpdateRecord(item.id, { location: e.target.value })
-                            }
+                            onChange={e => updateRecord(item.id, { location: e.target.value })}
                             placeholder="Ubicación..."
                             className="text-[10px] bg-transparent border-none p-0 focus:ring-0 text-slate-500 hover:text-medical-600 w-24"
                           />
@@ -155,9 +134,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                             <input
                               type="date"
                               value={item.removalDate}
-                              onChange={e =>
-                                handleUpdateRecord(item.id, { removalDate: e.target.value })
-                              }
+                              onChange={e => updateRecord(item.id, { removalDate: e.target.value })}
                               className="text-[10px] bg-transparent border-none p-0 focus:ring-0 text-orange-500 hover:text-orange-600 cursor-pointer font-medium"
                             />
                           </div>
@@ -168,7 +145,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
 
                   {/* Delete Button */}
                   <button
-                    onClick={() => handleDeleteRecord(item.id)}
+                    onClick={() => deleteRecord(item.id)}
                     className="p-1 px-2 rounded-md transition-all opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 hover:bg-red-50"
                     title="Eliminar registro permanentemente"
                   >

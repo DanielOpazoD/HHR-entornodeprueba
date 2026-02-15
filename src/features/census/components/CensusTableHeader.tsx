@@ -4,20 +4,7 @@ import { ResizableHeader } from '@/components/ui/ResizableHeader';
 import { CensusActionHeaderCell } from '@/features/census/components/CensusActionHeaderCell';
 import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
-import type { TableColumnConfig } from '@/context/TableConfigContext';
-import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
-
-export interface CensusTableHeaderProps {
-  readOnly: boolean;
-  columns: TableColumnConfig;
-  isEditMode: boolean;
-  canDeleteRecord: boolean;
-  resetDayDeniedMessage: string;
-  onClearAll: () => Promise<void>;
-  diagnosisMode: DiagnosisMode;
-  onToggleDiagnosisMode: () => void;
-  onResizeColumn: (column: keyof TableColumnConfig) => (width: number) => void;
-}
+import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 
 export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
   readOnly,

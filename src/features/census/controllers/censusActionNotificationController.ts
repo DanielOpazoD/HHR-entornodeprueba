@@ -1,10 +1,12 @@
-import type { CensusActionErrorCode } from '@/features/census/controllers/censusActionExecutionController';
 import {
   getDischargeErrorTitle,
   getMoveOrCopyErrorTitle,
   getTransferErrorTitle,
 } from '@/features/census/controllers/censusActionErrorPresentation';
-import type { MoveOrCopyRuntimeErrorCode } from '@/features/census/controllers/censusActionRuntimeController';
+import type {
+  CensusActionErrorCode,
+  MoveOrCopyRuntimeErrorCode,
+} from '@/features/census/types/censusActionCommandContracts';
 
 export interface CensusActionNotification {
   title: string;

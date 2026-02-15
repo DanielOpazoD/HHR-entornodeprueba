@@ -3,13 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePatientRowRuntime } from '@/features/census/components/patient-row/usePatientRowRuntime';
 import { usePatientRowUiState } from '@/features/census/components/patient-row/usePatientRowUiState';
-import {
-  usePatientRowCribInputHandlers,
-  usePatientRowMainInputHandlers,
-} from '@/features/census/components/patient-row/usePatientRowInputHandlers';
 import { usePatientRowBedConfigActions } from '@/features/census/components/patient-row/usePatientRowBedConfigActions';
-import { usePatientRowChangeHandlers } from '@/features/census/components/patient-row/usePatientRowChangeHandlers';
 import { usePatientRowDependencies } from '@/features/census/components/patient-row/usePatientRowDependencies';
+import { usePatientRowHandlersModel } from '@/features/census/components/patient-row/usePatientRowHandlersModel';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types';
 
@@ -21,17 +17,12 @@ vi.mock('@/features/census/components/patient-row/usePatientRowUiState', () => (
   usePatientRowUiState: vi.fn(),
 }));
 
-vi.mock('@/features/census/components/patient-row/usePatientRowInputHandlers', () => ({
-  usePatientRowMainInputHandlers: vi.fn(),
-  usePatientRowCribInputHandlers: vi.fn(),
-}));
-
 vi.mock('@/features/census/components/patient-row/usePatientRowBedConfigActions', () => ({
   usePatientRowBedConfigActions: vi.fn(),
 }));
 
-vi.mock('@/features/census/components/patient-row/usePatientRowChangeHandlers', () => ({
-  usePatientRowChangeHandlers: vi.fn(),
+vi.mock('@/features/census/components/patient-row/usePatientRowHandlersModel', () => ({
+  usePatientRowHandlersModel: vi.fn(),
 }));
 
 const asHookValue = <T>(value: Partial<T>): T => value as T;
@@ -70,26 +61,16 @@ describe('usePatientRowRuntime', () => {
         closeHistory: vi.fn(),
       })
     );
-    vi.mocked(usePatientRowMainInputHandlers).mockReturnValue(
-      asHookValue<ReturnType<typeof usePatientRowMainInputHandlers>>({
-        handleTextChange: vi.fn(),
-        handleCheckboxChange: vi.fn(),
-        handleDevicesChange: vi.fn(),
-        handleDeviceDetailsChange: vi.fn(),
-        handleDeviceHistoryChange: vi.fn(),
-        handleDemographicsSave: vi.fn(),
-        toggleDocumentType: vi.fn(),
-        handleDeliveryRouteChange: vi.fn(),
-      })
-    );
-    vi.mocked(usePatientRowCribInputHandlers).mockReturnValue(
-      asHookValue<ReturnType<typeof usePatientRowCribInputHandlers>>({
-        handleCribTextChange: vi.fn(),
-        handleCribCheckboxChange: vi.fn(),
-        handleCribDevicesChange: vi.fn(),
-        handleCribDeviceDetailsChange: vi.fn(),
-        handleCribDeviceHistoryChange: vi.fn(),
-        handleCribDemographicsSave: vi.fn(),
+    vi.mocked(usePatientRowHandlersModel).mockReturnValue(
+      asHookValue<ReturnType<typeof usePatientRowHandlersModel>>({
+        handlers: {
+          mainInputChangeHandlers: asHookValue<any>({}),
+          cribInputChangeHandlers: asHookValue<any>({}),
+        },
+        modalSavers: {
+          onSaveDemographics: vi.fn(),
+          onSaveCribDemographics: vi.fn(),
+        },
       })
     );
     vi.mocked(usePatientRowBedConfigActions).mockReturnValue(
@@ -97,12 +78,6 @@ describe('usePatientRowRuntime', () => {
         toggleBedMode: vi.fn(),
         toggleCompanionCrib: vi.fn(),
         toggleClinicalCrib: vi.fn(),
-      })
-    );
-    vi.mocked(usePatientRowChangeHandlers).mockReturnValue(
-      asHookValue<ReturnType<typeof usePatientRowChangeHandlers>>({
-        mainInputChangeHandlers: asHookValue<any>({}),
-        cribInputChangeHandlers: asHookValue<any>({}),
       })
     );
   });

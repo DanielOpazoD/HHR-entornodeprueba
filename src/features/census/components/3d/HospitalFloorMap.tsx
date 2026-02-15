@@ -1,30 +1,14 @@
 /* eslint-disable react/no-unknown-property */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { BedDefinition, PatientData } from '@/types';
-import {
-  createHospitalFloorMapRuntime,
-  executeResetLayout,
-  persistSavedLayout,
-  resolveSavedLayoutState,
-  type SavedBedTransform,
-  type SavedLayout,
-} from '@/features/census/controllers/hospitalFloorMapRuntimeController';
-import {
-  createDefaultSavedLayout,
-  HOSPITAL_FLOOR_STORAGE_KEY,
-  resolveHospitalFloorBedItems,
-  resolveZoomValueFromDistance,
-  ZOOM_IN_SCALE_FACTOR,
-  ZOOM_OUT_SCALE_FACTOR,
-} from '@/features/census/controllers/hospitalFloorMapViewController';
 import { HospitalFloorMapBedMesh } from '@/features/census/components/3d/HospitalFloorMapBedMesh';
 import { HospitalFloorMapZoomControls } from '@/features/census/components/3d/HospitalFloorMapZoomControls';
 import { HospitalFloorMapToolbar } from '@/features/census/components/3d/HospitalFloorMapToolbar';
 import { HospitalFloorMapConfigPanel } from '@/features/census/components/3d/HospitalFloorMapConfigPanel';
 import { HospitalFloorMapLegend } from '@/features/census/components/3d/HospitalFloorMapLegend';
+import { useHospitalFloorMapModel } from '@/features/census/components/3d/useHospitalFloorMapModel';
 
 interface HospitalFloorMapProps {
   beds: BedDefinition[];
@@ -32,129 +16,27 @@ interface HospitalFloorMapProps {
   onBedClick?: (bedId: string) => void;
 }
 
-const applyCameraScale = (
-  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>,
-  scaleFactor: number
-): number | null => {
-  const controls = controlsRef.current;
-  if (!controls) {
-    return null;
-  }
-
-  const camera = controls.object;
-  camera.position.multiplyScalar(scaleFactor);
-  controls.update();
-
-  return controls.getDistance();
-};
-
-const updateSavedLayoutConfig = (
-  previousLayout: SavedLayout,
-  nextConfigPatch: Partial<SavedLayout['config']>
-): SavedLayout => ({
-  ...previousLayout,
-  config: {
-    ...previousLayout.config,
-    ...nextConfigPatch,
-  },
-});
-
 export const HospitalFloorMap = ({ beds, patients, onBedClick }: HospitalFloorMapProps) => {
-  const runtime = useMemo(() => createHospitalFloorMapRuntime(), []);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [zoomValue, setZoomValue] = useState(55);
-  const controlsRef = useRef<OrbitControlsImpl | null>(null);
-
-  const [layout, setLayout] = useState<SavedLayout>(() =>
-    resolveSavedLayoutState(runtime.getItem(HOSPITAL_FLOOR_STORAGE_KEY), createDefaultSavedLayout())
-  );
-
-  const saveLayout = useCallback(() => {
-    persistSavedLayout(runtime, HOSPITAL_FLOOR_STORAGE_KEY, layout);
-    setIsEditMode(false);
-  }, [layout, runtime]);
-
-  const handleTransformChange = useCallback((id: string, transform: SavedBedTransform) => {
-    setLayout(previousLayout => ({
-      ...previousLayout,
-      beds: {
-        ...previousLayout.beds,
-        [id]: transform,
-      },
-    }));
-  }, []);
-
-  const resetLayout = useCallback(() => {
-    executeResetLayout({
-      runtime,
-      storageKey: HOSPITAL_FLOOR_STORAGE_KEY,
-      confirmMessage: '¿Restablecer posición de camas a la distribución original?',
-    });
-  }, [runtime]);
-
-  const bedItems = useMemo(
-    () =>
-      resolveHospitalFloorBedItems({
-        beds,
-        savedBeds: layout.beds,
-      }),
-    [beds, layout.beds]
-  );
-
-  const handleZoomUpdateFromControls = useCallback(() => {
-    if (!controlsRef.current) {
-      return;
-    }
-
-    const distance = controlsRef.current.getDistance();
-    setZoomValue(previousValue => {
-      const nextValue = resolveZoomValueFromDistance(distance);
-      return previousValue === nextValue ? previousValue : nextValue;
-    });
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    const nextDistance = applyCameraScale(controlsRef, ZOOM_IN_SCALE_FACTOR);
-    if (nextDistance === null) {
-      return;
-    }
-
-    setZoomValue(resolveZoomValueFromDistance(nextDistance));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    const nextDistance = applyCameraScale(controlsRef, ZOOM_OUT_SCALE_FACTOR);
-    if (nextDistance === null) {
-      return;
-    }
-
-    setZoomValue(resolveZoomValueFromDistance(nextDistance));
-  }, []);
-
-  const setBedWidth = useCallback((nextBedWidth: number) => {
-    setLayout(previousLayout =>
-      updateSavedLayoutConfig(previousLayout, { bedWidth: nextBedWidth })
-    );
-  }, []);
-
-  const setBedLength = useCallback((nextBedLength: number) => {
-    setLayout(previousLayout =>
-      updateSavedLayoutConfig(previousLayout, { bedLength: nextBedLength })
-    );
-  }, []);
-
-  const setColorFree = useCallback((nextColorFree: string) => {
-    setLayout(previousLayout =>
-      updateSavedLayoutConfig(previousLayout, { colorFree: nextColorFree })
-    );
-  }, []);
-
-  const setColorOccupied = useCallback((nextColorOccupied: string) => {
-    setLayout(previousLayout =>
-      updateSavedLayoutConfig(previousLayout, { colorOccupied: nextColorOccupied })
-    );
-  }, []);
+  const {
+    controlsRef,
+    isEditMode,
+    showConfig,
+    zoomValue,
+    layout,
+    bedItems,
+    toggleEditMode,
+    toggleConfig,
+    saveLayout,
+    resetLayout,
+    handleTransformChange,
+    handleZoomUpdateFromControls,
+    handleZoomIn,
+    handleZoomOut,
+    setBedWidth,
+    setBedLength,
+    setColorFree,
+    setColorOccupied,
+  } = useHospitalFloorMapModel({ beds });
 
   return (
     <div className="w-full h-[600px] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-inner relative group">
@@ -211,8 +93,8 @@ export const HospitalFloorMap = ({ beds, patients, onBedClick }: HospitalFloorMa
       <HospitalFloorMapToolbar
         isEditMode={isEditMode}
         showConfig={showConfig}
-        onToggleEditMode={() => setIsEditMode(previousValue => !previousValue)}
-        onToggleConfig={() => setShowConfig(previousValue => !previousValue)}
+        onToggleEditMode={toggleEditMode}
+        onToggleConfig={toggleConfig}
       />
 
       {showConfig && (

@@ -4,7 +4,7 @@ import type { PatientRowAction } from '@/features/census/types/patientRowActionT
 import type {
   DischargeExecutionInput,
   TransferExecutionInput,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/types/censusActionCommandContracts';
 import type {
   ActionState,
   DischargeState,

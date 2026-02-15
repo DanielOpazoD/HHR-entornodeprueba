@@ -3,7 +3,7 @@ import type {
   DischargeMovementActions,
   TransferCommand,
   TransferMovementActions,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/types/censusActionCommandContracts';
 
 type DischargeRuntimeActions = Pick<DischargeMovementActions, 'addDischarge' | 'updateDischarge'>;
 type TransferRuntimeActions = Pick<TransferMovementActions, 'addTransfer' | 'updateTransfer'>;

@@ -16,6 +16,8 @@ import {
 describe('transferModalController', () => {
   it('resolves transfer time preferring initial time', () => {
     expect(resolveTransferInitialTime('10:15', '12:00')).toBe('10:15');
+    expect(resolveTransferInitialTime(' 10:15 ', '12:00')).toBe('10:15');
+    expect(resolveTransferInitialTime('99:99', '12:00')).toBe('12:00');
     expect(resolveTransferInitialTime(undefined, '12:00')).toBe('12:00');
   });
 

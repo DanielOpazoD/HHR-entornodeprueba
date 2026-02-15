@@ -16,39 +16,9 @@ import {
   shouldShowMotherStatus,
 } from '@/features/census/controllers/dischargeModalController';
 import { useDischargeModalForm } from '@/features/census/hooks/useDischargeModalForm';
+import type { DischargeModalProps } from '@/features/census/types/censusActionModalContracts';
 
 export type DischargeTypeUnion = DischargeType;
-
-export interface DischargeModalProps {
-  isOpen: boolean;
-  isEditing: boolean;
-  status: DischargeStatus;
-  recordDate?: string;
-
-  hasClinicalCrib?: boolean;
-  clinicalCribName?: string;
-  clinicalCribStatus?: DischargeStatus;
-  onClinicalCribStatusChange?: (s: DischargeStatus) => void;
-
-  dischargeTarget?: DischargeTarget;
-  onDischargeTargetChange?: (target: DischargeTarget) => void;
-
-  initialType?: string;
-  initialOtherDetails?: string;
-  initialTime?: string;
-  initialMovementDate?: string;
-
-  onStatusChange: (s: DischargeStatus) => void;
-  onClose: () => void;
-  onConfirm: (data: {
-    status: DischargeStatus;
-    type?: string;
-    typeOther?: string;
-    time: string;
-    movementDate?: string;
-    dischargeTarget?: DischargeTarget;
-  }) => void;
-}
 
 export const DischargeModal: React.FC<DischargeModalProps> = ({
   isOpen,

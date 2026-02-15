@@ -4,7 +4,7 @@ import {
   useDailyRecordOverrides,
   useDailyRecordStaff,
 } from '@/context/DailyRecordContext';
-import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
+import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';

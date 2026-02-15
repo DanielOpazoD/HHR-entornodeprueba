@@ -3,6 +3,7 @@ import {
   ok,
   type ControllerResult,
 } from '@/features/census/controllers/controllerResult';
+import { createCensusStorageRuntime } from '@/features/census/controllers/censusBrowserRuntimeAdapter';
 
 export interface CensusMigrationStorage {
   getItem: (key: string) => string | null;
@@ -19,21 +20,14 @@ export type CensusMigrationBootstrapResult = ControllerResult<
   CensusMigrationErrorCode
 >;
 
-export const createCensusMigrationStorageRuntime = (): CensusMigrationStorage => ({
-  getItem: key => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    return window.localStorage.getItem(key);
-  },
-  setItem: (key, value) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(key, value);
-  },
+export const createCensusMigrationStorageRuntime = (
+  runtime: Pick<
+    ReturnType<typeof createCensusStorageRuntime>,
+    'getItem' | 'setItem'
+  > = createCensusStorageRuntime()
+): CensusMigrationStorage => ({
+  getItem: key => runtime.getItem(key),
+  setItem: (key, value) => runtime.setItem(key, value),
 });
 
 export const executeCensusMigrationBootstrapController = (

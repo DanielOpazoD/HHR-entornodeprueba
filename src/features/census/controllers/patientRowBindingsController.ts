@@ -1,12 +1,16 @@
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition, BedType, PatientData } from '@/types';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowContracts';
-import type { PatientMainRowViewProps } from '@/features/census/components/patient-row/PatientMainRowView';
-import type { PatientSubRowViewProps } from '@/features/census/components/patient-row/PatientSubRowView';
-import type { PatientRowModalsProps } from '@/features/census/components/patient-row/PatientRowModals';
-import type { PatientRowRuntime } from '@/features/census/components/patient-row/usePatientRowRuntime';
+import type {
+  PatientMainRowBindings,
+  PatientSubRowBindings,
+  PatientRowModalsBindings,
+  PatientRowBindings,
+  PatientRowRuntime,
+} from '@/features/census/components/patient-row/patientRowRuntimeContracts';
+import { buildPatientMainRowViewState } from '@/features/census/controllers/patientRowMainViewController';
 
-interface BuildPatientRowBindingsParams {
+export interface BuildPatientRowBindingsParams {
   bed: BedDefinition;
   bedType: BedType;
   data: PatientData;
@@ -19,13 +23,9 @@ interface BuildPatientRowBindingsParams {
   runtime: PatientRowRuntime;
 }
 
-interface PatientRowBindings {
-  mainRowProps: PatientMainRowViewProps;
-  subRowProps: PatientSubRowViewProps;
-  modalsProps: PatientRowModalsProps;
-}
+export type PatientRowBindingsInput = Omit<BuildPatientRowBindingsParams, 'runtime'>;
 
-export const buildPatientRowBindings = ({
+export const buildPatientMainRowBindings = ({
   bed,
   bedType,
   data,
@@ -33,11 +33,30 @@ export const buildPatientRowBindings = ({
   readOnly,
   actionMenuAlign,
   diagnosisMode,
-  isSubRow,
   style,
   runtime,
-}: BuildPatientRowBindingsParams): PatientRowBindings => ({
-  mainRowProps: {
+}: Pick<
+  BuildPatientRowBindingsParams,
+  | 'bed'
+  | 'bedType'
+  | 'data'
+  | 'currentDateString'
+  | 'readOnly'
+  | 'actionMenuAlign'
+  | 'diagnosisMode'
+  | 'style'
+  | 'runtime'
+>): PatientMainRowBindings => {
+  const mainRowViewState = buildPatientMainRowViewState({
+    bedId: bed.id,
+    readOnly,
+    isEmpty: runtime.rowState.isEmpty,
+    isBlocked: runtime.rowState.isBlocked,
+    patientName: data.patientName,
+    rut: data.rut,
+  });
+
+  return {
     bed,
     bedType,
     data,
@@ -51,6 +70,7 @@ export const buildPatientRowBindings = ({
     hasCompanion: runtime.rowState.hasCompanion,
     hasClinicalCrib: runtime.rowState.hasClinicalCrib,
     isCunaMode: runtime.rowState.isCunaMode,
+    mainRowViewState,
     onAction: runtime.handleAction,
     onOpenDemographics: runtime.uiState.openDemographics,
     onOpenExamRequest: runtime.uiState.openExamRequest,
@@ -61,27 +81,88 @@ export const buildPatientRowBindings = ({
     onToggleBedType: runtime.bedTypeToggles.onToggleBedType,
     onUpdateClinicalCrib: runtime.bedTypeToggles.onUpdateClinicalCrib,
     onChange: runtime.handlers.mainInputChangeHandlers,
-  },
-  subRowProps: {
-    data,
-    currentDateString,
-    readOnly,
-    style,
-    onOpenDemographics: runtime.uiState.openDemographics,
-    onChange: runtime.handlers.cribInputChangeHandlers,
-  },
-  modalsProps: {
-    bedId: bed.id,
-    data,
-    currentDateString,
-    isSubRow,
-    showDemographics: runtime.uiState.showDemographics,
-    showExamRequest: runtime.uiState.showExamRequest,
-    showHistory: runtime.uiState.showHistory,
-    onCloseDemographics: runtime.uiState.closeDemographics,
-    onCloseExamRequest: runtime.uiState.closeExamRequest,
-    onCloseHistory: runtime.uiState.closeHistory,
-    onSaveDemographics: runtime.modalSavers.onSaveDemographics,
-    onSaveCribDemographics: runtime.modalSavers.onSaveCribDemographics,
-  },
+  };
+};
+
+export const buildPatientSubRowBindings = ({
+  data,
+  currentDateString,
+  readOnly,
+  style,
+  runtime,
+}: Pick<
+  BuildPatientRowBindingsParams,
+  'data' | 'currentDateString' | 'readOnly' | 'style' | 'runtime'
+>): PatientSubRowBindings => ({
+  data,
+  currentDateString,
+  readOnly,
+  style,
+  onOpenDemographics: runtime.uiState.openDemographics,
+  onChange: runtime.handlers.cribInputChangeHandlers,
 });
+
+export const buildPatientRowModalsBindings = ({
+  bed,
+  data,
+  currentDateString,
+  isSubRow,
+  runtime,
+}: Pick<
+  BuildPatientRowBindingsParams,
+  'bed' | 'data' | 'currentDateString' | 'isSubRow' | 'runtime'
+>): PatientRowModalsBindings => ({
+  bedId: bed.id,
+  data,
+  currentDateString,
+  isSubRow,
+  showDemographics: runtime.uiState.showDemographics,
+  showExamRequest: runtime.uiState.showExamRequest,
+  showHistory: runtime.uiState.showHistory,
+  onCloseDemographics: runtime.uiState.closeDemographics,
+  onCloseExamRequest: runtime.uiState.closeExamRequest,
+  onCloseHistory: runtime.uiState.closeHistory,
+  onSaveDemographics: runtime.modalSavers.onSaveDemographics,
+  onSaveCribDemographics: runtime.modalSavers.onSaveCribDemographics,
+});
+
+export const buildPatientRowBindings = ({
+  bed,
+  bedType,
+  data,
+  currentDateString,
+  readOnly,
+  actionMenuAlign,
+  diagnosisMode,
+  isSubRow,
+  style,
+  runtime,
+}: BuildPatientRowBindingsParams): PatientRowBindings => {
+  return {
+    mainRowProps: buildPatientMainRowBindings({
+      bed,
+      bedType,
+      data,
+      currentDateString,
+      readOnly,
+      actionMenuAlign,
+      diagnosisMode,
+      style,
+      runtime,
+    }),
+    subRowProps: buildPatientSubRowBindings({
+      data,
+      currentDateString,
+      readOnly,
+      style,
+      runtime,
+    }),
+    modalsProps: buildPatientRowModalsBindings({
+      bed,
+      data,
+      currentDateString,
+      isSubRow,
+      runtime,
+    }),
+  };
+};

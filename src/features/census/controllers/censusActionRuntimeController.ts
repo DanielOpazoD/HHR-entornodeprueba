@@ -7,18 +7,11 @@ import type {
 } from '@/features/census/types/censusActionTypes';
 import { createInitialActionState } from '@/features/census/types/censusActionTypes';
 import {
-  type CensusActionError,
-  type CensusActionErrorCode,
   resolveDischargeCommand,
   resolveMoveOrCopyCommand,
   resolveTransferCommand,
 } from '@/features/census/controllers/censusActionExecutionController';
-import {
-  type ControllerError,
-  type ControllerResult,
-  failWithCode,
-  ok,
-} from '@/features/census/controllers/controllerResult';
+import { failWithCode, ok } from '@/features/census/controllers/controllerResult';
 import {
   executeDischargeRuntimeCommand,
   executeTransferRuntimeCommand,
@@ -26,9 +19,12 @@ import {
 import type {
   DischargeExecutionInput,
   DischargeMovementActions,
+  DischargeRuntimeResult,
+  MoveOrCopyRuntimeResult,
   TransferExecutionInput,
   TransferMovementActions,
-} from '@/features/census/types/patientMovementCommandTypes';
+  TransferRuntimeResult,
+} from '@/features/census/types/censusActionCommandContracts';
 
 export interface MoveOrCopyRuntimeActions {
   moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
@@ -43,33 +39,6 @@ export type DischargeRuntimeActions = Pick<
 export type TransferRuntimeActions = Pick<
   TransferMovementActions,
   'addTransfer' | 'updateTransfer'
->;
-
-export type MoveOrCopyRuntimeErrorCode = CensusActionErrorCode | 'COPY_TO_DATE_FAILED';
-export type MoveOrCopyRuntimeError = CensusActionError | ControllerError<'COPY_TO_DATE_FAILED'>;
-
-export interface MoveOrCopyRuntimeSuccess {
-  nextActionState: ActionState;
-}
-
-export interface ModalCloseSuccess {
-  closeModalPatch: { isOpen: false };
-}
-
-export type MoveOrCopyRuntimeResult = ControllerResult<
-  MoveOrCopyRuntimeSuccess,
-  MoveOrCopyRuntimeErrorCode,
-  MoveOrCopyRuntimeError
->;
-export type DischargeRuntimeResult = ControllerResult<
-  ModalCloseSuccess,
-  CensusActionErrorCode,
-  CensusActionError
->;
-export type TransferRuntimeResult = ControllerResult<
-  ModalCloseSuccess,
-  CensusActionErrorCode,
-  CensusActionError
 >;
 
 interface ExecuteMoveOrCopyParams {

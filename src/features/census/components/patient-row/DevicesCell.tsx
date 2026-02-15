@@ -1,15 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { DeviceSelector } from '@/components/DeviceSelector';
 import { BaseCellProps, DeviceHandlers } from './inputCellTypes';
 import { History } from 'lucide-react';
 import { DeviceHistoryModal } from './DeviceHistoryModal';
-import { DeviceInstance } from '@/types';
-import {
-  buildDeviceHistoryTimestamp,
-  resolveActiveDeviceTypesFromHistory,
-  syncDeviceHistoryForDetails,
-  syncDeviceHistoryForSelection,
-} from '@/features/census/controllers/deviceHistoryController';
+import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
+import { PatientEmptyCell } from './PatientEmptyCell';
 
 interface DevicesCellProps extends BaseCellProps, DeviceHandlers {
   currentDateString: string;
@@ -25,61 +20,34 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
   onDeviceDetailsChange,
   onDeviceHistoryChange,
 }) => {
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-
-  // Memoize to prevent unnecessary re-renders
-  const memoizedDevices = useMemo(() => data.devices || [], [data.devices]);
-  const memoizedDeviceDetails = useMemo(() => data.deviceDetails || {}, [data.deviceDetails]);
-  const memoizedHistory = useMemo(
-    () => (data.deviceInstanceHistory || []) as DeviceInstance[],
-    [data.deviceInstanceHistory]
-  );
-  const createId = () => crypto.randomUUID();
+  const {
+    devices,
+    deviceDetails,
+    history,
+    isHistoryOpen,
+    openHistory,
+    closeHistory,
+    handleDevicesChange,
+    handleDeviceDetailsChange,
+    handleHistoryModalSave,
+  } = useDevicesCellController({
+    data,
+    onDevicesChange,
+    onDeviceDetailsChange,
+    onDeviceHistoryChange,
+  });
 
   if (isEmpty && !isSubRow) {
-    return (
-      <td className="py-0.5 px-1 border-r border-slate-200 w-32 relative">
-        <div className="w-full py-0.5 px-1 border border-slate-200 rounded bg-slate-100 text-slate-400 text-xs italic text-center">
-          -
-        </div>
-      </td>
-    );
+    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-32 relative" />;
   }
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 w-32 relative group">
       <DeviceSelector
-        devices={memoizedDevices}
-        deviceDetails={memoizedDeviceDetails}
-        onChange={newDevices => {
-          onDevicesChange(newDevices);
-          const selectionSync = syncDeviceHistoryForSelection({
-            previousDevices: memoizedDevices,
-            nextDevices: newDevices,
-            previousHistory: memoizedHistory,
-            deviceDetails: memoizedDeviceDetails,
-            timestamp: buildDeviceHistoryTimestamp({ now: new Date() }),
-            createId,
-          });
-
-          if (selectionSync.changed) {
-            onDeviceHistoryChange(selectionSync.history);
-          }
-        }}
-        onDetailsChange={newDetails => {
-          onDeviceDetailsChange(newDetails);
-          const detailsSync = syncDeviceHistoryForDetails({
-            nextDetails: newDetails,
-            activeDevices: memoizedDevices,
-            previousHistory: memoizedHistory,
-            timestamp: buildDeviceHistoryTimestamp({ now: new Date() }),
-            createId,
-          });
-
-          if (detailsSync.changed) {
-            onDeviceHistoryChange(detailsSync.history);
-          }
-        }}
+        devices={devices}
+        deviceDetails={deviceDetails}
+        onChange={handleDevicesChange}
+        onDetailsChange={handleDeviceDetailsChange}
         currentDate={currentDateString}
         disabled={readOnly || false}
       />
@@ -88,7 +56,7 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
         <button
           onClick={e => {
             e.stopPropagation();
-            setShowHistoryModal(true);
+            openHistory();
           }}
           className="absolute top-0 right-0 p-0.5 rounded-bl-md transition-all duration-200 z-10 bg-slate-100 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-200 hover:text-slate-600"
           title="Ver historial detallado de dispositivos"
@@ -97,18 +65,14 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
         </button>
       )}
 
-      {showHistoryModal && (
+      {isHistoryOpen && (
         <DeviceHistoryModal
           patientName={data.patientName}
-          history={memoizedHistory}
-          currentDevices={memoizedDevices}
-          deviceDetails={memoizedDeviceDetails}
-          onSave={newHistory => {
-            onDeviceHistoryChange(newHistory);
-            const activeTypes = resolveActiveDeviceTypesFromHistory(newHistory);
-            onDevicesChange(activeTypes);
-          }}
-          onClose={() => setShowHistoryModal(false)}
+          history={history}
+          currentDevices={devices}
+          deviceDetails={deviceDetails}
+          onSave={handleHistoryModalSave}
+          onClose={closeHistory}
         />
       )}
     </td>

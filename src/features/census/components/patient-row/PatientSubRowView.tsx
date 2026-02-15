@@ -1,19 +1,9 @@
 import React from 'react';
 import { User } from 'lucide-react';
-import { PatientData } from '@/types';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 import { PatientInputCells } from './PatientInputCells';
-import type { ClinicalCribInputChangeHandlers } from './inputCellTypes';
 import { shouldShowSubRowDemographicsButton } from '@/features/census/controllers/patientRowSubViewController';
-
-export interface PatientSubRowViewProps {
-  data: PatientData;
-  currentDateString: string;
-  readOnly: boolean;
-  style?: React.CSSProperties;
-  onOpenDemographics: () => void;
-  onChange: ClinicalCribInputChangeHandlers;
-}
+import type { PatientSubRowViewProps } from '@/features/census/components/patient-row/patientRowViewContracts';
 
 export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
   data,

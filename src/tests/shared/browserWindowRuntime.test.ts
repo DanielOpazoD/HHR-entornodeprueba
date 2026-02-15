@@ -24,6 +24,7 @@ describe('browserWindowRuntime', () => {
     expect(runtime.getLocationOrigin()).toBe(window.location.origin);
     expect(runtime.getLocationPathname()).toBe(window.location.pathname);
     expect(runtime.getLocationHref()).toBe(window.location.href);
+    expect(runtime.getViewportWidth()).toBe(window.innerWidth);
     expect(typeof runtime.reload).toBe('function');
   });
 

@@ -9,6 +9,7 @@ import {
   resolvePatientInputCellsLock,
   resolvePatientRutValidationError,
 } from '@/features/census/controllers/patientInputCellsController';
+import { dispatchTextChangeValue } from '@/features/census/controllers/textChangeAdapterController';
 
 interface UsePatientInputCellsModelParams {
   data: PatientData;
@@ -49,8 +50,7 @@ export const usePatientInputCellsModel = ({
 
   const handleDebouncedText = useCallback<DebouncedTextHandler>(
     (field: keyof PatientData) => (value: string) => {
-      const syntheticEvent = { target: { value } } as React.ChangeEvent<HTMLInputElement>;
-      textChange(field)(syntheticEvent);
+      dispatchTextChangeValue(textChange, field, value);
     },
     [textChange]
   );

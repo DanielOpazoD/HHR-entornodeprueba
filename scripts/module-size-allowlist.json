@@ -1,0 +1,23 @@
+{
+  "globalMax": 400,
+  "allowlist": {
+    "src/services/storage/indexedDBService.ts": 780,
+    "src/services/repositories/DailyRecordRepository.ts": 760,
+    "src/services/storage/firestoreService.ts": 720,
+    "src/services/auth/authService.ts": 640,
+    "src/services/pdf/handoffPdfSections.ts": 620,
+    "src/types/core.ts": 580,
+    "src/services/utils/demoDataGenerator.ts": 570,
+    "src/utils/dateUtils.ts": 565,
+    "src/services/exporters/censusMasterWorkbook.ts": 560,
+    "src/features/cudyr/services/cudyrExportService.ts": 530,
+    "src/schemas/zodSchemas.ts": 530,
+    "src/services/google/googleDriveService.ts": 530,
+    "src/services/calculations/minsalStatsCalculator.ts": 520,
+    "src/services/integrations/whatsapp/whatsappService.ts": 490,
+    "src/services/admin/auditService.ts": 470,
+    "src/hooks/useCensusEmail.ts": 450,
+    "src/components/shared/TerminologySuggestor.tsx": 420,
+    "src/services/auth/passportService.ts": 420
+  }
+}

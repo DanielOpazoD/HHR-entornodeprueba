@@ -2,14 +2,12 @@ import React, { type CSSProperties } from 'react';
 import type { BedDefinition, DailyRecord, Statistics } from '@/types';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { formatCensusHeaderDate } from '@/features/census/controllers/censusDatePresentationController';
-import {
-  CensusActionsProvider,
-  CMASection,
-  CensusModals,
-  CensusStaffHeader,
-  DischargesSection,
-  TransfersSection,
-} from './index';
+import { CensusActionsProvider } from './CensusActionsContext';
+import { CMASection } from './CMASection';
+import { CensusModals } from './CensusModals';
+import { CensusStaffHeader } from './CensusStaffHeader';
+import { DischargesSection } from './DischargesSection';
+import { TransfersSection } from './TransfersSection';
 import { CensusRegisterMainContent } from './CensusRegisterMainContent';
 
 interface CensusRegisterContentProps {
