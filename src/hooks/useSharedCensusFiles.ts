@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { listCensusFilesInMonth, StoredCensusFile } from '@/services/backup/censusStorageService';
 import { logAccess } from '@/services/census/censusAccessService';
 import { CensusAccessUser } from '@/types/censusAccess';
+import {
+    filterSharedCensusFilesByTerm,
+    resolveSharedCensusMonthWindow,
+    selectLatestSharedCensusFiles
+} from '@/features/census/controllers/sharedCensusFilesController';
 
 export const useSharedCensusFiles = (accessUser: CensusAccessUser | null) => {
     const [files, setFiles] = useState<StoredCensusFile[]>([]);
@@ -14,38 +19,22 @@ export const useSharedCensusFiles = (accessUser: CensusAccessUser | null) => {
         if (!accessUser) return;
         setIsLoading(true);
         try {
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-
-            let prevMonth = currentMonth - 1;
-            let prevYear = currentYear;
-            if (prevMonth < 0) {
-                prevMonth = 11;
-                prevYear--;
-            }
-
-            const currentMonthNum = String(currentMonth + 1).padStart(2, '0');
-            const prevMonthNum = String(prevMonth + 1).padStart(2, '0');
+            const {
+                currentYear,
+                currentMonth,
+                previousYear,
+                previousMonth
+            } = resolveSharedCensusMonthWindow(new Date());
 
             const [currentFiles, prevFiles] = await Promise.all([
-                listCensusFilesInMonth(currentYear.toString(), currentMonthNum),
-                listCensusFilesInMonth(prevYear.toString(), prevMonthNum)
+                listCensusFilesInMonth(currentYear, currentMonth),
+                listCensusFilesInMonth(previousYear, previousMonth)
             ]);
 
-            const selectedFiles: StoredCensusFile[] = [];
-
-            if (currentFiles.length > 0) {
-                const sortedCurrent = [...currentFiles].sort((a, b) => b.date.localeCompare(a.date));
-                selectedFiles.push(sortedCurrent[0]);
-            }
-
-            if (prevFiles.length > 0) {
-                const sortedPrev = [...prevFiles].sort((a, b) => b.date.localeCompare(a.date));
-                selectedFiles.push(sortedPrev[0]);
-            }
-
-            setFiles(selectedFiles);
+            setFiles(selectLatestSharedCensusFiles({
+                currentFiles,
+                previousFiles: prevFiles
+            }));
 
             logAccess({
                 userId: accessUser.id,
@@ -101,10 +90,7 @@ export const useSharedCensusFiles = (accessUser: CensusAccessUser | null) => {
         setSelectedFile(file);
     }, [accessUser]);
 
-    const filteredFiles = files.filter(f =>
-        f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.date.includes(searchTerm)
-    );
+    const filteredFiles = filterSharedCensusFilesByTerm(files, searchTerm);
 
     return {
         files,

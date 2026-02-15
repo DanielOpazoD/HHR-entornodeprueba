@@ -11,10 +11,8 @@ interface HandoffChecklistSectionProps {
     record: DailyRecord;
     deliversList: string[];
     receivesList: string[];
-    tensList: string[];
     nursesList: string[];
     readOnly: boolean;
-    schedule: any; // Using any for now to match the existing usage in View/Logic
     onUpdateStaff: (shift: 'day' | 'night', type: 'delivers' | 'receives' | 'tens', list: string[]) => void;
     onUpdateChecklist: (shift: 'day' | 'night', field: string, value: boolean | string) => void;
 }
@@ -25,10 +23,8 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
     record,
     deliversList,
     receivesList,
-    tensList: _tensList,
     nursesList,
     readOnly,
-    schedule: _schedule,
     onUpdateStaff,
     onUpdateChecklist
 }) => {

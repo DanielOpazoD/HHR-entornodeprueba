@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { PatientData, DeviceDetails, DeviceInstance } from '@/types';
+import { PatientData } from '@/types';
 import { DiagnosisMode } from '@/features/census/components/CensusTable';
 
 // Atomic sub-components
@@ -21,22 +21,14 @@ import { AdmissionInput } from './AdmissionInput';
 import { DevicesCell } from './DevicesCell';
 import { CheckboxCell } from './CheckboxCell';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
+import type { PatientInputChangeHandlers } from './inputCellTypes';
 
 interface PatientInputCellsProps {
     data: PatientData;
     currentDateString: string;
     isSubRow?: boolean;
     isEmpty?: boolean;
-    onChange: {
-        text: (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-        check: (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement>) => void;
-        devices: (newDevices: string[]) => void;
-        deviceDetails: (details: DeviceDetails) => void;
-        deviceHistory: (history: DeviceInstance[]) => void;
-        toggleDocType?: () => void;
-        deliveryRoute?: (route: 'Vaginal' | 'Cesárea' | undefined, date: string | undefined) => void;
-        multiple?: (fields: Partial<PatientData>) => void;
-    };
+    onChange: PatientInputChangeHandlers;
     onDemo: () => void;
     readOnly?: boolean;
     diagnosisMode?: DiagnosisMode;

@@ -90,16 +90,18 @@ export const useCensusEmail = ({
         setRecipients(stored);
       } else {
         // Fallback to legacy localStorage migration
-        const legacy = localStorage.getItem('censusEmailRecipients');
-        if (legacy) {
-          try {
-            const parsed = JSON.parse(legacy);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setRecipients(parsed);
-              await saveAppSetting('censusEmailRecipients', parsed);
-              localStorage.removeItem('censusEmailRecipients');
-            }
-          } catch (_) { /* ignore */ }
+        if (typeof localStorage !== 'undefined') {
+          const legacy = localStorage.getItem('censusEmailRecipients');
+          if (legacy) {
+            try {
+              const parsed = JSON.parse(legacy);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setRecipients(parsed);
+                await saveAppSetting('censusEmailRecipients', parsed);
+                localStorage.removeItem('censusEmailRecipients');
+              }
+            } catch (_) { /* ignore */ }
+          }
         }
       }
     };

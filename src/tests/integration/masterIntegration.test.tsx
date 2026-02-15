@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
-import { Specialty, PatientStatus } from '@/types';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UIProvider } from '@/context/UIContext';
+import type { DailyRecord } from '@/types';
 import React from 'react';
-import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '../factories/DataFactory';
 import { calculateStats } from '@/services/calculations/statsCalculator';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
+import { wireStatefulDailyRecordRepoMock } from '@/tests/utils/dailyRecordRepositoryMockUtils';
 
 // Mock Repositories and Services
 vi.mock('@/services/repositories/DailyRecordRepository', () => {
@@ -37,18 +37,19 @@ vi.mock('@/context/VersionContext', () => ({
 }));
 
 const createWrapper = () => {
-    const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false, staleTime: Infinity } }
-    });
-    return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
+    const { wrapper } = createQueryClientTestWrapper({
+        config: {
+            defaultOptions: { queries: { retry: false, staleTime: Infinity } }
+        },
+        wrapChildren: (children) => (
             <UIProvider>{children}</UIProvider>
-        </QueryClientProvider>
-    );
+        ),
+    });
+    return wrapper;
 };
 
 describe('Master Integration Suite', () => {
-    let currentRecord: any = null;
+    let currentRecord: DailyRecord | null = null;
 
     afterEach(() => {
         vi.useRealTimers();
@@ -65,11 +66,11 @@ describe('Master Integration Suite', () => {
             });
             return currentRecord;
         });
-
-        vi.mocked(mockRepo.getForDate).mockImplementation(async () => currentRecord);
-        vi.mocked(mockRepo.save).mockImplementation(async (record) => { currentRecord = record; });
-        vi.mocked(mockRepo.updatePartial).mockImplementation(async (_date, partial) => {
-            if (currentRecord) currentRecord = applyPatches(currentRecord, partial);
+        wireStatefulDailyRecordRepoMock(mockRepo, {
+            getCurrentRecord: () => currentRecord,
+            setCurrentRecord: (record) => {
+                currentRecord = record;
+            },
         });
     });
 

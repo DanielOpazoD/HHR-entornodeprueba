@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useBackupFilesQuery } from '@/hooks/useBackupFilesQuery';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 // Mock storage services
 vi.mock('@/services/backup/pdfStorageService', () => ({
@@ -24,22 +23,12 @@ vi.mock('@/features/cudyr/services/cudyrStorageService', () => ({
 }));
 
 describe('useBackupFilesQuery', () => {
-    const createTestQueryClient = () => new QueryClient({
-        defaultOptions: {
-            queries: { retry: false }
-        }
-    });
-
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={createTestQueryClient()}>
-            {children}
-        </QueryClientProvider>
-    );
+    const createWrapper = () => createQueryClientTestWrapper().wrapper;
 
     it('should fetch years when path is empty', async () => {
         const { result } = renderHook(
             () => useBackupFilesQuery('handoff', []),
-            { wrapper }
+            { wrapper: createWrapper() }
         );
 
         await waitFor(() => {
@@ -53,7 +42,7 @@ describe('useBackupFilesQuery', () => {
     it('should fetch months when path has year', async () => {
         const { result } = renderHook(
             () => useBackupFilesQuery('handoff', ['2024']),
-            { wrapper }
+            { wrapper: createWrapper() }
         );
 
         await waitFor(() => {
@@ -67,7 +56,7 @@ describe('useBackupFilesQuery', () => {
     it('should fetch files when path has year and month', async () => {
         const { result } = renderHook(
             () => useBackupFilesQuery('handoff', ['2024', 'Enero']),
-            { wrapper }
+            { wrapper: createWrapper() }
         );
 
         await waitFor(() => {
@@ -80,7 +69,7 @@ describe('useBackupFilesQuery', () => {
     it('should use census service for census type', async () => {
         const { result } = renderHook(
             () => useBackupFilesQuery('census', []),
-            { wrapper }
+            { wrapper: createWrapper() }
         );
 
         await waitFor(() => {

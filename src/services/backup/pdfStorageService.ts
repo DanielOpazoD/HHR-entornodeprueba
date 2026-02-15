@@ -199,15 +199,18 @@ export const listMonths = createListMonths(STORAGE_ROOT);
 export const listFilesInMonth = createListFilesInMonth<StoredPdfFile>({
     storageRoot: STORAGE_ROOT,
     parseFilePath,
-    mapToFile: (item, metadata, downloadUrl, parsed) => ({
-        name: item.name,
-        fullPath: item.fullPath,
-        downloadUrl,
-        date: parsed.date,
-        shiftType: (parsed as any).shiftType,
-        createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-        size: metadata.size
-    })
+    mapToFile: (item, metadata, downloadUrl, parsed) => {
+        const parsedPdf = parsed as NonNullable<ReturnType<typeof parseFilePath>>;
+        return {
+            name: item.name,
+            fullPath: item.fullPath,
+            downloadUrl,
+            date: parsedPdf.date,
+            shiftType: parsedPdf.shiftType,
+            createdAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
+            size: metadata.size
+        };
+    }
 });
 
 /**

@@ -34,6 +34,8 @@ const HospitalFloorMap = React.lazy(() => import('./3d/HospitalFloorMap'));
 // Import icons and constants
 import { Loader2 } from 'lucide-react';
 import { BEDS } from '@/constants';
+import { buildVisibleBeds } from '@/features/census/controllers/censusTableViewController';
+import { executeCensusMigrationBootstrapController } from '@/features/census/controllers/censusMigrationBootstrapController';
 
 const CensusViewContent: React.FC<CensusViewProps> = ({
     viewMode: initialViewMode, // mapped but unused for internal toggle, we use local state for table/3d switch
@@ -48,7 +50,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     // Custom Hook handles all logic, state, and context connections
     const {
         beds,
-        movements,
         staff,
         previousRecordAvailable,
         previousRecordDate,
@@ -65,29 +66,22 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     const visibleBeds = React.useMemo(() => {
         if (!beds) return [];
         const activeExtras = staff?.activeExtraBeds || [];
-        return BEDS.filter(b => !b.isExtra || activeExtras.includes(b.id));
+        return buildVisibleBeds({
+            allBeds: BEDS,
+            activeExtraBeds: activeExtras
+        });
     }, [beds, staff?.activeExtraBeds]);
 
     // ========== MIGRATION LOGIC ==========
     React.useEffect(() => {
-        const performMigration = async () => {
-            const MIGRATION_KEY = 'MIGRATION_V1_PATIENT_MASTER';
-            if (localStorage.getItem(MIGRATION_KEY) === 'DONE') return;
+        const result = executeCensusMigrationBootstrapController({
+            getItem: (key) => localStorage.getItem(key),
+            setItem: (key, value) => localStorage.setItem(key, value)
+        });
 
-            console.warn('[Migration] Starting historical patient sync...');
-            try {
-                // const repo = await import('@/services/repositories/PatientMasterRepository');
-                // const result = await repo.migrateFromDailyRecords();
-                // console.warn(`[Migration] SUCCESS: Synced ${result.totalPatients} patients from ${result.scannedDays} days.`);
-                // localStorage.setItem(MIGRATION_KEY, 'DONE');
-                localStorage.setItem(MIGRATION_KEY, 'SKIPPED');
-                // You could trigger a toast here if a toast system was available
-            } catch (err) {
-                console.error('[Migration] Failed:', err);
-            }
-        };
-
-        performMigration();
+        if (!result.ok) {
+            console.error('[Migration] Failed:', result.error.message);
+        }
     }, []);
 
     // ========== VIEW MODE: ANALYTICS ==========

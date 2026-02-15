@@ -2,7 +2,7 @@
  * Census Email Service Tests
  * Tests for email sending functionality - simulates production behavior
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock fetch globally
 const mockFetch = vi.fn();

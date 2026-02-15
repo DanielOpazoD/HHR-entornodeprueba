@@ -1,17 +1,12 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import clsx from 'clsx';
+import type { ShiftSchedule } from '@/utils/dateUtils';
 
 interface HandoffShiftSelectorProps {
     selectedShift: 'day' | 'night';
     onShiftChange: (shift: 'day' | 'night') => void;
-    schedule: {
-        dayStart: string;
-        dayEnd: string;
-        nightStart: string;
-        nightEnd: string;
-        description: string;
-    };
+    schedule: ShiftSchedule;
 }
 
 export const HandoffShiftSelector: React.FC<HandoffShiftSelectorProps> = ({

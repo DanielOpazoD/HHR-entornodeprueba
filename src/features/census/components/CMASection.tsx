@@ -1,18 +1,18 @@
 import React, { useCallback } from 'react';
 import { CMAData } from '@/types';
 import { useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
-import { useConfirmDialog } from '@/context/UIContext';
+import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { Trash2, Scissors, Undo2 } from 'lucide-react';
-
-const INTERVENTION_TYPES = [
-    'Cirugía Mayor Ambulatoria',
-    'Procedimiento Médico Ambulatorio'
-] as const;
+import {
+    CMA_INTERVENTION_TYPES,
+    executeUndoCmaController
+} from '@/features/census/controllers/censusCmaController';
 
 export const CMASection: React.FC = () => {
     const { cma } = useDailyRecordMovements() || { cma: [] };
     const { deleteCMA, updateCMA, updatePatientMultiple } = useDailyRecordActions();
     const { confirm } = useConfirmDialog();
+    const { error: notifyError } = useNotification();
 
     const handleUpdate = (id: string, field: keyof CMAData, value: CMAData[keyof CMAData]) => {
         updateCMA(id, { [field]: value });
@@ -20,32 +20,16 @@ export const CMASection: React.FC = () => {
 
     // Undo CMA discharge: restore patient to original bed
     const handleUndo = useCallback(async (item: CMAData) => {
-        if (!item.originalBedId || !item.originalData) {
-            await confirm({
-                title: 'No se puede deshacer',
-                message: 'Este registro no tiene datos originales guardados. Fue creado antes de que se implementara esta función.',
-                confirmText: 'Entendido',
-                cancelText: '',
-                variant: 'warning'
-            });
-            return;
-        }
-
-        const confirmed = await confirm({
-            title: 'Deshacer Egreso CMA',
-            message: `¿Restaurar a ${item.patientName} a la cama ${item.originalBedId}?`,
-            confirmText: 'Sí, restaurar',
-            cancelText: 'Cancelar',
-            variant: 'warning'
+        const result = await executeUndoCmaController(item, {
+            confirm,
+            updatePatientMultiple,
+            deleteCMA
         });
 
-        if (confirmed) {
-            // Restore patient to original bed
-            updatePatientMultiple(item.originalBedId, item.originalData);
-            // Remove from CMA list
-            deleteCMA(item.id);
+        if (!result.ok) {
+            notifyError('No se pudo deshacer', result.error.message);
         }
-    }, [confirm, updatePatientMultiple, deleteCMA]);
+    }, [confirm, deleteCMA, notifyError, updatePatientMultiple]);
 
     if (!cma) return null;
 
@@ -104,7 +88,7 @@ export const CMASection: React.FC = () => {
                                             value={item.interventionType || 'Cirugía Mayor Ambulatoria'}
                                             onChange={(e) => handleUpdate(item.id, 'interventionType', e.target.value)}
                                         >
-                                            {INTERVENTION_TYPES.map(opt => (
+                                            {CMA_INTERVENTION_TYPES.map(opt => (
                                                 <option key={opt} value={opt}>{opt}</option>
                                             ))}
                                         </select>

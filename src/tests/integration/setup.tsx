@@ -202,9 +202,11 @@ export const createMockDailyRecordContext = (record: DailyRecord | null): DailyR
     updateOnDutyProfessionalsFull: vi.fn(),
 });
 
-export const createMockModal = (overrides: Partial<UseModalReturn<any>> = {}): UseModalReturn<any> => ({
+export const createMockModal = <T = void>(
+    overrides: Partial<UseModalReturn<T>> = {}
+): UseModalReturn<T> => ({
     isOpen: false,
-    data: null,
+    data: null as T | null,
     open: vi.fn(),
     close: vi.fn(),
     toggle: vi.fn(),

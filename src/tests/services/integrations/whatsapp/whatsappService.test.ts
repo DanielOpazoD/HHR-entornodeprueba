@@ -10,7 +10,7 @@ import {
     formatHandoffMessage,
     saveManualShift
 } from '@/services/integrations/whatsapp/whatsappService';
-import { getDoc, setDoc, addDoc, getDocs } from 'firebase/firestore';
+import { getDoc, setDoc, addDoc } from 'firebase/firestore';
 
 // Mock Firebase
 vi.mock('firebase/firestore', () => ({

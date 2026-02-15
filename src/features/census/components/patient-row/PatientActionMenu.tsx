@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
-import { MoreHorizontal, Trash2, Copy, ArrowRightLeft, LogOut, Ambulance, User, History, Scissors, FileText } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { MoreHorizontal, User, History, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import { MedicalButton } from '@/components/ui/base/MedicalButton';
+import {
+    CLINICAL_ACTIONS,
+    getVisibleUtilityActions,
+    PatientRowAction
+} from '@/features/census/components/patient-row/patientActionMenuConfig';
+import type { PatientActionMenuCallbacks, RowMenuAlign } from './patientRowContracts';
 
-interface PatientActionMenuProps {
+interface PatientActionMenuProps extends PatientActionMenuCallbacks {
     isBlocked: boolean;
-    onAction: (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => void;
-    onViewDemographics: () => void;
-    onViewExamRequest?: () => void;
-    onViewHistory?: () => void;
     readOnly?: boolean;
-    align?: 'top' | 'bottom';
+    align?: RowMenuAlign;
 }
 
 export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
@@ -23,10 +25,11 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     align = 'top'
 }) => {
     const [showMenu, setShowMenu] = useState(false);
+    const utilityActions = useMemo(() => getVisibleUtilityActions(isBlocked), [isBlocked]);
 
     const toggleMenu = () => setShowMenu(!showMenu);
 
-    const handleMenuAction = (action: 'clear' | 'copy' | 'move' | 'discharge' | 'transfer' | 'cma') => {
+    const handleMenuAction = (action: PatientRowAction) => {
         onAction(action);
         setShowMenu(false);
     };
@@ -81,36 +84,17 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
 
                         {/* 2. Utility Grid (Clean, Copy, Move) */}
                         <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-100">
-                            <button
-                                onClick={() => handleMenuAction('clear')}
-                                className="flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm hover:text-red-600 text-slate-500 transition-all group"
-                                title="Borrar datos"
-                            >
-                                <Trash2 size={18} className="mb-1 group-hover:scale-110 transition-transform" />
-                                <span className="text-[10px] font-medium">Limpiar</span>
-                            </button>
-
-                            {!isBlocked && (
-                                <>
-                                    <button
-                                        onClick={() => handleMenuAction('copy')}
-                                        className="flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm hover:text-blue-600 text-slate-500 transition-all group"
-                                        title="Copiar a otro día"
-                                    >
-                                        <Copy size={18} className="mb-1 group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-medium">Copiar</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => handleMenuAction('move')}
-                                        className="flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm hover:text-amber-600 text-slate-500 transition-all group"
-                                        title="Mover de cama"
-                                    >
-                                        <ArrowRightLeft size={18} className="mb-1 group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-medium">Mover</span>
-                                    </button>
-                                </>
-                            )}
+                            {utilityActions.map(({ action, icon: Icon, label, title, iconClassName }) => (
+                                <button
+                                    key={action}
+                                    onClick={() => handleMenuAction(action)}
+                                    className={`flex flex-col items-center justify-center p-2 rounded hover:bg-white hover:shadow-sm text-slate-500 transition-all group ${iconClassName}`}
+                                    title={title}
+                                >
+                                    <Icon size={18} className="mb-1 group-hover:scale-110 transition-transform" />
+                                    <span className="text-[10px] font-medium">{label}</span>
+                                </button>
+                            ))}
                         </div>
 
                         {/* 3. Primary Clinical Actions */}
@@ -119,18 +103,16 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-1 block">
                                     Gestión Clínica
                                 </span>
-                                <button onClick={() => handleMenuAction('discharge')} className="w-full text-left px-4 py-2 hover:bg-green-50 flex items-center gap-3 text-slate-700 group">
-                                    <LogOut size={16} className="text-green-600 group-hover:translate-x-0.5 transition-transform" />
-                                    <span className="text-sm">Dar de Alta</span>
-                                </button>
-                                <button onClick={() => handleMenuAction('transfer')} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-slate-700 group">
-                                    <Ambulance size={16} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />
-                                    <span className="text-sm">Trasladar</span>
-                                </button>
-                                <button onClick={() => handleMenuAction('cma')} className="w-full text-left px-4 py-2 hover:bg-orange-50 flex items-center gap-3 text-slate-700 group">
-                                    <Scissors size={16} className="text-orange-600 group-hover:translate-x-0.5 transition-transform" />
-                                    <span className="text-sm">Egreso CMA</span>
-                                </button>
+                                {CLINICAL_ACTIONS.map(({ action, icon: Icon, label, iconClassName }) => (
+                                    <button
+                                        key={action}
+                                        onClick={() => handleMenuAction(action)}
+                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-3 text-slate-700 group"
+                                    >
+                                        <Icon size={16} className={`${iconClassName} group-hover:translate-x-0.5 transition-transform`} />
+                                        <span className="text-sm">{label}</span>
+                                    </button>
+                                ))}
                                 {onViewExamRequest && (
                                     <>
                                         <div className="h-px bg-slate-100 mx-3 my-1"></div>

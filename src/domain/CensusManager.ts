@@ -1,5 +1,11 @@
-import { ActionState, DischargeState, TransferState } from '@/features/census/components/CensusActionsContext';
-import { DailyRecord, PatientData } from '@/types';
+import { ActionState, DischargeState, TransferState } from '@/features/census/types/censusActionTypes';
+import { CMAData, DailyRecord, PatientData } from '@/types';
+import {
+    DEFAULT_DISCHARGE_STATUS,
+    DEFAULT_TRANSFER_ESCORT,
+    EvacuationMethod,
+    ReceivingCenter
+} from '@/constants';
 
 /**
  * CensusManager
@@ -18,10 +24,10 @@ export class CensusManager {
             bedId,
             recordId: undefined,
             isOpen: true,
-            status: 'Vivo',
+            status: DEFAULT_DISCHARGE_STATUS,
             hasClinicalCrib: hasBaby,
             clinicalCribName: patient.clinicalCrib?.patientName,
-            clinicalCribStatus: 'Vivo',
+            clinicalCribStatus: DEFAULT_DISCHARGE_STATUS,
             time: new Date().toTimeString().slice(0, 5),
             dischargeTarget: hasBaby ? 'both' : undefined
         };
@@ -30,7 +36,11 @@ export class CensusManager {
     /**
      * Prepares data for a patient transfer.
      */
-    static prepareTransfer(patient: PatientData, bedId: string, defaultMethods: { evacuation: string, center: string }): Partial<TransferState> {
+    static prepareTransfer(
+        patient: PatientData,
+        bedId: string,
+        defaultMethods: { evacuation: EvacuationMethod, center: ReceivingCenter }
+    ): Partial<TransferState> {
         const hasBaby = !!patient.clinicalCrib;
         return {
             bedId,
@@ -38,7 +48,7 @@ export class CensusManager {
             isOpen: true,
             evacuationMethod: defaultMethods.evacuation,
             receivingCenter: defaultMethods.center,
-            transferEscort: 'Enfermera',
+            transferEscort: DEFAULT_TRANSFER_ESCORT,
             time: new Date().toTimeString().slice(0, 5),
             hasClinicalCrib: hasBaby,
             clinicalCribName: patient.clinicalCrib?.patientName
@@ -65,7 +75,7 @@ export class CensusManager {
     /**
      * Formats CMA discharge data from patient information.
      */
-    static formatCMAData(patient: PatientData, bedId: string) {
+    static formatCMAData(patient: PatientData, bedId: string): Omit<CMAData, 'id' | 'timestamp'> {
         const now = new Date();
         const dischargeTime = now.toTimeString().slice(0, 5);
 

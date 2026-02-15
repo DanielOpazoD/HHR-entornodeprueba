@@ -7,9 +7,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UIProvider } from '@/context/UIContext';
 import { DailyRecord } from '@/types';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 // ============================================================================
 // Mocks
@@ -61,7 +61,7 @@ vi.mock('../../context/UIContext', () => ({
 // Mock Utils
 vi.mock('../../services/utils/errorService', () => ({
     logFirebaseError: vi.fn(),
-    getUserFriendlyErrorMessage: vi.fn((err) => 'Friendly Error'),
+    getUserFriendlyErrorMessage: vi.fn((_err) => 'Friendly Error'),
 }));
 
 vi.mock('../../services/storage/localStorageService', () => ({
@@ -87,19 +87,14 @@ const createMockRecord = (date: string): DailyRecord => ({
 // ============================================================================
 
 const createWrapper = () => {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: { retry: false },
-            mutations: { retry: false },
-        },
-    });
-    return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
+    const { wrapper } = createQueryClientTestWrapper({
+        wrapChildren: (children) => (
             <UIProvider>
                 {children}
             </UIProvider>
-        </QueryClientProvider>
-    );
+        ),
+    });
+    return wrapper;
 };
 
 
@@ -209,7 +204,7 @@ describe('DailyRecord Sync Integration', () => {
         await waitFor(() => expect(result.current.syncStatus).toBe('idle'));
 
         await act(async () => {
-            try { /* Empty block intended for test sync */ await result.current.saveAndUpdate(createMockRecord('2024-12-28')); } catch { }
+            await result.current.saveAndUpdate(createMockRecord('2024-12-28')).catch(() => undefined);
         });
 
         await waitFor(() => {

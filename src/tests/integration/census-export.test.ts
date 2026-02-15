@@ -5,7 +5,7 @@
  * This is a CRITICAL flow that must be protected from regressions.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DailyRecord, PatientData, DischargeData, TransferData, CMAData, Specialty, PatientStatus } from '@/types';
 import { buildCensusMasterWorkbook, getCensusMasterFilename } from '@/services/exporters/censusMasterWorkbook';
 

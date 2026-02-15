@@ -1,16 +1,12 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
+import type { ShiftSchedule } from '@/utils/dateUtils';
 
 interface HandoffPrintHeaderProps {
     title: string;
     dateString: string;
     Icon: LucideIcon;
-    schedule?: {
-        dayStart: string;
-        dayEnd: string;
-        nightStart: string;
-        nightEnd: string;
-    };
+    schedule?: Pick<ShiftSchedule, 'dayStart' | 'dayEnd' | 'nightStart' | 'nightEnd'>;
     selectedShift?: 'day' | 'night';
     isMedical: boolean;
     deliversList?: string[];

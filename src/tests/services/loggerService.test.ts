@@ -6,16 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // We need to test the logger functions
 describe('LoggerService', () => {
-    let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
-    let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
-    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-
     beforeEach(() => {
-        consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => { });
-        consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => { });
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+        vi.spyOn(console, 'debug').mockImplementation(() => { });
+        vi.spyOn(console, 'info').mockImplementation(() => { });
+        vi.spyOn(console, 'warn').mockImplementation(() => { });
+        vi.spyOn(console, 'error').mockImplementation(() => { });
     });
 
     afterEach(() => {

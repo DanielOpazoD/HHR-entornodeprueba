@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useRoleManagement } from '@/hooks/useRoleManagement';
 import { roleService } from '@/services/admin/roleService';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 // Mock roleService
 vi.mock('@/services/admin/roleService', () => ({
@@ -16,9 +17,16 @@ vi.mock('@/services/admin/roleService', () => ({
 vi.stubGlobal('scrollTo', vi.fn());
 
 describe('useRoleManagement', () => {
+    let consoleSpies: Array<{ mockRestore: () => void }> = [];
+
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(roleService.getRoles).mockResolvedValue({});
+        consoleSpies = suppressConsole(['error']);
+    });
+
+    afterEach(() => {
+        restoreConsole(consoleSpies);
     });
 
     it('should initialize with loading state and load roles', async () => {

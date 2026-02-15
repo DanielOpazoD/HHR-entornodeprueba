@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useExistingDays } from '@/hooks/useExistingDays';
 import * as recordQueryService from '@/services/records/recordQueryService';
 import { DailyRecord } from '@/types';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 // Mock the record query service
 vi.mock('@/services/records/recordQueryService', () => ({
@@ -10,16 +11,27 @@ vi.mock('@/services/records/recordQueryService', () => ({
 }));
 
 describe('useExistingDays', () => {
+    let consoleSpies: Array<{ mockRestore: () => void }> = [];
+
     beforeEach(() => {
         vi.clearAllMocks();
+        consoleSpies = suppressConsole(['error']);
     });
 
-    it('should return empty array initially', () => {
+    afterEach(() => {
+        restoreConsole(consoleSpies);
+    });
+
+    it('should return empty array initially', async () => {
         vi.mocked(recordQueryService.fetchRecordsForMonth).mockResolvedValue([]);
 
         const { result } = renderHook(() => useExistingDays(2024, 11, null));
 
         expect(result.current).toEqual([]);
+
+        await waitFor(() => {
+            expect(recordQueryService.fetchRecordsForMonth).toHaveBeenCalledWith(2024, 12);
+        });
     });
 
     it('should fetch records for the correct month', async () => {

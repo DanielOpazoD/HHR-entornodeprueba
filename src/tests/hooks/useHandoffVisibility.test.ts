@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useHandoffVisibility } from '@/hooks/useHandoffVisibility';
 import { DailyRecord, PatientData } from '@/types';

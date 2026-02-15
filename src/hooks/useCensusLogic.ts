@@ -3,6 +3,10 @@ import { useDailyRecordActions, useDailyRecordBeds, useDailyRecordMovements, use
 import { useStaffContext } from '@/context/StaffContext';
 import { getPreviousDay, getAvailableDates } from '@/services/repositories/DailyRecordRepository';
 import { calculateStats } from '@/services/calculations/statsCalculator';
+import {
+    executeLoadCensusPromptDataController,
+    INITIAL_CENSUS_PROMPT_STATE
+} from '@/features/census/controllers/censusLogicController';
 
 /**
  * Custom hook to manage the logic for the Census View.
@@ -28,26 +32,25 @@ export const useCensusLogic = (currentDateString: string) => {
 
     const { nursesList, tensList } = useStaffContext();
 
-    // previousRecordAvailable state (Async check)
-    const [previousRecordAvailable, setPreviousRecordAvailable] = React.useState(false);
-    const [previousRecordDate, setPreviousRecordDate] = React.useState<string | undefined>(undefined);
-    const [availableDates, setAvailableDates] = React.useState<string[]>([]);
+    const [promptState, setPromptState] = React.useState(INITIAL_CENSUS_PROMPT_STATE);
 
     React.useEffect(() => {
         let mounted = true;
-        getPreviousDay(currentDateString).then(prev => {
-            if (mounted) {
-                setPreviousRecordAvailable(!!prev);
-                setPreviousRecordDate(prev?.date);
+
+        void (async () => {
+            const nextPromptState = await executeLoadCensusPromptDataController({
+                currentDateString,
+                getPreviousDay,
+                getAvailableDates
+            });
+
+            if (!mounted) {
+                return;
             }
-        });
-        getAvailableDates().then(dates => {
-            if (mounted) {
-                // Filter out the current date and sort
-                const filtered = dates.filter(d => d !== currentDateString);
-                setAvailableDates(filtered);
-            }
-        });
+
+            setPromptState(nextPromptState);
+        })();
+
         return () => { mounted = false; };
     }, [currentDateString]);
 
@@ -65,9 +68,9 @@ export const useCensusLogic = (currentDateString: string) => {
         nursesList,
         tensList,
         stats,
-        previousRecordAvailable,
-        previousRecordDate,
-        availableDates,
+        previousRecordAvailable: promptState.previousRecordAvailable,
+        previousRecordDate: promptState.previousRecordDate,
+        availableDates: promptState.availableDates,
 
         // Actions
         createDay,

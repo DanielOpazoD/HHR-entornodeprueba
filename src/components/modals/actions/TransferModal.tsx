@@ -1,17 +1,36 @@
 import React, { useState } from 'react';
 import { Baby, Share2 } from 'lucide-react';
-import { EVACUATION_METHODS, RECEIVING_CENTERS } from '@/constants';
+import {
+    EVACUATION_METHODS,
+    EVACUATION_METHOD_COMMERCIAL,
+    EVACUATION_METHOD_OTHER,
+    RECEIVING_CENTERS,
+    RECEIVING_CENTER_EXTRASYSTEM,
+    RECEIVING_CENTER_OTHER,
+    TRANSFER_ESCORT_OPTIONS,
+    DEFAULT_TRANSFER_ESCORT,
+    isTransferEscortOption,
+    EvacuationMethod,
+    ReceivingCenter
+} from '@/constants';
 import { getTimeRoundedToStep } from '@/utils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { TimeSchema, ActionNoteSchema } from '@/schemas/inputSchemas';
+import { validateTransferExecutionInput } from '@/features/census/validation/censusActionValidation';
 import clsx from 'clsx';
+
+export type TransferUpdateField =
+    | 'evacuationMethod'
+    | 'evacuationMethodOther'
+    | 'receivingCenter'
+    | 'receivingCenterOther'
+    | 'transferEscort';
 
 export interface TransferModalProps {
     isOpen: boolean;
     isEditing: boolean;
-    evacuationMethod: string;
+    evacuationMethod: EvacuationMethod;
     evacuationMethodOther: string;
-    receivingCenter: string;
+    receivingCenter: ReceivingCenter;
     receivingCenterOther: string;
     transferEscort: string;
     initialTime?: string;
@@ -20,7 +39,7 @@ export interface TransferModalProps {
     hasClinicalCrib?: boolean;
     clinicalCribName?: string;
 
-    onUpdate: (field: string, value: string) => void;
+    onUpdate: (field: TransferUpdateField, value: string) => void;
     onClose: () => void;
     onConfirm: (data: { time: string }) => void;
 }
@@ -49,15 +68,15 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
     const handleEvacuationChange = (val: string) => {
         onUpdate('evacuationMethod', val);
-        if (val === 'Avión comercial') {
-            onUpdate('transferEscort', 'Enfermera');
+        if (val === EVACUATION_METHOD_COMMERCIAL) {
+            onUpdate('transferEscort', DEFAULT_TRANSFER_ESCORT);
         }
-        if (val !== 'Otro') {
+        if (val !== EVACUATION_METHOD_OTHER) {
             onUpdate('evacuationMethodOther', '');
         }
     };
 
-    const isPredefined = ['Enfermera', 'TENS', 'Matrona'].includes(transferEscort);
+    const isPredefined = isTransferEscortOption(transferEscort);
 
     return (
         <BaseModal
@@ -97,7 +116,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             </select>
                         </div>
 
-                        {evacuationMethod === 'Otro' && (
+                        {evacuationMethod === EVACUATION_METHOD_OTHER && (
                             <div className="animate-fade-in space-y-1.5 border-l-2 border-blue-50 pl-4">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Especifique Método</label>
                                 <input
@@ -115,7 +134,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             </div>
                         )}
 
-                        {evacuationMethod === 'Avión comercial' && (
+                        {evacuationMethod === EVACUATION_METHOD_COMMERCIAL && (
                             <div className="space-y-1.5 pt-1 animate-fade-in border-l-2 border-blue-50 pl-4">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Acompañante Vuelo Comercial</label>
                                 <div className="space-y-2">
@@ -124,9 +143,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                         value={isPredefined ? transferEscort : 'Otro'}
                                         onChange={(e) => handleEscortChange(e.target.value)}
                                     >
-                                        <option value="Enfermera">Enfermera</option>
-                                        <option value="TENS">TENS</option>
-                                        <option value="Matrona">Matrona</option>
+                                        {TRANSFER_ESCORT_OPTIONS.map(escort => (
+                                            <option key={escort} value={escort}>{escort}</option>
+                                        ))}
                                         <option value="Otro">Otro / Mixto</option>
                                     </select>
                                     {!isPredefined && (
@@ -157,7 +176,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         </div>
 
                         {/* Conditional Rendering for Other Center */}
-                        {(receivingCenter === 'Otro' || receivingCenter === 'Extrasistema') && (
+                        {(receivingCenter === RECEIVING_CENTER_OTHER || receivingCenter === RECEIVING_CENTER_EXTRASYSTEM) && (
                             <div className="animate-fade-in space-y-1.5 border-l-2 border-blue-50 pl-4">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Especifique Centro</label>
                                 <input
@@ -205,34 +224,29 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                     <button
                         onClick={() => {
                             const newErrors: Record<string, string | undefined> = {};
-
-                            // Validate Time
-                            const timeResult = TimeSchema.safeParse(transferTime);
-                            if (!timeResult.success) {
-                                newErrors.time = timeResult.error.issues[0].message;
-                            }
-
-                            // Validate Other Center if selected
-                            if (receivingCenter === 'Otro' || receivingCenter === 'Extrasistema') {
-                                const centerResult = ActionNoteSchema.safeParse(receivingCenterOther);
-                                if (!centerResult.success) {
-                                    newErrors.otherCenter = centerResult.error.issues[0].message;
+                            const validationErrors = validateTransferExecutionInput({
+                                evacuationMethod,
+                                evacuationMethodOther,
+                                receivingCenter,
+                                receivingCenterOther,
+                                transferEscort,
+                                time: transferTime
+                            });
+                            validationErrors.forEach(validationError => {
+                                if (validationError.field === 'time') {
+                                    newErrors.time = validationError.message;
                                 }
-                            }
+                                if (validationError.field === 'receivingCenterOther') {
+                                    newErrors.otherCenter = validationError.message;
+                                }
+                                if (validationError.field === 'evacuationMethodOther') {
+                                    newErrors.otherEvacuation = validationError.message;
+                                }
+                            });
 
                             if (Object.keys(newErrors).length > 0) {
                                 setErrors(newErrors);
                                 return;
-                            }
-
-                            // Validate Other Evacuation if selected
-                            if (evacuationMethod === 'Otro') {
-                                const evacResult = ActionNoteSchema.safeParse(evacuationMethodOther);
-                                if (!evacResult.success) {
-                                    newErrors.otherEvacuation = evacResult.error.issues[0].message;
-                                    setErrors(newErrors);
-                                    return;
-                                }
                             }
 
                             onConfirm({ time: transferTime });

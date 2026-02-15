@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { TextDecoder as NodeTextDecoder, TextEncoder as NodeTextEncoder } from 'util';
+import { webcrypto } from 'node:crypto';
 import {
     isEligibleForPassport,
     generatePassport,
@@ -30,14 +32,12 @@ describe('passportService', () => {
         vi.clearAllMocks();
         // Support TextEncoder/Decoder and base64 in Node
         if (typeof global.TextEncoder === 'undefined') {
-            const { TextEncoder, TextDecoder } = require('util');
-            global.TextEncoder = TextEncoder;
-            global.TextDecoder = TextDecoder;
+            global.TextEncoder = NodeTextEncoder as unknown as typeof global.TextEncoder;
+            global.TextDecoder = NodeTextDecoder as unknown as typeof global.TextDecoder;
         }
 
         // Mock crypto for node
         if (!global.crypto || !global.crypto.subtle) {
-            const { webcrypto } = require('node:crypto');
             Object.defineProperty(global, 'crypto', {
                 value: webcrypto,
                 configurable: true

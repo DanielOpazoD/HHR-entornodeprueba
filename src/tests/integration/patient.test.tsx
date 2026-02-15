@@ -30,7 +30,6 @@ describe('Patient Management Integration', () => {
                             data={emptyPatient}
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
-                            showCribControls={false}
                             bedType={BedType.UTI}
                         />
                     </tbody>
@@ -60,7 +59,6 @@ describe('Patient Management Integration', () => {
                             data={patient}
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
-                            showCribControls={false}
                             bedType={BedType.UTI}
                         />
                     </tbody>
@@ -87,7 +85,6 @@ describe('Patient Management Integration', () => {
                             data={blockedPatient}
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
-                            showCribControls={false}
                             bedType={BedType.UTI}
                         />
                     </tbody>
@@ -114,7 +111,6 @@ describe('Patient Management Integration', () => {
                             data={upcPatient}
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
-                            showCribControls={false}
                             bedType={BedType.UTI}
                         />
                     </tbody>
@@ -142,7 +138,6 @@ describe('Patient Management Integration', () => {
                             data={patientWithDevices}
                             currentDateString="2024-12-11"
                             onAction={mockOnAction}
-                            showCribControls={false}
                             bedType={BedType.UTI}
                         />
                     </tbody>

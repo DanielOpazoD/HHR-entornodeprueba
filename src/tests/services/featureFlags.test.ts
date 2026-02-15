@@ -2,7 +2,7 @@
  * Tests for FeatureFlags Service
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe('FeatureFlags', () => {
     beforeEach(() => {
@@ -35,7 +35,7 @@ describe('FeatureFlags', () => {
     });
 
     it('should return default values for flags', async () => {
-        const { featureFlags, FEATURE_FLAGS } = await import('@/services/utils/featureFlags');
+        const { featureFlags } = await import('@/services/utils/featureFlags');
 
         // Check that defaults are respected
         expect(typeof featureFlags.isEnabled('ENABLE_ANALYTICS_VIEW')).toBe('boolean');

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { filterLogs, groupLogs, calculateAuditStats, parseAuditTimestamp } from '@/services/admin/auditWorkerLogic';
-import { AuditLogEntry, AuditAction, WorkerFilterParams } from '@/types/audit';
+import { AuditLogEntry, WorkerFilterParams } from '@/types/audit';
 
 describe('AuditWorkerLogic', () => {
     const mockLogs: AuditLogEntry[] = [

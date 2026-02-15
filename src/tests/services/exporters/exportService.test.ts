@@ -16,22 +16,6 @@ vi.mock('@/schemas', () => ({
 
 
 describe('exportService', () => {
-    // Create a minimal but complete PatientData object
-    const createPatientData = (overrides: Partial<any> = {}) => ({
-        patientName: '',
-        rut: '',
-        pathology: '',
-        specialty: 'Medicina',
-        status: 'Estable',
-        admissionDate: '',
-        devices: [],
-        isUPC: false,
-        location: '',
-        deviceDetails: {},
-        isBlocked: false,
-        ...overrides
-    });
-
     const mockRecord: DailyRecord = {
         date: '2025-01-01',
         beds: {

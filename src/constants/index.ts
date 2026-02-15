@@ -24,13 +24,35 @@ export {
     DEVICE_OPTIONS,
     VVP_DEVICE_KEYS,
     EVACUATION_METHODS,
-    RECEIVING_CENTERS
+    RECEIVING_CENTERS,
+    DEFAULT_EVACUATION_METHOD,
+    EVACUATION_METHOD_AEROCARDAL,
+    EVACUATION_METHOD_COMMERCIAL,
+    EVACUATION_METHOD_OTHER,
+    DEFAULT_RECEIVING_CENTER,
+    RECEIVING_CENTER_OTHER,
+    RECEIVING_CENTER_EXTRASYSTEM,
+    DISCHARGE_STATUSES,
+    DEFAULT_DISCHARGE_STATUS,
+    DISCHARGE_TYPES,
+    DEFAULT_DISCHARGE_TYPE,
+    DISCHARGE_TYPE_OTHER,
+    TRANSFER_ESCORT_OPTIONS,
+    DEFAULT_TRANSFER_ESCORT,
+    isTransferEscortOption,
+    isEvacuationMethod,
+    isReceivingCenter,
+    normalizeEvacuationMethod,
+    normalizeReceivingCenter
 } from './clinical';
 export type {
     AdmissionOrigin,
     DeviceType,
     EvacuationMethod,
-    ReceivingCenter
+    ReceivingCenter,
+    DischargeStatus,
+    DischargeType,
+    TransferEscortOption
 } from './clinical';
 
 // Patient Defaults
@@ -57,4 +79,3 @@ export {
     FONASA_LEVELS
 } from './examCategories';
 export type { ExamCategory } from './examCategories';
-

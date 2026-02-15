@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { migrateLegacyData } from '@/services/repositories/dataMigration';
-import { DailyRecord } from '@/types';
 
 describe('Data Migration Service - Staff Fields', () => {
     const mockDate = '2025-01-01';

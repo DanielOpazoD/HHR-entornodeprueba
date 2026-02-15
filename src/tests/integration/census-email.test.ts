@@ -108,7 +108,7 @@ describe('Census Email Integration', () => {
         // or ensure import.meta.env.DEV is false
 
         // For the sake of integration test, we verify the hook orchestration
-        const { result } = renderHook(() => useCensusEmail(mockParams));
+        renderHook(() => useCensusEmail(mockParams));
 
         await act(async () => {
             // We manually override the isDevelopment check by mocking the service 

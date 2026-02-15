@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw, Database } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { isDatabaseInFallbackMode } from '@/services/storage/indexedDBService';
 
 export const DatabaseStatusBanner: React.FC = () => {

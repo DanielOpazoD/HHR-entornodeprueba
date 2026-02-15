@@ -4,8 +4,14 @@ import { NurseManagerModal } from '@/components/modals/NurseManagerModal';
 import { TensManagerModal } from '@/components/modals/TensManagerModal';
 import { BedManagerModal } from '@/components/modals/BedManagerModal';
 import { MoveCopyModal, DischargeModal, TransferModal } from '@/components/modals/ActionModals';
+import {
+    buildDischargeModalBinding,
+    buildMoveCopyModalBinding,
+    buildTransferModalBinding
+} from '@/features/census/controllers/censusModalBindingsController';
+import { useCensusModalsHandlers } from '@/features/census/hooks/useCensusModalsHandlers';
 
-import { useCensusActions } from './CensusActionsContext';
+import { useCensusActionCommands, useCensusActionState } from './CensusActionsContext';
 
 interface CensusModalsProps {
     showBedManagerModal: boolean;
@@ -27,21 +33,33 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
     } = useStaffContext();
 
     const {
-        // Move/Copy
         actionState,
         setActionState,
-        executeMoveOrCopy,
-
-        // Discharge
         dischargeState,
         setDischargeState,
-        executeDischarge,
-
-        // Transfer
         transferState,
-        setTransferState,
-        executeTransfer
-    } = useCensusActions();
+        setTransferState
+    } = useCensusActionState();
+    const { executeMoveOrCopy, executeDischarge, executeTransfer } = useCensusActionCommands();
+    const modalBindings = {
+        moveCopy: buildMoveCopyModalBinding(actionState),
+        discharge: buildDischargeModalBinding(dischargeState),
+        transfer: buildTransferModalBinding(transferState)
+    };
+    const {
+        closeMoveCopy,
+        setMoveCopyTarget,
+        updateDischargeStatus,
+        updateDischargeClinicalCribStatus,
+        updateDischargeTarget,
+        closeDischarge,
+        updateTransfer,
+        closeTransfer
+    } = useCensusModalsHandlers({
+        setActionState,
+        setDischargeState,
+        setTransferState
+    });
 
     return (
         <>
@@ -63,52 +81,46 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
             />
 
             <MoveCopyModal
-                isOpen={actionState.type !== null}
-                type={actionState.type || 'move'}
-                sourceBedId={actionState.sourceBedId || ''}
-                targetBedId={actionState.targetBedId || ''}
-                onClose={() => setActionState({ type: null, sourceBedId: null, targetBedId: null })}
-                onSetTarget={(id) => setActionState({ ...actionState, targetBedId: id })}
+                isOpen={modalBindings.moveCopy.isOpen}
+                type={modalBindings.moveCopy.type}
+                sourceBedId={modalBindings.moveCopy.sourceBedId}
+                targetBedId={modalBindings.moveCopy.targetBedId}
+                onClose={closeMoveCopy}
+                onSetTarget={setMoveCopyTarget}
                 onConfirm={executeMoveOrCopy}
             />
 
             <DischargeModal
-                isOpen={dischargeState.isOpen}
-                isEditing={!!dischargeState.recordId}
-                status={dischargeState.status}
-                hasClinicalCrib={dischargeState.hasClinicalCrib}
-                clinicalCribName={dischargeState.clinicalCribName}
-                clinicalCribStatus={dischargeState.clinicalCribStatus}
-                onClinicalCribStatusChange={(s) => setDischargeState({ ...dischargeState, clinicalCribStatus: s })}
-                onStatusChange={(s) => setDischargeState({ ...dischargeState, status: s })}
-                dischargeTarget={dischargeState.dischargeTarget}
-                onDischargeTargetChange={(t) => setDischargeState({ ...dischargeState, dischargeTarget: t })}
-                initialType={dischargeState.type}
-                initialOtherDetails={dischargeState.typeOther}
-                initialTime={dischargeState.time}
-                onClose={() => setDischargeState({ ...dischargeState, isOpen: false })}
+                isOpen={modalBindings.discharge.isOpen}
+                isEditing={modalBindings.discharge.isEditing}
+                status={modalBindings.discharge.status}
+                hasClinicalCrib={modalBindings.discharge.hasClinicalCrib}
+                clinicalCribName={modalBindings.discharge.clinicalCribName}
+                clinicalCribStatus={modalBindings.discharge.clinicalCribStatus}
+                onClinicalCribStatusChange={updateDischargeClinicalCribStatus}
+                onStatusChange={updateDischargeStatus}
+                dischargeTarget={modalBindings.discharge.dischargeTarget}
+                onDischargeTargetChange={updateDischargeTarget}
+                initialType={modalBindings.discharge.initialType}
+                initialOtherDetails={modalBindings.discharge.initialOtherDetails}
+                initialTime={modalBindings.discharge.initialTime}
+                onClose={closeDischarge}
                 onConfirm={executeDischarge}
             />
 
             <TransferModal
-                isOpen={transferState.isOpen}
-                isEditing={!!transferState.recordId}
-                evacuationMethod={transferState.evacuationMethod}
-                evacuationMethodOther={transferState.evacuationMethodOther || ''}
-                receivingCenter={transferState.receivingCenter}
-                receivingCenterOther={transferState.receivingCenterOther}
-                transferEscort={transferState.transferEscort}
-                hasClinicalCrib={transferState.hasClinicalCrib}
-                clinicalCribName={transferState.clinicalCribName}
-                initialTime={transferState.time}
-                onUpdate={(field, val) => {
-                    const updates: Record<string, string | boolean> = { [field]: val };
-                    if (field === 'evacuationMethod' && val === 'Aerocardal') {
-                        updates.transferEscort = '';
-                    }
-                    setTransferState({ ...transferState, ...updates } as any);
-                }}
-                onClose={() => setTransferState({ ...transferState, isOpen: false })}
+                isOpen={modalBindings.transfer.isOpen}
+                isEditing={modalBindings.transfer.isEditing}
+                evacuationMethod={modalBindings.transfer.evacuationMethod}
+                evacuationMethodOther={modalBindings.transfer.evacuationMethodOther}
+                receivingCenter={modalBindings.transfer.receivingCenter}
+                receivingCenterOther={modalBindings.transfer.receivingCenterOther}
+                transferEscort={modalBindings.transfer.transferEscort}
+                hasClinicalCrib={modalBindings.transfer.hasClinicalCrib}
+                clinicalCribName={modalBindings.transfer.clinicalCribName}
+                initialTime={modalBindings.transfer.initialTime}
+                onUpdate={updateTransfer}
+                onClose={closeTransfer}
                 onConfirm={executeTransfer}
             />
         </>

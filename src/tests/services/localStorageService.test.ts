@@ -3,7 +3,7 @@
  * Tests for local storage operations including records and demo mode.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
     getStoredRecords,
     saveRecordLocal,

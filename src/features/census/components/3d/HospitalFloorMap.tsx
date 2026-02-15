@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Text, Environment, ContactShadows, TransformControls } from '@react-three/drei';
 import { BedDefinition, PatientData } from '@/types';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import clsx from 'clsx';
 import { Settings, Save, RotateCcw, Move, MousePointer2, ZoomIn, ZoomOut, Search } from 'lucide-react';
 
@@ -240,7 +241,7 @@ export const HospitalFloorMap = ({ beds, patients }: HospitalFloorMapProps) => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
     const [zoomValue, setZoomValue] = useState(55);
-    const controlsRef = useRef<any>(null);
+    const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
     // Initial state from localStorage to avoid cascading renders in useEffect
     const [layout, setLayout] = useState<SavedLayout>(() => {

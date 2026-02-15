@@ -18,10 +18,11 @@ import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
 import { AuditProvider } from '@/context/AuditContext';
 import { DemoModeProvider } from '@/context/DemoModeContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DailyRecord, PatientStatus, Specialty } from '@/types';
 import { DataFactory } from '../factories/DataFactory';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
+import { wireStatefulDailyRecordRepoMock } from '@/tests/utils/dailyRecordRepositoryMockUtils';
 
 // ============================================================================
 // MOCKS (Repository Layer)
@@ -108,13 +109,9 @@ vi.mock('@/services/admin/auditService', () => ({
 // TEST SETUP w/ REAL LOGIC
 // ============================================================================
 
-const IntegrationWrapper = ({ children }: { children: React.ReactNode }) => {
-    const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false } }
-    });
-
-    return (
-        <QueryClientProvider client={queryClient}>
+const createIntegrationWrapper = () => {
+    const { wrapper } = createQueryClientTestWrapper({
+        wrapChildren: (children) => (
             <UIProvider>
                 <AuthProvider>
                     <AuditProvider userId="test-user">
@@ -125,8 +122,9 @@ const IntegrationWrapper = ({ children }: { children: React.ReactNode }) => {
                     </AuditProvider>
                 </AuthProvider>
             </UIProvider>
-        </QueryClientProvider>
-    );
+        ),
+    });
+    return wrapper;
 };
 
 // ============================================================================
@@ -138,39 +136,9 @@ describe('Critical Integration Paths', () => {
     let currentRecord: DailyRecord | null = null;
     const mockDate = '2025-01-04';
 
-    // Helper to deeply set value by path "beds.bed-1.field"
-    const setByPath = (obj: any, path: string, value: any) => {
-        const parts = path.split('.');
-        const last = parts.pop();
-        let current = obj;
-        for (const part of parts) {
-            if (!current[part]) current[part] = {};
-            current = current[part];
-        }
-        if (last) current[last] = value;
-    };
-
     beforeEach(() => {
         vi.clearAllMocks();
-
-        // Mock localStorage
-        const localStorageMock = (function () {
-            let store: Record<string, string> = {};
-            return {
-                getItem: (key: string) => store[key] || null,
-                setItem: (key: string, value: string) => { store[key] = value.toString(); },
-                clear: () => { store = {}; },
-                removeItem: (key: string) => { delete store[key]; }
-            };
-        })();
-        Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-
-        // Mock crypto.randomUUID
-        Object.defineProperty(global, 'crypto', {
-            value: {
-                randomUUID: () => 'test-uuid-' + Math.random().toString(36).substring(2)
-            }
-        });
+        localStorage.clear();
 
         // Initialize State
         currentRecord = DataFactory.createMockDailyRecord(mockDate, {
@@ -181,31 +149,16 @@ describe('Critical Integration Paths', () => {
 
         const mockRepo = DailyRecordRepository.DailyRecordRepository;
 
-        // Configure Repository Mocks to be Stateful
-        vi.mocked(mockRepo.getForDate).mockImplementation(async () => currentRecord);
-
-        vi.mocked(mockRepo.save).mockImplementation(async (r: DailyRecord) => {
-            currentRecord = { ...r };
-            return undefined;
+        wireStatefulDailyRecordRepoMock(mockRepo, {
+            getCurrentRecord: () => currentRecord,
+            setCurrentRecord: (record) => {
+                currentRecord = record;
+            },
         });
-
-        vi.mocked(mockRepo.updatePartial).mockImplementation(async (date: string, partial: any) => {
-            if (currentRecord) {
-                // Clone to avoid reference issues
-                const next = JSON.parse(JSON.stringify(currentRecord));
-                Object.entries(partial).forEach(([key, val]) => {
-                    setByPath(next, key, val);
-                });
-                currentRecord = next;
-            }
-            return undefined;
-        });
-
-        vi.mocked(mockRepo.syncWithFirestore).mockResolvedValue(null);
     });
 
     it('FLOW 1: Patient Admission (Ingreso)', async () => {
-        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: IntegrationWrapper });
+        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: createIntegrationWrapper() });
 
         // Wait for load
         await waitFor(() => {
@@ -251,7 +204,7 @@ describe('Critical Integration Paths', () => {
         currentRecord = JSON.parse(JSON.stringify(initialRecord));
         // mocked getForDate will use currentRecord automatically
 
-        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: IntegrationWrapper });
+        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: createIntegrationWrapper() });
         await waitFor(() => expect(result.current.record?.beds['bed-1'].patientName).toBe('Maria Silva'));
 
         // 1. Execute Discharge
@@ -274,7 +227,7 @@ describe('Critical Integration Paths', () => {
     });
 
     it('FLOW 3: Census Modify & Save', async () => {
-        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: IntegrationWrapper });
+        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: createIntegrationWrapper() });
         await waitFor(() => expect(result.current.record).not.toBeNull());
 
         // 1. Modify multiple fields (Simulating dragging/typing in Census)
@@ -293,7 +246,7 @@ describe('Critical Integration Paths', () => {
     });
 
     it('FLOW 4: Medical Handoff Signature', async () => {
-        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: IntegrationWrapper });
+        const { result } = renderHook(() => useDailyRecord(mockDate), { wrapper: createIntegrationWrapper() });
         await waitFor(() => expect(result.current.record).not.toBeNull());
 
         // 1. Sign

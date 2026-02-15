@@ -17,10 +17,15 @@ import {
     Download
 } from 'lucide-react';
 import { useSharedCensusFiles } from '@/hooks/useSharedCensusFiles';
-import { formatFileSize, MONTH_NAMES } from '@/services/backup/baseStorageService';
+import { formatFileSize } from '@/services/backup/baseStorageService';
 import { CensusAccessUser } from '@/types/censusAccess';
 import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
 import clsx from 'clsx';
+import {
+    buildSharedCensusFileCardModel,
+    resolveSharedCensusAccessDisplayName,
+    resolveSharedCensusViewState
+} from '@/features/census/controllers/sharedCensusViewController';
 
 interface SharedCensusViewProps {
     accessUser: CensusAccessUser | null;
@@ -38,9 +43,14 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
         setSelectedFile,
         handlers
     } = useSharedCensusFiles(accessUser);
+    const viewState = resolveSharedCensusViewState({
+        error,
+        accessUser,
+        isLoading
+    });
 
     // Error state - no access
-    if (error || (!accessUser && !isLoading)) {
+    if (viewState === 'denied') {
         return (
             <div className="max-w-4xl mx-auto mt-20 p-8 bg-white rounded-3xl shadow-xl border border-red-100 text-center animate-in fade-in duration-500">
                 <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
@@ -58,7 +68,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
     }
 
     // Loading state
-    if (isLoading) {
+    if (viewState === 'loading') {
         return (
             <div className="max-w-4xl mx-auto mt-20 flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-md border border-slate-100">
                 <Loader2 className="w-12 h-12 text-medical-600 animate-spin mb-4" />
@@ -67,6 +77,12 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
         );
     }
 
+    if (!accessUser) {
+        return null;
+    }
+
+    const accessDisplayName = resolveSharedCensusAccessDisplayName(accessUser);
+
     return (
         <div className="max-w-6xl mx-auto px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
@@ -74,7 +90,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight">Archivos de Censo Diario</h1>
                     <p className="text-slate-500 text-sm font-medium">
-                        Bienvenido, <span className="text-slate-800 font-bold">{accessUser!.displayName || accessUser!.email}</span>
+                        Bienvenido, <span className="text-slate-800 font-bold">{accessDisplayName}</span>
                         <span className="mx-2 text-slate-300">|</span>
                         <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Acceso Compartido</span>
                     </p>
@@ -113,21 +129,19 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
                     {filteredFiles.map((file) => {
-                        const [year, month, day] = file.date.split('-');
-                        const monthName = MONTH_NAMES[parseInt(month) - 1];
-                        const isCurrentMonth = new Date().getMonth() === parseInt(month) - 1;
+                        const fileCardModel = buildSharedCensusFileCardModel(file);
 
                         return (
                             <div
                                 key={file.fullPath}
                                 className={clsx(
                                     "group bg-white rounded-3xl border p-6 transition-all flex flex-col justify-between relative overflow-hidden",
-                                    isCurrentMonth
+                                    fileCardModel.isCurrentMonth
                                         ? "border-medical-200 shadow-xl shadow-medical-100/20 ring-1 ring-medical-50"
                                         : "border-slate-200 shadow-sm opacity-90"
                                 )}
                             >
-                                {isCurrentMonth && (
+                                {fileCardModel.isCurrentMonth && (
                                     <div className="absolute top-0 right-0 px-4 py-1.5 bg-medical-500 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-xl shadow-sm">
                                         Más Reciente
                                     </div>
@@ -136,7 +150,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                                 <div className="flex items-start justify-between mb-6">
                                     <div className={clsx(
                                         "w-14 h-14 rounded-2xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
-                                        isCurrentMonth ? "bg-medical-50 text-medical-600 border-medical-100" : "bg-slate-50 text-slate-500 border-slate-100"
+                                        fileCardModel.isCurrentMonth ? "bg-medical-50 text-medical-600 border-medical-100" : "bg-slate-50 text-slate-500 border-slate-100"
                                     )}>
                                         <FileSpreadsheet size={28} />
                                     </div>
@@ -151,11 +165,11 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
 
                                 <div className="mb-8">
                                     <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">
-                                        {monthName} {year}
+                                        {fileCardModel.monthName} {fileCardModel.year}
                                     </h3>
                                     <div className="flex items-center gap-2 text-slate-500">
                                         <Clock size={14} className="text-slate-300" />
-                                        <span className="text-sm font-bold">Corte: {day} de {monthName}</span>
+                                        <span className="text-sm font-bold">Corte: {fileCardModel.day} de {fileCardModel.monthName}</span>
                                     </div>
                                 </div>
 
@@ -164,7 +178,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                                         onClick={() => handlers.handleViewFile(file)}
                                         className={clsx(
                                             "flex-1 font-black py-3 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 active:scale-95 border shadow-sm",
-                                            isCurrentMonth
+                                            fileCardModel.isCurrentMonth
                                                 ? "bg-medical-600 hover:bg-medical-700 text-white border-medical-500 hover:shadow-lg hover:shadow-medical-200"
                                                 : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
                                         )}
@@ -173,7 +187,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                                         Visualizar Censo
                                     </button>
 
-                                    {accessUser?.role === 'downloader' && (
+                                    {accessUser.role === 'downloader' && (
                                         <button
                                             onClick={() => handlers.handleDownload(file)}
                                             className="w-12 h-12 bg-white hover:bg-slate-50 text-slate-500 font-bold rounded-xl text-sm transition-all flex items-center justify-center border border-slate-200 shadow-sm active:scale-95 hover:text-medical-600 hover:border-medical-200"
@@ -194,7 +208,7 @@ export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, 
                 <ExcelViewerModal
                     fileName={selectedFile.name.split(' - ')[0]}
                     downloadUrl={selectedFile.downloadUrl}
-                    canDownload={accessUser?.role === 'downloader'}
+                    canDownload={accessUser.role === 'downloader'}
                     onClose={() => setSelectedFile(null)}
                     onDownload={() => handlers.handleDownload(selectedFile)}
                 />

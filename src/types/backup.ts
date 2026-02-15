@@ -64,9 +64,7 @@ export interface BackupFile {
 /**
  * Backup file preview (for listing without loading full content)
  */
-export interface BackupFilePreview extends Omit<BackupFile, 'content'> {
-    // Used for list views to avoid loading large content
-}
+export type BackupFilePreview = Omit<BackupFile, 'content'>;
 
 /**
  * Data needed to create a new backup

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { CensusTable } from '@/features/census/components/CensusTable';
-import { useCensusActions } from '@/features/census/components/CensusActionsContext';
+import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useDailyRecordData, useDailyRecordActions, useDailyRecordMovements, useDailyRecordBeds, useDailyRecordStaff, useDailyRecordOverrides } from '@/context/DailyRecordContext';
+import { REGULAR_BEDS } from '@/constants/beds';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@tanstack/react-virtual', () => ({
@@ -22,7 +23,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 // Mock dependencies
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
-    useCensusActions: vi.fn()
+    useCensusActionCommands: vi.fn()
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -56,7 +57,19 @@ vi.mock('@/features/census/components/EmptyBedRow', () => ({
 }));
 
 vi.mock('@/components/ui/ResizableHeader', () => ({
-    ResizableHeader: ({ children, className }: any) => <th className={className}>{children}</th>
+    ResizableHeader: ({ children, className, onResize }: any) => (
+        <th className={className}>
+            <span
+                role="button"
+                tabIndex={0}
+                data-testid={`resize-${String(children)}`}
+                onClick={() => onResize?.(120)}
+                onKeyDown={() => onResize?.(120)}
+            >
+                {children}
+            </span>
+        </th>
+    )
 }));
 
 describe('CensusTable', () => {
@@ -66,7 +79,6 @@ describe('CensusTable', () => {
 
     const mockConfirm = vi.fn();
     const mockHandleRowAction = vi.fn();
-    const mockSetShowCribConfig = vi.fn();
     const mockUpdateColumnWidth = vi.fn();
     const mockResetDay = vi.fn();
 
@@ -94,9 +106,7 @@ describe('CensusTable', () => {
 
         vi.mocked(useDailyRecordOverrides as any).mockReturnValue({});
 
-        vi.mocked(useCensusActions).mockReturnValue({
-            showCribConfig: false,
-            setShowCribConfig: mockSetShowCribConfig,
+        vi.mocked(useCensusActionCommands).mockReturnValue({
             handleRowAction: mockHandleRowAction
         } as any);
 
@@ -132,11 +142,10 @@ describe('CensusTable', () => {
             />
         );
 
-        // BEDS constant contains 29 normal beds. With E1 active, total should be 30.
-        // Or whatever BEDS length is + 1.
-        const _rows = screen.queryAllByTestId('patient-row');
-        // Test that the component renders without crashing
-        expect(true).toBe(true);
+        const emptyRows = screen.getAllByTestId('empty-bed-row');
+        expect(emptyRows).toHaveLength(REGULAR_BEDS.length + 1);
+        expect(screen.getByText('E1')).toBeInTheDocument();
+        expect(screen.queryByText('E2')).not.toBeInTheDocument();
     });
 
     it('should handle "Clear All" with confirmation', async () => {
@@ -187,8 +196,8 @@ describe('CensusTable', () => {
     it('should handle column resize', () => {
         render(<CensusTable currentDateString="2025-01-08" />);
 
-        // We need to trigger handleColumnResize which is passed to ResizableHeader
-        // Our mock ResizableHeader is simple, let's keep it that way but we can check if it calls the handler if we improve the mock.
+        fireEvent.click(screen.getByTestId('resize-Cama'));
+        expect(mockUpdateColumnWidth).toHaveBeenCalledWith('bed', 120);
     });
 
     it('should initialize empty bed on click', () => {

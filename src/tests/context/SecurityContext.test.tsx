@@ -3,6 +3,7 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SecurityProvider, useSecurity } from '@/context/SecurityContext';
 import { db } from '@/services/infrastructure/db';
+import { useIdle } from 'react-use';
 
 // Mock DB
 vi.mock('@/services/infrastructure/db', () => ({
@@ -48,6 +49,7 @@ describe('SecurityContext', () => {
 
         expect(screen.getByTestId('is-locked').textContent).toBe('false');
         expect(screen.getByTestId('has-pin').textContent).toBe('false');
+        expect(vi.mocked(useIdle)).toHaveBeenCalledWith(2147483647);
     });
 
     it('should initialize from localStorage if available', async () => {
@@ -154,5 +156,22 @@ describe('SecurityContext', () => {
         });
 
         expect(screen.getByTestId('is-locked').textContent).toBe('true');
+    });
+
+    it('should clamp huge inactivity timeout to avoid timer overflow', async () => {
+        localStorage.setItem('hhr_security_config', JSON.stringify({
+            pin: '1234',
+            lockOnStartup: false,
+            inactivityTimeoutMinutes: 99_999_999
+        }));
+        vi.mocked(db.getDoc).mockResolvedValue(null);
+
+        render(
+            <SecurityProvider>
+                <TestComponent />
+            </SecurityProvider>
+        );
+
+        expect(vi.mocked(useIdle)).toHaveBeenCalledWith(2147483647);
     });
 });

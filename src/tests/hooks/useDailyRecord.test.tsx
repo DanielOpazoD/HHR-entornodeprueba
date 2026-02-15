@@ -3,11 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
 import { DailyRecord } from '@/types';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UIProvider } from '@/context/UIContext';
-import React from 'react';
 import { applyPatches } from '@/utils/patchUtils';
 import { DataFactory } from '../factories/DataFactory';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 
 // Mock dependencies
@@ -30,24 +29,19 @@ vi.mock('@/services/repositories/DailyRecordRepository', () => {
 });
 
 const createWrapper = () => {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-                gcTime: 0,
-                staleTime: 0,
+    const { wrapper } = createQueryClientTestWrapper({
+        config: {
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    gcTime: 0,
+                    staleTime: 0,
+                },
             },
         },
+        wrapChildren: (children) => <UIProvider>{children}</UIProvider>,
     });
-    const Wrapper = ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            <UIProvider>
-                {children}
-            </UIProvider>
-        </QueryClientProvider>
-    );
-    Wrapper.displayName = 'TestWrapper';
-    return Wrapper;
+    return wrapper;
 };
 
 describe('useDailyRecord', () => {

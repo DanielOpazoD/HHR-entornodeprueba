@@ -61,7 +61,7 @@ describe('useDevMetrics', () => {
     });
 
     it('should assign health score A for 100% tests and >60% coverage', async () => {
-        vi.mocked(fetch).mockImplementation((url: any) => {
+        vi.mocked(fetch).mockImplementation((_url: any) => {
             return Promise.resolve({
                 ok: true,
                 json: () => Promise.resolve({ numTotalTests: 100, numPassedTests: 100, numFailedTests: 0 })

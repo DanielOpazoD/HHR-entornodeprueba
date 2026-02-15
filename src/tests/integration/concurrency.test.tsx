@@ -1,12 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import React from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DailyRecord } from '@/types';
 import { ConcurrencyError } from '@/services/storage/firestoreService';
 import { DataFactory } from '../factories/DataFactory';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 // Mocks
 const mockNotificationError = vi.fn();
@@ -43,15 +41,8 @@ vi.mock('../../services/storage/localStorageService', () => ({
 const mockDate = '2024-12-28';
 
 const createWrapper = () => {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: { retry: false },
-            mutations: { retry: false },
-        },
-    });
-    return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient} > {children} </QueryClientProvider>
-    );
+    const { wrapper } = createQueryClientTestWrapper();
+    return wrapper;
 };
 
 describe('Concurrency Handling Integration', () => {
@@ -77,14 +68,9 @@ describe('Concurrency Handling Integration', () => {
 
         // Action: Try to save
         await act(async () => {
-            try {
-                await result.current.saveAndUpdate(newRecord);
-            } catch (e) {
-                // Expected to throw or be handled
-            }
+            await result.current.saveAndUpdate(newRecord).catch(() => undefined);
         });
 
-        // Assertions
         // Assertions
         await waitFor(() => {
             expect(result.current.syncStatus).toBe('error');

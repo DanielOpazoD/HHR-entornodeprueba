@@ -48,7 +48,7 @@ describe('Offline Persistence Integration', () => {
 
         try {
             await saveRecord(mockRecord);
-        } catch (e) {
+        } catch (_e) {
             // expected
         }
 

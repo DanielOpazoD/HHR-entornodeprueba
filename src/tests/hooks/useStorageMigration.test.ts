@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
 import * as idbService from '@/services/storage/indexedDBService';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 // Mock indexedDBService
 vi.mock('@/services/storage/indexedDBService', () => ({
@@ -10,11 +11,18 @@ vi.mock('@/services/storage/indexedDBService', () => ({
 }));
 
 describe('useStorageMigration', () => {
+    let consoleSpies: Array<{ mockRestore: () => void }> = [];
+
     beforeEach(() => {
         vi.clearAllMocks();
+        consoleSpies = suppressConsole(['warn', 'error']);
     });
 
-    it('should start in migrating state', () => {
+    afterEach(() => {
+        restoreConsole(consoleSpies);
+    });
+
+    it('should start in migrating state', async () => {
         vi.mocked(idbService.isIndexedDBAvailable).mockReturnValue(true);
         vi.mocked(idbService.migrateFromLocalStorage).mockResolvedValue(false);
 
@@ -22,6 +30,10 @@ describe('useStorageMigration', () => {
 
         expect(result.current.isMigrating).toBe(true);
         expect(result.current.isComplete).toBe(false);
+
+        await waitFor(() => {
+            expect(result.current.isComplete).toBe(true);
+        });
     });
 
     it('should complete migration successfully when IndexedDB is available', async () => {

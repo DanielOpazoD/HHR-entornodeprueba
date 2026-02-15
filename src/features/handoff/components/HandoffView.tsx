@@ -185,10 +185,8 @@ export const HandoffView: React.FC<HandoffViewProps> = ({ type = 'nursing', read
                 record={record}
                 deliversList={deliversList}
                 receivesList={receivesList}
-                tensList={tensList}
                 nursesList={nursesList}
                 readOnly={readOnly}
-                schedule={schedule}
                 onUpdateStaff={updateHandoffStaff}
                 onUpdateChecklist={updateHandoffChecklist}
             />

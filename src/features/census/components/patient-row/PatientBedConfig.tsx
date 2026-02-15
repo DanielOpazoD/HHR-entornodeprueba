@@ -2,6 +2,8 @@ import React from 'react';
 import { BedDefinition, PatientData } from '@/types';
 import { Baby, Clock, Plus } from 'lucide-react';
 import clsx from 'clsx';
+import type { EventTextHandler } from './inputCellTypes';
+import type { MaybePromiseVoid, PatientBedConfigCallbacks, RowMenuAlign } from './patientRowContracts';
 
 /**
  * Calculate days since admission (reused from HandoffRow)
@@ -17,7 +19,7 @@ const calculateHospitalizedDays = (admissionDate?: string, currentDate?: string)
     return days >= 0 ? days : 0;
 };
 
-interface PatientBedConfigProps {
+interface PatientBedConfigProps extends PatientBedConfigCallbacks {
     bed: BedDefinition;
     data: PatientData;
     currentDateString: string;
@@ -25,14 +27,9 @@ interface PatientBedConfigProps {
     hasCompanion: boolean;
     hasClinicalCrib: boolean;
     isCunaMode: boolean;
-    onToggleMode: () => void;
-    onToggleCompanion: () => void;
-    onToggleClinicalCrib: () => void;
-    onTextChange: (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onUpdateClinicalCrib: (action: 'remove') => void;
-    onShowCribDemographics: () => void;
+    onTextChange: EventTextHandler;
     readOnly?: boolean;
-    align?: 'top' | 'bottom';
+    align?: RowMenuAlign;
 }
 
 export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
@@ -57,6 +54,9 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
 
     const daysHospitalized = calculateHospitalizedDays(data.admissionDate, currentDateString);
     const hasPatient = !!data.patientName;
+    const runAsyncSafe = (action: () => MaybePromiseVoid) => {
+        void Promise.resolve(action()).catch(() => undefined);
+    };
 
     // Close menu when clicking outside
     React.useEffect(() => {
@@ -134,7 +134,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
 
                                 {/* Mode Toggle - DYNAMIC TEXT AS REQUESTED */}
                                 <button
-                                    onClick={() => onToggleMode()}
+                                    onClick={() => runAsyncSafe(onToggleMode)}
                                     className={clsx(
                                         "text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item",
                                         isCunaMode
@@ -153,7 +153,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
 
                                 {/* Companion Toggle */}
                                 <button
-                                    onClick={onToggleCompanion}
+                                    onClick={() => runAsyncSafe(onToggleCompanion)}
                                     className={clsx(
                                         "text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item",
                                         hasCompanion
@@ -233,4 +233,3 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
         </td>
     );
 };
-

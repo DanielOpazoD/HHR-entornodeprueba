@@ -148,6 +148,27 @@ describe('useCensusLogic', () => {
                 expect(result.current.availableDates).toContain('2025-01-09');
             });
         });
+
+        it('should fallback to empty available dates when repository call fails', async () => {
+            vi.mocked(DailyRecordRepository.getAvailableDates).mockRejectedValue(new Error('dates failed'));
+            const { result } = renderHook(() => useCensusLogic('2025-01-10'));
+
+            await waitFor(() => {
+                expect(result.current.availableDates).toEqual([]);
+            });
+        });
+    });
+
+    describe('Error Resilience', () => {
+        it('should fallback to no previous record when previous day lookup fails', async () => {
+            vi.mocked(DailyRecordRepository.getPreviousDay).mockRejectedValue(new Error('prev failed'));
+            const { result } = renderHook(() => useCensusLogic('2025-01-10'));
+
+            await waitFor(() => {
+                expect(result.current.previousRecordAvailable).toBe(false);
+                expect(result.current.previousRecordDate).toBeUndefined();
+            });
+        });
     });
 
     describe('Actions', () => {

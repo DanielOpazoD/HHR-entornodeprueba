@@ -3,7 +3,7 @@
  * Tests complete workflows without complex hook rendering.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DailyRecord, PatientData, DischargeData, TransferData, CMAData, Specialty, PatientStatus } from '@/types';
 
 // Helper to create a complete mock record
@@ -258,7 +258,6 @@ describe('Census Operations Integration', () => {
 
         it('should affect available capacity', () => {
             const record = createMockRecord();
-            const totalBeds = Object.keys(record.beds).length;
 
             const countAvailable = () => Object.values(record.beds)
                 .filter(b => !b.patientName && !b.isBlocked).length;

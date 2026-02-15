@@ -50,6 +50,15 @@ export interface UseAuthStateReturn {
 
 import { SESSION_TIMEOUT_MS, ACTIVITY_EVENTS } from '@/constants/security';
 
+const getE2EBootstrapUser = (): AuthUser | null => {
+    if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
+        return null;
+    }
+
+    const storedUser = localStorage.getItem('hhr_offline_user');
+    return safeJsonParse<AuthUser | null>(storedUser, null);
+};
+
 /**
  * useAuthState Hook
  * 
@@ -65,10 +74,11 @@ import { SESSION_TIMEOUT_MS, ACTIVITY_EVENTS } from '@/constants/security';
  * @returns Authentication state, user info, role flags, and auth actions
  */
 export const useAuthState = (): UseAuthStateReturn => {
-    const [user, setUser] = useState<AuthUser | null>(null);
-    const [authLoading, setAuthLoading] = useState(true);
+    const [e2eBootstrapUser] = useState<AuthUser | null>(() => getE2EBootstrapUser());
+    const [user, setUser] = useState<AuthUser | null>(e2eBootstrapUser);
+    const [authLoading, setAuthLoading] = useState(!e2eBootstrapUser);
     const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
-    const [isOfflineMode, setIsOfflineMode] = useState(false);
+    const [isOfflineMode, setIsOfflineMode] = useState(Boolean(e2eBootstrapUser));
     const [isOnline, setIsOnline] = useState(window.navigator.onLine);
 
     // ========================================================================
@@ -169,17 +179,7 @@ export const useAuthState = (): UseAuthStateReturn => {
 
     // Check for offline passport user on mount
     useEffect(() => {
-        // 0. E2E Fast Path: Immediate auth if in VRT/E2E mode
-        if (typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
-            const storedUser = typeof window !== 'undefined' ? localStorage.getItem('hhr_offline_user') : null;
-            const parsedUser = safeJsonParse<AuthUser | null>(storedUser, null);
-            if (parsedUser) {
-                setUser(parsedUser);
-                setIsOfflineMode(true);
-                setAuthLoading(false);
-                return;
-            }
-        }
+        if (e2eBootstrapUser) return;
 
         // console.debug('[useAuthState] 🚀 Initializing Auth System...');
 
@@ -231,7 +231,7 @@ export const useAuthState = (): UseAuthStateReturn => {
             try {
                 const redirectUser = await handleSignInRedirectResult();
                 if (redirectUser) {
-                    console.info('[useAuthState] ✅ User restored via redirect result:', redirectUser.email);
+                    // console.debug('[useAuthState] ✅ User restored via redirect result:', redirectUser.email);
                     setUser(redirectUser);
                     setAuthLoading(false);
                     // Subscription will pick up the rest
@@ -309,7 +309,7 @@ export const useAuthState = (): UseAuthStateReturn => {
             clearTimeout(safetyTimeout);
             if (unsubscribe) unsubscribe();
         };
-    }, []);
+    }, [e2eBootstrapUser]);
 
     useEffect(() => {
         const checkConnection = () => {

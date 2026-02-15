@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useMemo } from 'react';
+import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { DailyRecord, PatientData, CudyrScore, PatientFieldValue, DailyRecordPatch } from '@/types';
 import { usePatientValidation } from './usePatientValidation';
 import { useBedAudit } from './useBedAudit';
@@ -74,10 +74,6 @@ export interface BedManagementActions {
      */
     toggleBedType: (bedId: string) => void;
 }
-
-// ============================================================================
-// Hook Implementation
-// ============================================================================
 
 // ============================================================================
 // Hook Implementation

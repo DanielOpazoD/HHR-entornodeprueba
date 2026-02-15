@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useIdle } from 'react-use';
 import { db } from '@/services/infrastructure/db';
 
@@ -20,6 +20,8 @@ interface SecurityContextType {
 }
 
 const STORAGE_KEY = 'hhr_security_config';
+const MINUTE_IN_MS = 60 * 1000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 const DEFAULT_CONFIG: SecurityConfig = {
     pin: null,
@@ -69,7 +71,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, []);
 
     // Save config updates to BOTH LocalStorage and Firestore
-    const updateConfig = async (newConfig: SecurityConfig) => {
+    const updateConfig = useCallback(async (newConfig: SecurityConfig) => {
         setConfig(newConfig);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
         try {
@@ -77,30 +79,33 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch (error) {
             console.error('[SecurityContext] Failed to save config to Firestore:', error);
         }
-    };
+    }, []);
 
-    // Idle Timer
-    const isIdle = useIdle((config.inactivityTimeoutMinutes || 999999) * 60 * 1000);
+    // Keep timeout in the safe range for setTimeout to avoid overflow warnings.
+    const idleTimeoutMs = config.inactivityTimeoutMinutes > 0
+        ? Math.min(config.inactivityTimeoutMinutes * MINUTE_IN_MS, MAX_TIMEOUT_MS)
+        : MAX_TIMEOUT_MS;
+    const isIdle = useIdle(idleTimeoutMs);
 
-    const setPin = (pin: string) => {
+    const setPin = useCallback((pin: string) => {
         updateConfig({ ...config, pin });
-    };
+    }, [config, updateConfig]);
 
-    const setLockOnStartup = (enabled: boolean) => {
+    const setLockOnStartup = useCallback((enabled: boolean) => {
         updateConfig({ ...config, lockOnStartup: enabled });
-    };
+    }, [config, updateConfig]);
 
-    const setInactivityTimeout = (minutes: number) => {
+    const setInactivityTimeout = useCallback((minutes: number) => {
         updateConfig({ ...config, inactivityTimeoutMinutes: minutes });
-    };
+    }, [config, updateConfig]);
 
-    const unlock = (enteredPin: string): boolean => {
+    const unlock = useCallback((enteredPin: string): boolean => {
         if (enteredPin === config.pin) {
             setIsLocked(false);
             return true;
         }
         return false;
-    };
+    }, [config.pin]);
 
     const lock = useCallback(() => {
         if (config.pin) {
@@ -110,12 +115,15 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     useEffect(() => {
         if (!isLocked && isIdle && config.pin && config.inactivityTimeoutMinutes > 0) {
-            lock();
+            const lockTimer = window.setTimeout(() => {
+                lock();
+            }, 0);
+            return () => window.clearTimeout(lockTimer);
         }
+        return undefined;
     }, [isIdle, config.inactivityTimeoutMinutes, config.pin, isLocked, lock]);
 
-    return (
-        <SecurityContext.Provider value={{
+    const contextValue = useMemo(() => ({
             isLocked,
             config,
             setPin,
@@ -124,7 +132,10 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             unlock,
             lock,
             hasPin: !!config.pin
-        }}>
+        }), [config, isLocked, lock, setInactivityTimeout, setLockOnStartup, setPin, unlock]);
+
+    return (
+        <SecurityContext.Provider value={contextValue}>
             {children}
         </SecurityContext.Provider>
     );

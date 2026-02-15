@@ -27,6 +27,12 @@ vi.mock('@/features/analytics/components/AnalyticsView', () => ({
     AnalyticsView: () => <div data-testid="analytics-view">Analytics View</div>
 }));
 
+vi.mock('@/features/census/components/3d/HospitalFloorMap', () => ({
+    default: ({ beds }: { beds: Array<{ id: string }> }) => (
+        <div data-testid="hospital-floor-map">{beds.map((bed) => bed.id).join(',')}</div>
+    )
+}));
+
 // Sub-components are mocked in the index mock below
 
 describe('CensusView', () => {
@@ -41,8 +47,8 @@ describe('CensusView', () => {
     };
 
     const mockCensusLogic = {
-        record: null,
         beds: null,
+        staff: { activeExtraBeds: [] },
         movements: { discharges: [], transfers: [], cma: [] },
         stats: {},
         previousRecordAvailable: false,
@@ -70,14 +76,13 @@ describe('CensusView', () => {
     });
 
     it('renders EmptyDayPrompt when record is missing', () => {
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: null } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, beds: null } as any);
         render(<CensusView {...defaultProps} />);
         expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
     });
 
     it('renders main census sections when record is present', () => {
-        const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, beds: {}, staff: { activeExtraBeds: [] } } as any);
 
         render(<CensusView {...defaultProps} />);
 
@@ -89,18 +94,30 @@ describe('CensusView', () => {
     });
 
     it('renders CensusModals when not in readOnly mode', () => {
-        const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, beds: {}, staff: { activeExtraBeds: [] } } as any);
 
         render(<CensusView {...defaultProps} readOnly={false} />);
         expect(screen.getByTestId('census-modals')).toBeInTheDocument();
     });
 
     it('hides CensusModals in readOnly mode', () => {
-        const mockRecord = { date: '2025-01-01', beds: {}, discharges: [], transfers: [] };
-        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, record: mockRecord, beds: {} } as any);
+        vi.mocked(useCensusLogic).mockReturnValue({ ...mockCensusLogic, beds: {}, staff: { activeExtraBeds: [] } } as any);
 
         render(<CensusView {...defaultProps} readOnly={true} />);
         expect(screen.queryByTestId('census-modals')).not.toBeInTheDocument();
+    });
+
+    it('renders 3D map when localViewMode is 3D', async () => {
+        vi.mocked(useCensusLogic).mockReturnValue({
+            ...mockCensusLogic,
+            beds: {},
+            staff: { activeExtraBeds: ['E1'] }
+        } as any);
+
+        render(<CensusView {...defaultProps} localViewMode="3D" />);
+        const floorMap = await screen.findByTestId('hospital-floor-map');
+
+        expect(floorMap).toBeInTheDocument();
+        expect(floorMap.textContent).toContain('E1');
     });
 });

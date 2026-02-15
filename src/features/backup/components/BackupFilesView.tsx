@@ -15,6 +15,7 @@ import {
     MessageSquare,
     LayoutList,
     BarChart3,
+    type LucideIcon,
 } from 'lucide-react';
 import { useBackupFileBrowser, BackupType } from '@/hooks/useBackupFileBrowser';
 import { FolderCard, FileCard, Breadcrumbs } from './components/BackupDriveItems';
@@ -28,7 +29,7 @@ import { BackupFolder } from '@/hooks/useBackupFilesQuery';
 import clsx from 'clsx';
 
 // Tab configuration for backup types
-const BACKUP_TABS: { type: BackupType; label: string; icon: any }[] = [
+const BACKUP_TABS: ReadonlyArray<{ type: BackupType; label: string; icon: LucideIcon }> = [
     { type: 'handoff', label: 'Entregas', icon: MessageSquare },
     { type: 'census', label: 'Censo', icon: LayoutList },
     { type: 'cudyr', label: 'CUDYR', icon: BarChart3 },

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // We need to test the ensureArray logic. Since it's a private function,
 // we test it indirectly through the docToRecord behavior or extract it for testing.
@@ -124,14 +124,15 @@ describe('Staff Array Sync Integration', () => {
 
     it('should maintain array integrity when updating nurse selections', () => {
         // Simulate the flow: UI selects nurse -> patchRecord sends complete array
-        const currentRecord: any = {
+        const currentRecord: Record<'nursesDayShift' | 'nursesNightShift', string[]> = {
             nursesDayShift: ['', ''],
             nursesNightShift: ['', '']
         };
 
         // Simulating useNurseManagement logic
         const updateNurse = (shift: 'day' | 'night', index: number, name: string) => {
-            const field = shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
+            const field: 'nursesDayShift' | 'nursesNightShift' =
+                shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
             const currentArray = [...currentRecord[field]];
             currentArray[index] = name;
             return { [field]: currentArray };
@@ -150,13 +151,14 @@ describe('Staff Array Sync Integration', () => {
     });
 
     it('should maintain array integrity when updating TENS selections', () => {
-        const currentRecord: any = {
+        const currentRecord: Record<'tensDayShift' | 'tensNightShift', string[]> = {
             tensDayShift: ['', '', ''],
             tensNightShift: ['', '', '']
         };
 
         const updateTens = (shift: 'day' | 'night', index: number, name: string) => {
-            const field = shift === 'day' ? 'tensDayShift' : 'tensNightShift';
+            const field: 'tensDayShift' | 'tensNightShift' =
+                shift === 'day' ? 'tensDayShift' : 'tensNightShift';
             const currentArray = [...currentRecord[field]];
             currentArray[index] = name;
             return { [field]: currentArray };

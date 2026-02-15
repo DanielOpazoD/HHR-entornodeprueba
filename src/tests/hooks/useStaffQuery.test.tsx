@@ -10,24 +10,13 @@ import {
 } from '@/hooks/useStaffQuery';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuthState } from '@/hooks/useAuthState';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
+import { createQueryClientTestWrapper, createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
 
 // Mock dependencies
 vi.mock('@/services/repositories/CatalogRepository');
 vi.mock('@/hooks/useAuthState');
 
-const createTestQueryClient = () => new QueryClient({
-    defaultOptions: {
-        queries: { retry: false },
-    },
-});
-
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={createTestQueryClient()} >
-        {children}
-    </QueryClientProvider>
-);
+const createWrapper = () => createQueryClientTestWrapper().wrapper;
 
 describe('useStaffQuery Hooks', () => {
     beforeEach(() => {
@@ -42,7 +31,7 @@ describe('useStaffQuery Hooks', () => {
             vi.mocked(CatalogRepository.getNurses).mockResolvedValue(mockNurses);
             vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(subscribeMock as any);
 
-            const { result } = renderHook(() => useNursesQuery(), { wrapper });
+            const { result } = renderHook(() => useNursesQuery(), { wrapper: createWrapper() });
 
             await waitFor(() => expect(result.current.isSuccess).toBe(true));
             expect(result.current.data).toEqual(mockNurses);
@@ -55,7 +44,7 @@ describe('useStaffQuery Hooks', () => {
             vi.mocked(CatalogRepository.getTens).mockResolvedValue(mockTens);
             vi.mocked(CatalogRepository.subscribeTens).mockImplementation(subscribeMock as any);
 
-            const { result } = renderHook(() => useTensQuery(), { wrapper });
+            const { result } = renderHook(() => useTensQuery(), { wrapper: createWrapper() });
 
             await waitFor(() => expect(result.current.isSuccess).toBe(true));
             expect(result.current.data).toEqual(mockTens);
@@ -68,7 +57,7 @@ describe('useStaffQuery Hooks', () => {
             vi.mocked(CatalogRepository.getProfessionals).mockResolvedValue(mockProfs as any);
             vi.mocked(CatalogRepository.subscribeProfessionals).mockImplementation(subscribeMock as any);
 
-            const { result } = renderHook(() => useProfessionalsQuery(), { wrapper });
+            const { result } = renderHook(() => useProfessionalsQuery(), { wrapper: createWrapper() });
 
             await waitFor(() => expect(result.current.isSuccess).toBe(true));
             expect(result.current.data).toEqual(mockProfs);
@@ -80,7 +69,7 @@ describe('useStaffQuery Hooks', () => {
             const subscribeMock = vi.fn();
             vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(subscribeMock as any);
 
-            renderHook(() => useNursesQuery(), { wrapper });
+            renderHook(() => useNursesQuery(), { wrapper: createWrapper() });
 
             expect(subscribeMock).not.toHaveBeenCalled();
         });
@@ -89,7 +78,7 @@ describe('useStaffQuery Hooks', () => {
     describe('Mutations', () => {
         it('useSaveNursesMutation should call repository and invalidate queries', async () => {
             const saveMock = vi.mocked(CatalogRepository.saveNurses).mockResolvedValue(undefined);
-            const { result } = renderHook(() => useSaveNursesMutation(), { wrapper });
+            const { result } = renderHook(() => useSaveNursesMutation(), { wrapper: createWrapper() });
 
             await result.current.mutateAsync(['New Nurse']);
 
@@ -98,7 +87,7 @@ describe('useStaffQuery Hooks', () => {
 
         it('useSaveTensMutation should call repository', async () => {
             const saveMock = vi.mocked(CatalogRepository.saveTens).mockResolvedValue(undefined);
-            const { result } = renderHook(() => useSaveTensMutation(), { wrapper });
+            const { result } = renderHook(() => useSaveTensMutation(), { wrapper: createWrapper() });
 
             await result.current.mutateAsync(['New TENS']);
 
@@ -108,7 +97,7 @@ describe('useStaffQuery Hooks', () => {
         it('useSaveProfessionalsMutation should call repository', async () => {
             const mockProfs = [{ name: 'New Prof', phone: '456', specialty: 'Cirugía' }];
             const saveMock = vi.mocked(CatalogRepository.saveProfessionals).mockResolvedValue(undefined);
-            const { result } = renderHook(() => useSaveProfessionalsMutation(), { wrapper });
+            const { result } = renderHook(() => useSaveProfessionalsMutation(), { wrapper: createWrapper() });
 
             await result.current.mutateAsync(mockProfs as any);
 
@@ -117,11 +106,7 @@ describe('useStaffQuery Hooks', () => {
 
         it('useSaveNursesMutation should perform optimistic update and rollback on error', async () => {
             const queryClient = createTestQueryClient();
-            const localWrapper = ({ children }: { children: React.ReactNode }) => (
-                <QueryClientProvider client={queryClient}>
-                    {children}
-                </QueryClientProvider>
-            );
+            const { wrapper: localWrapper } = createQueryClientTestWrapper({ queryClient });
 
             const initialNurses = ['Old Nurse'];
             const newNurses = ['New Nurse'];
@@ -133,7 +118,7 @@ describe('useStaffQuery Hooks', () => {
 
             try {
                 await result.current.mutateAsync(newNurses);
-            } catch (e) {
+            } catch (_e) {
                 // Expected error
             }
 

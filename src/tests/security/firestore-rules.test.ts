@@ -1,5 +1,5 @@
 
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest';
+import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { assertFails, assertSucceeds, initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -66,7 +66,7 @@ describeRules('Firestore Security Rules', () => {
 
         it('Regular users CANNOT delete audit logs', async () => {
             const db = authed();
-            const doc = await setupDoc(admin(), 'hospitals/H1/auditLogs/log1', { action: 'TEST' });
+            await setupDoc(admin(), 'hospitals/H1/auditLogs/log1', { action: 'TEST' });
             await assertFails(db.doc('hospitals/H1/auditLogs/log1').delete());
         });
 

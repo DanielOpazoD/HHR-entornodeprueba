@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import { DailyRecord, PatientData, Specialty, PatientStatus } from '@/types';
+import { DailyRecord, Specialty, PatientStatus } from '@/types';
 
 // Mock audit context
 vi.mock('../../context/AuditContext', () => ({

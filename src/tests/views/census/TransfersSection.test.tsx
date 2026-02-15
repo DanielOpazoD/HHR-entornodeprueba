@@ -3,12 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
-import { useCensusActions } from '@/features/census/components/CensusActionsContext';
+import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
 import { useDailyRecordData, useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
-    useCensusActions: vi.fn()
+    useCensusActionCommands: vi.fn()
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -34,7 +34,7 @@ describe('TransfersSection', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(useCensusActions).mockReturnValue({ handleEditTransfer: mockHandleEdit } as any);
+        vi.mocked(useCensusActionCommands).mockReturnValue({ handleEditTransfer: mockHandleEdit } as any);
         (useDailyRecordActions as any).mockReturnValue({
             undoTransfer: mockOnUndo,
             deleteTransfer: mockOnDelete,

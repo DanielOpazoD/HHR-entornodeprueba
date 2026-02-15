@@ -113,6 +113,19 @@ describe('useBackupFiles', () => {
             result.current.setFilters({ type: 'NURSING_HANDOFF' });
         });
 
-        expect(result.current.filters).toEqual({ type: 'NURSING_HANDOFF' });
+        await waitFor(() => {
+            expect(result.current.filters).toEqual({ type: 'NURSING_HANDOFF' });
+        });
+
+        await waitFor(() => {
+            expect(result.current.isLoading).toBe(false);
+        });
+
+        await waitFor(() => {
+            expect(backupService.listBackupFiles).toHaveBeenCalledWith({ type: 'NURSING_HANDOFF' });
+        });
+
+        const lastCallArgs = vi.mocked(backupService.listBackupFiles).mock.calls.at(-1);
+        expect(lastCallArgs?.[0]).toEqual({ type: 'NURSING_HANDOFF' });
     });
 });

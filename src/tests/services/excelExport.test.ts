@@ -2,7 +2,12 @@
  * Census Master Export Tests
  * Tests for Excel workbook generation and export functionality
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { describe, it, expect, vi } from 'vitest';
+
+const readSource = (relativePath: string): string =>
+    fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
 // Mock file-saver
 vi.mock('file-saver', () => ({
@@ -21,30 +26,26 @@ vi.mock('../../services/storage/indexedDBService', () => ({
 
 describe('Excel Export Configuration', () => {
     describe('Vite Configuration for ExcelJS', () => {
-        it('should have exceljs in optimizeDeps.include', async () => {
-            // This test verifies the vite.config.ts has the correct configuration
-            // by checking that the import works (if pre-bundling is correct, this should work)
-            const viteConfigPath = '../../vite.config.ts';
-
-            // We can't directly test vite.config.ts, but we can verify the fix
-            // by confirming the import pattern we're using
-            expect(true).toBe(true); // Configuration test placeholder
+        it('should have exceljs in optimizeDeps.include', () => {
+            const viteConfigSource = readSource('vite.config.ts');
+            expect(viteConfigSource).toMatch(
+                /optimizeDeps:\s*\{[\s\S]*include:\s*\[[\s\S]*'exceljs'/
+            );
         });
 
-        it('should use namespace import for ExcelJS', async () => {
-            // The import pattern should be: import * as ExcelJS from 'exceljs'
-            // This is required because ExcelJS doesn't have a default export
-            expect(true).toBe(true); // Import pattern test placeholder
+        it('should keep dynamic ExcelJS import compatibility helper', () => {
+            const excelUtilsSource = readSource('src/services/exporters/excelUtils.ts');
+            expect(excelUtilsSource).toContain("await import('exceljs')");
+            expect(excelUtilsSource).toContain('ExcelJS module could not be loaded correctly');
         });
     });
 
     describe('Excel Export Integration', () => {
         it('should have manualChunks configured for vendor-excel', () => {
-            // Verify that the rollup configuration separates excel libraries
-            // This ensures optimal code splitting in production
-            const expectedChunks = ['exceljs', 'file-saver'];
-            expect(expectedChunks).toContain('exceljs');
-            expect(expectedChunks).toContain('file-saver');
+            const viteConfigSource = readSource('vite.config.ts');
+            expect(viteConfigSource).toMatch(
+                /'vendor-excel':\s*\[\s*'exceljs',\s*'file-saver'\s*\]/
+            );
         });
     });
 });

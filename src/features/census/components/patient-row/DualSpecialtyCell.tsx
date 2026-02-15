@@ -26,14 +26,14 @@ export const DualSpecialtyCell: React.FC<DualSpecialtyCellProps> = ({
     onChange
 }) => {
     // hasSecondary is true if the field is defined (even if empty string)
-    // isDual is true only if BOTH have content
     const hasSecondary = data.secondarySpecialty !== undefined && data.secondarySpecialty !== null;
-    const isDual = !!data.specialty && !!data.secondarySpecialty;
+    const isKnownSpecialty = (value: string) =>
+        (SPECIALTY_OPTIONS as readonly string[]).includes(value);
 
     // Check if primary specialty is a custom "Otro" value
-    const isPrimaryOther = data.specialty && !SPECIALTY_OPTIONS.includes(data.specialty as typeof SPECIALTY_OPTIONS[number]);
+    const isPrimaryOther = !!data.specialty && !isKnownSpecialty(data.specialty);
     // Check if secondary specialty is a custom "Otro" value
-    const isSecondaryOther = hasSecondary && data.secondarySpecialty && !SPECIALTY_OPTIONS.includes(data.secondarySpecialty as any);
+    const isSecondaryOther = hasSecondary && !!data.secondarySpecialty && !isKnownSpecialty(data.secondarySpecialty);
 
     const handleAddSecondary = (e: React.MouseEvent) => {
         e.preventDefault();

@@ -2,22 +2,29 @@ import React from 'react';
 import { Baby, LogOut, User, Users } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { TimeSchema, ActionNoteSchema } from '@/schemas/inputSchemas';
+import {
+    DISCHARGE_TYPES,
+    DISCHARGE_TYPE_OTHER,
+    DEFAULT_DISCHARGE_TYPE,
+    DischargeStatus,
+    DischargeType
+} from '@/constants';
+import { validateDischargeExecutionInput } from '@/features/census/validation/censusActionValidation';
 import clsx from 'clsx';
 
 export type DischargeTarget = 'mother' | 'baby' | 'both';
-export type DischargeTypeUnion = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
+export type DischargeTypeUnion = DischargeType;
 
 export interface DischargeModalProps {
     isOpen: boolean;
     isEditing: boolean;
-    status: 'Vivo' | 'Fallecido';
+    status: DischargeStatus;
 
     // Props for Mother + Baby selection
     hasClinicalCrib?: boolean;
     clinicalCribName?: string;
-    clinicalCribStatus?: 'Vivo' | 'Fallecido';
-    onClinicalCribStatusChange?: (s: 'Vivo' | 'Fallecido') => void;
+    clinicalCribStatus?: DischargeStatus;
+    onClinicalCribStatusChange?: (s: DischargeStatus) => void;
 
     // Discharge target (when clinical crib present)
     dischargeTarget?: DischargeTarget;
@@ -28,10 +35,10 @@ export interface DischargeModalProps {
     initialOtherDetails?: string;
     initialTime?: string;
 
-    onStatusChange: (s: 'Vivo' | 'Fallecido') => void;
+    onStatusChange: (s: DischargeStatus) => void;
     onClose: () => void;
     onConfirm: (data: {
-        status: 'Vivo' | 'Fallecido',
+        status: DischargeStatus,
         type?: string,
         typeOther?: string,
         time: string,
@@ -45,7 +52,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     dischargeTarget = 'both', onDischargeTargetChange,
     initialType, initialOtherDetails, initialTime
 }) => {
-    const [dischargeType, setDischargeType] = React.useState<DischargeTypeUnion>((initialType as DischargeTypeUnion) || 'Domicilio (Habitual)');
+    const [dischargeType, setDischargeType] = React.useState<DischargeTypeUnion>((initialType as DischargeTypeUnion) || DEFAULT_DISCHARGE_TYPE);
     const [otherDetails, setOtherDetails] = React.useState(initialOtherDetails || '');
     const [dischargeTime, setDischargeTime] = React.useState('');
     const [errors, setErrors] = React.useState<{ time?: string, other?: string }>({});
@@ -54,7 +61,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     // Reset state when modal opens or initial props change
     React.useEffect(() => {
         if (isOpen) {
-            setDischargeType((initialType as DischargeTypeUnion) || 'Domicilio (Habitual)');
+            setDischargeType((initialType as DischargeTypeUnion) || DEFAULT_DISCHARGE_TYPE);
             setOtherDetails(initialOtherDetails || '');
             const nowTime = getTimeRoundedToStep();
             setDischargeTime(initialTime || nowTime);
@@ -69,20 +76,20 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
 
     const handleConfirm = () => {
         const newErrors: { time?: string, other?: string } = {};
-
-        // Validate Time
-        const timeResult = TimeSchema.safeParse(dischargeTime);
-        if (!timeResult.success) {
-            newErrors.time = timeResult.error.issues[0].message;
-        }
-
-        // Validate Other Details if selected
-        if (status === 'Vivo' && dischargeType === 'Otra') {
-            const otherResult = ActionNoteSchema.safeParse(otherDetails);
-            if (!otherResult.success) {
-                newErrors.other = otherResult.error.issues[0].message;
+        const validationErrors = validateDischargeExecutionInput({
+            status,
+            type: status === 'Vivo' ? dischargeType : undefined,
+            typeOther: otherDetails,
+            time: dischargeTime
+        });
+        validationErrors.forEach(validationError => {
+            if (validationError.field === 'time') {
+                newErrors.time = validationError.message;
             }
-        }
+            if (validationError.field === 'typeOther') {
+                newErrors.other = validationError.message;
+            }
+        });
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -92,7 +99,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
         onConfirm({
             status,
             type: status === 'Vivo' ? dischargeType : undefined,
-            typeOther: (status === 'Vivo' && dischargeType === 'Otra') ? otherDetails : undefined,
+            typeOther: (status === 'Vivo' && dischargeType === DISCHARGE_TYPE_OTHER) ? otherDetails : undefined,
             time: dischargeTime,
             dischargeTarget: hasClinicalCrib ? localTarget : undefined
         });
@@ -207,28 +214,23 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
                             <div className="space-y-2.5 pt-2 border-l-2 border-emerald-50 pl-4 animate-fade-in">
                                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo de Alta</label>
                                 <div className="space-y-2">
-                                    {[
-                                        { id: 'Domicilio (Habitual)', label: 'Alta a domicilio (Habitual)' },
-                                        { id: 'Voluntaria', label: 'Alta voluntaria' },
-                                        { id: 'Fuga', label: 'Fuga' },
-                                        { id: 'Otra', label: 'Otra' }
-                                    ].map((item) => (
-                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer group">
+                                    {DISCHARGE_TYPES.map((item) => (
+                                        <label key={item} className="flex items-center gap-2 cursor-pointer group">
                                             <input
                                                 type="radio"
                                                 name="dischargeType"
-                                                checked={dischargeType === item.id}
-                                                onChange={() => setDischargeType(item.id as DischargeTypeUnion)}
+                                                checked={dischargeType === item}
+                                                onChange={() => setDischargeType(item)}
                                                 className="w-4 h-4 text-emerald-600 focus:ring-emerald-500/20"
                                             />
-                                            <span className={clsx("text-sm transition-colors", dischargeType === item.id ? "font-medium text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
-                                                {item.label}
+                                            <span className={clsx("text-sm transition-colors", dischargeType === item ? "font-medium text-slate-900" : "text-slate-500 group-hover:text-slate-700")}>
+                                                {item === 'Domicilio (Habitual)' ? 'Alta a domicilio (Habitual)' : item}
                                             </span>
                                         </label>
                                     ))}
                                 </div>
 
-                                {dischargeType === 'Otra' && (
+                                {dischargeType === DISCHARGE_TYPE_OTHER && (
                                     <div className="pt-1 animate-fade-in">
                                         <input
                                             type="text"

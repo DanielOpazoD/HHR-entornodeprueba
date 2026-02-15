@@ -10,7 +10,10 @@ import {
     Timestamp,
     onSnapshot,
     where,
-    updateDoc
+    updateDoc,
+    type DocumentData,
+    type DocumentReference,
+    type UpdateData
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { DailyRecord, DailyRecordPatch, ProfessionalCatalogItem } from '@/types';
@@ -305,7 +308,9 @@ export const updateRecordPartial = async (date: string, partialData: DailyRecord
         }) as Record<string, unknown>;
 
         try {
-            await withRetry(() => updateDoc(docRef as any, sanitizedData as any), {
+            const updatePayload = sanitizedData as UpdateData<DocumentData>;
+            const recordDocRef = docRef as DocumentReference<DocumentData>;
+            await withRetry(() => updateDoc(recordDocRef, updatePayload), {
                 onRetry: (err: unknown, attempt: number) => console.warn(`[Firestore] Retry ${attempt} updating record ${date}:`, err)
             });
         } catch (error: unknown) {

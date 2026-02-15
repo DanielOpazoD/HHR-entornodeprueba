@@ -11,7 +11,7 @@ vi.mock('@/services/infrastructure/db', () => ({
     db: {
         setDoc: vi.fn().mockResolvedValue(undefined),
         getDocs: vi.fn().mockResolvedValue([]),
-        subscribeQuery: vi.fn().mockImplementation((path, options, callback) => {
+        subscribeQuery: vi.fn().mockImplementation((_path, _options, _callback) => {
             // Return an unsubscribe function
             return vi.fn();
         }),

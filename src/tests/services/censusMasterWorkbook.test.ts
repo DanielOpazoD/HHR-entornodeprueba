@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 
 import { BEDS } from '@/constants';
-import { buildCensusMasterBuffer, buildCensusMasterWorkbook, getCensusMasterFilename } from '@/services/exporters/censusMasterWorkbook';
+import { buildCensusMasterBuffer, buildCensusMasterWorkbook } from '@/services/exporters/censusMasterWorkbook';
 import { PatientStatus, Specialty, type DailyRecord, type PatientData } from '@/types';
 
 const buildPatient = (bedId: string, patientName: string): PatientData => ({

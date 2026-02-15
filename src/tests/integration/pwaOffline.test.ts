@@ -6,22 +6,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DailyRecord, PatientData } from '@/types';
 
-// Mock localStorage
-const localStorageMock = (() => {
-    let store: Record<string, string> = {};
-    return {
-        getItem: (key: string) => store[key] || null,
-        setItem: (key: string, value: string) => { store[key] = value; },
-        removeItem: (key: string) => { delete store[key]; },
-        clear: () => { store = {}; },
-    };
-})();
-
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
-
 describe('PWA Offline Integration', () => {
     beforeEach(() => {
-        localStorageMock.clear();
+        localStorage.clear();
     });
 
     describe('Offline Data Storage', () => {

@@ -3,7 +3,7 @@
  * Tests parsing and path generation functions
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // We need to test the internal functions, so we'll import the module
 // and test the exported functions that depend on them

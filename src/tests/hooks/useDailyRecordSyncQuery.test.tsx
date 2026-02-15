@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import * as DailyRecordRepository from '@/services/repositories/DailyRecordRepository';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 // Mock Repository
 vi.mock('@/services/repositories/DailyRecordRepository', () => {
@@ -22,20 +21,10 @@ vi.mock('@/services/repositories/DailyRecordRepository', () => {
 import { UIProvider } from '@/context/UIContext';
 
 const createWrapper = () => {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-            },
-        },
+    const { wrapper } = createQueryClientTestWrapper({
+        wrapChildren: (children) => <UIProvider>{children}</UIProvider>,
     });
-    return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            <UIProvider>
-                {children}
-            </UIProvider>
-        </QueryClientProvider>
-    );
+    return wrapper;
 };
 
 describe('useDailyRecordSyncQuery', () => {

@@ -1,24 +1,37 @@
 import React from 'react';
 
 import { useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
-import { useCensusActions } from './CensusActionsContext';
-import { CheckCircle, RotateCcw, Pencil, Trash2 } from 'lucide-react';
+import { useCensusActionCommands } from './CensusActionsContext';
+import { CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
+import { CensusMovementActionsCell } from '@/features/census/components/CensusMovementActionsCell';
+import {
+    buildDischargeRowActions,
+    DISCHARGES_TABLE_HEADERS,
+    getDischargeStatusBadgeClassName,
+} from '@/features/census/controllers/censusDischargesTableController';
+import {
+    executeDischargeTimeChangeController,
+    resolveDischargesSectionState
+} from '@/features/census/controllers/censusDischargesSectionController';
 
 // Interface for props removed as data comes from context
 
 export const DischargesSection: React.FC = () => {
     const { discharges } = useDailyRecordMovements() || { discharges: [] };
     const { undoDischarge, deleteDischarge, updateDischarge } = useDailyRecordActions();
-    const { handleEditDischarge } = useCensusActions();
+    const { handleEditDischarge } = useCensusActionCommands();
+    const sectionState = resolveDischargesSectionState(discharges);
 
-    if (!discharges) return null;
+    if (!sectionState.isRenderable) return null;
 
     const handleTimeChange = (id: string, newTime: string) => {
-        const discharge = discharges.find(d => d.id === id);
-        if (discharge) {
-            updateDischarge(id, discharge.status, discharge.dischargeType, discharge.dischargeTypeOther, newTime);
-        }
+        executeDischargeTimeChangeController(
+            sectionState.discharges,
+            id,
+            newTime,
+            updateDischarge
+        );
     };
 
     return (
@@ -37,25 +50,25 @@ export const DischargesSection: React.FC = () => {
             </div>
 
             <div className="p-4">
-                {(!discharges || discharges.length === 0) ? (
+                {sectionState.isEmpty ? (
                     <p className="text-slate-400 italic text-sm text-center py-4">No hay altas registradas para este día.</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm print:text-xs">
                             <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200 uppercase text-[10px] tracking-tight">
                                 <tr>
-                                    <th className="px-3 py-2.5">Cama Origen</th>
-                                    <th className="px-3 py-2.5">Paciente</th>
-                                    <th className="px-3 py-2.5">RUT / ID</th>
-                                    <th className="px-3 py-2.5">Diagnóstico</th>
-                                    <th className="px-3 py-2.5">Tipo Alta</th>
-                                    <th className="px-3 py-2.5">Estado</th>
-                                    <th className="px-3 py-2.5 text-center">Hora Alta</th>
-                                    <th className="px-3 py-2.5 text-right print:hidden">Acciones</th>
+                                    {DISCHARGES_TABLE_HEADERS.map((header) => (
+                                        <th
+                                            key={header.label}
+                                            className={clsx('px-3 py-2.5', header.className)}
+                                        >
+                                            {header.label}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {discharges.map(d => (
+                                {sectionState.discharges.map(d => (
                                     <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
                                         <td className="p-2 font-medium text-slate-700">{d.bedName} <span className="text-[10px] text-slate-400">({d.bedType})</span></td>
                                         <td className="p-2 text-slate-800 font-medium">{d.patientName}</td>
@@ -63,7 +76,7 @@ export const DischargesSection: React.FC = () => {
                                         <td className="p-2 text-slate-600">{d.diagnosis}</td>
                                         <td className="p-2 text-xs text-slate-500">{d.dischargeType || '-'}</td>
                                         <td className="p-2">
-                                            <span className={clsx("px-2 py-1 rounded-full text-[11px] font-bold print:border print:border-slate-400", d.status === 'Fallecido' ? 'bg-black text-white' : 'bg-green-100 text-green-700')}>
+                                            <span className={clsx("px-2 py-1 rounded-full text-[11px] font-bold print:border print:border-slate-400", getDischargeStatusBadgeClassName(d.status))}>
                                                 {d.status}
                                             </span>
                                         </td>
@@ -76,17 +89,13 @@ export const DischargesSection: React.FC = () => {
                                                 onChange={(e) => handleTimeChange(d.id, e.target.value)}
                                             />
                                         </td>
-                                        <td className="p-2 flex justify-end gap-2 print:hidden">
-                                            <button onClick={() => undoDischarge(d.id)} className="text-slate-400 hover:text-slate-600" title="Deshacer (Restaurar a Cama)">
-                                                <RotateCcw size={14} />
-                                            </button>
-                                            <button onClick={() => handleEditDischarge(d)} className="text-medical-500 hover:text-medical-700" title="Editar">
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button onClick={() => deleteDischarge(d.id)} className="text-red-400 hover:text-red-600" title="Eliminar Registro">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </td>
+                                        <CensusMovementActionsCell
+                                            actions={buildDischargeRowActions(d, {
+                                                undoDischarge,
+                                                editDischarge: handleEditDischarge,
+                                                deleteDischarge
+                                            })}
+                                        />
                                     </tr>
                                 ))}
                             </tbody>

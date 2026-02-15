@@ -14,8 +14,6 @@ import {
     DeviceInfoSchema,
     DeviceDetailsSchema,
     BedTypeSchema,
-    SpecialtySchema,
-    PatientStatusSchema,
     safeParseDailyRecord,
     parseDailyRecordWithDefaults,
 } from '@/schemas/zodSchemas';

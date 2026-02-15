@@ -50,7 +50,9 @@ const shouldFilterConsoleMessage = (args: unknown[]) => {
 };
 
 const wrapConsole = (method: 'log' | 'warn' | 'error' | 'info' | 'debug') => {
+    // eslint-disable-next-line no-console
     const original = console[method].bind(console);
+    // eslint-disable-next-line no-console
     console[method] = (...args: unknown[]) => {
         if (shouldFilterConsoleMessage(args)) return;
         original(...args);

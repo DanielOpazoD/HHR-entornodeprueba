@@ -3,7 +3,7 @@
  * Manages backup files state and operations
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     listBackupFiles,
     getBackupFile,
@@ -53,7 +53,8 @@ export const useBackupFiles = (): UseBackupFilesReturn => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [filters, setFilters] = useState<BackupFilters>({});
+    const [filters, setFiltersState] = useState<BackupFilters>({});
+    const filtersRef = useRef<BackupFilters>({});
 
     // Load files list
     const loadFiles = useCallback(async (newFilters?: BackupFilters) => {
@@ -61,12 +62,13 @@ export const useBackupFiles = (): UseBackupFilesReturn => {
         setError(null);
 
         try {
-            const appliedFilters = newFilters || filters;
+            const appliedFilters = newFilters || filtersRef.current;
             const result = await listBackupFiles(appliedFilters);
             setFiles(result);
 
             if (newFilters) {
-                setFilters(newFilters);
+                filtersRef.current = newFilters;
+                setFiltersState(newFilters);
             }
         } catch (err) {
             console.error('Error loading backup files:', err);
@@ -74,7 +76,7 @@ export const useBackupFiles = (): UseBackupFilesReturn => {
         } finally {
             setIsLoading(false);
         }
-    }, [filters]);
+    }, []);
 
     // Load single file with content
     const loadFile = useCallback(async (id: string) => {
@@ -113,6 +115,12 @@ export const useBackupFiles = (): UseBackupFilesReturn => {
     const clearSelectedFile = useCallback(() => {
         setSelectedFile(null);
     }, []);
+
+    const setFilters = useCallback((newFilters: BackupFilters) => {
+        filtersRef.current = newFilters;
+        setFiltersState(newFilters);
+        void loadFiles(newFilters);
+    }, [loadFiles]);
 
     // Save nursing handoff backup (creates or updates)
     const saveNursingHandoff = useCallback(async (

@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
     calculateHospitalizedDays,
-    getHandoffStaffInfo,
-    getBase64ImageFromURL
+    getHandoffStaffInfo
 } from '@/services/pdf/handoffPdfUtils';
 import { DailyRecord } from '@/types';
 
@@ -85,14 +84,9 @@ describe('handoffPdfUtils', () => {
         // We will mock the implementation of the function for valid inputs or use jsdom if configured.
         // Since we are in an environment that might lack full canvas support, we verify the Promise structure.
 
-        it('should return a promise', () => {
-            // We can't easily test the actual canvas drawing without a heavy setup (jest-canvas-mock),
-            // so we'll trust the logic but verify it behaves as an async function.
-            // For a real unit test in this environment, we might skip implementation details 
-            // or assume happy path if we could mock Image.
-
-            // Note: This test is largely symbolic without a browser environment.
-            // If we wanted to test, we'd need to mock global.Image and document.createElement
+        it('exports the helper function', async () => {
+            const { getBase64ImageFromURL } = await import('@/services/pdf/handoffPdfUtils');
+            expect(typeof getBase64ImageFromURL).toBe('function');
         });
     });
 
