@@ -147,6 +147,22 @@ export const useDailyRecordSync = () => {
 };
 
 /**
+ * Access sync UI state (status badges, watchers, indicators).
+ * Alias intentionally explicit for presentation-layer consumers.
+ */
+export const useDailyRecordStatus = () => {
+  const { syncStatus, lastSyncTime } = useDailyRecordSync();
+  return {
+    syncStatus,
+    lastSyncTime,
+    isSaving: syncStatus === 'saving',
+    hasError: syncStatus === 'error',
+    isIdle: syncStatus === 'idle',
+    isSaved: syncStatus === 'saved',
+  };
+};
+
+/**
  * Access stability rules.
  */
 export const useDailyRecordStability = () => {
@@ -200,6 +216,7 @@ export const useDailyRecordActions = () => {
 /**
  * Legacy hook for compatibility.
  * Combines both (triggers re-renders on every data change).
+ * @deprecated Prefer fragmented hooks: useDailyRecordData/useDailyRecordActions/useDailyRecordBeds...
  */
 export const useDailyRecordContext = (): DailyRecordContextType => {
   const data = useDailyRecordData();

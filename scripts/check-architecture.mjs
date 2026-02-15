@@ -108,6 +108,26 @@ const collectGraph = files => {
           imported,
         });
       }
+
+      const isDailyRecordContextImport =
+        imported === 'src/context/DailyRecordContext.tsx' ||
+        imported === 'src/context/DailyRecordContext.ts';
+      const importerIsTest = importer.includes('/tests/') || importer.includes('.test.');
+      const importerIsDailyRecordContext = importer.includes('/context/DailyRecordContext.');
+      const sourceUsesLegacyHook = source.includes('useDailyRecordContext');
+
+      if (
+        isDailyRecordContextImport &&
+        sourceUsesLegacyHook &&
+        !importerIsTest &&
+        !importerIsDailyRecordContext
+      ) {
+        layerViolations.push({
+          rule: 'no-legacy-daily-record-context-hook-import',
+          importer,
+          imported,
+        });
+      }
     }
 
     graph.set(filePath, [...edges]);

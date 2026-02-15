@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { EvacuationMethod, ReceivingCenter } from '@/constants';
 import { isTransferEscortOption } from '@/constants';
 import {
@@ -9,12 +9,9 @@ import {
   type TransferModalFieldErrors,
 } from '@/features/census/controllers/transferModalController';
 import { resolveMovementDateTimeBounds } from '@/features/census/controllers/clinicalShiftCalendarController';
-import {
-  clearModalFieldErrors,
-  submitModalForm,
-} from '@/features/census/controllers/modalFormController';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
+import { useModalFormFlow } from '@/features/census/hooks/useModalFormFlow';
 
 interface UseTransferModalFormParams {
   isOpen: boolean;
@@ -48,6 +45,11 @@ interface UseTransferModalFormResult {
   submit: () => boolean;
 }
 
+interface TransferModalLocalFormState {
+  transferDate: string;
+  transferTime: string;
+}
+
 export const useTransferModalForm = ({
   isOpen,
   recordDate,
@@ -64,55 +66,84 @@ export const useTransferModalForm = ({
   resolveDefaultTime,
 }: UseTransferModalFormParams): UseTransferModalFormResult => {
   const resolveDefaultTimeRef = useLatestRef(resolveDefaultTime);
-  const [transferDate, setTransferDateState] = useState('');
-  const [transferTime, setTransferTimeState] = useState('');
-  const [errors, setErrors] = useState<TransferModalFieldErrors>({});
   const movementBounds = resolveMovementDateTimeBounds(recordDate);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+  const resolveInitialState = useCallback(
+    (): TransferModalLocalFormState => ({
+      transferDate: resolveTransferInitialMovementDate(
+        recordDate,
+        initialMovementDate,
+        initialTime
+      ),
+      transferTime: resolveTransferInitialTime(initialTime, resolveDefaultTimeRef.current()),
+    }),
+    [initialMovementDate, initialTime, recordDate, resolveDefaultTimeRef]
+  );
 
-    setTransferDateState(
-      resolveTransferInitialMovementDate(recordDate, initialMovementDate, initialTime)
-    );
-    setTransferTimeState(resolveTransferInitialTime(initialTime, resolveDefaultTimeRef.current()));
-    setErrors({});
-  }, [initialMovementDate, initialTime, isOpen, recordDate, resolveDefaultTimeRef]);
+  const createInitialErrors = useCallback((): TransferModalFieldErrors => ({}), []);
 
-  const setTransferDate = useCallback((nextDate: string) => {
-    setTransferDateState(nextDate);
-    setErrors(prev => clearModalFieldErrors(prev, ['dateTime']));
-  }, []);
+  const { formState, errors, setFormField, clearErrors, submit } = useModalFormFlow<
+    TransferModalLocalFormState,
+    TransferModalFieldErrors,
+    { time: string; movementDate?: string }
+  >({
+    isOpen,
+    resolveInitialState,
+    createInitialErrors,
+    validate: state =>
+      buildTransferValidationErrors({
+        recordDate,
+        movementDate: includeMovementDate ? state.transferDate : '',
+        evacuationMethod,
+        evacuationMethodOther,
+        receivingCenter,
+        receivingCenterOther,
+        transferEscort,
+        transferTime: state.transferTime,
+      }),
+    buildPayload: state => ({
+      time: state.transferTime,
+      movementDate: includeMovementDate ? state.transferDate : undefined,
+    }),
+    onConfirm,
+  });
 
-  const setTransferTime = useCallback((nextTime: string) => {
-    setTransferTimeState(nextTime);
-    setErrors(prev => clearModalFieldErrors(prev, ['time', 'dateTime']));
-  }, []);
+  const setTransferDate = useCallback(
+    (nextDate: string) => {
+      setFormField('transferDate', nextDate, ['dateTime']);
+    },
+    [setFormField]
+  );
+
+  const setTransferTime = useCallback(
+    (nextTime: string) => {
+      setFormField('transferTime', nextTime, ['time', 'dateTime']);
+    },
+    [setFormField]
+  );
 
   const setReceivingCenterOther = useCallback(
     (value: string) => {
       onUpdate('receivingCenterOther', value);
-      setErrors(prev => clearModalFieldErrors(prev, ['otherCenter']));
+      clearErrors(['otherCenter']);
     },
-    [onUpdate]
+    [clearErrors, onUpdate]
   );
 
   const setEvacuationMethodOther = useCallback(
     (value: string) => {
       onUpdate('evacuationMethodOther', value);
-      setErrors(prev => clearModalFieldErrors(prev, ['otherEvacuation']));
+      clearErrors(['otherEvacuation']);
     },
-    [onUpdate]
+    [clearErrors, onUpdate]
   );
 
   const setTransferEscortValue = useCallback(
     (value: string) => {
       onUpdate('transferEscort', value);
-      setErrors(prev => clearModalFieldErrors(prev, ['escort']));
+      clearErrors(['escort']);
     },
-    [onUpdate]
+    [clearErrors, onUpdate]
   );
 
   const handleEscortChange = useCallback(
@@ -122,9 +153,9 @@ export const useTransferModalForm = ({
       } else {
         onUpdate('transferEscort', value);
       }
-      setErrors(prev => clearModalFieldErrors(prev, ['escort']));
+      clearErrors(['escort']);
     },
-    [onUpdate]
+    [clearErrors, onUpdate]
   );
 
   const handleEvacuationChange = useCallback(
@@ -139,54 +170,10 @@ export const useTransferModalForm = ({
         onUpdate('evacuationMethodOther', '');
       }
 
-      setErrors(prev => clearModalFieldErrors(prev, ['otherEvacuation', 'escort']));
+      clearErrors(['otherEvacuation', 'escort']);
     },
-    [onUpdate]
+    [clearErrors, onUpdate]
   );
-
-  const submit = useCallback((): boolean => {
-    return submitModalForm({
-      state: {
-        recordDate,
-        includeMovementDate,
-        transferDate,
-        evacuationMethod,
-        evacuationMethodOther,
-        receivingCenter,
-        receivingCenterOther,
-        transferEscort,
-        transferTime,
-      },
-      validate: state =>
-        buildTransferValidationErrors({
-          recordDate: state.recordDate,
-          movementDate: state.includeMovementDate ? state.transferDate : '',
-          evacuationMethod: state.evacuationMethod,
-          evacuationMethodOther: state.evacuationMethodOther,
-          receivingCenter: state.receivingCenter,
-          receivingCenterOther: state.receivingCenterOther,
-          transferEscort: state.transferEscort,
-          transferTime: state.transferTime,
-        }),
-      buildPayload: state => ({
-        time: state.transferTime,
-        movementDate: state.includeMovementDate ? state.transferDate : undefined,
-      }),
-      onValidationErrors: setErrors,
-      onConfirm,
-    });
-  }, [
-    evacuationMethod,
-    evacuationMethodOther,
-    includeMovementDate,
-    onConfirm,
-    recordDate,
-    receivingCenter,
-    receivingCenterOther,
-    transferDate,
-    transferEscort,
-    transferTime,
-  ]);
 
   const isPredefinedEscort = useMemo(
     () => isTransferEscortOption(transferEscort),
@@ -194,8 +181,8 @@ export const useTransferModalForm = ({
   );
 
   return {
-    transferDate,
-    transferTime,
+    transferDate: formState.transferDate,
+    transferTime: formState.transferTime,
     movementBounds,
     errors,
     isPredefinedEscort,

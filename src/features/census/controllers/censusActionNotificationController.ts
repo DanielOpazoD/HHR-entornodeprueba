@@ -6,7 +6,7 @@ import {
 import type {
   CensusActionErrorCode,
   MoveOrCopyRuntimeErrorCode,
-} from '@/features/census/types/censusActionCommandContracts';
+} from '@/features/census/domain/movements/contracts';
 
 export interface CensusActionNotification {
   title: string;

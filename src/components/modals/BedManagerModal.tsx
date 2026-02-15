@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Lock, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { BEDS } from '@/constants';
-import { useDailyRecordContext } from '@/context/DailyRecordContext';
+import { useDailyRecordActions, useDailyRecordData } from '@/context/DailyRecordContext';
 import { BaseModal, ModalSection } from '@/components/shared/BaseModal';
 import { BedBlockSchema } from '@/schemas/inputSchemas';
 interface BedManagerModalProps {
@@ -10,10 +10,9 @@ interface BedManagerModalProps {
   onClose: () => void;
 }
 
-export const BedManagerModal: React.FC<BedManagerModalProps> = ({
-  isOpen, onClose
-}) => {
-  const { record, toggleBlockBed, updateBlockedReason, toggleExtraBed } = useDailyRecordContext();
+export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClose }) => {
+  const { record } = useDailyRecordData();
+  const { toggleBlockBed, updateBlockedReason, toggleExtraBed } = useDailyRecordActions();
   const [blockingBedId, setBlockingBedId] = useState<string | null>(null);
   const [editingBedId, setEditingBedId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -99,18 +98,22 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({
                     key={bed.id}
                     onClick={() => handleBedClick(bed.id, isBlocked)}
                     className={clsx(
-                      "p-2 rounded-lg border text-[11px] font-bold transition-all flex flex-col items-center gap-1 shadow-sm active:scale-95 h-14 justify-center",
+                      'p-2 rounded-lg border text-[11px] font-bold transition-all flex flex-col items-center gap-1 shadow-sm active:scale-95 h-14 justify-center',
                       isBlocked
-                        ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                        : "border-slate-100 bg-white text-slate-500 hover:border-medical-300 hover:bg-slate-50 focus:ring-2 focus:ring-medical-500/20 focus:outline-none"
+                        ? 'border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'border-slate-100 bg-white text-slate-500 hover:border-medical-300 hover:bg-slate-50 focus:ring-2 focus:ring-medical-500/20 focus:outline-none'
                     )}
                     disabled={blockingBedId !== null || editingBedId !== null}
                     aria-label={`Gestionar cama ${bed.name}: ${isBlocked ? 'Bloqueada' : 'Disponible'}`}
                   >
                     <span className="leading-none">{bed.name}</span>
-                    {isBlocked ? <Lock size={12} className="text-amber-500" aria-hidden="true" /> : <div className="h-2" aria-hidden="true" />}
+                    {isBlocked ? (
+                      <Lock size={12} className="text-amber-500" aria-hidden="true" />
+                    ) : (
+                      <div className="h-2" aria-hidden="true" />
+                    )}
                   </button>
-                )
+                );
               })}
             </div>
           </ModalSection>
@@ -129,19 +132,27 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({
                     key={bed.id}
                     onClick={() => toggleExtraBed(bed.id)}
                     className={clsx(
-                      "p-2 rounded-lg border text-[11px] font-bold transition-all flex flex-col items-center gap-1 shadow-sm active:scale-95 h-14 justify-center",
+                      'p-2 rounded-lg border text-[11px] font-bold transition-all flex flex-col items-center gap-1 shadow-sm active:scale-95 h-14 justify-center',
                       isEnabled
-                        ? "border-medical-500 bg-medical-50 text-medical-700 hover:bg-medical-100"
-                        : "border-slate-100 bg-white text-slate-500 hover:border-medical-300 hover:bg-slate-50 focus:ring-2 focus:ring-medical-500/20 focus:outline-none"
+                        ? 'border-medical-500 bg-medical-50 text-medical-700 hover:bg-medical-100'
+                        : 'border-slate-100 bg-white text-slate-500 hover:border-medical-300 hover:bg-slate-50 focus:ring-2 focus:ring-medical-500/20 focus:outline-none'
                     )}
                     disabled={blockingBedId !== null}
-                    aria-label={isEnabled ? `Desactivar cama extra ${bed.name}` : `Activar cama extra ${bed.name}`}
+                    aria-label={
+                      isEnabled
+                        ? `Desactivar cama extra ${bed.name}`
+                        : `Activar cama extra ${bed.name}`
+                    }
                     aria-pressed={isEnabled}
                   >
                     <span className="leading-none">{bed.name}</span>
-                    {isEnabled ? <CheckCircle size={12} className="text-medical-600" aria-hidden="true" /> : <div className="h-2" aria-hidden="true" />}
+                    {isEnabled ? (
+                      <CheckCircle size={12} className="text-medical-600" aria-hidden="true" />
+                    ) : (
+                      <div className="h-2" aria-hidden="true" />
+                    )}
                   </button>
-                )
+                );
               })}
             </div>
           </ModalSection>
@@ -160,20 +171,31 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({
       >
         <div className="space-y-6">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">Motivo del Bloqueo</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">
+              Motivo del Bloqueo
+            </label>
             <input
               autoFocus
               type="text"
               className={clsx(
-                "w-full p-2.5 border rounded-xl focus:ring-2 focus:outline-none text-slate-700 text-sm transition-all shadow-sm",
-                error ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:ring-medical-500 focus:border-medical-500"
+                'w-full p-2.5 border rounded-xl focus:ring-2 focus:outline-none text-slate-700 text-sm transition-all shadow-sm',
+                error
+                  ? 'border-red-300 focus:ring-red-100'
+                  : 'border-slate-200 focus:ring-medical-500 focus:border-medical-500'
               )}
               placeholder="Ej: Mantención, Aislamiento..."
               value={reason}
-              onChange={e => { setReason(e.target.value); setError(null); }}
+              onChange={e => {
+                setReason(e.target.value);
+                setError(null);
+              }}
               onKeyDown={e => e.key === 'Enter' && confirmBlock()}
             />
-            {error && <p className="text-[10px] text-red-500 mt-1.5 font-medium animate-fade-in pl-1">{error}</p>}
+            {error && (
+              <p className="text-[10px] text-red-500 mt-1.5 font-medium animate-fade-in pl-1">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -195,7 +217,10 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({
 
       <BaseModal
         isOpen={editingBedId !== null}
-        onClose={() => { setEditingBedId(null); setReason(''); }}
+        onClose={() => {
+          setEditingBedId(null);
+          setReason('');
+        }}
         title={`Editar Cama ${editingBedId}`}
         icon={<Lock size={16} />}
         size="sm"
@@ -204,26 +229,40 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({
       >
         <div className="space-y-6">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">Motivo del Bloqueo</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">
+              Motivo del Bloqueo
+            </label>
             <input
               autoFocus
               type="text"
               className={clsx(
-                "w-full p-2.5 border rounded-xl focus:ring-2 focus:outline-none text-slate-700 text-sm transition-all shadow-sm",
-                error ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:ring-medical-500 focus:border-medical-500"
+                'w-full p-2.5 border rounded-xl focus:ring-2 focus:outline-none text-slate-700 text-sm transition-all shadow-sm',
+                error
+                  ? 'border-red-300 focus:ring-red-100'
+                  : 'border-slate-200 focus:ring-medical-500 focus:border-medical-500'
               )}
               placeholder="Ej: Mantención, Aislamiento..."
               value={reason}
-              onChange={e => { setReason(e.target.value); setError(null); }}
+              onChange={e => {
+                setReason(e.target.value);
+                setError(null);
+              }}
               onKeyDown={e => e.key === 'Enter' && handleSaveReason()}
             />
-            {error && <p className="text-[10px] text-red-500 mt-1.5 font-medium animate-fade-in pl-1">{error}</p>}
+            {error && (
+              <p className="text-[10px] text-red-500 mt-1.5 font-medium animate-fade-in pl-1">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
               <button
-                onClick={() => { setEditingBedId(null); setReason(''); }}
+                onClick={() => {
+                  setEditingBedId(null);
+                  setReason('');
+                }}
                 className="flex-1 py-2 text-slate-500 hover:bg-slate-100 rounded-xl text-sm font-medium transition-colors border border-slate-100"
               >
                 Cancelar

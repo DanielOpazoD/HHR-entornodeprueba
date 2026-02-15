@@ -20,14 +20,14 @@ import type {
   MoveOrCopyCommand,
   TransferCommand,
   TransferExecutionInput,
-} from '@/features/census/types/censusActionCommandContracts';
+} from '@/features/census/domain/movements/contracts';
 export type {
   DischargeCommand,
   DischargeExecutionInput,
   MoveOrCopyCommand,
   TransferCommand,
   TransferExecutionInput,
-} from '@/features/census/types/censusActionCommandContracts';
+} from '@/features/census/domain/movements/contracts';
 
 type CensusControllerResult<TValue> = CensusActionCommandResult<TValue, CensusActionError>;
 

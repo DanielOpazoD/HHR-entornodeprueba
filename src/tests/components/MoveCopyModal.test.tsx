@@ -3,12 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MoveCopyModal } from '@/components/modals/actions/MoveCopyModal';
 
-const mockedUseDailyRecordContext = vi.fn();
+const mockedUseDailyRecordData = vi.fn();
 const mockedGetForDate = vi.fn();
 const mockedNotifyError = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordContext: () => mockedUseDailyRecordContext(),
+  useDailyRecordData: () => mockedUseDailyRecordData(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -28,7 +28,7 @@ vi.mock('@/services/RepositoryContext', () => ({
 describe('MoveCopyModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedUseDailyRecordContext.mockReturnValue({
+    mockedUseDailyRecordData.mockReturnValue({
       record: {
         date: '2026-02-13',
         activeExtraBeds: [],

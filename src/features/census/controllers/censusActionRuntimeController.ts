@@ -17,29 +17,15 @@ import {
   executeTransferRuntimeCommand,
 } from '@/features/census/controllers/patientMovementCommandRuntimeController';
 import type {
+  DischargeRuntimeActions,
   DischargeExecutionInput,
-  DischargeMovementActions,
   DischargeRuntimeResult,
+  MoveOrCopyRuntimeActions,
   MoveOrCopyRuntimeResult,
+  TransferRuntimeActions,
   TransferExecutionInput,
-  TransferMovementActions,
   TransferRuntimeResult,
-} from '@/features/census/types/censusActionCommandContracts';
-
-export interface MoveOrCopyRuntimeActions {
-  moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
-  copyPatientToDate: (bedId: string, targetDate: string, targetBedId?: string) => Promise<void>;
-}
-
-export type DischargeRuntimeActions = Pick<
-  DischargeMovementActions,
-  'addDischarge' | 'updateDischarge'
->;
-
-export type TransferRuntimeActions = Pick<
-  TransferMovementActions,
-  'addTransfer' | 'updateTransfer'
->;
+} from '@/features/census/domain/movements/contracts';
 
 interface ExecuteMoveOrCopyParams {
   actionState: ActionState;

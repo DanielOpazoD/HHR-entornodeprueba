@@ -7,6 +7,7 @@ import {
   useDailyRecordBeds,
   useDailyRecordMovements,
   useDailyRecordSync,
+  useDailyRecordStatus,
   useDailyRecordStaff,
   useDailyRecordActions,
 } from '@/context/DailyRecordContext';
@@ -97,6 +98,21 @@ describe('DailyRecordContext', () => {
       </DailyRecordProvider>
     );
     expect(screen.getByTestId('hook-data').textContent).toContain('synced');
+  });
+
+  it('should expose derived sync flags via useDailyRecordStatus', () => {
+    const savingValue = {
+      ...mockValue,
+      syncStatus: 'saving',
+    } as DailyRecordContextType;
+
+    render(
+      <DailyRecordProvider value={savingValue}>
+        <TestComponent hook={useDailyRecordStatus} />
+      </DailyRecordProvider>
+    );
+    expect(screen.getByTestId('hook-data').textContent).toContain('"isSaving":true');
+    expect(screen.getByTestId('hook-data').textContent).toContain('"hasError":false');
   });
 
   it('should provide default sync status when value is null', () => {

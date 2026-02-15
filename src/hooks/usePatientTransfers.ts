@@ -27,7 +27,7 @@ import type {
   TransferMovementActions,
   UndoTransferAction,
   UpdateTransferAction,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/domain/movements/contracts';
 
 export const usePatientTransfers = (
   record: DailyRecord | null,

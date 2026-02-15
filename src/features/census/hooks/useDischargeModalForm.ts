@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_DISCHARGE_TYPE, type DischargeStatus, type DischargeType } from '@/constants';
+import { useCallback } from 'react';
+import { type DischargeStatus, type DischargeType } from '@/constants';
 import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
 import {
   buildDischargeConfirmPayload,
@@ -12,11 +12,8 @@ import {
   resolveMovementDateTimeValidationError,
   resolveMovementDateTimeBounds,
 } from '@/features/census/controllers/clinicalShiftCalendarController';
-import {
-  clearModalFieldErrors,
-  submitModalForm,
-} from '@/features/census/controllers/modalFormController';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { useModalFormFlow } from '@/features/census/hooks/useModalFormFlow';
 
 interface UseDischargeModalFormParams {
   isOpen: boolean;
@@ -49,6 +46,14 @@ interface UseDischargeModalFormResult {
   submit: () => boolean;
 }
 
+interface DischargeModalLocalFormState {
+  dischargeType: DischargeType;
+  otherDetails: string;
+  dischargeDate: string;
+  dischargeTime: string;
+  localTarget: DischargeTarget;
+}
+
 export const useDischargeModalForm = ({
   isOpen,
   status,
@@ -64,19 +69,9 @@ export const useDischargeModalForm = ({
   onConfirm,
 }: UseDischargeModalFormParams): UseDischargeModalFormResult => {
   const resolveDefaultTimeRef = useLatestRef(resolveDefaultTime);
-  const [dischargeType, setDischargeTypeState] = useState<DischargeType>(DEFAULT_DISCHARGE_TYPE);
-  const [otherDetails, setOtherDetailsState] = useState('');
-  const [dischargeDate, setDischargeDateState] = useState('');
-  const [dischargeTime, setDischargeTimeState] = useState('');
-  const [localTarget, setLocalTargetState] = useState<DischargeTarget>(dischargeTarget);
-  const [errors, setErrors] = useState<DischargeModalFieldErrors>({});
   const movementBounds = resolveMovementDateTimeBounds(recordDate);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
+  const resolveInitialState = useCallback((): DischargeModalLocalFormState => {
     const initialState = buildInitialDischargeFormState({
       recordDate,
       initialMovementDate,
@@ -86,115 +81,109 @@ export const useDischargeModalForm = ({
       defaultTime: resolveDefaultTimeRef.current(),
       dischargeTarget,
     });
-
-    setDischargeTypeState(initialState.dischargeType);
-    setOtherDetailsState(initialState.otherDetails);
-    setDischargeDateState(initialState.movementDate);
-    setDischargeTimeState(initialState.dischargeTime);
-    setLocalTargetState(initialState.localTarget);
-    setErrors({});
+    return {
+      dischargeType: initialState.dischargeType,
+      otherDetails: initialState.otherDetails,
+      dischargeDate: initialState.movementDate,
+      dischargeTime: initialState.dischargeTime,
+      localTarget: initialState.localTarget,
+    };
   }, [
     dischargeTarget,
     initialMovementDate,
     initialOtherDetails,
     initialTime,
     initialType,
-    isOpen,
     recordDate,
     resolveDefaultTimeRef,
   ]);
 
-  const setDischargeType = useCallback((nextType: DischargeType) => {
-    setDischargeTypeState(nextType);
-    setErrors(prev => clearModalFieldErrors(prev, ['other']));
-  }, []);
+  const createInitialErrors = useCallback((): DischargeModalFieldErrors => ({}), []);
 
-  const setOtherDetails = useCallback((nextDetails: string) => {
-    setOtherDetailsState(nextDetails);
-    setErrors(prev => clearModalFieldErrors(prev, ['other']));
-  }, []);
-
-  const setDischargeTime = useCallback((nextTime: string) => {
-    setDischargeTimeState(nextTime);
-    setErrors(prev => clearModalFieldErrors(prev, ['time', 'dateTime']));
-  }, []);
-
-  const setDischargeDate = useCallback((nextDate: string) => {
-    setDischargeDateState(nextDate);
-    setErrors(prev => clearModalFieldErrors(prev, ['dateTime']));
-  }, []);
-
-  const setLocalTarget = useCallback((nextTarget: DischargeTarget) => {
-    setLocalTargetState(nextTarget);
-  }, []);
-
-  const submit = useCallback((): boolean => {
-    return submitModalForm({
-      state: {
+  const { formState, errors, setFormField, submit } = useModalFormFlow<
+    DischargeModalLocalFormState,
+    DischargeModalFieldErrors,
+    DischargeConfirmPayload
+  >({
+    isOpen,
+    resolveInitialState,
+    createInitialErrors,
+    validate: state => {
+      const fieldErrors = mapDischargeValidationErrors(
         status,
-        dischargeType,
-        otherDetails,
-        dischargeTime,
-        dischargeDate,
-        includeMovementDate,
-        recordDate,
-        hasClinicalCrib,
-        localTarget,
-      },
-      validate: state => {
-        const fieldErrors = mapDischargeValidationErrors(
-          state.status,
-          state.dischargeType,
-          state.otherDetails,
-          state.dischargeTime
-        );
+        state.dischargeType,
+        state.otherDetails,
+        state.dischargeTime
+      );
 
-        if (state.includeMovementDate) {
-          const dateTimeError = resolveMovementDateTimeValidationError({
-            recordDate: state.recordDate,
-            movementDate: state.dischargeDate,
-            movementTime: state.dischargeTime,
-          });
-          if (dateTimeError) {
-            fieldErrors.dateTime = dateTimeError;
-          }
+      if (includeMovementDate) {
+        const dateTimeError = resolveMovementDateTimeValidationError({
+          recordDate,
+          movementDate: state.dischargeDate,
+          movementTime: state.dischargeTime,
+        });
+        if (dateTimeError) {
+          fieldErrors.dateTime = dateTimeError;
         }
+      }
 
-        return fieldErrors;
-      },
-      buildPayload: state =>
-        buildDischargeConfirmPayload({
-          status: state.status,
-          dischargeType: state.dischargeType,
-          otherDetails: state.otherDetails,
-          dischargeTime: state.dischargeTime,
-          movementDate: state.includeMovementDate ? state.dischargeDate : undefined,
-          hasClinicalCrib: state.hasClinicalCrib,
-          localTarget: state.localTarget,
-        }),
-      onValidationErrors: setErrors,
-      onConfirm,
-    });
-  }, [
-    dischargeDate,
-    dischargeTime,
-    dischargeType,
-    hasClinicalCrib,
-    includeMovementDate,
-    localTarget,
+      return fieldErrors;
+    },
+    buildPayload: state =>
+      buildDischargeConfirmPayload({
+        status,
+        dischargeType: state.dischargeType,
+        otherDetails: state.otherDetails,
+        dischargeTime: state.dischargeTime,
+        movementDate: includeMovementDate ? state.dischargeDate : undefined,
+        hasClinicalCrib,
+        localTarget: state.localTarget,
+      }),
     onConfirm,
-    otherDetails,
-    recordDate,
-    status,
-  ]);
+  });
+
+  const setDischargeType = useCallback(
+    (nextType: DischargeType) => {
+      setFormField('dischargeType', nextType, ['other']);
+    },
+    [setFormField]
+  );
+
+  const setOtherDetails = useCallback(
+    (nextDetails: string) => {
+      setFormField('otherDetails', nextDetails, ['other']);
+    },
+    [setFormField]
+  );
+
+  const setDischargeTime = useCallback(
+    (nextTime: string) => {
+      setFormField('dischargeTime', nextTime, ['time', 'dateTime']);
+    },
+    [setFormField]
+  );
+
+  const setDischargeDate = useCallback(
+    (nextDate: string) => {
+      setFormField('dischargeDate', nextDate, ['dateTime']);
+    },
+    [setFormField]
+  );
+
+  const setLocalTarget = useCallback(
+    (nextTarget: DischargeTarget) => {
+      setFormField('localTarget', nextTarget);
+    },
+    [setFormField]
+  );
 
   return {
-    dischargeType,
-    otherDetails,
-    dischargeDate,
-    dischargeTime,
+    dischargeType: formState.dischargeType,
+    otherDetails: formState.otherDetails,
+    dischargeDate: formState.dischargeDate,
+    dischargeTime: formState.dischargeTime,
     movementBounds,
-    localTarget,
+    localTarget: formState.localTarget,
     errors,
     setDischargeType,
     setOtherDetails,

@@ -1,7 +1,7 @@
 import type {
   CensusActionErrorCode,
   MoveOrCopyRuntimeErrorCode,
-} from '@/features/census/types/censusActionCommandContracts';
+} from '@/features/census/domain/movements/contracts';
 
 const VALIDATION_ERROR_CODES = new Set<CensusActionErrorCode>([
   'INVALID_TIME_FORMAT',

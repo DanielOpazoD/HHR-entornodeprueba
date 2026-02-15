@@ -2,42 +2,21 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { PatientData } from '@/types';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
-import {
-  executeDischargeController,
-  executeMoveOrCopyController,
-  executeTransferController,
-} from '@/features/census/controllers/censusActionRuntimeController';
-import { executeRowActionController } from '@/features/census/controllers/censusRowActionRuntimeController';
-import {
-  buildDischargeRuntimeActions,
-  buildMoveOrCopyRuntimeActions,
-  buildTransferRuntimeActions,
-} from '@/features/census/controllers/censusActionRuntimeAdapterController';
-import { buildRowActionRuntimeActions } from '@/features/census/controllers/censusRowActionRuntimeAdapterController';
-import {
-  applyDischargePatch,
-  applyTransferPatch,
-} from '@/features/census/controllers/censusModalStateController';
-import {
-  buildDischargeErrorNotification,
-  buildMoveOrCopyErrorNotification,
-  buildMoveOrCopyUnexpectedNotification,
-  buildRowActionBlockedNotification,
-  buildRowActionUnexpectedNotification,
-  buildTransferErrorNotification,
-  type CensusActionNotification,
-} from '@/features/census/controllers/censusActionNotificationController';
+import { type CensusActionNotification } from '@/features/census/controllers/censusActionNotificationController';
 import type {
   DischargeExecutionInput,
   TransferExecutionInput,
-} from '@/features/census/types/censusActionCommandContracts';
+} from '@/features/census/domain/movements/contracts';
 import type {
   ActionState,
   DischargeState,
   TransferState,
 } from '@/features/census/types/censusActionTypes';
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
-import { useSingleFlightAsyncCommand } from '@/features/census/hooks/useSingleFlightAsyncCommand';
+import { useCensusDischargeCommand } from '@/features/census/hooks/useCensusDischargeCommand';
+import { useCensusMoveOrCopyCommand } from '@/features/census/hooks/useCensusMoveOrCopyCommand';
+import { useCensusRowActionCommand } from '@/features/census/hooks/useCensusRowActionCommand';
+import { useCensusTransferCommand } from '@/features/census/hooks/useCensusTransferCommand';
 
 interface UseCensusActionCommandsControllerParams extends CensusActionRuntimeRefs {
   setActionState: Dispatch<SetStateAction<ActionState>>;
@@ -74,9 +53,6 @@ export const useCensusActionCommandsController = ({
   setTransferState,
   getCurrentTime,
 }: UseCensusActionCommandsControllerParams): CensusActionCommandsController => {
-  const { runSingleFlight: runMoveOrCopySingleFlight, isMounted } = useSingleFlightAsyncCommand();
-  const { runSingleFlight: runDischargeSingleFlight } = useSingleFlightAsyncCommand();
-  const { runSingleFlight: runTransferSingleFlight } = useSingleFlightAsyncCommand();
   const notifyError = useCallback(
     ({ title, message }: CensusActionNotification) => {
       notifyErrorRef.current(title, message);
@@ -84,164 +60,45 @@ export const useCensusActionCommandsController = ({
     [notifyErrorRef]
   );
 
-  const handleRowAction = useCallback(
-    async (action: PatientRowAction, bedId: string, patient: PatientData) => {
-      try {
-        const result = await executeRowActionController({
-          action,
-          bedId,
-          patient,
-          stabilityRules: stabilityRulesRef.current,
-          actions: buildRowActionRuntimeActions({
-            clearPatient: clearPatientRef.current,
-            addCMA: addCmaRef.current,
-            setActionState,
-            setDischargeState,
-            setTransferState,
-          }),
-          confirmRuntime: { confirm: confirmRef.current },
-        });
+  const handleRowAction = useCensusRowActionCommand({
+    stabilityRulesRef,
+    clearPatientRef,
+    addCmaRef,
+    confirmRef,
+    setActionState,
+    setDischargeState,
+    setTransferState,
+    notifyError,
+  });
 
-        if (!result.ok) {
-          notifyError(buildRowActionBlockedNotification(result.error.message));
-        }
-      } catch {
-        notifyError(buildRowActionUnexpectedNotification());
-      }
-    },
-    [
-      addCmaRef,
-      clearPatientRef,
-      confirmRef,
-      notifyError,
-      setActionState,
-      setDischargeState,
-      setTransferState,
-      stabilityRulesRef,
-    ]
-  );
+  const executeMoveOrCopy = useCensusMoveOrCopyCommand({
+    actionStateRef,
+    recordRef,
+    moveOrCopyPatientRef,
+    copyPatientToDateRef,
+    setActionState,
+    notifyError,
+  });
 
-  const executeMoveOrCopy = useCallback(
-    (targetDate?: string) => {
-      const started = runMoveOrCopySingleFlight(async () => {
-        try {
-          const result = await executeMoveOrCopyController({
-            actionState: actionStateRef.current,
-            record: recordRef.current,
-            targetDate,
-            actions: buildMoveOrCopyRuntimeActions(
-              moveOrCopyPatientRef.current,
-              copyPatientToDateRef.current
-            ),
-          });
+  const executeDischarge = useCensusDischargeCommand({
+    dischargeStateRef,
+    stabilityRulesRef,
+    addDischargeRef,
+    updateDischargeRef,
+    setDischargeState,
+    getCurrentTime,
+    notifyError,
+  });
 
-          if (!isMounted()) {
-            return;
-          }
-
-          if (!result.ok) {
-            notifyError(buildMoveOrCopyErrorNotification(result.error.code, result.error.message));
-            return;
-          }
-
-          setActionState(result.value.nextActionState);
-        } catch {
-          if (!isMounted()) {
-            return;
-          }
-
-          notifyError(buildMoveOrCopyUnexpectedNotification());
-        }
-      });
-
-      if (!started) {
-        return;
-      }
-    },
-    [
-      actionStateRef,
-      copyPatientToDateRef,
-      isMounted,
-      moveOrCopyPatientRef,
-      notifyError,
-      recordRef,
-      runMoveOrCopySingleFlight,
-      setActionState,
-    ]
-  );
-
-  const executeDischarge = useCallback(
-    (data?: DischargeExecutionInput) => {
-      const started = runDischargeSingleFlight(async () => {
-        const result = executeDischargeController({
-          dischargeState: dischargeStateRef.current,
-          data,
-          stabilityRules: stabilityRulesRef.current,
-          nowTime: getCurrentTime(),
-          actions: buildDischargeRuntimeActions(
-            addDischargeRef.current,
-            updateDischargeRef.current
-          ),
-        });
-
-        if (!result.ok) {
-          notifyError(buildDischargeErrorNotification(result.error.code, result.error.message));
-          return;
-        }
-
-        setDischargeState(prev => applyDischargePatch(prev, result.value.closeModalPatch));
-      });
-
-      if (!started) {
-        return;
-      }
-    },
-    [
-      addDischargeRef,
-      dischargeStateRef,
-      getCurrentTime,
-      notifyError,
-      runDischargeSingleFlight,
-      setDischargeState,
-      stabilityRulesRef,
-      updateDischargeRef,
-    ]
-  );
-
-  const executeTransfer = useCallback(
-    (data?: TransferExecutionInput) => {
-      const started = runTransferSingleFlight(async () => {
-        const result = executeTransferController({
-          transferState: transferStateRef.current,
-          data,
-          stabilityRules: stabilityRulesRef.current,
-          nowTime: getCurrentTime(),
-          actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
-        });
-
-        if (!result.ok) {
-          notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
-          return;
-        }
-
-        setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
-      });
-
-      if (!started) {
-        return;
-      }
-    },
-    [
-      addTransferRef,
-      getCurrentTime,
-      notifyError,
-      runTransferSingleFlight,
-      setTransferState,
-      stabilityRulesRef,
-      transferStateRef,
-      updateTransferRef,
-    ]
-  );
+  const executeTransfer = useCensusTransferCommand({
+    transferStateRef,
+    stabilityRulesRef,
+    addTransferRef,
+    updateTransferRef,
+    setTransferState,
+    getCurrentTime,
+    notifyError,
+  });
 
   return {
     executeMoveOrCopy,

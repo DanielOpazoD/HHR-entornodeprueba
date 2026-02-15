@@ -4,7 +4,7 @@ import type {
   DischargeRuntimeActions,
   MoveOrCopyRuntimeActions,
   TransferRuntimeActions,
-} from '@/features/census/controllers/censusActionRuntimeController';
+} from '@/features/census/domain/movements/contracts';
 import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,

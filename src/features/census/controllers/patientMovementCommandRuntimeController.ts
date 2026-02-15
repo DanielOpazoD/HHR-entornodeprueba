@@ -1,12 +1,9 @@
 import type {
   DischargeCommand,
-  DischargeMovementActions,
+  DischargeRuntimeActions,
   TransferCommand,
-  TransferMovementActions,
-} from '@/features/census/types/censusActionCommandContracts';
-
-type DischargeRuntimeActions = Pick<DischargeMovementActions, 'addDischarge' | 'updateDischarge'>;
-type TransferRuntimeActions = Pick<TransferMovementActions, 'addTransfer' | 'updateTransfer'>;
+  TransferRuntimeActions,
+} from '@/features/census/domain/movements/contracts';
 
 export const executeDischargeRuntimeCommand = (
   command: DischargeCommand,

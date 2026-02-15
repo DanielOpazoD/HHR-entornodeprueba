@@ -7,11 +7,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NavbarMenu } from '@/components/layout/NavbarMenu';
 
-// Mock dependencies
-vi.mock('../../context/DailyRecordContext', () => ({
-  useDailyRecordContext: () => ({ record: null }),
-}));
-
 let mockRole = 'admin';
 
 vi.mock('../../context/AuthContext', () => ({

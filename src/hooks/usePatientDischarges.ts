@@ -28,7 +28,7 @@ import type {
   DischargeMovementActions,
   UndoDischargeAction,
   UpdateDischargeAction,
-} from '@/features/census/types/patientMovementCommandTypes';
+} from '@/features/census/domain/movements/contracts';
 
 export const usePatientDischarges = (
   record: DailyRecord | null,
