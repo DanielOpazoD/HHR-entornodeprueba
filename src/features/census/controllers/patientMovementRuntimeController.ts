@@ -1,3 +1,5 @@
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+
 export interface PatientMovementRuntime {
   alert: (message: string) => void;
   warn?: (message: string) => void;
@@ -5,9 +7,7 @@ export interface PatientMovementRuntime {
 
 export const patientMovementBrowserRuntime: PatientMovementRuntime = {
   alert: (message: string) => {
-    if (typeof window !== 'undefined') {
-      window.alert(message);
-    }
+    defaultBrowserWindowRuntime.alert(message);
   },
   warn: (message: string) => {
     console.warn(message);

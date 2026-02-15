@@ -138,6 +138,8 @@ export const resolveDischargeCommand = ({
     normalizeOptionalText(data?.typeOther) || normalizeOptionalText(dischargeState.typeOther);
   const time =
     normalizeOptionalText(data?.time) || normalizeOptionalText(dischargeState.time) || nowTime;
+  const movementDate =
+    normalizeOptionalText(data?.movementDate) || normalizeOptionalText(dischargeState.movementDate);
   const dischargeTarget = data?.dischargeTarget || dischargeState.dischargeTarget;
 
   const dischargeValidationErrors = validateDischargeExecutionInput({
@@ -155,7 +157,7 @@ export const resolveDischargeCommand = ({
     return ok({
       kind: 'updateDischarge',
       id: dischargeState.recordId,
-      payload: { status, type, typeOther, time },
+      payload: { status, type, typeOther, time, movementDate },
     });
   }
 
@@ -172,6 +174,7 @@ export const resolveDischargeCommand = ({
       type,
       typeOther,
       time,
+      movementDate,
       dischargeTarget,
     },
   });
@@ -189,6 +192,8 @@ export const resolveTransferCommand = ({
 
   const time =
     normalizeOptionalText(data?.time) || normalizeOptionalText(transferState.time) || nowTime;
+  const movementDate =
+    normalizeOptionalText(data?.movementDate) || normalizeOptionalText(transferState.movementDate);
   const evacuationMethodOther = normalizeOptionalText(transferState.evacuationMethodOther) || '';
   const receivingCenterOther = normalizeOptionalText(transferState.receivingCenterOther) || '';
   const transferEscort = normalizeOptionalText(transferState.transferEscort) || '';
@@ -212,6 +217,7 @@ export const resolveTransferCommand = ({
     receivingCenterOther,
     transferEscort,
     time,
+    movementDate,
   };
 
   if (transferState.recordId) {

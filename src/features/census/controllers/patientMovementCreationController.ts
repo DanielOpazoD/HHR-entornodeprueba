@@ -6,14 +6,14 @@ import {
   PatientData,
   TransferData,
 } from '@/types';
+import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
 import {
   ControllerError,
   ControllerResult,
   failWithCode,
   ok,
 } from '@/features/census/controllers/controllerResult';
-
-export type DischargeTarget = 'mother' | 'baby' | 'both';
+import { resolveMovementDisplayDate } from '@/features/census/controllers/censusMovementDatePresentationController';
 
 export type MovementCreationErrorCode = 'BED_NOT_FOUND' | 'SOURCE_BED_EMPTY';
 
@@ -100,6 +100,7 @@ export const resolveAddDischargeMovement = ({
   }
 
   const bedDef = resolveBedDefinition(bedId, bedsCatalog);
+  const movementDate = resolveMovementDisplayDate(record.date, undefined, time);
   const newDischarges: DischargeData[] = [];
   const auditEntries: MovementAuditEntry[] = [];
   const updatedBeds = { ...record.beds };
@@ -107,6 +108,7 @@ export const resolveAddDischargeMovement = ({
   if (target === 'mother' || target === 'both') {
     newDischarges.push({
       id: createId(),
+      movementDate,
       bedName: bedDef?.name || bedId,
       bedId,
       bedType: bedDef?.type || '',
@@ -135,6 +137,7 @@ export const resolveAddDischargeMovement = ({
   if ((target === 'baby' || target === 'both') && patient.clinicalCrib?.patientName && cribStatus) {
     newDischarges.push({
       id: createId(),
+      movementDate,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',
@@ -215,10 +218,12 @@ export const resolveAddTransferMovement = ({
   }
 
   const bedDef = resolveBedDefinition(bedId, bedsCatalog);
+  const movementDate = resolveMovementDisplayDate(record.date, undefined, time);
   const newTransfers: TransferData[] = [];
 
   newTransfers.push({
     id: createId(),
+    movementDate,
     bedName: bedDef?.name || bedId,
     bedId,
     bedType: bedDef?.type || '',
@@ -241,6 +246,7 @@ export const resolveAddTransferMovement = ({
   if (patient.clinicalCrib?.patientName) {
     newTransfers.push({
       id: createId(),
+      movementDate,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',

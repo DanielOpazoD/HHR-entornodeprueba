@@ -2,115 +2,108 @@ import { useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { isEmailAuthorizedForCensus } from '@/constants/censusAuthorizedEmails';
 import { CensusAccessUser } from '@/types/censusAccess';
+import {
+  buildAuthorizedSharedAccessUser,
+  resolveSharedCensusPathInfo,
+} from '@/features/census/controllers/sharedCensusModeController';
 
 export interface SharedCensusModeResult {
-    isSharedCensusMode: boolean;
-    invitationId: string | null;
-    accessUser: CensusAccessUser | null;
-    isLoading: boolean;
-    error: string | null;
-    needsLogin: boolean;
+  isSharedCensusMode: boolean;
+  invitationId: string | null;
+  accessUser: CensusAccessUser | null;
+  isLoading: boolean;
+  error: string | null;
+  needsLogin: boolean;
 }
 
 /**
  * Hook to manage shared census access.
- * 
+ *
  * This is a SEPARATE authentication layer from the main app login.
  * Users access via /censo-compartido, login with Google,
  * and their email is checked against a local authorized list.
- * 
+ *
  * NO Firestore permissions required - validation is done locally.
  */
 export function useSharedCensusMode(): SharedCensusModeResult {
-    const { user, isLoading: authLoading } = useAuth();
-    const pathname = window.location.pathname;
+  const { user, isLoading: authLoading } = useAuth();
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const { isSharedCensusMode, invitationId } = resolveSharedCensusPathInfo(pathname);
 
-    // Detection: Are we in shared census mode?
-    const isSharedCensusMode = pathname.startsWith('/censo-compartido') || pathname.startsWith('/censo-publico');
+  return useMemo<SharedCensusModeResult>(() => {
+    if (!isSharedCensusMode) {
+      return {
+        isSharedCensusMode: false,
+        invitationId,
+        accessUser: null,
+        isLoading: false,
+        error: null,
+        needsLogin: false,
+      };
+    }
 
-    // Get invitation ID from URL (optional, for tracking)
-    const invitationId = pathname.split('/').pop() || null;
+    if (authLoading) {
+      return {
+        isSharedCensusMode: true,
+        invitationId,
+        accessUser: null,
+        isLoading: true,
+        error: null,
+        needsLogin: false,
+      };
+    }
 
-    return useMemo<SharedCensusModeResult>(() => {
-        if (!isSharedCensusMode) {
-            return {
-                isSharedCensusMode: false,
-                invitationId,
-                accessUser: null,
-                isLoading: false,
-                error: null,
-                needsLogin: false
-            };
-        }
+    if (!user?.uid) {
+      return {
+        isSharedCensusMode: true,
+        invitationId,
+        accessUser: null,
+        isLoading: false,
+        error: null,
+        needsLogin: true,
+      };
+    }
 
-        if (authLoading) {
-            return {
-                isSharedCensusMode: true,
-                invitationId,
-                accessUser: null,
-                isLoading: true,
-                error: null,
-                needsLogin: false
-            };
-        }
+    // User is logged in - check if their email is authorized
+    const email = user.email;
 
-        if (!user?.uid) {
-            return {
-                isSharedCensusMode: true,
-                invitationId,
-                accessUser: null,
-                isLoading: false,
-                error: null,
-                needsLogin: true
-            };
-        }
+    if (!email) {
+      return {
+        isSharedCensusMode: true,
+        invitationId,
+        accessUser: null,
+        isLoading: false,
+        error: 'Tu cuenta de Google no tiene un correo asociado.',
+        needsLogin: false,
+      };
+    }
 
-        // User is logged in - check if their email is authorized
-        const email = user.email;
+    const isAuthorized = isEmailAuthorizedForCensus(email);
 
-        if (!email) {
-            return {
-                isSharedCensusMode: true,
-                invitationId,
-                accessUser: null,
-                isLoading: false,
-                error: 'Tu cuenta de Google no tiene un correo asociado.',
-                needsLogin: false
-            };
-        }
+    if (!isAuthorized) {
+      return {
+        isSharedCensusMode: true,
+        invitationId,
+        accessUser: null,
+        isLoading: false,
+        error: `El correo ${email} no está autorizado para ver el censo. Contacta al administrador.`,
+        needsLogin: false,
+      };
+    }
 
-        const isAuthorized = isEmailAuthorizedForCensus(email);
+    const authorizedUser: CensusAccessUser = buildAuthorizedSharedAccessUser({
+      uid: user.uid,
+      email,
+      displayName: user.displayName,
+    });
 
-        if (!isAuthorized) {
-            return {
-                isSharedCensusMode: true,
-                invitationId,
-                accessUser: null,
-                isLoading: false,
-                error: `El correo ${email} no está autorizado para ver el censo. Contacta al administrador.`,
-                needsLogin: false
-            };
-        }
-
-        const authorizedUser: CensusAccessUser = {
-            id: user.uid,
-            email: email.toLowerCase(),
-            displayName: user.displayName || email.split('@')[0],
-            role: 'viewer',
-            createdAt: new Date(),
-            createdBy: 'local-auth',
-            // eslint-disable-next-line
-            expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
-            isActive: true
-        };
-
-        return {
-            isSharedCensusMode: true,
-            invitationId,
-            accessUser: authorizedUser,
-            isLoading: false,
-            error: null,
-            needsLogin: false
-        };
-    }, [isSharedCensusMode, invitationId, authLoading, user]);
+    return {
+      isSharedCensusMode: true,
+      invitationId,
+      accessUser: authorizedUser,
+      isLoading: false,
+      error: null,
+      needsLogin: false,
+    };
+  }, [isSharedCensusMode, invitationId, authLoading, user]);
 }

@@ -3,10 +3,13 @@ export * from './EmptyDayPrompt';
 export * from './NurseSelector';
 export * from './TensSelector';
 export * from './CensusTable';
+export * from './CensusTableHeader';
+export * from './CensusTableBody';
 export * from './DischargesSection';
 export * from './TransfersSection';
 export * from './CMASection';
 export * from './CensusModals';
 export * from './CensusStaffHeader';
 export * from './SharedCensusView';
-
+export * from './CensusRegisterContent';
+export * from './CensusRegisterMainContent';

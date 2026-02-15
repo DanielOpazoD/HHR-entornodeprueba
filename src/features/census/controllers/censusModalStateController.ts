@@ -1,59 +1,74 @@
 import type {
-    ActionState,
-    DischargeState,
-    DischargeTarget,
-    TransferState
+  ActionState,
+  DischargeState,
+  DischargeTarget,
+  TransferState,
 } from '@/features/census/types/censusActionTypes';
 import { createInitialActionState } from '@/features/census/types/censusActionTypes';
 import type { DischargeStatus } from '@/constants';
-import { applyTransferStateUpdate, type TransferStateFieldUpdate } from '@/features/census/controllers/censusTransferStateController';
+import {
+  applyTransferStateUpdate,
+  type TransferStateFieldUpdate,
+} from '@/features/census/controllers/censusTransferStateController';
 
 export const closeMoveCopyModalState = (): ActionState => createInitialActionState();
 
 export const patchMoveCopyTargetBed = (
-    previousState: ActionState,
-    targetBedId: string
+  previousState: ActionState,
+  targetBedId: string
 ): ActionState => ({
-    ...previousState,
-    targetBedId
+  ...previousState,
+  targetBedId,
 });
 
-export const closeDischargeModalState = (previousState: DischargeState): DischargeState => ({
-    ...previousState,
-    isOpen: false
+export const applyDischargePatch = (
+  previousState: DischargeState,
+  patch: Partial<DischargeState>
+): DischargeState => ({
+  ...previousState,
+  ...patch,
 });
+
+export const closeDischargeModalState = (previousState: DischargeState): DischargeState =>
+  applyDischargePatch(previousState, { isOpen: false });
 
 export const patchDischargeStatus = (
-    previousState: DischargeState,
-    status: DischargeStatus
+  previousState: DischargeState,
+  status: DischargeStatus
 ): DischargeState => ({
-    ...previousState,
-    status
+  ...previousState,
+  status,
 });
 
 export const patchDischargeClinicalCribStatus = (
-    previousState: DischargeState,
-    clinicalCribStatus: DischargeStatus
+  previousState: DischargeState,
+  clinicalCribStatus: DischargeStatus
 ): DischargeState => ({
-    ...previousState,
-    clinicalCribStatus
+  ...previousState,
+  clinicalCribStatus,
 });
 
 export const patchDischargeTarget = (
-    previousState: DischargeState,
-    dischargeTarget: DischargeTarget
+  previousState: DischargeState,
+  dischargeTarget: DischargeTarget
 ): DischargeState => ({
-    ...previousState,
-    dischargeTarget
+  ...previousState,
+  dischargeTarget,
 });
 
-export const closeTransferModalState = (previousState: TransferState): TransferState => ({
-    ...previousState,
-    isOpen: false
+export const applyTransferPatch = (
+  previousState: TransferState,
+  patch: Partial<TransferState>
+): TransferState => ({
+  ...previousState,
+  ...patch,
 });
+
+export const closeTransferModalState = (previousState: TransferState): TransferState =>
+  applyTransferPatch(previousState, { isOpen: false });
 
 export const patchTransferField = (
-    previousState: TransferState,
-    field: TransferStateFieldUpdate,
-    value: string
+  previousState: TransferState,
+  field: TransferStateFieldUpdate,
+  value: string
 ): TransferState => applyTransferStateUpdate(previousState, field, value);

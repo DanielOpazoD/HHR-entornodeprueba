@@ -1,103 +1,121 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
 import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
-import { useDailyRecordActions, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import {
+  useDailyRecordActions,
+  useDailyRecordData,
+  useDailyRecordMovements,
+} from '@/context/DailyRecordContext';
+import { useConfirmDialog } from '@/context/UIContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/components/CensusActionsContext', () => ({
-    useCensusActionCommands: vi.fn()
+  useCensusActionCommands: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
-    useDailyRecordData: vi.fn(),
-    useDailyRecordActions: vi.fn(),
-    useDailyRecordMovements: vi.fn()
+  useDailyRecordData: vi.fn(),
+  useDailyRecordActions: vi.fn(),
+  useDailyRecordMovements: vi.fn(),
+}));
+
+vi.mock('@/context/UIContext', () => ({
+  useConfirmDialog: vi.fn(),
 }));
 
 describe('DischargesSection', () => {
-    const mockOnUndo = vi.fn();
-    const mockOnDelete = vi.fn();
-    const mockHandleEdit = vi.fn();
-    const mockUpdateDischarge = vi.fn();
+  const mockOnUndo = vi.fn();
+  const mockOnDelete = vi.fn();
+  const mockHandleEdit = vi.fn();
+  const mockConfirm = vi.fn();
 
-    const mockDischarges = [
-        DataFactory.createMockDischarge({
-            id: '1',
-            bedName: 'R1',
-            patientName: 'John Doe',
-            dischargeType: 'Domicilio (Habitual)'
-        })
-    ];
+  const mockDischarges = [
+    DataFactory.createMockDischarge({
+      id: '1',
+      bedName: 'R1',
+      patientName: 'John Doe',
+      dischargeType: 'Domicilio (Habitual)',
+    }),
+  ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-        vi.mocked(useCensusActionCommands).mockReturnValue({ handleEditDischarge: mockHandleEdit } as any);
-        (useDailyRecordActions as any).mockReturnValue({
-            undoDischarge: mockOnUndo,
-            deleteDischarge: mockOnDelete,
-            updateDischarge: mockUpdateDischarge
-        });
-        // Default empty movements
-        (useDailyRecordMovements as any).mockReturnValue({ discharges: [] });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useCensusActionCommands).mockReturnValue({
+      handleEditDischarge: mockHandleEdit,
+    } as any);
+    vi.mocked(useConfirmDialog).mockReturnValue({ confirm: mockConfirm } as any);
+    mockConfirm.mockResolvedValue(true);
+    (useDailyRecordData as any).mockReturnValue({
+      record: { date: '2024-12-11' },
+    });
+    (useDailyRecordActions as any).mockReturnValue({
+      undoDischarge: mockOnUndo,
+      deleteDischarge: mockOnDelete,
+    });
+    // Default empty movements
+    (useDailyRecordMovements as any).mockReturnValue({ discharges: [] });
+  });
+
+  it('renders empty message when no discharges', () => {
+    (useDailyRecordMovements as any).mockReturnValue({
+      discharges: [],
     });
 
-    it('renders empty message when no discharges', () => {
-        (useDailyRecordMovements as any).mockReturnValue({
-            discharges: []
-        });
+    render(<DischargesSection />);
+    expect(screen.getByText(/No hay altas registradas/)).toBeInTheDocument();
+  });
 
-        render(<DischargesSection />);
-        expect(screen.getByText(/No hay altas registradas/)).toBeInTheDocument();
+  it('renders discharge list and triggers actions', async () => {
+    (useDailyRecordMovements as any).mockReturnValue({
+      discharges: mockDischarges,
     });
 
-    it('renders discharge list and triggers actions', () => {
-        (useDailyRecordMovements as any).mockReturnValue({
-            discharges: mockDischarges
-        });
+    render(<DischargesSection />);
 
-        render(<DischargesSection />);
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('R1')).toBeInTheDocument();
+    expect(screen.getByText('(11-12-2024)')).toBeInTheDocument();
 
-        expect(screen.getByText('John Doe')).toBeInTheDocument();
-        expect(screen.getByText('R1')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
-        expect(mockOnUndo).toHaveBeenCalledWith('1');
-
-        fireEvent.click(screen.getByTitle('Editar'));
-        expect(mockHandleEdit).toHaveBeenCalledWith(mockDischarges[0]);
-
-        fireEvent.click(screen.getByTitle('Eliminar Registro'));
-        expect(mockOnDelete).toHaveBeenCalledWith('1');
+    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    await waitFor(() => {
+      expect(mockOnUndo).toHaveBeenCalledWith('1');
     });
 
-    it('handles discharge time changes', () => {
-        (useDailyRecordMovements as any).mockReturnValue({
-            discharges: mockDischarges
-        });
+    fireEvent.click(screen.getByTitle('Editar'));
+    expect(mockHandleEdit).toHaveBeenCalledWith(mockDischarges[0]);
 
-        render(<DischargesSection />);
+    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    await waitFor(() => {
+      expect(mockOnDelete).toHaveBeenCalledWith('1');
+    });
+  });
 
-        const timeInput = screen.getByDisplayValue('12:00');
-        fireEvent.change(timeInput, { target: { value: '14:10' } });
-
-        expect(mockUpdateDischarge).toHaveBeenCalledWith(
-            '1',
-            mockDischarges[0].status,
-            mockDischarges[0].dischargeType,
-            mockDischarges[0].dischargeTypeOther,
-            '14:10'
-        );
+  it('does not execute undo/delete when confirmation is rejected', async () => {
+    mockConfirm.mockResolvedValue(false);
+    (useDailyRecordMovements as any).mockReturnValue({
+      discharges: mockDischarges,
     });
 
-    it('returns null when discharges is null', () => {
-        (useDailyRecordMovements as any).mockReturnValue({
-            discharges: null
-        });
+    render(<DischargesSection />);
 
-        const { container } = render(<DischargesSection />);
-        expect(container.firstChild).toBeNull();
+    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalledTimes(2);
     });
+    expect(mockOnUndo).not.toHaveBeenCalled();
+    expect(mockOnDelete).not.toHaveBeenCalled();
+  });
+
+  it('returns null when discharges is null', () => {
+    (useDailyRecordMovements as any).mockReturnValue({
+      discharges: null,
+    });
+
+    const { container } = render(<DischargesSection />);
+    expect(container.firstChild).toBeNull();
+  });
 });

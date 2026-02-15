@@ -18,7 +18,8 @@ export type UpdateDischargeAction = (
   status: MovementStatus,
   dischargeType?: string,
   dischargeTypeOther?: string,
-  time?: string
+  time?: string,
+  movementDate?: string
 ) => void;
 
 export type DeleteDischargeAction = (id: string) => void;
@@ -58,11 +59,13 @@ export interface DischargeExecutionInput {
   type?: string;
   typeOther?: string;
   time?: string;
+  movementDate?: string;
   dischargeTarget?: DischargeTarget;
 }
 
 export interface TransferExecutionInput {
   time?: string;
+  movementDate?: string;
 }
 
 export interface DischargeUpdateCommandPayload {
@@ -70,6 +73,7 @@ export interface DischargeUpdateCommandPayload {
   type?: string;
   typeOther?: string;
   time: string;
+  movementDate?: string;
 }
 
 export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayload {
@@ -83,6 +87,7 @@ export interface TransferCommandPayload {
   receivingCenterOther: string;
   transferEscort: string;
   time: string;
+  movementDate?: string;
 }
 
 export type DischargeCommand =

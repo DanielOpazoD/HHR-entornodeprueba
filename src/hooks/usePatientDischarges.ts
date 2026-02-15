@@ -3,10 +3,8 @@ import { DailyRecord } from '@/types';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import {
-  DischargeTarget,
-  resolveAddDischargeMovement,
-} from '@/features/census/controllers/patientMovementCreationController';
+import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
 import { buildAddDischargeInput } from '@/features/census/controllers/patientMovementCreationInputController';
 import {
   resolveDeleteDischargeMovement,
@@ -94,7 +92,7 @@ export const usePatientDischarges = (
   );
 
   const updateDischarge: UpdateDischargeAction = useCallback(
-    (id, status, dischargeType, dischargeTypeOther, time) => {
+    (id, status, dischargeType, dischargeTypeOther, time, movementDate) => {
       executeMovementMutation(record =>
         resolveUpdateDischargeMovement({
           record,
@@ -103,6 +101,7 @@ export const usePatientDischarges = (
           dischargeType,
           dischargeTypeOther,
           time,
+          movementDate,
         })
       );
     },

@@ -31,7 +31,8 @@ describe('patientMovementCommandRuntimeController', () => {
       'Fallecido',
       undefined,
       undefined,
-      '12:00'
+      '12:00',
+      undefined
     );
   });
 
@@ -97,6 +98,7 @@ describe('patientMovementCommandRuntimeController', () => {
       receivingCenterOther: '',
       transferEscort: 'TENS',
       time: '14:10',
+      movementDate: undefined,
     });
   });
 

@@ -1,85 +1,66 @@
-import React, { useMemo } from 'react';
-import { useDailyRecordActions, useDailyRecordBeds, useDailyRecordMovements, useDailyRecordStaff } from '@/context/DailyRecordContext';
-import { useStaffContext } from '@/context/StaffContext';
-import { getPreviousDay, getAvailableDates } from '@/services/repositories/DailyRecordRepository';
-import { calculateStats } from '@/services/calculations/statsCalculator';
+import { useMemo } from 'react';
 import {
-    executeLoadCensusPromptDataController,
-    INITIAL_CENSUS_PROMPT_STATE
-} from '@/features/census/controllers/censusLogicController';
+  useDailyRecordActions,
+  useDailyRecordBeds,
+  useDailyRecordMovements,
+  useDailyRecordStaff,
+} from '@/context/DailyRecordContext';
+import { useStaffContext } from '@/context/StaffContext';
+import { calculateStats } from '@/services/calculations/statsCalculator';
+import { useCensusPromptState } from '@/features/census/hooks/useCensusPromptState';
 
 /**
  * Custom hook to manage the logic for the Census View.
- * Connects the view with DailyRecordContext and StaffContext, 
+ * Connects the view with DailyRecordContext and StaffContext,
  * and handles asynchronous checks for previous day availability.
- * 
+ *
  * @param currentDateString - The currently selected date in YYYY-MM-DD format.
  */
 export const useCensusLogic = (currentDateString: string) => {
-    const beds = useDailyRecordBeds();
-    const movements = useDailyRecordMovements();
-    const staff = useDailyRecordStaff();
-    const {
-        createDay,
-        resetDay,
-        updateNurse,
-        updateTens,
-        undoDischarge,
-        deleteDischarge,
-        undoTransfer,
-        deleteTransfer
-    } = useDailyRecordActions();
+  const beds = useDailyRecordBeds();
+  const movements = useDailyRecordMovements();
+  const staff = useDailyRecordStaff();
+  const {
+    createDay,
+    resetDay,
+    updateNurse,
+    updateTens,
+    undoDischarge,
+    deleteDischarge,
+    undoTransfer,
+    deleteTransfer,
+  } = useDailyRecordActions();
 
-    const { nursesList, tensList } = useStaffContext();
+  const { nursesList, tensList } = useStaffContext();
 
-    const [promptState, setPromptState] = React.useState(INITIAL_CENSUS_PROMPT_STATE);
+  const promptState = useCensusPromptState(currentDateString);
 
-    React.useEffect(() => {
-        let mounted = true;
+  // Calculate statistics when record changes
+  const stats = useMemo(() => {
+    if (!beds) return null;
+    return calculateStats(beds);
+  }, [beds]);
 
-        void (async () => {
-            const nextPromptState = await executeLoadCensusPromptDataController({
-                currentDateString,
-                getPreviousDay,
-                getAvailableDates
-            });
+  return {
+    // Data
+    beds,
+    movements,
+    staff,
+    nursesList,
+    tensList,
+    stats,
+    previousRecordAvailable: promptState.previousRecordAvailable,
+    previousRecordDate: promptState.previousRecordDate,
+    availableDates: promptState.availableDates,
 
-            if (!mounted) {
-                return;
-            }
-
-            setPromptState(nextPromptState);
-        })();
-
-        return () => { mounted = false; };
-    }, [currentDateString]);
-
-    // Calculate statistics when record changes
-    const stats = useMemo(() => {
-        if (!beds) return null;
-        return calculateStats(beds);
-    }, [beds]);
-
-    return {
-        // Data
-        beds,
-        movements,
-        staff,
-        nursesList,
-        tensList,
-        stats,
-        previousRecordAvailable: promptState.previousRecordAvailable,
-        previousRecordDate: promptState.previousRecordDate,
-        availableDates: promptState.availableDates,
-
-        // Actions
-        createDay,
-        resetDay,
-        updateNurse,
-        updateTens,
-        undoDischarge,
-        deleteDischarge,
-        undoTransfer,
-        deleteTransfer
-    };
+    // Actions
+    createDay,
+    resetDay,
+    updateNurse,
+    updateTens,
+    undoDischarge,
+    deleteDischarge,
+    undoTransfer,
+    deleteTransfer,
+  };
 };

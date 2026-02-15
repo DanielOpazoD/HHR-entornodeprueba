@@ -1,16 +1,7 @@
-
-import { useRef, useEffect } from 'react';
+import type { MutableRefObject } from 'react';
+import { useLatestRef } from './useLatestRef';
 
 /**
- * Hook to keep a stable reference to a value.
- * Useful for accessing current state in callbacks without adding it to dependencies.
+ * Backward-compatible alias for useLatestRef.
  */
-export function useLatest<T>(value: T) {
-    const ref = useRef(value);
-
-    useEffect(() => {
-        ref.current = value;
-    }, [value]);
-
-    return ref;
-}
+export const useLatest = <T>(value: T): MutableRefObject<T> => useLatestRef(value);

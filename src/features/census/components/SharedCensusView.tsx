@@ -1,232 +1,104 @@
 /**
  * SharedCensusView
- * 
+ *
  * View for external users (invited guests) to access census files.
  * Displays the most recent file from current month and last file from previous month.
  */
 
 import React from 'react';
-import {
-    FileSpreadsheet,
-    Clock,
-    AlertCircle,
-    Loader2,
-    Search,
-    ShieldCheck,
-    Eye,
-    Download
-} from 'lucide-react';
 import { useSharedCensusFiles } from '@/hooks/useSharedCensusFiles';
-import { formatFileSize } from '@/services/backup/baseStorageService';
 import { CensusAccessUser } from '@/types/censusAccess';
 import { ExcelViewerModal } from '@/components/shared/ExcelViewerModal';
-import clsx from 'clsx';
 import {
-    buildSharedCensusFileCardModel,
-    resolveSharedCensusAccessDisplayName,
-    resolveSharedCensusViewState
+  resolveSharedCensusAccessDisplayName,
+  resolveSharedCensusViewState,
 } from '@/features/census/controllers/sharedCensusViewController';
+import {
+  SharedCensusDeniedState,
+  SharedCensusEmptyState,
+  SharedCensusFileCard,
+  SharedCensusFooter,
+  SharedCensusHeader,
+  SharedCensusLoadErrorState,
+  SharedCensusLoadingState,
+} from '@/features/census/components/shared-census';
 
 interface SharedCensusViewProps {
-    accessUser: CensusAccessUser | null;
-    error: string | null;
+  accessUser: CensusAccessUser | null;
+  error: string | null;
 }
 
 export const SharedCensusView: React.FC<SharedCensusViewProps> = ({ accessUser, error }) => {
-    const {
-        filteredFiles,
-        isLoading,
-        loadError,
-        searchTerm,
-        setSearchTerm,
-        selectedFile,
-        setSelectedFile,
-        handlers
-    } = useSharedCensusFiles(accessUser);
-    const viewState = resolveSharedCensusViewState({
-        error,
-        accessUser,
-        isLoading
-    });
+  const {
+    filteredFiles,
+    isLoading,
+    loadError,
+    searchTerm,
+    setSearchTerm,
+    selectedFile,
+    setSelectedFile,
+    handlers,
+  } = useSharedCensusFiles(accessUser);
 
-    // Error state - no access
-    if (viewState === 'denied') {
-        return (
-            <div className="max-w-4xl mx-auto mt-20 p-8 bg-white rounded-3xl shadow-xl border border-red-100 text-center animate-in fade-in duration-500">
-                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
-                    <AlertCircle size={40} />
-                </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-4 tracking-tight">Acceso Denegado</h2>
-                <p className="text-slate-600 mb-8 max-w-md mx-auto font-medium">
-                    {error || 'No tienes una invitación válida o tu sesión ha expirado.'}
-                </p>
-                <div className="text-sm text-slate-400 font-medium">
-                    Contacta al administrador para solicitar un nuevo link.
-                </div>
-            </div>
-        );
-    }
+  const viewState = resolveSharedCensusViewState({
+    error,
+    accessUser,
+    isLoading,
+  });
 
-    // Loading state
-    if (viewState === 'loading') {
-        return (
-            <div className="max-w-4xl mx-auto mt-20 flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-md border border-slate-100">
-                <Loader2 className="w-12 h-12 text-medical-600 animate-spin mb-4" />
-                <p className="text-slate-600 font-bold tracking-tight">Cargando censo compartido...</p>
-            </div>
-        );
-    }
+  if (viewState === 'denied') {
+    return <SharedCensusDeniedState error={error} />;
+  }
 
-    if (!accessUser) {
-        return null;
-    }
+  if (viewState === 'loading') {
+    return <SharedCensusLoadingState />;
+  }
 
-    const accessDisplayName = resolveSharedCensusAccessDisplayName(accessUser);
+  if (!accessUser) {
+    return null;
+  }
 
-    return (
-        <div className="max-w-6xl mx-auto px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header */}
-            <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Archivos de Censo Diario</h1>
-                    <p className="text-slate-500 text-sm font-medium">
-                        Bienvenido, <span className="text-slate-800 font-bold">{accessDisplayName}</span>
-                        <span className="mx-2 text-slate-300">|</span>
-                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Acceso Compartido</span>
-                    </p>
-                </div>
+  const accessDisplayName = resolveSharedCensusAccessDisplayName(accessUser);
+  const canDownload = accessUser.role === 'downloader';
+  const hasSearchTerm = searchTerm.trim().length > 0;
 
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-medical-600 transition-colors">
-                        <Search size={18} />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Buscar por fecha..."
-                        className="pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-full md:w-80 shadow-sm focus:ring-4 focus:ring-medical-500/10 focus:border-medical-500 outline-none transition-all font-medium"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </header>
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <SharedCensusHeader
+        accessDisplayName={accessDisplayName}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+      />
 
-            {/* Content */}
-            {loadError ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center text-amber-800">
-                    <AlertCircle className="mx-auto mb-2" size={32} />
-                    <p className="font-bold">{loadError}</p>
-                </div>
-            ) : filteredFiles.length === 0 ? (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-16 text-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                        <FileSpreadsheet size={32} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-700">No se encontraron archivos</h3>
-                    <p className="text-slate-500 text-sm mt-1 font-medium">
-                        {searchTerm ? 'Prueba con otra búsqueda.' : 'No hay censos registrados.'}
-                    </p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                    {filteredFiles.map((file) => {
-                        const fileCardModel = buildSharedCensusFileCardModel(file);
-
-                        return (
-                            <div
-                                key={file.fullPath}
-                                className={clsx(
-                                    "group bg-white rounded-3xl border p-6 transition-all flex flex-col justify-between relative overflow-hidden",
-                                    fileCardModel.isCurrentMonth
-                                        ? "border-medical-200 shadow-xl shadow-medical-100/20 ring-1 ring-medical-50"
-                                        : "border-slate-200 shadow-sm opacity-90"
-                                )}
-                            >
-                                {fileCardModel.isCurrentMonth && (
-                                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-medical-500 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-xl shadow-sm">
-                                        Más Reciente
-                                    </div>
-                                )}
-
-                                <div className="flex items-start justify-between mb-6">
-                                    <div className={clsx(
-                                        "w-14 h-14 rounded-2xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
-                                        fileCardModel.isCurrentMonth ? "bg-medical-50 text-medical-600 border-medical-100" : "bg-slate-50 text-slate-500 border-slate-100"
-                                    )}>
-                                        <FileSpreadsheet size={28} />
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Censo Cerrado</p>
-                                        <div className="flex items-center justify-end gap-1.5 text-slate-400">
-                                            <ShieldCheck size={12} className="text-green-500" />
-                                            <span className="text-[10px] font-black tracking-tight">{formatFileSize(file.size)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="mb-8">
-                                    <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">
-                                        {fileCardModel.monthName} {fileCardModel.year}
-                                    </h3>
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Clock size={14} className="text-slate-300" />
-                                        <span className="text-sm font-bold">Corte: {fileCardModel.day} de {fileCardModel.monthName}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => handlers.handleViewFile(file)}
-                                        className={clsx(
-                                            "flex-1 font-black py-3 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 active:scale-95 border shadow-sm",
-                                            fileCardModel.isCurrentMonth
-                                                ? "bg-medical-600 hover:bg-medical-700 text-white border-medical-500 hover:shadow-lg hover:shadow-medical-200"
-                                                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
-                                        )}
-                                    >
-                                        <Eye size={18} />
-                                        Visualizar Censo
-                                    </button>
-
-                                    {accessUser.role === 'downloader' && (
-                                        <button
-                                            onClick={() => handlers.handleDownload(file)}
-                                            className="w-12 h-12 bg-white hover:bg-slate-50 text-slate-500 font-bold rounded-xl text-sm transition-all flex items-center justify-center border border-slate-200 shadow-sm active:scale-95 hover:text-medical-600 hover:border-medical-200"
-                                            title="Descargar"
-                                        >
-                                            <Download size={20} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Excel Viewer Modal */}
-            {selectedFile && (
-                <ExcelViewerModal
-                    fileName={selectedFile.name.split(' - ')[0]}
-                    downloadUrl={selectedFile.downloadUrl}
-                    canDownload={accessUser.role === 'downloader'}
-                    onClose={() => setSelectedFile(null)}
-                    onDownload={() => handlers.handleDownload(selectedFile)}
-                />
-            )}
-
-            {/* Footer */}
-            <footer className="mt-12 pt-8 border-t border-slate-100 text-center text-slate-400">
-                <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-300">
-                        <Clock size={14} />
-                        Histórico Estratégico
-                    </div>
-                </div>
-                <p className="text-[10px] max-w-lg mx-auto leading-relaxed font-medium">
-                    Este sistema contiene información sensible protegida por la Ley 19.628 de Protección de la Vida Privada.
-                    Todas las acciones de acceso y descarga son registradas con fines de auditoría institucional.
-                </p>
-            </footer>
+      {loadError ? (
+        <SharedCensusLoadErrorState loadError={loadError} />
+      ) : filteredFiles.length === 0 ? (
+        <SharedCensusEmptyState hasSearchTerm={hasSearchTerm} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {filteredFiles.map(file => (
+            <SharedCensusFileCard
+              key={file.fullPath}
+              file={file}
+              canDownload={canDownload}
+              onViewFile={handlers.handleViewFile}
+              onDownloadFile={handlers.handleDownload}
+            />
+          ))}
         </div>
-    );
+      )}
+
+      {selectedFile && (
+        <ExcelViewerModal
+          fileName={selectedFile.name.split(' - ')[0]}
+          downloadUrl={selectedFile.downloadUrl}
+          canDownload={canDownload}
+          onClose={() => setSelectedFile(null)}
+          onDownload={() => handlers.handleDownload(selectedFile)}
+        />
+      )}
+
+      <SharedCensusFooter />
+    </div>
+  );
 };

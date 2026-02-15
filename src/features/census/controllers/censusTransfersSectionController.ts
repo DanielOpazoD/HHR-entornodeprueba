@@ -1,6 +1,4 @@
 import type { TransferData } from '@/types';
-import { resolveTransferTimeUpdateCommand } from '@/features/census/controllers/censusTransfersTableController';
-import type { UpdateTransferAction } from '@/features/census/types/patientMovementCommandTypes';
 
 export interface TransfersSectionState {
   isRenderable: boolean;
@@ -26,19 +24,4 @@ export const resolveTransfersSectionState = (
     isEmpty: safeTransfers.length === 0,
     transfers: safeTransfers,
   };
-};
-
-export const executeTransferTimeChangeController = (
-  transfers: TransferData[],
-  id: string,
-  newTime: string,
-  updateTransfer: UpdateTransferAction
-): boolean => {
-  const command = resolveTransferTimeUpdateCommand(transfers, id, newTime);
-  if (!command) {
-    return false;
-  }
-
-  updateTransfer(command.id, command.updates);
-  return true;
 };

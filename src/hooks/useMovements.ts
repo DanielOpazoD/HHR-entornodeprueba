@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { DailyRecord } from '@/types';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
-import type { DischargeTarget } from '@/features/census/controllers/patientMovementCreationController';
+import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
 import type { PatientMovementActions } from '@/features/census/types/patientMovementCommandTypes';
 
 export type { DischargeTarget };

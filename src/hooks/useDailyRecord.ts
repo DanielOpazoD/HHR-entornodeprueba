@@ -20,202 +20,183 @@ import { useRepositories } from '@/services/RepositoryContext';
 
 // Types
 import { DailyRecordContextType } from './useDailyRecordTypes';
-import { OnDutyProfessional, OnDutySpecialty } from '@/types';
-
 
 /**
  * Main hook for daily record management.
  * Orchestrates sync, persistence, and domain operations.
  */
 export const useDailyRecord = (
-    currentDateString: string,
-    isOfflineMode: boolean = false,
-    isFirebaseConnected: boolean = false
+  currentDateString: string,
+  isOfflineMode: boolean = false,
+  isFirebaseConnected: boolean = false
 ): DailyRecordContextType => {
-    const { dailyRecord } = useRepositories();
+  const { dailyRecord } = useRepositories();
 
-    // ========================================================================
-    // Sync & State Management
-    // ========================================================================
-    const {
-        record,
-        setRecord,
-        syncStatus,
-        lastSyncTime,
-        saveAndUpdate,
-        markLocalChange,
-        refresh,
-        patchRecord
-    } = useDailyRecordSyncQuery(currentDateString, isOfflineMode, isFirebaseConnected);
+  // ========================================================================
+  // Sync & State Management
+  // ========================================================================
+  const {
+    record,
+    setRecord,
+    syncStatus,
+    lastSyncTime,
+    saveAndUpdate,
+    markLocalChange,
+    refresh,
+    patchRecord,
+  } = useDailyRecordSyncQuery(currentDateString, isOfflineMode, isFirebaseConnected);
 
-    const recordRef = useRef(record);
-    useEffect(() => { recordRef.current = record; }, [record]);
+  const recordRef = useRef(record);
+  useEffect(() => {
+    recordRef.current = record;
+  }, [record]);
 
-    // ========================================================================
-    // Orchestrated Sub-hooks
-    // ========================================================================
-    const { createDay, generateDemo, resetDay } = usePersistence({
-        currentDateString,
-        markLocalChange,
-        setRecord
-    });
+  // ========================================================================
+  // Orchestrated Sub-hooks
+  // ========================================================================
+  const { createDay, generateDemo, resetDay } = usePersistence({
+    currentDateString,
+    markLocalChange,
+    setRecord,
+  });
 
-    const inventory = useInventory(record);
-    const stabilityRules = useStabilityRules(record);
-    const { validateRecordSchema, canMovePatient, canDischargePatient } = useValidation();
+  const inventory = useInventory(record);
+  const stabilityRules = useStabilityRules(record);
+  const { validateRecordSchema, canMovePatient, canDischargePatient } = useValidation();
 
-    // ========================================================================
-    // Domain Hooks Composition
-    // ========================================================================
-    const bedManagement = useBedManagement(record, saveAndUpdate, patchRecord);
-    const dischargeManagement = usePatientDischarges(record, saveAndUpdate);
-    const transferManagement = usePatientTransfers(record, saveAndUpdate);
-    const nurseManagement = useNurseManagement(record, patchRecord);
-    const tensManagement = useTensManagement(record, patchRecord);
-    const cmaManagement = useCMA(record, saveAndUpdate);
-    const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
+  // ========================================================================
+  // Domain Hooks Composition
+  // ========================================================================
+  const bedManagement = useBedManagement(record, saveAndUpdate, patchRecord);
+  const dischargeManagement = usePatientDischarges(record, saveAndUpdate);
+  const transferManagement = usePatientTransfers(record, saveAndUpdate);
+  const nurseManagement = useNurseManagement(record, patchRecord);
+  const tensManagement = useTensManagement(record, patchRecord);
+  const cmaManagement = useCMA(record, saveAndUpdate);
+  const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
 
-    // ========================================================================
-    // Cross-date Copy
-    // ========================================================================
-    const copyPatientToDate = useCallback(async (bedId: string, targetDate: string, targetBedId?: string) => {
-        const currentRecord = recordRef.current;
-        if (!currentRecord) return;
-        const sourcePatient = currentRecord.beds[bedId];
-        if (!sourcePatient || !sourcePatient.patientName) return;
+  // ========================================================================
+  // Cross-date Copy
+  // ========================================================================
+  const copyPatientToDate = useCallback(
+    async (bedId: string, targetDate: string, targetBedId?: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const sourcePatient = currentRecord.beds[bedId];
+      if (!sourcePatient || !sourcePatient.patientName) return;
 
-        const finalTargetBedId = targetBedId || bedId;
+      const finalTargetBedId = targetBedId || bedId;
 
-        try {
-            await dailyRecord.copyPatientToDate(currentRecord.date, bedId, targetDate, finalTargetBedId);
-            await refresh();
-        } catch (error) {
-            console.error('Error copying patient to date:', error);
-            throw error;
-        }
-    }, [refresh, dailyRecord]);
+      try {
+        await dailyRecord.copyPatientToDate(
+          currentRecord.date,
+          bedId,
+          targetDate,
+          finalTargetBedId
+        );
+        await refresh();
+      } catch (error) {
+        console.error('Error copying patient to date:', error);
+        throw error;
+      }
+    },
+    [refresh, dailyRecord]
+  );
 
-    // On-Duty Professionals Management
-    const updateOnDutyProfessional = useCallback((
-        specialty: string,
-        data: { name: string; phone: string; period: string }
-    ) => {
-        const currentRecord = recordRef.current;
-        if (!currentRecord) return;
+  // ========================================================================
+  // Public API (memoized to prevent unnecessary re-renders)
+  // ========================================================================
+  return useMemo(
+    () => ({
+      // Core State
+      record,
+      syncStatus,
+      lastSyncTime,
+      inventory,
+      stabilityRules,
 
-        const currentProfessionals = currentRecord.onDutyProfessionals || [];
-        const existingIndex = currentProfessionals.findIndex(p => p.specialty === specialty);
+      // Day Lifecycle
+      createDay,
+      generateDemo,
+      resetDay,
+      refresh,
 
-        let updatedProfessionals;
-        if (existingIndex >= 0) {
-            updatedProfessionals = [...currentProfessionals];
-            updatedProfessionals[existingIndex] = { specialty: specialty as OnDutySpecialty, ...data };
-        } else {
-            updatedProfessionals = [...currentProfessionals, { specialty: specialty as OnDutySpecialty, ...data }];
-        }
+      // Validation helpers
+      validateRecordSchema,
+      canMovePatient,
+      canDischargePatient,
 
-        patchRecord({
-            onDutyProfessionals: updatedProfessionals,
-            onDutyProfessionalsUpdatedAt: new Date().toISOString()
-        });
-    }, [patchRecord]);
+      // Bed Management
+      updatePatient: bedManagement.updatePatient,
+      updatePatientMultiple: bedManagement.updatePatientMultiple,
+      updateClinicalCrib: bedManagement.updateClinicalCrib,
+      updateClinicalCribMultiple: bedManagement.updateClinicalCribMultiple,
+      updateClinicalCribCudyr: bedManagement.updateClinicalCribCudyr,
+      updateCudyr: bedManagement.updateCudyr,
+      clearPatient: bedManagement.clearPatient,
+      clearAllBeds: bedManagement.clearAllBeds,
+      moveOrCopyPatient: bedManagement.moveOrCopyPatient,
+      toggleBlockBed: bedManagement.toggleBlockBed,
+      updateBlockedReason: bedManagement.updateBlockedReason,
+      toggleExtraBed: bedManagement.toggleExtraBed,
+      toggleBedType: bedManagement.toggleBedType,
 
-    const updateOnDutyProfessionalsFull = useCallback((data: {
-        professionals: OnDutyProfessional[];
-        coverageStart?: string;
-        coverageEnd?: string;
-    }) => {
-        patchRecord({
-            onDutyProfessionals: data.professionals,
-            onDutyCoverageStart: data.coverageStart,
-            onDutyCoverageEnd: data.coverageEnd,
-            onDutyProfessionalsUpdatedAt: new Date().toISOString()
-        });
-    }, [patchRecord]);
+      // Nurse Management
+      updateNurse: nurseManagement.updateNurse,
 
+      // TENS Management
+      updateTens: tensManagement.updateTens,
 
-    // ========================================================================
-    // Public API (memoized to prevent unnecessary re-renders)
-    // ========================================================================
-    return useMemo(() => ({
-        // Core State
-        record,
-        syncStatus,
-        lastSyncTime,
-        inventory,
-        stabilityRules,
+      // Discharges
+      addDischarge: dischargeManagement.addDischarge,
+      updateDischarge: dischargeManagement.updateDischarge,
+      deleteDischarge: dischargeManagement.deleteDischarge,
+      undoDischarge: dischargeManagement.undoDischarge,
 
-        // Day Lifecycle
-        createDay,
-        generateDemo,
-        resetDay,
-        refresh,
+      // Transfers
+      addTransfer: transferManagement.addTransfer,
+      updateTransfer: transferManagement.updateTransfer,
+      deleteTransfer: transferManagement.deleteTransfer,
+      undoTransfer: transferManagement.undoTransfer,
 
-        // Validation helpers
-        validateRecordSchema,
-        canMovePatient,
-        canDischargePatient,
+      // CMA (Day Hospitalization)
+      addCMA: cmaManagement.addCMA,
+      deleteCMA: cmaManagement.deleteCMA,
+      updateCMA: cmaManagement.updateCMA,
 
-        // Bed Management
-        updatePatient: bedManagement.updatePatient,
-        updatePatientMultiple: bedManagement.updatePatientMultiple,
-        updateClinicalCrib: bedManagement.updateClinicalCrib,
-        updateClinicalCribMultiple: bedManagement.updateClinicalCribMultiple,
-        updateClinicalCribCudyr: bedManagement.updateClinicalCribCudyr,
-        updateCudyr: bedManagement.updateCudyr,
-        clearPatient: bedManagement.clearPatient,
-        clearAllBeds: bedManagement.clearAllBeds,
-        moveOrCopyPatient: bedManagement.moveOrCopyPatient,
-        toggleBlockBed: bedManagement.toggleBlockBed,
-        updateBlockedReason: bedManagement.updateBlockedReason,
-        toggleExtraBed: bedManagement.toggleExtraBed,
-        toggleBedType: bedManagement.toggleBedType,
+      // Cross-date Copy
+      copyPatientToDate,
 
-        // Nurse Management
-        updateNurse: nurseManagement.updateNurse,
-
-        // TENS Management
-        updateTens: tensManagement.updateTens,
-
-        // Discharges
-        addDischarge: dischargeManagement.addDischarge,
-        updateDischarge: dischargeManagement.updateDischarge,
-        deleteDischarge: dischargeManagement.deleteDischarge,
-        undoDischarge: dischargeManagement.undoDischarge,
-
-        // Transfers
-        addTransfer: transferManagement.addTransfer,
-        updateTransfer: transferManagement.updateTransfer,
-        deleteTransfer: transferManagement.deleteTransfer,
-        undoTransfer: transferManagement.undoTransfer,
-
-        // CMA (Day Hospitalization)
-        addCMA: cmaManagement.addCMA,
-        deleteCMA: cmaManagement.deleteCMA,
-        updateCMA: cmaManagement.updateCMA,
-
-        // Cross-date Copy
-        copyPatientToDate,
-
-        // Handoff Management
-        updateHandoffChecklist: handoffManagement.updateHandoffChecklist,
-        updateHandoffNovedades: handoffManagement.updateHandoffNovedades,
-        updateHandoffStaff: handoffManagement.updateHandoffStaff,
-        updateMedicalSignature: handoffManagement.updateMedicalSignature,
-        updateMedicalHandoffDoctor: handoffManagement.updateMedicalHandoffDoctor,
-        markMedicalHandoffAsSent: handoffManagement.markMedicalHandoffAsSent,
-        sendMedicalHandoff: handoffManagement.sendMedicalHandoff,
-
-        // On-Duty Professionals
-        updateOnDutyProfessionalsFull,
-        updateOnDutyProfessional
-    }), [
-        record, syncStatus, lastSyncTime, inventory, stabilityRules,
-        createDay, generateDemo, resetDay, refresh,
-        validateRecordSchema, canMovePatient, canDischargePatient,
-        bedManagement, nurseManagement, tensManagement,
-        dischargeManagement, transferManagement, cmaManagement,
-        handoffManagement, copyPatientToDate, updateOnDutyProfessional,
-        updateOnDutyProfessionalsFull
-    ]);
+      // Handoff Management
+      updateHandoffChecklist: handoffManagement.updateHandoffChecklist,
+      updateHandoffNovedades: handoffManagement.updateHandoffNovedades,
+      updateHandoffStaff: handoffManagement.updateHandoffStaff,
+      updateMedicalSignature: handoffManagement.updateMedicalSignature,
+      updateMedicalHandoffDoctor: handoffManagement.updateMedicalHandoffDoctor,
+      markMedicalHandoffAsSent: handoffManagement.markMedicalHandoffAsSent,
+      sendMedicalHandoff: handoffManagement.sendMedicalHandoff,
+    }),
+    [
+      record,
+      syncStatus,
+      lastSyncTime,
+      inventory,
+      stabilityRules,
+      createDay,
+      generateDemo,
+      resetDay,
+      refresh,
+      validateRecordSchema,
+      canMovePatient,
+      canDischargePatient,
+      bedManagement,
+      nurseManagement,
+      tensManagement,
+      dischargeManagement,
+      transferManagement,
+      cmaManagement,
+      handoffManagement,
+      copyPatientToDate,
+    ]
+  );
 };

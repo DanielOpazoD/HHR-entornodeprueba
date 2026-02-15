@@ -1,67 +1,24 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useCallback,
-  Dispatch,
-  SetStateAction,
-  useMemo,
-} from 'react';
-import { DischargeData, TransferData, PatientData } from '@/types';
-import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
-import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import { PatientRowAction } from '@/features/census/components/patient-row/patientActionMenuConfig';
-import {
-  buildDischargeEditState,
-  buildTransferEditState,
-} from '@/features/census/controllers/censusEditStateController';
-import {
-  DischargeExecutionInput,
-  TransferExecutionInput,
-} from '@/features/census/types/patientMovementCommandTypes';
-import {
-  ActionState,
-  createInitialActionState,
-  createInitialDischargeState,
-  createInitialTransferState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
-import { useLatestRef } from '@/features/census/hooks/useLatestRef';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useCensusActionCommandsController } from '@/features/census/hooks/useCensusActionCommandsController';
+import { useCensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
+import { useCensusActionDependencies } from '@/features/census/hooks/useCensusActionDependencies';
 import { getCurrentClockTimeHHMM } from '@/features/census/controllers/censusClockController';
-
-interface CensusActionStateContextType {
-  actionState: ActionState;
-  setActionState: Dispatch<SetStateAction<ActionState>>;
-  dischargeState: DischargeState;
-  setDischargeState: Dispatch<SetStateAction<DischargeState>>;
-  transferState: TransferState;
-  setTransferState: Dispatch<SetStateAction<TransferState>>;
-}
-
-interface CensusActionCommandsContextType {
-  executeMoveOrCopy: (targetDate?: string) => void;
-  executeDischarge: (data?: DischargeExecutionInput) => void;
-  handleEditDischarge: (d: DischargeData) => void;
-  executeTransfer: (data?: TransferExecutionInput) => void;
-  handleEditTransfer: (t: TransferData) => void;
-  handleRowAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
-}
+import { useCensusActionStateStore } from '@/features/census/hooks/useCensusActionStateStore';
+import { useCensusActionContextValues } from '@/features/census/hooks/useCensusActionContextValues';
+import type {
+  CensusActionCommandsContextType,
+  CensusActionStateContextType,
+  CensusActionsProviderProps,
+} from '@/features/census/types/censusActionContextTypes';
 
 const CensusActionStateContext = createContext<CensusActionStateContextType | undefined>(undefined);
 const CensusActionCommandsContext = createContext<CensusActionCommandsContextType | undefined>(
   undefined
 );
-
-interface CensusActionsProviderProps {
-  children: ReactNode;
-}
-
 export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ children }) => {
-  const { record, stabilityRules } = useDailyRecordData();
   const {
+    record,
+    stabilityRules,
     clearPatient,
     moveOrCopyPatient,
     addDischarge,
@@ -70,91 +27,62 @@ export const CensusActionsProvider: React.FC<CensusActionsProviderProps> = ({ ch
     updateTransfer,
     addCMA,
     copyPatientToDate,
-  } = useDailyRecordActions();
+    confirm,
+    notifyError,
+  } = useCensusActionDependencies();
 
-  const { confirm } = useConfirmDialog();
-  const { error: notifyError } = useNotification();
+  const {
+    actionState,
+    setActionState,
+    dischargeState,
+    setDischargeState,
+    transferState,
+    setTransferState,
+    handleEditDischarge,
+    handleEditTransfer,
+  } = useCensusActionStateStore();
 
-  const [actionState, setActionState] = useState<ActionState>(createInitialActionState);
-  const [dischargeState, setDischargeState] = useState<DischargeState>(createInitialDischargeState);
-  const [transferState, setTransferState] = useState<TransferState>(createInitialTransferState);
+  const runtimeRefs = useCensusActionRuntimeRefs({
+    actionState,
+    dischargeState,
+    transferState,
+    record,
+    stabilityRules,
+    clearPatient,
+    moveOrCopyPatient,
+    addDischarge,
+    updateDischarge,
+    addTransfer,
+    updateTransfer,
+    addCma: addCMA,
+    copyPatientToDate,
+    confirm,
+    notifyError,
+  });
 
-  const actionStateRef = useLatestRef(actionState);
-  const dischargeStateRef = useLatestRef(dischargeState);
-  const transferStateRef = useLatestRef(transferState);
-  const recordRef = useLatestRef(record);
-  const stabilityRulesRef = useLatestRef(stabilityRules);
-  const clearPatientRef = useLatestRef(clearPatient);
-  const moveOrCopyPatientRef = useLatestRef(moveOrCopyPatient);
-  const addDischargeRef = useLatestRef(addDischarge);
-  const updateDischargeRef = useLatestRef(updateDischarge);
-  const addTransferRef = useLatestRef(addTransfer);
-  const updateTransferRef = useLatestRef(updateTransfer);
-  const addCmaRef = useLatestRef(addCMA);
-  const copyPatientToDateRef = useLatestRef(copyPatientToDate);
-  const confirmRef = useLatestRef(confirm);
-  const notifyErrorRef = useLatestRef(notifyError);
   const { executeMoveOrCopy, executeDischarge, executeTransfer, handleRowAction } =
     useCensusActionCommandsController({
-      actionStateRef,
-      dischargeStateRef,
-      transferStateRef,
-      recordRef,
-      stabilityRulesRef,
-      clearPatientRef,
-      moveOrCopyPatientRef,
-      addDischargeRef,
-      updateDischargeRef,
-      addTransferRef,
-      updateTransferRef,
-      addCmaRef,
-      copyPatientToDateRef,
-      confirmRef,
-      notifyErrorRef,
+      ...runtimeRefs,
       setActionState,
       setDischargeState,
       setTransferState,
       getCurrentTime: getCurrentClockTimeHHMM,
     });
 
-  const handleEditDischarge = useCallback((d: DischargeData) => {
-    setDischargeState(buildDischargeEditState(d));
-  }, []);
-
-  const handleEditTransfer = useCallback((t: TransferData) => {
-    setTransferState(buildTransferEditState(t));
-  }, []);
-
-  const stateValue = useMemo<CensusActionStateContextType>(
-    () => ({
-      actionState,
-      setActionState,
-      dischargeState,
-      setDischargeState,
-      transferState,
-      setTransferState,
-    }),
-    [actionState, dischargeState, transferState]
-  );
-
-  const commandsValue = useMemo<CensusActionCommandsContextType>(
-    () => ({
-      executeMoveOrCopy,
-      executeDischarge,
-      handleEditDischarge,
-      executeTransfer,
-      handleEditTransfer,
-      handleRowAction,
-    }),
-    [
-      executeMoveOrCopy,
-      executeDischarge,
-      handleEditDischarge,
-      executeTransfer,
-      handleEditTransfer,
-      handleRowAction,
-    ]
-  );
+  const { stateValue, commandsValue } = useCensusActionContextValues({
+    actionState,
+    setActionState,
+    dischargeState,
+    setDischargeState,
+    transferState,
+    setTransferState,
+    executeMoveOrCopy,
+    executeDischarge,
+    handleEditDischarge,
+    executeTransfer,
+    handleEditTransfer,
+    handleRowAction,
+  });
 
   return (
     <CensusActionCommandsContext.Provider value={commandsValue}>

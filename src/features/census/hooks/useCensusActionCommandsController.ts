@@ -1,26 +1,32 @@
-import { useCallback, useEffect, useRef } from 'react';
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { DailyRecord, PatientData } from '@/types';
-import type { StabilityRules } from '@/hooks/useStabilityRules';
-import type { PatientRowAction } from '@/features/census/components/patient-row/patientActionMenuConfig';
+import { useCallback } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import type { PatientData } from '@/types';
+import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import {
-  type DischargeRuntimeActions,
-  type MoveOrCopyRuntimeActions,
-  type TransferRuntimeActions,
   executeDischargeController,
   executeMoveOrCopyController,
   executeTransferController,
 } from '@/features/census/controllers/censusActionRuntimeController';
+import { executeRowActionController } from '@/features/census/controllers/censusRowActionRuntimeController';
 import {
-  type RowActionRuntimeActions,
-  type RowActionRuntimeConfirm,
-  executeRowActionController,
-} from '@/features/census/controllers/censusRowActionRuntimeController';
+  buildDischargeRuntimeActions,
+  buildMoveOrCopyRuntimeActions,
+  buildTransferRuntimeActions,
+} from '@/features/census/controllers/censusActionRuntimeAdapterController';
+import { buildRowActionRuntimeActions } from '@/features/census/controllers/censusRowActionRuntimeAdapterController';
 import {
-  getDischargeErrorTitle,
-  getMoveOrCopyErrorTitle,
-  getTransferErrorTitle,
-} from '@/features/census/controllers/censusActionErrorPresentation';
+  applyDischargePatch,
+  applyTransferPatch,
+} from '@/features/census/controllers/censusModalStateController';
+import {
+  buildDischargeErrorNotification,
+  buildMoveOrCopyErrorNotification,
+  buildMoveOrCopyUnexpectedNotification,
+  buildRowActionBlockedNotification,
+  buildRowActionUnexpectedNotification,
+  buildTransferErrorNotification,
+  type CensusActionNotification,
+} from '@/features/census/controllers/censusActionNotificationController';
 import type {
   DischargeExecutionInput,
   TransferExecutionInput,
@@ -30,23 +36,10 @@ import type {
   DischargeState,
   TransferState,
 } from '@/features/census/types/censusActionTypes';
+import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
+import { useSingleFlightAsyncCommand } from '@/features/census/hooks/useSingleFlightAsyncCommand';
 
-interface UseCensusActionCommandsControllerParams {
-  actionStateRef: MutableRefObject<ActionState>;
-  dischargeStateRef: MutableRefObject<DischargeState>;
-  transferStateRef: MutableRefObject<TransferState>;
-  recordRef: MutableRefObject<DailyRecord | null>;
-  stabilityRulesRef: MutableRefObject<StabilityRules>;
-  clearPatientRef: MutableRefObject<RowActionRuntimeActions['clearPatient']>;
-  moveOrCopyPatientRef: MutableRefObject<MoveOrCopyRuntimeActions['moveOrCopyPatient']>;
-  addDischargeRef: MutableRefObject<DischargeRuntimeActions['addDischarge']>;
-  updateDischargeRef: MutableRefObject<DischargeRuntimeActions['updateDischarge']>;
-  addTransferRef: MutableRefObject<TransferRuntimeActions['addTransfer']>;
-  updateTransferRef: MutableRefObject<TransferRuntimeActions['updateTransfer']>;
-  addCmaRef: MutableRefObject<RowActionRuntimeActions['addCMA']>;
-  copyPatientToDateRef: MutableRefObject<MoveOrCopyRuntimeActions['copyPatientToDate']>;
-  confirmRef: MutableRefObject<RowActionRuntimeConfirm['confirm']>;
-  notifyErrorRef: MutableRefObject<(title: string, message?: string) => void>;
+interface UseCensusActionCommandsControllerParams extends CensusActionRuntimeRefs {
   setActionState: Dispatch<SetStateAction<ActionState>>;
   setDischargeState: Dispatch<SetStateAction<DischargeState>>;
   setTransferState: Dispatch<SetStateAction<TransferState>>;
@@ -81,53 +74,44 @@ export const useCensusActionCommandsController = ({
   setTransferState,
   getCurrentTime,
 }: UseCensusActionCommandsControllerParams): CensusActionCommandsController => {
-  const isMountedRef = useRef(true);
-  const isMoveOrCopyInFlightRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      isMoveOrCopyInFlightRef.current = false;
-    };
-  }, []);
+  const { runSingleFlight, isMounted } = useSingleFlightAsyncCommand();
+  const notifyError = useCallback(
+    ({ title, message }: CensusActionNotification) => {
+      notifyErrorRef.current(title, message);
+    },
+    [notifyErrorRef]
+  );
 
   const handleRowAction = useCallback(
     async (action: PatientRowAction, bedId: string, patient: PatientData) => {
-      const result = await executeRowActionController({
-        action,
-        bedId,
-        patient,
-        stabilityRules: stabilityRulesRef.current,
-        actions: {
-          clearPatient: clearPatientRef.current,
-          addCMA: addCmaRef.current,
-          setMovement: setActionState,
-          openDischarge: dischargePatch => {
-            setDischargeState(prev => ({
-              ...prev,
-              ...dischargePatch,
-            }));
-          },
-          openTransfer: transferPatch => {
-            setTransferState(prev => ({
-              ...prev,
-              ...transferPatch,
-            }));
-          },
-        },
-        confirmRuntime: { confirm: confirmRef.current },
-      });
+      try {
+        const result = await executeRowActionController({
+          action,
+          bedId,
+          patient,
+          stabilityRules: stabilityRulesRef.current,
+          actions: buildRowActionRuntimeActions({
+            clearPatient: clearPatientRef.current,
+            addCMA: addCmaRef.current,
+            setActionState,
+            setDischargeState,
+            setTransferState,
+          }),
+          confirmRuntime: { confirm: confirmRef.current },
+        });
 
-      if (!result.ok) {
-        notifyErrorRef.current('Acción bloqueada', result.error.message);
+        if (!result.ok) {
+          notifyError(buildRowActionBlockedNotification(result.error.message));
+        }
+      } catch {
+        notifyError(buildRowActionUnexpectedNotification());
       }
     },
     [
       addCmaRef,
       clearPatientRef,
       confirmRef,
-      notifyErrorRef,
+      notifyError,
       setActionState,
       setDischargeState,
       setTransferState,
@@ -137,56 +121,49 @@ export const useCensusActionCommandsController = ({
 
   const executeMoveOrCopy = useCallback(
     (targetDate?: string) => {
-      if (isMoveOrCopyInFlightRef.current) {
-        return;
-      }
-      isMoveOrCopyInFlightRef.current = true;
-
-      void (async () => {
+      const started = runSingleFlight(async () => {
         try {
           const result = await executeMoveOrCopyController({
             actionState: actionStateRef.current,
             record: recordRef.current,
             targetDate,
-            actions: {
-              moveOrCopyPatient: moveOrCopyPatientRef.current,
-              copyPatientToDate: copyPatientToDateRef.current,
-            },
+            actions: buildMoveOrCopyRuntimeActions(
+              moveOrCopyPatientRef.current,
+              copyPatientToDateRef.current
+            ),
           });
 
-          if (!isMountedRef.current) {
+          if (!isMounted()) {
             return;
           }
 
           if (!result.ok) {
-            notifyErrorRef.current(
-              getMoveOrCopyErrorTitle(result.error.code),
-              result.error.message
-            );
+            notifyError(buildMoveOrCopyErrorNotification(result.error.code, result.error.message));
             return;
           }
 
           setActionState(result.value.nextActionState);
         } catch {
-          if (!isMountedRef.current) {
+          if (!isMounted()) {
             return;
           }
 
-          notifyErrorRef.current(
-            'No se pudo mover/copiar',
-            'Ocurrió un error inesperado al ejecutar la acción.'
-          );
-        } finally {
-          isMoveOrCopyInFlightRef.current = false;
+          notifyError(buildMoveOrCopyUnexpectedNotification());
         }
-      })();
+      });
+
+      if (!started) {
+        return;
+      }
     },
     [
       actionStateRef,
       copyPatientToDateRef,
+      isMounted,
       moveOrCopyPatientRef,
-      notifyErrorRef,
+      notifyError,
       recordRef,
+      runSingleFlight,
       setActionState,
     ]
   );
@@ -198,24 +175,21 @@ export const useCensusActionCommandsController = ({
         data,
         stabilityRules: stabilityRulesRef.current,
         nowTime: getCurrentTime(),
-        actions: {
-          addDischarge: addDischargeRef.current,
-          updateDischarge: updateDischargeRef.current,
-        },
+        actions: buildDischargeRuntimeActions(addDischargeRef.current, updateDischargeRef.current),
       });
 
       if (!result.ok) {
-        notifyErrorRef.current(getDischargeErrorTitle(result.error.code), result.error.message);
+        notifyError(buildDischargeErrorNotification(result.error.code, result.error.message));
         return;
       }
 
-      setDischargeState(prev => ({ ...prev, ...result.value.closeModalPatch }));
+      setDischargeState(prev => applyDischargePatch(prev, result.value.closeModalPatch));
     },
     [
       addDischargeRef,
       dischargeStateRef,
       getCurrentTime,
-      notifyErrorRef,
+      notifyError,
       setDischargeState,
       stabilityRulesRef,
       updateDischargeRef,
@@ -229,23 +203,20 @@ export const useCensusActionCommandsController = ({
         data,
         stabilityRules: stabilityRulesRef.current,
         nowTime: getCurrentTime(),
-        actions: {
-          addTransfer: addTransferRef.current,
-          updateTransfer: updateTransferRef.current,
-        },
+        actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
       });
 
       if (!result.ok) {
-        notifyErrorRef.current(getTransferErrorTitle(result.error.code), result.error.message);
+        notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
         return;
       }
 
-      setTransferState(prev => ({ ...prev, ...result.value.closeModalPatch }));
+      setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
     },
     [
       addTransferRef,
       getCurrentTime,
-      notifyErrorRef,
+      notifyError,
       setTransferState,
       stabilityRulesRef,
       transferStateRef,

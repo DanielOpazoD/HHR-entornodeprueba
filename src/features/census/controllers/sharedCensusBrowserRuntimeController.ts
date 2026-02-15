@@ -1,3 +1,5 @@
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+
 export interface SharedCensusBrowserRuntime {
   alert: (message: string) => void;
   open: (url: string, target?: string) => void;
@@ -5,17 +7,9 @@ export interface SharedCensusBrowserRuntime {
 
 export const defaultSharedCensusBrowserRuntime: SharedCensusBrowserRuntime = {
   alert: message => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.alert(message);
+    defaultBrowserWindowRuntime.alert(message);
   },
   open: (url, target = '_blank') => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.open(url, target);
+    defaultBrowserWindowRuntime.open(url, target);
   },
 };

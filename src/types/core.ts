@@ -262,6 +262,7 @@ export type DischargeType = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Ot
 
 export interface DischargeData {
   id: string;
+  movementDate?: string; // YYYY-MM-DD
   bedName: string;
   bedId: string; // Needed for undo
   bedType: string;
@@ -282,6 +283,7 @@ export interface DischargeData {
 
 export interface TransferData {
   id: string;
+  movementDate?: string; // YYYY-MM-DD
   bedName: string;
   bedId: string; // Needed for undo
   bedType: string;
@@ -328,22 +330,15 @@ export interface CMAData {
 }
 
 /**
- * On-Duty Professional
- * Tracks medical professionals assigned to a shift
+ * Professional Specialty
+ * Used by the shared professionals catalog.
  */
-export type OnDutySpecialty =
+export type ProfessionalSpecialty =
   | 'Medicina Interna'
   | 'Cirugía'
   | 'Ginecobstetricia'
   | 'Anestesia'
   | 'Kinesiología';
-
-export interface OnDutyProfessional {
-  specialty: OnDutySpecialty;
-  name: string;
-  phone: string;
-  period: string; // e.g., "08:00 - 20:00" or "Lunes a Viernes"
-}
 
 export interface DailyRecord {
   date: string;
@@ -416,16 +411,6 @@ export interface DailyRecord {
   cudyrLockedAt?: string;
   /** User ID who locked the CUDYR */
   cudyrLockedBy?: string;
-
-  // ===== On-Duty Professionals =====
-  /** Medical professionals on duty for the day */
-  onDutyProfessionals?: OnDutyProfessional[];
-  /** Last time on-duty professionals were updated */
-  onDutyProfessionalsUpdatedAt?: string;
-  /** Coverage period start (ISO string) */
-  onDutyCoverageStart?: string;
-  /** Coverage period end (ISO string) */
-  onDutyCoverageEnd?: string;
 }
 
 /**
@@ -435,7 +420,7 @@ export interface DailyRecord {
 export interface ProfessionalCatalogItem {
   name: string;
   phone: string;
-  specialty: OnDutySpecialty;
+  specialty: ProfessionalSpecialty;
   period?: string;
   lastUsed?: string;
 }
@@ -492,10 +477,6 @@ type TopLevelPath = keyof Pick<
   | 'cudyrLocked'
   | 'cudyrLockedAt'
   | 'cudyrLockedBy'
-  | 'onDutyProfessionals'
-  | 'onDutyProfessionalsUpdatedAt'
-  | 'onDutyCoverageStart'
-  | 'onDutyCoverageEnd'
 >;
 
 // Type-safe paths for Handoff Checklist

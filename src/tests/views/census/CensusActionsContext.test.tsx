@@ -287,4 +287,38 @@ describe('CensusActionsContext hooks', () => {
       expect(copyPatientToDate).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('shows fallback notification when a row action throws unexpectedly', async () => {
+    mockedUseDailyRecordActions.mockReturnValue({
+      clearPatient: vi.fn(() => {
+        throw new Error('unexpected');
+      }),
+      moveOrCopyPatient: vi.fn(),
+      addDischarge: vi.fn(),
+      updateDischarge: vi.fn(),
+      addTransfer: vi.fn(),
+      updateTransfer: vi.fn(),
+      addCMA: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    mockedUseConfirmDialog.mockReturnValue({
+      confirm: vi.fn().mockResolvedValue(true),
+    });
+
+    const { result } = renderHook(() => useCensusActionCommands(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleRowAction(
+        'clear',
+        'R1',
+        DataFactory.createMockPatient('R1', { patientName: 'Paciente 1' })
+      );
+    });
+
+    expect(mockNotifyError).toHaveBeenCalledWith(
+      'No se pudo ejecutar la acción',
+      'Ocurrió un error inesperado al procesar la acción del paciente.'
+    );
+  });
 });

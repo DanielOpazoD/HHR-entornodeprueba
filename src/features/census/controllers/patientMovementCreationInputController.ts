@@ -1,8 +1,8 @@
 import { BedDefinition, DailyRecord, PatientData } from '@/types';
+import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
 import {
   AddDischargeMovementInput,
   AddTransferMovementInput,
-  DischargeTarget,
 } from '@/features/census/controllers/patientMovementCreationController';
 
 interface MovementCreationDependencies {

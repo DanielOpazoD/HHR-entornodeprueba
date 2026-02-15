@@ -15,6 +15,28 @@ vi.mock('@/components/shared/SectionErrorBoundary', () => ({
 vi.mock('@/features/census/components/index', () => ({
   CensusActionsProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   EmptyDayPrompt: () => <div data-testid="empty-day-prompt">Empty Day Prompt</div>,
+  CensusRegisterContent: ({
+    readOnly,
+    localViewMode,
+    visibleBeds,
+  }: {
+    readOnly: boolean;
+    localViewMode: 'TABLE' | '3D';
+    visibleBeds: Array<{ id: string }>;
+  }) => (
+    <div data-testid="census-register-content">
+      <div data-testid="census-staff-header">Census Staff Header</div>
+      {localViewMode === '3D' ? (
+        <div data-testid="hospital-floor-map">{visibleBeds.map(bed => bed.id).join(',')}</div>
+      ) : (
+        <div data-testid="census-table">Census Table</div>
+      )}
+      <div data-testid="discharges-section">Discharges Section</div>
+      <div data-testid="transfers-section">Transfers Section</div>
+      <div data-testid="cma-section">CMA Section</div>
+      {!readOnly && <div data-testid="census-modals">Census Modals</div>}
+    </div>
+  ),
   CensusTable: () => <div data-testid="census-table">Census Table</div>,
   DischargesSection: () => <div data-testid="discharges-section">Discharges Section</div>,
   TransfersSection: () => <div data-testid="transfers-section">Transfers Section</div>,

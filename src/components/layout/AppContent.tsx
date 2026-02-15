@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Navbar,
   DateStrip,
@@ -8,7 +8,6 @@ import {
   DemoModePanel,
   BookmarkBar,
   StorageStatusBadge,
-  ModuleType,
 } from '@/components';
 import { PinLockScreen } from '@/components/security/PinLockScreen';
 import { AppRouter } from '@/components/AppRouter';
@@ -20,6 +19,11 @@ import { useAuth } from '@/context/AuthContext';
 import { UseUIStateReturn } from '@/hooks/useUIState';
 import { useCensusContext } from '@/context/CensusContext';
 import { useExportManager } from '@/hooks/useExportManager';
+import {
+  shouldRenderBookmarkBar,
+  shouldRenderDateStrip,
+} from '@/components/layout/app-content/appContentVisibilityController';
+import { useAppContentEventBridge } from '@/components/layout/app-content/useAppContentEventBridge';
 
 interface AppContentProps {
   ui: UseUIStateReturn;
@@ -51,31 +55,10 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
     selectedShift: ui.selectedShift,
   });
 
-  // Listen for navigate-module events
-  useEffect(() => {
-    const handleNavigateModule = (event: Event) => {
-      const customEvent = event as CustomEvent<string>;
-      if (customEvent.detail) {
-        ui.setCurrentModule(customEvent.detail as ModuleType); // Type assertion to ModuleType
-      }
-    };
-
-    window.addEventListener('navigate-module', handleNavigateModule);
-    return () => window.removeEventListener('navigate-module', handleNavigateModule);
-  }, [ui]);
-
-  // Listen for set-shift events
-  useEffect(() => {
-    const handleSetShift = (event: Event) => {
-      const customEvent = event as CustomEvent<'day' | 'night'>;
-      if (customEvent.detail) {
-        ui.setSelectedShift(customEvent.detail);
-      }
-    };
-
-    window.addEventListener('set-shift', handleSetShift);
-    return () => window.removeEventListener('set-shift', handleSetShift);
-  }, [ui]);
+  useAppContentEventBridge({
+    setCurrentModule: ui.setCurrentModule,
+    setSelectedShift: ui.setSelectedShift,
+  });
 
   return (
     <AppProviders dailyRecordHook={dailyRecordHook}>
@@ -99,79 +82,77 @@ export const AppContent: React.FC<AppContentProps> = ({ ui }) => {
         )}
 
         {/* Date Strip - Hide in Analytics mode */}
-        {((ui.currentModule === 'CENSUS' && ui.censusViewMode === 'REGISTER') ||
-          ui.currentModule === 'CUDYR' ||
-          ui.currentModule === 'NURSING_HANDOFF' ||
-          ui.currentModule === 'MEDICAL_HANDOFF') &&
-          !isSignatureMode &&
-          !sharedCensus.isSharedCensusMode && (
-            <DateStrip
-              selectedYear={dateNav.selectedYear}
-              setSelectedYear={dateNav.setSelectedYear}
-              selectedMonth={dateNav.selectedMonth}
-              setSelectedMonth={dateNav.setSelectedMonth}
-              selectedDay={dateNav.selectedDay}
-              setSelectedDay={dateNav.setSelectedDay}
-              currentDateString={currentDateString}
-              daysInMonth={dateNav.daysInMonth}
-              existingDaysInMonth={dateNav.existingDaysInMonth}
-              onExportPDF={ui.showPrintButton ? exportManager.handleExportPDF : undefined}
-              onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
-              onExportExcel={
-                ui.currentModule === 'CENSUS'
-                  ? () =>
-                      generateCensusMasterExcel(
-                        dateNav.selectedYear,
-                        dateNav.selectedMonth,
-                        dateNav.selectedDay
-                      )
-                  : undefined
-              }
-              onConfigureEmail={
-                ui.currentModule === 'CENSUS'
-                  ? () => censusEmail.setShowEmailConfig(true)
-                  : undefined
-              }
-              onSendEmail={
-                ui.currentModule === 'CENSUS'
-                  ? async () => {
-                      await exportManager.handleBackupExcel();
-                      await censusEmail.sendEmail();
-                    }
-                  : undefined
-              }
-              onCopyShareLink={
-                ui.currentModule === 'CENSUS'
-                  ? () => censusEmail.copyShareLink('viewer')
-                  : undefined
-              }
-              onBackupExcel={
-                ui.currentModule === 'CENSUS' ? exportManager.handleBackupExcel : undefined
-              }
-              isArchived={exportManager.isArchived}
-              isBackingUp={exportManager.isBackingUp}
-              currentModule={ui.currentModule}
-              emailStatus={censusEmail.status}
-              emailErrorMessage={censusEmail.error}
-              syncStatus={syncStatus}
-              lastSyncTime={lastSyncTime}
-              onToggleBookmarks={() => ui.setShowBookmarksBar(!ui.showBookmarksBar)}
-              showBookmarks={ui.showBookmarksBar}
-              role={auth.role}
-              localViewMode={ui.censusLocalViewMode}
-              setLocalViewMode={ui.setCensusLocalViewMode}
-              onBackupPDF={exportManager.handleBackupHandoff}
-              navigateDays={dateNav.navigateDays}
-            />
-          )}
+        {shouldRenderDateStrip({
+          currentModule: ui.currentModule,
+          censusViewMode: ui.censusViewMode,
+          isSignatureMode,
+          isSharedCensusMode: sharedCensus.isSharedCensusMode,
+        }) && (
+          <DateStrip
+            selectedYear={dateNav.selectedYear}
+            setSelectedYear={dateNav.setSelectedYear}
+            selectedMonth={dateNav.selectedMonth}
+            setSelectedMonth={dateNav.setSelectedMonth}
+            selectedDay={dateNav.selectedDay}
+            setSelectedDay={dateNav.setSelectedDay}
+            currentDateString={currentDateString}
+            daysInMonth={dateNav.daysInMonth}
+            existingDaysInMonth={dateNav.existingDaysInMonth}
+            onExportPDF={ui.showPrintButton ? exportManager.handleExportPDF : undefined}
+            onOpenBedManager={ui.currentModule === 'CENSUS' ? ui.bedManagerModal.open : undefined}
+            onExportExcel={
+              ui.currentModule === 'CENSUS'
+                ? () =>
+                    generateCensusMasterExcel(
+                      dateNav.selectedYear,
+                      dateNav.selectedMonth,
+                      dateNav.selectedDay
+                    )
+                : undefined
+            }
+            onConfigureEmail={
+              ui.currentModule === 'CENSUS' ? () => censusEmail.setShowEmailConfig(true) : undefined
+            }
+            onSendEmail={
+              ui.currentModule === 'CENSUS'
+                ? async () => {
+                    await exportManager.handleBackupExcel();
+                    await censusEmail.sendEmail();
+                  }
+                : undefined
+            }
+            onCopyShareLink={
+              ui.currentModule === 'CENSUS' ? () => censusEmail.copyShareLink('viewer') : undefined
+            }
+            onBackupExcel={
+              ui.currentModule === 'CENSUS' ? exportManager.handleBackupExcel : undefined
+            }
+            isArchived={exportManager.isArchived}
+            isBackingUp={exportManager.isBackingUp}
+            currentModule={ui.currentModule}
+            emailStatus={censusEmail.status}
+            emailErrorMessage={censusEmail.error}
+            syncStatus={syncStatus}
+            lastSyncTime={lastSyncTime}
+            onToggleBookmarks={() => ui.setShowBookmarksBar(!ui.showBookmarksBar)}
+            showBookmarks={ui.showBookmarksBar}
+            role={auth.role}
+            localViewMode={ui.censusLocalViewMode}
+            setLocalViewMode={ui.setCensusLocalViewMode}
+            onBackupPDF={exportManager.handleBackupHandoff}
+            navigateDays={dateNav.navigateDays}
+          />
+        )}
 
         {/* Favorites Bookmark Bar - Hide in Analytics mode */}
-        {!isSignatureMode &&
-          !sharedCensus.isSharedCensusMode &&
-          ui.showBookmarksBar &&
-          ui.currentModule === 'CENSUS' &&
-          ui.censusViewMode === 'REGISTER' &&
-          (auth.role === 'admin' || auth.role === 'nurse_hospital') && <BookmarkBar />}
+        {shouldRenderBookmarkBar({
+          currentModule: ui.currentModule,
+          censusViewMode: ui.censusViewMode,
+          isSignatureMode,
+          isSharedCensusMode: sharedCensus.isSharedCensusMode,
+          showBookmarksBar: ui.showBookmarksBar,
+          role: auth.role,
+        }) && <BookmarkBar />}
 
         {/* Main Content */}
         <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">

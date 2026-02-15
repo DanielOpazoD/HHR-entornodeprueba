@@ -1,7 +1,7 @@
 /**
  * Hooks Index
  * Centralized exports for all custom hooks
- * 
+ *
  * Usage: import { useAuthState, useDailyRecord } from './hooks';
  */
 
@@ -30,11 +30,29 @@ export { useExistingDaysQuery } from './useExistingDaysQuery';
 export { useSignatureMode } from './useSignatureMode';
 export { useSharedCensusMode } from './useSharedCensusMode';
 export { useDevMetrics } from './useDevMetrics';
+export { useDropdownMenu } from './useDropdownMenu';
+export { useLatest } from './useLatest';
+export { useLatestRef } from './useLatestRef';
 
 // React Query Hooks
-export { useDailyRecordQuery, useSaveDailyRecordMutation, usePrefetchDailyRecord, useInvalidateDailyRecord } from './useDailyRecordQuery';
-export { useNursesQuery, useTensQuery, useSaveNursesMutation, useSaveTensMutation } from './useStaffQuery';
-export { useWhatsAppConfigQuery, useWhatsAppHealthQuery, useWhatsAppGroupsQuery, useUpdateWhatsAppConfigMutation } from './useWhatsAppQuery';
+export {
+  useDailyRecordQuery,
+  useSaveDailyRecordMutation,
+  usePrefetchDailyRecord,
+  useInvalidateDailyRecord,
+} from './useDailyRecordQuery';
+export {
+  useNursesQuery,
+  useTensQuery,
+  useSaveNursesMutation,
+  useSaveTensMutation,
+} from './useStaffQuery';
+export {
+  useWhatsAppConfigQuery,
+  useWhatsAppHealthQuery,
+  useWhatsAppGroupsQuery,
+  useUpdateWhatsAppConfigMutation,
+} from './useWhatsAppQuery';
 export { useBackupFilesQuery } from './useBackupFilesQuery';
 export { useFileOperations } from './useFileOperations';
 
@@ -45,7 +63,6 @@ export { useHandoffLogic } from './useHandoffLogic';
 // Exam Request
 export { useExamRequest } from './useExamRequest';
 
-
 // Re-export types from hooks that define them
 export type { DailyRecordContextType, DailyRecordPatch } from './useDailyRecordTypes';
 export type { SyncStatus } from './useDailyRecordTypes';
@@ -55,7 +72,6 @@ export type { ValidationResult, PatientValidationActions } from './usePatientVal
 export type { BedOperationsActions } from './useBedOperations';
 
 // Internal sync hook (exposed for testing/advanced use)
-
 
 // Feature Flags
 export { useFeatureFlag, useAllFeatureFlags } from './useFeatureFlag';

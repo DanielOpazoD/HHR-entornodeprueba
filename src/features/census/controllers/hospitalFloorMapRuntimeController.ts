@@ -1,3 +1,5 @@
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+
 export interface SavedBedTransform {
   x: number;
   z: number;
@@ -24,39 +26,19 @@ export interface HospitalFloorMapRuntime {
 
 export const createHospitalFloorMapRuntime = (): HospitalFloorMapRuntime => ({
   getItem: key => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    return window.localStorage.getItem(key);
+    return defaultBrowserWindowRuntime.getLocalStorageItem(key);
   },
   setItem: (key, value) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(key, value);
+    defaultBrowserWindowRuntime.setLocalStorageItem(key, value);
   },
   removeItem: key => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.removeItem(key);
+    defaultBrowserWindowRuntime.removeLocalStorageItem(key);
   },
   confirm: message => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    return window.confirm(message);
+    return defaultBrowserWindowRuntime.confirm(message);
   },
   reload: () => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.location.reload();
+    defaultBrowserWindowRuntime.reload();
   },
 });
 

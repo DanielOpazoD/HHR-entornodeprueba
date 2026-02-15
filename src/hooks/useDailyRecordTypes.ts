@@ -11,7 +11,6 @@ import {
   PatientFieldValue,
   CMAData,
   DailyRecordPatch,
-  OnDutyProfessional,
 } from '@/types';
 import type { PatientMovementActions } from '@/features/census/types/patientMovementCommandTypes';
 export type { DailyRecordPatch };
@@ -137,17 +136,6 @@ export interface DailyRecordActionsContextType extends PatientMovementActions {
   updateMedicalHandoffDoctor: (doctorName: string) => Promise<void>;
   markMedicalHandoffAsSent: (doctorName?: string) => Promise<void>;
   sendMedicalHandoff: (templateContent: string, targetGroupId: string) => Promise<void>;
-
-  // On-Duty Professionals Management
-  updateOnDutyProfessional: (
-    specialty: string,
-    data: { name: string; phone: string; period: string }
-  ) => void;
-  updateOnDutyProfessionalsFull: (data: {
-    professionals: OnDutyProfessional[];
-    coverageStart?: string;
-    coverageEnd?: string;
-  }) => void;
 }
 
 /**

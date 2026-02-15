@@ -3,7 +3,7 @@
  * Refactored to use smaller, specialized sub-components.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { WifiOff } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
@@ -42,13 +42,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   userEmail,
   onLogout,
   isFirebaseConnected,
-  isSharedMode = false
+  isSharedMode = false,
 }) => {
   const { role } = useAuth();
   const visibleModules = getVisibleModules(role);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleModuleChange = (mod: ModuleType) => {
     setModule(mod);
@@ -60,33 +59,44 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Module Color Map
   const getNavColor = () => {
     switch (currentModule) {
-      case 'CENSUS': return 'bg-medical-900 shadow-medical-900/20';
-      case 'NURSING_HANDOFF': return 'bg-sky-600 shadow-sky-600/20';
-      case 'MEDICAL_HANDOFF': return 'bg-sky-600 shadow-sky-600/20';
-      case 'AUDIT': return 'bg-slate-800 shadow-slate-800/20';
-      case 'TRANSFER_MANAGEMENT': return 'bg-sky-700 shadow-sky-700/20';
-      case 'BACKUP_FILES': return 'bg-slate-600 shadow-slate-600/20';
-      case 'PATIENT_MASTER_INDEX': return 'bg-blue-600 shadow-blue-600/20';
-      case 'DATA_MAINTENANCE': return 'bg-emerald-800 shadow-emerald-800/20';
-      case 'DIAGNOSTICS': return 'bg-slate-900 shadow-slate-900/20';
-      case 'ROLE_MANAGEMENT': return 'bg-indigo-700 shadow-indigo-700/20';
-      case 'ERRORS': return 'bg-rose-900 shadow-rose-900/20';
-      default: return 'bg-medical-900 shadow-medical-900/20';
+      case 'CENSUS':
+        return 'bg-medical-900 shadow-medical-900/20';
+      case 'NURSING_HANDOFF':
+        return 'bg-sky-600 shadow-sky-600/20';
+      case 'MEDICAL_HANDOFF':
+        return 'bg-sky-600 shadow-sky-600/20';
+      case 'AUDIT':
+        return 'bg-slate-800 shadow-slate-800/20';
+      case 'TRANSFER_MANAGEMENT':
+        return 'bg-sky-700 shadow-sky-700/20';
+      case 'BACKUP_FILES':
+        return 'bg-slate-600 shadow-slate-600/20';
+      case 'PATIENT_MASTER_INDEX':
+        return 'bg-blue-600 shadow-blue-600/20';
+      case 'DATA_MAINTENANCE':
+        return 'bg-emerald-800 shadow-emerald-800/20';
+      case 'DIAGNOSTICS':
+        return 'bg-slate-900 shadow-slate-900/20';
+      case 'ROLE_MANAGEMENT':
+        return 'bg-indigo-700 shadow-indigo-700/20';
+      case 'ERRORS':
+        return 'bg-rose-900 shadow-rose-900/20';
+      default:
+        return 'bg-medical-900 shadow-medical-900/20';
     }
   };
 
   return (
     <nav
-      className={clsx(getNavColor(), "text-white shadow-md sticky top-0 z-[60] print:hidden transition-colors duration-300 h-[64px] flex items-center")}
+      className={clsx(
+        getNavColor(),
+        'text-white shadow-md sticky top-0 z-[60] print:hidden transition-colors duration-300 h-[64px] flex items-center'
+      )}
       style={{ transform: 'translateZ(0)' }}
     >
       <div className="max-w-screen-2xl mx-auto px-4 flex flex-wrap gap-4 justify-between items-center">
-
         {/* Brand with Dropdown Menu */}
         <NavbarMenu
-          isOpen={isMenuOpen}
-          onToggle={() => setIsMenuOpen(!isMenuOpen)}
-          onClose={() => setIsMenuOpen(false)}
           currentModule={currentModule}
           setModule={setModule}
           censusViewMode={censusViewMode}
@@ -135,11 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {userEmail && onLogout && (
-            <UserMenu
-              userEmail={userEmail}
-              role={role}
-              onLogout={onLogout}
-            />
+            <UserMenu userEmail={userEmail} role={role} onLogout={onLogout} />
           )}
         </div>
       </div>

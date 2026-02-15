@@ -87,4 +87,68 @@ describe('useSharedCensusFiles', () => {
       })
     );
   });
+
+  it('surfaces typed load error when month listing fails', async () => {
+    const runtime = {
+      alert: vi.fn(),
+      open: vi.fn(),
+    };
+    mockedListCensusFilesInMonth.mockRejectedValue(new Error('failed'));
+
+    const { result } = renderHook(() => useSharedCensusFiles(accessUser, runtime));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.loadError).toBe('No se pudieron cargar los archivos del censo.');
+    });
+  });
+
+  it('ignores stale fetch responses when a newer fetch is in flight', async () => {
+    let resolveFirstCurrent!: (files: StoredCensusFile[]) => void;
+    let resolveFirstPrevious!: (files: StoredCensusFile[]) => void;
+
+    const secondCurrent: StoredCensusFile[] = [
+      {
+        ...sampleFile,
+        name: '12-02-2026 - Censo Diario.xlsx',
+        fullPath: '/censo/2026/02/new-file.xlsx',
+        date: '2026-02-12',
+      },
+    ];
+    const secondPrevious: StoredCensusFile[] = [];
+
+    mockedListCensusFilesInMonth
+      .mockImplementationOnce(
+        () =>
+          new Promise<StoredCensusFile[]>(resolve => {
+            resolveFirstCurrent = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<StoredCensusFile[]>(resolve => {
+            resolveFirstPrevious = resolve;
+          })
+      )
+      .mockResolvedValueOnce(secondCurrent)
+      .mockResolvedValueOnce(secondPrevious);
+
+    const { result, rerender } = renderHook(({ user }) => useSharedCensusFiles(user), {
+      initialProps: { user: accessUser },
+    });
+
+    rerender({ user: { ...accessUser, id: 'user-2', email: 'viewer2@example.com' } });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.filteredFiles[0]?.fullPath).toBe('/censo/2026/02/new-file.xlsx');
+    });
+
+    await act(async () => {
+      resolveFirstCurrent([sampleFile]);
+      resolveFirstPrevious([]);
+    });
+
+    expect(result.current.filteredFiles[0]?.fullPath).toBe('/censo/2026/02/new-file.xlsx');
+  });
 });

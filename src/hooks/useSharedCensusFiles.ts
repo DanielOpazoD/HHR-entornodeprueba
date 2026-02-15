@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { listCensusFilesInMonth, StoredCensusFile } from '@/services/backup/censusStorageService';
 import { logAccess } from '@/services/census/censusAccessService';
 import { CensusAccessUser } from '@/types/censusAccess';
 import {
+  executeLoadSharedCensusFilesController,
   filterSharedCensusFilesByTerm,
-  resolveSharedCensusMonthWindow,
-  selectLatestSharedCensusFiles,
+  resolveSharedCensusDownloadPermission,
 } from '@/features/census/controllers/sharedCensusFilesController';
 import {
   defaultSharedCensusBrowserRuntime,
@@ -21,38 +21,72 @@ export const useSharedCensusFiles = (
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState<StoredCensusFile | null>(null);
+  const requestSequenceRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const safeLogAccess = useCallback((params: Parameters<typeof logAccess>[0]) => {
+    void Promise.resolve(logAccess(params)).catch(error => {
+      console.error('[SharedCensusFiles] Failed to log access:', error);
+    });
+  }, []);
 
   const fetchFiles = useCallback(async () => {
-    if (!accessUser) return;
+    if (!accessUser) {
+      if (mountedRef.current) {
+        setFiles([]);
+        setLoadError(null);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    const requestSequence = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestSequence;
+
     setIsLoading(true);
     try {
-      const { currentYear, currentMonth, previousYear, previousMonth } =
-        resolveSharedCensusMonthWindow(new Date());
+      const result = await executeLoadSharedCensusFilesController({
+        now: new Date(),
+        listFilesInMonth: listCensusFilesInMonth,
+      });
 
-      const [currentFiles, prevFiles] = await Promise.all([
-        listCensusFilesInMonth(currentYear, currentMonth),
-        listCensusFilesInMonth(previousYear, previousMonth),
-      ]);
+      if (!mountedRef.current || requestSequence !== requestSequenceRef.current) {
+        return;
+      }
 
-      setFiles(
-        selectLatestSharedCensusFiles({
-          currentFiles,
-          previousFiles: prevFiles,
-        })
-      );
+      if (!result.ok) {
+        setLoadError(result.error.message);
+        return;
+      }
 
-      logAccess({
+      setFiles(result.value.files);
+      setLoadError(null);
+
+      safeLogAccess({
         userId: accessUser.id,
         email: accessUser.email,
         action: 'list_files',
       });
     } catch (err: unknown) {
+      if (!mountedRef.current || requestSequence !== requestSequenceRef.current) {
+        return;
+      }
+
       console.error('[SharedCensusView] Error fetching files:', err);
       setLoadError('No se pudieron cargar los archivos del censo.');
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current && requestSequence === requestSequenceRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [accessUser]);
+  }, [accessUser, safeLogAccess]);
 
   useEffect(() => {
     fetchFiles();
@@ -61,15 +95,14 @@ export const useSharedCensusFiles = (
   const handleDownload = useCallback(
     async (file: StoredCensusFile) => {
       if (!accessUser) return;
-      if (accessUser.role !== 'downloader') {
-        runtime.alert(
-          'No tienes permisos de descarga. Contacta al administrador si necesitas el archivo.'
-        );
+      const permission = resolveSharedCensusDownloadPermission(accessUser.role);
+      if (!permission.ok) {
+        runtime.alert(permission.error.message);
         return;
       }
 
       try {
-        logAccess({
+        safeLogAccess({
           userId: accessUser.id,
           email: accessUser.email,
           action: 'download_file',
@@ -89,7 +122,7 @@ export const useSharedCensusFiles = (
   const handleViewFile = useCallback(
     (file: StoredCensusFile) => {
       if (!accessUser) return;
-      logAccess({
+      safeLogAccess({
         userId: accessUser.id,
         email: accessUser.email,
         action: 'view_file',
@@ -99,10 +132,13 @@ export const useSharedCensusFiles = (
 
       setSelectedFile(file);
     },
-    [accessUser]
+    [accessUser, safeLogAccess]
   );
 
-  const filteredFiles = filterSharedCensusFilesByTerm(files, searchTerm);
+  const filteredFiles = useMemo(
+    () => filterSharedCensusFilesByTerm(files, searchTerm),
+    [files, searchTerm]
+  );
 
   return {
     files,

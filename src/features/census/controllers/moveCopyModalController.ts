@@ -1,3 +1,5 @@
+import type { BedDefinition, DailyRecord } from '@/types';
+
 export interface MoveCopyDateOption {
   label: 'Ayer' | 'Hoy' | 'Mañana';
   offset: -1 | 0 | 1;
@@ -6,6 +8,15 @@ export interface MoveCopyDateOption {
 export interface MoveCopyDateOptionModel extends MoveCopyDateOption {
   isoDate: string;
   displayDate: string;
+}
+
+export interface MoveCopyBedOptionModel {
+  id: string;
+  name: string;
+  isOccupied: boolean;
+  isDisabled: boolean;
+  isSelected: boolean;
+  statusLabel: 'Ocupada' | 'Libre';
 }
 
 const MOVE_COPY_DATE_OPTIONS: readonly MoveCopyDateOption[] = [
@@ -67,4 +78,44 @@ export const resolveMoveCopyBaseDate = (
   }
 
   return parseIsoDate(currentRecordDate) ? currentRecordDate : fallbackDate;
+};
+
+interface ResolveMoveCopyBedOptionsParams {
+  allBeds: BedDefinition[];
+  currentRecord: DailyRecord;
+  targetRecord: DailyRecord | null;
+  sourceBedId: string | null;
+  targetBedId: string | null;
+}
+
+export const resolveMoveCopySourceBedName = (
+  allBeds: BedDefinition[],
+  sourceBedId: string | null
+): string => allBeds.find(bed => bed.id === sourceBedId)?.name || '';
+
+export const resolveMoveCopyBedOptions = ({
+  allBeds,
+  currentRecord,
+  targetRecord,
+  sourceBedId,
+  targetBedId,
+}: ResolveMoveCopyBedOptionsParams): MoveCopyBedOptionModel[] => {
+  const activeExtraBeds = targetRecord?.activeExtraBeds || currentRecord.activeExtraBeds || [];
+  const visibleBeds = allBeds.filter(bed => !bed.isExtra || activeExtraBeds.includes(bed.id));
+
+  return visibleBeds
+    .filter(bed => bed.id !== sourceBedId)
+    .map(bed => {
+      const hasPatientName = Boolean(targetRecord?.beds?.[bed.id]?.patientName);
+      const isSelected = targetBedId === bed.id;
+
+      return {
+        id: bed.id,
+        name: bed.name,
+        isOccupied: hasPatientName,
+        isDisabled: hasPatientName,
+        isSelected,
+        statusLabel: hasPatientName ? 'Ocupada' : 'Libre',
+      };
+    });
 };

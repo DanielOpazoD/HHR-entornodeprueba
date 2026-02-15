@@ -7,6 +7,7 @@ interface UpdateDischargeMovementInput {
   dischargeType?: string;
   dischargeTypeOther?: string;
   time?: string;
+  movementDate?: string;
 }
 
 interface DeleteMovementInput {
@@ -27,6 +28,7 @@ export const resolveUpdateDischargeMovement = ({
   dischargeType,
   dischargeTypeOther,
   time,
+  movementDate,
 }: UpdateDischargeMovementInput): DailyRecord => {
   const discharges = record.discharges.map(discharge =>
     discharge.id === id
@@ -35,6 +37,7 @@ export const resolveUpdateDischargeMovement = ({
           status,
           dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
           dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
+          movementDate: movementDate ?? discharge.movementDate,
           time: time ?? discharge.time,
         }
       : discharge
