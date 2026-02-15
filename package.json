@@ -23,6 +23,7 @@
     "lint:fix": "eslint . --fix",
     "clean": "bash scripts/cleanup.sh",
     "ci": "npm run lint && npm run test && npm run build",
+    "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.json",
     "test:rules": "RUN_FIRESTORE_RULES_TESTS=1 vitest run src/tests/security/firestore-rules.test.ts",
     "emulator": "firebase emulators:start --only firestore"
   },
@@ -106,9 +107,6 @@
     "workbox-strategies": "^7.4.0"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "npx tsc --noEmit --skipLibCheck"
-    ],
     "*.{ts,tsx,js,jsx,json,css,md}": [
       "prettier --write --ignore-unknown"
     ]

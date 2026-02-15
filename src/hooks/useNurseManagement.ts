@@ -1,57 +1,68 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useCallback } from 'react';
 import { DailyRecord } from '@/types';
 import { DailyRecordPatch } from './useDailyRecordTypes';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 export const useNurseManagement = (
-    record: DailyRecord | null,
-    patchRecord: (partial: DailyRecordPatch) => Promise<void>
+  record: DailyRecord | null,
+  patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ) => {
-    const recordRef = useRef(record);
-    useEffect(() => { recordRef.current = record; }, [record]);
+  const recordRef = useLatestRef(record);
 
-    const updateNurse = useCallback(async (shift: 'day' | 'night', index: number, name: string) => {
-        const currentRecord = recordRef.current;
-        if (!currentRecord) return;
+  const updateNurse = useCallback(
+    async (shift: 'day' | 'night', index: number, name: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
 
-        const field = shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
-        const currentArray = [...(currentRecord[field] || ['', ''])];
+      const field = shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
+      const currentArray = [...(currentRecord[field] || ['', ''])];
 
-        while (currentArray.length <= index) {
-            currentArray.push('');
-        }
-        currentArray[index] = name;
+      while (currentArray.length <= index) {
+        currentArray.push('');
+      }
+      currentArray[index] = name;
 
-        await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
-    }, [patchRecord]);
+      await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
+    },
+    [patchRecord]
+  );
 
-    return useMemo(() => ({
-        updateNurse
-    }), [updateNurse]);
+  return useMemo(
+    () => ({
+      updateNurse,
+    }),
+    [updateNurse]
+  );
 };
 
 export const useTensManagement = (
-    record: DailyRecord | null,
-    patchRecord: (partial: DailyRecordPatch) => Promise<void>
+  record: DailyRecord | null,
+  patchRecord: (partial: DailyRecordPatch) => Promise<void>
 ) => {
-    const recordRef = useRef(record);
-    useEffect(() => { recordRef.current = record; }, [record]);
+  const recordRef = useLatestRef(record);
 
-    const updateTens = useCallback(async (shift: 'day' | 'night', index: number, name: string) => {
-        const currentRecord = recordRef.current;
-        if (!currentRecord) return;
+  const updateTens = useCallback(
+    async (shift: 'day' | 'night', index: number, name: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
 
-        const field = shift === 'day' ? 'tensDayShift' : 'tensNightShift';
-        const currentArray = [...(currentRecord[field] || ['', '', ''])];
+      const field = shift === 'day' ? 'tensDayShift' : 'tensNightShift';
+      const currentArray = [...(currentRecord[field] || ['', '', ''])];
 
-        while (currentArray.length <= index) {
-            currentArray.push('');
-        }
-        currentArray[index] = name;
+      while (currentArray.length <= index) {
+        currentArray.push('');
+      }
+      currentArray[index] = name;
 
-        await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
-    }, [patchRecord]);
+      await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
+    },
+    [patchRecord]
+  );
 
-    return useMemo(() => ({
-        updateTens
-    }), [updateTens]);
+  return useMemo(
+    () => ({
+      updateTens,
+    }),
+    [updateTens]
+  );
 };

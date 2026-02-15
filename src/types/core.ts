@@ -3,62 +3,60 @@
  * Main data types for the hospital census application
  */
 
-import { PatientFieldValue } from './valueTypes';
-
 export enum BedType {
-    UTI = 'UTI',
-    UCI = 'UCI',
-    MEDIA = 'MEDIA',
+  UTI = 'UTI',
+  UCI = 'UCI',
+  MEDIA = 'MEDIA',
 }
 
 export enum Specialty {
-    MEDICINA = 'Med Interna',
-    CIRUGIA = 'Cirugía',
-    TRAUMATOLOGIA = 'Traumatología',
-    GINECOBSTETRICIA = 'Ginecobstetricia',
-    PSIQUIATRIA = 'Psiquiatría',
-    PEDIATRIA = 'Pediatría',
-    ODONTOLOGIA = 'Odontología',
-    OTRO = 'Otro',
-    EMPTY = ''
+  MEDICINA = 'Med Interna',
+  CIRUGIA = 'Cirugía',
+  TRAUMATOLOGIA = 'Traumatología',
+  GINECOBSTETRICIA = 'Ginecobstetricia',
+  PSIQUIATRIA = 'Psiquiatría',
+  PEDIATRIA = 'Pediatría',
+  ODONTOLOGIA = 'Odontología',
+  OTRO = 'Otro',
+  EMPTY = '',
 }
 
 export enum PatientStatus {
-    GRAVE = 'Grave',
-    DE_CUIDADO = 'De cuidado',
-    ESTABLE = 'Estable',
-    EMPTY = ''
+  GRAVE = 'Grave',
+  DE_CUIDADO = 'De cuidado',
+  ESTABLE = 'Estable',
+  EMPTY = '',
 }
 
 export type ShiftType = 'day' | 'night';
 
 // Fixed list of 18 beds + Extras
 export interface BedDefinition {
-    id: string;
-    name: string;
-    type: BedType;
-    isCuna: boolean; // Default configuration
-    isExtra?: boolean;
+  id: string;
+  name: string;
+  type: BedType;
+  isCuna: boolean; // Default configuration
+  isExtra?: boolean;
 }
 
 export interface CudyrScore {
-    // Dependencia (6 items)
-    changeClothes: number;
-    mobilization: number;
-    feeding: number;
-    elimination: number;
-    psychosocial: number;
-    surveillance: number;
+  // Dependencia (6 items)
+  changeClothes: number;
+  mobilization: number;
+  feeding: number;
+  elimination: number;
+  psychosocial: number;
+  surveillance: number;
 
-    // Riesgo (8 items)
-    vitalSigns: number;
-    fluidBalance: number;
-    oxygenTherapy: number;
-    airway: number;
-    proInterventions: number;
-    skinCare: number;
-    pharmacology: number;
-    invasiveElements: number;
+  // Riesgo (8 items)
+  vitalSigns: number;
+  fluidBalance: number;
+  oxygenTherapy: number;
+  airway: number;
+  proInterventions: number;
+  skinCare: number;
+  pharmacology: number;
+  invasiveElements: number;
 }
 
 /**
@@ -66,38 +64,38 @@ export interface CudyrScore {
  * Persists across days while patient is hospitalized
  */
 export interface ClinicalEvent {
-    id: string;           // UUID
-    name: string;         // Event name (free text)
-    date: string;         // ISO date string
-    note?: string;        // Optional additional note
-    createdAt: string;    // ISO timestamp when created
+  id: string; // UUID
+  name: string; // Event name (free text)
+  date: string; // ISO date string
+  note?: string; // Optional additional note
+  createdAt: string; // ISO timestamp when created
 }
 
 /**
  * Basic FHIR Extension structure
  */
 export interface FhirExtension {
-    url: string;
-    valueString?: string;
-    valueBoolean?: boolean;
-    valueInteger?: number;
-    valueDecimal?: number;
-    valueDateTime?: string;
-    valueCodeableConcept?: Record<string, unknown>;
-    [key: string]: unknown;
+  url: string;
+  valueString?: string;
+  valueBoolean?: boolean;
+  valueInteger?: number;
+  valueDecimal?: number;
+  valueDateTime?: string;
+  valueCodeableConcept?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /**
  * Basic FHIR Resource structure for Core-CL compatibility
  */
 export interface FhirResource {
-    resourceType: string;
-    id?: string;
-    meta?: {
-        profile?: string[];
-    };
-    extension?: FhirExtension[];
-    [key: string]: unknown; // Use unknown instead of any for better safety
+  resourceType: string;
+  id?: string;
+  meta?: {
+    profile?: string[];
+  };
+  extension?: FhirExtension[];
+  [key: string]: unknown; // Use unknown instead of any for better safety
 }
 
 /**
@@ -105,24 +103,24 @@ export interface FhirResource {
  * Sidecar collection for autocomplete and historical tracking
  */
 export interface MasterPatient {
-    rut: string; // ID (Primary Key)
-    fullName: string;
-    birthDate?: string;
-    commune?: string; // Comuna de procedencia
-    address?: string;
-    phone?: string;
-    forecast?: string; // Previsión
-    gender?: string;
+  rut: string; // ID (Primary Key)
+  fullName: string;
+  birthDate?: string;
+  commune?: string; // Comuna de procedencia
+  address?: string;
+  phone?: string;
+  forecast?: string; // Previsión
+  gender?: string;
 
-    // Clinical Metadata
-    lastAdmission?: string;
-    lastDischarge?: string;
-    hospitalizations?: HospitalizationEvent[];
-    vitalStatus?: 'Vivo' | 'Fallecido';
+  // Clinical Metadata
+  lastAdmission?: string;
+  lastDischarge?: string;
+  hospitalizations?: HospitalizationEvent[];
+  vitalStatus?: 'Vivo' | 'Fallecido';
 
-    // System Metadata
-    createdAt: number; // Unix timestamp
-    updatedAt: number; // Unix timestamp
+  // System Metadata
+  createdAt: number; // Unix timestamp
+  updatedAt: number; // Unix timestamp
 }
 
 /**
@@ -130,86 +128,86 @@ export interface MasterPatient {
  * Recorded when a patient is detected in the census or processed via discharge/transfer
  */
 export interface HospitalizationEvent {
-    id: string; // Composite ID or UUID
-    type: 'Ingreso' | 'Egreso' | 'Traslado' | 'Fallecimiento';
-    date: string;
-    diagnosis: string;
-    bedName?: string;
-    receivingCenter?: string; // For transfers
-    isEvacuation?: boolean; // For transfers
+  id: string; // Composite ID or UUID
+  type: 'Ingreso' | 'Egreso' | 'Traslado' | 'Fallecimiento';
+  date: string;
+  diagnosis: string;
+  bedName?: string;
+  receivingCenter?: string; // For transfers
+  isEvacuation?: boolean; // For transfers
 }
 
 export interface PatientData {
-    bedId: string;
-    isBlocked: boolean;
-    blockedReason?: string;
-    bedName?: string;
+  bedId: string;
+  isBlocked: boolean;
+  blockedReason?: string;
+  bedName?: string;
 
-    // Dynamic Furniture Configuration
-    bedMode: 'Cama' | 'Cuna'; // Defines if the physical spot is set up as a Bed or a Crib (Census relevant)
-    hasCompanionCrib: boolean; // Defines if there is an EXTRA crib for a healthy RN (Resource relevant)
+  // Dynamic Furniture Configuration
+  bedMode: 'Cama' | 'Cuna'; // Defines if the physical spot is set up as a Bed or a Crib (Census relevant)
+  hasCompanionCrib: boolean; // Defines if there is an EXTRA crib for a healthy RN (Resource relevant)
 
-    // Nested Patient Data for Clinical Crib (Sick Newborn sharing room with Mother)
-    clinicalCrib?: PatientData;
+  // Nested Patient Data for Clinical Crib (Sick Newborn sharing room with Mother)
+  clinicalCrib?: PatientData;
 
-    patientName: string;
-    rut: string;
-    documentType?: 'RUT' | 'Pasaporte'; // Switcher
-    age: string;
-    birthDate?: string;
-    biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
-    insurance?: 'Fonasa' | 'Isapre' | 'Particular';
+  patientName: string;
+  rut: string;
+  documentType?: 'RUT' | 'Pasaporte'; // Switcher
+  age: string;
+  birthDate?: string;
+  biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
+  insurance?: 'Fonasa' | 'Isapre' | 'Particular';
 
-    // Demographics Update
-    admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
-    admissionOriginDetails?: string; // For 'Otro'
-    origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero'; // Now labeled "Condición de permanencia"
+  // Demographics Update
+  admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+  admissionOriginDetails?: string; // For 'Otro'
+  origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero'; // Now labeled "Condición de permanencia"
 
-    isRapanui?: boolean;
-    pathology: string;
-    snomedCode?: string; // Standardized SNOMED CT code
-    cie10Code?: string; // Standardized CIE-10 code
-    cie10Description?: string; // Official CIE-10 description recorded at selection
-    diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
-    specialty: Specialty;
-    /** Optional secondary specialty for co-managed patients. Not used for statistics. */
-    secondarySpecialty?: Specialty | string;
-    status: PatientStatus;
-    admissionDate: string;
-    admissionTime?: string;
-    hasWristband: boolean;
-    devices: string[];
-    deviceDetails?: DeviceDetails; // Dates/notas for tracked devices (CUP, CVC, VMI, VVP)
-    surgicalComplication: boolean;
-    isUPC: boolean;
-    location?: string;
+  isRapanui?: boolean;
+  pathology: string;
+  snomedCode?: string; // Standardized SNOMED CT code
+  cie10Code?: string; // Standardized CIE-10 code
+  cie10Description?: string; // Official CIE-10 description recorded at selection
+  diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
+  specialty: Specialty;
+  /** Optional secondary specialty for co-managed patients. Not used for statistics. */
+  secondarySpecialty?: Specialty | string;
+  status: PatientStatus;
+  admissionDate: string;
+  admissionTime?: string;
+  hasWristband: boolean;
+  devices: string[];
+  deviceDetails?: DeviceDetails; // Dates/notas for tracked devices (CUP, CVC, VMI, VVP)
+  surgicalComplication: boolean;
+  isUPC: boolean;
+  location?: string;
 
-    // CUDYR Data
-    cudyr?: CudyrScore;
+  // CUDYR Data
+  cudyr?: CudyrScore;
 
-    // Handoff / Nursing Evolution (Shift-based)
-    handoffNote?: string; // Legacy/fallback
-    handoffNoteDayShift?: string; // Turno Largo (8:00-20:00)
-    handoffNoteNightShift?: string; // Turno Noche (20:00-08:00)
+  // Handoff / Nursing Evolution (Shift-based)
+  handoffNote?: string; // Legacy/fallback
+  handoffNoteDayShift?: string; // Turno Largo (8:00-20:00)
+  handoffNoteNightShift?: string; // Turno Noche (20:00-08:00)
 
-    // Medical Handoff
-    medicalHandoffNote?: string;
+  // Medical Handoff
+  medicalHandoffNote?: string;
 
-    // Clinical Events (procedures, surgeries, cultures, etc.)
-    clinicalEvents?: ClinicalEvent[];
+  // Clinical Events (procedures, surgeries, cultures, etc.)
+  clinicalEvents?: ClinicalEvent[];
 
-    /** 
-     * Detailed history of individual device instances.
-     * Allows tracking multiple same-type devices (e.g., 2+ VVPs) with separate timelines.
-     */
-    deviceInstanceHistory?: DeviceInstance[];
+  /**
+   * Detailed history of individual device instances.
+   * Allows tracking multiple same-type devices (e.g., 2+ VVPs) with separate timelines.
+   */
+  deviceInstanceHistory?: DeviceInstance[];
 
-    // Obstetric delivery tracking (Ginecobstetricia only)
-    deliveryRoute?: 'Vaginal' | 'Cesárea';
-    deliveryDate?: string; // ISO date string
+  // Obstetric delivery tracking (Ginecobstetricia only)
+  deliveryRoute?: 'Vaginal' | 'Cesárea';
+  deliveryDate?: string; // ISO date string
 
-    // HL7 FHIR Core-CL Resource (Optional for dual-mode sync)
-    fhir_resource?: FhirResource;
+  // HL7 FHIR Core-CL Resource (Optional for dual-mode sync)
+  fhir_resource?: FhirResource;
 }
 
 /**
@@ -217,17 +215,17 @@ export interface PatientData {
  * Tracks the lifecycle of a single specific device (e.g. "VVP in left arm")
  */
 export interface DeviceInstance {
-    id: string;               // UUID
-    type: string;             // 'VVP', 'CVC', 'CUP', 'TQT', 'GTT', 'SNG', etc.
-    installationDate: string; // ISO Date (YYYY-MM-DD)
-    installationTime?: string;// HH:MM
-    removalDate?: string;     // ISO Date (YYYY-MM-DD)
-    removalTime?: string;     // HH:MM
-    location?: string;        // Anatomical site (e.g., 'Brazo Izquierdo')
-    status: 'Active' | 'Removed';
-    note?: string;            // Additional clinical notes
-    createdAt: number;        // Epoch timestamp
-    updatedAt: number;        // Epoch timestamp
+  id: string; // UUID
+  type: string; // 'VVP', 'CVC', 'CUP', 'TQT', 'GTT', 'SNG', etc.
+  installationDate: string; // ISO Date (YYYY-MM-DD)
+  installationTime?: string; // HH:MM
+  removalDate?: string; // ISO Date (YYYY-MM-DD)
+  removalTime?: string; // HH:MM
+  location?: string; // Anatomical site (e.g., 'Brazo Izquierdo')
+  status: 'Active' | 'Removed';
+  note?: string; // Additional clinical notes
+  createdAt: number; // Epoch timestamp
+  updatedAt: number; // Epoch timestamp
 }
 
 /**
@@ -235,9 +233,9 @@ export interface DeviceInstance {
  * Tracks installation/removal dates for invasive devices
  */
 export interface DeviceInfo {
-    installationDate?: string;  // Date device was installed
-    removalDate?: string;       // Date device was removed (optional)
-    note?: string;              // Free text note for the device
+  installationDate?: string; // Date device was installed
+  removalDate?: string; // Date device was removed (optional)
+  note?: string; // Free text note for the device
 }
 
 /**
@@ -248,171 +246,186 @@ export interface DeviceInfo {
 export type DeviceDetails = Record<string, DeviceInfo>;
 
 // Extracted type for reuse
-export type DeviceType = 'CVC' | 'LA' | 'CUP' | 'VMNI' | 'CNAF' | 'TET' | 'VVP#1' | 'VVP#2' | 'VVP#3' | string;
+export type DeviceType =
+  | 'CVC'
+  | 'LA'
+  | 'CUP'
+  | 'VMNI'
+  | 'CNAF'
+  | 'TET'
+  | 'VVP#1'
+  | 'VVP#2'
+  | 'VVP#3'
+  | string;
 
 export type DischargeType = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
 
 export interface DischargeData {
-    id: string;
-    bedName: string;
-    bedId: string; // Needed for undo
-    bedType: string;
-    patientName: string;
-    rut: string;
-    diagnosis: string;
-    time: string;
-    status: 'Vivo' | 'Fallecido';
-    dischargeType?: DischargeType; // Sub-classification for 'Vivo'
-    dischargeTypeOther?: string; // Description if 'Otra'
-    age?: string;
-    insurance?: string;
-    origin?: string;
-    isRapanui?: boolean;
-    originalData?: PatientData; // Snapshot for Undo
-    isNested?: boolean; // Identifies if it was a clinical crib
+  id: string;
+  bedName: string;
+  bedId: string; // Needed for undo
+  bedType: string;
+  patientName: string;
+  rut: string;
+  diagnosis: string;
+  time: string;
+  status: 'Vivo' | 'Fallecido';
+  dischargeType?: DischargeType; // Sub-classification for 'Vivo'
+  dischargeTypeOther?: string; // Description if 'Otra'
+  age?: string;
+  insurance?: string;
+  origin?: string;
+  isRapanui?: boolean;
+  originalData?: PatientData; // Snapshot for Undo
+  isNested?: boolean; // Identifies if it was a clinical crib
 }
 
 export interface TransferData {
-    id: string;
-    bedName: string;
-    bedId: string; // Needed for undo
-    bedType: string;
-    patientName: string;
-    rut: string;
-    diagnosis: string;
-    time: string;
-    evacuationMethod: string;
-    evacuationMethodOther?: string;
-    receivingCenter: string;
-    receivingCenterOther?: string;
-    transferEscort?: string;
-    age?: string;
-    insurance?: string;
-    origin?: string;
-    isRapanui?: boolean;
-    originalData?: PatientData; // Snapshot for Undo
-    isNested?: boolean; // Identifies if it was a clinical crib
+  id: string;
+  bedName: string;
+  bedId: string; // Needed for undo
+  bedType: string;
+  patientName: string;
+  rut: string;
+  diagnosis: string;
+  time: string;
+  evacuationMethod: string;
+  evacuationMethodOther?: string;
+  receivingCenter: string;
+  receivingCenterOther?: string;
+  transferEscort?: string;
+  age?: string;
+  insurance?: string;
+  origin?: string;
+  isRapanui?: boolean;
+  originalData?: PatientData; // Snapshot for Undo
+  isNested?: boolean; // Identifies if it was a clinical crib
 }
 
 export interface CMAData {
-    id: string;
-    bedName: string; // Generic location or identifier
-    patientName: string;
-    rut: string;
-    age: string;
-    birthDate?: string;
-    biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
-    insurance?: 'Fonasa' | 'Isapre' | 'Particular';
-    admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
-    admissionOriginDetails?: string;
-    origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
-    isRapanui?: boolean;
-    diagnosis: string;
-    cie10Code?: string;
-    cie10Description?: string;
-    specialty: string;
-    interventionType: 'Cirugía Mayor Ambulatoria' | 'Procedimiento Médico Ambulatorio'; // New field
-    dischargeTime?: string; // Time when patient was discharged (HH:MM format)
-    enteredBy?: string; // Optional: user who added the record
-    timestamp?: string; // Optional: creation time
-    originalBedId?: string; // For undo: original bed ID
-    originalData?: PatientData; // For undo: snapshot of original patient data
+  id: string;
+  bedName: string; // Generic location or identifier
+  patientName: string;
+  rut: string;
+  age: string;
+  birthDate?: string;
+  biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
+  insurance?: 'Fonasa' | 'Isapre' | 'Particular';
+  admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+  admissionOriginDetails?: string;
+  origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
+  isRapanui?: boolean;
+  diagnosis: string;
+  cie10Code?: string;
+  cie10Description?: string;
+  specialty: string;
+  interventionType: 'Cirugía Mayor Ambulatoria' | 'Procedimiento Médico Ambulatorio'; // New field
+  dischargeTime?: string; // Time when patient was discharged (HH:MM format)
+  enteredBy?: string; // Optional: user who added the record
+  timestamp?: string; // Optional: creation time
+  originalBedId?: string; // For undo: original bed ID
+  originalData?: PatientData; // For undo: snapshot of original patient data
 }
 
 /**
  * On-Duty Professional
  * Tracks medical professionals assigned to a shift
  */
-export type OnDutySpecialty = 'Medicina Interna' | 'Cirugía' | 'Ginecobstetricia' | 'Anestesia' | 'Kinesiología';
+export type OnDutySpecialty =
+  | 'Medicina Interna'
+  | 'Cirugía'
+  | 'Ginecobstetricia'
+  | 'Anestesia'
+  | 'Kinesiología';
 
 export interface OnDutyProfessional {
-    specialty: OnDutySpecialty;
-    name: string;
-    phone: string;
-    period: string; // e.g., "08:00 - 20:00" or "Lunes a Viernes"
+  specialty: OnDutySpecialty;
+  name: string;
+  phone: string;
+  period: string; // e.g., "08:00 - 20:00" or "Lunes a Viernes"
 }
 
 export interface DailyRecord {
-    date: string;
-    beds: Record<string, PatientData>;
-    bedTypeOverrides?: Record<string, BedType>;
-    discharges: DischargeData[];
-    transfers: TransferData[];
-    cma: CMAData[]; // Cirugía Mayor Ambulatoria
-    lastUpdated: string;
-    /** Unix timestamp (ms) for the start of the day, used for security rule validation */
-    dateTimestamp?: number;
-    /** Version of the data structure, used to prevent corruption from old clients */
-    schemaVersion?: number;
-    /** @deprecated Use nursesDayShift / nursesNightShift instead. Maintained for legacy sync support. */
-    nurses: string[];
-    /** @deprecated Use nursesDayShift[0]. Maintained for legacy sync support. */
-    nurseName?: string;
-    nursesDayShift?: string[]; // Turno Largo nurses
-    nursesNightShift?: string[]; // Turno Noche nurses
-    tensDayShift?: string[]; // Turno Largo TENS (max 3)
-    tensNightShift?: string[]; // Turno Noche TENS (max 3)
-    activeExtraBeds: string[];
+  date: string;
+  beds: Record<string, PatientData>;
+  bedTypeOverrides?: Record<string, BedType>;
+  discharges: DischargeData[];
+  transfers: TransferData[];
+  cma: CMAData[]; // Cirugía Mayor Ambulatoria
+  lastUpdated: string;
+  /** Unix timestamp (ms) for the start of the day, used for security rule validation */
+  dateTimestamp?: number;
+  /** Version of the data structure, used to prevent corruption from old clients */
+  schemaVersion?: number;
+  /** @deprecated Use nursesDayShift / nursesNightShift instead. Maintained for legacy sync support. */
+  nurses: string[];
+  /** @deprecated Use nursesDayShift[0]. Maintained for legacy sync support. */
+  nurseName?: string;
+  nursesDayShift?: string[]; // Turno Largo nurses
+  nursesNightShift?: string[]; // Turno Noche nurses
+  tensDayShift?: string[]; // Turno Largo TENS (max 3)
+  tensNightShift?: string[]; // Turno Noche TENS (max 3)
+  activeExtraBeds: string[];
 
-    // ===== Handoff Checklist - Day Shift (Turno Largo) =====
-    handoffDayChecklist?: {
-        escalaBraden?: boolean;
-        escalaRiesgoCaidas?: boolean;
-        escalaRiesgoLPP?: boolean;
-    };
+  // ===== Handoff Checklist - Day Shift (Turno Largo) =====
+  handoffDayChecklist?: {
+    escalaBraden?: boolean;
+    escalaRiesgoCaidas?: boolean;
+    escalaRiesgoLPP?: boolean;
+  };
 
-    // ===== Handoff Checklist - Night Shift (Turno Noche) =====
-    handoffNightChecklist?: {
-        estadistica?: boolean;
-        categorizacionCudyr?: boolean;
-        encuestaUTI?: boolean;
-        encuestaMedias?: boolean;
-        conteoMedicamento?: boolean;
-        // conteoMedicamentoProximaFecha?: string; // Legacy/Unused if moved? Leaving for safety or removing?
-        // User wants "No Controlados" with date.
-        // Let's keep existing and add new.
-        conteoNoControlados?: boolean;
-        conteoNoControladosProximaFecha?: string;
-    };
+  // ===== Handoff Checklist - Night Shift (Turno Noche) =====
+  handoffNightChecklist?: {
+    estadistica?: boolean;
+    categorizacionCudyr?: boolean;
+    encuestaUTI?: boolean;
+    encuestaMedias?: boolean;
+    conteoMedicamento?: boolean;
+    // conteoMedicamentoProximaFecha?: string; // Legacy/Unused if moved? Leaving for safety or removing?
+    // User wants "No Controlados" with date.
+    // Let's keep existing and add new.
+    conteoNoControlados?: boolean;
+    conteoNoControladosProximaFecha?: string;
+  };
 
-    // ===== Handoff Novedades (Free text section) =====
-    handoffNovedadesDayShift?: string;
-    handoffNovedadesNightShift?: string;
+  // ===== Handoff Novedades (Free text section) =====
+  handoffNovedadesDayShift?: string;
+  handoffNovedadesNightShift?: string;
 
-    // ===== Nurse Handoff Identification =====
-    // Deprecated: handoffDayDelivers, handoffDayReceives, handoffNightDelivers removed. 
-    // Uses nursesDayShift/nursesNightShift directly (Single Source of Truth).
-    handoffNightReceives?: string[]; // Nurses who receive night shift (Next day's night or unique)
+  // ===== Nurse Handoff Identification =====
+  // Deprecated: handoffDayDelivers, handoffDayReceives, handoffNightDelivers removed.
+  // Uses nursesDayShift/nursesNightShift directly (Single Source of Truth).
+  handoffNightReceives?: string[]; // Nurses who receive night shift (Next day's night or unique)
 
-    // ===== Medical Handoff Novedades =====
-    medicalHandoffNovedades?: string; // Free text novedades for medical handoff
+  // ===== Medical Handoff Novedades =====
+  medicalHandoffNovedades?: string; // Free text novedades for medical handoff
 
-    // ===== Medical Handoff Signature =====
-    medicalHandoffDoctor?: string; // Doctor delivering the shift
-    medicalHandoffSentAt?: string; // Timestamp when the share link was clicked
-    medicalSignature?: {
-        doctorName: string;
-        signedAt: string; // ISO timestamp
-        userAgent?: string; // Optional device info
-    };
+  // ===== Medical Handoff Signature =====
+  medicalHandoffDoctor?: string; // Doctor delivering the shift
+  medicalHandoffSentAt?: string; // Timestamp when the share link was clicked
+  medicalSignature?: {
+    doctorName: string;
+    signedAt: string; // ISO timestamp
+    userAgent?: string; // Optional device info
+  };
 
-    // ===== CUDYR Lock (Prevents new patients from being added to CUDYR after cutoff) =====
-    /** Whether CUDYR editing is locked for this day */
-    cudyrLocked?: boolean;
-    /** ISO timestamp when CUDYR was locked */
-    cudyrLockedAt?: string;
-    /** User ID who locked the CUDYR */
-    cudyrLockedBy?: string;
+  // ===== CUDYR Lock (Prevents new patients from being added to CUDYR after cutoff) =====
+  /** Whether CUDYR editing is locked for this day */
+  cudyrLocked?: boolean;
+  /** ISO timestamp when CUDYR was locked */
+  cudyrLockedAt?: string;
+  /** User ID who locked the CUDYR */
+  cudyrLockedBy?: string;
 
-    // ===== On-Duty Professionals =====
-    /** Medical professionals on duty for the day */
-    onDutyProfessionals?: OnDutyProfessional[];
-    /** Last time on-duty professionals were updated */
-    onDutyProfessionalsUpdatedAt?: string;
-    /** Coverage period start (ISO string) */
-    onDutyCoverageStart?: string;
-    /** Coverage period end (ISO string) */
-    onDutyCoverageEnd?: string;
+  // ===== On-Duty Professionals =====
+  /** Medical professionals on duty for the day */
+  onDutyProfessionals?: OnDutyProfessional[];
+  /** Last time on-duty professionals were updated */
+  onDutyProfessionalsUpdatedAt?: string;
+  /** Coverage period start (ISO string) */
+  onDutyCoverageStart?: string;
+  /** Coverage period end (ISO string) */
+  onDutyCoverageEnd?: string;
 }
 
 /**
@@ -420,23 +433,23 @@ export interface DailyRecord {
  * Used for the persistent professionals catalog
  */
 export interface ProfessionalCatalogItem {
-    name: string;
-    phone: string;
-    specialty: OnDutySpecialty;
-    period?: string;
-    lastUsed?: string;
+  name: string;
+  phone: string;
+  specialty: OnDutySpecialty;
+  period?: string;
+  lastUsed?: string;
 }
 
 export interface Statistics {
-    occupiedBeds: number; // Adult beds occupied by patients (Census)
-    occupiedCribs: number; // Nested Cribs ONLY (Internal counter)
-    clinicalCribsCount: number; // Main (Cuna Mode) + Nested Cribs (For Resource Display)
-    companionCribs: number; // Cribs used by healthy RN (associated to mother)
-    totalCribsUsed: number; // Total physical cribs (Occupied by Patient + Companion)
-    totalHospitalized: number; // occupiedBeds + occupiedCribs
-    blockedBeds: number;
-    serviceCapacity: number; // 18 - blocked
-    availableCapacity: number;
+  occupiedBeds: number; // Adult beds occupied by patients (Census)
+  occupiedCribs: number; // Nested Cribs ONLY (Internal counter)
+  clinicalCribsCount: number; // Main (Cuna Mode) + Nested Cribs (For Resource Display)
+  companionCribs: number; // Cribs used by healthy RN (associated to mother)
+  totalCribsUsed: number; // Total physical cribs (Occupied by Patient + Companion)
+  totalHospitalized: number; // occupiedBeds + occupiedCribs
+  blockedBeds: number;
+  serviceCapacity: number; // 18 - blocked
+  availableCapacity: number;
 }
 
 // ============================================================================
@@ -455,56 +468,60 @@ type PatientClinicalCribPath = `beds.${string}.clinicalCrib.${keyof PatientData}
 type PatientDeviceDetailsPath = `beds.${string}.deviceDetails.${string}`;
 
 // Type-safe paths for Top-level DailyRecord fields
-type TopLevelPath = keyof Pick<DailyRecord,
-    | 'date'
-    | 'lastUpdated'
-    | 'nurses'
-    | 'nurseName'
-    | 'nursesDayShift'
-    | 'nursesNightShift'
-    | 'tensDayShift'
-    | 'tensNightShift'
-    | 'activeExtraBeds'
-    | 'discharges'
-    | 'transfers'
-    | 'cma'
-    | 'beds'
-    | 'handoffNovedadesDayShift'
-    | 'handoffNovedadesNightShift'
-    | 'medicalHandoffNovedades'
-    | 'medicalHandoffDoctor'
-    | 'medicalHandoffSentAt'
-    | 'medicalSignature'
-    | 'cudyrLocked'
-    | 'cudyrLockedAt'
-    | 'cudyrLockedBy'
-    | 'onDutyProfessionals'
-    | 'onDutyProfessionalsUpdatedAt'
-    | 'onDutyCoverageStart'
-    | 'onDutyCoverageEnd'
+type TopLevelPath = keyof Pick<
+  DailyRecord,
+  | 'date'
+  | 'lastUpdated'
+  | 'nurses'
+  | 'nurseName'
+  | 'nursesDayShift'
+  | 'nursesNightShift'
+  | 'tensDayShift'
+  | 'tensNightShift'
+  | 'activeExtraBeds'
+  | 'discharges'
+  | 'transfers'
+  | 'cma'
+  | 'beds'
+  | 'handoffNovedadesDayShift'
+  | 'handoffNovedadesNightShift'
+  | 'medicalHandoffNovedades'
+  | 'medicalHandoffDoctor'
+  | 'medicalHandoffSentAt'
+  | 'medicalSignature'
+  | 'cudyrLocked'
+  | 'cudyrLockedAt'
+  | 'cudyrLockedBy'
+  | 'onDutyProfessionals'
+  | 'onDutyProfessionalsUpdatedAt'
+  | 'onDutyCoverageStart'
+  | 'onDutyCoverageEnd'
 >;
 
 // Type-safe paths for Handoff Checklist
 type HandoffDayChecklistPath = `handoffDayChecklist.${string}`;
 type HandoffNightChecklistPath = `handoffNightChecklist.${string}`;
-type HandoffStaffPath = `handoffDayDelivers` | `handoffDayReceives` | `handoffNightDelivers` | `handoffNightReceives`;
+type HandoffStaffPath =
+  | `handoffDayDelivers`
+  | `handoffDayReceives`
+  | `handoffNightDelivers`
+  | `handoffNightReceives`;
 type MedicalSignaturePath = `medicalSignature` | `medicalSignature.${string}`;
-
 
 /**
  * Union of all valid patch paths.
  * This provides compile-time checking for patch keys.
  */
 export type DailyRecordPatchPath =
-    | TopLevelPath
-    | PatientFieldPath
-    | PatientCudyrPath
-    | PatientClinicalCribPath
-    | PatientDeviceDetailsPath
-    | HandoffDayChecklistPath
-    | HandoffNightChecklistPath
-    | HandoffStaffPath
-    | MedicalSignaturePath;
+  | TopLevelPath
+  | PatientFieldPath
+  | PatientCudyrPath
+  | PatientClinicalCribPath
+  | PatientDeviceDetailsPath
+  | HandoffDayChecklistPath
+  | HandoffNightChecklistPath
+  | HandoffStaffPath
+  | MedicalSignaturePath;
 
 /**
  * Type-safe patch object for DailyRecord updates.
@@ -512,21 +529,35 @@ export type DailyRecordPatchPath =
  * The string index signature allows dynamic paths while known paths get type hints.
  */
 export type DailyRecordPatch = {
-    [K in DailyRecordPatchPath]?:
-    K extends TopLevelPath ? DailyRecord[K] :
-    K extends PatientCudyrPath ? number :
-    K extends HandoffDayChecklistPath | HandoffNightChecklistPath ? boolean | string :
-    K extends HandoffStaffPath ? string[] :
-    // For dynamic paths, allow common value types
-    | PatientFieldValue
-    | PatientData
-    | Record<string, unknown>
-    | string[]
-    | boolean
-    | number
-    | null
-    | undefined;
+  [K in DailyRecordPatchPath]?: K extends TopLevelPath
+    ? DailyRecord[K]
+    : K extends PatientCudyrPath
+      ? number
+      : K extends HandoffDayChecklistPath | HandoffNightChecklistPath
+        ? boolean | string
+        : K extends HandoffStaffPath
+          ? string[]
+          : // For dynamic paths, allow common value types
+              | string
+              | number
+              | boolean
+              | string[]
+              | PatientData
+              | CudyrScore
+              | DeviceDetails
+              | PatientStatus
+              | Specialty
+              | ClinicalEvent[]
+              | DeviceInstance[]
+              | FhirResource
+              | PatientData
+              | Record<string, unknown>
+              | string[]
+              | boolean
+              | number
+              | null
+              | undefined;
 } & {
-    // Fallback: Allow any string key with unknown value for truly dynamic paths
-    [key: string]: unknown;
+  // Fallback: Allow any string key with unknown value for truly dynamic paths
+  [key: string]: unknown;
 };

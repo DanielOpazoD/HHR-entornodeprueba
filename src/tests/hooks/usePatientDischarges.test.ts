@@ -6,154 +6,230 @@ import * as auditService from '@/services/admin/auditService';
 
 // Mock dependencies
 vi.mock('@/services/admin/auditService', () => ({
-    logPatientDischarge: vi.fn(),
+  logPatientDischarge: vi.fn(),
 }));
 
 vi.mock('@/services/factories/patientFactory', () => ({
-    createEmptyPatient: (bedId: string) => ({
-        bedId,
-        patientName: '',
-        rut: '',
-        location: '',
-    }),
+  createEmptyPatient: (bedId: string) => ({
+    bedId,
+    patientName: '',
+    rut: '',
+    location: '',
+  }),
 }));
 
 describe('usePatientDischarges', () => {
-    let mockRecord: DailyRecord;
-    let mockSaveAndUpdate: (updatedRecord: DailyRecord) => void;
+  let mockRecord: DailyRecord;
+  let mockSaveAndUpdate: (updatedRecord: DailyRecord) => void;
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mockSaveAndUpdate = vi.fn();
-        mockRecord = {
-            date: '2024-12-28',
-            beds: {
-                'R1': {
-                    bedId: 'R1',
-                    patientName: 'Test Patient',
-                    rut: '12345678-9',
-                    pathology: 'Test Diagnosis',
-                    age: '30',
-                    location: 'Room 1',
-                } as PatientData,
-                'R2': {
-                    bedId: 'R2',
-                    patientName: '',
-                    location: 'Room 2',
-                } as PatientData,
-            },
-            discharges: [],
-            transfers: [],
-            cma: [],
-        } as unknown as DailyRecord;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSaveAndUpdate = vi.fn();
+    mockRecord = {
+      date: '2024-12-28',
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Test Patient',
+          rut: '12345678-9',
+          pathology: 'Test Diagnosis',
+          age: '30',
+          location: 'Room 1',
+        } as PatientData,
+        R2: {
+          bedId: 'R2',
+          patientName: '',
+          location: 'Room 2',
+        } as PatientData,
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+  });
+
+  it('should return all discharge functions', () => {
+    const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
+
+    expect(typeof result.current.addDischarge).toBe('function');
+    expect(typeof result.current.updateDischarge).toBe('function');
+    expect(typeof result.current.deleteDischarge).toBe('function');
+    expect(typeof result.current.undoDischarge).toBe('function');
+  });
+
+  it('should not add discharge when record is null', () => {
+    const { result } = renderHook(() => usePatientDischarges(null, mockSaveAndUpdate));
+
+    act(() => {
+      result.current.addDischarge('R1', 'Vivo');
     });
 
-    it('should return all discharge functions', () => {
-        const { result } = renderHook(() =>
-            usePatientDischarges(mockRecord, mockSaveAndUpdate)
-        );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+  });
 
-        expect(typeof result.current.addDischarge).toBe('function');
-        expect(typeof result.current.updateDischarge).toBe('function');
-        expect(typeof result.current.deleteDischarge).toBe('function');
-        expect(typeof result.current.undoDischarge).toBe('function');
+  it('should not add discharge for empty bed', () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
+
+    act(() => {
+      result.current.addDischarge('R2', 'Vivo');
     });
 
-    it('should not add discharge when record is null', () => {
-        const { result } = renderHook(() =>
-            usePatientDischarges(null, mockSaveAndUpdate)
-        );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 
-        act(() => {
-            result.current.addDischarge('R1', 'Vivo');
-        });
+  it('should add discharge for occupied bed', () => {
+    const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
 
-        expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+    act(() => {
+      result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica');
     });
 
-    it('should not add discharge for empty bed', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+    expect(mockSaveAndUpdate).toHaveBeenCalled();
+    expect(auditService.logPatientDischarge).toHaveBeenCalled();
+  });
 
-        const { result } = renderHook(() =>
-            usePatientDischarges(mockRecord, mockSaveAndUpdate)
-        );
+  it('should update discharge', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [{ id: 'discharge-1', patientName: 'Test', status: 'Vivo', time: '' }],
+    } as unknown as DailyRecord;
 
-        act(() => {
-            result.current.addDischarge('R2', 'Vivo');
-        });
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
+    );
 
-        expect(mockSaveAndUpdate).not.toHaveBeenCalled();
-        expect(consoleSpy).toHaveBeenCalled();
-        consoleSpy.mockRestore();
+    act(() => {
+      result.current.updateDischarge('discharge-1', 'Fallecido');
     });
 
-    it('should add discharge for occupied bed', () => {
-        const { result } = renderHook(() =>
-            usePatientDischarges(mockRecord, mockSaveAndUpdate)
-        );
+    expect(mockSaveAndUpdate).toHaveBeenCalled();
+  });
 
-        act(() => {
-            result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica');
-        });
+  it('should delete discharge', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [{ id: 'discharge-1', patientName: 'Test' }],
+    } as unknown as DailyRecord;
 
-        expect(mockSaveAndUpdate).toHaveBeenCalled();
-        expect(auditService.logPatientDischarge).toHaveBeenCalled();
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
+    );
+
+    act(() => {
+      result.current.deleteDischarge('discharge-1');
     });
 
-    it('should update discharge', () => {
-        const recordWithDischarge = {
-            ...mockRecord,
-            discharges: [{ id: 'discharge-1', patientName: 'Test', status: 'Vivo', time: '' }]
-        } as unknown as DailyRecord;
+    expect(mockSaveAndUpdate).toHaveBeenCalled();
+  });
 
-        const { result } = renderHook(() =>
-            usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
-        );
+  it('should handle mother-only discharge', () => {
+    const recordWithCrib = {
+      ...mockRecord,
+      beds: {
+        ...mockRecord.beds,
+        R1: {
+          ...mockRecord.beds['R1'],
+          clinicalCrib: { patientName: 'Baby', rut: '98765432-1' },
+        },
+      },
+    } as unknown as DailyRecord;
 
-        act(() => {
-            result.current.updateDischarge('discharge-1', 'Fallecido');
-        });
+    const { result } = renderHook(() => usePatientDischarges(recordWithCrib, mockSaveAndUpdate));
 
-        expect(mockSaveAndUpdate).toHaveBeenCalled();
+    act(() => {
+      result.current.addDischarge(
+        'R1',
+        'Vivo',
+        undefined,
+        'Alta Médica',
+        undefined,
+        undefined,
+        'mother'
+      );
     });
 
-    it('should delete discharge', () => {
-        const recordWithDischarge = {
-            ...mockRecord,
-            discharges: [{ id: 'discharge-1', patientName: 'Test' }]
-        } as unknown as DailyRecord;
+    expect(mockSaveAndUpdate).toHaveBeenCalled();
+  });
 
-        const { result } = renderHook(() =>
-            usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
-        );
+  it('should undo discharge and restore patient snapshot', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [
+        {
+          id: 'd-1',
+          bedId: 'R2',
+          bedName: 'R2',
+          patientName: 'Old Patient',
+          originalData: {
+            bedId: 'R2',
+            patientName: 'Recovered',
+            rut: '22-2',
+            location: 'Old Location',
+          },
+          isNested: false,
+        },
+      ],
+    } as unknown as DailyRecord;
 
-        act(() => {
-            result.current.deleteDischarge('discharge-1');
-        });
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
+    );
 
-        expect(mockSaveAndUpdate).toHaveBeenCalled();
+    act(() => {
+      result.current.undoDischarge('d-1');
     });
 
-    it('should handle mother-only discharge', () => {
-        const recordWithCrib = {
-            ...mockRecord,
-            beds: {
-                ...mockRecord.beds,
-                'R1': {
-                    ...mockRecord.beds['R1'],
-                    clinicalCrib: { patientName: 'Baby', rut: '98765432-1' }
-                }
-            }
-        } as unknown as DailyRecord;
+    expect(mockSaveAndUpdate).toHaveBeenCalledTimes(1);
+    const payload = vi.mocked(mockSaveAndUpdate).mock.calls[0][0];
+    expect(payload.beds.R2.patientName).toBe('Recovered');
+    expect(payload.discharges).toEqual([]);
+  });
 
-        const { result } = renderHook(() =>
-            usePatientDischarges(recordWithCrib, mockSaveAndUpdate)
-        );
+  it('should notify runtime when undo is blocked by occupied bed', () => {
+    const runtime = { alert: vi.fn() };
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [
+        {
+          id: 'd-2',
+          bedId: 'R1',
+          bedName: 'R1',
+          patientName: 'Blocked Patient',
+          originalData: { bedId: 'R1', patientName: 'Recovered', rut: '22-2' },
+          isNested: false,
+        },
+      ],
+    } as unknown as DailyRecord;
 
-        act(() => {
-            result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica', undefined, undefined, 'mother');
-        });
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, runtime)
+    );
 
-        expect(mockSaveAndUpdate).toHaveBeenCalled();
+    act(() => {
+      result.current.undoDischarge('d-2');
     });
+
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+    expect(runtime.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it('should use runtime.warn on discharge creation errors', () => {
+    const runtime = { alert: vi.fn(), warn: vi.fn() };
+
+    const { result } = renderHook(() =>
+      usePatientDischarges(mockRecord, mockSaveAndUpdate, runtime)
+    );
+
+    act(() => {
+      result.current.addDischarge('R2', 'Vivo');
+    });
+
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+    expect(runtime.warn).toHaveBeenCalledTimes(1);
+    expect(runtime.warn).toHaveBeenCalledWith('Attempted to discharge empty bed: R2');
+  });
 });
