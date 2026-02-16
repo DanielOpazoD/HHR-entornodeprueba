@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { DeliveryRoute } from '@/features/census/controllers/deliveryRoutePopoverController';
 import {
   buildDeliveryRouteDraft,
@@ -18,6 +18,7 @@ interface UseDeliveryRoutePopoverStateResult {
   canSave: boolean;
   setSelectedRoute: (route: DeliveryRoute | undefined) => void;
   setSelectedDate: (date: string) => void;
+  resetFromPersisted: () => void;
   saveAndClose: (close: () => void) => void;
   clearAndClose: (close: () => void) => void;
 }
@@ -27,14 +28,46 @@ export const useDeliveryRoutePopoverState = ({
   deliveryDate,
   onSave,
 }: UseDeliveryRoutePopoverStateParams): UseDeliveryRoutePopoverStateResult => {
-  const [selectedRoute, setSelectedRoute] = useState<DeliveryRoute | undefined>(deliveryRoute);
-  const [selectedDate, setSelectedDate] = useState<string>(deliveryDate || '');
+  type DeliveryRouteDraft = ReturnType<typeof buildDeliveryRouteDraft>;
 
-  useEffect(() => {
-    const draft = buildDeliveryRouteDraft(deliveryRoute, deliveryDate);
-    setSelectedRoute(draft.selectedRoute);
-    setSelectedDate(draft.selectedDate);
-  }, [deliveryDate, deliveryRoute]);
+  const persistedDraft = useMemo(
+    () => buildDeliveryRouteDraft(deliveryRoute, deliveryDate),
+    [deliveryDate, deliveryRoute]
+  );
+  const [draftOverride, setDraftOverride] = useState<DeliveryRouteDraft | null>(null);
+
+  const selectedRoute = (draftOverride ?? persistedDraft).selectedRoute;
+  const selectedDate = (draftOverride ?? persistedDraft).selectedDate;
+
+  const setSelectedRoute = useCallback(
+    (route: DeliveryRoute | undefined) => {
+      setDraftOverride(previous => {
+        const base = previous ?? persistedDraft;
+        return {
+          ...base,
+          selectedRoute: route,
+        };
+      });
+    },
+    [persistedDraft]
+  );
+
+  const setSelectedDate = useCallback(
+    (date: string) => {
+      setDraftOverride(previous => {
+        const base = previous ?? persistedDraft;
+        return {
+          ...base,
+          selectedDate: date,
+        };
+      });
+    },
+    [persistedDraft]
+  );
+
+  const resetFromPersisted = useCallback(() => {
+    setDraftOverride(null);
+  }, []);
 
   const saveAndClose = useCallback(
     (close: () => void) => {
@@ -46,8 +79,10 @@ export const useDeliveryRoutePopoverState = ({
 
   const clearAndClose = useCallback(
     (close: () => void) => {
-      setSelectedRoute(undefined);
-      setSelectedDate('');
+      setDraftOverride({
+        selectedRoute: undefined,
+        selectedDate: '',
+      });
       onSave(undefined, undefined);
       close();
     },
@@ -60,6 +95,7 @@ export const useDeliveryRoutePopoverState = ({
     canSave: canSaveDeliveryRouteDraft(selectedRoute),
     setSelectedRoute,
     setSelectedDate,
+    resetFromPersisted,
     saveAndClose,
     clearAndClose,
   };

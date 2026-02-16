@@ -9,6 +9,7 @@ const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'architecture-allowlist.json')
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 const IMPORT_REGEX =
   /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
+const FEATURE_RESTRICTED_CROSS_IMPORT_LAYERS = new Set(['controllers', 'hooks', 'domain', 'types']);
 
 const toPosix = value => value.split(path.sep).join('/');
 
@@ -64,6 +65,20 @@ const resolveImport = (importerFilePath, importPath) => {
   return null;
 };
 
+const resolveFeatureLayer = relativePath => {
+  if (relativePath.includes('/controllers/')) return 'controllers';
+  if (relativePath.includes('/hooks/')) return 'hooks';
+  if (relativePath.includes('/domain/')) return 'domain';
+  if (relativePath.includes('/types/')) return 'types';
+  if (relativePath.includes('/components/')) return 'components';
+  return null;
+};
+
+const resolveFeatureName = relativePath => {
+  const match = relativePath.match(/^src\/features\/([^/]+)\//);
+  return match ? match[1] : null;
+};
+
 const collectGraph = files => {
   const graph = new Map();
   const layerViolations = [];
@@ -104,6 +119,23 @@ const collectGraph = files => {
       if (importerIsHook && importedIsComponentImplementation) {
         layerViolations.push({
           rule: 'hooks-must-not-import-component-implementation',
+          importer,
+          imported,
+        });
+      }
+
+      const importerFeature = resolveFeatureName(importer);
+      const importedFeature = resolveFeatureName(imported);
+      const importerLayer = resolveFeatureLayer(importer);
+      if (
+        importerFeature &&
+        importedFeature &&
+        importerFeature !== importedFeature &&
+        importerLayer &&
+        FEATURE_RESTRICTED_CROSS_IMPORT_LAYERS.has(importerLayer)
+      ) {
+        layerViolations.push({
+          rule: 'feature-restricted-layers-must-not-cross-import',
           importer,
           imported,
         });

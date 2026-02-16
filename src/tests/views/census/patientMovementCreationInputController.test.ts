@@ -15,6 +15,7 @@ describe('patientMovementCreationInputController', () => {
       bedId: 'R1',
       status: 'Vivo',
       dischargeType: 'Domicilio (Habitual)',
+      movementDate: '2025-01-02',
       target: 'mother',
       bedsCatalog: BEDS,
       createEmptyPatient,
@@ -23,6 +24,7 @@ describe('patientMovementCreationInputController', () => {
     expect(input.record).toBe(record);
     expect(input.bedId).toBe('R1');
     expect(input.status).toBe('Vivo');
+    expect(input.movementDate).toBe('2025-01-02');
     expect(input.target).toBe('mother');
     expect(input.bedsCatalog).toBe(BEDS);
     expect(input.createEmptyPatient).toBe(createEmptyPatient);
@@ -38,6 +40,7 @@ describe('patientMovementCreationInputController', () => {
       centerOther: '',
       escort: 'TENS',
       time: '10:00',
+      movementDate: '2025-01-02',
       bedsCatalog: BEDS,
       createEmptyPatient,
     });
@@ -48,6 +51,7 @@ describe('patientMovementCreationInputController', () => {
     expect(input.center).toBe('Hospital Base');
     expect(input.escort).toBe('TENS');
     expect(input.time).toBe('10:00');
+    expect(input.movementDate).toBe('2025-01-02');
     expect(input.bedsCatalog).toBe(BEDS);
     expect(input.createEmptyPatient).toBe(createEmptyPatient);
   });

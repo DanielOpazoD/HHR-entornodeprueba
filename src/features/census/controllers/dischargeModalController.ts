@@ -5,7 +5,10 @@ import {
   type DischargeType,
 } from '@/constants';
 import { validateDischargeExecutionInput } from '@/features/census/validation/censusActionValidation';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type {
+  DischargeModalConfirmPayload,
+  DischargeTarget,
+} from '@/features/census/domain/movements/contracts';
 import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
 import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
@@ -44,14 +47,7 @@ interface BuildDischargeConfirmPayloadParams {
   localTarget: DischargeTarget;
 }
 
-export interface DischargeConfirmPayload {
-  status: DischargeStatus;
-  type?: string;
-  typeOther?: string;
-  time: string;
-  movementDate?: string;
-  dischargeTarget?: DischargeTarget;
-}
+export type DischargeConfirmPayload = DischargeModalConfirmPayload;
 
 export const buildInitialDischargeFormState = ({
   recordDate,

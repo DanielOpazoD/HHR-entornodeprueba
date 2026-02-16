@@ -2,19 +2,42 @@ import { useMemo } from 'react';
 import { buildPatientInputSectionBindings } from '@/features/census/controllers/patientInputSectionBindingsController';
 import type { PatientInputSectionBindingsParams } from '@/features/census/components/patient-row/patientInputSectionContracts';
 
-export const usePatientInputSectionBindings = (params: PatientInputSectionBindingsParams) =>
+export const usePatientInputSectionBindings = ({
+  currentDateString,
+  data,
+  diagnosisMode,
+  handleDebouncedText,
+  hasRutError,
+  isEmpty,
+  isLocked,
+  isSubRow,
+  onChange,
+  onDemo,
+}: PatientInputSectionBindingsParams) =>
   useMemo(
-    () => buildPatientInputSectionBindings(params),
+    () =>
+      buildPatientInputSectionBindings({
+        currentDateString,
+        data,
+        diagnosisMode,
+        handleDebouncedText,
+        hasRutError,
+        isEmpty,
+        isLocked,
+        isSubRow,
+        onChange,
+        onDemo,
+      }),
     [
-      params.currentDateString,
-      params.data,
-      params.diagnosisMode,
-      params.handleDebouncedText,
-      params.hasRutError,
-      params.isEmpty,
-      params.isLocked,
-      params.isSubRow,
-      params.onChange,
-      params.onDemo,
+      currentDateString,
+      data,
+      diagnosisMode,
+      handleDebouncedText,
+      hasRutError,
+      isEmpty,
+      isLocked,
+      isSubRow,
+      onChange,
+      onDemo,
     ]
   );

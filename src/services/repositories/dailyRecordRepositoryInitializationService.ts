@@ -88,21 +88,22 @@ export const initializeDay = async (date: string, copyFromDate?: string): Promis
 
           initialBeds[bed.id].cudyr = undefined;
 
-          if (initialBeds[bed.id].clinicalCrib) {
-            initialBeds[bed.id].clinicalCrib!.cudyr = undefined;
+          const clonedCrib = initialBeds[bed.id].clinicalCrib;
+          if (clonedCrib) {
+            clonedCrib.cudyr = undefined;
           }
 
           const prevNightNote = prevPatient.handoffNoteNightShift || prevPatient.handoffNote || '';
           initialBeds[bed.id].handoffNoteDayShift = prevNightNote;
           initialBeds[bed.id].handoffNoteNightShift = prevNightNote;
 
-          if (initialBeds[bed.id].clinicalCrib && prevPatient.clinicalCrib) {
+          if (clonedCrib && prevPatient.clinicalCrib) {
             const cribPrevNight =
               prevPatient.clinicalCrib.handoffNoteNightShift ||
               prevPatient.clinicalCrib.handoffNote ||
               '';
-            initialBeds[bed.id].clinicalCrib!.handoffNoteDayShift = cribPrevNight;
-            initialBeds[bed.id].clinicalCrib!.handoffNoteNightShift = cribPrevNight;
+            clonedCrib.handoffNoteDayShift = cribPrevNight;
+            clonedCrib.handoffNoteNightShift = cribPrevNight;
           }
         } else {
           initialBeds[bed.id].bedMode = prevPatient.bedMode || initialBeds[bed.id].bedMode;

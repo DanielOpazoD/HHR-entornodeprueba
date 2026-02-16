@@ -10,6 +10,7 @@ import {
 } from '@/features/census/controllers/transferModalController';
 import { resolveMovementDateTimeBounds } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import type { TransferModalConfirmPayload } from '@/features/census/domain/movements/contracts';
 import type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 import { useModalFormFlow } from '@/features/census/hooks/useModalFormFlow';
 
@@ -25,7 +26,7 @@ interface UseTransferModalFormParams {
   receivingCenterOther: string;
   transferEscort: string;
   onUpdate: (field: TransferUpdateField, value: string) => void;
-  onConfirm: (data: { time: string; movementDate?: string }) => void;
+  onConfirm: (data: TransferModalConfirmPayload) => void;
   resolveDefaultTime: () => string;
 }
 
@@ -85,7 +86,7 @@ export const useTransferModalForm = ({
   const { formState, errors, setFormField, clearErrors, submit } = useModalFormFlow<
     TransferModalLocalFormState,
     TransferModalFieldErrors,
-    { time: string; movementDate?: string }
+    TransferModalConfirmPayload
   >({
     isOpen,
     resolveInitialState,

@@ -36,6 +36,7 @@ export const useDeliveryRoutePopoverController = ({
     canSave,
     setSelectedRoute,
     setSelectedDate,
+    resetFromPersisted,
     saveAndClose,
     clearAndClose,
   } = useDeliveryRoutePopoverState({
@@ -77,11 +78,12 @@ export const useDeliveryRoutePopoverController = ({
 
       const resolution = resolveDeliveryRoutePopoverToggle({ isOpen, disabled });
       if (resolution.shouldUpdatePosition) {
+        resetFromPersisted();
         updatePosition();
       }
       setIsOpen(resolution.nextOpen);
     },
-    [disabled, isOpen, updatePosition]
+    [disabled, isOpen, resetFromPersisted, updatePosition]
   );
 
   const hasPersistedData = resolveHasPersistedDeliveryRoute(deliveryRoute);

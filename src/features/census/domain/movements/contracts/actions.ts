@@ -1,5 +1,5 @@
 import type { DischargeData, TransferData } from '@/types';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from './primitives';
 
 export type MovementStatus = DischargeData['status'];
 
@@ -10,7 +10,8 @@ export type AddDischargeAction = (
   dischargeType?: string,
   dischargeTypeOther?: string,
   time?: string,
-  target?: DischargeTarget
+  target?: DischargeTarget,
+  movementDate?: string
 ) => void;
 
 export type UpdateDischargeAction = (
@@ -31,7 +32,8 @@ export type AddTransferAction = (
   center: string,
   centerOther: string,
   escort?: string,
-  time?: string
+  time?: string,
+  movementDate?: string
 ) => void;
 
 export type UpdateTransferAction = (id: string, updates: Partial<TransferData>) => void;

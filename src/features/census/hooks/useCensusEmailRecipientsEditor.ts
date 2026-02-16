@@ -62,13 +62,16 @@ export const useCensusEmailRecipientsEditor = ({
     const wasOpen = wasOpenRef.current;
 
     if (isOpen && !wasOpen) {
-      setError(null);
-      setNewRecipient('');
-      setShowBulkEditor(false);
-      setBulkRecipients(safeRecipients.join('\n'));
-      setEditingIndex(null);
-      setEditingValue('');
-      setShowAllRecipients(false);
+      const nextBulkRecipients = safeRecipients.join('\n');
+      queueMicrotask(() => {
+        setError(null);
+        setNewRecipient('');
+        setShowBulkEditor(false);
+        setBulkRecipients(nextBulkRecipients);
+        setEditingIndex(null);
+        setEditingValue('');
+        setShowAllRecipients(false);
+      });
     }
 
     wasOpenRef.current = isOpen;

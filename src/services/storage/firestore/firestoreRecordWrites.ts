@@ -17,7 +17,6 @@ import { COLLECTIONS, getActiveHospitalId, HOSPITAL_COLLECTIONS } from '@/consta
 import {
   flattenObject,
   getRecordDocRef,
-  getRecordsCollection,
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
 

@@ -52,6 +52,7 @@ describe('patientMovementCommandRuntimeController', () => {
           type: 'Domicilio (Habitual)',
           typeOther: '',
           time: '09:30',
+          movementDate: '2026-02-15',
           dischargeTarget: 'both',
         },
       },
@@ -66,7 +67,8 @@ describe('patientMovementCommandRuntimeController', () => {
       'Domicilio (Habitual)',
       '',
       '09:30',
-      'both'
+      'both',
+      '2026-02-15'
     );
   });
 
@@ -118,6 +120,7 @@ describe('patientMovementCommandRuntimeController', () => {
           receivingCenterOther: '',
           transferEscort: 'Médico',
           time: '16:20',
+          movementDate: '2026-02-15',
         },
       },
       actions
@@ -130,7 +133,8 @@ describe('patientMovementCommandRuntimeController', () => {
       'Hospital Salvador',
       '',
       'Médico',
-      '16:20'
+      '16:20',
+      '2026-02-15'
     );
   });
 });

@@ -22,9 +22,11 @@ export const useNurseManagement = (
       }
       currentArray[index] = name;
 
-      await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
+      const patch: DailyRecordPatch = {};
+      patch[field] = currentArray;
+      await patchRecord(patch);
     },
-    [patchRecord]
+    [patchRecord, recordRef]
   );
 
   return useMemo(
@@ -54,9 +56,11 @@ export const useTensManagement = (
       }
       currentArray[index] = name;
 
-      await patchRecord({ [field]: currentArray } as unknown as DailyRecordPatch);
+      const patch: DailyRecordPatch = {};
+      patch[field] = currentArray;
+      await patchRecord(patch);
     },
-    [patchRecord]
+    [patchRecord, recordRef]
   );
 
   return useMemo(

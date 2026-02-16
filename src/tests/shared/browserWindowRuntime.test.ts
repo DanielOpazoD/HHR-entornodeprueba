@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import {
+  createBrowserWindowRuntime,
+  getNavigatorUserAgent,
+  writeClipboardText,
+} from '@/shared/runtime/browserWindowRuntime';
 
 describe('browserWindowRuntime', () => {
   it('delegates alert, confirm and open to window', () => {
@@ -41,5 +45,24 @@ describe('browserWindowRuntime', () => {
     expect(setItemSpy).toHaveBeenCalledWith('k', 'v');
     expect(getItemSpy).toHaveBeenCalledWith('k');
     expect(removeItemSpy).toHaveBeenCalledWith('k');
+  });
+
+  it('writes text to clipboard when available', async () => {
+    if (!navigator.clipboard) {
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: vi.fn(),
+        },
+      });
+    }
+    const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+
+    await writeClipboardText('hola');
+
+    expect(writeTextSpy).toHaveBeenCalledWith('hola');
+  });
+
+  it('returns navigator user agent through runtime helper', () => {
+    expect(getNavigatorUserAgent()).toBe(navigator.userAgent);
   });
 });

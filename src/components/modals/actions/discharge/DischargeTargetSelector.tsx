@@ -1,7 +1,7 @@
 import React from 'react';
 import { Baby, User, Users } from 'lucide-react';
 import clsx from 'clsx';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 
 interface DischargeTargetSelectorProps {
   target: DischargeTarget;

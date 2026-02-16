@@ -1,12 +1,22 @@
 /**
  * App.tsx - Main Application Component
- * 
+ *
  * Orchestrates authentication, routing, and global state.
  * Extracted components: AppProviders, AppRouter
  */
 
 import React from 'react';
-import { useDailyRecord, useDateNavigation, useFileOperations, useExistingDaysQuery, useCensusEmail, useSignatureMode, useSharedCensusMode, useAppState, useVersionCheck } from '@/hooks';
+import {
+  useDailyRecord,
+  useDateNavigation,
+  useFileOperations,
+  useExistingDaysQuery,
+  useCensusEmail,
+  useSignatureMode,
+  useSharedCensusMode,
+  useAppState,
+  useVersionCheck,
+} from '@/hooks';
 import { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
 import { LoginPage } from '@/components';
@@ -15,7 +25,14 @@ import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider, CensusContextType } from '@/context/CensusContext';
 import { VersionProvider } from '@/context/VersionContext';
 import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverlay';
-import { AuditProvider, DemoModeProvider, useAuth, AuthContextType, AuthProvider, UIProvider } from './context';
+import {
+  AuditProvider,
+  DemoModeProvider,
+  useAuth,
+  AuthContextType,
+  AuthProvider,
+  UIProvider,
+} from './context';
 import { HospitalProvider } from './context/HospitalContext';
 import { RepositoryProvider, defaultRepositories } from '@/services/RepositoryContext';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -24,11 +41,31 @@ import { queryClient } from '@/config/queryClient';
 // ============================================================================
 // Sync Effect - Keeps repository in sync with Firebase connection status
 // ============================================================================
+const isIgnorableWorkerShutdownImportError = (error: unknown): boolean => {
+  const message = String(error);
+  return message.includes('[vitest-worker]: Closing rpc while "fetch" was pending');
+};
+
 const useSyncFirestoreStatus = (isFirebaseConnected: boolean) => {
   React.useEffect(() => {
-    import('@/services/repositories/DailyRecordRepository').then(({ setFirestoreEnabled }) => {
-      setFirestoreEnabled(isFirebaseConnected);
-    });
+    let isMounted = true;
+    void import('@/services/repositories/DailyRecordRepository')
+      .then(({ setFirestoreEnabled }) => {
+        if (!isMounted) {
+          return;
+        }
+        setFirestoreEnabled(isFirebaseConnected);
+      })
+      .catch(error => {
+        if (isIgnorableWorkerShutdownImportError(error)) {
+          return;
+        }
+        console.error('[App] Failed to sync Firestore status', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isFirebaseConnected]);
 };
 
@@ -61,7 +98,11 @@ function App() {
   // Date navigation
   const dateNav = useDateNavigation();
 
-  const { isSignatureMode, currentDateString } = useSignatureMode(dateNav.currentDateString, auth.user, auth.isLoading);
+  const { isSignatureMode, currentDateString } = useSignatureMode(
+    dateNav.currentDateString,
+    auth.user,
+    auth.isLoading
+  );
   const sharedCensus = useSharedCensusMode();
 
   // Loading state
@@ -75,13 +116,13 @@ function App() {
 
   // Auth required for main app (NOT shared census mode)
   if (!auth.user && !isSignatureMode && !sharedCensus.isSharedCensusMode) {
-    return <LoginPage onLoginSuccess={() => { }} />;
+    return <LoginPage onLoginSuccess={() => {}} />;
   }
 
   // If in shared census mode and user needs to login, show login page
   // This is a SEPARATE login flow from the main app
   if (sharedCensus.isSharedCensusMode && sharedCensus.needsLogin) {
-    return <LoginPage onLoginSuccess={() => { }} isSharedCensusMode={true} />;
+    return <LoginPage onLoginSuccess={() => {}} isSharedCensusMode={true} />;
   }
 
   return (
@@ -111,18 +152,28 @@ function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
   // Report health status in background
   useSystemHealthReporter();
 
-  const dailyRecordHook = useDailyRecord(dateNav.currentDateString, auth.isOfflineMode, auth.isFirebaseConnected);
+  const dailyRecordHook = useDailyRecord(
+    dateNav.currentDateString,
+    auth.isOfflineMode,
+    auth.isFirebaseConnected
+  );
   const { record } = dailyRecordHook;
 
-  const { data: existingDaysInMonth = [] } = useExistingDaysQuery(dateNav.selectedYear, dateNav.selectedMonth);
+  const { data: existingDaysInMonth = [] } = useExistingDaysQuery(
+    dateNav.selectedYear,
+    dateNav.selectedMonth
+  );
   const nurseSignature = useNurseSignature(record);
 
   const censusEmail = useCensusEmail({
-    record, currentDateString: dateNav.currentDateString, nurseSignature,
+    record,
+    currentDateString: dateNav.currentDateString,
+    nurseSignature,
     selectedYear: dateNav.selectedYear,
     selectedMonth: dateNav.selectedMonth,
     selectedDay: dateNav.selectedDay,
-    user: auth.user, role: auth.role,
+    user: auth.user,
+    role: auth.role,
   });
 
   const fileOps = useFileOperations(record, dailyRecordHook.refresh);
@@ -138,7 +189,7 @@ function AppInner({ auth, dateNav, sharedCensus }: AppInnerProps) {
     fileOps,
     censusEmail,
     nurseSignature,
-    sharedCensus
+    sharedCensus,
   };
 
   return (

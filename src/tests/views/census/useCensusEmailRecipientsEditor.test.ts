@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCensusEmailRecipientsEditor } from '@/features/census/hooks/useCensusEmailRecipientsEditor';
 
@@ -46,7 +46,7 @@ describe('useCensusEmailRecipientsEditor', () => {
     expect(result.current.error).toMatch(/ya está agregado/i);
   });
 
-  it('resets transient state when modal opens', () => {
+  it('resets transient state when modal opens', async () => {
     const onRecipientsChange = vi.fn();
     const { result, rerender } = renderHook(
       ({ isOpen }) =>
@@ -67,8 +67,10 @@ describe('useCensusEmailRecipientsEditor', () => {
 
     rerender({ isOpen: true });
 
-    expect(result.current.newRecipient).toBe('');
-    expect(result.current.showBulkEditor).toBe(false);
-    expect(result.current.bulkRecipients).toContain('a@mail.com');
+    await waitFor(() => {
+      expect(result.current.newRecipient).toBe('');
+      expect(result.current.showBulkEditor).toBe(false);
+      expect(result.current.bulkRecipients).toContain('a@mail.com');
+    });
   });
 });

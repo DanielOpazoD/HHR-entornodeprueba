@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import { type DischargeStatus, type DischargeType } from '@/constants';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type {
+  DischargeModalConfirmPayload,
+  DischargeTarget,
+} from '@/features/census/domain/movements/contracts';
 import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
   mapDischargeValidationErrors,
-  type DischargeConfirmPayload,
   type DischargeModalFieldErrors,
 } from '@/features/census/controllers/dischargeModalController';
 import {
@@ -27,7 +29,7 @@ interface UseDischargeModalFormParams {
   dischargeTarget: DischargeTarget;
   hasClinicalCrib?: boolean;
   resolveDefaultTime: () => string;
-  onConfirm: (payload: DischargeConfirmPayload) => void;
+  onConfirm: (payload: DischargeModalConfirmPayload) => void;
 }
 
 interface UseDischargeModalFormResult {
@@ -103,7 +105,7 @@ export const useDischargeModalForm = ({
   const { formState, errors, setFormField, submit } = useModalFormFlow<
     DischargeModalLocalFormState,
     DischargeModalFieldErrors,
-    DischargeConfirmPayload
+    DischargeModalConfirmPayload
   >({
     isOpen,
     resolveInitialState,

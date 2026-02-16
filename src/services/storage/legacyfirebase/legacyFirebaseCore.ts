@@ -1,5 +1,6 @@
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { Firestore, getFirestore } from 'firebase/firestore';
+import { logLegacyError, logLegacyInfo } from './legacyFirebaseLogger';
 
 const LEGACY_CONFIG = {
   apiKey: 'AIzaSyB0MKYu-efNbYEZnyTy7KHqWVQvBVwozwM',
@@ -19,10 +20,10 @@ export const initLegacyFirebase = (): Firestore => {
   try {
     legacyApp = initializeApp(LEGACY_CONFIG, 'legacy-production');
     legacyDb = getFirestore(legacyApp);
-    console.log('[LegacyFirebase] ✅ Connected to hospital-hanga-roa (READ-ONLY)');
+    logLegacyInfo('[LegacyFirebase] Connected to hospital-hanga-roa (READ-ONLY)');
     return legacyDb;
   } catch (error) {
-    console.error('[LegacyFirebase] ❌ Failed to connect to production:', error);
+    logLegacyError('[LegacyFirebase] Failed to connect to production:', error);
     throw error;
   }
 };

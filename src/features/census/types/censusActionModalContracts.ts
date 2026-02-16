@@ -1,5 +1,9 @@
 import type { DischargeStatus, EvacuationMethod, ReceivingCenter } from '@/constants';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type {
+  DischargeModalConfirmPayload,
+  DischargeTarget,
+  TransferModalConfirmPayload,
+} from '@/features/census/domain/movements/contracts';
 
 export type TransferUpdateField =
   | 'evacuationMethod'
@@ -35,14 +39,7 @@ export interface DischargeModalProps {
   initialMovementDate?: string;
   onStatusChange: (s: DischargeStatus) => void;
   onClose: () => void;
-  onConfirm: (data: {
-    status: DischargeStatus;
-    type?: string;
-    typeOther?: string;
-    time: string;
-    movementDate?: string;
-    dischargeTarget?: DischargeTarget;
-  }) => void;
+  onConfirm: (data: DischargeModalConfirmPayload) => void;
 }
 
 export interface TransferModalProps {
@@ -60,5 +57,5 @@ export interface TransferModalProps {
   clinicalCribName?: string;
   onUpdate: (field: TransferUpdateField, value: string) => void;
   onClose: () => void;
-  onConfirm: (data: { time: string; movementDate?: string }) => void;
+  onConfirm: (data: TransferModalConfirmPayload) => void;
 }

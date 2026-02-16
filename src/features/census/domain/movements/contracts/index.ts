@@ -14,6 +14,13 @@ export type {
 } from './actions';
 
 export type { DischargeExecutionInput, TransferExecutionInput } from './inputs';
+export type {
+  DischargeTarget,
+  MoveOrCopyActionState,
+  MoveOrCopyActionType,
+  TransferEvacuationMethod,
+  TransferReceivingCenter,
+} from './primitives';
 
 export type {
   DischargeAddCommandPayload,
@@ -45,3 +52,9 @@ export type {
   MoveOrCopyRuntimeActions,
   TransferRuntimeActions,
 } from './runtimeActions';
+
+export type {
+  DischargeModalConfirmPayload,
+  MovementDateTimeCommandPayload,
+  TransferModalConfirmPayload,
+} from './modalPayloads';

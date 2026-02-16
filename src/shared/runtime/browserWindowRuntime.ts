@@ -1,7 +1,7 @@
 export interface BrowserWindowRuntime {
   alert: (message: string) => void;
   confirm: (message: string) => boolean;
-  open: (url: string, target?: string) => void;
+  open: (url: string, target?: string) => Window | null;
   reload: () => void;
   getLocationOrigin: () => string;
   getLocationPathname: () => string;
@@ -31,10 +31,10 @@ export const createBrowserWindowRuntime = (): BrowserWindowRuntime => ({
   },
   open: (url, target = '_blank') => {
     if (!hasWindow()) {
-      return;
+      return null;
     }
 
-    window.open(url, target);
+    return window.open(url, target);
   },
   reload: () => {
     if (!hasWindow()) {
@@ -93,5 +93,16 @@ export const createBrowserWindowRuntime = (): BrowserWindowRuntime => ({
     window.localStorage.removeItem(key);
   },
 });
+
+export const writeClipboardText = async (text: string): Promise<void> => {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+    throw new Error('Clipboard API no disponible');
+  }
+
+  await navigator.clipboard.writeText(text);
+};
+
+export const getNavigatorUserAgent = (): string =>
+  typeof navigator !== 'undefined' ? navigator.userAgent : '';
 
 export const defaultBrowserWindowRuntime = createBrowserWindowRuntime();

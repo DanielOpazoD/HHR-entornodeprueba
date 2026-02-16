@@ -1,4 +1,4 @@
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from './primitives';
 
 import type { MovementStatus } from './actions';
 

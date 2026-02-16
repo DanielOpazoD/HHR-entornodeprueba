@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTodayISO } from '@/utils/dateUtils';
 import {
   buildMoveCopyDateOptions,
@@ -32,18 +32,40 @@ export const useMoveCopyModalState = ({
   onSetTarget,
   onConfirm,
 }: UseMoveCopyModalStateParams): UseMoveCopyModalStateResult => {
-  const [selectedDate, setSelectedDate] = useState<string>('');
-
   const baseDate = useMemo(
     () => resolveMoveCopyBaseDate(currentRecordDate, getTodayISO()),
     [currentRecordDate]
   );
   const dateOptions = useMemo(() => buildMoveCopyDateOptions(baseDate), [baseDate]);
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    isOpen && currentRecordDate ? baseDate : ''
+  );
+  const openSignatureRef = useRef<string | null>(null);
+  const selectedDateRef = useRef(selectedDate);
 
   useEffect(() => {
-    if (isOpen && currentRecordDate) {
-      setSelectedDate(baseDate);
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!isOpen || !currentRecordDate) {
+      openSignatureRef.current = null;
+      return;
     }
+
+    const currentSignature = `${currentRecordDate}|${baseDate}`;
+    if (openSignatureRef.current === currentSignature) {
+      return;
+    }
+    openSignatureRef.current = currentSignature;
+
+    if (selectedDateRef.current === baseDate) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setSelectedDate(baseDate);
+    });
   }, [baseDate, currentRecordDate, isOpen]);
 
   const handleDateSelect = useCallback(

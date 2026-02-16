@@ -21,6 +21,20 @@ export const executeDischargeRuntimeCommand = (
     return;
   }
 
+  if (command.payload.movementDate !== undefined) {
+    actions.addDischarge(
+      command.bedId,
+      command.payload.status,
+      command.payload.cribStatus,
+      command.payload.type,
+      command.payload.typeOther,
+      command.payload.time,
+      command.payload.dischargeTarget,
+      command.payload.movementDate
+    );
+    return;
+  }
+
   actions.addDischarge(
     command.bedId,
     command.payload.status,
@@ -38,6 +52,19 @@ export const executeTransferRuntimeCommand = (
 ): void => {
   if (command.kind === 'updateTransfer') {
     actions.updateTransfer(command.id, command.payload);
+    return;
+  }
+
+  if (command.payload.movementDate !== undefined) {
+    actions.addTransfer(
+      command.bedId,
+      command.payload.evacuationMethod,
+      command.payload.receivingCenter,
+      command.payload.receivingCenterOther,
+      command.payload.transferEscort,
+      command.payload.time,
+      command.payload.movementDate
+    );
     return;
   }
 

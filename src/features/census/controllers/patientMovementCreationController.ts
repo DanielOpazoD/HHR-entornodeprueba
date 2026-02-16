@@ -6,7 +6,7 @@ import {
   PatientData,
   TransferData,
 } from '@/types';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 import {
   ControllerError,
   ControllerResult,
@@ -34,6 +34,7 @@ export interface AddDischargeMovementInput {
   dischargeType?: string;
   dischargeTypeOther?: string;
   time?: string;
+  movementDate?: string;
   target: DischargeTarget;
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
@@ -48,6 +49,7 @@ export interface AddTransferMovementInput {
   centerOther: string;
   escort?: string;
   time?: string;
+  movementDate?: string;
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
   createId?: () => string;
@@ -86,6 +88,7 @@ export const resolveAddDischargeMovement = ({
   dischargeType,
   dischargeTypeOther,
   time,
+  movementDate,
   target,
   bedsCatalog,
   createEmptyPatient,
@@ -100,7 +103,7 @@ export const resolveAddDischargeMovement = ({
   }
 
   const bedDef = resolveBedDefinition(bedId, bedsCatalog);
-  const movementDate = resolveMovementDisplayDate(record.date, undefined, time);
+  const resolvedMovementDate = resolveMovementDisplayDate(record.date, movementDate, time);
   const newDischarges: DischargeData[] = [];
   const auditEntries: MovementAuditEntry[] = [];
   const updatedBeds = { ...record.beds };
@@ -108,7 +111,7 @@ export const resolveAddDischargeMovement = ({
   if (target === 'mother' || target === 'both') {
     newDischarges.push({
       id: createId(),
-      movementDate,
+      movementDate: resolvedMovementDate,
       bedName: bedDef?.name || bedId,
       bedId,
       bedType: bedDef?.type || '',
@@ -137,7 +140,7 @@ export const resolveAddDischargeMovement = ({
   if ((target === 'baby' || target === 'both') && patient.clinicalCrib?.patientName && cribStatus) {
     newDischarges.push({
       id: createId(),
-      movementDate,
+      movementDate: resolvedMovementDate,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',
@@ -205,6 +208,7 @@ export const resolveAddTransferMovement = ({
   centerOther,
   escort,
   time,
+  movementDate,
   bedsCatalog,
   createEmptyPatient,
   createId = defaultCreateId,
@@ -218,12 +222,12 @@ export const resolveAddTransferMovement = ({
   }
 
   const bedDef = resolveBedDefinition(bedId, bedsCatalog);
-  const movementDate = resolveMovementDisplayDate(record.date, undefined, time);
+  const resolvedMovementDate = resolveMovementDisplayDate(record.date, movementDate, time);
   const newTransfers: TransferData[] = [];
 
   newTransfers.push({
     id: createId(),
-    movementDate,
+    movementDate: resolvedMovementDate,
     bedName: bedDef?.name || bedId,
     bedId,
     bedType: bedDef?.type || '',
@@ -246,7 +250,7 @@ export const resolveAddTransferMovement = ({
   if (patient.clinicalCrib?.patientName) {
     newTransfers.push({
       id: createId(),
-      movementDate,
+      movementDate: resolvedMovementDate,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',

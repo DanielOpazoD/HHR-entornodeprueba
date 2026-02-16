@@ -115,4 +115,55 @@ describe('patientMovementCreationController', () => {
       expect(result.value.auditEntry.patientName).toBe('Madre A');
     }
   });
+
+  it('respects explicit movementDate when creating a discharge movement', () => {
+    const record = DataFactory.createMockDailyRecord('2025-01-01');
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente A',
+      rut: '11-1',
+    });
+
+    const result = resolveAddDischargeMovement({
+      record,
+      bedId: 'R1',
+      status: 'Vivo',
+      time: '10:00',
+      movementDate: '2025-01-02',
+      target: 'mother',
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.updatedRecord.discharges).toHaveLength(1);
+      expect(result.value.updatedRecord.discharges[0].movementDate).toBe('2025-01-02');
+    }
+  });
+
+  it('respects explicit movementDate when creating a transfer movement', () => {
+    const record = DataFactory.createMockDailyRecord('2025-01-01');
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente A',
+      rut: '11-1',
+    });
+
+    const result = resolveAddTransferMovement({
+      record,
+      bedId: 'R1',
+      method: 'Ambulancia',
+      center: 'Hospital Base',
+      centerOther: '',
+      time: '10:00',
+      movementDate: '2025-01-02',
+      bedsCatalog: BEDS,
+      createEmptyPatient,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.updatedRecord.transfers).toHaveLength(1);
+      expect(result.value.updatedRecord.transfers[0].movementDate).toBe('2025-01-02');
+    }
+  });
 });

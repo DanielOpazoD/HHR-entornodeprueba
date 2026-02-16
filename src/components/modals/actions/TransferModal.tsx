@@ -2,7 +2,6 @@ import React from 'react';
 import { Share2 } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { EvacuationMethod, ReceivingCenter } from '@/constants';
 import {
   TransferClinicalCribNotice,
   TransferEvacuationSection,
@@ -10,10 +9,7 @@ import {
   TransferTimeField,
 } from '@/components/modals/actions/transfer';
 import { useTransferModalForm } from '@/features/census/hooks/useTransferModalForm';
-import type {
-  TransferModalProps,
-  TransferUpdateField,
-} from '@/features/census/types/censusActionModalContracts';
+import type { TransferModalProps } from '@/features/census/types/censusActionModalContracts';
 
 export type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';
 

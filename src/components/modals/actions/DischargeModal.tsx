@@ -2,7 +2,7 @@ import React from 'react';
 import { LogOut } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { DischargeStatus, DischargeType } from '@/constants';
+import { DischargeType } from '@/constants';
 import {
   ClinicalCribStatusSection,
   DischargeStatusRadioGroup,
@@ -10,7 +10,7 @@ import {
   DischargeTimeField,
   DischargeTypeSelector,
 } from '@/components/modals/actions/discharge';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 import {
   shouldShowBabyStatus,
   shouldShowMotherStatus,

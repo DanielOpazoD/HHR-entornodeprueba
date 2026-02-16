@@ -53,7 +53,7 @@ export const usePatientTransfers = (
   });
 
   const addTransfer: AddTransferAction = useCallback(
-    (bedId, method, center, centerOther, escort, time) => {
+    (bedId, method, center, centerOther, escort, time, movementDate) => {
       withCurrentRecord(currentRecord => {
         const resolution = resolveAddTransferMovement(
           buildAddTransferInput({
@@ -64,6 +64,7 @@ export const usePatientTransfers = (
             centerOther,
             escort,
             time,
+            movementDate,
             bedsCatalog: BEDS,
             createEmptyPatient,
           })

@@ -1,13 +1,12 @@
-import type { ActionState } from '@/features/census/types/censusActionTypes';
-
 import type { CensusActionError, MoveOrCopyRuntimeError } from './errors';
+import type { MoveOrCopyActionState } from './primitives';
 
 export type CensusActionCommandResult<TValue, TError> =
   | { ok: true; value: TValue }
   | { ok: false; error: TError };
 
 export interface MoveOrCopyRuntimeSuccess {
-  nextActionState: ActionState;
+  nextActionState: MoveOrCopyActionState;
 }
 
 export interface ModalCloseSuccess {

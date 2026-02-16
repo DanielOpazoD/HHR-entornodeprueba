@@ -89,7 +89,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
       setRetiringDevice(null);
     },
-    [retiringDevice, deviceDetails, normalizedDevices]
+    [retiringDevice, deviceDetails, normalizedDevices, onChangeRef, onDetailsChangeRef]
   );
 
   const toggleDevice = useCallback(
@@ -147,7 +147,14 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       setPendingAddition(null);
       setEditingDevice(null);
     },
-    [editingDevice, pendingAddition, deviceDetails, normalizedDevices]
+    [
+      editingDevice,
+      pendingAddition,
+      deviceDetails,
+      normalizedDevices,
+      onChangeRef,
+      onDetailsChangeRef,
+    ]
   );
 
   // ========================================================================

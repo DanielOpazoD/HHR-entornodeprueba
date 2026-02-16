@@ -116,7 +116,7 @@ export const useSharedCensusFiles = (
         runtime.alert('Error al intentar descargar el archivo.');
       }
     },
-    [accessUser, runtime]
+    [accessUser, runtime, safeLogAccess]
   );
 
   const handleViewFile = useCallback(

@@ -20,10 +20,6 @@ export const TransfersSection: React.FC = () => {
   const { recordDate, transfers } = useCensusMovementData();
   const { undoTransfer, deleteTransfer } = useDailyRecordActions();
   const { handleEditTransfer } = useCensusActionCommands();
-  const sectionState = resolveTransfersSectionState(transfers);
-
-  if (!sectionState.isRenderable) return null;
-
   const { handleUndo, handleDelete } = useMovementSectionActions({
     undoDialog: TRANSFER_UNDO_CONFIRM_DIALOG,
     undoErrorTitle: 'No se pudo deshacer traslado',
@@ -32,6 +28,9 @@ export const TransfersSection: React.FC = () => {
     deleteErrorTitle: 'No se pudo eliminar traslado',
     onDelete: deleteTransfer,
   });
+  const sectionState = resolveTransfersSectionState(transfers);
+
+  if (!sectionState.isRenderable) return null;
 
   return (
     <CensusMovementSectionLayout

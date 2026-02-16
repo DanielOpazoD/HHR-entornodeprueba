@@ -7,16 +7,15 @@ import {
   EvacuationMethod,
   ReceivingCenter,
 } from '@/constants';
+import type {
+  DischargeTarget,
+  MoveOrCopyActionState,
+  MoveOrCopyActionType,
+} from '@/features/census/domain/movements/contracts';
+export type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 
-export type ActionType = 'move' | 'copy' | null;
-
-export interface ActionState {
-  type: ActionType;
-  sourceBedId: string | null;
-  targetBedId: string | null;
-}
-
-export type DischargeTarget = 'mother' | 'baby' | 'both';
+export type ActionType = MoveOrCopyActionType;
+export type ActionState = MoveOrCopyActionState;
 
 export interface DischargeState {
   bedId: string | null;

@@ -41,4 +41,7 @@ export { saveSetting, getSetting, clearAllSettings } from './indexeddb/indexedDb
 
 export { isIndexedDBAvailable, isDatabaseInFallbackMode } from './indexeddb/indexedDbCore';
 
-export { resetLocalDatabase } from './indexeddb/indexedDbMaintenanceService';
+export {
+  resetLocalDatabase,
+  performClientHardReset,
+} from './indexeddb/indexedDbMaintenanceService';

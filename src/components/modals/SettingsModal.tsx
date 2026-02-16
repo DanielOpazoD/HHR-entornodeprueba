@@ -1,11 +1,26 @@
 import React, { useRef, useState } from 'react';
-import { Settings, Database, Bot, FileKey, Download, TableProperties, Upload, RotateCcw, Sparkles, MousePointer2, Move, Type, Shield } from 'lucide-react';
+import {
+  Settings,
+  Database,
+  Bot,
+  FileKey,
+  Download,
+  TableProperties,
+  Upload,
+  RotateCcw,
+  Sparkles,
+  MousePointer2,
+  Move,
+  Type,
+  Shield,
+} from 'lucide-react';
 import { Modal, ModalSection, Button } from '@/core/ui';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
 import { SecuritySettings } from './SecuritySettings';
 
 import { UserRole } from '@/types';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -24,14 +39,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRunTest,
   canDownloadPassport = false,
   onDownloadPassport,
-  isOfflineMode = false
+  isOfflineMode = false,
 }) => {
-  const { config, exportConfig, importConfig, resetToDefaults, isEditMode, setEditMode, updatePageMargin } = useTableConfig();
+  const {
+    config,
+    exportConfig,
+    importConfig,
+    resetToDefaults,
+    isEditMode,
+    setEditMode,
+    updatePageMargin,
+  } = useTableConfig();
   const { settings, updateSetting } = useUISettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Passport generation states
-  const [selectedPassportRole, setSelectedPassportRole] = useState<'admin' | 'nurse_hospital'>('admin');
+  const [selectedPassportRole, setSelectedPassportRole] = useState<'admin' | 'nurse_hospital'>(
+    'admin'
+  );
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handlePassportDownload = async () => {
@@ -59,16 +84,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (file) {
       try {
         await importConfig(file);
-        alert('Configuración importada correctamente');
+        defaultBrowserWindowRuntime.alert('Configuración importada correctamente');
       } catch {
-        alert('Error al importar: archivo inválido');
+        defaultBrowserWindowRuntime.alert('Error al importar: archivo inválido');
       }
       e.target.value = '';
     }
   };
 
   const handleReset = () => {
-    if (confirm('¿Está seguro de resetear la configuración de columnas a valores por defecto?')) {
+    if (
+      defaultBrowserWindowRuntime.confirm(
+        '¿Está seguro de resetear la configuración de columnas a valores por defecto?'
+      )
+    ) {
       resetToDefaults();
     }
   };
@@ -98,16 +127,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         description="Personalice la apariencia y sensaciones táctiles del sistema."
         variant="info"
       >
-        {(['glassmorphism', 'animations', 'hoverEffects', 'modernTypography'] as const).map((id) => {
+        {(['glassmorphism', 'animations', 'hoverEffects', 'modernTypography'] as const).map(id => {
           const item = {
-            glassmorphism: { label: 'Glassmorphism', desc: 'Efecto de cristal y profundidad', icon: Sparkles, color: 'blue' },
-            animations: { label: 'Micro-interacciones', desc: 'Transiciones y animaciones suaves', icon: Move, color: 'purple' },
-            hoverEffects: { label: 'Efectos Hover', desc: 'Iluminación al pasar el mouse', icon: MousePointer2, color: 'pink' },
-            modernTypography: { label: 'Tipografía Moderna', desc: 'Usar fuente "Plus Jakarta Sans"', icon: Type, color: 'emerald' },
+            glassmorphism: {
+              label: 'Glassmorphism',
+              desc: 'Efecto de cristal y profundidad',
+              icon: Sparkles,
+              color: 'blue',
+            },
+            animations: {
+              label: 'Micro-interacciones',
+              desc: 'Transiciones y animaciones suaves',
+              icon: Move,
+              color: 'purple',
+            },
+            hoverEffects: {
+              label: 'Efectos Hover',
+              desc: 'Iluminación al pasar el mouse',
+              icon: MousePointer2,
+              color: 'pink',
+            },
+            modernTypography: {
+              label: 'Tipografía Moderna',
+              desc: 'Usar fuente "Plus Jakarta Sans"',
+              icon: Type,
+              color: 'emerald',
+            },
           }[id];
 
           return (
-            <div key={id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100">
+            <div
+              key={id}
+              className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100"
+            >
               <div className="flex items-center gap-3">
                 <div className={`p-2 bg-${item.color}-50 text-${item.color}-600 rounded-lg`}>
                   <item.icon size={18} />
@@ -121,7 +173,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onClick={() => updateSetting(id, !settings[id])}
                 className={`w-12 h-6 rounded-full transition-all relative ${settings[id] ? 'bg-medical-600' : 'bg-slate-300'}`}
               >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings[id] ? 'left-7' : 'left-1'}`} />
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings[id] ? 'left-7' : 'left-1'}`}
+                />
               </button>
             </div>
           );
@@ -144,7 +198,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             max="64"
             step="4"
             value={config.pageMargin}
-            onChange={(e) => updatePageMargin(parseInt(e.target.value))}
+            onChange={e => updatePageMargin(parseInt(e.target.value))}
             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
         </div>
@@ -152,7 +206,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="space-y-2">
           <Button
             variant={isEditMode ? 'primary' : 'secondary'}
-            onClick={() => { setEditMode(!isEditMode); onClose(); }}
+            onClick={() => {
+              setEditMode(!isEditMode);
+              onClose();
+            }}
             className="w-full"
             icon={<TableProperties size={16} />}
           >
@@ -202,7 +259,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <ModalSection
           title="Generar Pasaporte Offline"
           icon={<FileKey size={16} />}
-          description={<>Genere un archivo pasaporte para acceder al sistema <strong>sin conexión a internet</strong>.<br /><span className="font-bold text-emerald-700 text-[10px]">Válido por 3 años. Solo administradores pueden generar estos archivos.</span></>}
+          description={
+            <>
+              Genere un archivo pasaporte para acceder al sistema{' '}
+              <strong>sin conexión a internet</strong>.<br />
+              <span className="font-bold text-emerald-700 text-[10px]">
+                Válido por 3 años. Solo administradores pueden generar estos archivos.
+              </span>
+            </>
+          }
           variant="success"
         >
           <div className="space-y-3">
@@ -240,13 +305,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       {/* Demo and Diagnostics Section */}
       <div className="grid grid-cols-2 gap-4">
-        <ModalSection
-          title="Datos Demo"
-          icon={<Database size={16} />}
-          variant="info"
-        >
+        <ModalSection title="Datos Demo" icon={<Database size={16} />} variant="info">
           <Button
-            onClick={() => { onGenerateDemo(); onClose(); }}
+            onClick={() => {
+              onGenerateDemo();
+              onClose();
+            }}
             variant="outline"
             size="sm"
             className="w-full"
@@ -255,12 +319,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </Button>
         </ModalSection>
 
-        <ModalSection
-          title="Diagnóstico"
-          icon={<Bot size={16} />}
-        >
+        <ModalSection title="Diagnóstico" icon={<Bot size={16} />}>
           <Button
-            onClick={() => { onRunTest(); onClose(); }}
+            onClick={() => {
+              onRunTest();
+              onClose();
+            }}
             variant="outline"
             size="sm"
             className="w-full"

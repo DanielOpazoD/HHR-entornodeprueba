@@ -1,5 +1,5 @@
 import { BedDefinition, DailyRecord, PatientData } from '@/types';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 import {
   AddDischargeMovementInput,
   AddTransferMovementInput,
@@ -18,6 +18,7 @@ interface BuildAddDischargeInputParams extends MovementCreationDependencies {
   dischargeType?: string;
   dischargeTypeOther?: string;
   time?: string;
+  movementDate?: string;
   target: DischargeTarget;
 }
 
@@ -29,6 +30,7 @@ interface BuildAddTransferInputParams extends MovementCreationDependencies {
   centerOther: string;
   escort?: string;
   time?: string;
+  movementDate?: string;
 }
 
 export const buildAddDischargeInput = ({
@@ -39,6 +41,7 @@ export const buildAddDischargeInput = ({
   dischargeType,
   dischargeTypeOther,
   time,
+  movementDate,
   target,
   bedsCatalog,
   createEmptyPatient,
@@ -50,6 +53,7 @@ export const buildAddDischargeInput = ({
   dischargeType,
   dischargeTypeOther,
   time,
+  movementDate,
   target,
   bedsCatalog,
   createEmptyPatient,
@@ -63,6 +67,7 @@ export const buildAddTransferInput = ({
   centerOther,
   escort,
   time,
+  movementDate,
   bedsCatalog,
   createEmptyPatient,
 }: BuildAddTransferInputParams): AddTransferMovementInput => ({
@@ -73,6 +78,7 @@ export const buildAddTransferInput = ({
   centerOther,
   escort,
   time,
+  movementDate,
   bedsCatalog,
   createEmptyPatient,
 });

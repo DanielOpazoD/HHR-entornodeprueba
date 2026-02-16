@@ -34,7 +34,13 @@ export const usePortalPopoverRuntime = <TPosition>({
   closeOnEscape = true,
   repositionOnResize = true,
 }: UsePortalPopoverRuntimeOptions<TPosition>): UsePortalPopoverRuntimeResult<TPosition> => {
-  const [position, setPosition] = useState<TPosition>(initialPosition);
+  const [position, setPosition] = useState<TPosition>(() => {
+    if (!isOpen) {
+      return initialPosition;
+    }
+
+    return resolvePosition() ?? initialPosition;
+  });
 
   const updatePosition = useCallback(() => {
     const nextPosition = resolvePosition();
@@ -48,14 +54,17 @@ export const usePortalPopoverRuntime = <TPosition>({
       return;
     }
 
-    updatePosition();
+    const frameId = window.requestAnimationFrame(updatePosition);
 
     if (!repositionOnResize) {
-      return;
+      return () => window.cancelAnimationFrame(frameId);
     }
 
     window.addEventListener('resize', updatePosition);
-    return () => window.removeEventListener('resize', updatePosition);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', updatePosition);
+    };
   }, [isOpen, repositionOnResize, updatePosition]);
 
   useEffect(() => {

@@ -13,6 +13,7 @@ import {
   getRecordFromFirestore,
 } from '@/services/storage/firestoreService';
 import { getLegacyRecord } from '@/services/storage/legacyFirebaseService';
+import { logLegacyInfo } from '@/services/storage/legacyfirebase/legacyFirebaseLogger';
 import { isDemoModeActive, isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { migrateLegacyData } from '@/services/repositories/dataMigration';
 
@@ -47,10 +48,10 @@ export const getForDate = async (
         return migrated;
       }
 
-      console.log(`[Repository] 🔍 Checking legacy fallback for ${date}...`);
+      logLegacyInfo(`[Repository] Checking legacy fallback for ${date}...`);
       const legacyRecord = await getLegacyRecord(date);
       if (legacyRecord) {
-        console.log(`[Repository] 🎯 Found legacy record for ${date}. Migrating to Beta.`);
+        logLegacyInfo(`[Repository] Found legacy record for ${date}. Migrating to Beta.`);
         const migrated = migrateLegacyData(legacyRecord, date);
         await saveToIndexedDB(migrated);
         return migrated;

@@ -18,11 +18,12 @@ import {
   LEGACY_RECORD_COLLECTION_PATHS,
   LEGACY_RECORD_DOC_PATHS,
 } from './legacyFirebasePaths';
+import { logLegacyError, logLegacyInfo } from './legacyFirebaseLogger';
 
 export const getLegacyRecord = async (date: string): Promise<DailyRecord | null> => {
   const db = getLegacyDb();
   if (!db) {
-    console.warn('[LegacyFirebase] No connection available');
+    logLegacyInfo('[LegacyFirebase] No connection available');
     return null;
   }
 
@@ -30,23 +31,23 @@ export const getLegacyRecord = async (date: string): Promise<DailyRecord | null>
     const possiblePaths = LEGACY_RECORD_DOC_PATHS(date);
     for (const path of possiblePaths) {
       try {
-        console.log(`[LegacyFirebase] 🧪 Testing path: ${path}`);
+        logLegacyInfo(`[LegacyFirebase] Testing path: ${path}`);
         const docRef = doc(db, path);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          console.log(`[LegacyFirebase] 🎯 Found record at: ${path}`);
+          logLegacyInfo(`[LegacyFirebase] Found record at: ${path}`);
           return parseDailyRecordWithDefaults(docSnap.data(), date);
         }
       } catch (error) {
-        console.warn(`[LegacyFirebase] ❌ Error testing path ${path}:`, error);
+        logLegacyError(`[LegacyFirebase] Error testing path ${path}:`, error);
       }
     }
 
-    console.log(`[LegacyFirebase] No legacy record found for ${date}`);
+    logLegacyInfo(`[LegacyFirebase] No legacy record found for ${date}`);
     return null;
   } catch (error) {
-    console.error('[LegacyFirebase] Error reading legacy record:', error);
+    logLegacyError('[LegacyFirebase] Error reading legacy record:', error);
     return null;
   }
 };
@@ -71,7 +72,7 @@ export const getLegacyRecordsRange = async (
 
         const snapshot = await getDocs(rangeQuery);
         if (!snapshot.empty) {
-          console.log(`[LegacyFirebase] 📚 Found ${snapshot.size} records in ${collectionPath}`);
+          logLegacyInfo(`[LegacyFirebase] Found ${snapshot.size} records in ${collectionPath}`);
           return snapshot.docs.map(d => parseDailyRecordWithDefaults(d.data(), d.id));
         }
       } catch {
@@ -80,7 +81,7 @@ export const getLegacyRecordsRange = async (
     }
     return [];
   } catch (error) {
-    console.error('[LegacyFirebase] Error reading legacy range:', error);
+    logLegacyError('[LegacyFirebase] Error reading legacy range:', error);
     return [];
   }
 };
@@ -107,7 +108,7 @@ export const subscribeLegacyRecord = (
       }
     },
     error => {
-      console.error('[LegacyFirebase] Subscription error:', error);
+      logLegacyError('[LegacyFirebase] Subscription error:', error);
       callback(null);
     }
   );
@@ -123,7 +124,7 @@ export const discoverLegacyDataPath = async (): Promise<string | null> => {
       const q = query(colRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        console.log(`[LegacyFirebase] 🎯 Discovered data path: ${path} (${snapshot.size} records)`);
+        logLegacyInfo(`[LegacyFirebase] Discovered data path: ${path} (${snapshot.size} records)`);
         return path;
       }
     } catch {
@@ -131,6 +132,6 @@ export const discoverLegacyDataPath = async (): Promise<string | null> => {
     }
   }
 
-  console.warn('[LegacyFirebase] Could not discover any valid data path');
+  logLegacyInfo('[LegacyFirebase] Could not discover any valid data path');
   return null;
 };

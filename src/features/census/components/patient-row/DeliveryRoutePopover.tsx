@@ -36,7 +36,6 @@ export const DeliveryRoutePopover: React.FC<DeliveryRoutePopoverProps> = ({
     popoverRef,
     buttonRef,
     popoverPos,
-    selectedRoute,
     selectedDate,
     canSave,
     routeButtonModels,

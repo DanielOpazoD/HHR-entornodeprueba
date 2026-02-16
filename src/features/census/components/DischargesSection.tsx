@@ -19,10 +19,6 @@ export const DischargesSection: React.FC = () => {
   const { recordDate, discharges } = useCensusMovementData();
   const { undoDischarge, deleteDischarge } = useDailyRecordActions();
   const { handleEditDischarge } = useCensusActionCommands();
-  const sectionState = resolveDischargesSectionState(discharges);
-
-  if (!sectionState.isRenderable) return null;
-
   const { handleUndo, handleDelete } = useMovementSectionActions({
     undoDialog: DISCHARGE_UNDO_CONFIRM_DIALOG,
     undoErrorTitle: 'No se pudo deshacer alta',
@@ -31,6 +27,9 @@ export const DischargesSection: React.FC = () => {
     deleteErrorTitle: 'No se pudo eliminar alta',
     onDelete: deleteDischarge,
   });
+  const sectionState = resolveDischargesSectionState(discharges);
+
+  if (!sectionState.isRenderable) return null;
 
   return (
     <CensusMovementSectionLayout

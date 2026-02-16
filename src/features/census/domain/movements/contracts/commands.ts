@@ -1,6 +1,9 @@
-import type { DischargeTarget, TransferState } from '@/features/census/types/censusActionTypes';
-
 import type { MovementStatus } from './actions';
+import type {
+  DischargeTarget,
+  TransferEvacuationMethod,
+  TransferReceivingCenter,
+} from './primitives';
 
 export interface DischargeUpdateCommandPayload {
   status: MovementStatus;
@@ -16,8 +19,8 @@ export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayloa
 }
 
 export interface TransferCommandPayload {
-  evacuationMethod: TransferState['evacuationMethod'];
-  receivingCenter: TransferState['receivingCenter'];
+  evacuationMethod: TransferEvacuationMethod;
+  receivingCenter: TransferReceivingCenter;
   receivingCenterOther: string;
   transferEscort: string;
   time: string;

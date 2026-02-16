@@ -3,7 +3,7 @@ import { DailyRecord } from '@/types';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import type { DischargeTarget } from '@/features/census/types/censusActionTypes';
+import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
 import { buildAddDischargeInput } from '@/features/census/controllers/patientMovementCreationInputController';
 import {
@@ -61,7 +61,8 @@ export const usePatientDischarges = (
       dischargeType,
       dischargeTypeOther,
       time,
-      target: DischargeTarget = 'both'
+      target: DischargeTarget = 'both',
+      movementDate
     ) => {
       withCurrentRecord(currentRecord => {
         const resolution = resolveAddDischargeMovement(
@@ -73,6 +74,7 @@ export const usePatientDischarges = (
             dischargeType,
             dischargeTypeOther,
             time,
+            movementDate,
             target,
             bedsCatalog: BEDS,
             createEmptyPatient,
