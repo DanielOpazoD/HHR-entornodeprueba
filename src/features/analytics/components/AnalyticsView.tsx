@@ -15,8 +15,17 @@ import { formatDateDDMMYYYY } from '@/utils/dateUtils';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
 
 export const AnalyticsView: React.FC = () => {
-  const { stats, trendData, dateRange, setPreset, setCustomRange, isLoading, error, refresh } =
-    useMinsalStats('lastMonth');
+  const {
+    stats,
+    trendData,
+    dateRange,
+    setPreset,
+    setCustomRange,
+    setCurrentYearMonth,
+    isLoading,
+    error,
+    refresh,
+  } = useMinsalStats('lastMonth');
 
   const handleExportExcel = async () => {
     if (!stats) return;
@@ -101,8 +110,10 @@ export const AnalyticsView: React.FC = () => {
         currentPreset={dateRange.preset}
         customStartDate={dateRange.startDate}
         customEndDate={dateRange.endDate}
+        currentYearMonth={dateRange.currentYearMonth}
         onPresetChange={setPreset}
         onCustomRangeChange={setCustomRange}
+        onCurrentYearMonthChange={setCurrentYearMonth}
       />
 
       {/* Period Info */}
