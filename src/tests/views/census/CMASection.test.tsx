@@ -3,16 +3,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { CMASection } from '@/features/census/components/CMASection';
 import {
-  useDailyRecordActions,
+  useDailyRecordBedActions,
   useDailyRecordData,
+  useDailyRecordMovementActions,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordActions: vi.fn(),
+  useDailyRecordBedActions: vi.fn(),
   useDailyRecordData: vi.fn(),
+  useDailyRecordMovementActions: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -40,9 +42,12 @@ describe('CMASection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useDailyRecordActions).mockReturnValue({
+    vi.mocked(useDailyRecordMovementActions).mockReturnValue({
       deleteCMA,
       updateCMA,
+    } as any);
+
+    vi.mocked(useDailyRecordBedActions).mockReturnValue({
       updatePatientMultiple,
     } as any);
 

@@ -1,9 +1,5 @@
 import type { MovementStatus } from './actions';
-import type {
-  DischargeTarget,
-  TransferEvacuationMethod,
-  TransferReceivingCenter,
-} from './primitives';
+import type { DischargeTarget } from './primitives';
 
 export interface DischargeUpdateCommandPayload {
   status: MovementStatus;
@@ -19,8 +15,8 @@ export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayloa
 }
 
 export interface TransferCommandPayload {
-  evacuationMethod: TransferEvacuationMethod;
-  receivingCenter: TransferReceivingCenter;
+  evacuationMethod: string;
+  receivingCenter: string;
   receivingCenterOther: string;
   transferEscort: string;
   time: string;

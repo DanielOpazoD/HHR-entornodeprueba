@@ -11,13 +11,15 @@ import type { DailyRecord } from '@/types';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const mockedUseDailyRecordData = vi.fn();
-const mockedUseDailyRecordActions = vi.fn();
+const mockedUseDailyRecordBedActions = vi.fn();
+const mockedUseDailyRecordMovementActions = vi.fn();
 const mockedUseConfirmDialog = vi.fn();
 const mockedUseNotification = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => mockedUseDailyRecordData(),
-  useDailyRecordActions: () => mockedUseDailyRecordActions(),
+  useDailyRecordBedActions: () => mockedUseDailyRecordBedActions(),
+  useDailyRecordMovementActions: () => mockedUseDailyRecordMovementActions(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -61,15 +63,18 @@ describe('CensusActionsContext hooks', () => {
       },
     });
 
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge: vi.fn(),
       updateDischarge: vi.fn(),
       addTransfer: vi.fn(),
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     });
 
     mockedUseConfirmDialog.mockReturnValue({
@@ -162,15 +167,18 @@ describe('CensusActionsContext hooks', () => {
       },
     });
 
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockRejectedValue(new Error('copy failed')),
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge: vi.fn(),
       updateDischarge: vi.fn(),
       addTransfer: vi.fn(),
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockRejectedValue(new Error('copy failed')),
     });
 
     const { result } = renderHook(
@@ -232,15 +240,18 @@ describe('CensusActionsContext hooks', () => {
       },
     });
 
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate,
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge: vi.fn(),
       updateDischarge: vi.fn(),
       addTransfer: vi.fn(),
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate,
     });
 
     const { result } = renderHook(
@@ -289,17 +300,20 @@ describe('CensusActionsContext hooks', () => {
   });
 
   it('shows fallback notification when a row action throws unexpectedly', async () => {
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(() => {
         throw new Error('unexpected');
       }),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge: vi.fn(),
       updateDischarge: vi.fn(),
       addTransfer: vi.fn(),
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     });
 
     mockedUseConfirmDialog.mockReturnValue({
@@ -324,15 +338,18 @@ describe('CensusActionsContext hooks', () => {
 
   it('ignores concurrent discharge execution while one request is in flight', () => {
     const addDischarge = vi.fn();
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge,
       updateDischarge: vi.fn(),
       addTransfer: vi.fn(),
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     });
 
     const { result } = renderHook(
@@ -362,15 +379,18 @@ describe('CensusActionsContext hooks', () => {
 
   it('ignores concurrent transfer execution while one request is in flight', () => {
     const addTransfer = vi.fn();
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge: vi.fn(),
       updateDischarge: vi.fn(),
       addTransfer,
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     });
 
     const { result } = renderHook(

@@ -10,6 +10,12 @@ import {
   useDailyRecordStatus,
   useDailyRecordStaff,
   useDailyRecordActions,
+  useDailyRecordBedActions,
+  useDailyRecordCudyrActions,
+  useDailyRecordDayActions,
+  useDailyRecordHandoffActions,
+  useDailyRecordMovementActions,
+  useDailyRecordStaffActions,
 } from '@/context/DailyRecordContext';
 import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
 
@@ -46,6 +52,43 @@ describe('DailyRecordContext', () => {
       canPerformActions: true,
     },
     refresh: vi.fn(),
+    createDay: vi.fn(),
+    generateDemo: vi.fn(),
+    resetDay: vi.fn(),
+    updatePatient: vi.fn(),
+    updatePatientMultiple: vi.fn(),
+    updateClinicalCrib: vi.fn(),
+    updateClinicalCribMultiple: vi.fn(),
+    updateClinicalCribCudyr: vi.fn(),
+    updateCudyr: vi.fn(),
+    clearPatient: vi.fn(),
+    clearAllBeds: vi.fn(),
+    moveOrCopyPatient: vi.fn(),
+    toggleBlockBed: vi.fn(),
+    updateBlockedReason: vi.fn(),
+    toggleExtraBed: vi.fn(),
+    toggleBedType: vi.fn(),
+    copyPatientToDate: vi.fn(),
+    addDischarge: vi.fn(),
+    updateDischarge: vi.fn(),
+    deleteDischarge: vi.fn(),
+    undoDischarge: vi.fn(),
+    addTransfer: vi.fn(),
+    updateTransfer: vi.fn(),
+    deleteTransfer: vi.fn(),
+    undoTransfer: vi.fn(),
+    addCMA: vi.fn(),
+    deleteCMA: vi.fn(),
+    updateCMA: vi.fn(),
+    updateNurse: vi.fn(),
+    updateTens: vi.fn(),
+    updateHandoffChecklist: vi.fn(),
+    updateHandoffNovedades: vi.fn(),
+    updateHandoffStaff: vi.fn(),
+    updateMedicalSignature: vi.fn(),
+    updateMedicalHandoffDoctor: vi.fn(),
+    markMedicalHandoffAsSent: vi.fn(),
+    sendMedicalHandoff: vi.fn(),
   } as unknown as DailyRecordContextType;
 
   const TestComponent = ({ hook }: { hook: () => unknown }) => {
@@ -134,6 +177,56 @@ describe('DailyRecordContext', () => {
     expect(screen.getByTestId('hook-data')).toBeInTheDocument();
   });
 
+  it('should provide scoped action hooks', () => {
+    const dayRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordDayActions} />
+      </DailyRecordProvider>
+    );
+    expect(dayRender.getByTestId('hook-data')).toBeInTheDocument();
+    dayRender.unmount();
+
+    const bedRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordBedActions} />
+      </DailyRecordProvider>
+    );
+    expect(bedRender.getByTestId('hook-data')).toBeInTheDocument();
+    bedRender.unmount();
+
+    const movementRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordMovementActions} />
+      </DailyRecordProvider>
+    );
+    expect(movementRender.getByTestId('hook-data')).toBeInTheDocument();
+    movementRender.unmount();
+
+    const staffRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordStaffActions} />
+      </DailyRecordProvider>
+    );
+    expect(staffRender.getByTestId('hook-data')).toBeInTheDocument();
+    staffRender.unmount();
+
+    const cudyrRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordCudyrActions} />
+      </DailyRecordProvider>
+    );
+    expect(cudyrRender.getByTestId('hook-data')).toBeInTheDocument();
+    cudyrRender.unmount();
+
+    const handoffRender = render(
+      <DailyRecordProvider value={mockValue}>
+        <TestComponent hook={useDailyRecordHandoffActions} />
+      </DailyRecordProvider>
+    );
+    expect(handoffRender.getByTestId('hook-data')).toBeInTheDocument();
+    handoffRender.unmount();
+  });
+
   it('should throw error when hooks are used outside provider', () => {
     const hooks = [
       { name: 'useDailyRecordData', hook: useDailyRecordData },
@@ -142,6 +235,12 @@ describe('DailyRecordContext', () => {
       { name: 'useDailyRecordSync', hook: useDailyRecordSync },
       { name: 'useDailyRecordStaff', hook: useDailyRecordStaff },
       { name: 'useDailyRecordActions', hook: useDailyRecordActions },
+      { name: 'useDailyRecordDayActions', hook: useDailyRecordDayActions },
+      { name: 'useDailyRecordBedActions', hook: useDailyRecordBedActions },
+      { name: 'useDailyRecordMovementActions', hook: useDailyRecordMovementActions },
+      { name: 'useDailyRecordStaffActions', hook: useDailyRecordStaffActions },
+      { name: 'useDailyRecordCudyrActions', hook: useDailyRecordCudyrActions },
+      { name: 'useDailyRecordHandoffActions', hook: useDailyRecordHandoffActions },
     ];
 
     // Silence console.error for expected errors

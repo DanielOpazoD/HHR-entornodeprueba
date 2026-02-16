@@ -58,6 +58,10 @@ Documento de referencia para entender cómo se organiza el sistema, cómo fluyen
 - `scripts/check-census-runtime-boundary.mjs`
 - `scripts/check-runtime-adapter-boundary.mjs`
 
+Reglas específicas adicionales:
+
+- En `src/features/census/**` no se permite `useDailyRecordActions`; deben usarse hooks acotados (`useDailyRecordBedActions`, `useDailyRecordMovementActions`, `useDailyRecordDayActions`, etc.).
+
 ## 3) Flujo de Datos (Write)
 
 ### Write path principal (censo)

@@ -1,14 +1,14 @@
-import { useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordBedActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
 
 export interface PatientRowDependencies {
-  updatePatient: ReturnType<typeof useDailyRecordActions>['updatePatient'];
-  updatePatientMultiple: ReturnType<typeof useDailyRecordActions>['updatePatientMultiple'];
-  updateClinicalCrib: ReturnType<typeof useDailyRecordActions>['updateClinicalCrib'];
+  updatePatient: ReturnType<typeof useDailyRecordBedActions>['updatePatient'];
+  updatePatientMultiple: ReturnType<typeof useDailyRecordBedActions>['updatePatientMultiple'];
+  updateClinicalCrib: ReturnType<typeof useDailyRecordBedActions>['updateClinicalCrib'];
   updateClinicalCribMultiple: ReturnType<
-    typeof useDailyRecordActions
+    typeof useDailyRecordBedActions
   >['updateClinicalCribMultiple'];
-  toggleBedType: ReturnType<typeof useDailyRecordActions>['toggleBedType'];
+  toggleBedType: ReturnType<typeof useDailyRecordBedActions>['toggleBedType'];
   confirm: ReturnType<typeof useConfirmDialog>['confirm'];
   alert: ReturnType<typeof useConfirmDialog>['alert'];
 }
@@ -20,7 +20,7 @@ export const usePatientRowDependencies = (): PatientRowDependencies => {
     updateClinicalCrib,
     updateClinicalCribMultiple,
     toggleBedType,
-  } = useDailyRecordActions();
+  } = useDailyRecordBedActions();
   const { confirm, alert } = useConfirmDialog();
 
   return {

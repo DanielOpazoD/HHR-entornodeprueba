@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useCensusTableDependencies } from '@/features/census/hooks/useCensusTableDependencies';
 import {
-  useDailyRecordActions,
+  useDailyRecordBedActions,
   useDailyRecordBeds,
+  useDailyRecordDayActions,
   useDailyRecordOverrides,
   useDailyRecordStaff,
 } from '@/context/DailyRecordContext';
@@ -15,8 +16,9 @@ import { useTableConfig } from '@/context/TableConfigContext';
 import { useDiagnosisMode } from '@/features/census/hooks/useDiagnosisMode';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordActions: vi.fn(),
+  useDailyRecordBedActions: vi.fn(),
   useDailyRecordBeds: vi.fn(),
+  useDailyRecordDayActions: vi.fn(),
   useDailyRecordOverrides: vi.fn(),
   useDailyRecordStaff: vi.fn(),
 }));
@@ -57,9 +59,13 @@ describe('useCensusTableDependencies', () => {
     vi.mocked(useDailyRecordOverrides).mockReturnValue(
       asHookValue<ReturnType<typeof useDailyRecordOverrides>>({})
     );
-    vi.mocked(useDailyRecordActions).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordActions>>({
+    vi.mocked(useDailyRecordDayActions).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordDayActions>>({
         resetDay: vi.fn(),
+      })
+    );
+    vi.mocked(useDailyRecordBedActions).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordBedActions>>({
         updatePatient: vi.fn(),
       })
     );

@@ -6,7 +6,10 @@ import {
   PatientData,
   TransferData,
 } from '@/types';
-import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
+import type {
+  DischargeAddCommandPayload,
+  TransferCommandPayload,
+} from '@/features/census/domain/movements/contracts';
 import {
   ControllerError,
   ControllerResult,
@@ -29,13 +32,7 @@ interface MovementAuditEntry {
 export interface AddDischargeMovementInput {
   record: DailyRecord;
   bedId: string;
-  status: 'Vivo' | 'Fallecido';
-  cribStatus?: 'Vivo' | 'Fallecido';
-  dischargeType?: string;
-  dischargeTypeOther?: string;
-  time?: string;
-  movementDate?: string;
-  target: DischargeTarget;
+  payload: DischargeAddCommandPayload;
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
   createId?: () => string;
@@ -44,12 +41,7 @@ export interface AddDischargeMovementInput {
 export interface AddTransferMovementInput {
   record: DailyRecord;
   bedId: string;
-  method: string;
-  center: string;
-  centerOther: string;
-  escort?: string;
-  time?: string;
-  movementDate?: string;
+  payload: TransferCommandPayload;
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
   createId?: () => string;
@@ -83,17 +75,20 @@ const defaultCreateId = (): string => crypto.randomUUID();
 export const resolveAddDischargeMovement = ({
   record,
   bedId,
-  status,
-  cribStatus,
-  dischargeType,
-  dischargeTypeOther,
-  time,
-  movementDate,
-  target,
+  payload,
   bedsCatalog,
   createEmptyPatient,
   createId = defaultCreateId,
 }: AddDischargeMovementInput): AddDischargeMovementResult => {
+  const {
+    status,
+    cribStatus,
+    type: dischargeType,
+    typeOther: dischargeTypeOther,
+    time,
+    movementDate,
+    dischargeTarget: target = 'both',
+  } = payload;
   const patient = record.beds[bedId];
   if (!patient) {
     return failWithCode('BED_NOT_FOUND', `No existe la cama ${bedId} en el registro actual.`);
@@ -203,16 +198,19 @@ export const resolveAddDischargeMovement = ({
 export const resolveAddTransferMovement = ({
   record,
   bedId,
-  method,
-  center,
-  centerOther,
-  escort,
-  time,
-  movementDate,
+  payload,
   bedsCatalog,
   createEmptyPatient,
   createId = defaultCreateId,
 }: AddTransferMovementInput): AddTransferMovementResult => {
+  const {
+    evacuationMethod: method,
+    receivingCenter: center,
+    receivingCenterOther: centerOther,
+    transferEscort: escort,
+    time,
+    movementDate,
+  } = payload;
   const patient = record.beds[bedId];
   if (!patient) {
     return failWithCode('BED_NOT_FOUND', `No existe la cama ${bedId} en el registro actual.`);

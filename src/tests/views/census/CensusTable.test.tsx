@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { REGULAR_BEDS } from '@/constants/beds';
 import {
-  useDailyRecordActions,
+  useDailyRecordBedActions,
   useDailyRecordBeds,
   useDailyRecordData,
+  useDailyRecordDayActions,
   useDailyRecordMovements,
   useDailyRecordOverrides,
   useDailyRecordStaff,
@@ -45,9 +46,10 @@ vi.mock('@/context/TableConfigContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: vi.fn(),
-  useDailyRecordActions: vi.fn(),
+  useDailyRecordBedActions: vi.fn(),
   useDailyRecordMovements: vi.fn(),
   useDailyRecordBeds: vi.fn(),
+  useDailyRecordDayActions: vi.fn(),
   useDailyRecordStaff: vi.fn(),
   useDailyRecordOverrides: vi.fn(),
 }));
@@ -152,9 +154,14 @@ describe('CensusTable', () => {
       })
     );
 
-    vi.mocked(useDailyRecordActions).mockReturnValue(
-      asContextReturn<ReturnType<typeof useDailyRecordActions>>({
+    vi.mocked(useDailyRecordDayActions).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordDayActions>>({
         resetDay: mockResetDay,
+      })
+    );
+    vi.mocked(useDailyRecordBedActions).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordBedActions>>({
+        updatePatient: vi.fn(),
       })
     );
 
@@ -256,10 +263,9 @@ describe('CensusTable', () => {
 
   it('should initialize empty bed on click', () => {
     const updatePatientMock = vi.fn();
-    vi.mocked(useDailyRecordActions).mockReturnValue(
-      asContextReturn<ReturnType<typeof useDailyRecordActions>>({
+    vi.mocked(useDailyRecordBedActions).mockReturnValue(
+      asContextReturn<ReturnType<typeof useDailyRecordBedActions>>({
         updatePatient: updatePatientMock,
-        resetDay: vi.fn(),
       })
     );
 

@@ -2,11 +2,11 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePatientRowDependencies } from '@/features/census/components/patient-row/usePatientRowDependencies';
-import { useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordBedActions } from '@/context/DailyRecordContext';
 import { useConfirmDialog } from '@/context/UIContext';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordActions: vi.fn(),
+  useDailyRecordBedActions: vi.fn(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -19,8 +19,8 @@ describe('usePatientRowDependencies', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useDailyRecordActions).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordActions>>({
+    vi.mocked(useDailyRecordBedActions).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordBedActions>>({
         updatePatient: vi.fn(),
         updatePatientMultiple: vi.fn(),
         updateClinicalCrib: vi.fn(),

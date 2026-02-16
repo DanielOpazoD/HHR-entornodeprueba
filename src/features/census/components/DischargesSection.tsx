@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordMovementActions } from '@/context/DailyRecordContext';
 import { useCensusActionCommands } from './CensusActionsContext';
 import { CheckCircle } from 'lucide-react';
 import { DISCHARGES_TABLE_HEADERS } from '@/features/census/controllers/censusDischargesTableController';
@@ -17,7 +17,7 @@ import { useCensusMovementData } from '@/features/census/hooks/useCensusMovement
 
 export const DischargesSection: React.FC = () => {
   const { recordDate, discharges } = useCensusMovementData();
-  const { undoDischarge, deleteDischarge } = useDailyRecordActions();
+  const { undoDischarge, deleteDischarge } = useDailyRecordMovementActions();
   const { handleEditDischarge } = useCensusActionCommands();
   const { handleUndo, handleDelete } = useMovementSectionActions({
     undoDialog: DISCHARGE_UNDO_CONFIRM_DIALOG,

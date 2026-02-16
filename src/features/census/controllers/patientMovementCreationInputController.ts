@@ -1,5 +1,9 @@
 import { BedDefinition, DailyRecord, PatientData } from '@/types';
-import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
+import type {
+  DischargeAddCommandPayload,
+  DischargeTarget,
+  TransferCommandPayload,
+} from '@/features/census/domain/movements/contracts';
 import {
   AddDischargeMovementInput,
   AddTransferMovementInput,
@@ -13,6 +17,16 @@ interface MovementCreationDependencies {
 interface BuildAddDischargeInputParams extends MovementCreationDependencies {
   record: DailyRecord;
   bedId: string;
+  payload: DischargeAddCommandPayload;
+}
+
+interface BuildAddTransferInputParams extends MovementCreationDependencies {
+  record: DailyRecord;
+  bedId: string;
+  payload: TransferCommandPayload;
+}
+
+interface BuildDischargeCommandPayloadParams {
   status: 'Vivo' | 'Fallecido';
   cribStatus?: 'Vivo' | 'Fallecido';
   dischargeType?: string;
@@ -22,9 +36,7 @@ interface BuildAddDischargeInputParams extends MovementCreationDependencies {
   target: DischargeTarget;
 }
 
-interface BuildAddTransferInputParams extends MovementCreationDependencies {
-  record: DailyRecord;
-  bedId: string;
+interface BuildTransferCommandPayloadParams {
   method: string;
   center: string;
   centerOther: string;
@@ -33,9 +45,7 @@ interface BuildAddTransferInputParams extends MovementCreationDependencies {
   movementDate?: string;
 }
 
-export const buildAddDischargeInput = ({
-  record,
-  bedId,
+export const buildDischargeAddCommandPayload = ({
   status,
   cribStatus,
   dischargeType,
@@ -43,18 +53,42 @@ export const buildAddDischargeInput = ({
   time,
   movementDate,
   target,
+}: BuildDischargeCommandPayloadParams): DischargeAddCommandPayload => ({
+  status,
+  cribStatus,
+  type: dischargeType,
+  typeOther: dischargeTypeOther,
+  time: time || '',
+  movementDate,
+  dischargeTarget: target,
+});
+
+export const buildTransferCommandPayload = ({
+  method,
+  center,
+  centerOther,
+  escort,
+  time,
+  movementDate,
+}: BuildTransferCommandPayloadParams): TransferCommandPayload => ({
+  evacuationMethod: method,
+  receivingCenter: center,
+  receivingCenterOther: centerOther,
+  transferEscort: escort || '',
+  time: time || '',
+  movementDate,
+});
+
+export const buildAddDischargeInput = ({
+  record,
+  bedId,
+  payload,
   bedsCatalog,
   createEmptyPatient,
 }: BuildAddDischargeInputParams): AddDischargeMovementInput => ({
   record,
   bedId,
-  status,
-  cribStatus,
-  dischargeType,
-  dischargeTypeOther,
-  time,
-  movementDate,
-  target,
+  payload,
   bedsCatalog,
   createEmptyPatient,
 });
@@ -62,23 +96,13 @@ export const buildAddDischargeInput = ({
 export const buildAddTransferInput = ({
   record,
   bedId,
-  method,
-  center,
-  centerOther,
-  escort,
-  time,
-  movementDate,
+  payload,
   bedsCatalog,
   createEmptyPatient,
 }: BuildAddTransferInputParams): AddTransferMovementInput => ({
   record,
   bedId,
-  method,
-  center,
-  centerOther,
-  escort,
-  time,
-  movementDate,
+  payload,
   bedsCatalog,
   createEmptyPatient,
 });

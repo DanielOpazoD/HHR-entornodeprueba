@@ -147,6 +147,8 @@ const collectGraph = files => {
       const importerIsTest = importer.includes('/tests/') || importer.includes('.test.');
       const importerIsDailyRecordContext = importer.includes('/context/DailyRecordContext.');
       const sourceUsesLegacyHook = source.includes('useDailyRecordContext');
+      const sourceUsesMonolithicActionsHook = source.includes('useDailyRecordActions');
+      const importerIsCensusFeature = importer.startsWith('src/features/census/');
 
       if (
         isDailyRecordContextImport &&
@@ -156,6 +158,19 @@ const collectGraph = files => {
       ) {
         layerViolations.push({
           rule: 'no-legacy-daily-record-context-hook-import',
+          importer,
+          imported,
+        });
+      }
+
+      if (
+        isDailyRecordContextImport &&
+        sourceUsesMonolithicActionsHook &&
+        importerIsCensusFeature &&
+        !importerIsTest
+      ) {
+        layerViolations.push({
+          rule: 'census-feature-must-use-scoped-daily-record-actions',
           importer,
           imported,
         });

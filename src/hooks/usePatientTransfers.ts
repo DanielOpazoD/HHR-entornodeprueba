@@ -4,7 +4,10 @@ import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { resolveAddTransferMovement } from '@/features/census/controllers/patientMovementCreationController';
-import { buildAddTransferInput } from '@/features/census/controllers/patientMovementCreationInputController';
+import {
+  buildAddTransferInput,
+  buildTransferCommandPayload,
+} from '@/features/census/controllers/patientMovementCreationInputController';
 import {
   resolveDeleteTransferMovement,
   resolveUpdateTransferMovement,
@@ -55,16 +58,19 @@ export const usePatientTransfers = (
   const addTransfer: AddTransferAction = useCallback(
     (bedId, method, center, centerOther, escort, time, movementDate) => {
       withCurrentRecord(currentRecord => {
+        const payload = buildTransferCommandPayload({
+          method,
+          center,
+          centerOther,
+          escort,
+          time,
+          movementDate,
+        });
         const resolution = resolveAddTransferMovement(
           buildAddTransferInput({
             record: currentRecord,
             bedId,
-            method,
-            center,
-            centerOther,
-            escort,
-            time,
-            movementDate,
+            payload,
             bedsCatalog: BEDS,
             createEmptyPatient,
           })

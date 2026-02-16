@@ -1,7 +1,10 @@
 import React from 'react';
 import { Scissors } from 'lucide-react';
 
-import { useDailyRecordActions } from '@/context/DailyRecordContext';
+import {
+  useDailyRecordBedActions,
+  useDailyRecordMovementActions,
+} from '@/context/DailyRecordContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { CMA_TABLE_HEADERS } from '@/features/census/controllers/censusCmaTableController';
 import { CensusMovementSectionLayout } from '@/features/census/components/CensusMovementSectionLayout';
@@ -12,7 +15,8 @@ import { useCensusMovementData } from '@/features/census/hooks/useCensusMovement
 
 export const CMASection: React.FC = () => {
   const { cma } = useCensusMovementData();
-  const { deleteCMA, updateCMA, updatePatientMultiple } = useDailyRecordActions();
+  const { deleteCMA, updateCMA } = useDailyRecordMovementActions();
+  const { updatePatientMultiple } = useDailyRecordBedActions();
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
   const sectionState = resolveCmaSectionState(cma);

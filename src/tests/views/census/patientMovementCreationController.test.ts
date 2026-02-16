@@ -13,8 +13,11 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddDischargeMovement({
       record,
       bedId: 'R1',
-      status: 'Vivo',
-      target: 'both',
+      payload: {
+        status: 'Vivo',
+        time: '',
+        dischargeTarget: 'both',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
     });
@@ -39,9 +42,12 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddDischargeMovement({
       record,
       bedId: 'R1',
-      status: 'Vivo',
-      cribStatus: 'Vivo',
-      target: 'both',
+      payload: {
+        status: 'Vivo',
+        cribStatus: 'Vivo',
+        time: '',
+        dischargeTarget: 'both',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
       createId: (() => {
@@ -70,8 +76,11 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddDischargeMovement({
       record,
       bedId: 'R1',
-      status: 'Vivo',
-      target: 'mother',
+      payload: {
+        status: 'Vivo',
+        time: '',
+        dischargeTarget: 'mother',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
     });
@@ -97,9 +106,13 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddTransferMovement({
       record,
       bedId: 'R1',
-      method: 'Ambulancia',
-      center: 'Hospital Base',
-      centerOther: '',
+      payload: {
+        evacuationMethod: 'Ambulancia',
+        receivingCenter: 'Hospital Base',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
       createId: (() => {
@@ -126,10 +139,12 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddDischargeMovement({
       record,
       bedId: 'R1',
-      status: 'Vivo',
-      time: '10:00',
-      movementDate: '2025-01-02',
-      target: 'mother',
+      payload: {
+        status: 'Vivo',
+        time: '10:00',
+        movementDate: '2025-01-02',
+        dischargeTarget: 'mother',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
     });
@@ -151,11 +166,14 @@ describe('patientMovementCreationController', () => {
     const result = resolveAddTransferMovement({
       record,
       bedId: 'R1',
-      method: 'Ambulancia',
-      center: 'Hospital Base',
-      centerOther: '',
-      time: '10:00',
-      movementDate: '2025-01-02',
+      payload: {
+        evacuationMethod: 'Ambulancia',
+        receivingCenter: 'Hospital Base',
+        receivingCenterOther: '',
+        transferEscort: '',
+        time: '10:00',
+        movementDate: '2025-01-02',
+      },
       bedsCatalog: BEDS,
       createEmptyPatient,
     });

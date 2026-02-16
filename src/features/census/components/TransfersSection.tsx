@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordMovementActions } from '@/context/DailyRecordContext';
 import { useCensusActionCommands } from './CensusActionsContext';
 import { ArrowRightLeft } from 'lucide-react';
 import { TRANSFERS_TABLE_HEADERS } from '@/features/census/controllers/censusTransfersTableController';
@@ -18,7 +18,7 @@ import { useCensusMovementData } from '@/features/census/hooks/useCensusMovement
 
 export const TransfersSection: React.FC = () => {
   const { recordDate, transfers } = useCensusMovementData();
-  const { undoTransfer, deleteTransfer } = useDailyRecordActions();
+  const { undoTransfer, deleteTransfer } = useDailyRecordMovementActions();
   const { handleEditTransfer } = useCensusActionCommands();
   const { handleUndo, handleDelete } = useMovementSectionActions({
     undoDialog: TRANSFER_UNDO_CONFIRM_DIALOG,

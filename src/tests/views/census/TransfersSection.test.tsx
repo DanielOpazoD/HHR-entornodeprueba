@@ -5,7 +5,7 @@ import { TransfersSection } from '@/features/census/components/TransfersSection'
 import { useCensusActionCommands } from '@/features/census/components/CensusActionsContext';
 import {
   useDailyRecordData,
-  useDailyRecordActions,
+  useDailyRecordMovementActions,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
@@ -17,7 +17,7 @@ vi.mock('@/features/census/components/CensusActionsContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: vi.fn(),
-  useDailyRecordActions: vi.fn(),
+  useDailyRecordMovementActions: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -54,7 +54,7 @@ describe('TransfersSection', () => {
     (useDailyRecordData as any).mockReturnValue({
       record: { date: '2024-12-11' },
     });
-    (useDailyRecordActions as any).mockReturnValue({
+    (useDailyRecordMovementActions as any).mockReturnValue({
       undoTransfer: mockOnUndo,
       deleteTransfer: mockOnDelete,
     });

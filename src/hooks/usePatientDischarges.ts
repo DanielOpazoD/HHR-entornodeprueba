@@ -5,7 +5,10 @@ import { BEDS } from '@/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type { DischargeTarget } from '@/features/census/domain/movements/contracts';
 import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
-import { buildAddDischargeInput } from '@/features/census/controllers/patientMovementCreationInputController';
+import {
+  buildAddDischargeInput,
+  buildDischargeAddCommandPayload,
+} from '@/features/census/controllers/patientMovementCreationInputController';
 import {
   resolveDeleteDischargeMovement,
   resolveUpdateDischargeMovement,
@@ -65,17 +68,20 @@ export const usePatientDischarges = (
       movementDate
     ) => {
       withCurrentRecord(currentRecord => {
+        const payload = buildDischargeAddCommandPayload({
+          status,
+          cribStatus,
+          dischargeType,
+          dischargeTypeOther,
+          time,
+          movementDate,
+          target,
+        });
         const resolution = resolveAddDischargeMovement(
           buildAddDischargeInput({
             record: currentRecord,
             bedId,
-            status,
-            cribStatus,
-            dischargeType,
-            dischargeTypeOther,
-            time,
-            movementDate,
-            target,
+            payload,
             bedsCatalog: BEDS,
             createEmptyPatient,
           })

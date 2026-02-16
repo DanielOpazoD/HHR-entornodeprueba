@@ -3,13 +3,15 @@ import { renderHook } from '@testing-library/react';
 import { useCensusActionDependencies } from '@/features/census/hooks/useCensusActionDependencies';
 
 const mockedUseDailyRecordData = vi.fn();
-const mockedUseDailyRecordActions = vi.fn();
+const mockedUseDailyRecordBedActions = vi.fn();
+const mockedUseDailyRecordMovementActions = vi.fn();
 const mockedUseConfirmDialog = vi.fn();
 const mockedUseNotification = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => mockedUseDailyRecordData(),
-  useDailyRecordActions: () => mockedUseDailyRecordActions(),
+  useDailyRecordBedActions: () => mockedUseDailyRecordBedActions(),
+  useDailyRecordMovementActions: () => mockedUseDailyRecordMovementActions(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -34,15 +36,17 @@ describe('useCensusActionDependencies', () => {
       record: null,
       stabilityRules: { canPerformActions: true },
     });
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient,
       moveOrCopyPatient,
+      copyPatientToDate,
+    });
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge,
       updateDischarge,
       addTransfer,
       updateTransfer,
       addCMA,
-      copyPatientToDate,
     });
     mockedUseConfirmDialog.mockReturnValue({ confirm });
     mockedUseNotification.mockReturnValue({

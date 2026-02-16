@@ -8,13 +8,15 @@ import {
 import { useCensusActionsProviderModel } from '@/features/census/hooks/useCensusActionsProviderModel';
 
 const mockedUseDailyRecordData = vi.fn();
-const mockedUseDailyRecordActions = vi.fn();
+const mockedUseDailyRecordBedActions = vi.fn();
+const mockedUseDailyRecordMovementActions = vi.fn();
 const mockedUseConfirmDialog = vi.fn();
 const mockedUseNotification = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => mockedUseDailyRecordData(),
-  useDailyRecordActions: () => mockedUseDailyRecordActions(),
+  useDailyRecordBedActions: () => mockedUseDailyRecordBedActions(),
+  useDailyRecordMovementActions: () => mockedUseDailyRecordMovementActions(),
 }));
 
 vi.mock('@/context/UIContext', () => ({
@@ -53,15 +55,17 @@ describe('useCensusActionsProviderModel', () => {
     const addDischarge = vi.fn();
     const addTransfer = vi.fn();
 
-    mockedUseDailyRecordActions.mockReturnValue({
+    mockedUseDailyRecordBedActions.mockReturnValue({
       clearPatient: vi.fn(),
       moveOrCopyPatient: vi.fn(),
+      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
+    });
+    mockedUseDailyRecordMovementActions.mockReturnValue({
       addDischarge,
       updateDischarge: vi.fn(),
       addTransfer,
       updateTransfer: vi.fn(),
       addCMA: vi.fn(),
-      copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     });
 
     const { result } = renderHook(() =>

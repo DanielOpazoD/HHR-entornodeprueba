@@ -59,6 +59,16 @@ const DailyRecordStaffContext = createContext<
 >(undefined);
 const DailyRecordOverridesContext = createContext<Record<string, string> | undefined>(undefined);
 
+export const useRequiredDailyRecordActionsContext = (
+  hookName: string
+): DailyRecordActionsContextType => {
+  const context = useContext(DailyRecordActionsContext);
+  if (context === undefined) {
+    throw new Error(`${hookName} must be used within a DailyRecordProvider`);
+  }
+  return context;
+};
+
 /**
  * Fragmented Provider
  * Wraps children in multiple specialized contexts to optimize re-renders.
@@ -207,10 +217,7 @@ export const useDailyRecordOverrides = () => {
  * Does NOT re-render when data changes. Use for buttons, forms, etc.
  */
 export const useDailyRecordActions = () => {
-  const context = useContext(DailyRecordActionsContext);
-  if (context === undefined)
-    throw new Error('useDailyRecordActions must be used within a DailyRecordProvider');
-  return context;
+  return useRequiredDailyRecordActionsContext('useDailyRecordActions');
 };
 
 /**
@@ -229,3 +236,12 @@ export const usePatientData = (bedId: string) => {
   const beds = useDailyRecordBeds();
   return beds ? (beds as Record<string, PatientData>)[bedId] : undefined;
 };
+
+export {
+  useDailyRecordBedActions,
+  useDailyRecordCudyrActions,
+  useDailyRecordDayActions,
+  useDailyRecordHandoffActions,
+  useDailyRecordMovementActions,
+  useDailyRecordStaffActions,
+} from '@/context/useDailyRecordScopedActions';

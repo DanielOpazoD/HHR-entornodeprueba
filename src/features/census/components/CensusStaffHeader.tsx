@@ -4,8 +4,8 @@ import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
 import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
 import {
-  useDailyRecordActions,
   useDailyRecordStaff,
+  useDailyRecordStaffActions,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
@@ -32,7 +32,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
 
-  const { updateNurse, updateTens } = useDailyRecordActions();
+  const { updateNurse, updateTens } = useDailyRecordStaffActions();
   const { nursesList, tensList } = useStaffContext();
   const staffSelectorsState = resolveStaffSelectorsState(staffData);
   const movementSummaryState = resolveMovementSummaryState(movementsData);

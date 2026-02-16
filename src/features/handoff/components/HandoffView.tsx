@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useDailyRecordData, useDailyRecordActions } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordHandoffActions } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
 import { MessageSquare, Stethoscope, Activity } from 'lucide-react';
 import { HandoffHeader } from './HandoffHeader';
@@ -43,7 +43,7 @@ export const HandoffView: React.FC<HandoffViewProps> = ({
     updateHandoffStaff,
     updateMedicalHandoffDoctor,
     markMedicalHandoffAsSent,
-  } = useDailyRecordActions();
+  } = useDailyRecordHandoffActions();
   const { nursesList } = useStaffContext();
   const { success } = useNotification();
   const { logEvent } = useAuditContext();
