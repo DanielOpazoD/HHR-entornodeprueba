@@ -37,6 +37,7 @@ import { HospitalProvider } from './context/HospitalContext';
 import { RepositoryProvider, defaultRepositories } from '@/services/RepositoryContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/config/queryClient';
+import { HospitalSpinner } from '@/components/ui/HospitalSpinner';
 
 // ============================================================================
 // Sync Effect - Keeps repository in sync with Firebase connection status
@@ -108,8 +109,13 @@ function App() {
   // Loading state
   if (auth.isLoading || (sharedCensus.isSharedCensusMode && sharedCensus.isLoading)) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="animate-pulse text-medical-600 text-xl font-bold">Cargando...</div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-4">
+          <HospitalSpinner size={72} />
+          <div className="text-medical-700 text-lg font-semibold text-center">
+            Cargando información...
+          </div>
+        </div>
       </div>
     );
   }
