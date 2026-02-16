@@ -13,3 +13,6 @@ export * from './CensusStaffHeader';
 export * from './SharedCensusView';
 export * from './CensusRegisterContent';
 export * from './CensusRegisterMainContent';
+export * from './CensusMovementSection';
+export * from './CensusMovementPrimaryCells';
+export * from './CensusMovementDateActionsCells';

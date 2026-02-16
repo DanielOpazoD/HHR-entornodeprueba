@@ -37,14 +37,19 @@ clinicalShiftCalendarController
 
 ## Archivos clave
 
-| Archivo                                                  | Motivo                                     |
-| -------------------------------------------------------- | ------------------------------------------ |
-| `controllers/clinicalShiftCalendarController.ts`         | Fuente única de invariantes de fecha/turno |
-| `controllers/censusActionExecutionController.ts`         | Resolución de comandos tipados             |
-| `controllers/censusActionRuntimeController.ts`           | Ejecución runtime desacoplada de provider  |
-| `controllers/patientMovementCommandRuntimeController.ts` | Bridge command -> action runtime           |
-| `hooks/useDischargeModalForm.ts`                         | Form flow de altas                         |
-| `hooks/useTransferModalForm.ts`                          | Form flow de traslados                     |
+| Archivo                                                  | Motivo                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| `controllers/clinicalShiftCalendarController.ts`         | Fuente única de invariantes de fecha/turno              |
+| `controllers/censusActionExecutionController.ts`         | Resolución de comandos tipados                          |
+| `controllers/censusActionRuntimeController.ts`           | Ejecución runtime desacoplada de provider               |
+| `controllers/patientMovementCommandRuntimeController.ts` | Bridge command -> action runtime                        |
+| `controllers/bedManagerModalController.ts`               | Transiciones y validación del flujo de bloqueo de camas |
+| `controllers/bedManagerGridItemsController.ts`           | Mapeo puro de `DailyRecord` a props de grillas de camas |
+| `controllers/censusMovementActionIconController.ts`      | Resolución de iconografía para acciones de movimientos  |
+| `hooks/useDischargeModalForm.ts`                         | Form flow de altas                                      |
+| `hooks/useTransferModalForm.ts`                          | Form flow de traslados                                  |
+| `hooks/useBedManagerModalModel.ts`                       | Orquestación UI vs dominio del modal de camas           |
+| `hooks/useCensusMovementActionsCellModel.ts`             | View-model para celda de acciones de movimientos        |
 
 ## Calidad
 

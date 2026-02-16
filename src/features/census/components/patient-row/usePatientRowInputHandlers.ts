@@ -1,5 +1,5 @@
-import { ChangeEvent, useCallback, useMemo } from 'react';
-import { DeviceDetails, DeviceInstance, PatientData, PatientFieldValue } from '@/types';
+import { useCallback, useMemo } from 'react';
+import { PatientData, PatientFieldValue } from '@/types';
 import {
   buildDeliveryRoutePatch,
   resolveNextDocumentType,
@@ -9,6 +9,7 @@ import {
   buildPatientMultipleUpdater,
 } from '@/features/census/controllers/patientRowInputUpdateController';
 import { buildPatientRowInputCommands } from '@/features/census/controllers/patientRowInputHandlersController';
+import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
 
 interface UsePatientRowMainInputHandlersParams {
   bedId: string;
@@ -66,48 +67,7 @@ export const usePatientRowMainInputHandlers = ({
     () => buildPatientRowInputCommands({ updateField, updateMultiple }),
     [updateField, updateMultiple]
   );
-
-  const handleTextChange = useCallback(
-    (field: keyof PatientData) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      commands.setTextField(field, e.target.value);
-    },
-    [commands]
-  );
-
-  const handleCheckboxChange = useCallback(
-    (field: keyof PatientData) => (e: ChangeEvent<HTMLInputElement>) => {
-      commands.setCheckboxField(field, e.target.checked);
-    },
-    [commands]
-  );
-
-  const handleDevicesChange = useCallback(
-    (newDevices: string[]) => {
-      commands.setDevices(newDevices);
-    },
-    [commands]
-  );
-
-  const handleDeviceDetailsChange = useCallback(
-    (details: DeviceDetails) => {
-      commands.setDeviceDetails(details);
-    },
-    [commands]
-  );
-
-  const handleDeviceHistoryChange = useCallback(
-    (history: DeviceInstance[]) => {
-      commands.setDeviceHistory(history);
-    },
-    [commands]
-  );
-
-  const handleDemographicsSave = useCallback(
-    (updatedFields: Partial<PatientData>) => {
-      commands.saveDemographics(updatedFields);
-    },
-    [commands]
-  );
+  const commandHandlers = usePatientRowCommandHandlers(commands);
 
   const toggleDocumentType = useCallback(() => {
     const nextDocumentType = resolveNextDocumentType(documentType);
@@ -122,12 +82,7 @@ export const usePatientRowMainInputHandlers = ({
   );
 
   return {
-    handleTextChange,
-    handleCheckboxChange,
-    handleDevicesChange,
-    handleDeviceDetailsChange,
-    handleDeviceHistoryChange,
-    handleDemographicsSave,
+    ...commandHandlers,
     toggleDocumentType,
     handleDeliveryRouteChange,
   };
@@ -148,55 +103,14 @@ export const usePatientRowCribInputHandlers = ({
     () => buildPatientRowInputCommands({ updateField, updateMultiple }),
     [updateField, updateMultiple]
   );
-
-  const handleCribTextChange = useCallback(
-    (field: keyof PatientData) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      commands.setTextField(field, e.target.value);
-    },
-    [commands]
-  );
-
-  const handleCribCheckboxChange = useCallback(
-    (field: keyof PatientData) => (e: ChangeEvent<HTMLInputElement>) => {
-      commands.setCheckboxField(field, e.target.checked);
-    },
-    [commands]
-  );
-
-  const handleCribDevicesChange = useCallback(
-    (newDevices: string[]) => {
-      commands.setDevices(newDevices);
-    },
-    [commands]
-  );
-
-  const handleCribDeviceDetailsChange = useCallback(
-    (details: DeviceDetails) => {
-      commands.setDeviceDetails(details);
-    },
-    [commands]
-  );
-
-  const handleCribDeviceHistoryChange = useCallback(
-    (history: DeviceInstance[]) => {
-      commands.setDeviceHistory(history);
-    },
-    [commands]
-  );
-
-  const handleCribDemographicsSave = useCallback(
-    (updatedFields: Partial<PatientData>) => {
-      commands.saveDemographics(updatedFields);
-    },
-    [commands]
-  );
+  const commandHandlers = usePatientRowCommandHandlers(commands);
 
   return {
-    handleCribTextChange,
-    handleCribCheckboxChange,
-    handleCribDevicesChange,
-    handleCribDeviceDetailsChange,
-    handleCribDeviceHistoryChange,
-    handleCribDemographicsSave,
+    handleCribTextChange: commandHandlers.handleTextChange,
+    handleCribCheckboxChange: commandHandlers.handleCheckboxChange,
+    handleCribDevicesChange: commandHandlers.handleDevicesChange,
+    handleCribDeviceDetailsChange: commandHandlers.handleDeviceDetailsChange,
+    handleCribDeviceHistoryChange: commandHandlers.handleDeviceHistoryChange,
+    handleCribDemographicsSave: commandHandlers.handleDemographicsSave,
   };
 };

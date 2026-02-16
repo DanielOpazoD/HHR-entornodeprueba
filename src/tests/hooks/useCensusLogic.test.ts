@@ -21,11 +21,15 @@ vi.mock('@/context/DailyRecordContext', () => ({
       },
     },
   }),
-  useDailyRecordActions: () => ({
+  useDailyRecordDayActions: () => ({
     createDay: vi.fn(),
     resetDay: vi.fn(),
+  }),
+  useDailyRecordStaffActions: () => ({
     updateNurse: vi.fn(),
     updateTens: vi.fn(),
+  }),
+  useDailyRecordMovementActions: () => ({
     undoDischarge: vi.fn(),
     deleteDischarge: vi.fn(),
     undoTransfer: vi.fn(),

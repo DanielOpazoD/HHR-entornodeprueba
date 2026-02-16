@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @source "./index.html";
 @source "./App.tsx";
@@ -9,303 +9,327 @@
 @source "./hooks/**/*.{js,ts,jsx,tsx}";
 
 @theme {
-    --color-medical-50: #f0f9ff;
-    --color-medical-100: #e0f2fe;
-    --color-medical-200: #bae6fd;
-    --color-medical-500: #0ea5e9;
-    --color-medical-600: #0284c7;
-    --color-medical-800: #075985;
-    --color-medical-900: #0c4a6e;
+  --color-medical-50: #f0f9ff;
+  --color-medical-100: #e0f2fe;
+  --color-medical-200: #bae6fd;
+  --color-medical-500: #0ea5e9;
+  --color-medical-600: #0284c7;
+  --color-medical-800: #075985;
+  --color-medical-900: #0c4a6e;
 
-    --color-clinical-teal: #0D9488;
-    --color-clinical-slate: #F8FAFC;
-    --color-clinical-indigo: #4338CA;
+  --color-clinical-teal: #0d9488;
+  --color-clinical-slate: #f8fafc;
+  --color-clinical-indigo: #4338ca;
 
-    --font-sans: 'Inter', 'system-ui', 'sans-serif';
-    --font-display: 'Outfit', 'sans-serif';
+  --font-sans: 'Inter', 'system-ui', 'sans-serif';
+  --font-display: 'Outfit', 'sans-serif';
 
-    --shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
 
-    --image-glass-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.3) 100%);
+  --image-glass-gradient: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
 }
 
 @layer base {
-    :root {
-        --medical-50: #f0f9ff;
-        --medical-100: #e0f2fe;
-        --medical-200: #bae6fd;
-        --medical-500: #0ea5e9;
-        --medical-600: #0284c7;
-        --medical-800: #075985;
-        --medical-900: #0c4a6e;
+  :root {
+    --medical-50: #f0f9ff;
+    --medical-100: #e0f2fe;
+    --medical-200: #bae6fd;
+    --medical-500: #0ea5e9;
+    --medical-600: #0284c7;
+    --medical-800: #075985;
+    --medical-900: #0c4a6e;
 
-        --clinical-teal: #0D9488;
-        --clinical-slate: #F8FAFC;
-        --clinical-indigo: #4338CA;
-    }
+    --clinical-teal: #0d9488;
+    --clinical-slate: #f8fafc;
+    --clinical-indigo: #4338ca;
+  }
 
-    html {
-        scroll-behavior: smooth;
-        overscroll-behavior: none;
-    }
+  html {
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
+  }
 
-    body {
-        background-color: var(--clinical-slate);
-        font-family: var(--font-sans);
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        color: #0c4a6e;
-        overscroll-behavior: none;
-        transition: background-color 0.5s ease;
-    }
+  body {
+    background-color: var(--clinical-slate);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #0c4a6e;
+    overscroll-behavior: none;
+    transition: background-color 0.5s ease;
+  }
 
-    /* Premium Aesthetics Modifiers */
-    :root.aesthetic-typography {
-        --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
-    }
+  /* Premium Aesthetics Modifiers */
+  :root.aesthetic-typography {
+    --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  }
 
-    :root.aesthetic-glass body {
-        background-image:
-            radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.05) 0, transparent 50%),
-            radial-gradient(at 50% 0%, rgba(13, 148, 136, 0.05) 0, transparent 50%);
-        background-attachment: fixed;
-    }
+  :root.aesthetic-glass body {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.05) 0, transparent 50%),
+      radial-gradient(at 50% 0%, rgba(13, 148, 136, 0.05) 0, transparent 50%);
+    background-attachment: fixed;
+  }
 
-    :root.aesthetic-animations * {
-        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 150ms;
-    }
+  :root.aesthetic-animations * {
+    transition-property:
+      color, background-color, border-color, text-decoration-color, fill, stroke, opacity,
+      box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
 
-    :root.aesthetic-animations .premium-transition {
-        transition-duration: 300ms;
-    }
+  :root.aesthetic-animations .premium-transition {
+    transition-duration: 300ms;
+  }
 }
 
 /* Custom scrollbar for a more premium look */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
-    border-radius: 10px;
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94A3B8;
+  background: #94a3b8;
 }
 
 @layer components {
-    .btn {
-        @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2;
-    }
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2;
+  }
 
-    .btn-primary {
-        @apply bg-medical-600 text-white hover:bg-medical-500 active:scale-95 shadow-sm;
-    }
+  .btn-primary {
+    @apply bg-medical-600 text-white hover:bg-medical-500 active:scale-95 shadow-sm;
+  }
 
-    .btn-secondary {
-        @apply bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95;
-    }
+  .btn-secondary {
+    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95;
+  }
 
-    .btn-danger {
-        @apply bg-red-50 text-red-600 hover:bg-red-100 active:scale-95;
-    }
+  .btn-danger {
+    @apply bg-red-50 text-red-600 hover:bg-red-100 active:scale-95;
+  }
 
-    .card {
-        @apply bg-white rounded-xl shadow-premium border border-slate-100 overflow-hidden;
-    }
+  .card {
+    @apply bg-white rounded-xl shadow-premium border border-slate-100 overflow-hidden;
+  }
 
-    .premium-card {
-        @apply bg-white rounded-2xl border border-slate-100/50 transition-all duration-300;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
-    }
+  .premium-card {
+    @apply bg-white rounded-2xl border border-slate-100/50 transition-all duration-300;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.02),
+      0 2px 4px -1px rgba(0, 0, 0, 0.01);
+  }
 
-    :root.aesthetic-glass .premium-card {
-        @apply bg-white/70 backdrop-blur-xl border-white/40 shadow-glass;
-    }
+  :root.aesthetic-glass .premium-card {
+    @apply bg-white/70 backdrop-blur-xl border-white/40 shadow-glass;
+  }
 
-    .premium-card-hover:hover {
-        @apply -translate-y-1 border-medical-200/50 cursor-pointer;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    }
+  .premium-card-hover:hover {
+    @apply -translate-y-1 border-medical-200/50 cursor-pointer;
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.05),
+      0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  }
 
-    .glass-card {
-        @apply bg-white/70 backdrop-blur-md border border-white/30 shadow-glass rounded-xl;
-    }
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/30 shadow-glass rounded-xl;
+  }
 
-    .input-field {
-        @apply w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 transition-all;
-    }
+  .input-field {
+    @apply w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500 transition-all;
+  }
 
-    .label {
-        @apply block text-sm font-medium text-slate-600 mb-1;
-    }
+  .label {
+    @apply block text-sm font-medium text-slate-600 mb-1;
+  }
 
-    /* Specialized Hover Effects */
-    .aesthetic-hover-glow {
-        @apply transition-all duration-300;
-    }
+  /* Specialized Hover Effects */
+  .aesthetic-hover-glow {
+    @apply transition-all duration-300;
+  }
 
-    :root.aesthetic-animations .aesthetic-hover-glow:hover {
-        @apply ring-4 ring-medical-500/10;
-        border-color: rgba(56, 189, 248, 0.3);
-        /* medical-400 with 30% opacity */
-    }
+  :root.aesthetic-animations .aesthetic-hover-glow:hover {
+    @apply ring-4 ring-medical-500/10;
+    border-color: rgba(56, 189, 248, 0.3);
+    /* medical-400 with 30% opacity */
+  }
 }
 
 .glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Hide calendar icon on date inputs by default */
 .hide-calendar-icon::-webkit-calendar-picker-indicator {
-    opacity: 0;
-    width: 0;
-    padding: 0;
-    margin: 0;
+  opacity: 0;
+  width: 0;
+  padding: 0;
+  margin: 0;
 }
 
 /* Show calendar icon when hovered or focused */
 .show-calendar-icon::-webkit-calendar-picker-indicator {
-    opacity: 1;
-    width: auto;
-    padding: 2px;
+  opacity: 1;
+  width: auto;
+  padding: 2px;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+  from {
+    opacity: 0;
+  }
 
-    to {
-        opacity: 1;
-    }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.3s ease-out forwards;
 }
 
 .animate-scale-in {
-    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Patient row slide-fade animation */
 @keyframes slideFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-        background-color: rgba(14, 165, 233, 0.1);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    background-color: rgba(14, 165, 233, 0.1);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-        background-color: transparent;
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
 }
 
 .animate-slide-fade-in {
-    animation: slideFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Toast slide-in animation */
 @keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(100%);
-    }
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .animate-slide-in-right {
-    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Success check bounce animation */
 @keyframes bounceOnce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
 
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.2);
-    }
+  50% {
+    transform: scale(1.2);
+  }
 }
 
 .animate-bounce-once {
-    animation: bounceOnce 0.4s ease-out;
+  animation: bounceOnce 0.4s ease-out;
+}
+
+@keyframes storageStatusBadgeBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.storage-status-badge-bounce {
+  animation: storageStatusBadgeBounce 3s infinite ease-in-out;
 }
 
 /* Button click ripple effect */
 @keyframes ripple {
-    from {
-        opacity: 0.5;
-        transform: scale(0);
-    }
+  from {
+    opacity: 0.5;
+    transform: scale(0);
+  }
 
-    to {
-        opacity: 0;
-        transform: scale(2.5);
-    }
+  to {
+    opacity: 0;
+    transform: scale(2.5);
+  }
 }
 
 .btn-ripple {
-    position: relative;
-    overflow: hidden;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-ripple::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
-    opacity: 0;
-    transform: scale(0);
-    pointer-events: none;
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
 }
 
 .btn-ripple:active::after {
-    animation: ripple 0.4s ease-out;
+  animation: ripple 0.4s ease-out;
 }
 
 .handoff-cudyr-print {
-    display: none;
+  display: none;
 }
 
 @media print {
-    .handoff-cudyr-print {
-        display: block !important;
-    }
+  .handoff-cudyr-print {
+    display: block !important;
+  }
 }
 
 @import './styles/print.css';

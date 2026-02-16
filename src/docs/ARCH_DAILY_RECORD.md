@@ -6,14 +6,14 @@ Para maximizar el performance y evitar re-renders innecesarios en la tabla del c
 
 A la hora de desarrollar un componente, **elige siempre el hook más específico posible**.
 
-| Hook                      | Contenido                      | Cuándo usarlo                                                 | Impacto Performance                              |
-| :------------------------ | :----------------------------- | :------------------------------------------------------------ | :----------------------------------------------- |
-| `useDailyRecordBeds`      | `record.beds`                  | En filas de pacientes (`PatientRow`) o tabla principal.       | Bajo (solo re-render ante cambios en camas).     |
-| `useDailyRecordStaff`     | Enfermeros y TENS              | En el cabecero de personal.                                   | Bajo (independiente de los pacientes).           |
-| `useDailyRecordMovements` | Altas, Traslados y CMA         | En secciones de movimientos.                                  | Bajo (independiente del censo principal).        |
-| `useDailyRecordStability` | Reglas de bloqueo              | En inputs editables.                                          | Bajo.                                            |
-| `useDailyRecordActions`   | Funciones `update*`, `create*` | **Cualquier componente que solo necesite disparar acciones.** | **Cero (Referencialmente estable).**             |
-| `useDailyRecordData`      | Todo el registro (CRUD)        | Solo en vistas de administración global.                      | **Alto (Re-render en cada pulsación de tecla).** |
+| Hook                                                                                        | Contenido               | Cuándo usarlo                                                        | Impacto Performance                              |
+| :------------------------------------------------------------------------------------------ | :---------------------- | :------------------------------------------------------------------- | :----------------------------------------------- |
+| `useDailyRecordBeds`                                                                        | `record.beds`           | En filas de pacientes (`PatientRow`) o tabla principal.              | Bajo (solo re-render ante cambios en camas).     |
+| `useDailyRecordStaff`                                                                       | Enfermeros y TENS       | En el cabecero de personal.                                          | Bajo (independiente de los pacientes).           |
+| `useDailyRecordMovements`                                                                   | Altas, Traslados y CMA  | En secciones de movimientos.                                         | Bajo (independiente del censo principal).        |
+| `useDailyRecordStability`                                                                   | Reglas de bloqueo       | En inputs editables.                                                 | Bajo.                                            |
+| `useDailyRecordBedActions` / `useDailyRecordMovementActions` / `useDailyRecordStaffActions` | Funciones por dominio   | **Componentes que solo necesiten disparar acciones en ese dominio.** | **Cero (Referencialmente estable).**             |
+| `useDailyRecordData`                                                                        | Todo el registro (CRUD) | Solo en vistas de administración global.                             | **Alto (Re-render en cada pulsación de tecla).** |
 
 ## Patrón Recomendado
 
@@ -26,7 +26,7 @@ const { record, updatePatient } = useDailyRecordContext();
 // BIEN (Optimizado)
 const beds = useDailyRecordBeds();
 const patient = beds[bedId];
-const { updatePatient } = useDailyRecordActions();
+const { updatePatient } = useDailyRecordBedActions();
 ```
 
 ## Structural Sharing

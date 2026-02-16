@@ -1,12 +1,12 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { isDatabaseInFallbackMode } from '@/services/storage/indexedDBService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import { useDatabaseFallbackStatus } from '@/hooks/useDatabaseFallbackStatus';
 
 export const DatabaseStatusBanner: React.FC = () => {
-  const isMock = isDatabaseInFallbackMode();
+  const isFallbackMode = useDatabaseFallbackStatus();
 
-  if (!isMock) return null;
+  if (!isFallbackMode) return null;
 
   return (
     <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between shadow-lg sticky top-0 z-[100] animate-pulse">

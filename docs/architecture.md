@@ -60,7 +60,7 @@ Documento de referencia para entender cómo se organiza el sistema, cómo fluyen
 
 Reglas específicas adicionales:
 
-- En `src/features/census/**` no se permite `useDailyRecordActions`; deben usarse hooks acotados (`useDailyRecordBedActions`, `useDailyRecordMovementActions`, `useDailyRecordDayActions`, etc.).
+- En código productivo (`src/**` fuera de tests y `DailyRecordContext`) no se permite `useDailyRecordActions`; deben usarse hooks acotados (`useDailyRecordBedActions`, `useDailyRecordMovementActions`, `useDailyRecordDayActions`, etc.).
 
 ## 3) Flujo de Datos (Write)
 

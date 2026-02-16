@@ -7,10 +7,9 @@ import {
 } from '@/context/DailyRecordContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { CMA_TABLE_HEADERS } from '@/features/census/controllers/censusCmaTableController';
-import { CensusMovementSectionLayout } from '@/features/census/components/CensusMovementSectionLayout';
+import { CensusMovementSection } from '@/features/census/components/CensusMovementSection';
 import { CmaSectionRow } from '@/features/census/components/CmaSectionRow';
-import { resolveCmaSectionState } from '@/features/census/controllers/censusCmaSectionController';
-import { useCmaSectionActions } from '@/features/census/hooks/useCmaSectionActions';
+import { useCmaSectionModel } from '@/features/census/hooks/useCmaSectionModel';
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
 
 export const CMASection: React.FC = () => {
@@ -19,8 +18,8 @@ export const CMASection: React.FC = () => {
   const { updatePatientMultiple } = useDailyRecordBedActions();
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
-  const sectionState = resolveCmaSectionState(cma);
-  const { handleUpdate, handleUndo, handleDelete } = useCmaSectionActions({
+  const sectionModel = useCmaSectionModel({
+    cma,
     confirm,
     notifyError,
     updateCMA,
@@ -28,30 +27,27 @@ export const CMASection: React.FC = () => {
     deleteCMA,
   });
 
-  if (!sectionState.isRenderable) return null;
-
   return (
-    <CensusMovementSectionLayout
+    <CensusMovementSection
+      model={sectionModel}
       title="Hospitalización Diurna"
       subtitle="CMA / PMA"
       emptyMessage="No hay registros de Hospitalización Diurna para hoy."
       icon={<Scissors size={18} />}
       iconClassName="bg-medical-50 text-medical-600"
-      isEmpty={sectionState.isEmpty}
       headers={CMA_TABLE_HEADERS}
       rootClassName="print:break-inside-avoid"
       tableClassName="w-full text-sm text-left"
       bodyClassName="divide-y divide-slate-100"
-    >
-      {sectionState.cma.map(item => (
+      getItemKey={item => item.id}
+      renderRow={item => (
         <CmaSectionRow
-          key={item.id}
           item={item}
-          onUpdate={handleUpdate}
-          onUndo={handleUndo}
-          onDelete={handleDelete}
+          onUpdate={sectionModel.handleUpdate}
+          onUndo={sectionModel.handleUndo}
+          onDelete={sectionModel.handleDelete}
         />
-      ))}
-    </CensusMovementSectionLayout>
+      )}
+    ></CensusMovementSection>
   );
 };

@@ -29,12 +29,12 @@ Providers de estado global y contratos para features transversales.
 ## Patrones clave
 
 - Context fragmentation para disminuir re-renders.
-- Hooks de acceso especializados (`useDailyRecordData`, `useDailyRecordActions`, etc.).
+- Hooks de acceso especializados (`useDailyRecordData`, `useDailyRecordBedActions`, `useDailyRecordMovementActions`, etc.).
 - Contratos tipados para evitar props drilling masivo.
 
 ## Ejemplo
 
 ```ts
 const { record } = useDailyRecordData();
-const { updatePatient } = useDailyRecordActions();
+const { updatePatient } = useDailyRecordBedActions();
 ```

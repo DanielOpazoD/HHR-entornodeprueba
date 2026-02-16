@@ -3,6 +3,11 @@ import { Bookmark, BookmarkInput } from '@/types/bookmarks';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { Bookmark as BookmarkIcon } from 'lucide-react';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import {
+  buildBookmarkInput,
+  createBookmarkEditorInitialState,
+  DEFAULT_BOOKMARK_ICON,
+} from '@/components/bookmarks/controllers/bookmarkEditorController';
 
 interface BookmarkEditorModalProps {
   isOpen: boolean;
@@ -38,23 +43,17 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
-  const [icon, setIcon] = useState('🔗');
+  const [icon, setIcon] = useState(DEFAULT_BOOKMARK_ICON);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      if (initialData) {
-        setName(initialData.name);
-        setUrl(initialData.url);
-        setIcon(initialData.icon || '🔗');
-        setNotes(initialData.notes || '');
-      } else {
-        setName('');
-        setUrl('');
-        setIcon('🔗');
-        setNotes('');
-      }
+      const initialState = createBookmarkEditorInitialState(initialData);
+      setName(initialState.name);
+      setUrl(initialState.url);
+      setIcon(initialState.icon);
+      setNotes(initialState.notes);
     }
   }, [isOpen, initialData]);
 
@@ -62,12 +61,7 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     try {
-      await onSave({
-        name,
-        url: url.startsWith('http') ? url : `https://${url}`,
-        icon,
-        notes,
-      });
+      await onSave(buildBookmarkInput({ name, url, icon, notes }));
       onClose();
     } catch (error) {
       console.error('Error saving bookmark:', error);

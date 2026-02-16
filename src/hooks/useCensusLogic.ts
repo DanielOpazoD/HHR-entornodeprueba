@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import {
-  useDailyRecordActions,
+  useDailyRecordDayActions,
   useDailyRecordBeds,
+  useDailyRecordMovementActions,
   useDailyRecordMovements,
+  useDailyRecordStaffActions,
   useDailyRecordStaff,
 } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
@@ -20,16 +22,10 @@ export const useCensusLogic = (currentDateString: string) => {
   const beds = useDailyRecordBeds();
   const movements = useDailyRecordMovements();
   const staff = useDailyRecordStaff();
-  const {
-    createDay,
-    resetDay,
-    updateNurse,
-    updateTens,
-    undoDischarge,
-    deleteDischarge,
-    undoTransfer,
-    deleteTransfer,
-  } = useDailyRecordActions();
+  const { createDay, resetDay } = useDailyRecordDayActions();
+  const { updateNurse, updateTens } = useDailyRecordStaffActions();
+  const { undoDischarge, deleteDischarge, undoTransfer, deleteTransfer } =
+    useDailyRecordMovementActions();
 
   const { nursesList, tensList } = useStaffContext();
 

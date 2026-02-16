@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Database, RefreshCw } from 'lucide-react';
-import { isDatabaseInFallbackMode, resetLocalDatabase } from '@/services/storage/indexedDBService';
+import { resetLocalDatabase } from '@/services/storage/indexedDBService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import { useDatabaseFallbackStatus } from '@/hooks/useDatabaseFallbackStatus';
 
 /**
  * StorageStatusBadge
@@ -10,25 +11,13 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
  * is operating in memory-only mode (data loss risk on reload).
  */
 const StorageStatusBadge: React.FC = () => {
-  const [isFallback, setIsFallback] = useState(() => isDatabaseInFallbackMode());
+  const isFallback = useDatabaseFallbackStatus();
   const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    // We could also set up an interval or event listener if Dexie supports it
-    const interval = setInterval(() => {
-      const currentStatus = isDatabaseInFallbackMode();
-      if (currentStatus !== isFallback) {
-        setIsFallback(currentStatus);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isFallback]);
 
   if (!isFallback || !isVisible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-[9999] animate-bounce-subtle">
+    <div className="fixed bottom-4 left-4 z-[9999] storage-status-badge-bounce">
       <div className="bg-amber-50 border border-amber-200 shadow-lg rounded-lg p-3 max-w-sm flex items-start gap-3">
         <div className="bg-amber-100 p-2 rounded-full">
           <AlertTriangle className="text-amber-600 w-5 h-5" />
@@ -67,20 +56,6 @@ const StorageStatusBadge: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-                @keyframes bounce-subtle {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-4px); }
-                }
-                .animate-bounce-subtle {
-                    animation: bounce-subtle 3s infinite ease-in-out;
-                }
-            `,
-        }}
-      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDailyRecordData, useDailyRecordHandoffActions } from '@/context/DailyRecordContext';
 import { useStaffContext } from '@/context/StaffContext';
 import { MessageSquare, Stethoscope, Activity } from 'lucide-react';
@@ -47,6 +47,16 @@ export const HandoffView: React.FC<HandoffViewProps> = ({
   const { nursesList } = useStaffContext();
   const { success } = useNotification();
   const { logEvent } = useAuditContext();
+  const logEventRef = useRef(logEvent);
+  const recordRef = useRef(record);
+
+  useEffect(() => {
+    logEventRef.current = logEvent;
+  }, [logEvent]);
+
+  useEffect(() => {
+    recordRef.current = record;
+  }, [record]);
 
   // Use prop UI state (shared) or local UI state (if direct mount)
   const localUi = useUIState();
@@ -81,30 +91,33 @@ export const HandoffView: React.FC<HandoffViewProps> = ({
 
   // MINSAL Traceability: Log when clinical data is viewed
   const { userId } = useAuditContext();
+  const recordDate = record?.date;
   useEffect(() => {
-    if (record && record.date) {
+    if (recordDate) {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+
       // Attribution logic for shared accounts (MINSAL requirement)
       const authors = getAttributedAuthors(
         userId,
-        record,
+        currentRecord,
         isMedical ? undefined : (selectedShift as 'day' | 'night')
       );
 
-      logEvent(
+      logEventRef.current(
         isMedical ? 'VIEW_MEDICAL_HANDOFF' : 'VIEW_NURSING_HANDOFF',
         'dailyRecord',
-        record.date,
+        recordDate,
         {
           view: isMedical ? 'medical_handoff' : 'nursing_handoff',
           shift: selectedShift,
         },
         undefined,
-        record.date,
+        recordDate,
         authors
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record?.date, type, selectedShift, isMedical, userId]); // Only log when essential state changes
+  }, [recordDate, type, selectedShift, isMedical, userId]); // Only log when essential state changes
 
   // Update document title for PDF export filename
   useEffect(() => {
