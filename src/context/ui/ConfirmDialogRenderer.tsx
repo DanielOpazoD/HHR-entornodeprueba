@@ -50,7 +50,9 @@ export const ConfirmDialogRenderer: React.FC<ConfirmDialogRendererProps> = ({
   if (!dialog.isOpen) return null;
 
   const requiresInput = !!dialog.requireInputConfirm;
-  const isInputValid = !requiresInput || inputValue === dialog.requireInputConfirm;
+  const isInputValid =
+    !requiresInput ||
+    inputValue.trim().toLowerCase() === dialog.requireInputConfirm?.trim().toLowerCase();
 
   return (
     <div

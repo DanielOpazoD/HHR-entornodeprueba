@@ -170,12 +170,11 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
 
       const confirmed = await notify.confirm({
         title: 'Eliminar documento clínico',
-        message:
-          'Esta acción eliminará el documento de forma permanente.\n\nEscribe ELIMINAR para confirmar.',
+        message: 'Esta acción eliminará el documento de forma permanente.',
         confirmText: 'Eliminar',
         cancelText: 'Cancelar',
         variant: 'danger',
-        requireInputConfirm: 'ELIMINAR',
+        requireInputConfirm: 'X',
       });
 
       if (!confirmed) return;
