@@ -173,7 +173,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.2",
-    "lucide-react": "^0.556.0",
+    "lucide-react": "^1.8.0",
     "motion": "^12.38.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.6.205",
