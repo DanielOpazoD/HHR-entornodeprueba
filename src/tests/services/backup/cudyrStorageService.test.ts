@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   uploadCudyrExcel,
+  uploadCudyrExcelWithResult,
   cudyrExists,
   cudyrExistsDetailed,
   deleteCudyrFile,
+  deleteCudyrFileWithResult,
   listCudyrYears,
   listCudyrMonths,
   listCudyrFilesInMonth,
@@ -55,6 +57,14 @@ describe('cudyrStorageService', () => {
 
       expect(url).toBe('http://download.url');
       expect(uploadBytes).toHaveBeenCalled();
+    });
+
+    it('returns structured upload failures for restricted storage', async () => {
+      vi.mocked(uploadBytes).mockRejectedValue({ code: 'storage/unauthorized' });
+
+      const result = await uploadCudyrExcelWithResult(mockBlob, mockDate);
+
+      expect(result.status).toBe('permission_denied');
     });
   });
 
@@ -115,6 +125,13 @@ describe('cudyrStorageService', () => {
 
     it('ignores invalid dates during delete', async () => {
       await expect(deleteCudyrFile('01-01-2025')).resolves.toBeUndefined();
+      expect(deleteObject).not.toHaveBeenCalled();
+    });
+
+    it('returns structured invalid-date delete failures', async () => {
+      const result = await deleteCudyrFileWithResult('01-01-2025');
+
+      expect(result.status).toBe('invalid_date');
       expect(deleteObject).not.toHaveBeenCalled();
     });
   });

@@ -131,6 +131,8 @@ describe('useAuditData', () => {
     });
 
     expect(result.current.logs).toHaveLength(3);
+    expect(fetchAuditLogsUseCase.executeFetchAuditLogs).toHaveBeenCalledWith({});
+    expect(result.current.filters.groupedView).toBe(true);
   });
 
   describe('Filtering', () => {
@@ -172,6 +174,24 @@ describe('useAuditData', () => {
 
       expect(result.current.filteredLogs).toHaveLength(1);
       expect(result.current.filteredLogs[0].recordDate).toBe('2025-01-02');
+    });
+
+    it('applies quick clinical audit date range presets', async () => {
+      const { result } = renderHook(() => useAuditData());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      act(() => {
+        result.current.setStartDate('2026-01-01');
+        result.current.setEndDate('2026-05-02');
+      });
+
+      act(() => {
+        result.current.applyDateRangePreset('all');
+      });
+
+      expect(result.current.filters.startDate).toBe('');
+      expect(result.current.filters.endDate).toBe('');
     });
 
     it('filters by section', async () => {

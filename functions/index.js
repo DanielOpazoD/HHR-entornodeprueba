@@ -10,6 +10,7 @@ const { createClinicalDocumentExportFunctions } = require('./lib/clinicalDocumen
 const {
   createClinicalDocumentPdfRenderFunctions,
 } = require('./lib/clinicalDocumentPdfRenderFunctions');
+const { createWoundCareMobileUploadFunctions } = require('./lib/woundCareMobileUploadFunctions');
 
 const authHelpers = createAuthHelpers(admin);
 
@@ -37,5 +38,8 @@ module.exports = {
   }),
   ...createClinicalDocumentPdfRenderFunctions({
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createWoundCareMobileUploadFunctions({
+    admin,
   }),
 };

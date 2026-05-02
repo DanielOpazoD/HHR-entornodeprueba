@@ -39,20 +39,20 @@ const openSeededCensus = async (page: Page) => {
 
 const openNursingHandoff = async (page: Page) => {
   await openSeededCensus(page);
-  const nursingTab = page.getByRole('button', { name: /Entrega Turno Enfermería/i }).first();
+  const nursingTab = page.getByTestId('nav-tab-nursing-handoff');
   await expect(nursingTab).toBeVisible({ timeout: 10000 });
   await nursingTab.click();
-  await expect(page.getByRole('heading', { name: /Entrega de Turno Enfermería/i })).toBeVisible({
+  await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible({
     timeout: 10000,
   });
 };
 
 const openMedicalHandoff = async (page: Page) => {
   await openSeededCensus(page);
-  const medicalTab = page.getByRole('button', { name: /Entrega Turno Médicos/i }).first();
+  const medicalTab = page.getByTestId('nav-tab-medical-handoff');
   await expect(medicalTab).toBeVisible({ timeout: 10000 });
   await medicalTab.click();
-  await expect(page.getByRole('heading', { name: /Entrega de Turno/i }).first()).toBeVisible({
+  await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
     timeout: 10000,
   });
 };
@@ -61,7 +61,7 @@ test.describe('Shift Handoff with Signature', () => {
   test('should complete nursing handoff workflow', async ({ page }) => {
     await openNursingHandoff(page);
 
-    await expect(page.getByRole('button', { name: /Turno Largo/i }).first()).toBeVisible();
+    await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible();
     await expect(page.locator('main')).toContainText('Shift Patient');
     await expect(page.getByRole('button', { name: /Guardar/i }).first()).toBeVisible();
   });
@@ -69,7 +69,9 @@ test.describe('Shift Handoff with Signature', () => {
   test('should complete medical handoff workflow', async ({ page }) => {
     await openMedicalHandoff(page);
 
-    const createMedicalHandoffButton = page.getByRole('button', { name: /Crear entrega médica/i });
+    const createMedicalHandoffButton = page
+      .getByTestId('medical-handoff-create-entry-button')
+      .first();
     await expect(createMedicalHandoffButton).toBeVisible({ timeout: 10000 });
     await createMedicalHandoffButton.click();
 
@@ -84,13 +86,9 @@ test.describe('Shift Handoff with Signature', () => {
   test('should expose WhatsApp delivery action from medical handoff', async ({ page }) => {
     await openMedicalHandoff(page);
 
-    await expect(
-      page
-        .getByRole('button', {
-          name: /Enviar entrega por WhatsApp \(Manual\)|Enviar por WhatsApp/i,
-        })
-        .first()
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('medical-handoff-send-whatsapp-button')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should expose PDF generation action from nursing handoff', async ({ page }) => {
@@ -104,8 +102,8 @@ test.describe('Shift Handoff with Signature', () => {
   test('should switch between day and night shift views', async ({ page }) => {
     await openNursingHandoff(page);
 
-    const dayShiftBtn = page.getByRole('button', { name: /Turno Largo/i }).first();
-    const nightShiftBtn = page.getByRole('button', { name: /Turno Noche/i }).first();
+    const dayShiftBtn = page.getByTestId('handoff-shift-day-button');
+    const nightShiftBtn = page.getByTestId('handoff-shift-night-button');
 
     await expect(dayShiftBtn).toBeVisible();
     await expect(nightShiftBtn).toBeVisible();

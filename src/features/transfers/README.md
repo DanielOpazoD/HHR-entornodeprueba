@@ -10,6 +10,9 @@ Módulo de gestión de traslados clínicos. Cubre el ciclo completo de la solici
 - segmentación entre casos activos y finalizados
 - preparación y visualización de documentos por hospital
 
+Este módulo es una bitácora operacional de enfermería para seguimiento en tiempo real. Los datos
+estadísticos institucionales salen del censo diario y sus movimientos, no de `transferRequests`.
+
 ## Flujo funcional
 
 ### Estados activos
@@ -20,6 +23,10 @@ Módulo de gestión de traslados clínicos. Cubre el ciclo completo de la solici
 
 Estos casos aparecen en la tabla principal y siguen abiertos a edición operativa.
 
+La visibilidad de activos es mensual: una solicitud abierta creada en marzo pertenece a marzo y no
+debe arrastrarse automáticamente a abril o meses posteriores. Si se revisa un mes histórico, se ven
+las solicitudes abiertas creadas en ese mes, aunque hayan quedado sin cierre operativo.
+
 ### Estados finalizados
 
 - `TRANSFERRED`
@@ -28,6 +35,12 @@ Estos casos aparecen en la tabla principal y siguen abiertos a edición operativ
 - `NO_RESPONSE`
 
 Estos casos aparecen en la sección colapsable de finalizados para el mes seleccionado.
+
+Cuando un traslado se registra desde Censo Diario sin solicitud previa en este módulo, el sistema
+crea una solicitud con la fecha del movimiento y la finaliza inmediatamente como `TRANSFERRED`.
+Si ya existe una solicitud abierta para la misma cama y el mismo mes operativo, esa solicitud se
+finaliza en vez de crear otra. No se debe completar una solicitud abierta de otro mes solo porque
+coincida la cama.
 
 ## Estructura interna
 
@@ -163,6 +176,8 @@ Si un hospital no tiene configuración documental:
    compartidos; no deben reaparecer variantes locales de `toLocaleDateString()`.
 10. Las notas inline deben seguir usando [transferNotesController.ts](components/controllers/transferNotesController.ts) para sorting/permisos y no reintroducir estado repetido dentro de la fila.
 11. El formulario de traslado debe construir y validar su payload a través de [transferFormController.ts](components/controllers/transferFormController.ts), no con validaciones duplicadas dentro del modal.
+12. Las búsquedas de solicitud abierta disparadas desde Censo Diario deben acotarse al mes de la
+    fecha de movimiento; no basta buscar por cama.
 
 ## Tests relevantes
 

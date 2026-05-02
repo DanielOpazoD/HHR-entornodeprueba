@@ -16,11 +16,13 @@ interface NavTabProps {
   icon: LucideIcon;
   isActive: boolean;
   onClick: () => void;
+  testId?: string;
 }
 
-const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick }) => (
+const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, testId }) => (
   <button
     onClick={onClick}
+    data-testid={testId}
     className={clsx(
       'flex items-center gap-2 px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-full ring-1 ring-transparent',
       isActive
@@ -114,6 +116,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             itemCensusMode: item.censusMode,
           })}
           onClick={() => handleItemClick(item)}
+          testId={`nav-tab-${item.id}`}
         />
       ))}
 

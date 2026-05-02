@@ -34,8 +34,11 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { pdfStorageLogger } from '@/services/backup/backupLoggers';
 import {
+  createBackupMutationResultFromError,
   resolveBackupStorage,
+  resolveDeleteMutationStatus,
   runStorageLookupWithTimeout,
+  type BackupStorageMutationResult,
 } from '@/services/backup/backupStorageRuntimeSupport';
 
 // ============= Types =============
@@ -96,7 +99,16 @@ const parseFilePath = (path: string): { date: string; shiftType: 'day' | 'night'
 
 interface PdfStorageService {
   uploadPdf: (pdfBlob: Blob, date: string, shiftType: 'day' | 'night') => Promise<string>;
+  uploadPdfWithResult: (
+    pdfBlob: Blob,
+    date: string,
+    shiftType: 'day' | 'night'
+  ) => Promise<BackupStorageMutationResult<string>>;
   deletePdf: (date: string, shiftType: 'day' | 'night') => Promise<void>;
+  deletePdfWithResult: (
+    date: string,
+    shiftType: 'day' | 'night'
+  ) => Promise<BackupStorageMutationResult>;
   getPdfUrl: (date: string, shiftType: 'day' | 'night') => Promise<string | null>;
   pdfExists: (date: string, shiftType: 'day' | 'night') => Promise<boolean>;
   pdfExistsDetailed: (date: string, shiftType: 'day' | 'night') => Promise<StorageLookupResult>;
@@ -110,6 +122,74 @@ interface PdfStorageService {
 export const createPdfStorageService = (
   runtime: BackupStorageRuntime = defaultBackupStorageRuntime
 ): PdfStorageService => {
+  const uploadPdfWithResult = async (
+    pdfBlob: Blob,
+    date: string,
+    shiftType: 'day' | 'night'
+  ): Promise<BackupStorageMutationResult<string>> => {
+    try {
+      pdfStorageLogger.debug(`Starting PDF upload for ${date}`);
+      const storage = await resolveBackupStorage(runtime);
+      assertStorageAvailable(storage, 'PdfStorage', 'uploadPdf');
+
+      const filePath = generatePdfPath(date, shiftType);
+      const storageRef = ref(storage, filePath);
+
+      const user = runtime.auth.currentUser;
+      const metadata = {
+        contentType: 'application/pdf',
+        customMetadata: {
+          date,
+          shiftType,
+          uploadedBy: user?.email || 'unknown',
+          uploadedAt: new Date().toISOString(),
+        },
+      };
+
+      await uploadBytes(storageRef, pdfBlob, metadata);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      pdfStorageLogger.debug(`PDF upload complete: ${filePath}`);
+      return { status: 'success', data: downloadUrl };
+    } catch (error) {
+      if (isBackupDateValidationError(error)) {
+        return createBackupMutationResultFromError<string>(error, { invalidDate: true });
+      }
+      return createBackupMutationResultFromError<string>(error);
+    }
+  };
+
+  const deletePdfWithResult = async (
+    date: string,
+    shiftType: 'day' | 'night'
+  ): Promise<BackupStorageMutationResult> => {
+    const storage = await resolveBackupStorage(runtime);
+    let filePath: string;
+    try {
+      filePath = generatePdfPath(date, shiftType);
+    } catch (error) {
+      if (isBackupDateValidationError(error)) {
+        return createBackupMutationResultFromError(error, { invalidDate: true });
+      }
+      return createBackupMutationResultFromError(error);
+    }
+    const storageRef = ref(storage, filePath);
+    try {
+      await deleteObject(storageRef);
+      pdfStorageLogger.debug(`PDF deleted: ${filePath}`);
+      return { status: 'success', data: null };
+    } catch (error: unknown) {
+      if (isExpectedStorageLookupMiss(error)) {
+        return {
+          status: resolveDeleteMutationStatus(error),
+          error,
+          data: null,
+        };
+      }
+      return createBackupMutationResultFromError(error);
+    }
+  };
+
   const pdfExistsDetailed = async (
     date: string,
     shiftType: 'day' | 'night'
@@ -172,50 +252,24 @@ export const createPdfStorageService = (
 
   return {
     uploadPdf: async (pdfBlob, date, shiftType): Promise<string> => {
-      pdfStorageLogger.debug(`Starting PDF upload for ${date}`);
-      const storage = await resolveBackupStorage(runtime);
-      assertStorageAvailable(storage, 'PdfStorage', 'uploadPdf');
-
-      const filePath = generatePdfPath(date, shiftType);
-      const storageRef = ref(storage, filePath);
-
-      const user = runtime.auth.currentUser;
-      const metadata = {
-        contentType: 'application/pdf',
-        customMetadata: {
-          date,
-          shiftType,
-          uploadedBy: user?.email || 'unknown',
-          uploadedAt: new Date().toISOString(),
-        },
-      };
-
-      await uploadBytes(storageRef, pdfBlob, metadata);
-      const downloadUrl = await getDownloadURL(storageRef);
-
-      pdfStorageLogger.debug(`PDF upload complete: ${filePath}`);
-      return downloadUrl;
+      const result = await uploadPdfWithResult(pdfBlob, date, shiftType);
+      if (result.status !== 'success') {
+        throw result.error;
+      }
+      return result.data as string;
     },
+    uploadPdfWithResult,
     deletePdf: async (date, shiftType): Promise<void> => {
-      const storage = await resolveBackupStorage(runtime);
-      let filePath: string;
-      try {
-        filePath = generatePdfPath(date, shiftType);
-      } catch (error) {
-        if (isBackupDateValidationError(error)) return;
-        throw error;
-      }
-      const storageRef = ref(storage, filePath);
-      try {
-        await deleteObject(storageRef);
-        pdfStorageLogger.debug(`PDF deleted: ${filePath}`);
-      } catch (error: unknown) {
-        if (isExpectedStorageLookupMiss(error)) {
-          return;
-        }
-        throw error;
+      const result = await deletePdfWithResult(date, shiftType);
+      if (
+        result.status !== 'success' &&
+        result.status !== 'not_found' &&
+        result.status !== 'invalid_date'
+      ) {
+        throw result.error;
       }
     },
+    deletePdfWithResult,
     getPdfUrl: async (date, shiftType): Promise<string | null> => {
       const storage = await resolveBackupStorage(runtime);
       try {
@@ -239,7 +293,9 @@ export const createPdfStorageService = (
 
 const service = createPdfStorageService();
 export const uploadPdf = service.uploadPdf;
+export const uploadPdfWithResult = service.uploadPdfWithResult;
 export const deletePdf = service.deletePdf;
+export const deletePdfWithResult = service.deletePdfWithResult;
 export const getPdfUrl = service.getPdfUrl;
 export const pdfExists = service.pdfExists;
 export const pdfExistsDetailed = service.pdfExistsDetailed;

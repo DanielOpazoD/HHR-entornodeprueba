@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createScopedLogger, createScopedLoggerMap } from '@/services/utils/loggerScope';
 import { logger } from '@/services/utils/loggerService';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 describe('LoggerService', () => {
   beforeEach(() => {
@@ -52,15 +53,20 @@ describe('LoggerService', () => {
   });
 
   it('should respect log levels', () => {
+    const consoleSpies = suppressConsole(['warn', 'error']);
     logger.setLevel('warn');
-    logger.debug('should not show');
-    logger.info('should not show');
-    logger.warn('should show');
-    logger.error('should show');
+    try {
+      logger.debug('should not show');
+      logger.info('should not show');
+      logger.warn('should show');
+      logger.error('should show');
 
-    const entries = logger.getEntries();
-    expect(entries).toHaveLength(2);
-    expect(entries[0].level).toBe('warn');
+      const entries = logger.getEntries();
+      expect(entries).toHaveLength(2);
+      expect(entries[0].level).toBe('warn');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('should format messages correctly', () => {
@@ -79,28 +85,39 @@ describe('LoggerService', () => {
   });
 
   it('should manage stored entries correctly', () => {
+    const consoleSpies = suppressConsole(['info']);
     logger.configure({ maxStoredEntries: 2 });
-    logger.info('Entry 1');
-    logger.info('Entry 2');
-    logger.info('Entry 3');
+    try {
+      logger.info('Entry 1');
+      logger.info('Entry 2');
+      logger.info('Entry 3');
 
-    const entries = logger.getEntries();
-    expect(entries).toHaveLength(2);
-    expect(entries[0].message).toBe('Entry 2');
-    expect(entries[1].message).toBe('Entry 3');
+      const entries = logger.getEntries();
+      expect(entries).toHaveLength(2);
+      expect(entries[0].message).toBe('Entry 2');
+      expect(entries[1].message).toBe('Entry 3');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('should create child loggers with context', () => {
+    const consoleSpies = suppressConsole(['debug', 'info', 'error']);
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     logger.configure({ enableTimestamps: false, enableContext: true });
-    const child = createScopedLogger('ChildCtx');
+    try {
+      const child = createScopedLogger('ChildCtx');
 
-    child.debug('DebugMsg');
-    child.info('InfoMsg');
-    child.warn('WarnMsg');
-    child.error('ErrorMsg');
+      child.debug('DebugMsg');
+      child.info('InfoMsg');
+      child.warn('WarnMsg');
+      child.error('ErrorMsg');
 
-    expect(consoleSpy).toHaveBeenCalledWith('[WARN] [ChildCtx] WarnMsg', '');
+      expect(consoleSpy).toHaveBeenCalledWith('[WARN] [ChildCtx] WarnMsg', '');
+    } finally {
+      consoleSpy.mockRestore();
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('should create logger maps with the requested named scopes', () => {

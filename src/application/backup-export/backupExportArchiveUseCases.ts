@@ -4,6 +4,10 @@ import {
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
+import type {
+  BackupStorageMutationResult,
+  BackupStorageMutationStatus,
+} from '@/services/backup/backupStorageRuntimeSupport';
 
 import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
 import { defaultCensusEmailDeliveryPort } from '@/application/ports/censusEmailPort';
@@ -13,6 +17,7 @@ import { validateCriticalFields } from '@/services/validation/criticalFieldsVali
 import {
   type BackupCensusExcelInput,
   type BackupHandoffPdfInput,
+  type BackupHandoffPdfOutput,
   type ExportHandoffPdfInput,
   normalizeBackupHandoffPdfInput,
   normalizeBackupCensusExcelInput,
@@ -140,10 +145,68 @@ export const executeExportHandoffPdf = async (
   }
 };
 
-export interface BackupHandoffPdfOutput {
-  shift: 'day' | 'night';
-  createdCudyrBackup: boolean;
-}
+const BACKUP_STORAGE_MESSAGES: Record<
+  BackupStorageMutationStatus,
+  { message: string; retryable: boolean }
+> = {
+  success: {
+    message: 'Respaldo guardado correctamente.',
+    retryable: false,
+  },
+  permission_denied: {
+    message: 'No tienes permisos para guardar este respaldo.',
+    retryable: false,
+  },
+  not_found: {
+    message: 'No se encontró el destino del respaldo.',
+    retryable: true,
+  },
+  invalid_date: {
+    message: 'La fecha del respaldo no es válida.',
+    retryable: false,
+  },
+  timeout: {
+    message: 'El respaldo tardó demasiado en responder.',
+    retryable: true,
+  },
+  unknown: {
+    message: 'No fue posible guardar el respaldo.',
+    retryable: true,
+  },
+};
+
+const backupStorageIssueKind = (status: BackupStorageMutationStatus) => {
+  if (status === 'permission_denied') return 'permission';
+  if (status === 'invalid_date') return 'validation';
+  if (status === 'not_found') return 'not_found';
+  if (status === 'timeout') return 'remote_blocked';
+  return 'unknown';
+};
+
+const createBackupStorageIssue = (
+  code: string,
+  result: Exclude<BackupStorageMutationResult<unknown>, { status: 'success' }>,
+  userSafeMessage: string
+) => {
+  const fallback = BACKUP_STORAGE_MESSAGES[result.status];
+  return {
+    kind: backupStorageIssueKind(result.status),
+    code,
+    message: result.error instanceof Error ? result.error.message : fallback.message,
+    userSafeMessage,
+    retryable: fallback.retryable,
+    severity:
+      result.status === 'permission_denied' || result.status === 'invalid_date'
+        ? 'warning'
+        : 'error',
+    technicalContext: { storageStatus: result.status },
+  } as const;
+};
+
+const isBackupStorageFailure = <T>(
+  result: BackupStorageMutationResult<T>
+): result is Exclude<BackupStorageMutationResult<T>, { status: 'success' }> =>
+  result.status !== 'success';
 
 export const executeBackupHandoffPdf = async (
   input: BackupHandoffPdfInput
@@ -201,13 +264,17 @@ export const executeBackupHandoffPdf = async (
   }
 
   try {
-    const [{ default: jsPDF }, { default: autoTable }, { buildHandoffPdfContent }, { uploadPdf }] =
-      await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
-        import('@/services/backup/pdfContentBuilder'),
-        import('@/services/backup/pdfStorageService'),
-      ]);
+    const [
+      { default: jsPDF },
+      { default: autoTable },
+      { buildHandoffPdfContent },
+      { uploadPdfWithResult },
+    ] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+      import('@/services/backup/pdfContentBuilder'),
+      import('@/services/backup/pdfStorageService'),
+    ]);
 
     const schedule = getShiftSchedule(normalizedInput.record.date);
     const doc = new jsPDF();
@@ -219,7 +286,28 @@ export const executeBackupHandoffPdf = async (
       autoTable
     );
     const pdfBlob = doc.output('blob');
-    await uploadPdf(pdfBlob, normalizedInput.record.date, normalizedInput.selectedShift);
+    const pdfUploadResult = await uploadPdfWithResult(
+      pdfBlob,
+      normalizedInput.record.date,
+      normalizedInput.selectedShift
+    );
+
+    if (isBackupStorageFailure(pdfUploadResult)) {
+      const issue = createBackupStorageIssue(
+        'backup/pdf-upload-failed',
+        pdfUploadResult,
+        pdfUploadResult.status === 'permission_denied'
+          ? 'No tienes permisos para guardar el respaldo PDF.'
+          : 'No fue posible guardar el respaldo PDF.'
+      );
+      return createApplicationFailed(null, [issue], {
+        reason: 'backup_handoff_pdf_storage_failed',
+        userSafeMessage: issue.userSafeMessage,
+        retryable: issue.retryable,
+        severity: issue.severity,
+        technicalContext: issue.technicalContext,
+      });
+    }
 
     if (normalizedInput.selectedShift !== 'night') {
       return createApplicationSuccess({
@@ -230,7 +318,7 @@ export const executeBackupHandoffPdf = async (
 
     try {
       const { generateCudyrMonthlyExcelBlob } = await import('@/services/cudyr/cudyrExportService');
-      const { uploadCudyrExcel } = await import('@/services/backup/cudyrStorageService');
+      const { uploadCudyrExcelWithResult } = await import('@/services/backup/cudyrStorageService');
       const [year, month] = normalizedInput.record.date.split('-').map(Number);
       const cudyrBlob = await generateCudyrMonthlyExcelBlob(
         year,
@@ -238,7 +326,33 @@ export const executeBackupHandoffPdf = async (
         normalizedInput.record.date,
         normalizedInput.record
       );
-      await uploadCudyrExcel(cudyrBlob, normalizedInput.record.date);
+      const cudyrUploadResult = await uploadCudyrExcelWithResult(
+        cudyrBlob,
+        normalizedInput.record.date
+      );
+      if (isBackupStorageFailure(cudyrUploadResult)) {
+        const issue = createBackupStorageIssue(
+          'backup/cudyr-upload-failed',
+          cudyrUploadResult,
+          cudyrUploadResult.status === 'permission_denied'
+            ? 'PDF guardado, pero no tienes permisos para guardar CUDYR.'
+            : 'PDF guardado, pero no fue posible guardar CUDYR.'
+        );
+        return createApplicationPartial(
+          {
+            shift: normalizedInput.selectedShift,
+            createdCudyrBackup: false,
+          },
+          [issue],
+          {
+            reason: 'backup_handoff_cudyr_storage_failed',
+            userSafeMessage: issue.userSafeMessage,
+            retryable: issue.retryable,
+            severity: issue.severity,
+            technicalContext: issue.technicalContext,
+          }
+        );
+      }
       return createApplicationSuccess({
         shift: normalizedInput.selectedShift,
         createdCudyrBackup: true,

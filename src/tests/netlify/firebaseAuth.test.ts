@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSign, generateKeyPairSync } from 'node:crypto';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 const docMock = vi.fn();
 const getDocMock = vi.fn();
@@ -224,6 +225,7 @@ describe('firebase-auth netlify helper', () => {
   });
 
   it('throws when the canonical callable role lookup is unavailable', async () => {
+    const consoleSpies = suppressConsole(['warn']);
     vi.mocked(global.fetch)
       .mockResolvedValueOnce({
         ok: true,
@@ -244,12 +246,16 @@ describe('firebase-auth netlify helper', () => {
         headers: new Headers(),
       } as Response);
 
-    await expect(
-      authorizeRoleRequest(
-        { kind: 'firestore' } as never,
-        `Bearer ${createToken()}`,
-        new Set(['doctor_urgency'])
-      )
-    ).rejects.toThrow('canonical backend down');
+    try {
+      await expect(
+        authorizeRoleRequest(
+          { kind: 'firestore' } as never,
+          `Bearer ${createToken()}`,
+          new Set(['doctor_urgency'])
+        )
+      ).rejects.toThrow('canonical backend down');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 });

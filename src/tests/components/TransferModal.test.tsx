@@ -9,6 +9,26 @@ import {
 import { TransferModal } from '@/components/modals/actions/TransferModal';
 
 describe('TransferModal', () => {
+  it('shows the operational consequence before confirming a new transfer', () => {
+    render(
+      <TransferModal
+        isOpen={true}
+        isEditing={false}
+        evacuationMethod={EVACUATION_METHOD_COMMERCIAL}
+        evacuationMethodOther=""
+        receivingCenter={DEFAULT_RECEIVING_CENTER}
+        receivingCenterOther=""
+        transferEscort="Enfermera"
+        onUpdate={vi.fn()}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Estado final')).toBeInTheDocument();
+    expect(screen.getByText(/traslado clínico/i)).toBeInTheDocument();
+  });
+
   it('shows escort validation error and blocks confirm when escort is missing', () => {
     const onConfirm = vi.fn();
     const onUpdate = vi.fn();

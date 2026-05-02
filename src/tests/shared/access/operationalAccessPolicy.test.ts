@@ -57,6 +57,7 @@ describe('operationalAccessPolicy', () => {
     ).toBe(false);
 
     expect(canOpenTransferDocuments('admin')).toBe(true);
+    expect(canOpenTransferDocuments('nurse_hospital')).toBe(true);
     expect(canOpenTransferDocuments('doctor_specialist')).toBe(false);
     expect(
       canAccessAppModuleRoute({

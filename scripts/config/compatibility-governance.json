@@ -10,6 +10,7 @@
       "kind": "deprecated_shim",
       "reason": "Mantener compatibilidad temporal para tests y imports históricos mientras los consumidores productivos migran a entrypoints legacy más estrechos.",
       "remainingConsumers": "Solo tests y mocks legacy; el código productivo debe entrar por legacyRecordReadBridge o legacyCatalogReadBridge.",
+      "riskIfRetained": "Puede reabrir imports productivos amplios hacia compatibilidad Firestore legacy si no se mantiene restringido a tests y entrypoints estrechos.",
       "retirementCriteria": "Sin imports activos fuera de tests y sin necesidad de shim para compatibilidad histórica.",
       "target": "2026-Q2",
       "importPolicy": "restricted",

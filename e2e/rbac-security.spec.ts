@@ -64,12 +64,12 @@ test.describe('RBAC Security - Viewer Role', () => {
   });
 
   test('should permit viewing handoff but prevent editing', async ({ page }) => {
-    const handoffBtn = page.getByRole('button', { name: /Entrega Turno Enfermería/i }).first();
+    const handoffBtn = page.getByTestId('nav-tab-nursing-handoff');
     await expect(handoffBtn).toBeVisible({ timeout: 10000 });
     await handoffBtn.click();
 
     await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('button', { name: /Turno Largo/i }).first()).toBeVisible({
+    await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible({
       timeout: 10000,
     });
     await expect(page.locator('textarea[disabled], textarea[readonly]').first()).toBeVisible({

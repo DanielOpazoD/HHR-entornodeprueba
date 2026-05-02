@@ -1,6 +1,6 @@
 import React from 'react';
-import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   useDailyRecordBeds,
@@ -228,8 +228,13 @@ describe('CensusTable clinical indicators', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     patientRowMock.mockClear();
     applyDefaultMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should disable clinical document presence lookup for non-clinical roles', () => {
@@ -243,7 +248,8 @@ describe('CensusTable clinical indicators', () => {
     );
   });
 
-  it('should enable clinical document presence lookup for clinical roles', () => {
+  it('should defer clinical document presence lookup for clinical roles until after initial table paint', async () => {
+    vi.useFakeTimers();
     vi.mocked(useAuth).mockReturnValue(
       asContextReturn<ReturnType<typeof useAuth>>({
         user: null,
@@ -260,7 +266,18 @@ describe('CensusTable clinical indicators', () => {
 
     render(<CensusTable currentDateString="2025-01-08" />);
 
-    expect(useClinicalDocumentPresenceByBed).toHaveBeenCalledWith(
+    expect(useClinicalDocumentPresenceByBed).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        currentDateString: '2025-01-08',
+        enabled: false,
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(useClinicalDocumentPresenceByBed).toHaveBeenLastCalledWith(
       expect.objectContaining({
         currentDateString: '2025-01-08',
         enabled: true,

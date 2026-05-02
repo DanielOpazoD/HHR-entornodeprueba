@@ -99,7 +99,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[2vh] px-4"
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -110,7 +110,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
 
       {/* Modal panel */}
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in flex flex-col max-h-[75vh]">
+      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in flex flex-col max-h-[94vh]">
         {/* Search header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200">
           <Search size={18} className="text-slate-400 shrink-0" />
@@ -143,10 +143,12 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className={search.selectedPatient ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto'}
+        >
           {/* Detail view when a patient is selected */}
           {search.selectedPatient && (
-            <div className="p-4">
+            <div className="p-3">
               <PatientEpisodeTimeline
                 patient={search.selectedPatient.master}
                 history={search.selectedPatient.history}
@@ -213,26 +215,28 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-4 px-4 py-2 border-t border-slate-100 bg-slate-50/80 text-[10px] text-slate-400">
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
-              &uarr;&darr;
-            </kbd>
-            navegar
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
-              Enter
-            </kbd>
-            seleccionar
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
-              ESC
-            </kbd>
-            cerrar
-          </span>
-        </div>
+        {!search.selectedPatient && (
+          <div className="flex items-center gap-4 px-4 py-2 border-t border-slate-100 bg-slate-50/80 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
+                &uarr;&darr;
+              </kbd>
+              navegar
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
+                Enter
+              </kbd>
+              seleccionar
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="font-mono bg-slate-100 rounded px-1 py-0.5 border border-slate-200 text-[9px]">
+                ESC
+              </kbd>
+              cerrar
+            </span>
+          </div>
+        )}
       </div>
     </div>,
     document.body

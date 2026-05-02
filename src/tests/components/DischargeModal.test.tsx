@@ -4,6 +4,25 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { DischargeModal } from '@/components/modals/actions/DischargeModal';
 
 describe('DischargeModal', () => {
+  it('shows the operational consequence before confirming a new discharge', () => {
+    render(
+      <DischargeModal
+        isOpen={true}
+        isEditing={false}
+        status="Vivo"
+        initialType="Voluntaria"
+        initialOtherDetails=""
+        initialTime="11:30"
+        onStatusChange={vi.fn()}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Estado final')).toBeInTheDocument();
+    expect(screen.getByText(/egreso en el censo/i)).toBeInTheDocument();
+  });
+
   it('shows validation error when type is Otra without details', () => {
     const onConfirm = vi.fn();
 

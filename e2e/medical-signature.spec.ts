@@ -35,15 +35,15 @@ test.describe('Medical Signature Flow', () => {
     await ensureAuthenticated(page);
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20000 });
 
-    const medicalHandoffBtn = page.getByRole('button', { name: /Entrega Turno Médicos/i }).first();
+    const medicalHandoffBtn = page.getByTestId('nav-tab-medical-handoff');
     await expect(medicalHandoffBtn).toBeVisible({ timeout: 10000 });
     await medicalHandoffBtn.click();
 
-    await expect(page.getByRole('heading', { name: /Entrega de Turno/i }).first()).toBeVisible({
+    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
       timeout: 10000,
     });
-    await expect(
-      page.getByRole('button', { name: /Generar link para firma del médico|Links firma/i }).first()
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
+      timeout: 10000,
+    });
   });
 });

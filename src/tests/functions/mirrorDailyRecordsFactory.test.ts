@@ -14,6 +14,8 @@ const {
   createMirrorDailyRecords,
 } = require('../../../functions/lib/mirror/mirrorDailyRecordsFactory.js');
 
+const RECORD_DATE = '2026-05-01';
+
 describe('functions mirrorDailyRecordsFactory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,12 +48,12 @@ describe('functions mirrorDailyRecordsFactory', () => {
         after: {
           exists: true,
           data: () => ({
-            date: new Date().toISOString().slice(0, 10),
+            date: RECORD_DATE,
             beds: { H1: { patientName: 'Paciente principal' } },
           }),
         },
       },
-      { params: { docId: new Date().toISOString().slice(0, 10) } }
+      { params: { docId: RECORD_DATE } }
     );
 
     expect(dbBeta.doc).toHaveBeenCalledWith(

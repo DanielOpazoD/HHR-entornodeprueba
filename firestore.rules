@@ -780,6 +780,12 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
+      match /woundCareMobileUploadSessions/{sessionId} {
+        allow read: if canReadClinicalData();
+        allow create, update: if canEdit();
+        allow delete: if isAdmin();
+      }
+
       // Append-only. Writes mostly come from server-side Admin SDK (bypasses rules).
       // Client rule mirrors auditLogs: admin read-only.
       match /functionsTelemetry/{entryId} {

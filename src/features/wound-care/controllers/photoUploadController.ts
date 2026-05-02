@@ -41,3 +41,16 @@ export const formatCompressionRatio = (original: number, compressed: number): st
   const ratio = ((1 - compressed / original) * 100).toFixed(0);
   return `${ratio}% reducción`;
 };
+
+const padDatePart = (value: number): string => String(value).padStart(2, '0');
+
+export const toClinicalDatetimeLocalValue = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+
+export const toClinicalEventIso = (datetimeLocalValue: string): string | undefined => {
+  if (!datetimeLocalValue.trim()) return undefined;
+  return `${datetimeLocalValue}:00.000Z`;
+};
+
+export const formatReadonlyUploadDateTime = (date: Date = new Date()): string =>
+  `${padDatePart(date.getDate())}/${padDatePart(date.getMonth() + 1)}/${date.getFullYear()} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;

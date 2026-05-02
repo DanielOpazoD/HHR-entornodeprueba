@@ -70,6 +70,7 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
             setIsLabOpen(true);
           }
         }}
+        data-testid="lab-quick-action"
         disabled={isDisabled}
         className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-default disabled:opacity-50"
         title={connectionMessage}

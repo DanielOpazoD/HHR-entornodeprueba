@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import * as whatsappService from '@/services/integrations/whatsapp/whatsappService';
 
 const mockNotifySuccess = vi.fn();
 const mockNotifyError = vi.fn();
+const auditContextMocks = vi.hoisted(() => ({
+  logDebouncedEvent: vi.fn(),
+  logEvent: vi.fn(),
+  logHandoffNovedadesModified: vi.fn(),
+}));
 const mockAuthContext = {
   currentUser: {
     uid: 'admin-1',
@@ -24,8 +29,9 @@ vi.mock('@/context/UIContext', () => ({
 
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({
-    logEvent: vi.fn(),
-    logDebouncedEvent: vi.fn(),
+    logEvent: auditContextMocks.logEvent,
+    logDebouncedEvent: auditContextMocks.logDebouncedEvent,
+    logHandoffNovedadesModified: auditContextMocks.logHandoffNovedadesModified,
     userId: 'test-user',
   }),
 }));
@@ -36,7 +42,7 @@ vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
 }));
 
 vi.mock('@/services/admin/attributionService', () => ({
-  getAttributedAuthors: vi.fn().mockReturnValue([]),
+  getAttributedAuthors: vi.fn().mockReturnValue(''),
 }));
 
 vi.mock('@/services/observability/operationalTelemetryOutcomeRecorder', () => ({
@@ -138,16 +144,34 @@ describe('useHandoffManagement', () => {
     expect(mockPatchRecord).toHaveBeenCalled();
   });
 
-  it('should update novedades for day shift', () => {
+  it('should update novedades for day shift', async () => {
     const { result } = renderHook(() =>
       useHandoffManagement(mockRecord, mockSaveAndUpdate, mockPatchRecord)
     );
 
-    act(() => {
+    await act(async () => {
       result.current.updateHandoffNovedades('day', 'Test novedades');
     });
 
     expect(mockPatchRecord).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(auditContextMocks.logHandoffNovedadesModified).toHaveBeenCalledWith(
+        'day',
+        'Test novedades',
+        '',
+        '2024-12-28',
+        ''
+      );
+    });
+    expect(auditContextMocks.logDebouncedEvent).not.toHaveBeenCalledWith(
+      'HANDOFF_NOVEDADES_MODIFIED',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it('should update specialty medical handoff and refresh legacy summary', async () => {

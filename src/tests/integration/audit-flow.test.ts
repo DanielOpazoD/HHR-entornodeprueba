@@ -2,14 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { User } from 'firebase/auth';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
-// Unmock auditService to test the REAL logic
+// Unmock audit services to test the REAL logic
 vi.unmock('../../services/admin/auditService');
 
-import {
-  logPatientAdmission,
-  logPatientDischarge,
-  logPatientView,
-} from '@/services/admin/auditService';
+import { logThrottledViewEvent } from '@/services/admin/auditService';
+import { defaultAuditPort } from '@/application/ports/auditPort';
 import { auth } from '@/firebaseConfig';
 
 // Mock Firestore
@@ -72,7 +69,13 @@ describe('Audit Flow Integration', () => {
   });
 
   it('should log patient admission locally and to Firestore', async () => {
-    await logPatientAdmission('BED_01', 'Juan Pérez', '12345678-9', 'Test Pathology', '2024-12-25');
+    await defaultAuditPort.logPatientAdmission(
+      'BED_01',
+      'Juan Pérez',
+      '12345678-9',
+      'Test Pathology',
+      '2024-12-25'
+    );
 
     expect(mockSaveAuditLog).toHaveBeenCalled();
     const call = mockSaveAuditLog.mock.calls[0][0];
@@ -83,7 +86,13 @@ describe('Audit Flow Integration', () => {
   });
 
   it('should log patient discharge with correct details', async () => {
-    await logPatientDischarge('BED_02', 'Maria Jara', '98765432-1', 'Vivo', '2024-12-25');
+    await defaultAuditPort.logPatientDischarge(
+      'BED_02',
+      'Maria Jara',
+      '98765432-1',
+      'Vivo',
+      '2024-12-25'
+    );
 
     expect(mockSaveAuditLog).toHaveBeenCalled();
     const call = mockSaveAuditLog.mock.calls[0][0];
@@ -97,7 +106,12 @@ describe('Audit Flow Integration', () => {
       email: 'hospitalizados@hospitalhangaroa.cl',
     } as User;
 
-    await logPatientView('BED_01', 'Juan Pérez', '12345678-9', '2024-12-25');
+    await logThrottledViewEvent(
+      'VIEW_PATIENT',
+      'BED_01',
+      { patientName: 'Juan Pérez', bedId: 'BED_01', rut: '12345678-9' },
+      '2024-12-25'
+    );
 
     expect(mockSaveAuditLog).not.toHaveBeenCalled();
   });
@@ -112,7 +126,12 @@ describe('Audit Flow Integration', () => {
     sessionStorage.clear();
 
     // The function should complete without throwing
-    const result = logPatientView('BED_01', 'Juan Pérez', '12345678-9', '2024-12-25');
+    const result = logThrottledViewEvent(
+      'VIEW_PATIENT',
+      'BED_01',
+      { patientName: 'Juan Pérez', bedId: 'BED_01', rut: '12345678-9' },
+      '2024-12-25'
+    );
 
     expect(result).toBeInstanceOf(Promise);
     await expect(result).resolves.toBeUndefined();

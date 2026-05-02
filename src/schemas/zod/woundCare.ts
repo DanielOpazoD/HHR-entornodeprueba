@@ -67,9 +67,30 @@ export const WoundCarePhotoSchema = z
     takenAt: z.string(),
     uploadedAt: z.string(),
     uploadedBy: WoundCareAuditActorSchema,
+    uploadedViaSessionId: nullableOptional(z.string()),
     deletedAt: nullableOptional(z.string()),
     deletedBy: nullableOptional(WoundCareAuditActorSchema),
     isDeleted: z.boolean().default(false),
+  })
+  .passthrough();
+
+// ============================================================================
+// Mobile QR Upload Session
+// ============================================================================
+
+export const WoundCareMobileUploadSessionSchema = z
+  .object({
+    sessionId: z.string(),
+    hospitalId: z.string(),
+    episodeKey: z.string(),
+    patientRut: z.string(),
+    patientName: z.string(),
+    createdBy: WoundCareAuditActorSchema,
+    createdAt: z.string(),
+    expiresAt: z.string(),
+    scope: z.literal('wound_care_upload_only'),
+    revokedAt: nullableOptional(z.string()),
+    revokedBy: nullableOptional(WoundCareAuditActorSchema),
   })
   .passthrough();
 
@@ -81,3 +102,7 @@ export const parseWoundCareConsent = (data: unknown) => WoundCareConsentSchema.p
 export const safeParseWoundCareConsent = (data: unknown) => WoundCareConsentSchema.safeParse(data);
 export const parseWoundCarePhoto = (data: unknown) => WoundCarePhotoSchema.parse(data);
 export const safeParseWoundCarePhoto = (data: unknown) => WoundCarePhotoSchema.safeParse(data);
+export const parseWoundCareMobileUploadSession = (data: unknown) =>
+  WoundCareMobileUploadSessionSchema.parse(data);
+export const safeParseWoundCareMobileUploadSession = (data: unknown) =>
+  WoundCareMobileUploadSessionSchema.safeParse(data);

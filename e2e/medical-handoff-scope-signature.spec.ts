@@ -41,22 +41,21 @@ test.describe('Medical handoff scoped signature', () => {
 
     await page.goto(`/censo?date=${HANDOFF_DATE}`);
     await ensureAuthenticated(page);
+    await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole('button', { name: /Entrega Turno Médicos/i }).click();
-    await expect(page.getByRole('heading', { name: /Entrega de Turno/i })).toBeVisible({
+    await page.getByTestId('nav-tab-medical-handoff').click();
+    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
       timeout: 20_000,
     });
 
-    const shareLinksButton = page.getByRole('button', {
-      name: /Generar link para firma del médico/i,
-    });
+    const shareLinksButton = page.getByTestId('medical-handoff-share-links-button');
 
     await expect(shareLinksButton).toBeVisible({
       timeout: 20_000,
     });
 
     await shareLinksButton.click();
-    await page.getByRole('button', { name: /Copiar link: UPC/i }).click();
+    await page.getByTestId('medical-handoff-share-link-upc').click();
 
     const copiedLinkFromRuntime = await page.evaluate(() => {
       const runtimeWindow = window as Window & { __HHR_LAST_CLIPBOARD__?: string };

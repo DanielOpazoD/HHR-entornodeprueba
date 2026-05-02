@@ -6,6 +6,8 @@ import { presentBackupExportOutcome } from '@/hooks/controllers/backupExportOutc
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { useBackupArchiveStatus } from '@/hooks/useBackupArchiveStatus';
 import { formatBackupShiftLabel } from '@/shared/backup/backupPresentation';
+import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
+import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveContracts';
 
 const loadBackupArchiveUseCases = () =>
   import('@/application/backup-export/backupExportArchiveUseCases');
@@ -30,6 +32,23 @@ export interface UseExportManagerReturn {
   handleBackupExcel: () => Promise<void>;
   handleBackupHandoff: (skipConfirmation?: boolean) => Promise<void>;
 }
+
+const resolveBackupHandoffNoticeOptions = (
+  outcome: ApplicationOutcome<BackupHandoffPdfOutput | null>,
+  selectedShift: 'day' | 'night'
+) => ({
+  successTitle: selectedShift === 'night' ? 'Respaldos guardados' : 'Respaldo PDF guardado',
+  successMessage: selectedShift === 'night' ? 'PDF + CUDYR mensual' : undefined,
+  partialTitle:
+    outcome.reason === 'backup_handoff_cudyr_storage_failed'
+      ? 'PDF guardado; CUDYR pendiente'
+      : 'Respaldo PDF guardado con observaciones',
+  failedTitle:
+    outcome.reason === 'backup_handoff_pdf_storage_failed'
+      ? 'No se guardó el respaldo PDF'
+      : 'Error al guardar el respaldo PDF',
+  fallbackErrorMessage: 'Error al guardar el respaldo PDF',
+});
 
 export const useExportManager = ({
   currentDateString,
@@ -176,13 +195,10 @@ export const useExportManager = ({
           context: { shift: selectedShift },
           allowSuccess: true,
         });
-        const notice = presentBackupExportOutcome(outcome, {
-          successTitle: selectedShift === 'night' ? 'Respaldos guardados' : 'Respaldo PDF guardado',
-          successMessage: selectedShift === 'night' ? 'PDF + CUDYR mensual' : undefined,
-          partialTitle: 'Respaldo PDF guardado con observaciones',
-          failedTitle: 'Error al guardar el respaldo PDF',
-          fallbackErrorMessage: 'Error al guardar el respaldo PDF',
-        });
+        const notice = presentBackupExportOutcome(
+          outcome,
+          resolveBackupHandoffNoticeOptions(outcome, selectedShift)
+        );
         if (outcome.status === 'success' || outcome.status === 'partial') {
           setIsArchived(true);
         }

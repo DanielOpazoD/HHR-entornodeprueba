@@ -11,8 +11,10 @@ import { woundCareStorageService } from '@/services/backup/woundCareStorageServi
 import type {
   WoundCareConsent,
   WoundCareAuditActor,
+  WoundCareMobileUploadSession,
   WoundCarePhoto,
 } from '@/types/domain/woundCare';
+import { WoundCareMobileUploadSessionRepository } from '@/services/repositories/WoundCareMobileUploadSessionRepository';
 import type { BackupStorageMutationResult } from '@/services/backup/backupStorageRuntimeSupport';
 
 // ============================================================================
@@ -87,6 +89,32 @@ export const defaultWoundCarePhotoPort: WoundCarePhotoPort = {
     WoundCarePhotoRepository.softDelete(photoId, deletedBy, hospitalId),
   subscribeByEpisode: (episodeKey, callback, hospitalId) =>
     WoundCarePhotoRepository.subscribeByEpisode(episodeKey, callback, hospitalId),
+};
+
+// ============================================================================
+// Mobile Upload Session Port
+// ============================================================================
+
+export interface WoundCareMobileUploadSessionPort {
+  getById: (sessionId: string, hospitalId?: string) => Promise<WoundCareMobileUploadSession | null>;
+  create: (
+    session: WoundCareMobileUploadSession,
+    hospitalId?: string
+  ) => Promise<WoundCareMobileUploadSession>;
+  revoke: (
+    sessionId: string,
+    patch: { revokedAt: string; revokedBy: WoundCareAuditActor },
+    hospitalId?: string
+  ) => Promise<void>;
+}
+
+export const defaultWoundCareMobileUploadSessionPort: WoundCareMobileUploadSessionPort = {
+  getById: (sessionId, hospitalId) =>
+    WoundCareMobileUploadSessionRepository.getById(sessionId, hospitalId),
+  create: (session, hospitalId) =>
+    WoundCareMobileUploadSessionRepository.create(session, hospitalId),
+  revoke: (sessionId, patch, hospitalId) =>
+    WoundCareMobileUploadSessionRepository.revoke(sessionId, patch, hospitalId),
 };
 
 // ============================================================================

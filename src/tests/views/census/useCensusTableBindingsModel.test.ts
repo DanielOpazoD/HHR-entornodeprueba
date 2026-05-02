@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
@@ -88,7 +89,12 @@ const createDailyRecordWrapper = (contextValue = createDailyRecordContextValue()
 describe('useCensusTableBindingsModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     mockUseAuth.mockReturnValue({ remoteSyncStatus: 'ready' });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('returns not-ready when the base table model has no beds payload yet', () => {
@@ -117,7 +123,8 @@ describe('useCensusTableBindingsModel', () => {
     expect(buildCensusTableLayoutBindings).not.toHaveBeenCalled();
   });
 
-  it('builds final table bindings from the view model and document presence map', () => {
+  it('defers the remote clinical document presence lookup until after the table can paint', async () => {
+    vi.useFakeTimers();
     const layoutBindings = {
       headerProps: { readOnly: false },
       bodyProps: { currentDateString: '2026-03-10' },
@@ -149,7 +156,7 @@ describe('useCensusTableBindingsModel', () => {
     });
     vi.mocked(buildCensusTableLayoutBindings).mockReturnValue(layoutBindings as never);
 
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       () =>
         useCensusTableBindingsModel({
           currentDateString: '2026-03-10',
@@ -159,7 +166,19 @@ describe('useCensusTableBindingsModel', () => {
       }
     );
 
-    expect(useClinicalDocumentPresenceByBed).toHaveBeenCalledWith({
+    expect(useClinicalDocumentPresenceByBed).toHaveBeenLastCalledWith({
+      unifiedRows: [],
+      currentDateString: '2026-03-10',
+      enabled: false,
+    });
+    expect(result.current.isReady).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    rerender();
+
+    expect(useClinicalDocumentPresenceByBed).toHaveBeenLastCalledWith({
       unifiedRows: [],
       currentDateString: '2026-03-10',
       enabled: true,

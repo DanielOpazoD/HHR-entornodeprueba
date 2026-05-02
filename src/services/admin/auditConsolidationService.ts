@@ -96,7 +96,7 @@ export const createAuditConsolidationService = (
 
   // Deprecated: auditLogs are append-only in Firestore rules (deny update/delete).
   // Preserved as a no-op to avoid breaking imports. Duplicate suppression now
-  // happens at source via per-session throttling in auditDomainLoggers.
+  // happens at source via per-session throttling in the audit pipeline.
   const executeConsolidation = async (
     _windowMinutes: number = DEFAULT_WINDOW_MINUTES,
     _actionFilter?: string,

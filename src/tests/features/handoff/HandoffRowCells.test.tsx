@@ -46,7 +46,7 @@ describe('HandoffRow cell components', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /curaciones/i }));
+    fireEvent.click(screen.getByRole('button', { name: /registro clínico audiovisual/i }));
 
     expect(screen.getByTestId('wound-care-modal')).toHaveTextContent('Paciente Demo:episode-key-1');
   });

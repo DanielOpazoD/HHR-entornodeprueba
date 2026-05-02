@@ -33,6 +33,7 @@ interface ExecuteUndoParams {
   movement: UndoMovementDescriptor | undefined;
   record: DailyRecord;
   applyUndoRecord: (params: UndoApplyParams) => DailyRecord;
+  onSuccess?: (params: { movement: UndoMovementDescriptor; updatedBed: PatientData }) => void;
 }
 
 export const usePatientMovementUndoExecutor = ({
@@ -41,7 +42,7 @@ export const usePatientMovementUndoExecutor = ({
   notifyUndoError,
 }: UsePatientMovementUndoExecutorParams) => {
   return useCallback(
-    ({ kind, movement, record, applyUndoRecord }: ExecuteUndoParams) => {
+    ({ kind, movement, record, applyUndoRecord, onSuccess }: ExecuteUndoParams) => {
       if (!movement?.originalData) {
         return;
       }
@@ -61,14 +62,14 @@ export const usePatientMovementUndoExecutor = ({
         return;
       }
 
-      saveAndUpdate(
-        applyUndoRecord({
-          record,
-          movementId: movement.id,
-          bedId: movement.bedId,
-          updatedBed: resolution.value.updatedBed,
-        })
-      );
+      const nextRecord = applyUndoRecord({
+        record,
+        movementId: movement.id,
+        bedId: movement.bedId,
+        updatedBed: resolution.value.updatedBed,
+      });
+      onSuccess?.({ movement, updatedBed: resolution.value.updatedBed });
+      saveAndUpdate(nextRecord);
     },
     [createEmptyPatient, notifyUndoError, saveAndUpdate]
   );

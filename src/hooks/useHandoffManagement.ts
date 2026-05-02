@@ -17,7 +17,7 @@ export const useHandoffManagement = (
   patchRecord: ApplyDailyRecordPatch
 ): HandoffManagementActions => {
   const { success, error: notifyError } = useNotification();
-  const { logEvent, logDebouncedEvent, userId } = useAuditContext();
+  const { logEvent, logDebouncedEvent, logHandoffNovedadesModified, userId } = useAuditContext();
   const { role } = useAuth();
   const recordRef = useRef(record);
   useEffect(() => {
@@ -31,6 +31,7 @@ export const useHandoffManagement = (
     patchRecord,
     logEvent,
     logDebouncedEvent,
+    logHandoffNovedadesModified,
     userId,
     notifyError,
   });

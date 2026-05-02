@@ -32,6 +32,15 @@ describe('transferPeriodSelection', () => {
         selectedPeriodEnd,
         closedStatuses,
       })
+    ).toBe(false);
+
+    expect(
+      isTransferVisibleInSelectedPeriod({
+        transfer: buildTransfer({ requestDate: '2026-03-15', status: 'REQUESTED' }),
+        selectedPeriodStart,
+        selectedPeriodEnd,
+        closedStatuses,
+      })
     ).toBe(true);
 
     expect(

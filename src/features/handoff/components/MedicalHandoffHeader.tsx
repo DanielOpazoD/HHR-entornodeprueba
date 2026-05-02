@@ -112,6 +112,7 @@ export const MedicalHandoffHeader: React.FC<MedicalHandoffHeaderProps> = ({
                 {canSignMedicalHandoff && canPromptMedicalHandoffSign(record) && (
                   <button
                     onClick={handleSign}
+                    data-testid="medical-handoff-sign-button"
                     className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors text-[10px] font-semibold whitespace-nowrap print:hidden"
                     title="Firmar entrega de turno"
                   >
@@ -122,6 +123,7 @@ export const MedicalHandoffHeader: React.FC<MedicalHandoffHeaderProps> = ({
                 {canRestoreSignatures && canRestoreMedicalHandoffSignatures(record) && (
                   <button
                     onClick={() => void handleRestore()}
+                    data-testid="medical-handoff-restore-signatures-button"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors text-xs font-bold whitespace-nowrap print:hidden"
                     title="Restaurar firmas médicas"
                   >

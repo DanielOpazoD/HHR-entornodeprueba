@@ -14,6 +14,7 @@ import { useConfirmedMovementAction } from '@/features/census/hooks/useConfirmed
 import type { DischargeExecutionInput } from '@/features/census/domain/movements/contracts';
 import type { DischargeState } from '@/features/census/types/censusActionTypes';
 import { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';
+import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const censusDischargeCommandLogger = createScopedLogger('CensusDischargeCommand');
@@ -58,6 +59,24 @@ export const useCensusDischargeCommand = ({
   });
 
   return useCensusModalCommand<DischargeExecutionInput>(async data => {
+    const recordDischargeCriticalAction = (
+      outcome: 'success' | 'failed',
+      issues?: string[],
+      context?: Record<string, unknown>
+    ) => {
+      const bedId = dischargeStateRef.current.bedId;
+      recordCriticalClinicalAction({
+        category: 'daily_record',
+        action: 'census_discharge_created',
+        outcome,
+        clinicalDate: recordRef.current?.date,
+        bedId: bedId ?? undefined,
+        patientRut: bedId ? recordRef.current?.beds?.[bedId]?.rut : undefined,
+        issues,
+        context,
+      });
+    };
+
     const executeDischarge = async () => {
       const result = executeDischargeController({
         dischargeState: dischargeStateRef.current,
@@ -68,10 +87,14 @@ export const useCensusDischargeCommand = ({
       });
 
       if (!result.ok) {
+        recordDischargeCriticalAction('failed', [result.error.message], {
+          errorCode: result.error.code,
+        });
         notifyError(buildDischargeErrorNotification(result.error.code, result.error.message));
         return;
       }
 
+      recordDischargeCriticalAction('success');
       setDischargeState(prev => applyDischargePatch(prev, result.value.closeModalPatch));
     };
 

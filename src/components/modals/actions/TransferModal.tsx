@@ -7,6 +7,7 @@ import { TransferClinicalCribNotice } from '@/components/modals/actions/transfer
 import { TransferEvacuationSection } from '@/components/modals/actions/transfer/TransferEvacuationSection';
 import { TransferReceivingSection } from '@/components/modals/actions/transfer/TransferReceivingSection';
 import { TransferTimeField } from '@/components/modals/actions/transfer/TransferTimeField';
+import { MovementFinalStateNotice } from '@/components/modals/actions/shared/MovementFinalStateNotice';
 import { useTransferModalForm } from '@/hooks/useTransferModalForm';
 import type { TransferModalProps } from '@/hooks/types/censusActionModalContracts';
 import { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';
@@ -131,6 +132,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
       variant="white"
     >
       <div className="space-y-5">
+        {!isEditing && (
+          <MovementFinalStateNotice tone="blue">
+            Se registrará el traslado clínico para esta cama del censo.
+          </MovementFinalStateNotice>
+        )}
+
         {!isEditing && hasClinicalCrib && (
           <TransferClinicalCribNotice clinicalCribName={clinicalCribName} />
         )}

@@ -41,8 +41,8 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
               }`}
               title={
                 hasPhotos
-                  ? `Curaciones (${photoCount} foto${photoCount > 1 ? 's' : ''})`
-                  : 'Registro fotográfico de curaciones'
+                  ? `Registro clínico audiovisual (${photoCount} foto${photoCount > 1 ? 's' : ''})`
+                  : 'Registro clínico audiovisual'
               }
             >
               <Camera size={14} />

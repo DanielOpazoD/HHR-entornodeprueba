@@ -12,7 +12,7 @@ import { canEditCudyrRecord } from '@/features/cudyr/controllers/cudyrEditAccess
 export const useCudyrLogic = (readOnly: boolean) => {
   const { record } = useDailyRecordData();
   const { updateCudyr, updateClinicalCribCudyr } = useDailyRecordCudyrActions();
-  const { logEvent, userId } = useAuditContext();
+  const { logViewEvent, userId } = useAuditContext();
   const { role } = useAuth();
 
   const handleScoreChange = useCallback(
@@ -44,7 +44,7 @@ export const useCudyrLogic = (readOnly: boolean) => {
   useEffect(() => {
     if (record && record.date) {
       const authors = getAttributedAuthors(userId, record);
-      logEvent(
+      logViewEvent(
         'VIEW_CUDYR',
         'dailyRecord',
         record.date,
@@ -54,7 +54,7 @@ export const useCudyrLogic = (readOnly: boolean) => {
         authors
       );
     }
-  }, [record, userId, logEvent]);
+  }, [record, userId, logViewEvent]);
 
   // Calculated Data
   const visibleBeds = useMemo(() => {

@@ -112,7 +112,10 @@ export const TransferManagementView: React.FC = () => {
   const processingOverlayModel = buildTransferProcessingOverlayModel();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 animate-in fade-in duration-500">
+    <div
+      className="max-w-7xl mx-auto px-4 py-6 animate-in fade-in duration-500"
+      data-testid="transfer-management-view"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
@@ -126,6 +129,7 @@ export const TransferManagementView: React.FC = () => {
         </div>
         <button
           onClick={handlers.handleNewRequest}
+          data-testid="transfer-new-request-button"
           className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-sky-500 to-sky-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-sky-600/25 transition-all hover:from-sky-600 hover:to-sky-700 hover:shadow-lg active:scale-[0.98]"
         >
           <Plus size={15} />

@@ -32,11 +32,75 @@ interface AuditContextType {
   logPatientCleared: (bedId: string, patientName: string, rut: string, recordDate: string) => void;
   logDailyRecordDeleted: (date: string) => void;
   logDailyRecordCreated: (date: string, copiedFrom?: string) => void;
+  logCudyrModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    field: string,
+    value: number,
+    oldValue: number,
+    recordDate: string,
+    authors?: string
+  ) => void;
+  logHandoffNovedadesModified: (
+    shift: string,
+    content: string,
+    oldContent: string,
+    recordDate: string,
+    authors?: string
+  ) => void;
+  logMedicalHandoffModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    note: string,
+    oldNote: string,
+    recordDate: string
+  ) => void;
+  logNurseHandoffModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    shift: string,
+    note: string,
+    oldNote: string,
+    recordDate: string
+  ) => void;
   logPatientView: (
     bedId: string,
     patientName: string,
     rut: string,
     recordDate: string,
+    authors?: string
+  ) => void;
+  logClinicalDocumentCreated: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logClinicalDocumentEdited: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logClinicalDocumentDeleted: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logViewEvent: (
+    action: AuditAction,
+    entityType: AuditLogEntry['entityType'],
+    entityId: string,
+    details: Record<string, unknown>,
+    patientRut?: string,
+    recordDate?: string,
     authors?: string
   ) => void;
   logEvent: (

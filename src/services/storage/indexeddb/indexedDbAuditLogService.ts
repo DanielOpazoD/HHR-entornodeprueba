@@ -18,10 +18,15 @@ export const saveAuditLog = async (log: AuditLogEntry): Promise<void> => {
   }
 };
 
-export const getAuditLogs = async (limitCount = 100): Promise<AuditLogEntry[]> => {
+export const getAuditLogs = async (limitCount?: number | null): Promise<AuditLogEntry[]> => {
   try {
     await ensureDbReady();
-    return await db.auditLogs.orderBy('timestamp').reverse().limit(limitCount).toArray();
+    const orderedLogs = db.auditLogs.orderBy('timestamp').reverse();
+    if (typeof limitCount === 'number') {
+      return await orderedLogs.limit(limitCount).toArray();
+    }
+
+    return await orderedLogs.toArray();
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_audit_logs', error, {
       code: 'indexeddb_get_audit_logs_failed',

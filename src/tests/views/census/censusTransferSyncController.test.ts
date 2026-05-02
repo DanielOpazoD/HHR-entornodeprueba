@@ -64,7 +64,7 @@ describe('censusTransferSyncController', () => {
 
   it('skips request creation when there is already an open linked transfer', async () => {
     const getLatest = vi.fn().mockResolvedValue({ id: 'TR-1' });
-    const createTransfer = vi.fn();
+    const createFinalizedTransfer = vi.fn();
     const completeTransfer = vi.fn().mockResolvedValue({ status: 'success', data: null });
 
     await syncCensusTransferRequest({
@@ -74,17 +74,17 @@ describe('censusTransferSyncController', () => {
       destinationHospital: 'Hospital Base',
       createdByEmail: 'test@example.com',
       getLatestOpenTransferRequestByBedId: getLatest,
-      createTransferRequest: createTransfer,
+      createFinalizedTransferRequestWithResult: createFinalizedTransfer,
       completeTransferWithResult: completeTransfer,
     });
 
-    expect(createTransfer).not.toHaveBeenCalled();
+    expect(createFinalizedTransfer).not.toHaveBeenCalled();
     expect(completeTransfer).toHaveBeenCalledWith('TR-1', 'test@example.com');
   });
 
   it('fails loudly when a linked transfer cannot be finalized', async () => {
     const getLatest = vi.fn().mockResolvedValue({ id: 'TR-1' });
-    const createTransfer = vi.fn();
+    const createFinalizedTransfer = vi.fn();
     const completeTransfer = vi.fn().mockResolvedValue({
       status: 'permission_denied',
       data: null,
@@ -100,18 +100,21 @@ describe('censusTransferSyncController', () => {
         destinationHospital: 'Hospital Base',
         createdByEmail: 'test@example.com',
         getLatestOpenTransferRequestByBedId: getLatest,
-        createTransferRequest: createTransfer,
+        createFinalizedTransferRequestWithResult: createFinalizedTransfer,
         completeTransferWithResult: completeTransfer,
       })
     ).rejects.toThrow('No se pudo completar el traslado.');
 
-    expect(createTransfer).not.toHaveBeenCalled();
+    expect(createFinalizedTransfer).not.toHaveBeenCalled();
   });
 
-  it('creates and finalizes a transfer request when there is no linked open transfer', async () => {
+  it('creates a finalized transfer request when there is no linked open transfer', async () => {
     const getLatest = vi.fn().mockResolvedValue(null);
-    const createTransfer = vi.fn().mockResolvedValue({ id: 'TR-2' });
-    const completeTransfer = vi.fn().mockResolvedValue({ status: 'success', data: null });
+    const createFinalizedTransfer = vi.fn().mockResolvedValue({
+      status: 'success',
+      data: { id: 'TR-2', status: 'TRANSFERRED' },
+    });
+    const completeTransfer = vi.fn();
 
     await syncCensusTransferRequest({
       bedId: 'R1',
@@ -125,19 +128,21 @@ describe('censusTransferSyncController', () => {
       destinationHospital: 'Hospital Base',
       createdByEmail: 'test@example.com',
       getLatestOpenTransferRequestByBedId: getLatest,
-      createTransferRequest: createTransfer,
+      createFinalizedTransferRequestWithResult: createFinalizedTransfer,
       completeTransferWithResult: completeTransfer,
     });
 
-    expect(createTransfer).toHaveBeenCalledWith(
+    expect(createFinalizedTransfer).toHaveBeenCalledWith(
       expect.objectContaining({
         patientId: 'R1',
         bedId: 'R1',
         destinationHospital: 'Hospital Base',
         requestDate: '2026-03-12',
         createdBy: 'test@example.com',
-      })
+        status: 'TRANSFERRED',
+      }),
+      'test@example.com'
     );
-    expect(completeTransfer).toHaveBeenCalledWith('TR-2', 'test@example.com');
+    expect(completeTransfer).not.toHaveBeenCalled();
   });
 });

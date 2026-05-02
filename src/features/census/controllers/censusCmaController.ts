@@ -1,6 +1,7 @@
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
 import type { PatientData } from '@/features/census/controllers/censusActionPatientContracts';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import {
   type ControllerResult,
   failWithCode,
@@ -40,6 +41,32 @@ export const buildRestoreCmaDialog = (item: CMAData): ControllerConfirmDescripto
   cancelText: 'Cancelar',
   variant: 'warning',
 });
+
+export const buildCmaIeehPatientSnapshot = (item: CMAData, recordDate: string): PatientData => {
+  if (item.originalData) {
+    return item.originalData;
+  }
+
+  return {
+    ...createEmptyPatient(item.originalBedId || item.id),
+    bedName: item.bedName,
+    patientName: item.patientName,
+    rut: item.rut,
+    age: item.age,
+    birthDate: item.birthDate,
+    biologicalSex: item.biologicalSex,
+    insurance: item.insurance,
+    admissionOrigin: item.admissionOrigin,
+    admissionOriginDetails: item.admissionOriginDetails,
+    origin: item.origin,
+    isRapanui: item.isRapanui,
+    pathology: item.diagnosis,
+    cie10Code: item.cie10Code,
+    cie10Description: item.cie10Description,
+    specialty: item.specialty as PatientData['specialty'],
+    admissionDate: recordDate,
+  };
+};
 
 export const executeUndoCmaController = async (
   item: CMAData,

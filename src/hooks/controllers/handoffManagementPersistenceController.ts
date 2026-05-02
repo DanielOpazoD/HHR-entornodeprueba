@@ -48,7 +48,7 @@ export const buildHandoffNovedadesAuditPayload = (
     authors: authors ?? '',
     details: {
       shift,
-      value,
+      content: value,
       changes: {
         novedades: { old: previousValue || '', new: value },
       },

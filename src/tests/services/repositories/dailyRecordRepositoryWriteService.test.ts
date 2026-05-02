@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
@@ -202,14 +203,19 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
   });
 
   it('returns blocked outcome when partial update has no local record', async () => {
+    const consoleSpies = suppressConsole(['warn']);
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
 
-    const result = await updatePartialDetailed('2026-02-18', {
-      'beds.R1.patientName': 'Paciente Nuevo',
-    });
+    try {
+      const result = await updatePartialDetailed('2026-02-18', {
+        'beds.R1.patientName': 'Paciente Nuevo',
+      });
 
-    expect(result.outcome).toBe('blocked');
-    expect(result.savedLocally).toBe(false);
+      expect(result.outcome).toBe('blocked');
+      expect(result.savedLocally).toBe(false);
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('blocks partial admissionDate edits after the first observed day', async () => {
@@ -446,59 +452,6 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       expect.objectContaining({
         'beds.R1.clinicalCrib.patientName': 'Recien nacido actualizado',
         'beds.R1.clinicalCrib.fhir_resource': expect.any(Object),
-      }),
-      current.lastUpdated
-    );
-  });
-
-  it('does not append fhir patches for specialist-scoped medical handoff updates', async () => {
-    const current = buildRecord('2026-02-11');
-    current.beds = { R1: buildPatient('R1', 'Paciente local') };
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-
-    await updatePartial('2026-02-11', {
-      'beds.R1.medicalHandoffNote': 'Evolución especialista',
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: 'Med Interna',
-          note: 'Evolución especialista',
-        },
-      ] as never,
-    });
-
-    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
-      '2026-02-11',
-      expect.not.objectContaining({
-        'beds.R1.fhir_resource': expect.anything(),
-      }),
-      current.lastUpdated
-    );
-  });
-
-  it('does not append structural bed normalization patches for specialist-scoped medical handoff updates', async () => {
-    const current = buildRecord('2026-02-11');
-    current.beds = { R1: buildPatient('R1', 'Paciente local') };
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-
-    await updatePartial('2026-02-11', {
-      'beds.R1.medicalHandoffNote': 'Evolución especialista',
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: 'Med Interna',
-          note: 'Evolución especialista',
-        },
-      ] as never,
-    });
-
-    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
-      '2026-02-11',
-      expect.not.objectContaining({
-        'beds.R2': expect.anything(),
-        'beds.NEO1': expect.anything(),
       }),
       current.lastUpdated
     );

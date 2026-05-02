@@ -8,6 +8,7 @@ import { DischargeStatusRadioGroup } from '@/components/modals/actions/discharge
 import { DischargeTargetSelector } from '@/components/modals/actions/discharge/DischargeTargetSelector';
 import { DischargeTimeField } from '@/components/modals/actions/discharge/DischargeTimeField';
 import { DischargeTypeSelector } from '@/components/modals/actions/discharge/DischargeTypeSelector';
+import { MovementFinalStateNotice } from '@/components/modals/actions/shared/MovementFinalStateNotice';
 import type { DischargeTarget } from '@/types/movements';
 import { shouldShowBabyStatus, shouldShowMotherStatus } from '@/application/census/public';
 import { useDischargeModalForm } from '@/hooks/useDischargeModalForm';
@@ -82,6 +83,12 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
       variant="white"
     >
       <div className="space-y-5">
+        {!isEditing && (
+          <MovementFinalStateNotice tone="emerald">
+            Se registrará el egreso en el censo y se actualizará la disponibilidad asociada.
+          </MovementFinalStateNotice>
+        )}
+
         {!isEditing && hasClinicalCrib && onDischargeTargetChange && (
           <DischargeTargetSelector target={localTarget} onChange={handleTargetChange} />
         )}

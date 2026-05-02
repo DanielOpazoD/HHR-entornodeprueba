@@ -75,6 +75,14 @@ export const MedicalSignatureView = lazyWithRetry(() =>
   }))
 );
 
+export const WoundCareMobileUploadView = lazyWithRetry(() =>
+  import(/* webpackChunkName: "wound-care-mobile-upload" */ '@/features/wound-care').then(
+    module => ({
+      default: module.WoundCareMobileUploadView,
+    })
+  )
+);
+
 export const ErrorDashboard = lazyWithRetry(() =>
   import(/* webpackChunkName: "error-db" */ '@/features/admin').then(module => ({
     default: module.ErrorDashboard,

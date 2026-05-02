@@ -277,18 +277,13 @@ describe('useBedManagement patient updates', () => {
         'beds.R1.cudyr.changeClothes': 3,
         cudyrUpdatedAt: '2026-03-23T10:15:00.000Z',
       });
-      expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalledWith(
-        'CUDYR_MODIFIED',
-        'dailyRecord',
-        record.date,
-        expect.objectContaining({
-          bedId: 'R1',
-          field: 'changeClothes',
-          oldValue: 0,
-          patientName: 'Test Patient',
-          value: 3,
-        }),
+      expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledWith(
+        'R1',
+        'Test Patient',
         patient.rut,
+        'changeClothes',
+        3,
+        0,
         record.date,
         'Test Author'
       );
@@ -348,7 +343,16 @@ describe('useBedManagement patient updates', () => {
         'beds.R1.clinicalCrib.cudyr.feeding': 2,
         cudyrUpdatedAt: '2026-03-23T11:05:00.000Z',
       });
-      expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalled();
+      expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledWith(
+        'R1-crib',
+        'Baby',
+        '1-1',
+        'feeding',
+        2,
+        0,
+        record.date,
+        'Test Author'
+      );
     });
 
     it('updates multiple clinical crib fields', () => {

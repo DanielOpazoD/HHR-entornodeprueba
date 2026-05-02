@@ -7,6 +7,7 @@ import { canReadClinicalDocuments } from '@/application/clinical-documents/clini
 import { useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 
 interface UseCensusTableBindingsModelParams {
   currentDateString: string;
@@ -37,10 +38,13 @@ export const useCensusTableBindingsModel = ({
   const { remoteSyncStatus } = useAuth();
   const tableViewModel = useCensusTableViewModel({ currentDateString });
   const canReadClinical = canReadClinicalDocuments(tableViewModel.role);
+  const canResolveClinicalDocumentPresence = useDeferredCensusEnhancement(
+    Boolean(tableViewModel.beds) && canReadClinical && remoteSyncStatus === 'ready'
+  );
   const clinicalDocumentPresence = useClinicalDocumentPresenceByBed({
     unifiedRows: tableViewModel.unifiedRows,
     currentDateString,
-    enabled: canReadClinical && remoteSyncStatus === 'ready',
+    enabled: canResolveClinicalDocumentPresence,
   }) ?? {
     byBedId: {},
     infoByBedId: {},

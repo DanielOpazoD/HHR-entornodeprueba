@@ -12,6 +12,7 @@ export const useHandoffManagementPersistence = ({
   patchRecord,
   logEvent,
   logDebouncedEvent,
+  logHandoffNovedadesModified,
   userId,
   notifyError,
 }: HandoffManagementPersistenceInput) => {
@@ -22,6 +23,7 @@ export const useHandoffManagementPersistence = ({
     patchRecord,
     logEvent,
     logDebouncedEvent,
+    logHandoffNovedadesModified,
     userId,
     notifyError,
   });

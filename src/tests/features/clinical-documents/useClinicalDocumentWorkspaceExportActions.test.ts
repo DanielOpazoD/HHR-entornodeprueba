@@ -8,6 +8,8 @@ import { useClinicalDocumentWorkspaceExportActions } from '@/features/clinical-d
 import * as pdfExportUseCase from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
 import * as printOpenUseCase from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
 
+const recordCriticalClinicalAction = vi.hoisted(() => vi.fn());
+
 vi.mock('@/application/clinical-documents/clinicalDocumentPdfExportUseCase', async () => {
   const actual = await vi.importActual<
     typeof import('@/application/clinical-documents/clinicalDocumentPdfExportUseCase')
@@ -31,6 +33,10 @@ vi.mock('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase', asy
 vi.mock('@/services/observability/operationalTelemetryService', () => ({
   recordOperationalOutcome: vi.fn(),
   recordOperationalTelemetry: vi.fn(),
+}));
+
+vi.mock('@/services/observability/criticalClinicalActionRecorder', () => ({
+  recordCriticalClinicalAction,
 }));
 
 const buildRecord = (): ClinicalDocumentRecord =>
@@ -112,6 +118,18 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         fileName: expect.any(String),
       })
     );
+    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'export',
+        action: 'clinical_document_pdf_exported',
+        outcome: 'success',
+        clinicalDate: '2026-03-06',
+        bedId: 'R1',
+        patientRut: '11.111.111-1',
+        documentType: 'epicrisis',
+        exportType: 'pdf',
+      })
+    );
   });
 
   it('marks the draft as failed when the export use case fails', async () => {
@@ -136,6 +154,14 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     });
 
     expect(notify.error).toHaveBeenCalledWith('Falló la exportación', 'drive down');
+    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'clinical_document_pdf_exported',
+        outcome: 'failed',
+        exportType: 'pdf',
+        issues: ['drive down'],
+      })
+    );
     expect(setDraft).toHaveBeenCalledWith(expect.any(Function));
   });
 
@@ -188,6 +214,14 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
       'No se pudo imprimir el documento',
       'Recarga la página e inténtalo nuevamente.'
     );
+    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'clinical_document_print_preview_opened',
+        outcome: 'failed',
+        exportType: 'print',
+        issues: ['No se pudo preparar la impresión del documento clínico.'],
+      })
+    );
     expect(pdfExportUseCase.executeExportClinicalDocumentPdf).not.toHaveBeenCalled();
   });
 
@@ -216,6 +250,13 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         hospitalId: 'hhr',
         fileName: expect.any(String),
         annexMode: 'include',
+      })
+    );
+    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'clinical_document_print_preview_opened',
+        outcome: 'success',
+        exportType: 'print',
       })
     );
     expect(notify.success).not.toHaveBeenCalled();

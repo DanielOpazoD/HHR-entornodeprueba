@@ -287,7 +287,7 @@ describe('PatientRow layout and actions', () => {
     }
   });
 
-  it('shows the integrated admission editor with the custom time selector when the field is opened', () => {
+  it('keeps admission date visible without opening an inline editor', () => {
     const editablePatient = {
       ...mockPatient,
       admissionDate: '2023-01-01',
@@ -308,13 +308,11 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByLabelText('Editar fecha y hora de ingreso'));
-
+    expect(screen.getByText('01/01/2023')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('dialog', { name: 'Configurar fecha y hora de ingreso' })
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText('Hora de ingreso - horas')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hora de ingreso - minutos')).toBeInTheDocument();
+      screen.queryByRole('dialog', { name: 'Configurar fecha y hora de ingreso' })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps patient name read-only in table (edition only via demographics)', () => {

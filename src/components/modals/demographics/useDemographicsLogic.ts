@@ -15,6 +15,7 @@ import {
   composeFullName,
   calculateFormattedAge,
   hasMeaningfulLocalDemographics,
+  resolveRequiredDemographicsCompletion,
 } from './utils';
 import type { PatientData } from '@/types/domain/patient';
 
@@ -27,6 +28,7 @@ interface UseDemographicsLogicProps {
   onSave: (updatedFields: Partial<PatientData>) => void;
   onClose: () => void;
   onEmptySave?: () => void;
+  requiresCompleteDemographics?: boolean;
 }
 
 export const useDemographicsLogic = ({
@@ -38,6 +40,7 @@ export const useDemographicsLogic = ({
   onSave,
   onClose,
   onEmptySave,
+  requiresCompleteDemographics = false,
 }: UseDemographicsLogicProps) => {
   const { logPatientView } = useAuditContext();
   const [localData, setLocalData] = useState<LocalDemographicsState>(() =>
@@ -75,7 +78,24 @@ export const useDemographicsLogic = ({
     ? 'Sin RUT (RN provisional)'
     : localData.rut || 'RUT No especificado';
 
+  const requiredCompletion = useMemo(
+    () =>
+      requiresCompleteDemographics
+        ? resolveRequiredDemographicsCompletion(localData, isProvisionalRnMode)
+        : { isComplete: true, missingFields: [] },
+    [isProvisionalRnMode, localData, requiresCompleteDemographics]
+  );
+
+  const requiredCompletionMessage = requiredCompletion.missingFields.length
+    ? `Faltan ${requiredCompletion.missingFields.length}`
+    : null;
+
   const handleSave = () => {
+    if (!requiredCompletion.isComplete) {
+      setError(requiredCompletionMessage);
+      return;
+    }
+
     if (!hasMeaningfulLocalDemographics(localData)) {
       onEmptySave?.();
       onClose();
@@ -113,6 +133,8 @@ export const useDemographicsLogic = ({
         rut: '',
         documentType: 'RUT',
         birthDate: localData.birthDate,
+        admissionDate: localData.admissionDate,
+        admissionTime: localData.admissionTime,
         insurance: localData.insurance as Insurance,
         admissionOrigin: localData.admissionOrigin as AdmissionOrigin,
         admissionOriginDetails: localData.admissionOriginDetails,
@@ -149,6 +171,8 @@ export const useDemographicsLogic = ({
       rut: localData.rut.trim(),
       documentType: localData.documentType,
       birthDate: localData.birthDate,
+      admissionDate: localData.admissionDate,
+      admissionTime: localData.admissionTime,
       insurance: localData.insurance as Insurance,
       admissionOrigin: localData.admissionOrigin as AdmissionOrigin,
       admissionOriginDetails: localData.admissionOriginDetails,
@@ -169,5 +193,7 @@ export const useDemographicsLogic = ({
     displayName,
     displayRut,
     handleSave,
+    requiredCompletion,
+    requiredCompletionMessage,
   };
 };

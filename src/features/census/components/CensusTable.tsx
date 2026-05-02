@@ -120,6 +120,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             onSave={saveEmptyBedDemographics}
             bedId={activeEmptyBedId}
             recordDate={currentDateString}
+            requiresCompleteDemographics
           />
         </Suspense>
       ) : null}

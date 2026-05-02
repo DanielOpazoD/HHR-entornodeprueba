@@ -5,6 +5,7 @@
 
 export { createTransferRequestMutation as createTransferRequest } from '@/services/transfers/transferMutationsService';
 export { createTransferRequestMutationWithResult as createTransferRequestWithResult } from '@/services/transfers/transferMutationsService';
+export { createFinalizedTransferRequestMutationWithResult as createFinalizedTransferRequestWithResult } from '@/services/transfers/transferMutationsService';
 export { updateTransferRequestMutation as updateTransferRequest } from '@/services/transfers/transferMutationsService';
 export { updateTransferRequestMutationWithResult as updateTransferRequestWithResult } from '@/services/transfers/transferMutationsService';
 export { changeTransferStatusMutation as changeTransferStatus } from '@/services/transfers/transferMutationsService';

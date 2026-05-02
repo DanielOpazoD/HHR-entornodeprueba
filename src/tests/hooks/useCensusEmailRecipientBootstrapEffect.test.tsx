@@ -59,6 +59,47 @@ describe('useCensusEmailRecipientBootstrapEffect', () => {
     });
   });
 
+  it('loads firebase recipients for the send flow even when the config modal is closed', async () => {
+    const executeLoadCensusRecipientRuntimeState = vi.fn().mockResolvedValue({
+      status: 'success',
+      data: {
+        recipients: ['global@test.com'],
+        recipientLists: [],
+        activeRecipientListId: 'census-default',
+        recipientsSource: 'firebase',
+        recipientsSyncError: null,
+        lastRemoteRecipients: ['global@test.com'],
+      },
+    });
+    vi.mocked(withRecipientListUseCases).mockImplementation(run =>
+      run({ executeLoadCensusRecipientRuntimeState } as never)
+    );
+
+    renderHook(() =>
+      useCensusEmailRecipientBootstrapEffect({
+        canManageGlobalRecipientLists: true,
+        browserRuntime: {
+          getLegacyRecipients: () => null,
+          clearLegacyRecipients: vi.fn(),
+          writeClipboard: vi.fn(),
+        },
+        bootstrapEnabled: true,
+        enabled: false,
+        user: { uid: 'admin-1', email: 'admin@test.com' },
+        applyRecipientRuntimeState: vi.fn(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(executeLoadCensusRecipientRuntimeState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          canManageGlobalRecipientLists: true,
+          enabled: true,
+        })
+      );
+    });
+  });
+
   it('ignores a late bootstrap response after unmount', async () => {
     let resolveLoad:
       | ((value: { status: string; data: { recipients: string[] } }) => void)

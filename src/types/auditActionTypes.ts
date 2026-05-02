@@ -35,6 +35,7 @@ export type AuditAction =
   | 'CLINICAL_DOCUMENT_CREATED'
   | 'CLINICAL_DOCUMENT_DELETED'
   | 'CLINICAL_DOCUMENT_EDITED'
+  | 'WOUND_CARE_PHOTO_UPLOADED'
   | 'SYSTEM_ERROR';
 
 export type AuditSection =

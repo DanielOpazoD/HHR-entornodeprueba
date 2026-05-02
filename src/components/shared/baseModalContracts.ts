@@ -19,4 +19,5 @@ export interface BaseModalProps {
   bodyClassName?: string;
   scrollableBody?: boolean;
   dataModule?: string;
+  dataTestId?: string;
 }

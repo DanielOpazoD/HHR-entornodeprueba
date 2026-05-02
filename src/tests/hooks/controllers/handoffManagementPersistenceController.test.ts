@@ -59,7 +59,7 @@ describe('handoffManagementPersistenceController', () => {
     expect(payload.details).toEqual(
       expect.objectContaining({
         shift: 'day',
-        value: 'Texto nuevo',
+        content: 'Texto nuevo',
         changes: {
           novedades: { old: 'Antes día', new: 'Texto nuevo' },
         },

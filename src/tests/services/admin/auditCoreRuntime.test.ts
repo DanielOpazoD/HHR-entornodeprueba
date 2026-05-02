@@ -68,6 +68,18 @@ describe('auditCore runtime injection', () => {
     );
   });
 
+  it('does not throttle direct VIEW writes inside the persistence core', async () => {
+    await service.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', '2026-05-01', {
+      view: 'cudyr',
+    });
+    await service.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', '2026-05-01', {
+      view: 'cudyr',
+    });
+
+    expect(saveAuditLog).toHaveBeenCalledTimes(2);
+    expect(setDoc).toHaveBeenCalledTimes(2);
+  });
+
   it('downgrades remote permission-denied audit writes to a local-only warning', async () => {
     setDoc.mockRejectedValue({ code: 'permission-denied' });
 
@@ -133,6 +145,17 @@ describe('auditCore runtime injection', () => {
     expect(loggerMocks.error).toHaveBeenCalledWith(
       'Failed to fetch audit logs from Firestore',
       expect.any(Error)
+    );
+  });
+
+  it('does not apply a read limit when full historical audit logs are requested', async () => {
+    getDocs.mockResolvedValue([]);
+
+    await service.getAuditLogs();
+
+    expect(getDocs).toHaveBeenCalledWith(
+      expect.stringContaining('/auditLogs'),
+      expect.not.objectContaining({ limit: expect.any(Number) })
     );
   });
 });

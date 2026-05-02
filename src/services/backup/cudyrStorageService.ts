@@ -38,8 +38,11 @@ import {
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
+  createBackupMutationResultFromError,
   resolveBackupStorage,
+  resolveDeleteMutationStatus,
   runStorageLookupWithTimeout,
+  type BackupStorageMutationResult,
 } from '@/services/backup/backupStorageRuntimeSupport';
 
 // ============= Types =============
@@ -95,9 +98,14 @@ const parseFilePath = (path: string): { date: string; year: string; month: strin
 
 interface CudyrStorageService {
   uploadCudyrExcel: (excelBlob: Blob, date: string) => Promise<string>;
+  uploadCudyrExcelWithResult: (
+    excelBlob: Blob,
+    date: string
+  ) => Promise<BackupStorageMutationResult<string>>;
   cudyrExists: (date: string) => Promise<boolean>;
   cudyrExistsDetailed: (date: string) => Promise<StorageLookupResult>;
   deleteCudyrFile: (date: string) => Promise<void>;
+  deleteCudyrFileWithResult: (date: string) => Promise<BackupStorageMutationResult>;
 }
 
 // ============= Core Functions =============
@@ -108,6 +116,78 @@ interface CudyrStorageService {
 export const createCudyrStorageService = (
   runtime: BackupStorageRuntime = defaultBackupStorageRuntime
 ): CudyrStorageService => {
+  const uploadCudyrExcelWithResult = async (
+    excelBlob: Blob,
+    date: string
+  ): Promise<BackupStorageMutationResult<string>> => {
+    try {
+      const storage = await resolveBackupStorage(runtime);
+      assertStorageAvailable(storage, 'CudyrStorage', 'uploadCudyrExcel');
+
+      const filePath = generateCudyrPath(date);
+
+      try {
+        const { year, month, day } = parseBackupDateParts(date, 'CudyrStorage');
+        const legacyFilename = `CUDYR_${day}-${month}-${year}.xlsx`;
+        const legacyPath = `${STORAGE_ROOT}/${year}/${month}/${legacyFilename}`;
+        const legacyRef = ref(storage, legacyPath);
+        await getMetadata(legacyRef);
+        const { deleteObject } = await import('firebase/storage');
+        await deleteObject(legacyRef);
+      } catch (_ignore) {
+        // Legacy file doesn't exist, proceed normally
+      }
+
+      const storageRef = ref(storage, filePath);
+      const user = runtime.auth.currentUser;
+      const metadata = {
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        customMetadata: {
+          date,
+          uploadedBy: user?.email || 'unknown',
+          uploadedAt: new Date().toISOString(),
+        },
+      };
+
+      await uploadBytes(storageRef, excelBlob, metadata);
+      const downloadUrl = await getDownloadURL(storageRef);
+      return { status: 'success', data: downloadUrl };
+    } catch (error) {
+      if (isBackupDateValidationError(error)) {
+        return createBackupMutationResultFromError<string>(error, { invalidDate: true });
+      }
+      return createBackupMutationResultFromError<string>(error);
+    }
+  };
+
+  const deleteCudyrFileWithResult = async (date: string): Promise<BackupStorageMutationResult> => {
+    const storage = await resolveBackupStorage(runtime);
+    const { deleteObject } = await import('firebase/storage');
+    let filePath: string;
+    try {
+      filePath = generateCudyrPath(date);
+    } catch (error) {
+      if (isBackupDateValidationError(error)) {
+        return createBackupMutationResultFromError(error, { invalidDate: true });
+      }
+      return createBackupMutationResultFromError(error);
+    }
+    const storageRef = ref(storage, filePath);
+    try {
+      await deleteObject(storageRef);
+      return { status: 'success', data: null };
+    } catch (error: unknown) {
+      if (isExpectedStorageLookupMiss(error)) {
+        return {
+          status: resolveDeleteMutationStatus(error),
+          error,
+          data: null,
+        };
+      }
+      return createBackupMutationResultFromError(error);
+    }
+  };
+
   const cudyrExistsDetailed = async (date: string): Promise<StorageLookupResult> => {
     const TIMEOUT_MS = 4000;
     const checkPromise = measureStorageOperation(
@@ -163,70 +243,39 @@ export const createCudyrStorageService = (
 
   return {
     uploadCudyrExcel: async (excelBlob, date): Promise<string> => {
-      const storage = await resolveBackupStorage(runtime);
-      assertStorageAvailable(storage, 'CudyrStorage', 'uploadCudyrExcel');
-
-      const filePath = generateCudyrPath(date);
-
-      try {
-        const { year, month, day } = parseBackupDateParts(date, 'CudyrStorage');
-        const legacyFilename = `CUDYR_${day}-${month}-${year}.xlsx`;
-        const legacyPath = `${STORAGE_ROOT}/${year}/${month}/${legacyFilename}`;
-        const legacyRef = ref(storage, legacyPath);
-        await getMetadata(legacyRef);
-        const { deleteObject } = await import('firebase/storage');
-        await deleteObject(legacyRef);
-      } catch (_ignore) {
-        // Legacy file doesn't exist, proceed normally
+      const result = await uploadCudyrExcelWithResult(excelBlob, date);
+      if (result.status !== 'success') {
+        throw result.error;
       }
-
-      const storageRef = ref(storage, filePath);
-      const user = runtime.auth.currentUser;
-      const metadata = {
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        customMetadata: {
-          date,
-          uploadedBy: user?.email || 'unknown',
-          uploadedAt: new Date().toISOString(),
-        },
-      };
-
-      await uploadBytes(storageRef, excelBlob, metadata);
-      return getDownloadURL(storageRef);
+      return result.data as string;
     },
+    uploadCudyrExcelWithResult,
     cudyrExists: async (date: string): Promise<boolean> => {
       const result = await cudyrExistsDetailed(date);
       return result.exists;
     },
     cudyrExistsDetailed,
     deleteCudyrFile: async (date: string): Promise<void> => {
-      const storage = await resolveBackupStorage(runtime);
-      const { deleteObject } = await import('firebase/storage');
-      let filePath: string;
-      try {
-        filePath = generateCudyrPath(date);
-      } catch (error) {
-        if (isBackupDateValidationError(error)) return;
-        throw error;
-      }
-      const storageRef = ref(storage, filePath);
-      try {
-        await deleteObject(storageRef);
-      } catch (error: unknown) {
-        if (isExpectedStorageLookupMiss(error)) {
-          return;
-        }
-        throw error;
+      const result = await deleteCudyrFileWithResult(date);
+      if (
+        result.status !== 'success' &&
+        result.status !== 'not_found' &&
+        result.status !== 'invalid_date'
+      ) {
+        throw result.error;
       }
     },
+    deleteCudyrFileWithResult,
   };
 };
 
 const cudyrStorageService = createCudyrStorageService();
 export const uploadCudyrExcel = cudyrStorageService.uploadCudyrExcel;
+export const uploadCudyrExcelWithResult = cudyrStorageService.uploadCudyrExcelWithResult;
 export const cudyrExists = cudyrStorageService.cudyrExists;
 export const cudyrExistsDetailed = cudyrStorageService.cudyrExistsDetailed;
 export const deleteCudyrFile = cudyrStorageService.deleteCudyrFile;
+export const deleteCudyrFileWithResult = cudyrStorageService.deleteCudyrFileWithResult;
 
 /**
  * Check if a CUDYR backup exists for a date

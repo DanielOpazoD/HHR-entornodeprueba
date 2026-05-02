@@ -17,7 +17,8 @@ import {
  * Handles all auditing and logging for bed and patient modifications.
  */
 export const useBedAudit = (record: DailyRecord | null) => {
-  const { logDebouncedEvent, logEvent, logPatientAdmission, userId } = useAuditContext();
+  const { logCudyrModified, logDebouncedEvent, logEvent, logPatientAdmission, userId } =
+    useAuditContext();
   const recordRef = useRef(record);
 
   useEffect(() => {
@@ -88,17 +89,18 @@ export const useBedAudit = (record: DailyRecord | null) => {
       if (!payload) return;
       const authors = getAttributedAuthors(userId, currentRecord);
 
-      logDebouncedEvent(
-        'CUDYR_MODIFIED',
-        'dailyRecord',
-        currentRecord.date,
-        payload.details,
-        payload.patientRut,
+      logCudyrModified(
+        bedId,
+        payload.patientName,
+        payload.patientRut || '',
+        String(payload.details.field),
+        Number(payload.details.value),
+        Number(payload.details.oldValue),
         currentRecord.date,
         authors
       );
     },
-    [logDebouncedEvent, userId]
+    [logCudyrModified, userId]
   );
 
   const auditCribCudyrChange = useCallback(
@@ -109,17 +111,18 @@ export const useBedAudit = (record: DailyRecord | null) => {
       if (!payload) return;
       const authors = getAttributedAuthors(userId, currentRecord);
 
-      logDebouncedEvent(
-        'CUDYR_MODIFIED',
-        'dailyRecord',
-        currentRecord.date,
-        payload.details,
-        payload.patientRut,
+      logCudyrModified(
+        String(payload.details.bedId),
+        payload.patientName,
+        payload.patientRut || '',
+        String(payload.details.field),
+        Number(payload.details.value),
+        Number(payload.details.oldValue),
         currentRecord.date,
         authors
       );
     },
-    [logDebouncedEvent, userId]
+    [logCudyrModified, userId]
   );
 
   const auditPatientCleared = useCallback(
@@ -158,11 +161,32 @@ export const useBedAudit = (record: DailyRecord | null) => {
     [logDebouncedEvent]
   );
 
+  const auditPatientMovement = useCallback(
+    (bedId: string, details: Record<string, unknown>, rut?: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const patient = currentRecord.beds[bedId];
+      logEvent(
+        'PATIENT_MODIFIED',
+        'patient',
+        bedId,
+        {
+          patientName: patient?.patientName,
+          ...details,
+        },
+        rut,
+        currentRecord.date
+      );
+    },
+    [logEvent]
+  );
+
   return {
     auditPatientChange,
     auditCudyrChange,
     auditCribCudyrChange,
     auditPatientCleared,
     auditPatientModified,
+    auditPatientMovement,
   };
 };

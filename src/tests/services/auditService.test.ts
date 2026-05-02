@@ -70,18 +70,14 @@ vi.mock('../../services/admin/utils/auditSummaryGenerator', () => ({
 
 // Now import the service
 import {
-  logPatientAdmission,
-  logPatientDischarge,
-  logPatientTransfer,
-  logPatientCleared,
-  logDailyRecordDeleted,
-  logDailyRecordCreated,
   logSystemError,
   logThrottledViewEvent,
   getAuditLogs,
   getAuditLogsForDate,
 } from '@/services/admin/auditService';
+import { defaultAuditPort } from '@/application/ports/auditPort';
 import * as auditUtils from '@/services/admin/utils/auditUtils';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 describe('AuditService', () => {
   const mockPatientRut = '12345678-9';
@@ -96,7 +92,13 @@ describe('AuditService', () => {
 
   describe('Logging Helpers', () => {
     it('should log patient admission with masked RUT', async () => {
-      await logPatientAdmission('R1', 'Patient A', mockPatientRut, 'Diag', mockDate);
+      await defaultAuditPort.logPatientAdmission(
+        'R1',
+        'Patient A',
+        mockPatientRut,
+        'Diag',
+        mockDate
+      );
       expect(mockSaveAuditLog).toHaveBeenCalled();
       const entry = mockSaveAuditLog.mock.calls[0][0];
       // Assuming maskRut result is 12345678-9 -> 12345***-*
@@ -104,25 +106,26 @@ describe('AuditService', () => {
     });
 
     it('should log patient discharge', async () => {
-      await logPatientDischarge('R1', 'Patient A', mockPatientRut, 'ALTA_DOMICILIO', mockDate);
+      await defaultAuditPort.logPatientDischarge(
+        'R1',
+        'Patient A',
+        mockPatientRut,
+        'ALTA_DOMICILIO',
+        mockDate
+      );
       expect(mockSaveAuditLog).toHaveBeenCalled();
       expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('PATIENT_DISCHARGED');
     });
 
     it('should log patient transfer', async () => {
-      await logPatientTransfer('R1', 'Patient A', mockPatientRut, 'OTRO_HOSPITAL', mockDate);
+      await defaultAuditPort.logPatientTransfer(
+        'R1',
+        'Patient A',
+        mockPatientRut,
+        'OTRO_HOSPITAL',
+        mockDate
+      );
       expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('PATIENT_TRANSFERRED');
-    });
-
-    it('should log patient cleared', async () => {
-      await logPatientCleared('R1', 'Patient A', mockPatientRut, mockDate);
-      expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('PATIENT_CLEARED');
-    });
-
-    it('should log daily record lifecycle', async () => {
-      await logDailyRecordCreated(mockDate);
-      await logDailyRecordDeleted(mockDate);
-      expect(mockSaveAuditLog).toHaveBeenCalledTimes(2);
     });
 
     it('should log system errors', async () => {
@@ -173,12 +176,17 @@ describe('AuditService', () => {
     });
 
     it('should fetch logs for specific date and fallback to IDB on error', async () => {
+      const consoleSpies = suppressConsole(['error']);
       vi.mocked(firestore.getDocs).mockRejectedValue(new Error('Firestore down'));
       mockGetAuditLogsForDate.mockResolvedValue([{ id: 'idb-1' }]);
 
-      const logs = await getAuditLogsForDate(mockDate);
-      expect(logs[0].id).toBe('idb-1');
-      expect(mockGetAuditLogsForDate).toHaveBeenCalledWith(mockDate);
+      try {
+        const logs = await getAuditLogsForDate(mockDate);
+        expect(logs[0].id).toBe('idb-1');
+        expect(mockGetAuditLogsForDate).toHaveBeenCalledWith(mockDate);
+      } finally {
+        restoreConsole(consoleSpies);
+      }
     });
   });
 });

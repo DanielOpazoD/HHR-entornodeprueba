@@ -1,4 +1,5 @@
-import { logConflictAutoMerged } from '@/services/admin/auditService';
+import { executeWriteAuditEvent } from '@/application/audit/writeAuditEventUseCase';
+import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 
 export interface ConflictAuditDetails {
   changedPaths: string[];
@@ -34,5 +35,12 @@ export const logRepositoryConflictAutoMerged = async (
     return;
   }
 
-  await logConflictAutoMerged(date, details);
+  await executeWriteAuditEvent({
+    userId: getCurrentUserEmail(),
+    action: 'CONFLICT_AUTO_MERGED',
+    entityType: 'dailyRecord',
+    entityId: date,
+    details: details as unknown as Record<string, unknown>,
+    recordDate: date,
+  });
 };

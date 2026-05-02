@@ -12,7 +12,7 @@ import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverl
 import { InitialLoadingScreen } from '@/components/ui/InitialLoadingScreen';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
-import { MedicalSignatureView } from '@/views/LazyViews';
+import { MedicalSignatureView, WoundCareMobileUploadView } from '@/views/LazyViews';
 import { resolveRuntimeLoadingScreenMode } from '@/app-shell/bootstrap/appShellLoadingPolicy';
 import { AuditProvider } from '@/context/AuditContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -73,6 +73,7 @@ function App() {
   }, [bootstrapState.status]);
 
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const isWoundCareMobileUploadRoute = pathname.startsWith('/wound-care/mobile-upload/');
   const loadingScreenMode =
     bootstrapState.status === 'loading'
       ? resolveRuntimeLoadingScreenMode({
@@ -80,6 +81,16 @@ function App() {
           bootstrapState,
         })
       : null;
+
+  if (isWoundCareMobileUploadRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <WoundCareMobileUploadView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
 
   if (bootstrapState.status === 'signature_mode') {
     return (

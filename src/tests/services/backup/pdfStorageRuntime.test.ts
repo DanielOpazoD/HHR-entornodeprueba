@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getMetadata, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getMetadata, getDownloadURL, deleteObject, uploadBytes } from 'firebase/storage';
 import {
   deletePdf,
+  deletePdfWithResult,
   getPdfUrl,
   pdfExists,
   pdfExistsDetailed,
+  uploadPdfWithResult,
 } from '@/services/backup/pdfStorageService';
 
 vi.mock('@/firebaseConfig', () => ({
@@ -72,6 +74,21 @@ describe('pdfStorageService runtime resilience', () => {
 
   it('delete ignores invalid date inputs', async () => {
     await expect(deletePdf('19-02-2026', 'day')).resolves.toBeUndefined();
+    expect(deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('returns structured upload failures instead of throwing', async () => {
+    vi.mocked(uploadBytes).mockRejectedValue({ code: 'storage/unauthorized' });
+
+    const result = await uploadPdfWithResult(new Blob(['pdf']), '2026-02-19', 'day');
+
+    expect(result.status).toBe('permission_denied');
+  });
+
+  it('returns structured invalid-date delete failures', async () => {
+    const result = await deletePdfWithResult('19-02-2026', 'day');
+
+    expect(result.status).toBe('invalid_date');
     expect(deleteObject).not.toHaveBeenCalled();
   });
 });

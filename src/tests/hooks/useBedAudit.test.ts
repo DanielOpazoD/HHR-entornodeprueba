@@ -20,6 +20,7 @@ describe('useBedAudit', () => {
   const mockLogDebouncedEvent = vi.fn();
   const mockLogEvent = vi.fn();
   const mockLogPatientAdmission = vi.fn();
+  const mockLogCudyrModified = vi.fn();
   const buildCudyr = (overrides: Partial<CudyrScore> = {}): CudyrScore => ({
     changeClothes: 0,
     mobilization: 0,
@@ -87,6 +88,7 @@ describe('useBedAudit', () => {
       logDebouncedEvent: mockLogDebouncedEvent,
       logEvent: mockLogEvent,
       logPatientAdmission: mockLogPatientAdmission,
+      logCudyrModified: mockLogCudyrModified,
       userId: 'user123',
     } as unknown as ReturnType<typeof useAuditContext>);
   });
@@ -193,12 +195,13 @@ describe('useBedAudit', () => {
 
     result.current.auditCudyrChange('B1', 'mobilization', 3);
 
-    expect(mockLogDebouncedEvent).toHaveBeenCalledWith(
-      'CUDYR_MODIFIED',
-      'dailyRecord',
-      '2026-01-19',
-      expect.objectContaining({ value: 3, oldValue: 1 }),
+    expect(mockLogCudyrModified).toHaveBeenCalledWith(
+      'B1',
+      'John Doe',
       '123-4',
+      'mobilization',
+      3,
+      1,
       '2026-01-19',
       'Author 1'
     );
@@ -210,12 +213,13 @@ describe('useBedAudit', () => {
 
     result.current.auditCribCudyrChange('B2', 'feeding', 5);
 
-    expect(mockLogDebouncedEvent).toHaveBeenCalledWith(
-      'CUDYR_MODIFIED',
-      'dailyRecord',
-      '2026-01-19',
-      expect.objectContaining({ patientName: 'Baby Doe', value: 5, oldValue: 2 }),
+    expect(mockLogCudyrModified).toHaveBeenCalledWith(
+      'B2-crib',
+      'Baby Doe',
       '567-8',
+      'feeding',
+      5,
+      2,
       '2026-01-19',
       'Author 1'
     );

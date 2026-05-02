@@ -113,7 +113,6 @@ export const WoundCarePhotoRepository = {
           { field: 'patientRut', operator: '==', value: patientRut },
           { field: 'isDeleted', operator: '==', value: false },
         ],
-        orderBy: [{ field: 'uploadedAt', direction: 'desc' }],
       }
     );
 

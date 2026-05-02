@@ -25,11 +25,13 @@ vi.mock('@/services/factories/patientFactory', () => ({
 describe('usePatientDischarges', () => {
   let mockRecord: DailyRecord;
   let mockSaveAndUpdate: PersistDailyRecord;
+  const mockLogEvent = vi.fn();
   const mockLogPatientDischarge = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuditContext).mockReturnValue({
+      logEvent: mockLogEvent,
       logPatientDischarge: mockLogPatientDischarge,
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
@@ -192,6 +194,20 @@ describe('usePatientDischarges', () => {
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      'PATIENT_MODIFIED',
+      'patient',
+      'R2',
+      expect.objectContaining({
+        clinicalEvent: 'Reversión de alta',
+        movementKind: 'undo_discharge',
+        dischargeId: 'd-1',
+        restoredBed: 'R2',
+        patientName: 'Recovered',
+      }),
+      '22-2',
+      '2024-12-28'
+    );
     const payload = vi.mocked(mockSaveAndUpdate).mock.calls[0][0];
     expect(payload.beds.R2.patientName).toBe('Recovered');
     expect(payload.discharges).toEqual([]);

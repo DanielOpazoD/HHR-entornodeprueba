@@ -45,6 +45,32 @@ export const getSyslabBaseUrl = (): string =>
 
 const buildSyslabProxyUrl = (query: string): string => `/.netlify/functions/syslab-proxy${query}`;
 
+const isPlainViteLocalRuntime = (): boolean =>
+  typeof globalThis.location !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1)$/.test(globalThis.location.hostname) &&
+  !isNetlifyDevRuntime();
+
+const isCrossOriginLocalhostUrl = (url: string): boolean => {
+  if (typeof globalThis.location === 'undefined') {
+    return false;
+  }
+
+  try {
+    const target = new URL(url);
+    return (
+      /^(localhost|127\.0\.0\.1)$/.test(target.hostname) &&
+      target.origin !== globalThis.location.origin
+    );
+  } catch {
+    return false;
+  }
+};
+
+const shouldSkipPlainViteLocalHealthCheck = (url: string): boolean =>
+  isPlainViteLocalRuntime() &&
+  isCrossOriginLocalhostUrl(url) &&
+  import.meta.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL !== 'true';
+
 /**
  * Strip a Chilean RUT to its numeric body only (no dots, dash, or check digit).
  * Syslab requires this format for patient lookup.
@@ -114,6 +140,14 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
   const url = shouldUseNetlifyProxy()
     ? buildSyslabProxyUrl('?action=health')
     : `${getSyslabBaseUrl()}/health`;
+
+  if (shouldSkipPlainViteLocalHealthCheck(url)) {
+    return {
+      available: false,
+      message:
+        'Syslab local requiere netlify dev o VITE_SYSLAB_ENABLE_DIRECT_LOCAL=true para health checks cross-origin.',
+    };
+  }
 
   try {
     const response = await fetchWithRetry(url, { headers: authHeaders }, 5_000);

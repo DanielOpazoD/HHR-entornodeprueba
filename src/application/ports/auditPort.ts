@@ -1,13 +1,11 @@
 import {
   getAuditLogs,
   logAuditEvent,
-  logPatientAdmission,
-  logPatientDischarge,
-  logPatientTransfer,
-  logPatientView,
+  logThrottledViewEvent,
   logUserLogin,
   logUserLogout,
 } from '@/services/admin/auditService';
+import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
@@ -22,7 +20,7 @@ export interface AuditPort {
     recordDate?: string,
     authors?: string
   ) => Promise<void>;
-  fetchLogs: (limit?: number) => Promise<AuditLogEntry[]>;
+  fetchLogs: (limit?: number | null) => Promise<AuditLogEntry[]>;
   logPatientAdmission: (
     bedId: string,
     patientName: string,
@@ -66,15 +64,39 @@ export const defaultAuditPort: AuditPort = {
     authors
   ) =>
     logAuditEvent(userId, action, entityType, entityId, details, patientRut, recordDate, authors),
-  fetchLogs: async (limit?: number) => getAuditLogs(limit),
+  fetchLogs: async (limit?: number | null) => getAuditLogs(limit),
   logPatientAdmission: async (bedId, patientName, rut, pathology, recordDate) =>
-    logPatientAdmission(bedId, patientName, rut, pathology || '', recordDate),
+    logAuditEvent(
+      getCurrentUserEmail(),
+      'PATIENT_ADMITTED',
+      'patient',
+      bedId,
+      { patientName, bedId, pathology: pathology || '', rut },
+      rut,
+      recordDate
+    ),
   logPatientDischarge: async (bedId, patientName, rut, status, recordDate) =>
-    logPatientDischarge(bedId, patientName, rut, status, recordDate),
+    logAuditEvent(
+      getCurrentUserEmail(),
+      'PATIENT_DISCHARGED',
+      'discharge',
+      bedId,
+      { patientName, status, bedId, rut },
+      rut,
+      recordDate
+    ),
   logPatientTransfer: async (bedId, patientName, rut, destination, recordDate) =>
-    logPatientTransfer(bedId, patientName, rut, destination, recordDate),
+    logAuditEvent(
+      getCurrentUserEmail(),
+      'PATIENT_TRANSFERRED',
+      'transfer',
+      bedId,
+      { patientName, destination, bedId, rut },
+      rut,
+      recordDate
+    ),
   logPatientView: async (bedId, patientName, rut, recordDate) =>
-    logPatientView(bedId, patientName, rut, recordDate),
+    logThrottledViewEvent('VIEW_PATIENT', bedId, { patientName, bedId, rut }, recordDate),
   logUserLogin: async email => logUserLogin(email),
   logUserLogout: async (email, reason) => logUserLogout(email, reason),
 };

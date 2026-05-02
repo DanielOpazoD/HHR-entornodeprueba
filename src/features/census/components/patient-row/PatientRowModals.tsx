@@ -102,6 +102,7 @@ export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
             bedId={demographicsBinding.targetBedId}
             recordDate={currentDateString}
             isClinicalCribPatient={demographicsBinding.isRnIdentityContext}
+            requiresCompleteDemographics={!isSubRow && !hasMeaningfulDemographicSubset(data)}
           />
         </Suspense>
       ) : null}

@@ -1,4 +1,5 @@
 import { firestoreDb, type IDatabaseProvider } from '@/services/storage/firestore';
+import type { QueryOptions } from '@/services/infrastructure/db/types';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry, maskRut } from '@/types/auditLogTypes';
 import {
@@ -61,6 +62,7 @@ export const logThrottledViewEvent = async (
 ): Promise<void> => {
   if (shouldExcludeFromViewAudit()) return;
   if (!shouldLogViewAction(action)) return;
+  updateViewThrottleState(action);
 
   await logAuditEvent(
     getCurrentUserEmail(),
@@ -99,7 +101,7 @@ const sanitizeDetails = (details: Record<string, unknown>): Record<string, unkno
 
 interface AuditLocalStore {
   saveAuditLog: (entry: AuditLogEntry) => Promise<void>;
-  getAuditLogs: (limitCount: number) => Promise<AuditLogEntry[]>;
+  getAuditLogs: (limitCount?: number | null) => Promise<AuditLogEntry[]>;
   getAuditLogsForDate: (date: string) => Promise<AuditLogEntry[]>;
 }
 
@@ -118,7 +120,7 @@ export interface AuditCoreService {
     recordDate?: string,
     authors?: string
   ) => Promise<void>;
-  getAuditLogs: (limitCount?: number) => Promise<AuditLogEntry[]>;
+  getAuditLogs: (limitCount?: number | null) => Promise<AuditLogEntry[]>;
   getAuditLogsForDate: (date: string) => Promise<AuditLogEntry[]>;
   logUserLogin: (email: string) => Promise<void>;
   logUserLogout: (email: string, reason?: 'manual' | 'automatic') => Promise<void>;
@@ -195,9 +197,6 @@ export const createAuditCoreService = (
     recordDate,
     authors
   ): Promise<void> => {
-    if (action.startsWith('VIEW_') && !shouldLogViewAction(action)) return;
-    if (action.startsWith('VIEW_')) updateViewThrottleState(action);
-
     const entry: AuditLogEntry = {
       id: generateAuditId(),
       timestamp: new Date().toISOString(),
@@ -209,13 +208,7 @@ export const createAuditCoreService = (
       entityType,
       entityId,
       summary: generateSummary(action, details, entityId),
-      details: sanitizeDetails({
-        ...details,
-        _metadata: {
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
-          platform: typeof navigator !== 'undefined' ? navigator.platform : 'Unknown',
-        },
-      }),
+      details: sanitizeDetails(details),
       patientIdentifier: patientRut ? maskRut(patientRut) : undefined,
       recordDate,
       authors,
@@ -227,16 +220,20 @@ export const createAuditCoreService = (
 
   return {
     logAuditEvent,
-    getAuditLogs: async (limitCount = 100): Promise<AuditLogEntry[]> => {
+    getAuditLogs: async (limitCount?: number | null): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync()) {
         return await localStore.getAuditLogs(limitCount);
       }
 
       try {
-        return await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), {
+        const queryOptions: QueryOptions = {
           orderBy: [{ field: 'timestamp', direction: 'desc' }],
-          limit: limitCount,
-        });
+        };
+        if (typeof limitCount === 'number') {
+          queryOptions.limit = limitCount;
+        }
+
+        return await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), queryOptions);
       } catch (error) {
         auditCoreLogger.error('Failed to fetch audit logs from Firestore', error);
         return await localStore.getAuditLogs(limitCount);

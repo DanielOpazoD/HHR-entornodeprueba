@@ -4,7 +4,12 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { BODY_LOCATION_OPTIONS } from '../domain/woundCareValidation';
-import { formatFileSize } from '../controllers/photoUploadController';
+import {
+  formatFileSize,
+  formatReadonlyUploadDateTime,
+  toClinicalDatetimeLocalValue,
+  toClinicalEventIso,
+} from '../controllers/photoUploadController';
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -12,8 +17,6 @@ interface PhotoUploadModalProps {
   file: File | null;
   episodeContext: EpisodeContext;
 }
-
-const todayString = (): string => new Date().toISOString().split('T')[0];
 
 export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   isOpen,
@@ -23,7 +26,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
 }) => {
   const [description, setDescription] = useState('');
   const [bodyLocation, setBodyLocation] = useState('');
-  const [photoDate, setPhotoDate] = useState(todayString);
+  const [eventDateTime, setEventDateTime] = useState(() => toClinicalDatetimeLocalValue());
   const [error, setError] = useState<string | null>(null);
   const { uploadPhoto, isUploading, progress } = useWoundCareUpload();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
     const result = await uploadPhoto(file, episodeContext, {
       description: description.trim() || undefined,
       bodyLocation: bodyLocation || undefined,
-      takenAt: photoDate ? `${photoDate}T12:00:00Z` : undefined,
+      takenAt: toClinicalEventIso(eventDateTime),
     });
 
     if (result.success) {
@@ -65,7 +68,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   const handleClose = () => {
     setDescription('');
     setBodyLocation('');
-    setPhotoDate(todayString());
+    setEventDateTime(toClinicalDatetimeLocalValue());
     setError(null);
     onClose();
   };
@@ -93,19 +96,29 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           </div>
         )}
 
-        {/* Date picker */}
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            Fecha de subida
+          </p>
+          <p className="text-sm text-slate-700">{formatReadonlyUploadDateTime()}</p>
+        </div>
+
+        {/* Event datetime picker */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             <Calendar className="w-3.5 h-3.5 inline mr-1" />
-            Fecha de la curación
+            Fecha del evento clínico
           </label>
           <input
-            type="date"
-            value={photoDate}
-            onChange={e => setPhotoDate(e.target.value)}
-            max={todayString()}
+            type="datetime-local"
+            value={eventDateTime}
+            onChange={e => setEventDateTime(e.target.value)}
+            max={toClinicalDatetimeLocalValue()}
             className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
           />
+          <p className="mt-1 text-xs text-slate-400">
+            Use esta fecha si la curación fue realizada antes de subir la foto.
+          </p>
         </div>
 
         {/* Body location */}

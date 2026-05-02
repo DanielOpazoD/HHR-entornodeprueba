@@ -36,7 +36,7 @@ export const useCensusEmailRecipientBootstrapEffect = ({
           executeLoadCensusRecipientRuntimeState({
             canManageGlobalRecipientLists,
             browserRuntime,
-            enabled,
+            enabled: bootstrapEnabled,
             activeListStorageKey: ACTIVE_LIST_STORAGE_KEY,
             recipientsStorageKey: RECIPIENTS_STORAGE_KEY,
             user,

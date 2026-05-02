@@ -95,6 +95,28 @@ describe('useBedManagement operations', () => {
           'beds.R1': expect.objectContaining({ patientName: '' }),
         })
       );
+      expect(mockAuditContextValue.logEvent).toHaveBeenCalledWith(
+        'PATIENT_MODIFIED',
+        'patient',
+        'R2',
+        expect.objectContaining({
+          clinicalEvent: 'Movimiento de paciente entre camas',
+          movementKind: 'move',
+          sourceBed: 'R1',
+          targetBed: 'R2',
+          patientName: 'Test Patient',
+        }),
+        '12.345.678-9',
+        '2025-01-01'
+      );
+      expect(mockAuditContextValue.logDebouncedEvent).not.toHaveBeenCalledWith(
+        'PATIENT_MODIFIED',
+        'patient',
+        'R2',
+        expect.objectContaining({ movementKind: 'move' }),
+        expect.anything(),
+        expect.anything()
+      );
     });
 
     it('handles moveOrCopyPatient copy', () => {
@@ -113,6 +135,20 @@ describe('useBedManagement operations', () => {
         expect.objectContaining({
           'beds.R2': expect.any(Object),
         })
+      );
+      expect(mockAuditContextValue.logEvent).toHaveBeenCalledWith(
+        'PATIENT_MODIFIED',
+        'patient',
+        'R2',
+        expect.objectContaining({
+          clinicalEvent: 'Copia de paciente a otra cama',
+          movementKind: 'copy',
+          sourceBed: 'R1',
+          targetBed: 'R2',
+          patientName: 'Test Patient',
+        }),
+        '12.345.678-9',
+        '2025-01-01'
       );
     });
 

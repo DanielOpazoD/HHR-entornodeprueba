@@ -8,7 +8,7 @@ import { defaultAuditPort, type AuditPort } from '@/application/ports/auditPort'
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 export interface FetchAuditLogsInput {
-  limit?: number;
+  limit?: number | null;
 }
 
 export interface FetchAuditLogsDependencies {
@@ -16,12 +16,12 @@ export interface FetchAuditLogsDependencies {
 }
 
 export const executeFetchAuditLogs = async (
-  { limit = 100 }: FetchAuditLogsInput = {},
+  { limit }: FetchAuditLogsInput = {},
   dependencies: FetchAuditLogsDependencies = {}
 ): Promise<ApplicationOutcome<AuditLogEntry[]>> => {
   const auditPort = dependencies.auditPort || defaultAuditPort;
   try {
-    const logs = await auditPort.fetchLogs(limit);
+    const logs = await auditPort.fetchLogs(limit ?? undefined);
     return createApplicationSuccess(logs);
   } catch (error) {
     return createApplicationFailed(

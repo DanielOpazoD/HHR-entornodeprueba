@@ -30,6 +30,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
   bodyClassName,
   scrollableBody = true,
   dataModule,
+  dataTestId,
 }) => {
   const { modalRef } = useBaseModalLifecycle({ isOpen, onClose, initialFocusRef });
 
@@ -56,6 +57,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
       <div
         ref={modalRef}
         data-module={dataModule}
+        data-testid={dataTestId}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

@@ -56,6 +56,7 @@ describe('bedManagementDispatchController', () => {
       auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
     };
 
     executeBedManagementAction({
@@ -87,6 +88,7 @@ describe('bedManagementDispatchController', () => {
       auditCribCudyrChange: vi.fn(),
       auditPatientCleared: vi.fn(),
       auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
     };
 
     executeBedManagementAction({

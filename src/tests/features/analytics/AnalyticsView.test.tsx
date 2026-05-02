@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 vi.mock('@/hooks/useMinsalStats', () => ({
   useMinsalStats: () => ({
@@ -53,17 +54,23 @@ import { AnalyticsView } from '@/features/analytics/public';
 
 describe('AnalyticsView', () => {
   it('distinguishes occupancy of the period from current occupancy', () => {
-    render(<AnalyticsView />);
+    const consoleSpies = suppressConsole(['error', 'warn']);
 
-    expect(screen.getByText('Ocupación del período')).toBeInTheDocument();
-    expect(screen.getByText('69.9%')).toBeInTheDocument();
-    expect(screen.getByText('Tendencia diaria de ocupación')).toBeInTheDocument();
-    expect(screen.getByText('Serie diaria del rango seleccionado')).toBeInTheDocument();
-    expect(screen.getByText('Último registro disponible')).toBeInTheDocument();
-    expect(
-      screen.getByText('Último registro disponible del rango seleccionado')
-    ).toBeInTheDocument();
-    expect(screen.getByText('Ocupación del último registro')).toBeInTheDocument();
-    expect(screen.getByText('72.2%')).toBeInTheDocument();
+    try {
+      render(<AnalyticsView />);
+
+      expect(screen.getByText('Ocupación del período')).toBeInTheDocument();
+      expect(screen.getByText('69.9%')).toBeInTheDocument();
+      expect(screen.getByText('Tendencia diaria de ocupación')).toBeInTheDocument();
+      expect(screen.getByText('Serie diaria del rango seleccionado')).toBeInTheDocument();
+      expect(screen.getByText('Último registro disponible')).toBeInTheDocument();
+      expect(
+        screen.getByText('Último registro disponible del rango seleccionado')
+      ).toBeInTheDocument();
+      expect(screen.getByText('Ocupación del último registro')).toBeInTheDocument();
+      expect(screen.getByText('72.2%')).toBeInTheDocument();
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 });

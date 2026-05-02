@@ -8,15 +8,20 @@ vi.mock('@/components/modals/DemographicsModal', () => ({
   DemographicsModal: ({
     bedId,
     isClinicalCribPatient,
+    requiresCompleteDemographics,
     onCancel,
     onEmptySave,
   }: {
     bedId: string;
     isClinicalCribPatient?: boolean;
+    requiresCompleteDemographics?: boolean;
     onCancel?: () => void;
     onEmptySave?: () => void;
   }) => (
-    <div data-rn-context={String(Boolean(isClinicalCribPatient))}>
+    <div
+      data-rn-context={String(Boolean(isClinicalCribPatient))}
+      data-requires-complete-demographics={String(Boolean(requiresCompleteDemographics))}
+    >
       <span>Demographics {bedId}</span>
       <button onClick={onCancel}>Cancelar Demographics</button>
       <button onClick={onEmptySave}>Guardar Vacío</button>
@@ -160,6 +165,8 @@ describe('PatientRowModals', () => {
           insurance: undefined,
           origin: undefined,
           admissionOrigin: undefined,
+          admissionDate: '',
+          admissionTime: '',
           biologicalSex: 'Indeterminado',
         })}
       />
@@ -168,6 +175,34 @@ describe('PatientRowModals', () => {
     fireEvent.click(await screen.findByText('Cancelar Demographics'));
 
     expect(onRevertEmptyDemographics).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires complete demographics for a newly activated empty bed', async () => {
+    render(
+      <PatientRowModals
+        {...baseProps}
+        showDemographics
+        data={DataFactory.createMockPatient('R1', {
+          patientName: ' ',
+          rut: '',
+          firstName: '',
+          lastName: '',
+          secondLastName: '',
+          birthDate: '',
+          insurance: undefined,
+          origin: undefined,
+          admissionOrigin: undefined,
+          admissionDate: '',
+          admissionTime: '',
+          biologicalSex: 'Indeterminado',
+        })}
+      />
+    );
+
+    expect((await screen.findByText('Demographics R1')).closest('div')).toHaveAttribute(
+      'data-requires-complete-demographics',
+      'true'
+    );
   });
 
   it('reverts a newly activated empty bed when the demographics modal saves empty data', async () => {
@@ -188,6 +223,8 @@ describe('PatientRowModals', () => {
           insurance: undefined,
           origin: undefined,
           admissionOrigin: undefined,
+          admissionDate: '',
+          admissionTime: '',
           biologicalSex: 'Indeterminado',
         })}
       />

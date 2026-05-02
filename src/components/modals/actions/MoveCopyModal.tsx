@@ -136,7 +136,11 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
 
           <div className="grid grid-cols-3 gap-1.5 max-h-[50vh] overflow-y-auto pr-1">
             {isTargetLoading ? (
-              <div className="col-span-3 py-8 text-center text-slate-400 text-xs">
+              <div
+                className="col-span-3 py-8 text-center text-slate-400 text-xs"
+                role="status"
+                aria-live="polite"
+              >
                 Verificando disponibilidad...
               </div>
             ) : (
@@ -199,7 +203,7 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
             onClick={handleConfirmAction}
             className="px-5 py-2 bg-medical-600 text-white rounded-lg text-xs font-bold shadow-md shadow-medical-600/10 hover:bg-medical-700 transition-all transform active:scale-95 disabled:opacity-50 disabled:transform-none"
           >
-            Confirmar {type === 'move' ? 'Traslado' : 'Copia'}
+            Confirmar {type === 'move' ? 'Movimiento' : 'Copia'}
           </button>
         </div>
       </div>

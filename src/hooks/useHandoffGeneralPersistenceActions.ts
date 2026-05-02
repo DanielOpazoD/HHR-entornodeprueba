@@ -13,7 +13,8 @@ import {
 import type { HandoffPersistenceRuntime } from '@/hooks/useHandoffPersistenceRuntime';
 
 export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceRuntime) => {
-  const { logDebouncedEvent, logEvent, patchRecord, runMutation, saveAndUpdate, userId } = runtime;
+  const { logEvent, logHandoffNovedadesModified, patchRecord, runMutation, saveAndUpdate, userId } =
+    runtime;
 
   const updateHandoffChecklist = useCallback(
     (shift: 'day' | 'night', field: string, value: boolean | string) => {
@@ -53,20 +54,24 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
         },
         ({ currentRecord }) => {
           const auditEvent = buildHandoffNovedadesAuditEvent(currentRecord, shift, value, userId);
+          const previousContent =
+            auditEvent.details.changes &&
+            typeof auditEvent.details.changes === 'object' &&
+            'novedades' in auditEvent.details.changes
+              ? (auditEvent.details.changes.novedades as { old?: unknown }).old
+              : '';
 
-          logDebouncedEvent(
-            auditEvent.action,
-            auditEvent.entityType,
-            auditEvent.entityId,
-            auditEvent.details,
-            undefined,
+          logHandoffNovedadesModified(
+            shift,
+            value,
+            typeof previousContent === 'string' ? previousContent : '',
             auditEvent.recordDate,
             auditEvent.authors
           );
         }
       );
     },
-    [logDebouncedEvent, patchRecord, runMutation, saveAndUpdate, userId]
+    [logHandoffNovedadesModified, patchRecord, runMutation, saveAndUpdate, userId]
   );
 
   const updateHandoffStaff = useCallback(

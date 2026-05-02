@@ -40,7 +40,7 @@ export const usePatientDischarges = (
 ): DischargeMovementActions => {
   const recordRef = useLatestRef(record);
   const { notifyCreationError, notifyUndoError } = usePatientMovementFeedback(runtime);
-  const { logDischargeEntries } = usePatientMovementAudit();
+  const { logDischargeEntries, logDischargeUndoEntry } = usePatientMovementAudit();
   const executeMovementCreation = usePatientMovementCreationExecutor({
     saveAndUpdate,
     notifyCreationError,
@@ -145,6 +145,17 @@ export const usePatientDischarges = (
           kind: 'discharge',
           movement: discharge,
           record: currentRecord,
+          onSuccess: ({ movement, updatedBed }) => {
+            logDischargeUndoEntry(
+              {
+                dischargeId: movement.id,
+                bedId: movement.bedId,
+                patientName: updatedBed.patientName || movement.patientName,
+                rut: updatedBed.rut || movement.originalData?.rut,
+              },
+              currentRecord.date
+            );
+          },
           applyUndoRecord: ({ record, movementId, bedId, updatedBed }) =>
             resolveApplyUndoDischargeRecord({
               record,
@@ -155,7 +166,7 @@ export const usePatientDischarges = (
         });
       });
     },
-    [executeMovementUndo, withCurrentRecord]
+    [executeMovementUndo, logDischargeUndoEntry, withCurrentRecord]
   );
 
   return useMemo(

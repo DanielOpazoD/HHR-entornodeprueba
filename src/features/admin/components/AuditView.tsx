@@ -25,6 +25,7 @@ export const AuditView: React.FC = () => {
   const {
     logs,
     filteredLogs,
+    displayLogs,
     paginatedLogs,
     stats,
     loading,
@@ -33,6 +34,7 @@ export const AuditView: React.FC = () => {
     setFilterAction,
     setStartDate,
     setEndDate,
+    applyDateRangePreset,
     setActiveSection,
     setCompactView,
     setGroupedView,
@@ -119,6 +121,7 @@ export const AuditView: React.FC = () => {
         onStartDateChange={setStartDate}
         endDate={endDate}
         onEndDateChange={setEndDate}
+        onDateRangePreset={applyDateRangePreset}
       />
 
       <AuditDynamicPanels
@@ -131,6 +134,7 @@ export const AuditView: React.FC = () => {
       {isAuditTableSection(activeSection) && (
         <AuditTable
           filteredLogs={filteredLogs}
+          displayLogsCount={displayLogs.length}
           paginatedLogs={paginatedLogs}
           loading={loading}
           compactView={compactView}

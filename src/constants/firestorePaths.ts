@@ -65,6 +65,8 @@ export const HOSPITAL_COLLECTIONS = {
   WOUND_CARE_CONSENTS: 'woundCareConsents',
   /** Wound care photo metadata records */
   WOUND_CARE_PHOTOS: 'woundCarePhotos',
+  /** Transient wound care mobile upload QR sessions */
+  WOUND_CARE_MOBILE_UPLOAD_SESSIONS: 'woundCareMobileUploadSessions',
 } as const;
 
 // ============================================================================
@@ -138,6 +140,9 @@ export const getWoundCareConsentsPath = (hospitalId: string = getActiveHospitalI
  */
 export const getWoundCarePhotosPath = (hospitalId: string = getActiveHospitalId()) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.WOUND_CARE_PHOTOS}` as const;
+
+export const getWoundCareMobileUploadSessionsPath = (hospitalId: string = getActiveHospitalId()) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.WOUND_CARE_MOBILE_UPLOAD_SESSIONS}` as const;
 
 // ============================================================================
 // Type Exports

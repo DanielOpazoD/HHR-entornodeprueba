@@ -34,9 +34,9 @@ const openTransfers = async (page: Page) => {
     useRuntimeOverride: true,
     forceEditableRecord: true,
   });
-  await page.goto(`/traslados?date=${date}`);
+  await page.goto(`/transfer-management?date=${date}`);
   await ensureAuthenticated(page);
-  await expect(page.locator('main')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('transfer-management-view')).toBeVisible({ timeout: 20000 });
 };
 
 test.describe('Transfer Management', () => {
@@ -50,9 +50,9 @@ test.describe('Transfer Management', () => {
     test('should have create new transfer button', async ({ page }) => {
       await openTransfers(page);
 
-      await expect(
-        page.getByRole('button', { name: /nuevo|crear|solicitar|agregar/i }).first()
-      ).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('transfer-new-request-button')).toBeVisible({
+        timeout: 10000,
+      });
     });
 
     test('should show transfer status surface', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('Transfer Management', () => {
     test('should open transfer creation modal', async ({ page }) => {
       await openTransfers(page);
 
-      const createBtn = page.getByRole('button', { name: /nuevo|crear|solicitar/i }).first();
+      const createBtn = page.getByTestId('transfer-new-request-button');
       if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await createBtn.click();
         await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 5000 });
@@ -76,7 +76,7 @@ test.describe('Transfer Management', () => {
     test('should have patient selector in modal', async ({ page }) => {
       await openTransfers(page);
 
-      const createBtn = page.getByRole('button', { name: /nuevo|crear|solicitar/i }).first();
+      const createBtn = page.getByTestId('transfer-new-request-button');
       if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await createBtn.click();
         await expect(page.locator('select, [data-testid="patient-selector"]').first()).toBeVisible({
@@ -88,7 +88,7 @@ test.describe('Transfer Management', () => {
     test('should have destination field in modal', async ({ page }) => {
       await openTransfers(page);
 
-      const createBtn = page.getByRole('button', { name: /nuevo|crear|solicitar/i }).first();
+      const createBtn = page.getByTestId('transfer-new-request-button');
       if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await createBtn.click();
         await expect(

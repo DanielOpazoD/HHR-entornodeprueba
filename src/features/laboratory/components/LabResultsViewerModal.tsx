@@ -59,6 +59,7 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
       variant="white"
       size={shellModel.modalSize}
       dataModule="laboratory"
+      dataTestId="lab-results-viewer-modal"
       className="!rounded-2xl ring-1 ring-black/[0.03]"
       bodyClassName="max-h-[90vh] overflow-y-auto px-5 pt-3 pb-0"
       title={

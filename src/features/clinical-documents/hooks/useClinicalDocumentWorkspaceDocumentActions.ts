@@ -18,7 +18,7 @@ import {
 import { executeCreateClinicalDocumentDraft } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { logClinicalDocumentCreated } from '@/services/admin/auditDomainLoggers';
+import { useAuditContext } from '@/context/AuditContext';
 import {
   resolveClinicalDocumentExceptionMessage,
   resolveClinicalDocumentOutcomeError,
@@ -70,6 +70,8 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
   setDraft,
   lastPersistedSnapshotRef,
 }: UseClinicalDocumentWorkspaceDocumentActionsParams) => {
+  const { logClinicalDocumentCreated, logClinicalDocumentDeleted } = useAuditContext();
+
   const createDocument = useCallback(async () => {
     if (!canEdit || !user) {
       notify.warning('Permiso insuficiente', 'No tienes permisos para crear documentos clínicos.');
@@ -152,6 +154,7 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
     setSelectedDocumentId,
     templates,
     user,
+    logClinicalDocumentCreated,
   ]);
 
   const handleDeleteDocument = useCallback(
@@ -166,6 +169,7 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
         setSelectedDocumentId,
         setDraft,
         lastPersistedSnapshotRef,
+        logClinicalDocumentDeleted,
       }),
     [
       canDelete,
@@ -176,6 +180,7 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
       selectedDocumentId,
       setDraft,
       setSelectedDocumentId,
+      logClinicalDocumentDeleted,
     ]
   );
 
@@ -259,6 +264,7 @@ export const useClinicalDocumentWorkspaceDocumentActions = ({
       setDraft,
       setSelectedDocumentId,
       user,
+      logClinicalDocumentCreated,
     ]
   );
 

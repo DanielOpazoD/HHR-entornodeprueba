@@ -272,6 +272,43 @@ describe('transferService queries and subscriptions', () => {
     expect(result?.id).toBe('TR-OPEN-NEW');
   });
 
+  it('scopes open transfer lookup by request month when a reference date is provided', async () => {
+    const getDocsMock = vi.mocked(firestore.getDocs);
+    getDocsMock.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'TR-OLD-MONTH',
+          data: () => ({
+            bedId: 'BED_1',
+            status: 'ACCEPTED',
+            archived: false,
+            requestDate: '2026-02-28',
+            updatedAt: '2026-02-28T10:00:00.000Z',
+            createdAt: '2026-02-28T09:00:00.000Z',
+            statusHistory: [],
+          }),
+        },
+        {
+          id: 'TR-SAME-MONTH',
+          data: () => ({
+            bedId: 'BED_1',
+            status: 'REQUESTED',
+            archived: false,
+            requestDate: '2026-03-02',
+            updatedAt: '2026-03-02T10:00:00.000Z',
+            createdAt: '2026-03-02T09:00:00.000Z',
+            statusHistory: [],
+          }),
+        },
+      ],
+    } as unknown as Awaited<ReturnType<typeof firestore.getDocs>>);
+
+    const result = await getLatestOpenTransferRequestByBedId('BED_1', {
+      referenceDate: '2026-03-03',
+    });
+    expect(result?.id).toBe('TR-SAME-MONTH');
+  });
+
   it('returns null when there are no open requests for the bed', async () => {
     const getDocsMock = vi.mocked(firestore.getDocs);
     getDocsMock.mockResolvedValueOnce({

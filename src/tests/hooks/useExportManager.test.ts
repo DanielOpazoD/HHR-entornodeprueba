@@ -6,7 +6,7 @@ import * as backupExportArchiveUseCases from '@/application/backup-export/backup
 import * as backupExportStorageUseCases from '@/application/backup-export/backupExportStorageUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { LookupBackupArchiveStatusOutput } from '@/application/backup-export/backupExportStorageUseCases';
-import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveUseCases';
+import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveContracts';
 
 const notificationApi = {
   success: vi.fn(),

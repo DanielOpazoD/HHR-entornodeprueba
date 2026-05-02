@@ -203,6 +203,24 @@ describe('indexedDBService', () => {
       const logs = await idbService.getAuditLogs(3);
       expect(logs).toHaveLength(3);
     });
+
+    it('should return all audit logs when no limit is provided', async () => {
+      for (let i = 0; i < 5; i++) {
+        await idbService.saveAuditLog({
+          id: `full-${i}`,
+          timestamp: FIXED_ISO_TIMESTAMP,
+          action: 'SYSTEM_ERROR',
+          userId: 'test@local',
+          entityType: 'system',
+          entityId: `full-log-${i}`,
+          details: {},
+        } as AuditLogEntry);
+      }
+
+      const logs = await idbService.getAuditLogs();
+
+      expect(logs).toHaveLength(5);
+    });
   });
 
   describe('Settings', () => {

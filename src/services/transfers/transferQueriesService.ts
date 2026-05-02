@@ -6,6 +6,7 @@ import {
 } from '@/services/transfers/transferFirestoreCollections';
 import {
   pickLatestOpenTransferFromSnapshot,
+  pickLatestOpenTransferFromSnapshotForMonth,
   querySnapshotToTransfers,
   transferDocToEntity,
 } from '@/services/transfers/transferSerializationController';
@@ -13,6 +14,10 @@ import { runWithFirestoreRuntime } from '@/services/storage/firestore/firestoreR
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+
+interface TransferRequestLookupOptions {
+  referenceDate?: string;
+}
 
 export const createTransferQueriesService = (
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
@@ -63,7 +68,8 @@ export const createTransferQueriesService = (
   };
 
   const getLatestOpenTransferRequestByBedId = async (
-    bedId: string
+    bedId: string,
+    options: TransferRequestLookupOptions = {}
   ): Promise<TransferRequest | null> => {
     if (!shouldQueryRemote()) {
       return null;
@@ -72,6 +78,9 @@ export const createTransferQueriesService = (
     return runWithFirestoreRuntime(runtime, async () => {
       const q = query(getTransfersCollection(runtime), where('bedId', '==', bedId));
       const querySnapshot = await getDocs(q);
+      if (options.referenceDate) {
+        return pickLatestOpenTransferFromSnapshotForMonth(querySnapshot, options.referenceDate);
+      }
       return pickLatestOpenTransferFromSnapshot(querySnapshot);
     });
   };
@@ -126,12 +135,13 @@ export const getTransferByIdQuery = async (
 
 export const getLatestOpenTransferRequestByBedIdQuery = async (
   bedId: string,
+  options: TransferRequestLookupOptions = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<TransferRequest | null> =>
   (runtime === defaultFirestoreServiceRuntime
     ? defaultTransferQueriesService
     : createTransferQueriesService(runtime)
-  ).getLatestOpenTransferRequestByBedId(bedId);
+  ).getLatestOpenTransferRequestByBedId(bedId, options);
 
 export const getLatestOpenTransferRequestByPatientRutQuery = async (
   patientRut: string,

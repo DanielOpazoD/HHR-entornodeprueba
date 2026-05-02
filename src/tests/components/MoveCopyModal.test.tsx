@@ -83,6 +83,37 @@ describe('MoveCopyModal', () => {
     });
   });
 
+  it('announces destination availability checks without changing the modal layout', async () => {
+    let resolveTargetRecord: (value: null) => void = () => {};
+    mockedGetForDate.mockReturnValue(
+      new Promise(resolve => {
+        resolveTargetRecord = resolve;
+      })
+    );
+
+    render(
+      <MoveCopyModal
+        isOpen={true}
+        type="copy"
+        sourceBedId="R1"
+        targetBedId={null}
+        onClose={vi.fn()}
+        onSetTarget={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Mañana/i }));
+
+    expect(screen.getByRole('status')).toHaveTextContent(/verificando disponibilidad/i);
+
+    resolveTargetRecord(null);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
   it('does not reset target bed when selecting the same date option', async () => {
     const onSetTarget = vi.fn();
 
@@ -120,7 +151,7 @@ describe('MoveCopyModal', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Confirmar Traslado/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirmar Movimiento/i }));
 
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalledWith(undefined);

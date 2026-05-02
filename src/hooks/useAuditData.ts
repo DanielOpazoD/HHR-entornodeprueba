@@ -30,6 +30,10 @@ import {
   AUDIT_SECTIONS,
   type AuditSectionConfig,
 } from '@/services/admin/auditViewConfig';
+import {
+  resolveAuditDateRangePreset,
+  type AuditDateRangePreset,
+} from '@/services/admin/auditDateRangePresets';
 import { auditDataLogger } from '@/hooks/hookLoggers';
 
 export { AUDIT_SECTIONS } from '@/services/admin/auditViewConfig';
@@ -64,6 +68,7 @@ export interface UseAuditDataReturn {
   setFilterAction: (value: AuditAction | 'ALL') => void;
   setStartDate: (value: string) => void;
   setEndDate: (value: string) => void;
+  applyDateRangePreset: (preset: AuditDateRangePreset) => void;
   setActiveSection: (value: AuditSection) => void;
   setCompactView: (value: boolean) => void;
   setGroupedView: (value: boolean) => void;
@@ -101,7 +106,7 @@ export function useAuditData(): UseAuditDataReturn {
   const [endDate, setEndDate] = useState('');
   const [activeSection, setActiveSection] = useState<AuditSection>('ALL');
   const [compactView, setCompactView] = useState(false);
-  const [groupedView, setGroupedView] = useState(false);
+  const [groupedView, setGroupedView] = useState(true);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,7 +122,7 @@ export function useAuditData(): UseAuditDataReturn {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await executeFetchAuditLogs({ limit: 1000 });
+      const result = await executeFetchAuditLogs({});
       setLogs(resolveAuditLogsFallback(result.data));
       if (result.status === 'failed') {
         auditDataLogger.error('Failed to fetch audit logs', result.issues[0]?.message);
@@ -157,6 +162,12 @@ export function useAuditData(): UseAuditDataReturn {
 
   const toggleMetadata = useCallback((id: string) => {
     setShowMetadata(prev => toggleAuditRowState(prev, id));
+  }, []);
+
+  const applyDateRangePreset = useCallback((preset: AuditDateRangePreset) => {
+    const range = resolveAuditDateRangePreset(preset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
   }, []);
 
   const { filteredLogs, displayLogs, stats: workerStats } = results;
@@ -216,6 +227,7 @@ export function useAuditData(): UseAuditDataReturn {
     setFilterAction,
     setStartDate,
     setEndDate,
+    applyDateRangePreset,
     setActiveSection,
     setCompactView,
     setGroupedView,

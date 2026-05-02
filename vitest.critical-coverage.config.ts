@@ -44,6 +44,7 @@ export default defineConfig({
     setupFiles: ['./src/tests/setup.ts'],
     include: ['src/tests/**/*.test.ts', 'src/tests/**/*.test.tsx'],
     exclude: ['stories/**/*', 'node_modules/**/*'],
+    maxWorkers: 4,
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,

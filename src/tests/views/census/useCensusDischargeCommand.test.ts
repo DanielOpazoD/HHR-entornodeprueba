@@ -5,12 +5,19 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { CensusActionNotification } from '@/features/census/controllers/censusActionNotificationController';
 import { useCensusDischargeCommand } from '@/features/census/hooks/useCensusDischargeCommand';
 
-const { mockGetLatestOpenTransferRequestByBedId } = vi.hoisted(() => ({
-  mockGetLatestOpenTransferRequestByBedId: vi.fn(),
-}));
+const { mockGetLatestOpenTransferRequestByBedId, mockRecordCriticalClinicalAction } = vi.hoisted(
+  () => ({
+    mockGetLatestOpenTransferRequestByBedId: vi.fn(),
+    mockRecordCriticalClinicalAction: vi.fn(),
+  })
+);
 
 vi.mock('@/services/transfers/transferService', () => ({
   getLatestOpenTransferRequestByBedId: mockGetLatestOpenTransferRequestByBedId,
+}));
+
+vi.mock('@/services/observability/criticalClinicalActionRecorder', () => ({
+  recordCriticalClinicalAction: mockRecordCriticalClinicalAction,
 }));
 
 const createRecord = (): DailyRecord => ({
@@ -107,6 +114,16 @@ describe('useCensusDischargeCommand', () => {
     expect(mockGetLatestOpenTransferRequestByBedId).toHaveBeenCalledWith('R1');
     expect(confirm).not.toHaveBeenCalled();
     expect(addDischarge).toHaveBeenCalledTimes(1);
+    expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'daily_record',
+        action: 'census_discharge_created',
+        outcome: 'success',
+        clinicalDate: '2026-03-03',
+        bedId: 'R1',
+        patientRut: '12.345.678-9',
+      })
+    );
   });
 
   it('asks for confirmation and executes discharge when active transfer is confirmed', async () => {
@@ -153,6 +170,13 @@ describe('useCensusDischargeCommand', () => {
 
     expect(confirm).not.toHaveBeenCalled();
     expect(addDischarge).toHaveBeenCalledTimes(1);
+    expect(mockRecordCriticalClinicalAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'census_discharge_created',
+        outcome: 'success',
+        bedId: 'R1',
+      })
+    );
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();

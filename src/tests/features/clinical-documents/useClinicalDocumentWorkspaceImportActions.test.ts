@@ -11,6 +11,16 @@ import * as clinicalDocumentAiImportService from '@/features/clinical-documents/
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
+const auditContextMocks = vi.hoisted(() => ({
+  logClinicalDocumentCreated: vi.fn(),
+}));
+
+vi.mock('@/context/AuditContext', () => ({
+  useAuditContext: () => ({
+    logClinicalDocumentCreated: auditContextMocks.logClinicalDocumentCreated,
+  }),
+}));
+
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () => {
   const actual = await vi.importActual<
     typeof import('@/application/clinical-documents/clinicalDocumentUseCases')
@@ -150,6 +160,13 @@ describe('useClinicalDocumentWorkspaceImportActions', () => {
       'Documento importado',
       `${selectedDocument.title} (importado) quedó guardado como un nuevo borrador.`
     );
+    expect(auditContextMocks.logClinicalDocumentCreated).toHaveBeenCalledWith(
+      'imported-document-id',
+      selectedDocument.templateId,
+      `${selectedDocument.title} (importado)`,
+      selectedDocument.patientRut,
+      selectedDocument.sourceDailyRecordDate
+    );
   });
 
   it('imports a transfer report with AI and opens the generated epicrisis traslado draft', async () => {
@@ -229,6 +246,13 @@ describe('useClinicalDocumentWorkspaceImportActions', () => {
           sourceTextLength: 210,
         }),
       })
+    );
+    expect(auditContextMocks.logClinicalDocumentCreated).toHaveBeenCalledWith(
+      'ai-imported-document-id',
+      'epicrisis_traslado',
+      'Epicrisis traslado',
+      patient.rut,
+      selectedDocument.sourceDailyRecordDate
     );
   });
 

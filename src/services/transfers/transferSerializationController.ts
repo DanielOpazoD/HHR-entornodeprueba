@@ -5,6 +5,7 @@ import {
   normalizeLegacyTransferStatus,
   pickLatestOpenTransferRequest,
 } from '@/services/transfers/transferStatusController';
+import { isSameTransferOperationalMonth } from '@/shared/transfers/transferOperationalPeriod';
 
 export type TransferFirestoreDoc = Record<string, unknown>;
 
@@ -54,3 +55,13 @@ export const pickLatestOpenTransferFromSnapshot = (querySnapshot: {
   docs: Array<{ id: string; data: () => TransferFirestoreDoc }>;
 }): TransferRequest | null =>
   pickLatestOpenTransferRequest(querySnapshotToTransfers(querySnapshot));
+
+export const pickLatestOpenTransferFromSnapshotForMonth = (
+  querySnapshot: { docs: Array<{ id: string; data: () => TransferFirestoreDoc }> },
+  referenceDate: string
+): TransferRequest | null =>
+  pickLatestOpenTransferRequest(
+    querySnapshotToTransfers(querySnapshot).filter(transfer =>
+      isSameTransferOperationalMonth(transfer.requestDate, referenceDate)
+    )
+  );

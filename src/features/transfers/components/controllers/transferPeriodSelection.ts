@@ -1,5 +1,9 @@
 import type { TransferRequest } from '@/types/transferRequestTypes';
 import type { TransferStatus } from '@/types/transferStatusTypes';
+import {
+  isSameTransferOperationalMonth,
+  resolveTransferMonthKeyFromDate,
+} from '@/shared/transfers/transferOperationalPeriod';
 
 export const parseTransferDate = (value: string | undefined): Date | null => {
   if (!value) return null;
@@ -41,12 +45,13 @@ export const isTransferVisibleInSelectedPeriod = ({
     return false;
   }
 
+  const selectedMonthKey = resolveTransferMonthKeyFromDate(selectedPeriodEnd);
+  const requestInPeriod = isSameTransferOperationalMonth(transfer.requestDate, selectedMonthKey);
   const isClosed = closedStatuses.has(transfer.status);
   if (!isClosed) {
-    return requestDate <= selectedPeriodEnd;
+    return requestInPeriod;
   }
 
-  const requestInPeriod = requestDate >= selectedPeriodStart && requestDate <= selectedPeriodEnd;
   const latestStatusDate = parseTransferDate(transfer.statusHistory.at(-1)?.timestamp);
   const closedInPeriod = latestStatusDate
     ? latestStatusDate >= selectedPeriodStart && latestStatusDate <= selectedPeriodEnd

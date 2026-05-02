@@ -106,9 +106,9 @@ Desde `2026-04-11`, el especialista usa una ruta server-side acotada via callabl
 ## Configuracion relevante
 
 - proyecto frontend/local:
-  - `.env.local` con `VITE_FIREBASE_PROJECT_ID=hhr-pruebas`
+  - `.env.local` con `VITE_FIREBASE_PROJECT_ID` apuntando al proyecto que se esta probando
 - project/backend:
-  - deploy de Functions en `hhr-pruebas`
+  - deploy de Functions en el mismo proyecto Firebase del frontend activo
 - hospital:
   - `HOSPITAL_ID` en runtime de Functions
   - `HospitalConfigService.getHospitalId()` del lado cliente
@@ -175,9 +175,56 @@ Leccion:
 
 - los logs de depuracion para incidentes deben retirarse cuando el fix queda estable.
 
+### 6. Funcion local correcta pero callable no desplegada
+
+Problema observado:
+
+- el login especialista funcionaba;
+- el cliente llamaba `updateSpecialistMedicalHandoff`;
+- el navegador mostraba un bloqueo CORS desde `localhost`;
+- la causa real era que el endpoint remoto devolvia `404` al preflight porque la callable no
+  estaba desplegada en el proyecto Firebase activo.
+
+Leccion:
+
+- ante un falso CORS de este flujo, comprobar primero que la funcion existe en el proyecto remoto
+  antes de cambiar frontend, reglas o payloads.
+
+Diagnostico minimo:
+
+```bash
+npx firebase-tools functions:list --project hhr-serviciohospitalizados --non-interactive
+
+curl -i -X OPTIONS \
+  'https://us-central1-hhr-serviciohospitalizados.cloudfunctions.net/updateSpecialistMedicalHandoff' \
+  -H 'Origin: http://localhost:3020' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: authorization,content-type'
+```
+
+Resultado esperado:
+
+- `functions:list` debe incluir `updateSpecialistMedicalHandoff` como `callable`;
+- el preflight debe responder `204` con `access-control-allow-origin`;
+- si responde `404`, la funcion no esta publicada en ese proyecto o se esta apuntando al proyecto
+  equivocado.
+
+Despliegue minimo cuando falta solo esta callable:
+
+```bash
+npx firebase-tools deploy \
+  --only functions:updateSpecialistMedicalHandoff \
+  --project hhr-serviciohospitalizados \
+  --non-interactive
+```
+
+No resolver este caso moviendo al especialista de vuelta a write directo Firestore: eso reabre la
+deuda original de permisos y diff de reglas.
+
 ## Checks y tests minimos antes de tocar este flujo
 
 - `npx vitest run src/tests/functions/specialistMedicalHandoffFunctions.test.ts`
+- `npx vitest run src/tests/functions/specialistMedicalHandoffDeploymentContract.test.ts`
 - `npx vitest run src/tests/services/storage/firestoreRecordWrites.test.ts`
 - `npx vitest run src/tests/hooks/controllers/dailyRecordQueryController.test.ts`
 - `npx vitest run src/tests/hooks/useHandoffLogic.medical-handoff.test.ts`

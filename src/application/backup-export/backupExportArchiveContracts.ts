@@ -27,6 +27,11 @@ export interface BackupHandoffPdfInput {
   selectedShift: 'day' | 'night';
 }
 
+export interface BackupHandoffPdfOutput {
+  shift: 'day' | 'night';
+  createdCudyrBackup: boolean;
+}
+
 const MIN_SUPPORTED_YEAR = 2000;
 const MAX_SUPPORTED_YEAR = 2100;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

@@ -4,7 +4,6 @@ import { useBedOperations } from '@/hooks/useBedOperations';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 // patientFactory is mocked inline
-import { logPatientCleared } from '@/services/admin/auditService';
 
 // Mock patientFactory
 vi.mock('@/services/factories/patientFactory', () => ({
@@ -20,11 +19,6 @@ vi.mock('@/services/factories/patientFactory', () => ({
 // Mock auditService
 const { mockLogPatientCleared } = vi.hoisted(() => ({
   mockLogPatientCleared: vi.fn(),
-}));
-
-vi.mock('@/services/admin/auditService', () => ({
-  logPatientCleared: mockLogPatientCleared,
-  logAuditEvent: vi.fn(),
 }));
 
 // Mock AuditContext to provide the same mock function
@@ -195,7 +189,12 @@ describe('useBedOperations', () => {
       expect(mockPatchRecord).toHaveBeenCalledWith({
         'beds.B1': expect.objectContaining({ patientName: '' }),
       });
-      expect(logPatientCleared).toHaveBeenCalledWith('B1', 'To Clear', patient.rut, record.date);
+      expect(mockLogPatientCleared).toHaveBeenCalledWith(
+        'B1',
+        'To Clear',
+        patient.rut,
+        record.date
+      );
     });
   });
 

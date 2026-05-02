@@ -76,9 +76,30 @@ export interface WoundCarePhoto {
   takenAt: string;
   uploadedAt: string;
   uploadedBy: WoundCareAuditActor;
+  uploadedViaSessionId?: string;
   deletedAt?: string;
   deletedBy?: WoundCareAuditActor;
   isDeleted: boolean;
+}
+
+// ============================================================================
+// Mobile QR Upload Session
+// ============================================================================
+
+export type WoundCareMobileUploadScope = 'wound_care_upload_only';
+
+export interface WoundCareMobileUploadSession {
+  sessionId: string;
+  hospitalId: string;
+  episodeKey: string;
+  patientRut: string;
+  patientName: string;
+  createdBy: WoundCareAuditActor;
+  createdAt: string;
+  expiresAt: string;
+  scope: WoundCareMobileUploadScope;
+  revokedAt?: string;
+  revokedBy?: WoundCareAuditActor;
 }
 
 // ============================================================================

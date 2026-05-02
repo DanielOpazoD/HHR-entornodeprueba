@@ -43,6 +43,7 @@ export const MedicalShareActions: React.FC<MedicalShareActionsProps> = ({
     <div className="flex items-center gap-1.5">
       <button
         onClick={onSendWhatsApp}
+        data-testid="medical-handoff-send-whatsapp-button"
         disabled={!!medicalSignature}
         className={clsx(
           'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
@@ -58,6 +59,7 @@ export const MedicalShareActions: React.FC<MedicalShareActionsProps> = ({
       <div className="relative" ref={shareMenuRef}>
         <button
           onClick={() => setShowShareMenu(previous => !previous)}
+          data-testid="medical-handoff-share-links-button"
           className={clsx(
             'inline-flex items-center gap-1 rounded-lg p-1.5 transition-colors',
             showShareMenu
@@ -82,6 +84,7 @@ export const MedicalShareActions: React.FC<MedicalShareActionsProps> = ({
                   onShareLink(option.scope);
                   setShowShareMenu(false);
                 }}
+                data-testid={`medical-handoff-share-link-${option.scope}`}
                 className={clsx(
                   'w-full px-3 py-1.5 text-left text-[12px] font-medium transition-colors',
                   option.className

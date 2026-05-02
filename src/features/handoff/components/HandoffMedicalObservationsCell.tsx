@@ -137,6 +137,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
             <button
               type="button"
               onClick={onCreatePrimaryEntry}
+              data-testid="medical-handoff-create-entry-button"
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 print:hidden"
             >
               + Crear entrega

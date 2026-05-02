@@ -11,6 +11,7 @@ import { BedType } from '@/types/domain/beds';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { bedManagementDispatchLogger } from '@/hooks/controllers/hookControllerLoggers';
+import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -29,6 +30,7 @@ export interface BedManagementAuditPort {
   auditCribCudyrChange: (bedId: string, field: keyof CudyrScore, value: number) => void;
   auditPatientCleared: (bedId: string, patientName: string, rut?: string) => void;
   auditPatientModified: (bedId: string, details: Record<string, unknown>) => void;
+  auditPatientMovement: (bedId: string, details: Record<string, unknown>, rut?: string) => void;
 }
 
 interface ExecuteBedManagementActionInput {
@@ -102,6 +104,27 @@ const auditActionIntent = (
       if (bed.patientName) {
         bedAudit.auditPatientCleared(action.bedId, bed.patientName, bed.rut);
       }
+      break;
+    }
+    case 'MOVE_PATIENT':
+    case 'COPY_PATIENT': {
+      const sourceBed = currentRecord.beds[action.sourceBedId];
+      if (!sourceBed?.patientName) {
+        break;
+      }
+
+      bedAudit.auditPatientMovement(
+        action.targetBedId,
+        buildBedMovementAuditDetails({
+          movementKind: action.type === 'MOVE_PATIENT' ? 'move' : 'copy',
+          sourceBed: action.sourceBedId,
+          targetBed: action.targetBedId,
+          patientName: sourceBed.patientName,
+          previousLocation: action.type === 'MOVE_PATIENT' ? sourceBed.location : undefined,
+          newLocation: currentRecord.beds[action.targetBedId]?.location,
+        }),
+        sourceBed.rut
+      );
       break;
     }
     case 'TOGGLE_BED_TYPE': {

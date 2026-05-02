@@ -318,6 +318,41 @@ describe('checkSyslabConnection', () => {
       available: false,
     });
   });
+
+  it('does not probe a cross-origin localhost Syslab proxy from plain Vite dev', async () => {
+    setRuntimeLocation('3020');
+
+    await expect(checkSyslabConnection()).resolves.toEqual({
+      available: false,
+      message:
+        'Syslab local requiere netlify dev o VITE_SYSLAB_ENABLE_DIRECT_LOCAL=true para health checks cross-origin.',
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('allows explicit direct localhost health checks in plain Vite dev', async () => {
+    setRuntimeLocation('3020');
+    setImportMetaEnv({
+      PROD: false,
+      VITE_SYSLAB_API_URL: 'http://localhost:3000',
+      VITE_SYSLAB_ENABLE_DIRECT_LOCAL: 'true',
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ connected: true }),
+    });
+
+    await expect(checkSyslabConnection()).resolves.toEqual({
+      available: true,
+      message: 'Conectado',
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3000/health',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer token-123' }),
+      })
+    );
+  });
 });
 
 /* ------------------------------------------------------------------ */

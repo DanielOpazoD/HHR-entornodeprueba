@@ -6,11 +6,14 @@ import type { TransferExecutionInput } from '@/features/census/domain/movements/
 import type { PatientData } from '@/features/census/controllers/censusActionPatientContracts';
 import type {
   completeTransferWithResult,
-  createTransferRequest,
+  createFinalizedTransferRequestWithResult,
   getLatestOpenTransferRequestByBedId,
 } from '@/services/transfers/transferService';
 
 type CompleteTransferResult = Awaited<ReturnType<typeof completeTransferWithResult>>;
+type CreateFinalizedTransferResult = Awaited<
+  ReturnType<typeof createFinalizedTransferRequestWithResult>
+>;
 
 export const resolveTransferDestinationHospital = (
   receivingCenter: string,
@@ -69,6 +72,14 @@ const assertTransferCompletionSucceeded = (result: CompleteTransferResult): void
   throw new Error(result.userSafeMessage || 'No se pudo completar el traslado.');
 };
 
+const assertFinalizedTransferCreationSucceeded = (result: CreateFinalizedTransferResult): void => {
+  if (result.status === 'success') {
+    return;
+  }
+
+  throw new Error(result.userSafeMessage || 'No se pudo crear el traslado finalizado.');
+};
+
 interface SyncCensusTransferRequestParams {
   bedId: string;
   patient: PatientData;
@@ -77,7 +88,7 @@ interface SyncCensusTransferRequestParams {
   destinationHospital: string;
   createdByEmail: string;
   getLatestOpenTransferRequestByBedId: typeof getLatestOpenTransferRequestByBedId;
-  createTransferRequest: typeof createTransferRequest;
+  createFinalizedTransferRequestWithResult: typeof createFinalizedTransferRequestWithResult;
   completeTransferWithResult: typeof completeTransferWithResult;
 }
 
@@ -89,37 +100,38 @@ export const syncCensusTransferRequest = async ({
   destinationHospital,
   createdByEmail,
   getLatestOpenTransferRequestByBedId,
-  createTransferRequest,
+  createFinalizedTransferRequestWithResult,
   completeTransferWithResult,
 }: SyncCensusTransferRequestParams): Promise<void> => {
-  const linkedRequest = await getLatestOpenTransferRequestByBedId(bedId);
+  const requestDate = (data?.movementDate || recordDate || new Date().toISOString()).split('T')[0];
+  const linkedRequest = await getLatestOpenTransferRequestByBedId(bedId, {
+    referenceDate: requestDate,
+  });
   if (linkedRequest) {
     const completionResult = await completeTransferWithResult(linkedRequest.id, createdByEmail);
     assertTransferCompletionSucceeded(completionResult);
     return;
   }
 
-  // No prior request exists — create one and immediately complete it
-  // so it appears as TRANSFERRED (finalized) in Gestión de Traslados.
-  const requestDate = (data?.movementDate || recordDate || new Date().toISOString()).split('T')[0];
-
-  const createdRequest = await createTransferRequest({
-    patientId: bedId,
-    bedId,
-    patientSnapshot: buildTransferPatientSnapshot(patient, recordDate || requestDate),
-    destinationHospital,
-    transferReason: 'Traslado registrado desde Censo Diario',
-    requestingDoctor: '',
-    observations: 'Traslado registrado automáticamente desde Censo Diario.',
-    customFields: {
-      source: 'census_transfer_autocreate',
+  // No prior request exists: create it directly as TRANSFERRED in the history collection.
+  // The patient was already moved from census, so an active REQUESTED intermediate row is misleading.
+  const creationResult = await createFinalizedTransferRequestWithResult(
+    {
+      patientId: bedId,
+      bedId,
+      patientSnapshot: buildTransferPatientSnapshot(patient, recordDate || requestDate),
+      destinationHospital,
+      transferReason: 'Traslado registrado desde Censo Diario',
+      requestingDoctor: '',
+      observations: 'Traslado registrado automáticamente desde Censo Diario.',
+      customFields: {
+        source: 'census_transfer_autocreate',
+      },
+      status: 'TRANSFERRED',
+      requestDate,
+      createdBy: createdByEmail,
     },
-    status: 'REQUESTED',
-    requestDate,
-    createdBy: createdByEmail,
-  });
-
-  // Complete immediately — patient was already transferred
-  const completionResult = await completeTransferWithResult(createdRequest.id, createdByEmail);
-  assertTransferCompletionSucceeded(completionResult);
+    createdByEmail
+  );
+  assertFinalizedTransferCreationSucceeded(creationResult);
 };

@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useAuditContext } from '@/context/AuditContext';
+import { buildDischargeUndoAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
 
 interface DischargeAuditEntry {
   bedId: string;
@@ -16,7 +17,7 @@ interface TransferAuditEntry {
 }
 
 export const usePatientMovementAudit = () => {
-  const { logPatientDischarge, logPatientTransfer } = useAuditContext();
+  const { logEvent, logPatientDischarge, logPatientTransfer } = useAuditContext();
   const logDischargeEntries = useCallback(
     (entries: DischargeAuditEntry[], recordDate: string) => {
       for (const entry of entries) {
@@ -39,11 +40,38 @@ export const usePatientMovementAudit = () => {
     [logPatientTransfer]
   );
 
+  const logDischargeUndoEntry = useCallback(
+    (
+      entry: {
+        dischargeId: string;
+        bedId: string;
+        patientName: string;
+        rut?: string;
+      },
+      recordDate: string
+    ) => {
+      logEvent(
+        'PATIENT_MODIFIED',
+        'patient',
+        entry.bedId,
+        buildDischargeUndoAuditDetails({
+          dischargeId: entry.dischargeId,
+          patientName: entry.patientName,
+          restoredBed: entry.bedId,
+        }),
+        entry.rut,
+        recordDate
+      );
+    },
+    [logEvent]
+  );
+
   return useMemo(
     () => ({
       logDischargeEntries,
+      logDischargeUndoEntry,
       logTransferEntry,
     }),
-    [logDischargeEntries, logTransferEntry]
+    [logDischargeEntries, logDischargeUndoEntry, logTransferEntry]
   );
 };

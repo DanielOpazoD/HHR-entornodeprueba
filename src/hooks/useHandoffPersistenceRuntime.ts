@@ -35,6 +35,13 @@ export interface HandoffManagementPersistenceInput {
     recordDate?: string,
     authors?: string
   ) => void;
+  logHandoffNovedadesModified: (
+    shift: string,
+    content: string,
+    oldContent: string,
+    recordDate: string,
+    authors?: string
+  ) => void;
   userId: string;
   notifyError: (title: string, message: string) => void;
 }

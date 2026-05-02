@@ -68,19 +68,58 @@ describe('AuditWorkerLogic', () => {
     expect(filtered[0].action).toBe('PATIENT_ADMITTED');
   });
 
-  it('should group logs correctly', () => {
-    // Grouping by user/action/entity/date
+  it('should group repeated logs inside a ten minute burst without crossing the burst window', () => {
     const display = groupLogs(mockLogs, actionLabels);
     // They are separate because actions are different
     expect(display.length).toBe(2);
 
     const similarLogs: AuditLogEntry[] = [
       { ...mockLogs[1], id: '3', timestamp: '2026-01-31T12:00:00Z' },
-      { ...mockLogs[1], id: '4', timestamp: '2026-01-31T13:00:00Z' },
+      { ...mockLogs[1], id: '4', timestamp: '2026-01-31T12:09:59Z' },
+      { ...mockLogs[1], id: '5', timestamp: '2026-01-31T12:10:01Z' },
     ];
     const grouped = groupLogs(similarLogs, actionLabels);
-    expect(grouped.length).toBe(1);
-    expect((grouped[0] as unknown as { isGroup?: boolean }).isGroup).toBe(true);
+    expect(grouped.length).toBe(2);
+    expect(grouped.some(log => (log as unknown as { isGroup?: boolean }).isGroup)).toBe(true);
+  });
+
+  it('groups same action, user and IP inside ten minutes even when entity ids differ', () => {
+    const errorLogs: AuditLogEntry[] = [
+      {
+        id: 'err-1',
+        timestamp: '2026-05-02T12:22:09.000Z',
+        userId: 'doctor@test.com',
+        userDisplayName: 'Doctor Test',
+        ipAddress: '138.84.83.116',
+        action: 'SYSTEM_ERROR',
+        entityType: 'system',
+        entityId: 'err-1',
+        summary: 'Error del Sistema',
+        details: { message: 'sync failed' },
+      },
+      {
+        id: 'err-2',
+        timestamp: '2026-05-02T12:31:59.000Z',
+        userId: 'doctor@test.com',
+        userDisplayName: 'Doctor Test',
+        ipAddress: '138.84.83.116',
+        action: 'SYSTEM_ERROR',
+        entityType: 'system',
+        entityId: 'err-2',
+        summary: 'Error del Sistema',
+        details: { message: 'sync failed' },
+      },
+    ];
+
+    const grouped = groupLogs(errorLogs, { SYSTEM_ERROR: 'Error del Sistema' });
+
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]).toEqual(
+      expect.objectContaining({
+        isGroup: true,
+        summary: 'Error del Sistema (2 registros en 10 min)',
+      })
+    );
   });
 
   it('should calculate stats correctly', () => {

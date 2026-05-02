@@ -18,7 +18,7 @@ import { extractClinicalDocumentAiImportFileText } from '@/features/clinical-doc
 import { transformClinicalDocumentAiImportText } from '@/features/clinical-documents/services/clinicalDocumentAiImportService';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { logClinicalDocumentCreated } from '@/services/admin/auditDomainLoggers';
+import { useAuditContext } from '@/context/AuditContext';
 import {
   resolveClinicalDocumentExceptionMessage,
   resolveClinicalDocumentOutcomeError,
@@ -106,6 +106,8 @@ export const useClinicalDocumentWorkspaceImportActions = ({
   setDraft,
   lastPersistedSnapshotRef,
 }: UseClinicalDocumentWorkspaceImportActionsParams) => {
+  const { logClinicalDocumentCreated } = useAuditContext();
+
   const handleImportJson = useCallback(
     async (file: File) => {
       if (!canEdit || !user) {
@@ -213,6 +215,7 @@ export const useClinicalDocumentWorkspaceImportActions = ({
       setDraft,
       setSelectedDocumentId,
       user,
+      logClinicalDocumentCreated,
     ]
   );
 
@@ -345,6 +348,7 @@ export const useClinicalDocumentWorkspaceImportActions = ({
       setDraft,
       setSelectedDocumentId,
       user,
+      logClinicalDocumentCreated,
     ]
   );
 

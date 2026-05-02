@@ -72,22 +72,48 @@ export const filterLogs = (logs: AuditLogEntry[], params: WorkerFilterParams): A
 /**
  * Group logs
  */
+const AUDIT_BURST_WINDOW_MS = 10 * 60 * 1000;
+
+const resolveBurstGroupBaseKey = (log: AuditLogEntry): string => {
+  const userIdStr = (log.userId || 'unknown').trim();
+  const ipStr = (log.ipAddress || 'unknown-ip').trim();
+  const actionStr = (log.action || '').trim();
+
+  return `${userIdStr}-${ipStr}-${actionStr}`;
+};
+
 export const groupLogs = (
   filteredLogs: AuditLogEntry[],
   actionLabels: Record<string, string>
 ): (AuditLogEntry | GroupedAuditLogEntry)[] => {
   const groups: Record<string, AuditLogEntry[]> = {};
 
-  filteredLogs.forEach(log => {
-    const dateObj = parseAuditTimestamp(log.timestamp);
-    const dateStr = log.recordDate || dateObj.toISOString().split('T')[0];
-    const userIdStr = (log.userId || 'unknown').trim();
-    const actionStr = (log.action || '').trim();
-    const entityStr = (log.entityId || '').trim();
+  const sortedLogs = [...filteredLogs].sort(
+    (a, b) =>
+      parseAuditTimestamp(a.timestamp).getTime() - parseAuditTimestamp(b.timestamp).getTime()
+  );
 
-    const groupKey = `${userIdStr}-${actionStr}-${entityStr}-${dateStr}`;
-    if (!groups[groupKey]) groups[groupKey] = [];
-    groups[groupKey].push(log);
+  sortedLogs.forEach(log => {
+    const baseKey = resolveBurstGroupBaseKey(log);
+    const logTime = parseAuditTimestamp(log.timestamp).getTime();
+    const existingGroupKey = Object.keys(groups).find(groupKey => {
+      if (!groupKey.startsWith(`${baseKey}-`)) return false;
+
+      const group = groups[groupKey];
+      const firstTime = parseAuditTimestamp(group[0].timestamp).getTime();
+      const lastTime = parseAuditTimestamp(group[group.length - 1].timestamp).getTime();
+
+      return (
+        logTime - firstTime < AUDIT_BURST_WINDOW_MS && logTime - lastTime < AUDIT_BURST_WINDOW_MS
+      );
+    });
+
+    if (existingGroupKey) {
+      groups[existingGroupKey].push(log);
+      return;
+    }
+
+    groups[`${baseKey}-${logTime}`] = [log];
   });
 
   return Object.entries(groups)
@@ -101,9 +127,12 @@ export const groupLogs = (
         ...first,
         id: `group-${key}`,
         timestamp: last.timestamp,
-        summary: `${actionLabels[first.action] || first.action} (${group.length} registros)`,
+        summary: `${actionLabels[first.action] || first.action} (${group.length} registros en 10 min)`,
         isGroup: true,
-        childLogs: group,
+        childLogs: [...group].sort(
+          (a, b) =>
+            parseAuditTimestamp(b.timestamp).getTime() - parseAuditTimestamp(a.timestamp).getTime()
+        ),
       } as GroupedAuditLogEntry;
     })
     .sort((a, b) => {

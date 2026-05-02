@@ -8,6 +8,7 @@ import {
   CURRENT_TABLE_CONFIG_VERSION,
 } from '@/services/storage/tableConfigService';
 import { getDoc, setDoc } from 'firebase/firestore';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 vi.mock('firebase/firestore', async () => {
   const actual = await vi.importActual('firebase/firestore');
@@ -71,10 +72,15 @@ describe('tableConfigService', () => {
     });
 
     it('should handle errors by returning default config', async () => {
+      const consoleSpies = suppressConsole(['error']);
       vi.mocked(getDoc).mockRejectedValue(new Error('Firestore error'));
 
-      const config = await loadTableConfig();
-      expect(config.columns).toEqual(DEFAULT_COLUMN_WIDTHS);
+      try {
+        const config = await loadTableConfig();
+        expect(config.columns).toEqual(DEFAULT_COLUMN_WIDTHS);
+      } finally {
+        restoreConsole(consoleSpies);
+      }
     });
   });
 

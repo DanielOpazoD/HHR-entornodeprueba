@@ -10,7 +10,10 @@ import type {
   DailyRecordPatientHistoryState,
 } from '@/services/contracts/dailyRecordServiceContracts';
 import { getAllRecords, saveRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getRecordsRangeFromFirestore } from '@/services/storage/firestore';
+import {
+  getAllRecordsFromFirestore,
+  getRecordsRangeFromFirestore,
+} from '@/services/storage/firestore';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { BEDS } from '@/constants/beds';
@@ -44,6 +47,7 @@ export interface PatientHistoryLoadOptions {
   hospitalizationHints?: HospitalizationEvent[];
   lastAdmission?: string;
   lastDischarge?: string;
+  forceFullRemoteHydration?: boolean;
 }
 
 // ============================================================================
@@ -142,16 +146,15 @@ const loadPatientHistoryRecords = async (
     return localRecords;
   }
 
-  const remoteRange = resolveRemoteHistoryRange(options);
-  if (!remoteRange) {
-    return localRecords;
-  }
+  const remoteRange = options?.forceFullRemoteHydration ? null : resolveRemoteHistoryRange(options);
 
   try {
-    const remoteRecords = (await getRecordsRangeFromFirestore(
-      remoteRange.startDate,
-      remoteRange.endDate
-    )) as DailyRecordPatientHistoryState[];
+    const remoteRecords = remoteRange
+      ? ((await getRecordsRangeFromFirestore(
+          remoteRange.startDate,
+          remoteRange.endDate
+        )) as DailyRecordPatientHistoryState[])
+      : (Object.values(await getAllRecordsFromFirestore()) as DailyRecordPatientHistoryState[]);
 
     if (remoteRecords.length > 0) {
       await saveRecords(remoteRecords as unknown as DailyRecord[]);
@@ -187,8 +190,9 @@ export async function getPatientMovementHistory(
 
   const movements: PatientMovement[] = [];
   let patientName = '';
-  let admissionDate = '';
   let lastSeenDate = '';
+  let openEpisodeAdmissionDate = '';
+  let isEpisodeOpen = false;
 
   // We process records to find movements and the latest admission date
   for (const date of sortedDates) {
@@ -201,7 +205,8 @@ export async function getPatientMovementHistory(
 
       if (normalizeRut(patient.rut) === normalizedRut) {
         if (!patientName && patient.patientName) patientName = patient.patientName;
-        if (patient.admissionDate) admissionDate = patient.admissionDate;
+        const patientAdmissionDate = patient.admissionDate || date;
+        if (patientAdmissionDate) openEpisodeAdmissionDate ||= patientAdmissionDate;
         lastSeenDate = date;
 
         // Movements logic...
@@ -216,11 +221,17 @@ export async function getPatientMovementHistory(
           time: patient.admissionTime,
         };
 
-        // Identify if it's the first time or a change
+        // Identify if it's the first time, a new admission, or a bed change.
         const lastMove = movements[movements.length - 1];
-        if (!lastMove) {
+        if (
+          !lastMove ||
+          !isEpisodeOpen ||
+          (openEpisodeAdmissionDate && patientAdmissionDate !== openEpisodeAdmissionDate)
+        ) {
           currentMove.type = 'admission';
           movements.push(currentMove);
+          openEpisodeAdmissionDate = patientAdmissionDate;
+          isEpisodeOpen = true;
         } else if (lastMove.bedId !== bedId) {
           currentMove.type = 'internal_move';
           currentMove.details = `Desde cama ${lastMove.bedName}`;
@@ -232,13 +243,18 @@ export async function getPatientMovementHistory(
       if (patient.clinicalCrib?.rut && normalizeRut(patient.clinicalCrib.rut) === normalizedRut) {
         if (!patientName && patient.clinicalCrib.patientName)
           patientName = patient.clinicalCrib.patientName;
-        if (patient.clinicalCrib.admissionDate) admissionDate = patient.clinicalCrib.admissionDate;
+        const cribAdmissionDate = patient.clinicalCrib.admissionDate || date;
+        if (cribAdmissionDate) openEpisodeAdmissionDate ||= cribAdmissionDate;
         lastSeenDate = date;
 
         const cribBedId = `${bedId}-cuna`;
         const lastMove = movements[movements.length - 1];
 
-        if (!lastMove) {
+        if (
+          !lastMove ||
+          !isEpisodeOpen ||
+          (openEpisodeAdmissionDate && cribAdmissionDate !== openEpisodeAdmissionDate)
+        ) {
           movements.push({
             date,
             bedId: cribBedId,
@@ -246,6 +262,8 @@ export async function getPatientMovementHistory(
             bedType: 'CUNA',
             type: 'admission',
           });
+          openEpisodeAdmissionDate = cribAdmissionDate;
+          isEpisodeOpen = true;
         } else if (lastMove.bedId !== cribBedId) {
           movements.push({
             date,
@@ -272,6 +290,8 @@ export async function getPatientMovementHistory(
           details: discharge.status === 'Fallecido' ? 'Fallecimiento' : discharge.dischargeType,
           time: discharge.time,
         });
+        isEpisodeOpen = false;
+        openEpisodeAdmissionDate = '';
       }
     }
 
@@ -287,6 +307,8 @@ export async function getPatientMovementHistory(
           details: `${transfer.evacuationMethod} → ${transfer.receivingCenter}`,
           time: transfer.time,
         });
+        isEpisodeOpen = false;
+        openEpisodeAdmissionDate = '';
       }
     }
   }
@@ -303,17 +325,15 @@ export async function getPatientMovementHistory(
     return days >= 0 ? days : 0;
   };
 
-  const totalDays = calculateDays(admissionDate, lastSeenDate);
-
-  // Filter movements to only include those in the current hospitalization (on or after admissionDate)
-  const currentSessionMovements = movements.filter(m => m.date >= (admissionDate || '0000-00-00'));
+  const firstSeenDate = movements[0].date;
+  const totalDays = calculateDays(firstSeenDate, lastSeenDate);
 
   return {
     patientName: patientName || 'Paciente',
     rut,
-    movements: currentSessionMovements,
+    movements,
     totalDays,
-    firstSeen: admissionDate || movements[0].date,
+    firstSeen: firstSeenDate,
     lastSeen: lastSeenDate,
   };
 }

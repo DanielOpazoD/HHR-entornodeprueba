@@ -56,15 +56,15 @@ export const useHandoffViewScreenModel = ({
   } = useDailyRecordHandoffActions();
   const { nursesList } = useStaffContext();
   const { success } = useNotification();
-  const { logEvent, userId } = useAuditContext();
+  const { logViewEvent, userId } = useAuditContext();
   const { role } = useAuth();
-  const logEventRef = useRef(logEvent);
+  const logViewEventRef = useRef(logViewEvent);
   const recordRef = useRef(record);
   const [selectedMedicalSpecialty, setSelectedMedicalSpecialty] = useState<Specialty | 'all'>(
     initialMedicalSpecialty
   );
 
-  useEffect(() => void (logEventRef.current = logEvent), [logEvent]);
+  useEffect(() => void (logViewEventRef.current = logViewEvent), [logViewEvent]);
   useEffect(() => void (recordRef.current = record), [record]);
 
   const handoffLogic = useHandoffLogic({
@@ -150,7 +150,7 @@ export const useHandoffViewScreenModel = ({
       isMedical ? undefined : (selectedShift as 'day' | 'night')
     );
 
-    logEventRef.current(
+    logViewEventRef.current(
       auditDescriptor.action,
       'dailyRecord',
       recordDate,

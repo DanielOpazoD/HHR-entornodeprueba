@@ -17,6 +17,7 @@ import { AuditSkeleton } from '@/components/shared/Skeleton';
 
 interface AuditTableProps {
   filteredLogs: AuditLogEntry[];
+  displayLogsCount: number;
   paginatedLogs: AuditLogEntry[];
   loading: boolean;
   compactView: boolean;
@@ -37,6 +38,7 @@ interface AuditTableProps {
 
 export const AuditTable: React.FC<AuditTableProps> = ({
   filteredLogs,
+  displayLogsCount,
   paginatedLogs,
   loading,
   compactView,
@@ -60,6 +62,9 @@ export const AuditTable: React.FC<AuditTableProps> = ({
         <div className="flex items-center gap-3">
           <span className="text-xs font-medium text-slate-500">
             {filteredLogs.length} registros
+            {groupedView && displayLogsCount < filteredLogs.length
+              ? ` / ${displayLogsCount} entradas visibles`
+              : ''}
           </span>
           {/* Compact View Toggle */}
           <button

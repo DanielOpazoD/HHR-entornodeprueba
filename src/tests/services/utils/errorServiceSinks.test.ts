@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 import {
   auditErrorSink,
   buildDefaultErrorServiceSinks,
@@ -78,11 +79,16 @@ describe('errorServiceSinks', () => {
   });
 
   it('wraps sink errors without aborting the pipeline', async () => {
+    const consoleSpies = suppressConsole(['error']);
     const sink = createSafeErrorServiceSink(
       'broken-sink',
       vi.fn().mockRejectedValue(new Error('broken'))
     );
 
-    await expect(sink(buildErrorLog('low'))).resolves.toBeUndefined();
+    try {
+      await expect(sink(buildErrorLog('low'))).resolves.toBeUndefined();
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 });

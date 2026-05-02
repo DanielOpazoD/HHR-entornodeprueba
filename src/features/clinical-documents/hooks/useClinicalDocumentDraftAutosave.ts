@@ -6,9 +6,10 @@ import {
   resolveClinicalDocumentAutosaveCommit,
 } from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import { useAuditContext } from '@/context/AuditContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { logClinicalDocumentEdited } from '@/services/admin/auditDomainLoggers';
+import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import { serializeClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import type { ClinicalDocumentDraftAction } from '@/features/clinical-documents/hooks/clinicalDocumentDraftReducer';
 
@@ -43,6 +44,7 @@ export const useClinicalDocumentDraftAutosave = ({
   draftRef,
   lastPersistedSnapshotRef,
 }: UseClinicalDocumentDraftAutosaveParams) => {
+  const { logClinicalDocumentEdited } = useAuditContext();
   const autosaveTimerRef = useRef<number | null>(null);
   const latestAutosaveRequestIdRef = useRef(0);
   const scheduledDraftIdRef = useRef<string | null>(null);
@@ -66,6 +68,25 @@ export const useClinicalDocumentDraftAutosave = ({
       latestAutosaveRequestIdRef.current += 1;
       const requestId = latestAutosaveRequestIdRef.current;
       dispatch({ type: 'AUTOSAVE_REQUESTED' });
+      const recordCriticalSave = (
+        recordToTrack: ClinicalDocumentRecord,
+        outcome: 'success' | 'failed',
+        issues?: string[]
+      ) => {
+        recordCriticalClinicalAction({
+          category: 'clinical_document',
+          action: 'clinical_document_saved',
+          outcome,
+          clinicalDate: recordToTrack.sourceDailyRecordDate,
+          bedId: recordToTrack.sourceBedId,
+          patientRut: recordToTrack.patientRut,
+          documentId: recordToTrack.id,
+          documentType: recordToTrack.templateId,
+          userId: user.uid,
+          userRole: role,
+          issues,
+        });
+      };
 
       try {
         const result = await executePersistClinicalDocumentEditorDraft({
@@ -86,6 +107,7 @@ export const useClinicalDocumentDraftAutosave = ({
         }
 
         if (result.status === 'success' && result.data) {
+          recordCriticalSave(result.data, 'success');
           if (persistReason !== 'admin_fix') {
             void logClinicalDocumentEdited(
               result.data.id,
@@ -127,6 +149,7 @@ export const useClinicalDocumentDraftAutosave = ({
           issues: [result.issues[0]?.message || 'Autosave rejected'],
           context: { documentId: record.id },
         });
+        recordCriticalSave(record, 'failed', [result.issues[0]?.message || 'Autosave rejected']);
         dispatch({ type: 'AUTOSAVE_FAILED' });
       } catch (error) {
         if (requestId !== latestAutosaveRequestIdRef.current) {
@@ -141,10 +164,22 @@ export const useClinicalDocumentDraftAutosave = ({
           issues: [error instanceof Error ? error.message : 'Autosave failed'],
           context: { documentId: record.id },
         });
+        recordCriticalSave(record, 'failed', [
+          error instanceof Error ? error.message : 'Autosave failed',
+        ]);
         dispatch({ type: 'AUTOSAVE_FAILED' });
       }
     },
-    [dispatch, draftRef, hospitalId, lastPersistedSnapshotRef, persistReason, role, user]
+    [
+      dispatch,
+      draftRef,
+      hospitalId,
+      lastPersistedSnapshotRef,
+      logClinicalDocumentEdited,
+      persistReason,
+      role,
+      user,
+    ]
   );
 
   useEffect(() => {

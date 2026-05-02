@@ -20,3 +20,9 @@ export {
   executeUpdatePhotoDescription,
   executeDeleteWoundCarePhoto,
 } from './woundCarePhotoUseCases';
+
+export {
+  executeCreateWoundCareMobileUploadSession,
+  executeRevokeWoundCareMobileUploadSession,
+  executeValidateWoundCareMobileUploadSession,
+} from './woundCareMobileUploadSessionUseCases';

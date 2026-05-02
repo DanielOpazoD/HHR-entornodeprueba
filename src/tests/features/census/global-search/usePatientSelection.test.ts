@@ -77,5 +77,59 @@ describe('usePatientSelection', () => {
 
     expect(result.current.selectedPatient?.timelineState.episodeCount).toBe(1);
     expect(result.current.selectedPatient?.isLoadingHistory).toBe(false);
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledWith(
+      basePatient.rut,
+      expect.objectContaining({ forceFullRemoteHydration: true })
+    );
+  });
+
+  it('reuses an in-flight history lookup when the same patient is selected twice', async () => {
+    let resolveHistory: (history: PatientHistoryResult) => void = () => undefined;
+    const historyPromise = new Promise<PatientHistoryResult>(resolve => {
+      resolveHistory = resolve;
+    });
+    const history: PatientHistoryResult = {
+      patientName: basePatient.fullName,
+      rut: basePatient.rut,
+      totalDays: 8,
+      firstSeen: '2026-04-07',
+      lastSeen: '2026-04-15',
+      movements: [
+        {
+          date: '2026-04-07',
+          bedId: 'H1C1',
+          bedName: 'H1C1',
+          bedType: 'MEDIA',
+          type: 'admission',
+        },
+        {
+          date: '2026-04-15',
+          bedId: 'H1C1',
+          bedName: 'H1C1',
+          bedType: 'MEDIA',
+          type: 'discharge',
+          details: 'Domicilio (Habitual)',
+        },
+      ],
+    };
+
+    mockGetPatientMovementHistory.mockReturnValue(historyPromise);
+
+    const { result } = renderHook(() => usePatientSelection());
+
+    await act(async () => {
+      void result.current.selectPatient(basePatient);
+      void result.current.selectPatient(basePatient);
+    });
+
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveHistory(history);
+      await historyPromise;
+    });
+
+    await waitFor(() => expect(result.current.selectedPatient?.timelineState.episodeCount).toBe(1));
+    expect(result.current.selectedPatient?.isLoadingHistory).toBe(false);
   });
 });

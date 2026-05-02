@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { FileText, Trash2, Undo2 } from 'lucide-react';
 
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
-import { CMA_INTERVENTION_TYPES } from '@/features/census/controllers/censusCmaController';
+import {
+  buildCmaIeehPatientSnapshot,
+  CMA_INTERVENTION_TYPES,
+} from '@/features/census/controllers/censusCmaController';
 import { resolveCmaUndoButtonTitle } from '@/features/census/controllers/censusCmaTableController';
-import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const LazyIEEHFormDialog = lazy(() =>
   import('@/features/census/components/IEEHFormDialog').then(module => ({
@@ -21,32 +22,6 @@ interface CmaSectionRowProps {
   onUndo: (item: CMAData) => Promise<void>;
   onDelete: (id: string) => void;
 }
-
-const buildCmaIeehPatientSnapshot = (item: CMAData, recordDate: string): PatientData => {
-  if (item.originalData) {
-    return item.originalData;
-  }
-
-  return {
-    ...createEmptyPatient(item.originalBedId || item.id),
-    bedName: item.bedName,
-    patientName: item.patientName,
-    rut: item.rut,
-    age: item.age,
-    birthDate: item.birthDate,
-    biologicalSex: item.biologicalSex,
-    insurance: item.insurance,
-    admissionOrigin: item.admissionOrigin,
-    admissionOriginDetails: item.admissionOriginDetails,
-    origin: item.origin,
-    isRapanui: item.isRapanui,
-    pathology: item.diagnosis,
-    cie10Code: item.cie10Code,
-    cie10Description: item.cie10Description,
-    specialty: item.specialty as PatientData['specialty'],
-    admissionDate: recordDate,
-  };
-};
 
 export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
   ({ item, recordDate, onUpdate, onUndo, onDelete }) => {

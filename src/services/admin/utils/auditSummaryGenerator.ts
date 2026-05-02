@@ -4,6 +4,7 @@
  */
 
 import { AuditAction } from '@/types/auditActionTypes';
+import { buildPatientMovementSummary } from '@/services/admin/auditClinicalEventCatalog';
 
 /**
  * Generate human-readable summary for audit entry
@@ -26,6 +27,19 @@ export const generateSummary = (
     case 'PATIENT_TRANSFERRED':
       return `Traslado: ${patientName} → ${(details.destination as string) || 'otro centro'}`;
     case 'PATIENT_MODIFIED': {
+      const patientMovementSummary = buildPatientMovementSummary(
+        {
+          movementKind: details.movementKind,
+          patientName,
+          sourceBed: details.sourceBed as string | undefined,
+          targetBed: details.targetBed as string | undefined,
+          restoredBed: details.restoredBed as string | undefined,
+        },
+        bedId
+      );
+      if (patientMovementSummary) {
+        return patientMovementSummary;
+      }
       const fields = details.changes ? Object.keys(details.changes as object).join(', ') : '';
       return `Editó Ficha: ${patientName}${fields ? ` (${fields})` : ''}`;
     }

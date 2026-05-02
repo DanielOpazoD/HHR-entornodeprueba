@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasterPatient } from '@/types/domain/patientMaster';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 vi.mock('@/firebaseConfig', () => ({
   db: {},
@@ -65,8 +66,14 @@ describe('PatientMasterRepository', () => {
   });
 
   it('upsertPatient skips invalid RUT without writing', async () => {
-    await upsertPatient({ rut: 'invalid', fullName: 'Paciente' });
-    expect(vi.mocked(firestore.setDoc)).not.toHaveBeenCalled();
+    const consoleSpies = suppressConsole(['warn']);
+
+    try {
+      await upsertPatient({ rut: 'invalid', fullName: 'Paciente' });
+      expect(vi.mocked(firestore.setDoc)).not.toHaveBeenCalled();
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('upsertPatient writes normalized rut and updatedAt', async () => {

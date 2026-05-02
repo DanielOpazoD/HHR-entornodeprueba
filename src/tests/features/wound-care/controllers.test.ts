@@ -14,6 +14,8 @@ import {
 import {
   formatFileSize,
   formatCompressionRatio,
+  formatReadonlyUploadDateTime,
+  toClinicalEventIso,
 } from '@/features/wound-care/controllers/photoUploadController';
 import { resolveWoundCarePatients } from '@/features/wound-care/controllers/woundCareSectionController';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
@@ -207,6 +209,14 @@ describe('photoGalleryController', () => {
 // ============================================================================
 
 describe('photoUploadController', () => {
+  it('keeps upload date as readonly display and stores editable clinical event datetime', () => {
+    expect(formatReadonlyUploadDateTime(new Date('2026-05-02T19:45:00.000Z'))).toContain(
+      '02/05/2026'
+    );
+    expect(toClinicalEventIso('2026-05-01T09:30')).toBe('2026-05-01T09:30:00.000Z');
+    expect(toClinicalEventIso('')).toBeUndefined();
+  });
+
   it('formats file sizes correctly', () => {
     expect(formatFileSize(500)).toBe('500 B');
     expect(formatFileSize(1500)).toBe('1.5 KB');

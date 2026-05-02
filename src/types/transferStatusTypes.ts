@@ -41,6 +41,11 @@ export const TRANSFER_STATUS_CONFIG: Record<TransferStatus, TransferStatusDispla
   },
   REJECTED: { label: 'Rechazado', color: 'text-rose-700', bgColor: 'bg-rose-100' },
   NO_RESPONSE: { label: 'Sin respuesta', color: 'text-orange-700', bgColor: 'bg-orange-100' },
-  TRANSFERRED: { label: 'Trasladado', color: 'text-slate-700', bgColor: 'bg-slate-100' },
+  TRANSFERRED: {
+    label: 'Traslado ejecutado',
+    shortLabel: 'Ejecutado',
+    color: 'text-slate-700',
+    bgColor: 'bg-slate-100',
+  },
   CANCELLED: { label: 'Cancelado', color: 'text-rose-700', bgColor: 'bg-rose-100' },
 };

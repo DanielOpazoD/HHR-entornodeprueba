@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, FileText, Printer, ChevronDown, ChevronRight } from 'lucide-react';
+import { Camera, FileText, Printer, ChevronDown, ChevronRight, QrCode } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   executeUpdatePhotoDescription,
@@ -17,6 +17,7 @@ import { WoundCareToast } from './WoundCareToast';
 import { PhotoGallery } from './PhotoGallery';
 import { WoundCareErrorBoundary } from './WoundCareErrorBoundary';
 import { formatSessionDate } from '../controllers/photoGalleryController';
+import { WoundCareMobileQrPanel } from './WoundCareMobileQrPanel';
 
 // ============================================================================
 // Episode Section (collapsible per hospitalization)
@@ -34,6 +35,7 @@ interface EpisodeSectionProps {
   onEditDescription?: (photoId: string, description: string) => Promise<void>;
   onConsentAction: () => void;
   onPrintConsent: () => void;
+  onShowMobileQr: () => void;
 }
 
 const EpisodeSection: React.FC<EpisodeSectionProps> = ({
@@ -44,6 +46,7 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
   onEditDescription,
   onConsentAction,
   onPrintConsent,
+  onShowMobileQr,
 }) => {
   const [isExpanded, setIsExpanded] = useState(group.isCurrent);
 
@@ -86,6 +89,15 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
           {group.isCurrent && !readOnly && (
             <div className="flex items-center gap-1.5 flex-wrap">
               <PhotoUploadButton onFileSelected={onFileSelected} />
+              <button
+                type="button"
+                onClick={onShowMobileQr}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors touch-manipulation"
+                title="Ver QR para carga móvil"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Ver QR</span>
+              </button>
               <div className="w-px h-5 bg-slate-200 mx-0.5" />
               <button
                 type="button"
@@ -151,6 +163,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
 }) => {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showMobileQr, setShowMobileQr] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -202,7 +215,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
         title={
           <span className="truncate">
             <Camera className="w-4 h-4 inline mr-1.5" />
-            Curaciones — {patientName}
+            Registro clínico audiovisual — {patientName}
           </span>
         }
         size="lg"
@@ -222,29 +235,48 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
                 <div className="w-12 h-12 mx-auto mb-2.5 rounded-full bg-slate-50 flex items-center justify-center">
                   <Camera className="w-6 h-6 text-slate-300" />
                 </div>
-                <p className="text-sm font-medium text-slate-500">Sin registro fotográfico</p>
+                <p className="text-sm font-medium text-slate-500">Sin registro audiovisual</p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Las fotos de curaciones aparecerán aquí
                 </p>
                 {!readOnly && (
                   <div className="mt-3 inline-flex items-center gap-1.5">
                     <PhotoUploadButton onFileSelected={handleFileSelected} />
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileQr(current => !current)}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Ver QR</span>
+                    </button>
+                  </div>
+                )}
+                {showMobileQr && !readOnly && (
+                  <div className="mt-3 text-left">
+                    <WoundCareMobileQrPanel episodeContext={episodeContext} />
                   </div>
                 )}
               </div>
             ) : (
-              episodes.map(group => (
-                <EpisodeSection
-                  key={group.episodeKey}
-                  group={group}
-                  readOnly={readOnly}
-                  onFileSelected={handleFileSelected}
-                  onDelete={handleDeletePhoto}
-                  onEditDescription={handleEditDescription}
-                  onConsentAction={() => setShowConsentModal(true)}
-                  onPrintConsent={handlePrintConsent}
-                />
-              ))
+              <>
+                {showMobileQr && !readOnly && (
+                  <WoundCareMobileQrPanel episodeContext={episodeContext} />
+                )}
+                {episodes.map(group => (
+                  <EpisodeSection
+                    key={group.episodeKey}
+                    group={group}
+                    readOnly={readOnly}
+                    onFileSelected={handleFileSelected}
+                    onDelete={handleDeletePhoto}
+                    onEditDescription={handleEditDescription}
+                    onConsentAction={() => setShowConsentModal(true)}
+                    onPrintConsent={handlePrintConsent}
+                    onShowMobileQr={() => setShowMobileQr(current => !current)}
+                  />
+                ))}
+              </>
             )}
           </div>
         </WoundCareErrorBoundary>

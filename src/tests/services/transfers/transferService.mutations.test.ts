@@ -5,6 +5,7 @@ import { deleteDoc, getDoc, setDoc } from 'firebase/firestore';
 import {
   changeTransferStatus,
   completeTransfer,
+  createFinalizedTransferRequestWithResult,
   createTransferRequest,
   deleteStatusHistoryEntry,
   deleteTransferRequest,
@@ -80,6 +81,39 @@ describe('transferService mutations', () => {
     ).resolves.toBeDefined();
 
     expect(setDoc).toHaveBeenCalled();
+  });
+
+  it('creates a finalized transfer directly in history for census-origin executed transfers', async () => {
+    const result = await createFinalizedTransferRequestWithResult(
+      {
+        patientId: 'p1',
+        bedId: 'R1',
+        patientSnapshot: {
+          name: 'Test Patient',
+          rut: '12.345.678-9',
+          age: '50',
+          pathology: 'Test',
+        },
+        destination: 'Hospital Salvador',
+        destinationHospital: 'Hospital Salvador',
+        requestDate: '2025-01-10',
+        priority: 'NORMAL',
+        createdBy: 'admin@hospital.cl',
+        transferType: 'TRASLADO',
+        evacuationMethod: 'SAMU',
+        specialRequirements: [],
+      } as unknown as TransferInput,
+      'admin@hospital.cl'
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.data?.status).toBe('TRANSFERRED');
+    expect(result.data?.statusHistory.map(history => history.to)).toEqual([
+      'REQUESTED',
+      'TRANSFERRED',
+    ]);
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(deleteDoc).not.toHaveBeenCalled();
   });
 
   it('calls setDoc with merge option on updateTransferRequest', async () => {

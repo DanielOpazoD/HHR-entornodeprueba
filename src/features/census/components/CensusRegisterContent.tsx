@@ -8,6 +8,7 @@ import { CensusStaffHeader } from './CensusStaffHeader';
 import { CensusRegisterMainContent } from './CensusRegisterMainContent';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 
 const LazyCensusRegisterSections = lazy(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -39,6 +40,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   accessProfile = 'default',
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
+  const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
 
   return (
     <CensusActionsProvider>
@@ -55,8 +57,15 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           accessProfile={accessProfile}
         />
 
-        {shouldRenderSections ? (
-          <Suspense fallback={<div className="h-20 animate-pulse rounded-xl bg-slate-100" />}>
+        {shouldRenderDeferredSections ? (
+          <Suspense
+            fallback={
+              <div
+                className="h-20 animate-pulse rounded-xl bg-slate-100"
+                data-testid="census-register-sections-loading"
+              />
+            }
+          >
             <LazyCensusRegisterSections
               readOnly={readOnly}
               showBedManagerModal={showBedManagerModal}

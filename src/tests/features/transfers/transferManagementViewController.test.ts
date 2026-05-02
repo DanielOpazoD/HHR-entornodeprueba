@@ -30,15 +30,18 @@ const buildTransfer = (overrides: Partial<TransferRequest> = {}): TransferReques
   }) as TransferRequest;
 
 describe('transferManagementViewController', () => {
-  it('keeps active requests visible in later months', () => {
+  it('keeps active requests scoped to their request month', () => {
     const model = buildTransferManagementPeriodModel({
-      transfers: [buildTransfer({ requestDate: '2026-02-15', status: 'REQUESTED' })],
+      transfers: [
+        buildTransfer({ id: 'TR-FEB', requestDate: '2026-02-15', status: 'REQUESTED' }),
+        buildTransfer({ id: 'TR-MAR', requestDate: '2026-03-01', status: 'REQUESTED' }),
+      ],
       selectedYear: 2026,
       selectedMonth: 3,
       currentYear: 2026,
     });
 
-    expect(model.activeTransfers).toHaveLength(1);
+    expect(model.activeTransfers.map(transfer => transfer.id)).toEqual(['TR-MAR']);
     expect(model.filteredActiveCount).toBe(1);
   });
 

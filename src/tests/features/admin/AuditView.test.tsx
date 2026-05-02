@@ -13,6 +13,7 @@ vi.mock('@/hooks/useAuditData', () => ({
   useAuditData: () => ({
     logs: [],
     filteredLogs: [{ id: 'log-1' }],
+    displayLogs: [{ id: 'log-1' }],
     paginatedLogs: [{ id: 'log-1' }],
     stats: {},
     loading: false,
@@ -29,6 +30,7 @@ vi.mock('@/hooks/useAuditData', () => ({
     setFilterAction: vi.fn(),
     setStartDate: vi.fn(),
     setEndDate: vi.fn(),
+    applyDateRangePreset: vi.fn(),
     setActiveSection: vi.fn(),
     setCompactView: vi.fn(),
     setGroupedView: vi.fn(),

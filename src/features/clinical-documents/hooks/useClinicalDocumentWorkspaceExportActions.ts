@@ -13,6 +13,8 @@ import { resolveFailedApplicationOutcomeMessage } from '@/shared/contracts/appli
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
+import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
 import {
   resolveClinicalDocumentExceptionMessage,
   updateClinicalDocumentPdfFailure,
@@ -64,6 +66,36 @@ const downloadClinicalDocumentJson = (document: ClinicalDocumentRecord) => {
   URL.revokeObjectURL(url);
 };
 
+const recordClinicalDocumentExportCriticalAction = ({
+  document,
+  action,
+  outcome,
+  exportType,
+  issues,
+  context,
+}: {
+  document: ClinicalDocumentRecord;
+  action: string;
+  outcome: OperationalTelemetryStatus;
+  exportType: string;
+  issues?: string[];
+  context?: Record<string, unknown>;
+}) => {
+  recordCriticalClinicalAction({
+    category: 'export',
+    action,
+    outcome,
+    clinicalDate: document.sourceDailyRecordDate,
+    bedId: document.sourceBedId,
+    patientRut: document.patientRut,
+    documentId: document.id,
+    documentType: document.templateId,
+    exportType,
+    issues,
+    context,
+  });
+};
+
 export const useClinicalDocumentWorkspaceExportActions = ({
   selectedDocument,
   hospitalId,
@@ -86,6 +118,12 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           },
           { allowSuccess: true }
         );
+        recordClinicalDocumentExportCriticalAction({
+          document,
+          action: 'clinical_document_json_exported',
+          outcome: 'success',
+          exportType: 'json',
+        });
         notify.success('JSON exportado', 'El documento clínico se descargó como respaldo JSON.');
       } catch (error) {
         const errorMessage = resolveClinicalDocumentExceptionMessage(
@@ -99,6 +137,13 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           date: document.sourceDailyRecordDate,
           issues: [errorMessage],
           context: { documentId: document.id },
+        });
+        recordClinicalDocumentExportCriticalAction({
+          document,
+          action: 'clinical_document_json_exported',
+          outcome: 'failed',
+          exportType: 'json',
+          issues: [errorMessage],
         });
         notify.error('Falló la exportación JSON', errorMessage);
       }
@@ -141,6 +186,13 @@ export const useClinicalDocumentWorkspaceExportActions = ({
             issues: [outcomeError || 'No se pudo exportar el PDF clínico.'],
             context: { documentId: recordToExport.id },
           });
+          recordClinicalDocumentExportCriticalAction({
+            document: recordToExport,
+            action: 'clinical_document_pdf_exported',
+            outcome: 'failed',
+            exportType: 'pdf',
+            issues: [outcomeError || 'No se pudo exportar el PDF clínico.'],
+          });
           setDraft(prev =>
             updateClinicalDocumentPdfFailure(
               prev,
@@ -151,6 +203,16 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           return;
         }
         const exportedPdf = result.data.pdf;
+        recordClinicalDocumentExportCriticalAction({
+          document: recordToExport,
+          action: 'clinical_document_pdf_exported',
+          outcome: 'success',
+          exportType: 'pdf',
+          context: {
+            fileId: exportedPdf.fileId,
+            annexMode: options.annexMode,
+          },
+        });
         setDraft(prev => updateClinicalDocumentPdfSuccess(prev, exportedPdf));
         if (options.notifySuccess !== false) {
           notify.success(
@@ -171,6 +233,13 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           date: recordToExport.sourceDailyRecordDate,
           issues: [errorMessage],
           context: { documentId: recordToExport.id },
+        });
+        recordClinicalDocumentExportCriticalAction({
+          document: recordToExport,
+          action: 'clinical_document_pdf_exported',
+          outcome: 'failed',
+          exportType: 'pdf',
+          issues: [errorMessage],
         });
         setDraft(prev => updateClinicalDocumentPdfFailure(prev, errorMessage));
         notify.error('Falló la exportación', errorMessage);
@@ -198,6 +267,14 @@ export const useClinicalDocumentWorkspaceExportActions = ({
         context: { documentId: selectedDocument.id },
         issues: ['No se pudo preparar la impresión del documento clínico.'],
       });
+      recordClinicalDocumentExportCriticalAction({
+        document: selectedDocument,
+        action: 'clinical_document_print_preview_opened',
+        outcome: 'failed',
+        exportType: 'print',
+        issues: ['No se pudo preparar la impresión del documento clínico.'],
+        context: { annexMode },
+      });
       notify.warning(
         'No se pudo imprimir el documento',
         'Recarga la página e inténtalo nuevamente.'
@@ -214,6 +291,13 @@ export const useClinicalDocumentWorkspaceExportActions = ({
       },
       { allowSuccess: true }
     );
+    recordClinicalDocumentExportCriticalAction({
+      document: selectedDocument,
+      action: 'clinical_document_print_preview_opened',
+      outcome: 'success',
+      exportType: 'print',
+      context: { annexMode },
+    });
     await handleUploadPdf({ notifySuccess: false, annexMode });
   }, [handleUploadPdf, notify, selectedDocument]);
 

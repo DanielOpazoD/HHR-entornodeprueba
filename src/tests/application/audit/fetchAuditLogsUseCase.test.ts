@@ -33,6 +33,15 @@ describe('executeFetchAuditLogs', () => {
     expect(auditService.getAuditLogs).toHaveBeenCalledWith(25);
   });
 
+  it('fetches the full historical audit log when no limit is requested', async () => {
+    vi.mocked(auditService.getAuditLogs).mockResolvedValueOnce([]);
+
+    const result = await executeFetchAuditLogs();
+
+    expect(result.status).toBe('success');
+    expect(auditService.getAuditLogs).toHaveBeenCalledWith(undefined);
+  });
+
   it('returns failed outcome on error', async () => {
     vi.mocked(auditService.getAuditLogs).mockRejectedValueOnce(new Error('fetch failed'));
 

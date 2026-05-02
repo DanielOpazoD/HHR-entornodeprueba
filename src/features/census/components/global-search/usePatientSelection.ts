@@ -5,8 +5,9 @@
  * their movement history and clinical episode documents.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { MasterPatient } from '@/types/domain/patientMaster';
+import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
 import type {
   SelectedPatientDetail,
   EpisodeDocuments,
@@ -55,6 +56,9 @@ const parseCompositeEpisodeKey = (key: string): { rut: string; admissionDate: st
   return { rut, admissionDate };
 };
 
+const buildPatientHistoryCacheKey = (patient: MasterPatient): string =>
+  `${patient.rut}::${patient.updatedAt ?? 0}`;
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -72,8 +76,22 @@ export interface UsePatientSelectionReturn {
 export function usePatientSelection(): UsePatientSelectionReturn {
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatientDetail | null>(null);
   const [episodeDocuments, setEpisodeDocuments] = useState<Record<string, EpisodeDocuments>>({});
+  const historyCacheRef = useRef(new Map<string, PatientHistoryResult | null>());
+  const historyRequestRef = useRef(new Map<string, Promise<PatientHistoryResult | null>>());
 
   const selectPatient = useCallback(async (patient: MasterPatient) => {
+    const cacheKey = buildPatientHistoryCacheKey(patient);
+    const cachedHistory = historyCacheRef.current.get(cacheKey);
+    if (historyCacheRef.current.has(cacheKey)) {
+      setSelectedPatient({
+        master: patient,
+        history: cachedHistory ?? null,
+        isLoadingHistory: false,
+        timelineState: buildPatientEpisodeTimelineState(patient, cachedHistory ?? null),
+      });
+      return;
+    }
+
     setSelectedPatient({
       master: patient,
       history: null,
@@ -82,12 +100,25 @@ export function usePatientSelection(): UsePatientSelectionReturn {
     });
 
     try {
-      const historyModule = await loadPatientHistory();
-      const history = await historyModule.getPatientMovementHistory(patient.rut, {
-        hospitalizationHints: patient.hospitalizations ?? [],
-        lastAdmission: patient.lastAdmission,
-        lastDischarge: patient.lastDischarge,
-      });
+      let historyRequest = historyRequestRef.current.get(cacheKey);
+      if (!historyRequest) {
+        historyRequest = loadPatientHistory()
+          .then(historyModule =>
+            historyModule.getPatientMovementHistory(patient.rut, {
+              forceFullRemoteHydration: true,
+              hospitalizationHints: patient.hospitalizations ?? [],
+              lastAdmission: patient.lastAdmission,
+              lastDischarge: patient.lastDischarge,
+            })
+          )
+          .finally(() => {
+            historyRequestRef.current.delete(cacheKey);
+          });
+        historyRequestRef.current.set(cacheKey, historyRequest);
+      }
+
+      const history = await historyRequest;
+      historyCacheRef.current.set(cacheKey, history);
       setSelectedPatient(prev =>
         prev && prev.master.rut === patient.rut
           ? {
@@ -193,6 +224,8 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   const resetSelection = useCallback(() => {
     setSelectedPatient(null);
     setEpisodeDocuments({});
+    historyCacheRef.current.clear();
+    historyRequestRef.current.clear();
   }, []);
 
   return {

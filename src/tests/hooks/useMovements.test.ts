@@ -5,6 +5,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { TransferData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 describe('useMovements', () => {
   type BedPatient = DailyRecord['beds'][string];
@@ -366,17 +367,22 @@ describe('useMovements', () => {
     });
 
     it('should do nothing if bed is empty in addDischarge/addTransfer', () => {
+      const consoleSpies = suppressConsole(['warn']);
       const bedId = 'bed-1-utp-1';
       mockRecord.beds[bedId] = createEmptyPatient(bedId);
 
-      const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
+      try {
+        const { result } = renderHook(() => useMovements(mockRecord, saveAndUpdate));
 
-      act(() => {
-        result.current.addDischarge(bedId, 'Vivo');
-        result.current.addTransfer(bedId, 'A', 'B', '');
-      });
+        act(() => {
+          result.current.addDischarge(bedId, 'Vivo');
+          result.current.addTransfer(bedId, 'A', 'B', '');
+        });
 
-      expect(saveAndUpdate).not.toHaveBeenCalled();
+        expect(saveAndUpdate).not.toHaveBeenCalled();
+      } finally {
+        restoreConsole(consoleSpies);
+      }
     });
   });
 });

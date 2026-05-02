@@ -107,7 +107,12 @@ describe('AuditService Coverage', () => {
     mockSaveAuditLog.mockClear();
 
     // Act
-    await auditService.logPatientView('B01', 'Patient', '11.111.111-1', '2024-01-01');
+    await auditService.logThrottledViewEvent(
+      'VIEW_PATIENT',
+      'B01',
+      { patientName: 'Patient', bedId: 'B01', rut: '11.111.111-1' },
+      '2024-01-01'
+    );
 
     // Assert - for excluded users, saveAuditLog should NOT be called
     expect(mockSaveAuditLog).not.toHaveBeenCalled();
@@ -117,11 +122,16 @@ describe('AuditService Coverage', () => {
     // Setup: Normal user via mockAuditUtils
     mockAuditUtils.getCurrentUserEmail.mockReturnValue('random.doctor@hospital.cl');
 
-    // This test verifies that logPatientView is implemented correctly
+    // This test verifies that patient views use the throttled core logger
     // by checking it returns a Promise (doesn't throw)
-    const result = auditService.logPatientView('B01', 'Patient', '11.111.111-1', '2024-01-01');
+    const result = auditService.logThrottledViewEvent(
+      'VIEW_PATIENT',
+      'B01',
+      { patientName: 'Patient', bedId: 'B01', rut: '11.111.111-1' },
+      '2024-01-01'
+    );
 
-    // Assert - logPatientView returns a Promise
+    // Assert - logThrottledViewEvent returns a Promise
     expect(result).toBeInstanceOf(Promise);
     await expect(result).resolves.toBeUndefined();
   });

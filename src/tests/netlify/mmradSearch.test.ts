@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  restoreConsole,
+  type RestorableSpy,
+  suppressConsole,
+  suppressProcessStdout,
+} from '@/tests/utils/consoleTestUtils';
 
 describe('mmrad-search', () => {
   const originalEnv = { ...process.env };
@@ -6,6 +12,7 @@ describe('mmrad-search', () => {
   const getFirebaseServerMock = vi.fn();
   const authorizeRoleRequestMock = vi.fn();
   const extractBearerTokenMock = vi.fn();
+  let stdoutSpy: RestorableSpy;
   const loadHandler = async () => {
     const { createMMRADSearchHandler } = await import('../../../netlify/functions/mmrad-search');
     return createMMRADSearchHandler({
@@ -34,9 +41,11 @@ describe('mmrad-search', () => {
       role: 'doctor_urgency',
     });
     extractBearerTokenMock.mockReturnValue('token-123');
+    stdoutSpy = suppressProcessStdout();
   });
 
   afterEach(() => {
+    stdoutSpy.mockRestore();
     process.env = originalEnv;
     vi.unstubAllGlobals();
   });
@@ -334,19 +343,24 @@ describe('mmrad-search', () => {
   });
 
   it('returns 500 when MMRAD credentials are not configured', async () => {
+    const consoleSpies = suppressConsole(['error']);
     const handler = await loadHandler();
     delete process.env.MMRAD_USERNAME;
     delete process.env.MMRAD_PASSWORD;
 
-    const response = await handler({
-      httpMethod: 'GET',
-      headers: { authorization: 'Bearer token-123' },
-      body: null,
-      rawQuery: 'rut=12345678-9',
-    });
+    try {
+      const response = await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123' },
+        body: null,
+        rawQuery: 'rut=12345678-9',
+      });
 
-    expect(response.statusCode).toBe(500);
-    expect(response.body).toContain('MMRAD_USERNAME');
+      expect(response.statusCode).toBe(500);
+      expect(response.body).toContain('MMRAD_USERNAME');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('proxies PDFs inline for preview/print when action=pdf is requested', async () => {
@@ -406,18 +420,23 @@ describe('mmrad-search', () => {
   });
 
   it('returns 500 on fetch error', async () => {
+    const consoleSpies = suppressConsole(['error']);
     const handler = await loadHandler();
     fetchMock.mockRejectedValue(new Error('Network error'));
 
-    const response = await handler({
-      httpMethod: 'GET',
-      headers: { authorization: 'Bearer token-123' },
-      body: null,
-      rawQuery: 'rut=12345678-9',
-    });
+    try {
+      const response = await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123' },
+        body: null,
+        rawQuery: 'rut=12345678-9',
+      });
 
-    expect(response.statusCode).toBe(500);
-    expect(response.body).toContain('Network error');
+      expect(response.statusCode).toBe(500);
+      expect(response.body).toContain('Network error');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('rejects unauthenticated requests before reaching MMRAD', async () => {

@@ -80,6 +80,40 @@ export const createTransferMutationsService = (
     return result.data;
   };
 
+  const createFinalizedTransferRequestWithResult = async (
+    data: CreateTransferRequestData,
+    userId: string
+  ): Promise<TransferMutationResult<TransferRequest>> => {
+    try {
+      return await runWithFirestoreRuntime(runtime, async () => {
+        const id = generateTransferId();
+        const transfer = buildTransferRequestRecord(data, id);
+        const completedTransfer = buildCompletedTransferRecord(transfer, userId);
+        const historyRef = createTransferHistoryDocumentRef(runtime, id);
+        await setDoc(historyRef, {
+          ...completedTransfer,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+        transferMutationsLogger.info('Created finalized transfer request', { transferId: id });
+        return {
+          status: 'success',
+          data: {
+            ...transfer,
+            status: 'TRANSFERRED',
+            statusHistory: completedTransfer.statusHistory,
+          },
+        };
+      });
+    } catch (error) {
+      transferMutationsLogger.error('Error creating finalized transfer request', error);
+      return buildTransferFailureResult(
+        error,
+        'No se pudo crear el traslado finalizado automáticamente.'
+      );
+    }
+  };
+
   const updateTransferRequestWithResult = async (
     id: string,
     data: Partial<TransferRequest>
@@ -235,6 +269,7 @@ export const createTransferMutationsService = (
   return {
     createTransferRequest,
     createTransferRequestWithResult,
+    createFinalizedTransferRequestWithResult,
     updateTransferRequest,
     updateTransferRequestWithResult,
     changeTransferStatus,
@@ -267,6 +302,13 @@ export const createTransferRequestMutationWithResult = async (
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<TransferMutationResult<TransferRequest>> =>
   resolveTransferMutationsService(runtime).createTransferRequestWithResult(data);
+
+export const createFinalizedTransferRequestMutationWithResult = async (
+  data: CreateTransferRequestData,
+  userId: string,
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<TransferMutationResult<TransferRequest>> =>
+  resolveTransferMutationsService(runtime).createFinalizedTransferRequestWithResult(data, userId);
 
 export const updateTransferRequestMutation = async (
   id: string,

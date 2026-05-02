@@ -14,9 +14,36 @@ import {
   mergeDebouncedAuditDetails,
   type PendingAuditEntry,
 } from '@/hooks/controllers/auditLogPolicyController';
+import {
+  VIEW_THROTTLE_KEY,
+  buildNextViewThrottleState,
+  parseViewThrottleState,
+  serializeViewThrottleState,
+  shouldExcludeAuditEmail,
+  shouldThrottleAuditViewAction,
+  type ViewThrottleState,
+} from '@/services/admin/auditViewThrottle';
+import { useClinicalDocumentAuditLoggers } from '@/hooks/controllers/useClinicalDocumentAuditLoggers';
+import { useCudyrAuditLoggers } from '@/hooks/controllers/useCudyrAuditLoggers';
+import { useHandoffAuditLoggers } from '@/hooks/controllers/useHandoffAuditLoggers';
 
 const loadWriteAuditEventUseCase = () => import('@/application/audit/writeAuditEventUseCase');
 const loadFetchAuditLogsUseCase = () => import('@/application/audit/fetchAuditLogsUseCase');
+
+const getViewThrottleState = (): ViewThrottleState => {
+  if (typeof sessionStorage === 'undefined') return {};
+  return parseViewThrottleState(sessionStorage.getItem(VIEW_THROTTLE_KEY));
+};
+
+const updateViewThrottleState = (action: AuditAction): void => {
+  if (typeof sessionStorage === 'undefined') return;
+  const nextState = buildNextViewThrottleState(
+    action,
+    getViewThrottleState(),
+    new Date().toISOString()
+  );
+  sessionStorage.setItem(VIEW_THROTTLE_KEY, serializeViewThrottleState(nextState));
+};
 
 interface UseAuditReturn {
   // Logging functions
@@ -43,11 +70,75 @@ interface UseAuditReturn {
   logPatientCleared: (bedId: string, patientName: string, rut: string, recordDate: string) => void;
   logDailyRecordDeleted: (date: string) => void;
   logDailyRecordCreated: (date: string, copiedFrom?: string) => void;
+  logCudyrModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    field: string,
+    value: number,
+    oldValue: number,
+    recordDate: string,
+    authors?: string
+  ) => void;
+  logHandoffNovedadesModified: (
+    shift: string,
+    content: string,
+    oldContent: string,
+    recordDate: string,
+    authors?: string
+  ) => void;
+  logMedicalHandoffModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    note: string,
+    oldNote: string,
+    recordDate: string
+  ) => void;
+  logNurseHandoffModified: (
+    bedId: string,
+    patientName: string,
+    rut: string,
+    shift: string,
+    note: string,
+    oldNote: string,
+    recordDate: string
+  ) => void;
   logPatientView: (
     bedId: string,
     patientName: string,
     rut: string,
     recordDate: string,
+    authors?: string
+  ) => void;
+  logClinicalDocumentCreated: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logClinicalDocumentEdited: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logClinicalDocumentDeleted: (
+    documentId: string,
+    templateId: string,
+    documentTitle: string,
+    patientRut?: string,
+    recordDate?: string
+  ) => void;
+  logViewEvent: (
+    action: AuditAction,
+    entityType: AuditLogEntry['entityType'],
+    entityId: string,
+    details: Record<string, unknown>,
+    patientRut?: string,
+    recordDate?: string,
     authors?: string
   ) => void;
   // Generic logger
@@ -182,7 +273,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
         'PATIENT_DISCHARGED',
         'discharge',
         bedId,
-        { patientName, status, bedId },
+        { patientName, status, bedId, rut },
         rut,
         recordDate
       );
@@ -196,7 +287,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
         'PATIENT_TRANSFERRED',
         'transfer',
         bedId,
-        { patientName, destination, bedId },
+        { patientName, destination, bedId, rut },
         rut,
         recordDate
       );
@@ -225,6 +316,9 @@ export const useAudit = (userId: string): UseAuditReturn => {
     [logEvent]
   );
 
+  const { logHandoffNovedadesModified, logMedicalHandoffModified, logNurseHandoffModified } =
+    useHandoffAuditLoggers(logEvent);
+
   const logPatientView = useCallback(
     (bedId: string, patientName: string, rut: string, recordDate: string, authors?: string) => {
       logEvent(
@@ -238,6 +332,34 @@ export const useAudit = (userId: string): UseAuditReturn => {
       );
     },
     [logEvent]
+  );
+
+  const { logClinicalDocumentCreated, logClinicalDocumentEdited, logClinicalDocumentDeleted } =
+    useClinicalDocumentAuditLoggers(logEvent);
+  const { logCudyrModified } = useCudyrAuditLoggers(logEvent);
+
+  const logViewEvent = useCallback(
+    (
+      action: AuditAction,
+      entityType: AuditLogEntry['entityType'],
+      entityId: string,
+      details: Record<string, unknown>,
+      patientRut?: string,
+      recordDate?: string,
+      authors?: string
+    ) => {
+      if (shouldExcludeAuditEmail(userId)) {
+        return;
+      }
+
+      if (shouldThrottleAuditViewAction(action, getViewThrottleState(), Date.now())) {
+        return;
+      }
+
+      updateViewThrottleState(action);
+      logEvent(action, entityType, entityId, details, patientRut, recordDate, authors);
+    },
+    [logEvent, userId]
   );
 
   const fetchLogs = useCallback(async (limit: number = 100): Promise<AuditLogEntry[]> => {
@@ -257,7 +379,15 @@ export const useAudit = (userId: string): UseAuditReturn => {
     logPatientCleared,
     logDailyRecordDeleted,
     logDailyRecordCreated,
+    logCudyrModified,
+    logHandoffNovedadesModified,
+    logMedicalHandoffModified,
+    logNurseHandoffModified,
     logPatientView,
+    logClinicalDocumentCreated,
+    logClinicalDocumentEdited,
+    logClinicalDocumentDeleted,
+    logViewEvent,
     logEvent,
     logDebouncedEvent,
     fetchLogs,

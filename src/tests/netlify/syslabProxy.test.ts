@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  restoreConsole,
+  type RestorableSpy,
+  suppressConsole,
+  suppressProcessStdout,
+} from '@/tests/utils/consoleTestUtils';
 
 describe('syslab-proxy', () => {
   const originalEnv = { ...process.env };
@@ -6,6 +12,7 @@ describe('syslab-proxy', () => {
   const getFirebaseServerMock = vi.fn();
   const authorizeRoleRequestMock = vi.fn();
   const extractBearerTokenMock = vi.fn();
+  let stdoutSpy: RestorableSpy;
   const loadHandler = async () => {
     const { createSyslabProxyHandler } = await import('../../../netlify/functions/syslab-proxy');
     return createSyslabProxyHandler({
@@ -33,9 +40,11 @@ describe('syslab-proxy', () => {
       role: 'doctor_urgency',
     });
     extractBearerTokenMock.mockReturnValue('token-123');
+    stdoutSpy = suppressProcessStdout();
   });
 
   afterEach(() => {
+    stdoutSpy.mockRestore();
     process.env = originalEnv;
     vi.unstubAllGlobals();
   });
@@ -307,20 +316,25 @@ describe('syslab-proxy', () => {
   /* ── Timeout handling ────────────────────────────────────────────────── */
 
   it('returns 504 on fetch timeout (AbortError)', async () => {
+    const consoleSpies = suppressConsole(['error']);
     const handler = await loadHandler();
     const abortError = new Error('The operation was aborted');
     abortError.name = 'AbortError';
     fetchMock.mockRejectedValue(abortError);
 
-    const response = await handler({
-      httpMethod: 'GET',
-      headers: { authorization: 'Bearer token-123' },
-      body: null,
-      rawQuery: 'action=search&rut=12345678-9',
-    });
+    try {
+      const response = await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123' },
+        body: null,
+        rawQuery: 'action=search&rut=12345678-9',
+      });
 
-    expect(response.statusCode).toBe(504);
-    expect(response.body).toContain('Timeout');
+      expect(response.statusCode).toBe(504);
+      expect(response.body).toContain('Timeout');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
   });
 
   it('rejects unauthenticated requests before touching the upstream proxy', async () => {

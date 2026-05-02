@@ -60,25 +60,23 @@ test.describe('Patient Operations Flow', () => {
   });
 
   test('should switch to Medical Handoff view', async ({ page }) => {
-    const medicalHandoffBtn = page.getByRole('button', { name: /Entrega Turno Médicos/i }).first();
+    const medicalHandoffBtn = page.getByTestId('nav-tab-medical-handoff');
     await expect(medicalHandoffBtn).toBeVisible({ timeout: 10000 });
     await medicalHandoffBtn.click();
 
     await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('heading', { name: /Entrega de Turno/i }).first()).toBeVisible({
+    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
       timeout: 10000,
     });
   });
 
   test('should switch to Nursing Handoff view', async ({ page }) => {
-    const nursingHandoffBtn = page
-      .getByRole('button', { name: /Entrega Turno Enfermería/i })
-      .first();
+    const nursingHandoffBtn = page.getByTestId('nav-tab-nursing-handoff');
     await expect(nursingHandoffBtn).toBeVisible({ timeout: 10000 });
     await nursingHandoffBtn.click();
 
     await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('button', { name: /Turno Largo/i }).first()).toBeVisible({
+    await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible({
       timeout: 10000,
     });
   });

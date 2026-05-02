@@ -66,6 +66,33 @@ describe('auditSummaryGenerator', () => {
         expect(summary).toContain('pathology');
       });
 
+      it('should generate clinical summaries for bed movement audit details', () => {
+        const summary = generateSummary(
+          'PATIENT_MODIFIED',
+          {
+            patientName: 'Carlos Ruiz',
+            movementKind: 'move',
+            sourceBed: 'R1',
+            targetBed: 'R2',
+          },
+          'R2'
+        );
+        expect(summary).toBe('Movimiento de cama: Carlos Ruiz R1 → R2');
+      });
+
+      it('should generate clinical summaries for discharge undo audit details', () => {
+        const summary = generateSummary(
+          'PATIENT_MODIFIED',
+          {
+            patientName: 'Carlos Ruiz',
+            movementKind: 'undo_discharge',
+            restoredBed: 'R2',
+          },
+          'R2'
+        );
+        expect(summary).toBe('Reversión de alta: Carlos Ruiz vuelve a cama R2');
+      });
+
       it('should generate summary for PATIENT_CLEARED', () => {
         const summary = generateSummary(
           'PATIENT_CLEARED',
