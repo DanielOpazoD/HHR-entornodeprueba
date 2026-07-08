@@ -14,8 +14,24 @@
 /** Pattern: "/lab" followed by one or more whitespace chars at end of text. */
 const SLASH_LAB_DETECT = /\/lab\s+$/;
 
-/** Pattern: "/lab" followed by optional trailing whitespace (for HTML removal). */
-const SLASH_LAB_REMOVE = /\/lab\s*/;
+/**
+ * Pattern for removing the typed command from the editor HTML.
+ *
+ * The command is always the LAST thing in the text flow (see SLASH_LAB_DETECT),
+ * so the match is anchored to the trailing text via a lookahead that only
+ * permits whitespace, `<br>`, and closing tags before the end of the string.
+ * This prevents a `/lab` substring inside an attribute (e.g. an image `src` or
+ * link `href` such as `https://host/lab/result.png`) from being struck instead
+ * of the user's command, which would corrupt the markup.
+ */
+const SLASH_LAB_REMOVE = /\/lab\s*(?=(?:\s*(?:<br\s*\/?>|<\/[^>]+>))*\s*$)/;
+
+/**
+ * Pattern matching the typed command at the end of a plain-text run. Used to
+ * strip the command directly from the caret's text node, which preserves the
+ * cursor (unlike a full innerHTML rewrite).
+ */
+export const SLASH_LAB_TEXT_REMOVE = /\/lab\s*$/;
 
 /**
  * Checks if the editor's text content ends with a recognized slash command.

@@ -4,7 +4,7 @@ import {
   formatClinicalDocumentAuthorName,
   formatClinicalDocumentDateTime,
   getClinicalDocumentPatientFieldLabel,
-  hydrateLegacyClinicalDocument,
+  hydrateClinicalDocumentWorkspaceRecord,
 } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 
@@ -47,7 +47,7 @@ describe('clinicalDocumentWorkspaceController', () => {
     record.footerMedicoLabel = '';
     record.footerEspecialidadLabel = '';
 
-    const hydrated = hydrateLegacyClinicalDocument(record);
+    const hydrated = hydrateClinicalDocumentWorkspaceRecord(record);
 
     expect(hydrated.patientInfoTitle).toBe('Información del Paciente');
     expect(hydrated.footerMedicoLabel).toBe('Médico');

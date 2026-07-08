@@ -289,6 +289,46 @@ describe('functions minsalStatsCalculator', () => {
     expect(result.porEspecialidad[0].promedioDiasEstada).toBe(4);
   });
 
+  it('does not count tombstoned movements in function-side MINSAL statistics', () => {
+    const result = calculateMinsalStatistics({
+      hospitalCapacity: 10,
+      startDate: '2026-03-05',
+      endDate: '2026-03-05',
+      records: [
+        {
+          date: '2026-03-05',
+          beds: {
+            b1: { patientName: '', rut: '', pathology: '', specialty: '' },
+          },
+          discharges: [
+            {
+              patientName: 'Paciente Eliminado',
+              rut: '11.111.111-1',
+              diagnosis: 'Diagnóstico eliminado',
+              status: 'Vivo',
+              deletedAt: '2026-03-05T12:00:00.000Z',
+              originalData: { specialty: 'Cirugía', admissionDate: '2026-03-01' },
+            },
+          ],
+          transfers: [
+            {
+              patientName: 'Traslado Eliminado',
+              rut: '22.222.222-2',
+              diagnosis: 'Diagnóstico traslado eliminado',
+              deletedAt: '2026-03-05T12:00:00.000Z',
+              originalData: { specialty: 'Cirugía', admissionDate: '2026-03-01' },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.egresosTotal).toBe(0);
+    expect(result.egresosVivos).toBe(0);
+    expect(result.egresosTraslados).toBe(0);
+    expect(result.porEspecialidad).toEqual([]);
+  });
+
   it('excludes invalid discharge chronology from DEIS stay indicators', () => {
     const result = calculateMinsalStatistics({
       hospitalCapacity: 10,

@@ -23,6 +23,7 @@ import { InlineEditableTitle } from '@/features/clinical-documents/components/In
 import { renderClinicalDocumentSectionContent } from '@/features/clinical-documents/components/clinicalDocumentSectionRendererRegistry';
 import {
   appendClinicalDocumentPlanSubsectionText,
+  appendClinicalDocumentUnifiedPlanText,
   buildStructuredClinicalDocumentPlanSectionContent,
   buildUnifiedClinicalDocumentPlanSectionContent,
   resolveClinicalDocumentPlanSectionLayout,
@@ -59,6 +60,8 @@ interface ClinicalDocumentSectionListProps {
   onAddSection: (referenceSectionId: string, position: 'above' | 'below') => void;
   onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
   onEditorDeactivate: (sectionId: string) => void;
+  onUploadPastedImage: ClinicalDocumentSheetProps['onUploadPastedImage'];
+  onImagePasteRejected: (message: string) => void;
   onPatchIeehDraft: (draft: ClinicalDocumentIeehDraft) => void;
   onClearIeehDraft: () => void;
   /** Workspace patient data (provides birthDate for IEEH printing). */
@@ -66,6 +69,10 @@ interface ClinicalDocumentSectionListProps {
   onSetActivePlanSubsectionId: (subsectionId: ClinicalDocumentPlanSubsectionId) => void;
   onSetActiveIndicationsSpecialtyId: (specialtyId: ClinicalDocumentIndicationSpecialtyId) => void;
   onToggleIndicationsPanel: () => void;
+  onCreateIndicationsTab: ClinicalDocumentSheetProps['createIndicationsTab'];
+  onRenameIndicationsTab: ClinicalDocumentSheetProps['renameIndicationsTab'];
+  onDeleteIndicationsTab: ClinicalDocumentSheetProps['deleteIndicationsTab'];
+  onReorderIndicationsTab: ClinicalDocumentSheetProps['reorderIndicationsTab'];
   onAddCustomIndication: ClinicalDocumentSheetProps['addCustomIndication'];
   onUpdateIndication: ClinicalDocumentSheetProps['updateIndication'];
   onDeleteIndication: ClinicalDocumentSheetProps['deleteIndication'];
@@ -104,12 +111,18 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
   onAddSection,
   onEditorActivate,
   onEditorDeactivate,
+  onUploadPastedImage,
+  onImagePasteRejected,
   onPatchIeehDraft,
   onClearIeehDraft,
   workspacePatient,
   onSetActivePlanSubsectionId,
   onSetActiveIndicationsSpecialtyId,
   onToggleIndicationsPanel,
+  onCreateIndicationsTab,
+  onRenameIndicationsTab,
+  onDeleteIndicationsTab,
+  onReorderIndicationsTab,
   onAddCustomIndication,
   onUpdateIndication,
   onDeleteIndication,
@@ -213,22 +226,25 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                       <ClinicalDocumentIndicationsPanel
                         isOpen={isIndicationsPanelOpen}
                         canEdit={canEdit && !document.isLocked}
-                        activeSpecialtyId={activeIndicationsSpecialtyId}
                         catalog={indicationsCatalog}
                         isSavingCustomIndication={isSavingCustomIndication}
                         customIndicationError={customIndicationError}
                         onToggle={onToggleIndicationsPanel}
-                        onSelectSpecialty={onSetActiveIndicationsSpecialtyId}
                         onInsertIndication={text =>
                           onPatchSection(
                             section.id,
-                            appendClinicalDocumentPlanSubsectionText(
-                              section.content,
-                              activePlanSubsectionId,
-                              text
-                            )
+                            planLayout === 'unified'
+                              ? appendClinicalDocumentUnifiedPlanText(section.content, text)
+                              : appendClinicalDocumentPlanSubsectionText(
+                                  section.content,
+                                  activePlanSubsectionId,
+                                  text
+                                )
                           )
                         }
+                        onCreateTab={onCreateIndicationsTab}
+                        onRenameTab={onRenameIndicationsTab}
+                        onDeleteTab={onDeleteIndicationsTab}
                         onAddCustomIndication={onAddCustomIndication}
                         onUpdateIndication={onUpdateIndication}
                         onDeleteIndication={onDeleteIndication}
@@ -332,6 +348,8 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                   onPatchSection,
                   onEditorActivate,
                   onEditorDeactivate,
+                  onUploadPastedImage,
+                  onImagePasteRejected,
                   indicationsCatalog,
                   isSavingCustomIndication,
                   customIndicationError,
@@ -339,6 +357,10 @@ export const ClinicalDocumentSectionList: React.FC<ClinicalDocumentSectionListPr
                   setActiveIndicationsSpecialtyId: onSetActiveIndicationsSpecialtyId,
                   isIndicationsPanelOpen,
                   onToggleIndicationsPanel,
+                  createIndicationsTab: onCreateIndicationsTab,
+                  renameIndicationsTab: onRenameIndicationsTab,
+                  deleteIndicationsTab: onDeleteIndicationsTab,
+                  reorderIndicationsTab: onReorderIndicationsTab,
                   addCustomIndication: onAddCustomIndication,
                   updateIndication: onUpdateIndication,
                   deleteIndication: onDeleteIndication,

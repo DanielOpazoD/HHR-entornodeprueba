@@ -8,6 +8,8 @@
 npm run test:ci:unit          # Tests unitarios
 npm run test:rules:ci         # Firestore rules
 npm run test:release-confidence  # Pack de confianza
+npm run check:clinical-release-validation # Contrato de validacion clinica manual minima
+npm run check:clinical-release-signoff # Debe pasar antes de release productivo
 ```
 
 ### 2. Verificar typecheck
@@ -56,7 +58,25 @@ npm run build       # Vite build
 - [ ] Botón MMRAD (radiología) conecta
 - [ ] Botón Lab (laboratorio) conecta (requiere red hospital + Express server)
 
-### 2. Verificar Firestore
+### 2. Validación clínica manual mínima
+
+Antes de marcar un release como listo, cada escenario crítico debe cerrar tres evidencias: código corregido, regresión automatizada y flujo clínico validado visualmente/manual. El contrato versionado vive en `scripts/config/clinical-release-validation.json` y se valida con:
+
+```bash
+npm run check:clinical-release-validation
+npm run report:clinical-release-signoff
+npm run check:clinical-release-signoff
+```
+
+No dupliques escenarios manualmente en este documento. Para agregar, cambiar o retirar un flujo clínico de release, actualiza `scripts/config/clinical-release-validation.json` y conserva los tres cierres obligatorios por escenario:
+
+- `codigo_corregido`
+- `regresion_automatizada`
+- `flujo_clinico_validado`
+
+El signoff real vive en `scripts/config/clinical-release-signoff.json`. Mientras algún escenario esté en `pending_human_review`, `failed` o `blocked`, `npm run check:clinical-release-signoff` debe fallar. Solo se marca `passed` cuando hay responsable, fecha y evidencia manual/visual revisable.
+
+### 3. Verificar Firestore
 
 - Consola Firebase → Firestore → verificar que documentos se escriben
 - Verificar reglas de seguridad aplicadas

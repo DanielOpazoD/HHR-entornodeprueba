@@ -10,11 +10,16 @@ vi.mock('@/services/admin/auditConsolidationService', () => ({
   executeConsolidation: vi.fn(),
 }));
 
+const confirmMock = vi.fn(async () => true);
+vi.mock('@/context/UIContext', () => ({
+  useConfirmDialog: () => ({ confirm: confirmMock }),
+}));
+
 describe('ConsolidationManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock global confirm
-    global.confirm = vi.fn(() => true);
+    confirmMock.mockReset();
+    confirmMock.mockResolvedValue(true);
   });
 
   it('renders initial state correctly', () => {
@@ -79,16 +84,17 @@ describe('ConsolidationManager', () => {
       logsDeleted: 3,
       errors: [],
     };
-    // Mock execute with progress callback simulation
+
+    // Hold the execution promise pending so we can assert the in-flight UI
+    // state without racing the resolution.
+    type ExecResolver = (value: unknown) => void;
+    const executionResolver: { current: ExecResolver | null } = { current: null };
     vi.mocked(consolidationService.executeConsolidation).mockImplementation(
       async (_, __, onProgress) => {
         if (onProgress) onProgress('Procesando...');
-        return {
-          ...mockResultData,
-          success: true,
-          totalLogs: 10,
-          groupsFound: 5,
-        };
+        return new Promise(resolve => {
+          executionResolver.current = value => resolve(value as never);
+        });
       }
     );
 
@@ -101,15 +107,24 @@ describe('ConsolidationManager', () => {
     // Click Optimize
     fireEvent.click(screen.getByRole('button', { name: /optimizar/i }));
 
-    // Check confirm was called
-    expect(global.confirm).toHaveBeenCalled();
+    // Check confirm was called via useConfirmDialog
+    await waitFor(() =>
+      expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'warning' }))
+    );
 
-    // Check loading/progress
+    // While execution is pending the progress label is visible
     await waitFor(() => {
       expect(screen.getByText('Procesando...')).toBeInTheDocument();
     });
 
-    // Check success result
+    // Resolve the pending execution and verify the success state
+    executionResolver.current?.({
+      ...mockResultData,
+      success: true,
+      totalLogs: 10,
+      groupsFound: 5,
+    });
+
     await waitFor(() => {
       expect(screen.getByText('¡Consolidación Exitosa!')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument(); // Consolidated

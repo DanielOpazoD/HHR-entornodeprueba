@@ -86,7 +86,14 @@ describe('censusDischargeTransferGuardController', () => {
       record: createRecord(),
       executeDischarge: vi.fn().mockResolvedValue(undefined),
       runConfirmedMovementAction,
-      getLatestOpenTransferRequestByBedId: vi.fn().mockResolvedValue({ id: 'TR-1' }),
+      getLatestOpenTransferRequestByBedId: vi.fn().mockResolvedValue({
+        id: 'TR-1',
+        patientSnapshot: {
+          rut: '12.345.678-9',
+          name: 'Paciente Traslado',
+          admissionDate: '2026-03-01',
+        },
+      }),
       warn: vi.fn(),
     });
 
@@ -99,6 +106,34 @@ describe('censusDischargeTransferGuardController', () => {
         errorTitle: 'No se pudo confirmar el alta',
       })
     );
+  });
+
+  it('does not warn when the open transfer belongs to an older episode in the same bed', async () => {
+    const executeDischarge = vi.fn().mockResolvedValue(undefined);
+    const runConfirmedMovementAction = vi.fn().mockResolvedValue(undefined);
+
+    await runDischargeWithTransferGuard({
+      dischargeState: {
+        bedId: 'R1',
+        isOpen: true,
+        status: 'Vivo',
+      },
+      record: createRecord(),
+      executeDischarge,
+      runConfirmedMovementAction,
+      getLatestOpenTransferRequestByBedId: vi.fn().mockResolvedValue({
+        id: 'TR-old',
+        patientSnapshot: {
+          rut: '12.345.678-9',
+          name: 'Paciente Traslado',
+          admissionDate: '2026-02-25',
+        },
+      }),
+      warn: vi.fn(),
+    });
+
+    expect(executeDischarge).toHaveBeenCalledTimes(1);
+    expect(runConfirmedMovementAction).not.toHaveBeenCalled();
   });
 
   it('warns and falls back to discharge when transfer lookup fails', async () => {

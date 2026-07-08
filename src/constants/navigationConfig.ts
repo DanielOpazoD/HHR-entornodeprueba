@@ -29,8 +29,7 @@ export type ModuleType =
   | 'DATA'
   | 'COMMUNICATIONS'
   | 'ROLE_MANAGEMENT'
-  | 'REMINDERS'
-  | 'ERRORS';
+  | 'REMINDERS';
 
 export type NavActionType = 'MODULE_CHANGE';
 

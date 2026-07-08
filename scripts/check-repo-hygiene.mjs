@@ -18,6 +18,9 @@ const FEATURE_PUBLIC_BOUNDARIES = [
       file === 'src/application/census/public.ts' ||
       file.startsWith('src/features/census/') ||
       file.startsWith('src/tests/') ||
+      // Storybook stories are dev-only artifacts (never bundled into the app), like
+      // src/tests/ above; they may reference feature internals for isolated review.
+      file.startsWith('stories/') ||
       file.startsWith('src/hooks/controllers/'),
     // Sanctioned heavy-component barrel, kept separate from @/features/census
     // so the authenticated-shell chunk does not pull CensusView through the

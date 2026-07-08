@@ -8,7 +8,7 @@ import { CheckCircle } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { TransferRequest } from '@/types/transferRequestTypes';
 import { TRANSFER_STATUS_CONFIG } from '@/types/transferStatusTypes';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useNotification } from '@/context/UIContext';
 
 interface ConfirmTransferModalProps {
   transfer: TransferRequest;
@@ -31,12 +31,17 @@ export const ConfirmTransferModal: React.FC<ConfirmTransferModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { notify } = useNotification();
   const [transferMethod, setTransferMethod] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
     if (!transferMethod) {
-      defaultBrowserWindowRuntime.alert('Por favor seleccione el medio de traslado');
+      notify({
+        type: 'warning',
+        title: 'Medio de traslado requerido',
+        message: 'Por favor seleccione el medio de traslado.',
+      });
       return;
     }
 

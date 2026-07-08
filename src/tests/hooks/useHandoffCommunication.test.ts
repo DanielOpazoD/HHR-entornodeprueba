@@ -12,12 +12,16 @@ const { mockWriteClipboardText, mockOpen, mockIsE2ERuntimeEnabled } = vi.hoisted
   mockIsE2ERuntimeEnabled: vi.fn(() => false),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    getLocationOrigin: () => 'https://hhr.test',
-    open: (...args: unknown[]) => mockOpen(...args),
-  },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      getLocationOrigin: vi.fn(() => 'https://hhr.test'),
+      open: mockOpen,
+    }),
+  };
+});
 
 vi.mock('@/shared/runtime/browserClipboardRuntime', () => ({
   writeClipboardText: (...args: unknown[]) => mockWriteClipboardText(...args),

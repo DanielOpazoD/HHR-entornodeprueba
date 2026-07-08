@@ -11,6 +11,7 @@ import { useRepositories } from '@/services/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { buildDailyRecordContextValue } from '@/hooks/controllers/dailyRecordController';
 import { useDailyRecordDomainModules } from '@/hooks/useDailyRecordDomainModules';
+import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 import { useDailyRecordCopyActions } from '@/hooks/useDailyRecordCopyActions';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 
@@ -24,7 +25,8 @@ import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 export const useDailyRecord = (
   currentDateString: string,
   isOfflineMode: boolean = false,
-  remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only'
+  remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only',
+  ensureStaleDayEditAllowed?: StaleDayEditGuard
 ): DailyRecordContextType => {
   const { dailyRecord } = useRepositories();
   const { warning } = useNotification();
@@ -65,7 +67,7 @@ export const useDailyRecord = (
     staffingManagement,
     cmaManagement,
     handoffManagement,
-  } = useDailyRecordDomainModules(record, saveAndUpdate, patchRecord);
+  } = useDailyRecordDomainModules(record, saveAndUpdate, patchRecord, ensureStaleDayEditAllowed);
 
   // ========================================================================
   // Cross-date Copy
@@ -100,7 +102,10 @@ export const useDailyRecord = (
         updateClinicalCrib: bedManagement.updateClinicalCrib,
         updateClinicalCribMultiple: bedManagement.updateClinicalCribMultiple,
         updateClinicalCribCudyr: bedManagement.updateClinicalCribCudyr,
+        updateClinicalCribCudyrMultiple: bedManagement.updateClinicalCribCudyrMultiple,
         updateCudyr: bedManagement.updateCudyr,
+        updateCudyrMultiple: bedManagement.updateCudyrMultiple,
+        updateCudyrBatch: bedManagement.updateCudyrBatch,
         clearPatient: bedManagement.clearPatient,
         clearAllBeds: bedManagement.clearAllBeds,
         moveOrCopyPatient: bedManagement.moveOrCopyPatient,
@@ -115,6 +120,7 @@ export const useDailyRecord = (
         updateDischarge: dischargeManagement.updateDischarge,
         deleteDischarge: dischargeManagement.deleteDischarge,
         undoDischarge: dischargeManagement.undoDischarge,
+        convertDischargeToCma: dischargeManagement.convertDischargeToCma,
         addTransfer: transferManagement.addTransfer,
         updateTransfer: transferManagement.updateTransfer,
         deleteTransfer: transferManagement.deleteTransfer,
@@ -122,6 +128,8 @@ export const useDailyRecord = (
         addCMA: cmaManagement.addCMA,
         deleteCMA: cmaManagement.deleteCMA,
         updateCMA: cmaManagement.updateCMA,
+        undoCMA: cmaManagement.undoCMA,
+        convertCmaToHomeDischarge: cmaManagement.convertCmaToHomeDischarge,
         copyPatientToDate,
         updateHandoffChecklist: handoffManagement.updateHandoffChecklist,
         updateHandoffNovedades: handoffManagement.updateHandoffNovedades,

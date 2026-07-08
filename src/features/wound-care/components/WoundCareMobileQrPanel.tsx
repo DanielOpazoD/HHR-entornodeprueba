@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Check, Copy, QrCode, RefreshCw, XCircle } from 'lucide-react';
+import { useTransientFlag } from '@/hooks/useTransientFlag';
 import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
+import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useWoundCareMobileUploadSession } from '../hooks/useWoundCareMobileUploadSession';
 
 interface WoundCareMobileQrPanelProps {
@@ -16,30 +18,15 @@ const formatExpiry = (expiresAt?: string): string => {
   }).format(new Date(expiresAt));
 };
 
-const copyTextToClipboard = async (text: string): Promise<void> => {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', 'true');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
-};
-
 export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
   episodeContext,
 }) => {
   const { session, uploadUrl, isBusy, error, createSession, revokeSession } =
     useWoundCareMobileUploadSession(episodeContext);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [copyStatus, flashCopyStatus, setCopyStatus] = useTransientFlag<
+    'idle' | 'copied' | 'failed'
+  >('idle', 1800);
 
   useEffect(() => {
     void createSession();
@@ -71,9 +58,8 @@ export const WoundCareMobileQrPanel: React.FC<WoundCareMobileQrPanelProps> = ({
     if (!uploadUrl) return;
 
     try {
-      await copyTextToClipboard(uploadUrl);
-      setCopyStatus('copied');
-      window.setTimeout(() => setCopyStatus('idle'), 1800);
+      await writeClipboardText(uploadUrl);
+      flashCopyStatus('copied');
     } catch {
       setCopyStatus('failed');
     }

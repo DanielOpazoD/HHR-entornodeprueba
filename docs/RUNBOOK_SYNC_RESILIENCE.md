@@ -63,6 +63,7 @@ Referencia técnica:
 - [dailyRecordBootstrapController.ts](../src/hooks/controllers/dailyRecordBootstrapController.ts)
 - [useDailyRecordSyncQuery.ts](../src/hooks/useDailyRecordSyncQuery.ts)
 - [useDailyRecordQuery.ts](../src/hooks/useDailyRecordQuery.ts)
+- [Clinical sync simulator contract](CLINICAL_SYNC_SIMULATOR_CONTRACT.md)
 
 ## Procedimiento 1: IndexedDB bloqueado
 
@@ -108,6 +109,123 @@ Verificación:
 - `pendingSyncTasks` desciende.
 - `retryingSyncTasks` retorna a 0.
 - `orphanedTasks` queda en 0 tras cambio de usuario/logout manual.
+
+## Procedimiento 2.2: estados del outbox y accion humana
+
+Usar esta tabla cuando soporte vea tareas en `listRecentSyncQueueOperations` o en
+`Admin > System Health`.
+
+| Estado                                | Significado operativo                                                        | Acción segura                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `PENDING` reciente                    | Mutación local aceptada y pendiente de flush remoto.                         | Esperar el backoff normal si la red está degradada. No limpiar cache.    |
+| `PENDING` antiguo                     | Mutación no drenada dentro del presupuesto (`oldestPendingAgeMs >= 15 min`). | Validar red/auth, recargar una vez y escalar si no baja.                 |
+| `PROCESSING` con `leaseUntil` futuro  | Otra pestaña/worker tiene la tarea reclamada.                                | No reenviar manualmente ni limpiar; esperar expiración o cierre natural. |
+| `PROCESSING` con `leaseUntil` vencido | Worker anterior quedó obsoleto; la tarea puede ser reclamada de nuevo.       | Recargar la app o esperar siguiente ciclo online. Escalar si se repite.  |
+| `FAILED`                              | Error no recuperable automático, usualmente permisos/configuración.          | Ir a Procedimiento 3 y corregir rol/reglas antes de pedir nuevo intento. |
+| `CONFLICT`                            | La mutación local no pudo fusionarse sin riesgo de pérdida.                  | Ir a Procedimiento 4; validar campos afectados antes de resolver.        |
+
+Regla de seguridad: nunca borrar tareas `PENDING`/`PROCESSING` desde soporte si no
+hay confirmación explícita de que la mutación ya está reflejada en Firestore y en
+la UI del usuario. Un lease vencido debe reintentarse; no es señal de descarte.
+
+Señal avanzada: `sync_queue_stale_claim_noop` indica que un worker intentó
+actualizar o cerrar una tarea que ya no tenía reclamada. Es recuperable y suele
+aparecer durante carreras multitab o recuperación de leases vencidos. Si se
+repite junto a `oldestPendingAgeMs` crítico, escalar con las operaciones recientes
+del outbox antes de limpiar cache local.
+
+## Apartado transversal: centro de conflictos clínicos revisables
+
+El flujo normal sigue siendo auto-merge seguro: el usuario clínico no debe ser interrumpido cuando
+la autoridad transaccional, la intención clínica y los invariantes permiten resolver. Si queda
+evidencia recuperable, `admin` y `nurse_hospital` pueden abrir el centro de conflictos desde:
+
+- censo diario;
+- entrega de turno enfermería;
+- entrega de turno médica.
+
+Uso operativo:
+
+1. Revisar módulos afectados y pacientes/camas mostrados en el centro.
+2. Comparar campos resumidos antes/después.
+3. Revisar el impacto anti-rollback de cada versión:
+   - `Bloqueado por seguridad clínica`: no preservar desde UI; indica que el snapshot borraría
+     hechos clínicos posteriores (movimientos, cama activa, tombstones o duplicados).
+   - `Requiere revisión`: puede preservarse, pero el operador debe entender que ocultará contenido
+     posterior no bloqueante, usualmente handoff enfermería o entrega médica.
+4. Preservar una versión solo si la regla automática eligió una verdad clínica incorrecta.
+5. Confirmar que observabilidad registre `CONFLICT_VERSION_RESTORED` con `reviewContext.restoreImpact`.
+6. Si no hay snapshots, usar la razón del panel: TTL expirado, permiso denegado, no guardado o
+   sin evidencia recuperable.
+
+## Apartado transversal: salud de convergencia clínica
+
+La convergencia clínica es una lectura operacional, no una nueva fuente de verdad. Compara registro
+local, remoto, outbox, auditoría reciente y snapshots recuperables para responder si los datos del
+censo/entregas están sanos o necesitan intervención.
+
+Estados esperados:
+
+- `healthy`: no hay divergencias activas.
+- `recoverable`: hay trabajo pendiente que puede reintentarse sin elegir verdad clínica.
+- `needs_review`: hay divergencia clínica o evidencia incompleta; revisar antes de preservar.
+- `unsafe`: no se debe resolver automático, por ejemplo paciente activo duplicado.
+
+Regla de seguridad: una acción sugerida por convergencia nunca reemplaza `authority mode`, merge por
+intención clínica, invariantes post-merge ni guardrails anti-rollback del centro de conflictos.
+
+Referencia: `docs/ADR_SYNC_CONVERGENCE_HEALTH.md`.
+
+## Procedimiento 2.3: pre-outbox y ack de escritura directa
+
+Las escrituras críticas del censo usan flujo `pre-outbox`: primero persisten el
+registro local junto a una tarea `PENDING` en una transacción IndexedDB, luego
+intentan la escritura remota directa y finalmente hacen `ack` de la tarea local
+por `mutationId` si Firebase confirma la operación.
+
+Lectura operativa:
+
+- Si la pestaña cae después de guardar localmente y antes del remoto, la tarea
+  `PENDING` debe quedar disponible para flush posterior.
+- Durante los primeros segundos la tarea queda retenida con `nextAttemptAt`
+  futuro para que otra pestaña no la procese antes del intento remoto directo.
+- Si el remoto directo confirma, la tarea correspondiente debe desaparecer del
+  outbox sin pasar por `PROCESSING`.
+- Si el remoto falla, la tarea ya existe; el recovery solo debe reutilizarla,
+  actualizar contexto/origen y habilitar el procesamiento normal.
+- Si el ack local falló pero Firebase ya aplicó la mutación, el siguiente flush
+  debe reconocer `remote.meta.lastMutationId == syncContract.mutationId` como
+  éxito idempotente y drenar la tarea sin reescribir.
+- Si queda una tarea `direct_queue` reciente, no borrar: puede representar una
+  confirmación remota pendiente o un ack local que no alcanzó a ejecutarse.
+
+Escalar a ingeniería si aparecen tareas `direct_queue` con edad crítica y sin
+errores recientes, porque puede indicar que el ack local o el trigger de recovery
+no se ejecutó.
+
+## Procedimiento 2.4: delete/moveToTrash y outbox
+
+Decisión actual: `deleteDay`/`moveToTrash` no usa outbox transaccional.
+
+Motivo:
+
+- Es una operación de ciclo de vida/admin destructiva, no una mutación clínica
+  offline-first como editar censo.
+- La eliminación local debe ser estricta: si IndexedDB no confirma el borrado,
+  la operación se bloquea.
+- La limpieza remota (`moveToTrash` + `deleteRemote`) sigue siendo best-effort y
+  queda registrada por soporte de lifecycle; no debe bloquear la UI local.
+
+Reabrir esta decisión solo si aparece alguno de estos requisitos:
+
+- borrado offline obligatorio;
+- el borrado pasa a ser parte de un flujo clínico visible y frecuente;
+- auditoría remota exactamente-una-vez para trash/delete;
+- soporte necesita reconciliación retryable de trash remoto.
+
+Si se reabre, implementar primero una tarea explícita tipo tombstone/delete en el
+outbox, con idempotencia propia y pruebas de carrera multitab. No reutilizar
+`UPDATE_DAILY_RECORD` para modelar un borrado.
 
 ## Procedimiento 2.1: contaminación entre sesiones locales
 
@@ -162,10 +280,12 @@ Síntomas:
 
 Acciones:
 
-1. Confirmar que la app aplicó merge automático.
-2. Verificar que campos clínicos locales se preservaron.
-3. Validar que cambios administrativos remotos no se perdieron.
-4. Confirmar que se encoló actualización consolidada.
+1. Revisar `syncContract.changedPaths`, `mutationId`, `clientId` y `tabId` en la operación reciente.
+2. Confirmar si el conflicto fue por misma ruta (`same changed path`) o por revisión remota.
+3. Si fue por misma ruta clínica, comparar manualmente UI local vs Firestore antes de reintentar.
+4. Si la app aplicó merge automático, verificar que campos clínicos locales se preservaron.
+5. Validar que cambios administrativos remotos no se perdieron.
+6. Confirmar que se encoló actualización consolidada.
 
 Verificación:
 
@@ -202,6 +322,7 @@ npm run typecheck
 npm run check:quality
 npm run check:operational-runbooks
 npm run report:operational-health
+npm run test:emulator:sync:ci
 npm run test:rules:ci
 npm run test -- src/tests/integration/sync-resilience.test.ts
 npm run test -- src/tests/integration/sync-ui-resilience.test.tsx

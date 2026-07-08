@@ -9,7 +9,7 @@
       "targetMs": 2500
     },
     "censoVisibleMs": {
-      "enforcedMaxMs": 2500,
+      "enforcedMaxMs": 2000,
       "targetMs": 1500
     },
     "censoRecordReadyMs": {

@@ -6,9 +6,12 @@ import { CensusActionsProvider } from './CensusActionsContext';
 import { CensusPrintHeader } from './CensusPrintHeader';
 import { CensusStaffHeader } from './CensusStaffHeader';
 import { CensusRegisterMainContent } from './CensusRegisterMainContent';
+import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
+import { useDailyRecordStatus } from '@/context/DailyRecordContext';
+import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 
 const LazyCensusRegisterSections = lazy(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -41,12 +44,22 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
   const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
+  const dailyRecordStatus = useDailyRecordStatus();
+  const operationalState = resolveCensusOperationalState({
+    branch: 'register',
+    bootstrapPhase: dailyRecordStatus.bootstrapPhase,
+    syncStatus: dailyRecordStatus.syncStatus,
+    hasRecord: Boolean(beds),
+    isAuthenticated: true,
+  });
 
   return (
     <CensusActionsProvider>
       <CensusPrintHeader currentDateString={currentDateString} />
 
       <div className="space-y-6" style={marginStyle}>
+        <CensusOperationalStateBanner state={operationalState} />
+
         <CensusStaffHeader readOnly={readOnly} stats={stats} accessProfile={accessProfile} />
 
         <CensusRegisterMainContent

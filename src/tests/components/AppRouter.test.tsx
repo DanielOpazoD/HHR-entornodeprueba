@@ -57,7 +57,6 @@ vi.mock('@/views/LazyViews', () => ({
   DataView: () => <div data-testid="data-view" />,
   FunctionsTelemetryView: () => <div data-testid="functions-telemetry-view" />,
   MedicalSignatureView: () => <div data-testid="medical-signature-view" />,
-  ErrorDashboard: () => <div data-testid="error-dashboard" />,
   WhatsAppIntegrationView: () => <div data-testid="whatsapp-view" />,
   SystemDiagnosticsView: () => <div data-testid="system-diagnostics-view" />,
   TransferManagementView: () => {

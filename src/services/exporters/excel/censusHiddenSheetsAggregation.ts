@@ -3,6 +3,11 @@ import { calculateStats } from '@/services/calculations/statsCalculator';
 import { formatDateDDMMYYYY } from '@/services/exporters/excel/formatters';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import type { PatientData } from '@/services/contracts/patientServiceContracts';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 import type {
   CensusHiddenSheetMonthContext,
@@ -149,6 +154,10 @@ export const buildSummaryRows = (sheets: CensusLogicalSnapshotSheet[]): SummaryD
     });
 
     const denominator = stats.occupiedBeds + stats.availableCapacity;
+    const discharges = getActiveDischarges(sheet.record.discharges);
+    const transfers = getActiveTransfers(sheet.record.transfers);
+    const cma = getActiveCma(sheet.record.cma);
+
     return {
       displaySheetName: sheet.displaySheetName,
       occupiedBeds: stats.occupiedBeds,
@@ -156,10 +165,10 @@ export const buildSummaryRows = (sheets: CensusLogicalSnapshotSheet[]): SummaryD
       blockedBeds: stats.blockedBeds,
       cribs: stats.clinicalCribsCount + stats.companionCribs,
       occupancyRate: denominator > 0 ? stats.occupiedBeds / denominator : null,
-      discharges: (sheet.record.discharges || []).filter(item => item.status === 'Vivo').length,
-      transfers: (sheet.record.transfers || []).length,
-      cma: (sheet.record.cma || []).length,
-      deceased: (sheet.record.discharges || []).filter(item => item.status === 'Fallecido').length,
+      discharges: discharges.filter(item => item.status === 'Vivo').length,
+      transfers: transfers.length,
+      cma: cma.length,
+      deceased: discharges.filter(item => item.status === 'Fallecido').length,
       specialtyCounts,
     };
   });

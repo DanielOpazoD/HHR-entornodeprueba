@@ -12,13 +12,17 @@ export const BedTypeSchema = z.nativeEnum(BedType) as z.ZodType<BedType>;
 export const PatientStatusSchema = z.nativeEnum(PatientStatus);
 
 const SpecialtyEnumSchema = z.nativeEnum(Specialty);
+const SpecialtyValueSchema = z.union([
+  SpecialtyEnumSchema,
+  z.string().transform(value => value.trim()),
+]);
 export const SpecialtySchema = z.preprocess(val => {
   // Migrate legacy values to the new combined specialty
   if (val === 'Ginecología' || val === 'Obstetricia') {
     return Specialty.GINECOBSTETRICIA;
   }
   return val;
-}, SpecialtyEnumSchema);
+}, SpecialtyValueSchema);
 
 export const CudyrScoreSchema = z.object({
   changeClothes: z.number().min(0).max(4).catch(0),
@@ -171,6 +175,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
       admissionDate: z.string().default(''),
       admissionTime: z.string().default(''),
+      clinicalEpisodeId: nullableOptional(z.string()),
       hasWristband: z.boolean().default(true),
       devices: nullishDefault(z.array(z.string()), () => []),
       deviceDetails: nullableOptional(DeviceDetailsSchema),

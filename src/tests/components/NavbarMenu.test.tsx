@@ -80,6 +80,15 @@ describe('NavbarMenu', () => {
     expect(screen.queryByText('Observabilidad')).not.toBeInTheDocument();
   });
 
+  it('shows both prescription modules for hospital nurses', () => {
+    mockRole = 'nurse_hospital';
+    render(<NavbarMenu {...defaultProps} />);
+    openMenu();
+
+    expect(screen.getByText('Recetas — Visor')).toBeInTheDocument();
+    expect(screen.getByText('Recetas — Configuración (QR/PIN)')).toBeInTheDocument();
+  });
+
   it('closes menu when backdrop is clicked', () => {
     render(<NavbarMenu {...defaultProps} />);
     openMenu();

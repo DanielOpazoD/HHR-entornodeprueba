@@ -3,6 +3,7 @@ import type { Workbook } from 'exceljs';
 import { getForDate as getRecordForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
+  applyCensusRawFormatting,
   buildCensusDailyRawWorkbook,
   extractRowsFromRecord,
   getCensusRawHeader,
@@ -28,24 +29,6 @@ const createRecordRangeSheet = async (
   });
 
   return workbook;
-};
-
-export const applyCensusRawFormatting = (worksheet: ReturnType<Workbook['addWorksheet']>) => {
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-  const headerRow = worksheet.getRow(1);
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF0F4C81' },
-  };
-  headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-  headerRow.height = 22;
-
-  worksheet.columns.forEach(column => {
-    column.width = Math.min(Math.max((column.header?.toString().length || 12) + 2, 12), 36);
-  });
 };
 
 export const getRecordOrAlert = async (

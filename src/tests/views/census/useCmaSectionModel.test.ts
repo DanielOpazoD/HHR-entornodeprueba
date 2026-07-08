@@ -14,6 +14,7 @@ describe('useCmaSectionModel', () => {
   const handleUpdate = vi.fn();
   const handleUndo = vi.fn();
   const handleDelete = vi.fn();
+  const handleConvertToDischarge = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -22,6 +23,7 @@ describe('useCmaSectionModel', () => {
         handleUpdate,
         handleUndo,
         handleDelete,
+        handleConvertToDischarge,
       })
     );
   });
@@ -35,6 +37,7 @@ describe('useCmaSectionModel', () => {
         updateCMA: vi.fn(),
         updatePatientMultiple: vi.fn(),
         deleteCMA: vi.fn(),
+        convertCmaToHomeDischarge: vi.fn(),
       })
     );
 
@@ -45,6 +48,7 @@ describe('useCmaSectionModel', () => {
       handleUpdate,
       handleUndo,
       handleDelete,
+      handleConvertToDischarge,
     });
   });
 
@@ -59,6 +63,7 @@ describe('useCmaSectionModel', () => {
         updateCMA: vi.fn(),
         updatePatientMultiple: vi.fn(),
         deleteCMA: vi.fn(),
+        convertCmaToHomeDischarge: vi.fn(),
       })
     );
 
@@ -68,5 +73,6 @@ describe('useCmaSectionModel', () => {
     expect(result.current.handleUpdate).toBe(handleUpdate);
     expect(result.current.handleUndo).toBe(handleUndo);
     expect(result.current.handleDelete).toBe(handleDelete);
+    expect(result.current.handleConvertToDischarge).toBe(handleConvertToDischarge);
   });
 });

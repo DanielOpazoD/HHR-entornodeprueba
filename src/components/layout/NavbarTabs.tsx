@@ -102,29 +102,33 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
   };
 
   return (
-    <div className="flex gap-1 items-center">
+    <div className="flex max-w-full items-center gap-1">
       {/* Clinical Modules - Prominent tabs */}
-      {clinicalTabs.map(item => (
-        <NavTab
-          key={item.id}
-          label={item.label}
-          icon={item.icon}
-          isActive={resolveIsNavbarItemActive({
-            currentModule,
-            itemModule: item.module,
-            censusViewMode,
-            itemCensusMode: item.censusMode,
-          })}
-          onClick={() => handleItemClick(item)}
-          testId={`nav-tab-${item.id}`}
-        />
-      ))}
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+        {clinicalTabs.map(item => (
+          <NavTab
+            key={item.id}
+            label={item.label}
+            icon={item.icon}
+            isActive={resolveIsNavbarItemActive({
+              currentModule,
+              itemModule: item.module,
+              censusViewMode,
+              itemCensusMode: item.censusMode,
+            })}
+            onClick={() => handleItemClick(item)}
+            testId={`nav-tab-${item.id}`}
+          />
+        ))}
+      </div>
 
       {/* Utility Modules Dropdown - Subtle icon */}
       {utilityItems.length > 0 && (
-        <div className="relative ml-2" ref={menuRef}>
+        <div className="relative ml-2 shrink-0" ref={menuRef}>
           <button
             onClick={toggle}
+            aria-label="Abrir módulos utilitarios"
+            data-testid="navbar-utility-menu-button"
             className={clsx(
               'flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200',
               isUtilityActive || currentModule === 'CUDYR'
@@ -138,7 +142,10 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
 
           {/* Dropdown Menu */}
           {isUtilityMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl ring-1 ring-black/[0.04] border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div
+              data-testid="navbar-utility-menu"
+              className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl ring-1 ring-black/[0.04] border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+            >
               <div className="py-1">
                 {utilityItems.map(item => (
                   <DropdownItem

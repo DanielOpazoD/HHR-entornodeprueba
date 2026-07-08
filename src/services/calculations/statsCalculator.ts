@@ -34,21 +34,21 @@ export interface CensusStatistics {
 
 /**
  * Calculate comprehensive census statistics from bed data
- * 
+ *
  * This function analyzes all beds and computes:
  * - Occupied beds and cribs
  * - Clinical vs companion cribs
  * - Total physical crib usage
  * - Available capacity
- * 
+ *
  * @param {Record<string, PatientData>} beds - Object mapping bed IDs to patient data
  * @returns {CensusStatistics} Computed statistics object
- * 
+ *
  * @example
  * ```typescript
  * const stats = calculateStats(record.beds);
-    // console.debug(stats.totalHospitalized); // Total patient count
-    // console.debug(stats.availableCapacity); // Available beds
+ * stats.totalHospitalized; // Total patient count
+ * stats.availableCapacity; // Available beds
  * ```
  */
 export const calculateStats = (beds: Record<string, PatientData>): CensusStatistics => {

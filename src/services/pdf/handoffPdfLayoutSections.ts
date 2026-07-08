@@ -8,6 +8,12 @@ import type {
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getBase64ImageFromURL, getHandoffStaffInfo, Schedule } from './handoffPdfUtils';
+import {
+  HANDOFF_PDF_PAGE_LAYOUT,
+  getHandoffPdfContentBottomY,
+  getHandoffPdfUsableWidth,
+  type HandoffPdfPageMargin,
+} from './handoffPdfPageLayout';
 
 const handoffPdfLayoutLogger = createScopedLogger('HandoffPdfLayout');
 
@@ -158,17 +164,16 @@ export const addNovedadesSection = (
   doc: jsPDF,
   novedadesText: HandoffPdfNovedadesRecord[keyof HandoffPdfNovedadesRecord] | string | undefined,
   margin: number,
-  startY: number
+  startY: number,
+  pageMargin: HandoffPdfPageMargin = HANDOFF_PDF_PAGE_LAYOUT.margin
 ) => {
   let currentY = startY;
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
 
   if (!novedadesText) return currentY;
 
-  if (currentY + 20 > pageHeight) {
+  if (currentY + 20 > getHandoffPdfContentBottomY(doc, pageMargin)) {
     doc.addPage();
-    currentY = margin;
+    currentY = pageMargin.top;
   }
 
   doc.setFont('helvetica', 'bold');
@@ -185,32 +190,41 @@ export const addNovedadesSection = (
     } else {
       const wrappedLines = doc.splitTextToSize(
         line.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''),
-        pageWidth - margin * 2
+        getHandoffPdfUsableWidth(doc, pageMargin)
       );
+      if (novedadesY + wrappedLines.length * 4 > getHandoffPdfContentBottomY(doc, pageMargin)) {
+        doc.addPage();
+        novedadesY = pageMargin.top;
+      }
       doc.text(wrappedLines, margin, novedadesY);
       novedadesY += wrappedLines.length * 4;
     }
 
-    if (novedadesY > pageHeight - margin) {
+    if (novedadesY > getHandoffPdfContentBottomY(doc, pageMargin)) {
       doc.addPage();
-      novedadesY = margin;
+      novedadesY = pageMargin.top;
     }
   }
 
   return novedadesY + 6;
 };
 
-export const addPageFooter = (doc: jsPDF, margin: number) => {
+export const addPageFooter = (
+  doc: jsPDF,
+  margin: number,
+  pageMargin: HandoffPdfPageMargin = HANDOFF_PDF_PAGE_LAYOUT.margin
+) => {
   const pageCount = doc.getNumberOfPages();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
+  const footerY = pageHeight - HANDOFF_PDF_PAGE_LAYOUT.footerBaselineFromBottom;
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.text(`Pagina ${i} de ${pageCount}`, pageWidth - margin, pageHeight - margin + 4, {
+    doc.text(`Pagina ${i} de ${pageCount}`, pageWidth - pageMargin.right, footerY, {
       align: 'right',
     });
   }

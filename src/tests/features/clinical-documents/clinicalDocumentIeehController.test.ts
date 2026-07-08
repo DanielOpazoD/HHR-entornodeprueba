@@ -56,7 +56,7 @@ describe('IEEH_DISCHARGE_CONDITIONS', () => {
 });
 
 describe('resolveClinicalDocumentIeehPanelState', () => {
-  it('enables diagnosis-driven actions only when the draft is populated', () => {
+  it('allows printing a blank IEEH while keeping diagnosis-driven display state empty', () => {
     expect(
       resolveClinicalDocumentIeehPanelState({
         draft: createEmptyIeehDraft(),
@@ -72,8 +72,8 @@ describe('resolveClinicalDocumentIeehPanelState', () => {
       canRunAiSearch: true,
       shouldShowInterventionSelector: false,
       shouldShowProcedureSelector: false,
-      canPrintIeeh: false,
-      printButtonTitle: 'Seleccione un diagnóstico CIE-10 primero',
+      canPrintIeeh: true,
+      printButtonTitle: 'Imprimir IEEH',
     });
   });
 

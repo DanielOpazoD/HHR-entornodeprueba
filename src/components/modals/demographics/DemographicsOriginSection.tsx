@@ -30,6 +30,7 @@ interface DemographicsOriginSectionProps {
   setLocalData: React.Dispatch<React.SetStateAction<LocalDemographicsState>>;
   recordDate: string;
   missingRequiredFields?: string[];
+  canUseArbitraryAdmissionDate?: boolean;
 }
 
 const missingRequiredClass =
@@ -40,6 +41,7 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
   setLocalData,
   recordDate,
   missingRequiredFields = [],
+  canUseArbitraryAdmissionDate = false,
 }) => {
   const isMissingRequired = (field: string): boolean => missingRequiredFields.includes(field);
   const admissionDateOptions = React.useMemo(
@@ -109,7 +111,7 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
     }));
   };
 
-  const updateAdmissionDate = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const updateAdmissionDate = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const nextAdmissionDate = event.target.value;
     setLocalData(current => ({
       ...current,
@@ -160,25 +162,41 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
             >
               Fecha de ingreso
             </label>
-            <select
-              id="demographics-admission-date"
-              aria-invalid={isMissingRequired('fecha de ingreso') || undefined}
-              className={clsx(
-                'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none shadow-sm transition-all',
-                isMissingRequired('fecha de ingreso')
-                  ? missingRequiredClass
-                  : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
-              )}
-              value={localData.admissionDate}
-              onChange={updateAdmissionDate}
-            >
-              <option value="">-- Seleccionar --</option>
-              {admissionDateOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            {canUseArbitraryAdmissionDate ? (
+              <input
+                id="demographics-admission-date"
+                type="date"
+                aria-invalid={isMissingRequired('fecha de ingreso') || undefined}
+                className={clsx(
+                  'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none shadow-sm transition-all',
+                  isMissingRequired('fecha de ingreso')
+                    ? missingRequiredClass
+                    : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                )}
+                value={localData.admissionDate}
+                onChange={updateAdmissionDate}
+              />
+            ) : (
+              <select
+                id="demographics-admission-date"
+                aria-invalid={isMissingRequired('fecha de ingreso') || undefined}
+                className={clsx(
+                  'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none shadow-sm transition-all',
+                  isMissingRequired('fecha de ingreso')
+                    ? missingRequiredClass
+                    : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                )}
+                value={localData.admissionDate}
+                onChange={updateAdmissionDate}
+              >
+                <option value="">-- Seleccionar --</option>
+                {admissionDateOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -254,7 +272,9 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
             <select
               className="w-full px-2.5 py-1.5 bg-slate-50 border border-transparent rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none cursor-pointer shadow-sm transition-all"
               value={localData.origin}
-              onChange={e => setLocalData({ ...localData, origin: e.target.value as Origin })}
+              onChange={e =>
+                setLocalData(current => ({ ...current, origin: e.target.value as Origin }))
+              }
             >
               <option value="Residente">Residente</option>
               <option value="Turista Nacional">Turista Nacional</option>
@@ -312,7 +332,9 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
                 type="checkbox"
                 className="sr-only"
                 checked={localData.isRapanui}
-                onChange={e => setLocalData({ ...localData, isRapanui: e.target.checked })}
+                onChange={e =>
+                  setLocalData(current => ({ ...current, isRapanui: e.target.checked }))
+                }
               />
             </div>
             <div>

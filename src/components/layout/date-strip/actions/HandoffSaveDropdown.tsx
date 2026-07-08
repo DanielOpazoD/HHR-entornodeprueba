@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, Loader2, Save, CheckCircle } from 'lucide-react';
+import { FileDown, Loader2, Plus, Save, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 import { resolveSaveButtonUiState } from './dateStripActionStateController';
@@ -9,6 +9,7 @@ import type { HandoffSaveDropdownProps } from './types';
 
 export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
   onExportPDF,
+  onPrintWithBrowserOptions,
   onBackupPDF,
   isArchived = false,
   isBackingUp,
@@ -16,7 +17,7 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
 
-  const handleAction = async (action: 'pdf' | 'backup') => {
+  const handleAction = async (action: 'pdf' | 'print-options' | 'backup') => {
     close();
 
     if (action === 'pdf') {
@@ -25,10 +26,15 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
       return;
     }
 
+    if (action === 'print-options') {
+      await onPrintWithBrowserOptions?.();
+      return;
+    }
+
     await onBackupPDF?.(false);
   };
 
-  if (!onExportPDF && !onBackupPDF) {
+  if (!onExportPDF && !onPrintWithBrowserOptions && !onBackupPDF) {
     return null;
   }
 
@@ -58,12 +64,28 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <DateStripDropdownPanel title="Opciones de Guardado" widthClassName="w-52">
+        <DateStripDropdownPanel
+          title="Opciones de Guardado"
+          widthClassName="w-60"
+          headerAction={
+            onPrintWithBrowserOptions ? (
+              <button
+                type="button"
+                onClick={() => void handleAction('print-options')}
+                className="flex h-5 w-5 items-center justify-center rounded-full border border-sky-100 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                title="Imprimir con opciones: escala, margenes y papel"
+                aria-label="Imprimir con opciones de Chrome"
+              >
+                <Plus size={11} strokeWidth={2.4} />
+              </button>
+            ) : undefined
+          }
+        >
           <DateStripActionItem
             onClick={() => void handleAction('pdf')}
-            icon={Printer}
+            icon={FileDown}
             title="Descargar PDF"
-            subtitle="Exportación local inmediata"
+            subtitle="Exportacion local"
             colorClassName="bg-emerald-50 text-emerald-600"
             iconHoverColorClassName="group-hover:bg-emerald-100"
           />

@@ -7,6 +7,7 @@ import {
   ConsolidationResult,
 } from '@/services/admin/auditConsolidationService';
 import { auditConsolidationLogger } from '@/services/admin/adminLoggers';
+import { useConfirmDialog } from '@/context/UIContext';
 import {
   buildConsolidationManagerActionState,
   buildConsolidationManagerShellState,
@@ -14,6 +15,7 @@ import {
 } from './consolidationManagerController';
 
 export const ConsolidationManager: React.FC = () => {
+  const { confirm } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<ConsolidationPreview | null>(null);
   const [result, setResult] = useState<ConsolidationResult | null>(null);
@@ -46,12 +48,15 @@ export const ConsolidationManager: React.FC = () => {
   };
 
   const handleExecute = async () => {
-    if (
-      !confirm(
-        'La consolidación está deshabilitada: auditLogs es append-only (política de inmutabilidad). Esta acción no modifica ni elimina registros. ¿Continuar?'
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: 'Optimizar base de datos',
+      message:
+        'La consolidación está deshabilitada: auditLogs es append-only (política de inmutabilidad). Esta acción no modifica ni elimina registros. ¿Continuar?',
+      confirmText: 'Continuar',
+      cancelText: 'Cancelar',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setResult(null);

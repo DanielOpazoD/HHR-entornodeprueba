@@ -44,6 +44,7 @@ interface BuildDischargeConfirmPayloadParams {
   movementDate?: string;
   hasClinicalCrib?: boolean;
   localTarget: DischargeTarget;
+  diagnosis?: string;
 }
 
 export type DischargeConfirmPayload = DischargeModalConfirmPayload;
@@ -101,6 +102,7 @@ export const buildDischargeConfirmPayload = ({
   movementDate,
   hasClinicalCrib,
   localTarget,
+  diagnosis,
 }: BuildDischargeConfirmPayloadParams): DischargeConfirmPayload => ({
   status,
   type: status === 'Vivo' ? dischargeType : undefined,
@@ -108,6 +110,7 @@ export const buildDischargeConfirmPayload = ({
   time: dischargeTime,
   movementDate,
   dischargeTarget: hasClinicalCrib ? localTarget : undefined,
+  diagnosis,
 });
 
 export const shouldShowMotherStatus = (target: DischargeTarget): boolean =>

@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import type {
+  ApplyDailyRecordPatch,
   DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
@@ -24,6 +25,7 @@ import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoEx
 import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurrentRecord';
 import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
+import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
 import type {
   AddTransferAction,
   DeleteTransferAction,
@@ -32,26 +34,40 @@ import type {
   UpdateTransferAction,
 } from '@/types/movements';
 
+const logTransferPersistenceFailure = (action: string, error: unknown): void => {
+  patientMovementRuntimeLogger.warn(`Transfer ${action} persistence failed`, error);
+};
+
+const logTransferAuditFailure = (action: string, error: unknown): void => {
+  patientMovementRuntimeLogger.warn(`Transfer ${action} audit failed`, error);
+};
+
 export const usePatientTransfers = (
   record: DailyRecord | null,
   saveAndUpdate: PersistDailyRecord,
-  runtime: PatientMovementRuntime = patientMovementBrowserRuntime
+  runtime: PatientMovementRuntime = patientMovementBrowserRuntime,
+  patchRecord?: ApplyDailyRecordPatch
 ): TransferMovementActions => {
   const recordRef = useLatestRef(record);
   const { notifyCreationError, notifyUndoError } = usePatientMovementFeedback(runtime);
-  const { logTransferEntry } = usePatientMovementAudit();
+  const { logDischargeDiagnosisChange, logTransferEntry } = usePatientMovementAudit();
   const executeMovementCreation = usePatientMovementCreationExecutor({
     saveAndUpdate,
+    patchRecord,
     notifyCreationError,
   });
   const executeMovementMutation = usePatientMovementMutationExecutor({
     recordRef,
     saveAndUpdate,
+    patchRecord,
+    movementKey: 'transfers',
   });
   const withCurrentRecord = usePatientMovementCurrentRecord({ recordRef });
   const executeMovementUndo = usePatientMovementUndoExecutor({
     createEmptyPatient,
     saveAndUpdate,
+    patchRecord,
+    movementKey: 'transfers',
     notifyUndoError,
   });
 
@@ -79,13 +95,15 @@ export const usePatientTransfers = (
             createEmptyPatient,
           })
         );
-        executeMovementCreation({
+        void executeMovementCreation({
           kind: 'transfer',
           bedId,
           resolution,
           onSuccess: value => {
             logTransferEntry(value.auditEntry, currentRecord.date);
           },
+        }).catch(error => {
+          logTransferPersistenceFailure('create', error);
         });
       });
     },
@@ -94,29 +112,62 @@ export const usePatientTransfers = (
 
   const updateTransfer: UpdateTransferAction = useCallback(
     (id, updates) => {
-      executeTransferMutation(
-        (record, movementId) =>
-          resolveUpdateTransferMovement({
-            record,
-            id: movementId,
-            updates,
-          }),
-        id
-      );
+      withCurrentRecord(currentRecord => {
+        const previous = currentRecord.transfers.find(transfer => transfer.id === id);
+        void executeTransferMutation(
+          (record, movementId) =>
+            resolveUpdateTransferMovement({
+              record,
+              id: movementId,
+              updates,
+            }),
+          id
+        )
+          .then(() => {
+            if (
+              previous &&
+              updates.diagnosis !== undefined &&
+              previous.diagnosis !== updates.diagnosis
+            ) {
+              try {
+                logDischargeDiagnosisChange(
+                  {
+                    movementId: previous.id,
+                    entityType: 'transfer',
+                    patientName: previous.patientName,
+                    rut: previous.rut,
+                    movementLabel: 'Traslado',
+                    previousDiagnosis: previous.diagnosis,
+                    nextDiagnosis: updates.diagnosis,
+                    clinicalEpisodeId: previous.clinicalEpisodeId,
+                  },
+                  currentRecord.date
+                );
+              } catch (error) {
+                logTransferAuditFailure('diagnosis_change', error);
+              }
+            }
+          })
+          .catch(error => {
+            logTransferPersistenceFailure('update', error);
+          });
+      });
     },
-    [executeTransferMutation]
+    [executeTransferMutation, logDischargeDiagnosisChange, withCurrentRecord]
   );
 
   const deleteTransfer: DeleteTransferAction = useCallback(
     id => {
-      executeTransferMutation(
+      void executeTransferMutation(
         (record, movementId) =>
           resolveDeleteTransferMovement({
             record,
             id: movementId,
           }),
         id
-      );
+      ).catch(error => {
+        logTransferPersistenceFailure('delete', error);
+      });
     },
     [executeTransferMutation]
   );
@@ -125,7 +176,7 @@ export const usePatientTransfers = (
     id => {
       withCurrentRecord(currentRecord => {
         const transfer = selectTransferUndoMovement(currentRecord, id);
-        executeMovementUndo({
+        void executeMovementUndo({
           kind: 'transfer',
           movement: transfer,
           record: currentRecord,
@@ -136,6 +187,8 @@ export const usePatientTransfers = (
               bedId,
               updatedBed,
             }),
+        }).catch(error => {
+          logTransferPersistenceFailure('undo', error);
         });
       });
     },

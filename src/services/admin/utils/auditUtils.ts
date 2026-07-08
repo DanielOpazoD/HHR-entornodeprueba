@@ -15,6 +15,9 @@ const USER_EMAIL_CACHE_KEY = 'hhr_audit_user_email_cache';
 
 const resolveCurrentUser = () => defaultAuthRuntime.getCurrentUser();
 
+const getLocalStorage = (): Storage | undefined =>
+  typeof localStorage === 'undefined' ? undefined : localStorage;
+
 /**
  * Get current user email with robust fallbacks
  * Priority: auth.email → cached email → displayName → uid → anonymous
@@ -22,13 +25,14 @@ const resolveCurrentUser = () => defaultAuthRuntime.getCurrentUser();
 export const getCurrentUserEmail = (): string => {
   try {
     const user = resolveCurrentUser();
+    const browserStorage = getLocalStorage();
 
     if (user?.email) {
-      localStorage.setItem(USER_EMAIL_CACHE_KEY, user.email);
+      browserStorage?.setItem(USER_EMAIL_CACHE_KEY, user.email);
       return user.email;
     }
 
-    const cached = localStorage.getItem(USER_EMAIL_CACHE_KEY);
+    const cached = browserStorage?.getItem(USER_EMAIL_CACHE_KEY);
     if (cached) return cached;
 
     if (user?.displayName) return user.displayName;

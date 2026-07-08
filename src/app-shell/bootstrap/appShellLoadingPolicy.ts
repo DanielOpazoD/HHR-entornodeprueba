@@ -49,14 +49,36 @@ export const resolvePreMountLoadingScreenDecision = ({
 export const resolveRuntimeLoadingScreenMode = ({
   pathname,
   bootstrapState,
+  hasRecentAuthenticatedSessionHint: providedRecentAuthenticatedSessionHint,
+  hasPersistedFirebaseAuthHint: providedPersistedFirebaseAuthHint,
+  hasActiveFirebaseSession: providedActiveFirebaseSession,
 }: {
   pathname: string | undefined;
   bootstrapState: Extract<AppBootstrapState, { status: 'loading' }>;
+  hasRecentAuthenticatedSessionHint?: boolean;
+  hasPersistedFirebaseAuthHint?: boolean;
+  hasActiveFirebaseSession?: boolean;
 }): AppShellLoadingScreenMode => {
   const normalizedPath = (pathname ?? '/').replace(/^\/+|\/+$/g, '');
   const routeModule = resolveModuleFromPathname(pathname);
+  const recentAuthenticatedSessionHint =
+    providedRecentAuthenticatedSessionHint ?? hasRecentAuthenticatedSessionHint();
+  const persistedFirebaseAuthHint =
+    providedPersistedFirebaseAuthHint ?? hasPersistedFirebaseAuthHint();
+  const activeFirebaseSession = providedActiveFirebaseSession ?? hasActiveFirebaseSession();
+  const rehydratingAuthenticatedSession =
+    bootstrapState.auth.sessionState.status === 'authenticating';
+  const hasAuthenticatedSessionHint =
+    recentAuthenticatedSessionHint ||
+    persistedFirebaseAuthHint ||
+    activeFirebaseSession ||
+    rehydratingAuthenticatedSession ||
+    bootstrapState.auth.isAuthenticated ||
+    Boolean(bootstrapState.auth.currentUser);
+
   if (
     routeModule !== null &&
+    hasAuthenticatedSessionHint &&
     (bootstrapState.phase === 'rehydrating' || normalizedPath.length > 0)
   ) {
     return 'bootstrap-route-chrome';

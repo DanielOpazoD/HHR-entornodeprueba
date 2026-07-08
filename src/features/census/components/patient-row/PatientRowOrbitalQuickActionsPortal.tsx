@@ -6,7 +6,7 @@
  * the floating UI never interferes with normal table interactions:
  *
  * **Pointer-events strategy:**
- *   - Outer wrapper div (`fixed z-[70]`) -- `pointer-events-none`.
+ *   - Outer wrapper div (`fixed z-[39]`) -- `pointer-events-none`.
  *     Covers the launcher's bounding box but is transparent to the mouse,
  *     so clicks pass through to the table underneath.
  *   - Inner relative div -- also `pointer-events-none`. Pure layout shell.
@@ -17,9 +17,9 @@
  *     `pointer-events-none` when hidden, so it does not block row hover.
  *
  * **Z-index layering:**
- *   - `z-[60]` -- Transparent backdrop overlay (click-to-close).
- *   - `z-[70]` -- Launcher wrapper (pointer-events-none shell).
- *   - `z-[80]` -- Action stack (above the wrapper so items are clickable).
+ *   - `z-[38]` -- Transparent backdrop overlay (click-to-close), below sticky app bars.
+ *   - `z-[39]` -- Launcher wrapper (pointer-events-none shell), above table row actions.
+ *   - `z-10`   -- Action stack (above the wrapper content so items are clickable).
  *   - `z-10`   -- Trigger button (within the wrapper's stacking context).
  */
 
@@ -40,6 +40,7 @@ import {
   ACTION_STACK_TOP,
   TRIGGER_HITBOX_SIZE,
   TRIGGER_VISUAL_SIZE,
+  resolveActionStackHorizontalShift,
   resolveTriggerButtonStateClassName,
 } from '@/features/census/components/patient-row/patientRowOrbitalQuickActionLayout';
 
@@ -99,15 +100,46 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
     return null;
   }
 
+  const actionStackHorizontalShift = resolveActionStackHorizontalShift({
+    actionRowWidth: ACTION_ROW_WIDTH,
+    preferredShift: ACTION_STACK_HORIZONTAL_SHIFT,
+    wrapperLeft: position.left,
+    wrapperWidth: launcherWrapperWidth,
+  });
+
+  const stopPortalEvent = (event: React.MouseEvent) => {
+    event.stopPropagation();
+  };
+
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    stopPortalEvent(event);
+    close();
+  };
+
+  const handleActionButtonClick = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    itemId: PatientRowOrbitalQuickActionItem['id']
+  ) => {
+    stopPortalEvent(event);
+    handleItemClick(itemId);
+  };
+
+  const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    stopPortalEvent(event);
+    toggle();
+  };
+
   return createPortal(
     <>
       {/* Backdrop: transparent click-catcher that closes the action stack */}
-      {isOpen ? <div className="fixed inset-0 z-[60]" aria-hidden="true" onClick={close} /> : null}
+      {isOpen ? (
+        <div className="fixed inset-0 z-[38]" aria-hidden="true" onClick={handleBackdropClick} />
+      ) : null}
 
       {/* Launcher wrapper: pointer-events-none shell positioned over the row */}
       <div
         ref={menuRef}
-        className="pointer-events-none fixed z-[70] print:hidden"
+        className="pointer-events-none fixed z-[39] print:hidden"
         style={{
           left: `${position.left}px`,
           top: `${position.top}px`,
@@ -119,12 +151,12 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
           {/* Action stack: pointer-events-auto so items receive clicks */}
           {isOpen ? (
             <div
-              className="pointer-events-auto absolute left-1/2 top-0 z-[80] flex -translate-x-1/2 flex-col"
+              className="pointer-events-auto absolute left-1/2 top-0 z-10 flex -translate-x-1/2 flex-col"
               style={{
                 top: `${ACTION_STACK_TOP}px`,
                 width: `${ACTION_ROW_WIDTH}px`,
                 gap: `${ACTION_STACK_GAP}px`,
-                marginLeft: `-${ACTION_STACK_HORIZONTAL_SHIFT}px`,
+                marginLeft: `-${actionStackHorizontalShift}px`,
                 padding: '2px 0',
               }}
               onMouseEnter={handleLauncherMouseEnter}
@@ -135,7 +167,7 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
                 <div key={item.id}>
                   <button
                     type="button"
-                    onClick={() => handleItemClick(item.id)}
+                    onClick={event => handleActionButtonClick(event, item.id)}
                     onKeyDown={event => handleActionKeyDown(index, event)}
                     aria-label={item.tooltip}
                     title={item.tooltip}
@@ -145,7 +177,7 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
                     }}
                     className={clsx(
                       'flex w-full cursor-pointer items-center gap-2.5 rounded-2xl px-2.5 transition-colors duration-100',
-                      'bg-white/70 hover:bg-white hover:shadow-sm',
+                      'bg-white shadow-sm ring-1 ring-slate-100 hover:bg-white hover:shadow-md',
                       'focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300',
                       'active:scale-[0.97]'
                     )}
@@ -186,7 +218,7 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
           {/* Trigger button: pointer-events-auto when visible, none when hidden */}
           <button
             type="button"
-            onClick={toggle}
+            onClick={handleTriggerClick}
             onKeyDown={handleTriggerKeyDown}
             onMouseEnter={handleLauncherMouseEnter}
             onMouseLeave={handleLauncherMouseLeave}
@@ -208,8 +240,13 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
             }}
           >
             <span
+              // Visual-only chrome: the parent <button> handles all pointer
+              // interaction. Without `pointer-events-none` here, firefox lets
+              // this span capture clicks that should reach the patient row
+              // beneath (chromium delegates to the button parent silently).
+              // See issue #15.
               className={clsx(
-                'flex items-center justify-center overflow-visible rounded-full transition-[background-color,box-shadow,opacity,transform] duration-150',
+                'pointer-events-none flex items-center justify-center overflow-visible rounded-full transition-[background-color,box-shadow,opacity,transform] duration-150',
                 resolveTriggerButtonStateClassName(phase)
               )}
               style={{

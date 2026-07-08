@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
+import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { ConcurrencyError } from '@/services/storage/firestore';
 import { DataFactory } from '../factories/DataFactory';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
@@ -42,10 +43,12 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
 
-vi.mock('../../context/UIContext', () => ({
+vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({
     error: mockNotificationError,
     success: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
   }),
 }));
 
@@ -67,6 +70,7 @@ const createWrapper = () => {
 describe('Concurrency Handling Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDailyRecordFreshnessGateForTests();
     const record = DataFactory.createMockDailyRecord(mockDate);
     vi.mocked(mockDailyRecordRepositoryPort.getForDate).mockResolvedValue(record);
     vi.mocked(mockDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue({
@@ -96,12 +100,11 @@ describe('Concurrency Handling Integration', () => {
       wrapper: createWrapper(),
     });
 
-    // Wait for mount
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(result.current.record).not.toBeNull();
     });
 
-    const newRecord = { ...result.current.record!, lastUpdated: '2024-12-28T10:00:01Z' };
+    const newRecord = { ...result.current.record! };
 
     // Action: Try to save
     await act(async () => {

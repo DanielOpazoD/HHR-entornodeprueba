@@ -43,6 +43,14 @@ describe('Patient row view contracts governance', () => {
     expect(content).toMatch(/export type \{[^}]*PatientRowModalsProps/s);
   });
 
+  it('exposes patient-device callbacks from the stable public contract barrel', () => {
+    const content = readFileSync(PUBLIC_CONTRACTS_PATH, 'utf8');
+
+    expect(content).toMatch(/export interface PatientDeviceCallbacks/);
+    expect(content).toContain('onDevicesChange: (devices: string[]) => void;');
+    expect(content).toContain('onDeviceBundleChange?: (fields: PatientRowPatientPatch) => void;');
+  });
+
   it('keeps census row consumers on the stable patientRowContracts barrel', () => {
     const forbiddenImports = [
       'patient-row/patientRowDataContracts',

@@ -5,9 +5,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPastedImageHtml,
+  buildPastedStorageImageHtml,
   classifyPasteContent,
+  CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES,
   readFileAsDataUrl,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPasteController';
+import { CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 
 // ---------------------------------------------------------------------------
 // Helpers to build a mock DataTransfer
@@ -55,6 +58,42 @@ describe('classifyPasteContent', () => {
     expect(classifyPasteContent(dt).kind).toBe('image-file');
   });
 
+  it('marks images above the inline limit for Storage upload', () => {
+    const oversizedPayload = new Uint8Array(CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES + 1);
+    const file = new File([oversizedPayload], 'large.png', { type: 'image/png' });
+    const dt = buildMockDataTransfer({
+      files: [file],
+      htmlData: '<b>fallback</b>',
+      textData: 'fallback',
+    });
+
+    const result = classifyPasteContent(dt);
+
+    expect(result.kind).toBe('image-file');
+    if (result.kind === 'image-file') {
+      expect(result.file).toBe(file);
+      expect(result.requiresStorage).toBe(true);
+      expect(result.requiresCompression).toBe(false);
+    }
+  });
+
+  it('rejects images beyond the compressible browser limit', () => {
+    const file = new File(
+      [new Uint8Array(CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES + 1)],
+      'huge.png',
+      { type: 'image/png' }
+    );
+    const dt = buildMockDataTransfer({ files: [file] });
+
+    const result = classifyPasteContent(dt);
+
+    expect(result.kind).toBe('image-too-large');
+    if (result.kind === 'image-too-large') {
+      expect(result.file).toBe(file);
+      expect(result.message).toContain('supera el limite seguro');
+    }
+  });
+
   it('returns html with sanitised content when HTML is present', () => {
     const dt = buildMockDataTransfer({
       htmlData: '<b style="color:red">bold</b>',
@@ -68,6 +107,23 @@ describe('classifyPasteContent', () => {
       // Style should have been stripped by sanitizePastedHtml
       expect(result.sanitizedHtml).toContain('<b');
       expect(result.sanitizedHtml).not.toContain('color:red');
+    }
+  });
+
+  it('strips background-color highlights coming from external sources but keeps text color', () => {
+    const dt = buildMockDataTransfer({
+      htmlData: '<span style="color: red; background-color: yellow">Texto resaltado</span>',
+      textData: 'Texto resaltado',
+    });
+
+    const result = classifyPasteContent(dt);
+
+    expect(result.kind).toBe('html');
+    if (result.kind === 'html') {
+      expect(result.sanitizedHtml).toContain('Texto resaltado');
+      expect(result.sanitizedHtml).toContain('color: red');
+      expect(result.sanitizedHtml).not.toContain('background-color');
+      expect(result.sanitizedHtml).not.toContain('yellow');
     }
   });
 
@@ -156,6 +212,23 @@ describe('buildPastedImageHtml', () => {
     expect(html).toContain('src="data:image/png;base64,AAAA"');
     expect(html).toContain('alt="Imagen pegada"');
     expect(html).toContain('max-width:100%');
+  });
+});
+
+describe('buildPastedStorageImageHtml', () => {
+  it('builds a Storage-backed image tag with attachment metadata', () => {
+    const html = buildPastedStorageImageHtml({
+      attachmentId: 'att_1',
+      imageUrl: 'https://storage.test/image.jpg?token=abc&alt=media',
+      storagePath: 'clinical-attachments/hhr/rut/episode/att_1/image.jpg',
+    });
+
+    expect(html).toContain('src="https://storage.test/image.jpg?token=abc&amp;alt=media"');
+    expect(html).toContain('data-clinical-attachment-id="att_1"');
+    expect(html).toContain(
+      'data-clinical-document-storage-path="clinical-attachments/hhr/rut/episode/att_1/image.jpg"'
+    );
+    expect(html).toContain('alt="Imagen adjunta"');
   });
 });
 

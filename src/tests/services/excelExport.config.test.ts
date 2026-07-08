@@ -6,7 +6,8 @@ describe('Excel export configuration', () => {
     it('exposes ExcelJS as a runtime asset instead of prebundling it', () => {
       const viteConfigSource = readSource('vite.config.ts');
       expect(viteConfigSource).toContain('excelJsRuntimeAssetPlugin');
-      expect(viteConfigSource).toContain("fileName: 'vendor/exceljs.min.js'");
+      expect(viteConfigSource).toContain("fileName: 'vendor/exceljs.bare.min.js'");
+      expect(viteConfigSource).toContain("'exceljs.bare.min.js'");
     });
 
     it('keeps browser runtime loading isolated from the Node test loader', () => {
@@ -16,11 +17,12 @@ describe('Excel export configuration', () => {
       );
       const excelUtilsSource = readSource('src/services/exporters/excelUtils.ts');
 
-      expect(excelModuleLoaderSource).toContain('/vendor/exceljs.min.js');
+      expect(excelModuleLoaderSource).toContain('/vendor/exceljs.bare.min.js');
       expect(excelModuleLoaderSource).toContain(
         "typeof __ENABLE_NODE_EXCEL_LOADER__ !== 'undefined'"
       );
       expect(excelModuleLoaderSource).not.toContain("await import('exceljs')");
+      expect(excelModuleLoaderSource).not.toContain('excelJsModuleLoader.node');
       expect(nodeExcelModuleLoaderSource).toContain("await import('exceljs')");
       expect(excelUtilsSource).toContain('loadExcelJSModule');
     });

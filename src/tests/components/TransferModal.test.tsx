@@ -80,4 +80,30 @@ describe('TransferModal', () => {
     expect(onUpdate).toHaveBeenCalledWith('transferEscort', 'Enfermera');
     expect(onUpdate).toHaveBeenCalledWith('evacuationMethodOther', '');
   });
+
+  it('keeps discharge diagnosis in the confirm payload', () => {
+    const onConfirm = vi.fn();
+
+    render(
+      <TransferModal
+        isOpen={true}
+        isEditing={true}
+        evacuationMethod={EVACUATION_METHOD_COMMERCIAL}
+        evacuationMethodOther=""
+        receivingCenter={DEFAULT_RECEIVING_CENTER}
+        receivingCenterOther=""
+        transferEscort="Enfermera"
+        diagnosis="Neumonía basal derecha"
+        onUpdate={vi.fn()}
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ diagnosis: 'Neumonía basal derecha' })
+    );
+  });
 });

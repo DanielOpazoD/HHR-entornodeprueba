@@ -3,6 +3,8 @@ export { ClinicalDocumentsModal } from './components/ClinicalDocumentsModal';
 export { ClinicalDocumentsPanel } from './components/ClinicalDocumentsPanel';
 export { ClinicalDocumentsWorkspace } from './components/ClinicalDocumentsWorkspace';
 export type {
+  ClinicalAttachmentFileKind,
+  ClinicalAttachmentRecord,
   ClinicalDocumentAuditActor,
   ClinicalDocumentPdfMeta,
   ClinicalDocumentRecord,
@@ -14,6 +16,7 @@ export type {
   ClinicalDocumentStatus,
   ClinicalDocumentType,
 } from './domain/entities';
+export type { PatientData } from './contracts/clinicalDocumentsPatientContract';
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {
   createTemplatePatientField,
@@ -22,9 +25,15 @@ export {
 } from './controllers/clinicalDocumentTemplateEditorController';
 export {
   buildClinicalDocumentActor,
-  hydrateLegacyClinicalDocument,
+  hydrateClinicalDocumentWorkspaceRecord,
   serializeClinicalDocument,
 } from './controllers/clinicalDocumentWorkspaceController';
+export {
+  buildClinicalAttachmentStoragePath,
+  normalizeClinicalAttachmentRutKey,
+} from './controllers/clinicalAttachmentPathController';
+export { resolveClinicalAttachmentFilePolicy } from './controllers/clinicalAttachmentFilePolicy';
+export { parseClinicalAttachmentRecord } from './contracts/clinicalAttachmentRuntimeContracts';
 export { exportClinicalDocumentPdfViaBackend } from './services/clinicalDocumentBackendExportService';
 export { generateClinicalDocumentPdfBlob } from './services/clinicalDocumentPdfService';
 export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentPrintPdfService';

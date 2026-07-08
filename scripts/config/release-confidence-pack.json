@@ -18,6 +18,7 @@
       "emulator_sync_ci",
       "critical_coverage",
       "flow_performance",
+      "clinical_visual_release",
       "e2e_critical_ci"
     ]
   },
@@ -65,6 +66,13 @@
       "label": "Flow performance budgets",
       "command": "npm run test:e2e:flow-performance:gate",
       "tier": "blocking"
+    },
+    {
+      "id": "clinical_visual_release",
+      "label": "Clinical visual release smoke",
+      "command": "npm run test:e2e:clinical-visual-release",
+      "tier": "extended",
+      "overlapsWith": ["e2e_critical_ci"]
     },
     {
       "id": "e2e_critical_ci",

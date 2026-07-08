@@ -158,4 +158,33 @@ describe('auditCore runtime injection', () => {
       expect.not.objectContaining({ limit: expect.any(Number) })
     );
   });
+
+  it('fetches date-scoped audit logs without a composite index and sorts them client-side', async () => {
+    const older = {
+      id: 'older',
+      timestamp: '2026-07-03T10:00:00.000Z',
+      recordDate: '2026-07-03',
+    } as AuditLogEntry;
+    const newer = {
+      id: 'newer',
+      timestamp: '2026-07-03T12:00:00.000Z',
+      recordDate: '2026-07-03',
+    } as AuditLogEntry;
+    getDocs.mockResolvedValue([older, newer]);
+
+    await expect(service.getAuditLogsForDate('2026-07-03')).resolves.toEqual([newer, older]);
+
+    expect(getDocs).toHaveBeenCalledWith(
+      expect.stringContaining('/auditLogs'),
+      expect.objectContaining({
+        where: [{ field: 'recordDate', operator: '==', value: '2026-07-03' }],
+      })
+    );
+    expect(getDocs).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        orderBy: expect.any(Array),
+      })
+    );
+  });
 });

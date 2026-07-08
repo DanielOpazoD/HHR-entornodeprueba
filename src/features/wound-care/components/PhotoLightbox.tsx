@@ -19,6 +19,7 @@ import {
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { formatFileSize, formatCompressionRatio } from '../controllers/photoUploadController';
 import { usePhotoLightboxZoom } from '../hooks/usePhotoLightboxZoom';
+import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
 interface PhotoLightboxProps {
   photos: WoundCarePhoto[];
@@ -27,20 +28,6 @@ interface PhotoLightboxProps {
   onNavigate: (index: number) => void;
   onEditDescription?: (photoId: string, description: string) => Promise<void>;
 }
-
-const formatDateTime = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-};
 
 const formatDateOnly = (iso: string): string => {
   try {
@@ -344,7 +331,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
           </span>
           <span className="inline-flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Subida: {formatDateTime(photo.uploadedAt)}
+            Subida: {formatDateTimeCL(photo.uploadedAt)}
           </span>
           {photo.bodyLocation && (
             <span className="inline-flex items-center gap-1">

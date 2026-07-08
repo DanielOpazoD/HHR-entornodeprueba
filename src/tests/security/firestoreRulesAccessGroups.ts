@@ -104,6 +104,115 @@ export function registerFirestoreRulesAccessGroups({
       );
     });
 
+    it('Admins and nurses can both update current-day staffing fields', async () => {
+      const staffingPayload = {
+        nurses: ['Nurse Day 1', 'Nurse Day 2'],
+        nursesDayShift: ['Nurse Day 1', 'Nurse Day 2'],
+        nursesNightShift: ['Nurse Night 1', 'Nurse Night 2'],
+        tensDayShift: ['TENS Day 1', 'TENS Day 2', 'TENS Day 3'],
+        tensNightShift: ['TENS Night 1', 'TENS Night 2', 'TENS Night 3'],
+        staffingDetailsV1: {
+          day: {
+            nurses: [
+              {
+                id: 'day-nurse-standard-0',
+                name: 'Nurse Day 1',
+                role: 'nurse',
+                slotType: 'standard',
+                standardSlotIndex: 0,
+              },
+              {
+                id: 'day-nurse-standard-1',
+                name: 'Nurse Day 2',
+                role: 'nurse',
+                slotType: 'standard',
+                standardSlotIndex: 1,
+              },
+            ],
+            tens: [
+              {
+                id: 'day-tens-standard-0',
+                name: 'TENS Day 1',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 0,
+              },
+              {
+                id: 'day-tens-standard-1',
+                name: 'TENS Day 2',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 1,
+              },
+              {
+                id: 'day-tens-standard-2',
+                name: 'TENS Day 3',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 2,
+              },
+            ],
+          },
+          night: {
+            nurses: [
+              {
+                id: 'night-nurse-standard-0',
+                name: 'Nurse Night 1',
+                role: 'nurse',
+                slotType: 'standard',
+                standardSlotIndex: 0,
+              },
+              {
+                id: 'night-nurse-standard-1',
+                name: 'Nurse Night 2',
+                role: 'nurse',
+                slotType: 'standard',
+                standardSlotIndex: 1,
+              },
+            ],
+            tens: [
+              {
+                id: 'night-tens-standard-0',
+                name: 'TENS Night 1',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 0,
+              },
+              {
+                id: 'night-tens-standard-1',
+                name: 'TENS Night 2',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 1,
+              },
+              {
+                id: 'night-tens-standard-2',
+                name: 'TENS Night 3',
+                role: 'tens',
+                slotType: 'standard',
+                standardSlotIndex: 2,
+              },
+            ],
+          },
+        },
+        lastUpdated: NOW_MS,
+      };
+
+      await setupDoc(admin(), recordPath, {
+        date: CURRENT_RECORD_DATE,
+        dateTimestamp: NOW_MS,
+      });
+
+      await assertSucceeds(admin().doc(recordPath).update(staffingPayload));
+
+      await setupDoc(admin(), recordPath, {
+        date: CURRENT_RECORD_DATE,
+        dateTimestamp: NOW_MS,
+      });
+
+      await assertSucceeds(nurse().doc(recordPath).update(staffingPayload));
+    });
+
     it('Nurses can repair missing dateTimestamp while updating current records', async () => {
       await setupDoc(admin(), recordPath, {
         date: CURRENT_RECORD_DATE,
@@ -1075,6 +1184,7 @@ export function registerFirestoreRulesAccessGroups({
 
   describe('Settings Collection', () => {
     const settingsPath = 'hospitals/H1/settings/tableConfig';
+    const aiProviderRoutingPath = 'hospitals/H1/settings/aiProviderRouting';
 
     it('Admins can write settings', async () => {
       await assertSucceeds(admin().doc(settingsPath).set({ foo: 'bar' }));
@@ -1086,6 +1196,34 @@ export function registerFirestoreRulesAccessGroups({
 
     it('Nurses can write settings', async () => {
       await assertSucceeds(nurse().doc(settingsPath).set({ foo: 'bar' }));
+    });
+
+    it('Only admins can write AI provider routing settings', async () => {
+      await assertSucceeds(
+        admin()
+          .doc(aiProviderRoutingPath)
+          .set({
+            actions: {
+              clinical_document_import: {
+                enabled: true,
+                provider: 'deepseek',
+              },
+            },
+          })
+      );
+
+      await assertFails(
+        nurse()
+          .doc(aiProviderRoutingPath)
+          .set({
+            actions: {
+              clinical_document_import: {
+                enabled: true,
+                provider: 'gemini',
+              },
+            },
+          })
+      );
     });
 
     it('Unauthenticated users cannot read settings', async () => {

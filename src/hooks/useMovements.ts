@@ -27,6 +27,7 @@ export const useMovements = (
       updateDischarge: discharges.updateDischarge,
       deleteDischarge: discharges.deleteDischarge,
       undoDischarge: discharges.undoDischarge,
+      convertDischargeToCma: discharges.convertDischargeToCma,
       addTransfer: transfers.addTransfer,
       updateTransfer: transfers.updateTransfer,
       deleteTransfer: transfers.deleteTransfer,

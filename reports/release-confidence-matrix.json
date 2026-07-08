@@ -1,0 +1,279 @@
+{
+  "generatedAt": "2026-07-05T06:20:05.119Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "overall": "ok",
+  "counts": {
+    "areaCount": 11,
+    "criticalCoverageZones": 15,
+    "blockingSteps": 7,
+    "smokeScenarios": 6,
+    "flowBudgets": 6,
+    "ownershipAreas": 11
+  },
+  "coverageZones": {
+    "mapped": 15,
+    "unmapped": []
+  },
+  "blockingSteps": {
+    "mapped": 7,
+    "unmapped": []
+  },
+  "smokeScenarios": {
+    "mapped": 6,
+    "unmapped": []
+  },
+  "flowBudgets": {
+    "mapped": 6,
+    "unmapped": []
+  },
+  "ownershipAreas": {
+    "mapped": 11,
+    "unmapped": []
+  },
+  "areas": [
+    {
+      "id": "auth_bootstrap",
+      "label": "Auth bootstrap y login",
+      "ownerAreaId": "auth",
+      "criticalCoverageZones": [
+        "src/services/auth",
+        "src/services/auth/bootstrap"
+      ],
+      "blockingSteps": [
+        "runtime_smoke",
+        "critical_coverage",
+        "flow_performance",
+        "e2e_critical_ci"
+      ],
+      "smokeScenarios": [
+        "cold_boot",
+        "login"
+      ],
+      "flowBudgets": [
+        "loginVisibleMs",
+        "authFeedbackMs"
+      ],
+      "validationSuites": [
+        "test:risk:auth"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "census_runtime",
+      "label": "Censo y shell inicial",
+      "ownerAreaId": "census",
+      "criticalCoverageZones": [
+        "src/features/census/controllers",
+        "src/app-shell",
+        "src/shared/census/upc-critical"
+      ],
+      "blockingSteps": [
+        "runtime_smoke",
+        "critical_coverage",
+        "flow_performance",
+        "e2e_critical_ci"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [
+        "censoVisibleMs",
+        "censoRecordReadyMs"
+      ],
+      "validationSuites": [
+        "test:unit:critical",
+        "test:e2e:critical:ci"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "clinical_documents",
+      "label": "Documentos clinicos",
+      "ownerAreaId": "clinical-documents",
+      "criticalCoverageZones": [
+        "src/features/clinical-documents"
+      ],
+      "blockingSteps": [
+        "runtime_smoke",
+        "critical_coverage",
+        "flow_performance",
+        "e2e_critical_ci"
+      ],
+      "smokeScenarios": [
+        "clinical_documents"
+      ],
+      "flowBudgets": [
+        "clinicalDocumentsVisibleMs"
+      ],
+      "validationSuites": [
+        "test:clinical-documents",
+        "test:e2e:critical:ci"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "sync_and_firestore",
+      "label": "Sync, Firestore y recovery local",
+      "ownerAreaId": "sync",
+      "criticalCoverageZones": [
+        "src/services/storage/firestore",
+        "src/services/storage/sync-critical",
+        "src/services/storage/indexeddb-recovery"
+      ],
+      "blockingSteps": [
+        "runtime_smoke",
+        "rules_ci",
+        "emulator_sync_ci",
+        "critical_coverage"
+      ],
+      "smokeScenarios": [
+        "offline_to_online",
+        "sync_conflict"
+      ],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:emulator:sync:ci",
+        "test:platform-resilience"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "repositories",
+      "label": "Repositorios y compatibilidad de datos",
+      "ownerAreaId": "repositories",
+      "criticalCoverageZones": [
+        "src/services/patient-history"
+      ],
+      "blockingSteps": [
+        "emulator_sync_ci",
+        "critical_coverage"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:repository-compat",
+        "test:emulator:sync:ci"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "transfers",
+      "label": "Transfers y derivaciones",
+      "ownerAreaId": "transfers",
+      "criticalCoverageZones": [
+        "src/services/transfers"
+      ],
+      "blockingSteps": [
+        "critical_coverage"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:unit:critical"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "reminders_admin",
+      "label": "Avisos administrativos",
+      "ownerAreaId": "reminders-admin",
+      "criticalCoverageZones": [
+        "src/features/reminders/admin"
+      ],
+      "blockingSteps": [
+        "critical_coverage"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:risk:admin-health"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "handoff",
+      "label": "Handoff medico",
+      "ownerAreaId": "handoff",
+      "criticalCoverageZones": [
+        "src/features/handoff"
+      ],
+      "blockingSteps": [
+        "critical_coverage"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:ci:unit"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "export_and_backup",
+      "label": "Exportacion y respaldo",
+      "ownerAreaId": "backup",
+      "criticalCoverageZones": [
+        "src/services/backup",
+        "src/services/export-manager"
+      ],
+      "blockingSteps": [
+        "runtime_smoke",
+        "flow_performance",
+        "e2e_critical_ci"
+      ],
+      "smokeScenarios": [
+        "export"
+      ],
+      "flowBudgets": [
+        "backupFilesVisibleMs"
+      ],
+      "validationSuites": [
+        "test:unit:critical",
+        "test:e2e:critical:ci"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "serverless_netlify",
+      "label": "Netlify Functions y deploy",
+      "ownerAreaId": "serverless",
+      "criticalCoverageZones": [],
+      "blockingSteps": [
+        "serverless_deploy_smoke"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:serverless-deploy-smoke",
+        "test:risk:platform"
+      ],
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "clinical_ai",
+      "label": "AI clinica y terminologia",
+      "ownerAreaId": "ai",
+      "criticalCoverageZones": [],
+      "blockingSteps": [
+        "serverless_deploy_smoke"
+      ],
+      "smokeScenarios": [],
+      "flowBudgets": [],
+      "validationSuites": [
+        "test:risk:platform",
+        "test:serverless-deploy-smoke"
+      ],
+      "status": "ok",
+      "issues": []
+    }
+  ],
+  "issues": []
+}

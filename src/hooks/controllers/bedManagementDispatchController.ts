@@ -12,6 +12,8 @@ import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { bedManagementDispatchLogger } from '@/hooks/controllers/hookControllerLoggers';
 import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -39,7 +41,29 @@ interface ExecuteBedManagementActionInput {
   validation: BedManagementValidationPort;
   bedAudit: BedManagementAuditPort;
   patchRecord: ApplyDailyRecordPatch;
+  /**
+   * Optional gate: when the edited record's day is not the clinical "today", asks
+   * the user to confirm editing a previous day. Returning false aborts before any
+   * mutation. Receives the record date being edited.
+   */
+  ensureStaleDayEditAllowed?: (recordDate: string) => Promise<boolean>;
 }
+
+const MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY = ['rut', 'patientName'];
+
+const getOrderedPatientAuditFields = (
+  fields: Partial<PatientData>
+): [keyof PatientData, PatientFieldValue][] =>
+  Object.entries(fields)
+    .sort(([fieldA], [fieldB]) => {
+      const priorityA = MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY.indexOf(fieldA);
+      const priorityB = MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY.indexOf(fieldB);
+      if (priorityA === -1 && priorityB === -1) return 0;
+      if (priorityA === -1) return 1;
+      if (priorityB === -1) return -1;
+      return priorityA - priorityB;
+    })
+    .map(([field, value]) => [field as keyof PatientData, value as PatientFieldValue]);
 
 const validateAction = (
   action: BedAction,
@@ -93,11 +117,47 @@ const auditActionIntent = (
         action.value
       );
       break;
+    case 'UPDATE_PATIENT_MULTIPLE': {
+      const patientSnapshot = currentRecord.beds[action.bedId];
+      if (!patientSnapshot) {
+        break;
+      }
+
+      const auditSnapshot: PatientData = { ...patientSnapshot };
+      getOrderedPatientAuditFields(action.fields).forEach(([field, value]) => {
+        const previousSnapshot: PatientData = { ...auditSnapshot };
+        bedAudit.auditPatientChange(action.bedId, field, previousSnapshot, value);
+        Object.assign(auditSnapshot, { [field]: value });
+      });
+      break;
+    }
     case 'UPDATE_CUDYR':
       bedAudit.auditCudyrChange(action.bedId, action.field, action.value);
       break;
+    case 'UPDATE_CUDYR_MULTIPLE':
+      Object.entries(action.fields).forEach(([field, value]) => {
+        bedAudit.auditCudyrChange(action.bedId, field as keyof CudyrScore, Number(value));
+      });
+      break;
+    case 'UPDATE_CUDYR_BATCH':
+      Object.entries(action.changes.beds ?? {}).forEach(([bedId, fields]) => {
+        Object.entries(fields).forEach(([field, value]) => {
+          bedAudit.auditCudyrChange(bedId, field as keyof CudyrScore, Number(value));
+        });
+      });
+      Object.entries(action.changes.clinicalCribs ?? {}).forEach(([bedId, fields]) => {
+        Object.entries(fields).forEach(([field, value]) => {
+          bedAudit.auditCribCudyrChange(bedId, field as keyof CudyrScore, Number(value));
+        });
+      });
+      break;
     case 'UPDATE_CLINICAL_CRIB_CUDYR':
       bedAudit.auditCribCudyrChange(action.bedId, action.field, action.value);
+      break;
+    case 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE':
+      Object.entries(action.fields).forEach(([field, value]) => {
+        bedAudit.auditCribCudyrChange(action.bedId, field as keyof CudyrScore, Number(value));
+      });
       break;
     case 'CLEAR_PATIENT': {
       const bed = currentRecord.beds[action.bedId];
@@ -120,6 +180,7 @@ const auditActionIntent = (
           sourceBed: action.sourceBedId,
           targetBed: action.targetBedId,
           patientName: sourceBed.patientName,
+          diagnosis: sourceBed.pathology,
           previousLocation: action.type === 'MOVE_PATIENT' ? sourceBed.location : undefined,
           newLocation: currentRecord.beds[action.targetBedId]?.location,
         }),
@@ -145,36 +206,52 @@ const auditActionIntent = (
   }
 };
 
-export const executeBedManagementAction = ({
+export const executeBedManagementAction = async ({
   currentRecord,
   action,
   validation,
   bedAudit,
   patchRecord,
-}: ExecuteBedManagementActionInput): void => {
+  ensureStaleDayEditAllowed,
+}: ExecuteBedManagementActionInput): Promise<boolean> => {
   if (!currentRecord) {
-    return;
+    return false;
   }
 
   const validatedAction = validateAction(action, validation);
   if (!validatedAction) {
-    return;
+    return false;
   }
 
   try {
     const patch = bedManagementReducer(currentRecord, validatedAction);
     if (!patch) {
-      return;
+      return false;
+    }
+
+    // Wrong-day guard: only after we know there is a real patch (no prompt on no-ops)
+    // and before any local/remote mutation, so a cancel aborts cleanly.
+    if (ensureStaleDayEditAllowed && !(await ensureStaleDayEditAllowed(currentRecord.date))) {
+      return false;
     }
 
     try {
-      auditActionIntent(validatedAction, currentRecord, bedAudit);
+      await patchRecord(patch);
+      try {
+        auditActionIntent(validatedAction, currentRecord, bedAudit);
+      } catch (error) {
+        bedManagementDispatchLogger.error('Audit logging failed', error);
+      }
+      return true;
     } catch (error) {
-      bedManagementDispatchLogger.error('Audit logging failed', error);
+      bedManagementDispatchLogger.warn('Bed management patch failed', error);
+      recordOperationalTelemetry(
+        buildBedPatchFailureTelemetryEvent(currentRecord, validatedAction, error)
+      );
+      return false;
     }
-
-    void patchRecord(patch);
   } catch (error) {
     bedManagementDispatchLogger.warn('Bed management action failed', error);
+    return false;
   }
 };

@@ -74,6 +74,7 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
 
 export const DEFAULT_PAGE_MARGIN = 12; // px (corresponds to p-3)
 export const CURRENT_TABLE_CONFIG_VERSION = 3;
+export const TABLE_CONFIG_LOCAL_CACHE_KEY = 'hhr.tableConfig.lastKnown';
 
 const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   actions: 22,
@@ -148,6 +149,38 @@ export const getDefaultConfig = (): TableConfig => ({
   version: CURRENT_TABLE_CONFIG_VERSION,
 });
 
+const readTableConfigLocalCache = (): Partial<TableConfig> | null => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+
+  try {
+    return safeJsonParse<Partial<TableConfig> | null>(
+      window.localStorage.getItem(TABLE_CONFIG_LOCAL_CACHE_KEY),
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+export const cacheTableConfigLocally = (config: TableConfig): void => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(TABLE_CONFIG_LOCAL_CACHE_KEY, JSON.stringify(config));
+  } catch (error) {
+    tableConfigLogger.warn('Failed to cache table config locally', error);
+  }
+};
+
+export const getInitialTableConfig = (): TableConfig => {
+  const cachedConfig = readTableConfigLocalCache();
+  return cachedConfig ? mergeWithDefaultConfig(cachedConfig) : getDefaultConfig();
+};
+
 // ============================================================================
 // Firebase Operations
 // ============================================================================
@@ -166,9 +199,13 @@ export const createTableConfigService = (
     try {
       const config = await readFirestoreDocument(runtime, getDocRef);
       if (config) {
-        return mergeWithDefaultConfig(config as Partial<TableConfig>);
+        const mergedConfig = mergeWithDefaultConfig(config as Partial<TableConfig>);
+        cacheTableConfigLocally(mergedConfig);
+        return mergedConfig;
       }
-      return getDefaultConfig();
+      const defaultConfig = getDefaultConfig();
+      cacheTableConfigLocally(defaultConfig);
+      return defaultConfig;
     } catch (_error) {
       tableConfigLogger.error('Error loading table config', _error);
       return getDefaultConfig();
@@ -181,6 +218,7 @@ export const createTableConfigService = (
         ...config,
         lastUpdated: new Date().toISOString(),
       });
+      cacheTableConfigLocally(config);
     } catch (_error) {
       tableConfigLogger.error('Error saving table config', _error);
       throw _error;
@@ -195,9 +233,11 @@ export const createTableConfigService = (
       runtime,
       resolveRef: getDocRef,
       onData: config => {
-        callback(
-          config ? mergeWithDefaultConfig(config as Partial<TableConfig>) : getDefaultConfig()
-        );
+        const mergedConfig = config
+          ? mergeWithDefaultConfig(config as Partial<TableConfig>)
+          : getDefaultConfig();
+        cacheTableConfigLocally(mergedConfig);
+        callback(mergedConfig);
       },
       onError: error => {
         tableConfigLogger.error('Error preparing table config subscription', error);

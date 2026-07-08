@@ -41,6 +41,13 @@ describe('useBedManagement operations', () => {
   const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
+  const runBedAction = async (action: () => void) => {
+    await act(async () => {
+      action();
+      await Promise.resolve();
+    });
+  };
+
   const createMockPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData => ({
     bedId,
     patientName: 'Test Patient',
@@ -77,7 +84,7 @@ describe('useBedManagement operations', () => {
   });
 
   describe('bulk and UI actions', () => {
-    it('handles moveOrCopyPatient move', () => {
+    it('handles moveOrCopyPatient move', async () => {
       const patient = createMockPatient('R1');
       const targetEmpty = createMockPatient('R2', { patientName: '' });
       const record = createMockRecord({ R1: patient, R2: targetEmpty });
@@ -85,9 +92,7 @@ describe('useBedManagement operations', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.moveOrCopyPatient('move', 'R1', 'R2');
-      });
+      await runBedAction(() => result.current.moveOrCopyPatient('move', 'R1', 'R2'));
 
       expect(mockPatchRecord).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -96,7 +101,7 @@ describe('useBedManagement operations', () => {
         })
       );
       expect(mockAuditContextValue.logEvent).toHaveBeenCalledWith(
-        'PATIENT_MODIFIED',
+        'PATIENT_BED_CHANGED',
         'patient',
         'R2',
         expect.objectContaining({
@@ -119,7 +124,7 @@ describe('useBedManagement operations', () => {
       );
     });
 
-    it('handles moveOrCopyPatient copy', () => {
+    it('handles moveOrCopyPatient copy', async () => {
       const patient = createMockPatient('R1');
       const targetEmpty = createMockPatient('R2', { patientName: '' });
       const record = createMockRecord({ R1: patient, R2: targetEmpty });
@@ -127,9 +132,7 @@ describe('useBedManagement operations', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.moveOrCopyPatient('copy', 'R1', 'R2');
-      });
+      await runBedAction(() => result.current.moveOrCopyPatient('copy', 'R1', 'R2'));
 
       expect(mockPatchRecord).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -250,7 +253,7 @@ describe('useBedManagement operations', () => {
       expect(mockPatchRecord).not.toHaveBeenCalled();
     });
 
-    it('handles dispatch errors gracefully', () => {
+    it('handles dispatch errors gracefully', async () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
       const { result } = renderHook(() =>
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
@@ -262,9 +265,7 @@ describe('useBedManagement operations', () => {
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      act(() => {
-        result.current.updatePatient('R1', 'age', '50');
-      });
+      await runBedAction(() => result.current.updatePatient('R1', 'age', '50'));
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Audit logging failed'),
@@ -273,16 +274,14 @@ describe('useBedManagement operations', () => {
       consoleSpy.mockRestore();
     });
 
-    it('handles clearPatient audit when name is present', () => {
+    it('handles clearPatient audit when name is present', async () => {
       const patient = createMockPatient('R1', { patientName: 'John' });
       const record = createMockRecord({ R1: patient });
       const { result } = renderHook(() =>
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.clearPatient('R1');
-      });
+      await runBedAction(() => result.current.clearPatient('R1'));
 
       expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalledWith(
         'PATIENT_CLEARED',

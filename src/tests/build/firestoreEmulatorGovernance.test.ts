@@ -31,6 +31,7 @@ const createGovernanceRoot = () => {
         'RUN_FIRESTORE_EMULATOR_TESTS=1 vitest run -c vitest.emulator-ui.config.ts',
       'test:emulator:sync:ci': 'bash scripts/run-firestore-sync-emulator-ci.sh',
       'test:firestore:release:ci': 'bash scripts/run-firestore-release-gate-ci.sh',
+      'test:firestore:cma:ci': 'bash scripts/run-firestore-cma-specialty-ci.sh',
       'ci:release-gate':
         'npm run ci:merge-gate && npm run report:release-evidence && npm run check:release-evidence && npm run test:firestore:release:ci',
     },
@@ -68,6 +69,16 @@ const createGovernanceRoot = () => {
     root,
     'scripts/run-firestore-release-gate-ci.sh',
     'run_firestore_emulator_exec "npm run test:rules && npm run test:emulator:sync && npm run test:emulator:ui"'
+  );
+  writeText(
+    root,
+    'scripts/run-firestore-cma-specialty-ci.sh',
+    [
+      '#!/usr/bin/env bash',
+      'source "$(dirname "$0")/lib/firebase-emulator-ci.sh"',
+      'ensure_java_available',
+      'run_firestore_emulator_exec "RUN_FIRESTORE_EMULATOR_TESTS=1 npx vitest run -c vitest.emulator.config.ts src/tests/emulator/cma-specialty-readback.emulator.test.ts"',
+    ].join('\n')
   );
   writeText(
     root,
@@ -153,6 +164,24 @@ describe('firestore emulator governance', () => {
 
     expect(collectFirestoreEmulatorGovernanceIssues(root)).toContain(
       '.github/workflows/ci-cd.yml must run npm run test:emulator:sync:ci in the rules-emulator job.'
+    );
+  });
+
+  it('fails when the focused CMA release readback gate is not wired through the emulator helper', () => {
+    const root = createGovernanceRoot();
+    writeText(
+      root,
+      'scripts/run-firestore-cma-specialty-ci.sh',
+      [
+        '#!/usr/bin/env bash',
+        'source "$(dirname "$0")/lib/firebase-emulator-ci.sh"',
+        'ensure_java_available',
+        'RUN_FIRESTORE_EMULATOR_TESTS=1 npx vitest run -c vitest.emulator.config.ts src/tests/emulator/cma-specialty-readback.emulator.test.ts',
+      ].join('\n')
+    );
+
+    expect(collectFirestoreEmulatorGovernanceIssues(root)).toContain(
+      'scripts/run-firestore-cma-specialty-ci.sh must execute the CMA specialty readback test through the Firestore emulator.'
     );
   });
 });

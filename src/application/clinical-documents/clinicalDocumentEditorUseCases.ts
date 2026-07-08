@@ -1,11 +1,11 @@
 import {
   buildClinicalDocumentActor,
-  hydrateLegacyClinicalDocument,
   serializeClinicalDocument,
   type ClinicalDocumentDraftBaseState,
   type ClinicalDocumentRecord,
 } from '@/features/clinical-documents/internal';
 import { executePersistClinicalDocumentDraft } from '@/application/clinical-documents/clinicalDocumentUseCases';
+import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 export type ClinicalDocumentDraftLoadResolution =
@@ -46,7 +46,7 @@ export const resolveClinicalDocumentDraftLoad = ({
     return { kind: 'preserve' };
   }
 
-  const hydrated = selected ? hydrateLegacyClinicalDocument(structuredClone(selected)) : null;
+  const hydrated = selected ? hydrateClinicalDocumentRecord(structuredClone(selected)) : null;
   const snapshot = serializeClinicalDocument(hydrated);
   const isSameSelectedDocument = Boolean(currentDraft) && currentDraft?.id === selectedDocumentId;
 

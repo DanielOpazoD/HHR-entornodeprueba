@@ -224,11 +224,12 @@ export const ClinicalDocumentIeehPanel: React.FC<ClinicalDocumentIeehPanelProps>
     setIsPrinting(true);
     try {
       const { printIEEHForm } = await import('@/services/pdf/ieehPdfService');
-      const patient = buildIeehPatientFromEpicrisis(epicrisisDoc, workspacePatient);
-      const discharge = buildIeehDischargeFromEpicrisis({
+      const currentIeehDocument = {
         ...epicrisisDoc,
         ieehDraft: localDraft,
-      });
+      };
+      const patient = buildIeehPatientFromEpicrisis(currentIeehDocument, workspacePatient);
+      const discharge = buildIeehDischargeFromEpicrisis(currentIeehDocument);
       // IeehPatientSnapshot is a subset of PatientData — the PDF service
       // only reads the fields we provide; missing census-only fields
       // (bedId, isBlocked, etc.) are not used by fillIEEHForm.

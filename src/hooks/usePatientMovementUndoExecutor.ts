@@ -1,10 +1,13 @@
 import { useCallback } from 'react';
 import type {
+  ApplyDailyRecordPatch,
   DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { PatientData } from '@/hooks/contracts/patientHookContracts';
 import {
+  buildAtomicPatientMovementPatch,
+  type AtomicPatientMovementListKey,
   resolveUndoPatientMovement,
   UndoMovementKind,
   UndoPatientMovementErrorCode,
@@ -21,6 +24,8 @@ interface UndoApplyParams {
 interface UsePatientMovementUndoExecutorParams {
   createEmptyPatient: (bedId: string) => PatientData;
   saveAndUpdate: PersistDailyRecord;
+  patchRecord?: ApplyDailyRecordPatch;
+  movementKey?: AtomicPatientMovementListKey;
   notifyUndoError: (
     kind: UndoMovementKind,
     code: UndoPatientMovementErrorCode,
@@ -39,10 +44,12 @@ interface ExecuteUndoParams {
 export const usePatientMovementUndoExecutor = ({
   createEmptyPatient,
   saveAndUpdate,
+  patchRecord,
+  movementKey,
   notifyUndoError,
 }: UsePatientMovementUndoExecutorParams) => {
   return useCallback(
-    ({ kind, movement, record, applyUndoRecord, onSuccess }: ExecuteUndoParams) => {
+    async ({ kind, movement, record, applyUndoRecord, onSuccess }: ExecuteUndoParams) => {
       if (!movement?.originalData) {
         return;
       }
@@ -68,9 +75,20 @@ export const usePatientMovementUndoExecutor = ({
         bedId: movement.bedId,
         updatedBed: resolution.value.updatedBed,
       });
+      if (patchRecord && movementKey) {
+        await patchRecord(
+          buildAtomicPatientMovementPatch({
+            updatedRecord: nextRecord,
+            movementKey,
+            sourceBedIds: [movement.bedId],
+          })
+        );
+      } else {
+        await saveAndUpdate(nextRecord);
+      }
+
       onSuccess?.({ movement, updatedBed: resolution.value.updatedBed });
-      saveAndUpdate(nextRecord);
     },
-    [createEmptyPatient, notifyUndoError, saveAndUpdate]
+    [createEmptyPatient, movementKey, notifyUndoError, patchRecord, saveAndUpdate]
   );
 };

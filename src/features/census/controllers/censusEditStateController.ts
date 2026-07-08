@@ -18,6 +18,7 @@ export const buildDischargeEditState = (discharge: DischargeData): DischargeStat
   typeOther: discharge.dischargeTypeOther,
   time: discharge.time,
   movementDate: discharge.movementDate,
+  diagnosis: discharge.diagnosis,
 });
 
 export const buildTransferEditState = (transfer: TransferData): TransferState => ({
@@ -31,4 +32,5 @@ export const buildTransferEditState = (transfer: TransferData): TransferState =>
   transferEscort: transfer.transferEscort || DEFAULT_TRANSFER_ESCORT,
   time: transfer.time,
   movementDate: transfer.movementDate,
+  diagnosis: transfer.diagnosis,
 });

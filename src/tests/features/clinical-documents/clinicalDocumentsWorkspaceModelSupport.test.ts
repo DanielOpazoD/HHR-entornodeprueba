@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRestoreClinicalDocumentTemplateConfirmOptions,
   canApplyClinicalDocumentTemplateSelection,
+  canDeleteClinicalDocumentFromWorkspace,
   mergeDraftIntoClinicalDocumentsSidebar,
   resolveClinicalDocumentsWorkspaceAccessState,
 } from '@/features/clinical-documents/hooks/clinicalDocumentsWorkspaceModelSupport';
@@ -71,6 +72,30 @@ describe('clinicalDocumentsWorkspaceModelSupport', () => {
     });
   });
 
+  it('lets specialists edit drafts while routing delete through the document guard', () => {
+    expect(
+      resolveClinicalDocumentsWorkspaceAccessState(patient as never, 'doctor_specialist')
+    ).toMatchObject({
+      canRead: true,
+      canEdit: true,
+      canDelete: false,
+      canDeleteByRole: false,
+      canMutateEpisode: true,
+    });
+  });
+
+  it('keeps nurses in visualization mode for clinical documents', () => {
+    expect(
+      resolveClinicalDocumentsWorkspaceAccessState(patient as never, 'nurse_hospital')
+    ).toMatchObject({
+      canRead: true,
+      canEdit: false,
+      canDelete: false,
+      canDeleteByRole: false,
+      canMutateEpisode: true,
+    });
+  });
+
   it('merges the draft into sidebar documents without changing unrelated entries', () => {
     const primary = buildDocument('primary');
     const secondary = buildDocument('secondary');
@@ -94,6 +119,54 @@ describe('clinicalDocumentsWorkspaceModelSupport', () => {
       })
     ).toBe(false);
     expect(canApplyClinicalDocumentTemplateSelection({ draft: null, canEdit: true })).toBe(false);
+  });
+
+  it('allows the document author to delete their own active unlocked document', () => {
+    const ownedDocument = {
+      ...buildDocument('doc-owned'),
+      isActiveEpisodeDocument: true,
+      isLocked: false,
+    };
+
+    expect(
+      canDeleteClinicalDocumentFromWorkspace({
+        document: ownedDocument,
+        canDeleteByRole: false,
+        canMutateEpisode: true,
+        role: 'doctor_urgency',
+        user: { uid: 'u1', email: 'doctor@test.com' },
+      })
+    ).toBe(true);
+
+    expect(
+      canDeleteClinicalDocumentFromWorkspace({
+        document: { ...ownedDocument, isLocked: true },
+        canDeleteByRole: false,
+        canMutateEpisode: true,
+        role: 'doctor_urgency',
+        user: { uid: 'u1', email: 'doctor@test.com' },
+      })
+    ).toBe(false);
+
+    expect(
+      canDeleteClinicalDocumentFromWorkspace({
+        document: ownedDocument,
+        canDeleteByRole: false,
+        canMutateEpisode: true,
+        role: 'doctor_urgency',
+        user: { uid: 'other-user', email: 'other@test.com' },
+      })
+    ).toBe(false);
+
+    expect(
+      canDeleteClinicalDocumentFromWorkspace({
+        document: ownedDocument,
+        canDeleteByRole: false,
+        canMutateEpisode: true,
+        role: 'nurse_hospital',
+        user: { uid: 'u1', email: 'doctor@test.com' },
+      })
+    ).toBe(false);
   });
 
   it('builds a stable restore-template confirmation payload', () => {

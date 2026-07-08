@@ -13,6 +13,7 @@ interface LoginPageCardProps {
   errorCode: string | null;
   canRetryGoogleSignIn?: boolean;
   onGoogleSignIn: () => void | Promise<void>;
+  onLocalResetStart?: () => void;
 }
 
 const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -44,6 +45,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   errorCode,
   canRetryGoogleSignIn = false,
   onGoogleSignIn,
+  onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
   const accentBarClass = isDayGradient
@@ -60,6 +62,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
     });
 
     if (confirmed) {
+      onLocalResetStart?.();
       await resetLocalAppStorage();
     }
   };

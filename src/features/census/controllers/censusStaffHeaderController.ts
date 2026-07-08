@@ -9,6 +9,11 @@ import {
   resolveShiftRoleStaffingMeta,
 } from '@/services/staff/dailyRecordDetailedStaffing';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+  getActiveMovements,
+} from '@/application/census/movementTombstonePolicy';
 
 export interface StaffSelectorsState {
   nursesDayShift: string[];
@@ -111,9 +116,9 @@ export const resolveStaffDetailsState = (
 export const resolveMovementSummaryState = (
   input?: MovementsInput | null
 ): MovementSummaryState => ({
-  discharges: input?.discharges || [],
-  transfers: input?.transfers || [],
-  cmaCount: input?.cma?.length || 0,
+  discharges: getActiveDischarges(input?.discharges),
+  transfers: getActiveTransfers(input?.transfers),
+  cmaCount: getActiveMovements(input?.cma).length,
   admissionsCount: Math.max(0, input?.admissionsCount || 0),
 });
 

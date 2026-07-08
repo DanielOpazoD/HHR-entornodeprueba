@@ -20,6 +20,7 @@ vi.mock('@/context/UIContext', () => ({
 describe('LoginPageCard', () => {
   it('offers a dedicated local reset button even without an auth error', async () => {
     mockConfirm.mockResolvedValue(true);
+    const onLocalResetStart = vi.fn();
 
     render(
       <LoginPageCard
@@ -30,6 +31,7 @@ describe('LoginPageCard', () => {
         errorCode={null}
         canRetryGoogleSignIn={false}
         onGoogleSignIn={vi.fn()}
+        onLocalResetStart={onLocalResetStart}
       />
     );
 
@@ -44,6 +46,7 @@ describe('LoginPageCard', () => {
       variant: 'info',
     });
     await waitFor(() => {
+      expect(onLocalResetStart).toHaveBeenCalledTimes(1);
       expect(resetLocalAppStorage).toHaveBeenCalledTimes(1);
     });
   });

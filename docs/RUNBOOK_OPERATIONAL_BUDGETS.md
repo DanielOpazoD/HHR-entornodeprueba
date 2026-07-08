@@ -82,6 +82,35 @@ Controles mínimos:
 2. mantener entrypoints explícitas
 3. observar fase de retiro antes de cualquier cambio operativo
 
+## Runtime Asset Margin
+
+La evidencia de margen de assets pesados vive en `reports/runtime-asset-margin.md`.
+
+Superficies gobernadas:
+
+- `vendor-heic2any`: conversión HEIC/HEIF de recetas, dueño `prescriptions/runtime`.
+- `vendor-pdfjs`: lectura/extracción de texto PDF, dueño `clinical-documents/PDF runtime`.
+- `pdfjs-worker`: worker async de PDF.js, dueño `clinical-documents/PDF runtime`.
+- `vendor-pdf-lib`: generación/manipulación PDF, dueño `clinical-documents/PDF generation`.
+- `app-authenticated-shell`: shell autenticado post-login, dueño `app-shell/census runtime`.
+
+Regla operativa:
+
+- `ok`: observar; no ampliar presupuesto sin cambio de dependencia o evidencia de uso.
+- `near-limit` o `target-miss`: mantener merge posible, pero exigir owner, razón de carga y acción
+  explícita en el PR.
+- `blocking` o `missing`: intervenir antes de merge; volver a separar la frontera lazy o ajustar el
+  presupuesto solo con justificación y baseline nuevo.
+
+Si una superficie cruza `near-limit`:
+
+1. correr `npm run build`
+2. correr `npm run report:runtime-asset-margin`
+3. revisar que la dependencia siga detrás de su loader (`loadHeicConverter`,
+   `loadPdfJsTextRuntime`, `loadPdfLibGenerationRuntime`)
+4. correr `npm run check:runtime-asset-margin`
+5. actualizar este runbook solo si cambia el criterio operativo, no por drift normal de bytes
+
 ## Local Persistence
 
 Los budgets de degradación local se derivan desde `src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts` y aparecen en `reports/operational-health.md`:
@@ -139,6 +168,7 @@ Regla práctica:
 ```bash
 npm run report:legacy-bridge
 npm run report:operational-health
+npm run report:runtime-asset-margin
 npm run check:docs-drift
 npm run check:operational-runbooks
 ```

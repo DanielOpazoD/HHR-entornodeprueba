@@ -9,9 +9,9 @@ import {
   buildClinicalDocumentRenderedText,
 } from '@/domain/clinical-documents/rendering';
 import {
-  hydrateLegacyClinicalDocument,
-  normalizeClinicalDocumentForPersistence,
-} from '@/domain/clinical-documents/compatibility';
+  hydrateClinicalDocumentRecord,
+  normalizeClinicalDocumentRecordForStorage,
+} from '@/application/ports/clinicalDocumentCompatibilityPort';
 import {
   formatClinicalDocumentContractIssues,
   parseClinicalDocumentRecord,
@@ -19,6 +19,13 @@ import {
 } from '@/domain/clinical-documents/runtimeContracts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { executeLockDocumentsByEpisodeKey } from '@/services/repositories/clinicalDocumentRepositoryLockSupport';
+import {
+  chunkArray,
+  normalizeClinicalDocumentReadRecords,
+  normalizeEpisodeKeys,
+} from '@/services/repositories/clinicalDocumentRepositoryReadSupport';
+import { subscribeClinicalDocumentsByEpisodeKeys } from '@/services/repositories/clinicalDocumentRepositorySubscriptionSupport';
 
 const getClinicalDocumentsCollectionPath = (hospitalId: string = getActiveHospitalId()): string =>
   `hospitals/${hospitalId}/clinicalDocuments`;
@@ -36,22 +43,6 @@ const localClinicalDocumentSubscribers = new Map<
 
 const sortDocuments = (documents: ClinicalDocumentRecord[]): ClinicalDocumentRecord[] =>
   [...documents].sort((left, right) => right.audit.updatedAt.localeCompare(left.audit.updatedAt));
-
-const chunkArray = <T>(values: T[], size: number): T[][] => {
-  if (size <= 0) return [values];
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
-};
-
-const normalizeEpisodeKeys = (episodeKeys: string[]): string[] =>
-  Array.from(
-    new Set(
-      episodeKeys.map(episodeKey => episodeKey.trim()).filter(episodeKey => episodeKey.length > 0)
-    )
-  );
 
 const sanitizeForFirestore = <T>(value: T): T => {
   if (Array.isArray(value)) {
@@ -169,7 +160,7 @@ const deleteLocalClinicalDocument = (documentId: string, hospitalId: string): vo
 };
 
 const enrichRecord = (record: ClinicalDocumentRecord): ClinicalDocumentRecord => {
-  const hydrated = parseClinicalDocumentRecord(normalizeClinicalDocumentForPersistence(record));
+  const hydrated = parseClinicalDocumentRecord(normalizeClinicalDocumentRecordForStorage(record));
   const renderedText = buildClinicalDocumentRenderedText(hydrated);
   return {
     ...hydrated,
@@ -179,7 +170,7 @@ const enrichRecord = (record: ClinicalDocumentRecord): ClinicalDocumentRecord =>
 };
 
 const validateReadRecord = (record: ClinicalDocumentRecord): ClinicalDocumentRecord | null => {
-  const parsed = safeParseClinicalDocumentRecord(hydrateLegacyClinicalDocument(record));
+  const parsed = safeParseClinicalDocumentRecord(hydrateClinicalDocumentRecord(record));
   if (!parsed.success) {
     recordOperationalTelemetry({
       category: 'clinical_document',
@@ -193,6 +184,9 @@ const validateReadRecord = (record: ClinicalDocumentRecord): ClinicalDocumentRec
 
   return parsed.data;
 };
+
+const normalizeReadDocuments = (documents: ClinicalDocumentRecord[]): ClinicalDocumentRecord[] =>
+  normalizeClinicalDocumentReadRecords(documents, validateReadRecord, sortDocuments);
 
 export const ClinicalDocumentRepository = {
   async listByEpisode(
@@ -244,17 +238,7 @@ export const ClinicalDocumentRepository = {
       )
     );
 
-    const deduplicated = new Map<string, ClinicalDocumentRecord>();
-    chunkedResults.flat().forEach(document => {
-      const key = document.id || `${document.episodeKey}-${document.audit?.updatedAt || ''}`;
-      deduplicated.set(key, document);
-    });
-
-    return sortDocuments(
-      Array.from(deduplicated.values())
-        .map(document => validateReadRecord(document))
-        .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-    );
+    return normalizeReadDocuments(chunkedResults.flat());
   },
 
   async get(
@@ -331,6 +315,23 @@ export const ClinicalDocumentRepository = {
     });
   },
 
+  /** Locks every unlocked document of the episode (impl in lock-support module). */
+  async lockDocumentsByEpisodeKey(
+    episodeKey: string,
+    hospitalId: string = getActiveHospitalId(),
+    options: { lockedAt?: string } = {}
+  ): Promise<string[]> {
+    return executeLockDocumentsByEpisodeKey(episodeKey, hospitalId, options, {
+      isFirestoreEnabled,
+      listByEpisode: (key, hospital) => this.listByEpisode(key, hospital),
+      applyLockPatchToFirestore: (documentId, patch, hospital) =>
+        firestoreDb.updateDoc(getClinicalDocumentsCollectionPath(hospital), documentId, patch),
+      applyLockPatchToLocalStore: (record, patch, hospital) => {
+        persistLocalClinicalDocument({ ...record, ...patch }, hospital);
+      },
+    });
+  },
+
   subscribeByEpisode(
     episodeKey: string,
     callback: (documents: ClinicalDocumentRecord[]) => void,
@@ -362,6 +363,27 @@ export const ClinicalDocumentRepository = {
           )
         )
     );
+  },
+
+  subscribeByEpisodeKeys(
+    episodeKeys: string[],
+    callback: (documents: ClinicalDocumentRecord[]) => void,
+    hospitalId: string = getActiveHospitalId()
+  ): () => void {
+    return subscribeClinicalDocumentsByEpisodeKeys({
+      episodeKeys,
+      callback,
+      hospitalId,
+      firestoreEnabled: isFirestoreEnabled(),
+      collectionPath: getClinicalDocumentsCollectionPath(hospitalId),
+      chunkSize: EPISODE_KEY_QUERY_CHUNK_SIZE,
+      localSubscribers: localClinicalDocumentSubscribers,
+      normalizeEpisodeKeys,
+      chunkArray,
+      listLocalClinicalDocumentsByEpisode,
+      normalizeReadDocuments,
+      subscribeQuery: firestoreDb.subscribeQuery.bind(firestoreDb),
+    });
   },
 
   async delete(documentId: string, hospitalId: string = getActiveHospitalId()): Promise<void> {

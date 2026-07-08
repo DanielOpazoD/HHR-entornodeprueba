@@ -303,4 +303,64 @@ describe('appContentChromeController', () => {
     expect(props.onBackupExcel).toBeUndefined();
     expect(props.onToggleBookmarks).toBeUndefined();
   });
+
+  it('exposes configurable browser printing only for nursing handoff', () => {
+    const handlePrintWithBrowserOptions = vi.fn();
+    const baseRuntime = {
+      auth: { role: 'nurse' },
+      dateNav: {
+        selectedYear: 2026,
+        setSelectedYear: vi.fn(),
+        selectedMonth: 6,
+        setSelectedMonth: vi.fn(),
+        selectedDay: 3,
+        setSelectedDay: vi.fn(),
+        currentDateString: '2026-07-03',
+        daysInMonth: 31,
+        existingDaysInMonth: [3],
+        navigateDays: vi.fn(),
+      },
+      censusEmail: {
+        status: 'idle',
+        error: null,
+        setShowEmailConfig: vi.fn(),
+        sendEmail: vi.fn(),
+      },
+      syncStatus: 'saved',
+      lastSyncTime: null,
+      exportManager: {
+        handleExportPDF: vi.fn(),
+        handlePrintWithBrowserOptions,
+        handleBackupExcel: vi.fn(),
+        handleBackupHandoff: vi.fn(),
+        isArchived: false,
+        isBackingUp: false,
+      },
+      canUseCensusExports: true,
+      handleExportExcel: vi.fn(),
+      censusAccessProfile: 'default',
+    };
+    const baseUi = {
+      censusViewMode: 'REGISTER',
+      showPrintButton: true,
+      showBookmarksBar: false,
+      setShowBookmarksBar: vi.fn(),
+      bedManagerModal: { open: vi.fn() },
+      patientSearchModal: { open: vi.fn() },
+    };
+
+    const nursingProps = buildDateStripProps({
+      ui: { ...baseUi, currentModule: 'NURSING_HANDOFF' } as never,
+      runtime: baseRuntime as never,
+      medicalIndicationsPatients: [],
+    });
+    const censusProps = buildDateStripProps({
+      ui: { ...baseUi, currentModule: 'CENSUS' } as never,
+      runtime: baseRuntime as never,
+      medicalIndicationsPatients: [],
+    });
+
+    expect(nursingProps.onPrintWithBrowserOptions).toBe(handlePrintWithBrowserOptions);
+    expect(censusProps.onPrintWithBrowserOptions).toBeUndefined();
+  });
 });

@@ -33,8 +33,12 @@
 ### Conflicto de concurrencia
 
 1. Recargar la página (F5)
-2. El sistema usa "last-write-wins" con detección de conflictos (30s tolerancia)
-3. Si persiste: verificar que no hay dos sesiones editando el mismo registro
+2. En `dailyRecord`, el sistema no debe resolver por "last-write-wins": la verdad clínica se
+   define por autoridad transaccional, intención clínica e invariantes post-merge.
+3. Revisar observabilidad por `CONFLICT_AUTO_MERGED` y su `conflictResolutionSummary`
+4. Si persiste: verificar que no hay dos sesiones editando el mismo registro sin sincronizar
+5. Para altas, traslados, CMA y movimientos internos, seguir
+   `docs/RUNBOOK_DAILY_CENSUS_RECOVERY.md`
 
 ### Cache corrupto
 

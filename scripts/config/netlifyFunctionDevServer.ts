@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import os from 'node:os';
 import path from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 import type { NetlifyEventLike } from '../../netlify/functions/lib/http';
@@ -34,7 +33,13 @@ export const DEFAULT_NETLIFY_FUNCTION_DEV_ENTRIES: NetlifyFunctionDevEntry[] = [
     route: '/.netlify/functions/clinical-document-ai-import',
     modulePath: '/netlify/functions/clinical-document-ai-import.ts',
   },
+  {
+    route: '/.netlify/functions/prescription-image-proxy',
+    modulePath: '/netlify/functions/prescription-image-proxy.ts',
+  },
 ];
+
+export const NETLIFY_FUNCTION_DEV_EXTERNAL_MODULES = ['sharp'];
 
 const FIREBASE_FUNCTION_ENV_KEYS = [
   'VITE_FIREBASE_API_KEY',
@@ -67,6 +72,7 @@ export const hydrateLocalFunctionEnv = (
   setIfMissing(target, 'GEMINI_API_KEY', env.VITE_LOCAL_GEMINI_API_KEY);
   setIfMissing(target, 'OPENAI_API_KEY', env.VITE_LOCAL_OPENAI_API_KEY);
   setIfMissing(target, 'ANTHROPIC_API_KEY', env.VITE_LOCAL_ANTHROPIC_API_KEY);
+  setIfMissing(target, 'HHR_ALLOW_PRESCRIPTION_IMAGE_PROXY_FIXTURE', 'true');
 
   for (const key of FIREBASE_FUNCTION_ENV_KEYS) {
     setIfMissing(target, key, env[key]);
@@ -155,7 +161,7 @@ export const loadNetlifyFunctionDevModule = async (
 ): Promise<NetlifyFunctionModule> => {
   const projectRoot = process.cwd();
   const absoluteEntry = path.resolve(projectRoot, modulePath.replace(/^\//, ''));
-  const outputDir = path.join(os.tmpdir(), 'hhr-netlify-functions-dev');
+  const outputDir = path.join(projectRoot, '.netlify', 'hhr-netlify-functions-dev');
   fs.mkdirSync(outputDir, { recursive: true });
 
   const outputFile = path.join(
@@ -172,6 +178,7 @@ export const loadNetlifyFunctionDevModule = async (
     format: 'cjs',
     outfile: outputFile,
     platform: 'node',
+    external: NETLIFY_FUNCTION_DEV_EXTERNAL_MODULES,
     sourcemap: 'inline',
     target: 'node22',
     plugins: [

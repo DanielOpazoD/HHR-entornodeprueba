@@ -12,11 +12,16 @@ import {
   buildToggleBlockedBedPatches,
   buildToggleExtraBedPatches,
   buildUpdateBlockedReasonPatches,
-  buildUpdateClinicalCribCudyrPatches,
   buildUpdateClinicalCribPatches,
-  buildUpdateCudyrPatches,
   buildUpdatePatientPatches,
 } from '@/hooks/controllers/bedManagementPatchController';
+import {
+  buildUpdateClinicalCribCudyrMultiplePatches,
+  buildUpdateClinicalCribCudyrPatches,
+  buildUpdateCudyrBatchPatches,
+  buildUpdateCudyrMultiplePatches,
+  buildUpdateCudyrPatches,
+} from '@/hooks/controllers/bedManagementCudyrPatchController';
 import { buildUpdatePatientActionPatch } from '@/hooks/controllers/bedManagementUpdatePatientController';
 
 export const resolveBedManagementPatch = (
@@ -30,6 +35,10 @@ export const resolveBedManagementPatch = (
       return buildUpdatePatientPatches(state, action.bedId, action.fields);
     case 'UPDATE_CUDYR':
       return buildUpdateCudyrPatches(state, action.bedId, action.field, action.value);
+    case 'UPDATE_CUDYR_MULTIPLE':
+      return buildUpdateCudyrMultiplePatches(state, action.bedId, action.fields);
+    case 'UPDATE_CUDYR_BATCH':
+      return buildUpdateCudyrBatchPatches(state, action.changes);
     case 'CLEAR_PATIENT':
       return buildClearPatientPatches(state, action.bedId);
     case 'CLEAR_ALL_BEDS':
@@ -54,6 +63,8 @@ export const resolveBedManagementPatch = (
       return buildClinicalCribMultipleFieldPatches(action.bedId, action.fields);
     case 'UPDATE_CLINICAL_CRIB_CUDYR':
       return buildUpdateClinicalCribCudyrPatches(state, action.bedId, action.field, action.value);
+    case 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE':
+      return buildUpdateClinicalCribCudyrMultiplePatches(state, action.bedId, action.fields);
     case 'TOGGLE_BED_TYPE':
       return buildToggleBedTypePatches(state, action.bedId);
     default:

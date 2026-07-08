@@ -13,7 +13,8 @@ export type OperationalTelemetryCategory =
   | 'transfers'
   | 'clinical_document'
   | 'create_day'
-  | 'handoff';
+  | 'handoff'
+  | 'prescription';
 
 export type OperationalTelemetryStatus = 'success' | 'partial' | 'degraded' | 'failed';
 

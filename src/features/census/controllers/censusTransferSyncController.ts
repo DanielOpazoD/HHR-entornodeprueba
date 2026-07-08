@@ -126,6 +126,7 @@ export const syncCensusTransferRequest = async ({
       observations: 'Traslado registrado automáticamente desde Censo Diario.',
       customFields: {
         source: 'census_transfer_autocreate',
+        executedDate: requestDate,
       },
       status: 'TRANSFERRED',
       requestDate,

@@ -94,6 +94,8 @@ export const clinicalDocumentRecordSchema = z.object({
   especialidad: z.string(),
   status: clinicalDocumentStatusSchema,
   isLocked: z.boolean(),
+  lockedReason: z.literal('episode_closed').optional(),
+  lockedAt: z.string().optional(),
   isActiveEpisodeDocument: z.boolean(),
   currentVersion: z.number(),
   versionHistory: z.array(versionHistorySchema),
@@ -137,6 +139,8 @@ export const clinicalDocumentRecordSchema = z.object({
       procedimiento: z.enum(['1', '2']),
       procedimientoDescrip: z.string().optional(),
       procedimientoCodigo: z.string().optional(),
+      tratanteNombreCompleto: z.string().optional(),
+      tratanteEspecialidad: z.string().optional(),
       tratanteRut: z.string().optional(),
     })
     .optional(),

@@ -39,6 +39,13 @@ export const LabViewerAnalysis: React.FC<LabViewerAnalysisProps> = ({
   onOpenPdf,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(
+    () => () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
 
   const handleCopyToClipboard = async () => {
     // Build summary text for each exam date using comparison data
@@ -56,7 +63,8 @@ export const LabViewerAnalysis: React.FC<LabViewerAnalysisProps> = ({
     if (lines.length === 0) return;
     await writeClipboardText(lines.join('\n'));
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   return (

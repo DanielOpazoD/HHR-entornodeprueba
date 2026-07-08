@@ -7,10 +7,17 @@ import { deepClone } from '@/utils/deepClone';
 export type MovementCreationErrorCode = 'BED_NOT_FOUND' | 'SOURCE_BED_EMPTY';
 
 export interface MovementAuditEntry {
+  movementId?: string;
   bedId: string;
   patientName: string;
   rut: string;
   status: 'Vivo' | 'Fallecido';
+  diagnosis?: string;
+  movementDate?: string;
+  time?: string;
+  dischargeType?: string;
+  dischargeTypeOther?: string;
+  clinicalEpisodeId?: string;
 }
 
 export const clonePatientSnapshot = (patient: PatientData): PatientData => deepClone(patient);

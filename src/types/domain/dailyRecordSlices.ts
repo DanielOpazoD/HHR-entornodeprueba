@@ -18,7 +18,7 @@ export type DailyRecordBedAuditState = Pick<DailyRecord, 'date' | 'beds'>;
 
 export type DailyRecordMovementState = Pick<
   DailyRecord,
-  'date' | 'beds' | 'discharges' | 'transfers'
+  'date' | 'beds' | 'discharges' | 'transfers' | 'cma'
 >;
 
 export type DailyRecordMovementCollectionsState = Pick<

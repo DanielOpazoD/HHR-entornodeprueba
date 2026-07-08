@@ -219,6 +219,8 @@ export const canAccessAuditViewForRole = (role: SupportedRole): boolean =>
 
 export const canAccessAuditSensitivePanelsForRole = (role: SupportedRole): boolean => isAdmin(role);
 
+export const canManageClinicalConflictCenter = (role: SupportedRole): boolean => isAdmin(role);
+
 export const canExportAuditDataForRole = (role: SupportedRole): boolean =>
   canDoAction(role, ACTIONS.EXPORT_EXCEL) || canDoAction(role, ACTIONS.EXPORT_PDF);
 

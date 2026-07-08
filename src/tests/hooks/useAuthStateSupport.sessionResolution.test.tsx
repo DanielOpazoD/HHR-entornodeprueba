@@ -100,6 +100,47 @@ describe('useResolvedAuthBootstrap session resolution', () => {
     expect(authBootstrapTestMocks.mockClearAuthBootstrapPending).toHaveBeenCalled();
   });
 
+  it('does not resolve immediately to unauthenticated during same-tab session rehydration', async () => {
+    window.sessionStorage.setItem('hhr_logged_this_session', 'true');
+    const onAuthSessionStateChange = vi.fn(() => () => {});
+    const resolveRedirectAuthSessionOutcome = vi
+      .fn<() => Promise<ApplicationOutcome<AuthSessionState | null>>>()
+      .mockResolvedValue({
+        status: 'success',
+        data: null,
+        issues: [],
+      });
+    const resolveCurrentAuthSessionOutcome = vi
+      .fn<() => Promise<ApplicationOutcome<AuthSessionState | null>>>()
+      .mockResolvedValue({
+        status: 'success',
+        data: null,
+        issues: [],
+      });
+
+    const { result, unmount } = renderResolvedAuthBootstrap({
+      resolveRedirectAuthSessionOutcome,
+      resolveCurrentAuthSessionOutcome,
+      onAuthSessionStateChange,
+      initialSessionState: {
+        status: 'authenticating',
+        user: null,
+      },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.authLoading).toBe(true);
+    expect(result.current.sessionState).toEqual({
+      status: 'authenticating',
+      user: null,
+    });
+    unmount();
+    vi.clearAllTimers();
+  });
+
   it('applies a failed current-session resolution immediately when it already includes an auth terminal state', async () => {
     const onAuthSessionStateChange = vi.fn(() => () => {});
     const resolveRedirectAuthSessionOutcome = vi

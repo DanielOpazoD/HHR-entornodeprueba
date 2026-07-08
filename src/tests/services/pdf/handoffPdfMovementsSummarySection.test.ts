@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { addMovementsSummary } from '@/services/pdf/handoffPdfMovementsSummarySection';
+import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const createDocMock = () =>
@@ -54,5 +55,11 @@ describe('handoffPdfMovementsSummarySection', () => {
     addMovementsSummary(doc, record, 14, 100, autoTable as never);
 
     expect((doc as { line: ReturnType<typeof vi.fn> }).line).not.toHaveBeenCalled();
+    expect(autoTable).toHaveBeenCalledWith(
+      doc,
+      expect.objectContaining({
+        margin: HANDOFF_PDF_PAGE_LAYOUT.margin,
+      })
+    );
   });
 });

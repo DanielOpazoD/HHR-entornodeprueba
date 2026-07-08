@@ -25,6 +25,8 @@
 
 import { useState, useCallback } from 'react';
 
+import { useManagedTimeout } from '@/hooks/useManagedTimeout';
+
 export interface UseModalReturn<T = void> {
   /** Whether the modal is currently open */
   isOpen: boolean;
@@ -47,6 +49,7 @@ export interface UseModalReturn<T = void> {
 export function useModal<T = void>(): UseModalReturn<T> {
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<T | null>(null);
+  const setManagedTimeout = useManagedTimeout();
 
   const open = useCallback((initialData?: T) => {
     setData(initialData ?? null);
@@ -55,9 +58,9 @@ export function useModal<T = void>(): UseModalReturn<T> {
 
   const close = useCallback(() => {
     setIsOpen(false);
-    // Delay clearing data to allow exit animations
-    setTimeout(() => setData(null), 300);
-  }, []);
+    // Delay clearing data to allow exit animations (cleared on unmount).
+    setManagedTimeout(() => setData(null), 300);
+  }, [setManagedTimeout]);
 
   const toggle = useCallback(() => {
     if (isOpen) {

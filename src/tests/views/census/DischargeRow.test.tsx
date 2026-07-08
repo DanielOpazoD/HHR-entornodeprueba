@@ -18,6 +18,26 @@ vi.mock('@/features/census/components/IEEHFormDialog', () => ({
     isOpen ? <div data-testid="ieeh-modal" /> : null,
 }));
 
+vi.mock('@/features/clinical-documents', () => ({
+  ClinicalDocumentsModal: ({
+    isOpen,
+    patient,
+    currentDateString,
+    bedId,
+  }: {
+    isOpen: boolean;
+    patient: { patientName?: string; rut?: string; clinicalEpisodeId?: string };
+    currentDateString: string;
+    bedId: string;
+  }) =>
+    isOpen ? (
+      <div data-testid="clinical-documents-modal">
+        Docs {patient.patientName} {patient.rut} {patient.clinicalEpisodeId} {currentDateString}{' '}
+        {bedId}
+      </div>
+    ) : null,
+}));
+
 describe('DischargeRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,12 +47,14 @@ describe('DischargeRow', () => {
     const item = DataFactory.createMockDischarge({
       id: 'd1',
       patientName: 'Paciente Alta',
-      status: 'Fallecido',
+      status: 'Vivo',
+      dischargeType: 'Domicilio (Habitual)',
     });
     const onUndo = vi.fn().mockResolvedValue(undefined);
     const onEdit = vi.fn();
     const onUpdate = vi.fn();
     const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onConvertToCma = vi.fn().mockResolvedValue(undefined);
 
     render(
       <table>
@@ -44,21 +66,65 @@ describe('DischargeRow', () => {
             onEdit={onEdit}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onConvertToCma={onConvertToCma}
           />
         </tbody>
       </table>
     );
 
     expect(screen.getByText('Paciente Alta')).toBeInTheDocument();
-    expect(screen.getByText('Fallecido')).toBeInTheDocument();
+    expect(screen.getByText('Vivo')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
-    fireEvent.click(screen.getByTitle('Editar'));
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^editar$/i }));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /eliminar/i }));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /convertir a cma/i }));
 
     expect(onUndo).toHaveBeenCalledWith('d1');
     expect(onEdit).toHaveBeenCalledWith(item);
     expect(onDelete).toHaveBeenCalledWith('d1');
+    expect(onConvertToCma).toHaveBeenCalledWith('d1');
+  });
+
+  it('opens clinical documents from the movement action menu using the discharged episode snapshot', async () => {
+    const item = DataFactory.createMockDischarge({
+      id: 'd-docs',
+      patientName: 'Paciente Alta',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'ep_discharge_case',
+      originalData: DataFactory.createMockPatient('R2', {
+        patientName: 'Paciente Alta Snapshot',
+        rut: '22.222.222-2',
+        clinicalEpisodeId: 'ep_original_snapshot',
+      }),
+    });
+
+    render(
+      <table>
+        <tbody>
+          <DischargeRow
+            item={item}
+            recordDate="2026-02-14"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onUpdate={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+            onConvertToCma={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /visualizar documentos clínicos/i }));
+
+    expect(await screen.findByTestId('clinical-documents-modal')).toHaveTextContent(
+      'Docs Paciente Alta Snapshot 22.222.222-2 ep_discharge_case 2026-02-14 R2'
+    );
   });
 
   it('lazy-loads the fuga and IEEH modals only when opened', async () => {
@@ -75,6 +141,7 @@ describe('DischargeRow', () => {
     const onEdit = vi.fn();
     const onUpdate = vi.fn();
     const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onConvertToCma = vi.fn().mockResolvedValue(undefined);
 
     render(
       <table>
@@ -86,6 +153,7 @@ describe('DischargeRow', () => {
             onEdit={onEdit}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onConvertToCma={onConvertToCma}
           />
         </tbody>
       </table>

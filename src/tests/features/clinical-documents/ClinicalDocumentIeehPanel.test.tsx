@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { ClinicalDocumentIeehPanel } from '@/features/clinical-documents/components/ClinicalDocumentIeehPanel';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
@@ -57,5 +58,38 @@ describe('ClinicalDocumentIeehPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /egreso estadístico/i }));
 
     expect(screen.getByText(/diagnóstico principal \(cie-10\)/i)).toBeInTheDocument();
+  });
+
+  it('configures IEEH-only doctor data without changing the epicrisis metadata', async () => {
+    const user = userEvent.setup();
+    const onPatchDraft = vi.fn();
+    const document = buildDocument();
+
+    render(
+      <ClinicalDocumentIeehPanel
+        document={document}
+        draft={createEmptyIeehDraft()}
+        canEdit={true}
+        onPatchDraft={onPatchDraft}
+        onClearDraft={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /egreso estadístico/i }));
+    expect(screen.getByRole('button', { name: /imprimir ieeh/i })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: /configurar médico ieeh/i }));
+    await user.type(screen.getByLabelText(/nombre médico tratante/i), 'Ana María Pérez Soto');
+    await user.type(screen.getByLabelText(/especialidad médico tratante/i), 'Cirugía Adulto');
+    await user.type(screen.getByLabelText(/rut médico tratante/i), '12.345.678-9');
+
+    expect(onPatchDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        tratanteNombreCompleto: 'Ana María Pérez Soto',
+        tratanteEspecialidad: 'Cirugía Adulto',
+        tratanteRut: '12.345.678-9',
+      })
+    );
+    expect(document.medico).toBe('Doctor Test');
+    expect(document.especialidad).toBe('Cirugía');
   });
 });

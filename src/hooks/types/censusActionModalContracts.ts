@@ -14,7 +14,8 @@ export type TransferUpdateField =
   | 'evacuationMethodOther'
   | 'receivingCenter'
   | 'receivingCenterOther'
-  | 'transferEscort';
+  | 'transferEscort'
+  | 'diagnosis';
 
 export interface MoveCopyModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export interface DischargeModalProps {
   initialOtherDetails?: string;
   initialTime?: string;
   initialMovementDate?: string;
+  diagnosis?: string;
   onStatusChange: (s: DischargeStatus) => void;
   onClose: () => void;
   onConfirm: (data: DischargeModalConfirmPayload) => void;
@@ -58,6 +60,7 @@ export interface TransferModalProps {
   transferEscort: string;
   initialTime?: string;
   initialMovementDate?: string;
+  diagnosis?: string;
   hasClinicalCrib?: boolean;
   clinicalCribName?: string;
   onUpdate: (field: TransferUpdateField, value: string) => void;

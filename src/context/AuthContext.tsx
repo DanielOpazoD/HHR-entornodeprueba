@@ -9,6 +9,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useAuthState } from '@/hooks/useAuthState';
+import { useAuthClaimRefreshScheduler } from '@/hooks/useAuthClaimRefreshScheduler';
 import type { UserRole, AuthUser } from '@/types/authRoleTypes';
 export type { AuthUser, UserRole };
 import {
@@ -84,6 +85,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     () => buildAuthContextValue(normalizedAuthState),
     [normalizedAuthState]
   );
+
+  useAuthClaimRefreshScheduler({
+    enabled: value.isAuthenticated,
+    role: value.currentUser?.role ?? null,
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -26,6 +26,10 @@ const inferCodeFromMessage = (message: string): string | null => {
     return 'auth/cancelled-popup-request';
   }
 
+  if (message.includes('popup-closed-by-user')) {
+    return 'auth/popup-closed-by-user';
+  }
+
   if (message.includes('network-request-failed') || message.includes('cookies')) {
     return 'auth/network-request-failed';
   }
@@ -50,23 +54,27 @@ export const isPopupRecoverableAuthError = (error: unknown): boolean => {
     code === 'auth/popup-timeout' ||
     code === 'auth/network-request-failed' ||
     code === 'auth/popup-blocked' ||
-    code === 'auth/cancelled-popup-request' ||
     code === 'auth/multi-tab-login-in-progress'
   );
 };
 
+export const isPopupCancellationAuthError = (error: unknown): boolean => {
+  const code = resolveAuthErrorCode(error);
+  return code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user';
+};
+
 export const shouldDowngradeGoogleAuthLogLevel = (error: unknown): boolean =>
-  isPopupRecoverableAuthError(error);
+  isPopupRecoverableAuthError(error) || isPopupCancellationAuthError(error);
 
 const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/multi-tab-login-in-progress':
     'Ya hay otra pestaña intentando entrar. Espera unos segundos o prueba la otra forma de ingreso.',
-  'auth/popup-closed-by-user': 'Inicio de sesión cancelado',
+  'auth/popup-closed-by-user': 'Inicio de sesión cancelado. Intenta nuevamente desde el botón.',
   'auth/popup-blocked':
     'El navegador no permitió abrir la ventana de Google. Revisa si bloqueó ventanas emergentes para este sitio.',
   'auth/popup-timeout':
     'La ventana de Google tardó demasiado en responder. Prueba la otra forma de ingreso.',
-  'auth/cancelled-popup-request': 'Operación cancelada',
+  'auth/cancelled-popup-request': 'Inicio de sesión cancelado. Intenta nuevamente desde el botón.',
   'auth/network-request-failed':
     'No se pudo completar el ingreso por un problema de conexión o por una restricción del navegador.',
   'auth/popup-coop-blocked':

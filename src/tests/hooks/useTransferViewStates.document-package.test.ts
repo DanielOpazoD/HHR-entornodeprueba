@@ -19,12 +19,19 @@ vi.mock('@/services/transfers/documentGeneratorService', () => ({
   generateTransferDocuments: vi.fn().mockResolvedValue([]),
 }));
 
-const mockRuntimeAlert = vi.fn();
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: (...args: unknown[]) => mockRuntimeAlert(...args),
-  },
+const { mockRuntimeAlert } = vi.hoisted(() => ({
+  mockRuntimeAlert: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      alert: mockRuntimeAlert,
+    }),
+  };
+});
 
 describe('useTransferViewStates document package', () => {
   let mockUpdateTransfer: (id: string, data: Partial<TransferRequest>) => Promise<void>;

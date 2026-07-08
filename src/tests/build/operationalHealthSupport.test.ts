@@ -49,7 +49,7 @@ describe('operationalHealthSupport', () => {
     });
   });
 
-  it('surfaces degraded startup health when preview artifacts are missing or chunks are near limit', () => {
+  it('surfaces degraded startup health when preview artifacts are missing while near-limit chunks stay advisory', () => {
     const buildAssets: StartupAsset[] = [
       {
         file: 'dist/assets/index-app.js',
@@ -94,6 +94,24 @@ describe('operationalHealthSupport', () => {
     expect(report.issues).toContain(
       'No hay artefacto reciente del smoke de preview para validar el arranque real.'
     );
-    expect(report.issues.some(issue => issue.includes('vendor-firebase-core-app.js'))).toBe(true);
+    expect(report.issues.some(issue => issue.includes('vendor-firebase-core-app.js'))).toBe(false);
+  });
+
+  it('keeps frontend startup healthy when chunks are only near limit and preview is clean', () => {
+    const report = summarizeFrontendStartupHealth({
+      previewGate: summarizePreviewGate({
+        stats: { expected: 1, unexpected: 0, flaky: 0, skipped: 0, interrupted: 0 },
+      }),
+      criticalAssets: [
+        {
+          file: 'dist/assets/app-authenticated-shell-app.js',
+          status: 'near-limit',
+        },
+      ] as never[],
+      bootstrapTelemetrySignals: [],
+    });
+
+    expect(report.status).toBe('ok');
+    expect(report.issues).toEqual([]);
   });
 });

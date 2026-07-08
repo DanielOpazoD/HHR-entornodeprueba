@@ -3,6 +3,13 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  buildAuditAttemptEnv,
+  buildAuditReproducibilityMetadata,
+  classifyAuditFailure,
+  getAuditFailureGuidance,
+  shouldRetryAuditWithSystemCa,
+} from './lib/dependencyAuditSupport.mjs';
 
 const root = process.cwd();
 const reportsDir = path.join(root, 'reports', 'security');
@@ -29,26 +36,6 @@ const workspaceConfigs = [
 ];
 
 const auditArgs = ['audit', '--omit=dev', '--audit-level=high', '--json'];
-
-const classifyAuditFailure = (stderr, stdout) => {
-  const combined = `${stdout}\n${stderr}`.toLowerCase();
-  if (
-    combined.includes('eai_again') ||
-    combined.includes('enotfound') ||
-    combined.includes('network request') ||
-    combined.includes('socket hang up') ||
-    combined.includes('fetch failed')
-  ) {
-    return 'network_unavailable';
-  }
-  if (combined.includes('does not exist') || combined.includes('enoent')) {
-    return 'missing_inputs';
-  }
-  if (combined.includes('not support') || combined.includes('unsupported')) {
-    return 'unsupported';
-  }
-  return 'audit_failed';
-};
 
 const extractCounts = report => {
   const vulnerabilities = report?.metadata?.vulnerabilities;
@@ -135,11 +122,31 @@ const runAuditForWorkspace = workspace => {
     };
   }
 
-  const result = spawnSync('npm', auditArgs, {
-    cwd: workspace.cwd,
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-  });
+  const runAudit = env =>
+    spawnSync('npm', auditArgs, {
+      cwd: workspace.cwd,
+      encoding: 'utf8',
+      env,
+      shell: process.platform === 'win32',
+    });
+
+  let result = runAudit(process.env);
+  let retriedWithSystemCa = false;
+
+  const firstFailureCategory =
+    result.status === 0
+      ? null
+      : classifyAuditFailure({ stderr: result.stderr || '', stdout: result.stdout || '' });
+
+  if (
+    shouldRetryAuditWithSystemCa({
+      failureCategory: firstFailureCategory,
+      nodeOptions: process.env.NODE_OPTIONS,
+    })
+  ) {
+    result = runAudit(buildAuditAttemptEnv(process.env));
+    retriedWithSystemCa = true;
+  }
 
   const stdout = result.stdout || '';
   const stderr = result.stderr || '';
@@ -174,7 +181,7 @@ const runAuditForWorkspace = workspace => {
     failureCategory = 'high_or_critical_vulnerabilities';
   } else if (result.status !== 0) {
     status = 'unavailable';
-    failureCategory = classifyAuditFailure(stderr, stdout);
+    failureCategory = classifyAuditFailure({ stderr, stdout });
   }
 
   return {
@@ -183,10 +190,14 @@ const runAuditForWorkspace = workspace => {
     cwd: path.relative(root, workspace.cwd) || '.',
     command: `npm ${auditArgs.join(' ')}`,
     status,
+    firstFailureCategory,
     failureCategory,
+    guidance: failureCategory ? getAuditFailureGuidance(failureCategory) : null,
     exitCode: result.status,
     counts,
     vulnerablePackages,
+    retriedWithSystemCa,
+    recoveryAttempted: retriedWithSystemCa ? 'system_ca_retry' : null,
     issues:
       status === 'vulnerable'
         ? [
@@ -202,6 +213,11 @@ const runAuditForWorkspace = workspace => {
 
 const workspaceResults = workspaceConfigs.map(runAuditForWorkspace);
 const overallStatus = workspaceResults.every(result => result.status === 'ok') ? 'ok' : 'failed';
+const reproducibility = buildAuditReproducibilityMetadata({
+  failureCategories: workspaceResults.flatMap(result =>
+    [result.firstFailureCategory, result.failureCategory].filter(Boolean)
+  ),
+});
 
 const summary = {
   generatedAt: new Date().toISOString(),
@@ -212,6 +228,7 @@ const summary = {
     blockingSeverities: ['high', 'critical'],
     workspaces: workspaceConfigs.map(workspace => workspace.id),
   },
+  reproducibility,
   workspaces: workspaceResults,
 };
 
@@ -236,7 +253,10 @@ const markdown = [
     '',
     `- Working directory: \`${result.cwd}\``,
     `- Status: \`${result.status}\``,
+    `- First failure category: \`${result.firstFailureCategory || 'none'}\``,
     `- Failure category: \`${result.failureCategory || 'none'}\``,
+    `- Retried with system CA: \`${result.retriedWithSystemCa ? 'yes' : 'no'}\``,
+    `- Guidance: ${result.guidance || 'none'}`,
     `- Exit code: \`${String(result.exitCode ?? 'n/a')}\``,
     `- Counts: high=\`${result.counts.high}\`, critical=\`${result.counts.critical}\`, total=\`${result.counts.total}\``,
     ...(result.vulnerablePackages.length > 0
@@ -253,6 +273,16 @@ const markdown = [
     ...(result.issues.length > 0 ? ['- Notes:', ...result.issues.map(issue => `  - ${issue}`)] : ['- Notes: none']),
     '',
   ]),
+  '## Reproducibility',
+  '',
+  `- Status: \`${reproducibility.status}\``,
+  `- Failure categories: \`${reproducibility.failureCategories.join(', ') || 'none'}\``,
+  `- CI evidence: ${reproducibility.ciEvidence}`,
+  '- Local repro commands:',
+  ...reproducibility.localCommands.map(command => `  - \`${command}\``),
+  '- Do not use:',
+  ...reproducibility.mustNotDo.map(command => `  - \`${command}\``),
+  '',
 ].join('\n');
 
 fs.writeFileSync(outputJsonPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');

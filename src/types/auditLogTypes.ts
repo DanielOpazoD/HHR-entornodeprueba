@@ -16,7 +16,11 @@ export interface AuditLogEntry {
     | 'dailyRecord'
     | 'user'
     | 'system'
-    | 'clinicalDocument';
+    | 'clinicalDocument'
+    | 'prescription'
+    | 'medicalIndicationRecord'
+    | 'medicalIndicationTemplate'
+    | 'statistics';
   entityId: string;
   summary?: string;
   details: AuditDetails;

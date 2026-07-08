@@ -7,6 +7,17 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 
+export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
+
+export interface LocalRecordWriteResult {
+  ok: boolean;
+  operation: 'save' | 'save_many' | 'delete';
+  store: LocalRecordWriteStore;
+  dates: string[];
+  error?: unknown;
+  userSafeMessage?: string;
+}
+
 const toRecordMap = (records: DailyRecord[]): Record<string, DailyRecord> => {
   const result: Record<string, DailyRecord> = {};
   for (const record of records) {
@@ -28,6 +39,28 @@ const syncE2ERuntimeRecordMirror = (record: DailyRecord): void => {
     window.__HHR_E2E_OVERRIDE__[record.date] = record;
   }
 };
+
+const resolveActiveWriteStore = (): Exclude<LocalRecordWriteStore, 'none'> => {
+  if (!isDatabaseInFallbackMode()) {
+    return 'indexeddb';
+  }
+
+  return typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__ ? 'e2e' : 'fallback';
+};
+
+const buildLocalWriteFailure = (
+  operation: LocalRecordWriteResult['operation'],
+  dates: string[],
+  error: unknown,
+  userSafeMessage: string
+): LocalRecordWriteResult => ({
+  ok: false,
+  operation,
+  store: 'none',
+  dates,
+  error,
+  userSafeMessage,
+});
 
 export const getAllRecords = async (): Promise<Record<string, DailyRecord>> => {
   try {
@@ -114,18 +147,20 @@ export const getRecordForDate = async (date: string): Promise<DailyRecord | null
   }
 };
 
-export const saveRecord = async (record: DailyRecord): Promise<void> => {
+export const saveRecordStrict = async (record: DailyRecord): Promise<LocalRecordWriteResult> => {
   try {
     await ensureDbReady();
+    const store = resolveActiveWriteStore();
     if (isDatabaseInFallbackMode()) {
       localPersistence.records.save(record);
       syncE2ERuntimeRecordMirror(record);
       dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
-      return;
+      return { ok: true, operation: 'save', store, dates: [record.date] };
     }
     await db.dailyRecords.put(record);
     syncE2ERuntimeRecordMirror(record);
     dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
+    return { ok: true, operation: 'save', store, dates: [record.date] };
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_record', error, {
       code: 'indexeddb_save_record_failed',
@@ -134,16 +169,30 @@ export const saveRecord = async (record: DailyRecord): Promise<void> => {
       userSafeMessage: 'No fue posible guardar el registro local.',
       context: { date: record.date },
     });
+    return buildLocalWriteFailure(
+      'save',
+      [record.date],
+      error,
+      'No fue posible guardar el registro local.'
+    );
   }
 };
 
-export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
+export const saveRecord = async (record: DailyRecord): Promise<void> => {
+  await saveRecordStrict(record);
+};
+
+export const saveRecordsStrict = async (
+  records: DailyRecord[]
+): Promise<LocalRecordWriteResult> => {
+  const dates = records.map(record => record.date);
   try {
     await ensureDbReady();
     if (records.length === 0) {
-      return;
+      return { ok: true, operation: 'save_many', store: resolveActiveWriteStore(), dates };
     }
 
+    const store = resolveActiveWriteStore();
     if (isDatabaseInFallbackMode()) {
       records.forEach(record => {
         localPersistence.records.save(record);
@@ -153,7 +202,7 @@ export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
         operation: 'save',
         dates: records.map(record => record.date),
       });
-      return;
+      return { ok: true, operation: 'save_many', store, dates };
     }
 
     await db.dailyRecords.bulkPut(records);
@@ -162,6 +211,7 @@ export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
       operation: 'save',
       dates: records.map(record => record.date),
     });
+    return { ok: true, operation: 'save_many', store, dates };
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
       code: 'indexeddb_save_records_failed',
@@ -170,19 +220,31 @@ export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
       userSafeMessage: 'No fue posible guardar registros locales.',
       context: { count: records.length },
     });
+    return buildLocalWriteFailure(
+      'save_many',
+      dates,
+      error,
+      'No fue posible guardar registros locales.'
+    );
   }
 };
 
-export const deleteRecord = async (date: string): Promise<void> => {
+export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
+  await saveRecordsStrict(records);
+};
+
+export const deleteRecordStrict = async (date: string): Promise<LocalRecordWriteResult> => {
   try {
     await ensureDbReady();
+    const store = resolveActiveWriteStore();
     if (isDatabaseInFallbackMode()) {
       localPersistence.records.deleteForDate(date);
       dispatchDailyRecordStoreChanged({ operation: 'delete', dates: [date] });
-      return;
+      return { ok: true, operation: 'delete', store, dates: [date] };
     }
     await db.dailyRecords.delete(date);
     dispatchDailyRecordStoreChanged({ operation: 'delete', dates: [date] });
+    return { ok: true, operation: 'delete', store, dates: [date] };
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_delete_record', error, {
       code: 'indexeddb_delete_record_failed',
@@ -191,7 +253,17 @@ export const deleteRecord = async (date: string): Promise<void> => {
       userSafeMessage: 'No fue posible eliminar el registro local.',
       context: { date },
     });
+    return buildLocalWriteFailure(
+      'delete',
+      [date],
+      error,
+      'No fue posible eliminar el registro local.'
+    );
   }
+};
+
+export const deleteRecord = async (date: string): Promise<void> => {
+  await deleteRecordStrict(date);
 };
 
 export const getAllDates = async (): Promise<string[]> => {

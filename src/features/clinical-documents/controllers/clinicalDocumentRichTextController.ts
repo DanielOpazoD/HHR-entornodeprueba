@@ -14,14 +14,7 @@ import {
 } from '@/features/clinical-documents/controllers/clinicalDocumentHtmlSanitizer';
 import { CLINICAL_DOCUMENT_INDENT_STEP_PX } from '@/features/clinical-documents/controllers/clinicalDocumentFormattingContract';
 import { applyClinicalDocumentIndentationCommand } from '@/features/clinical-documents/controllers/clinicalDocumentIndentationController';
-
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+import { escapeHtml } from '@/utils/htmlEscape';
 
 const decodeHtmlEntities = (value: string): string => {
   if (!value) {
@@ -49,6 +42,22 @@ const normalizeWhitespaceHtml = (value: string): string =>
     .replace(/(<br>\s*){3,}/gi, '<br><br>')
     .trim();
 
+const ORPHAN_TABLE_SECTION_PATTERN = /<(?:tr|td|th|thead|tbody|tfoot)\b/i;
+const TABLE_WRAPPER_PATTERN = /<table\b/i;
+
+/**
+ * Wraps table rows/cells that arrive without their `<table>` ancestor (e.g. a
+ * partial-table paste, or a fragment whose wrapper was stripped upstream) so
+ * the HTML parser keeps them as a real table instead of leaving floating
+ * `<tr>`/`<td>` that never render as tabular content. The parser foster-parents
+ * any non-table siblings back out of the injected `<table>`, so mixed content
+ * is preserved correctly.
+ */
+const wrapOrphanTableSections = (value: string): string =>
+  ORPHAN_TABLE_SECTION_PATTERN.test(value) && !TABLE_WRAPPER_PATTERN.test(value)
+    ? `<table>${value}</table>`
+    : value;
+
 /** Converts plain text to sanitized HTML suitable for clinical document storage. */
 export const convertPlainTextToClinicalDocumentHtml = (value: string): string => {
   const normalized = decodeHtmlEntities(value).trim();
@@ -74,7 +83,7 @@ export const sanitizeClinicalDocumentHtml = (value: string): string => {
   }
 
   const template = document.createElement('template');
-  template.innerHTML = value;
+  template.innerHTML = wrapOrphanTableSections(value);
 
   const sanitizeNode = (node: Node): Node[] => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -279,7 +288,7 @@ export const sanitizePastedHtml = (html: string): string => {
   }
 
   const template = document.createElement('template');
-  template.innerHTML = html;
+  template.innerHTML = wrapOrphanTableSections(html);
 
   const sanitizeNode = (node: Node): Node[] => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -298,7 +307,7 @@ export const sanitizePastedHtml = (html: string): string => {
     }
 
     const clone = document.createElement(tagName.toLowerCase());
-    const safeStyle = sanitizeElementStyle(element, tagName);
+    const safeStyle = sanitizeElementStyle(element, tagName, { forPaste: true });
     if (safeStyle) {
       clone.setAttribute('style', safeStyle);
     }

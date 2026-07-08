@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Printer, Search, Sparkles, X } from 'lucide-react';
+import { Loader2, Printer, Search, Sparkles, UserRound, X } from 'lucide-react';
 
 import type {
   ClinicalDocumentIeehDraft,
@@ -63,6 +63,14 @@ export const ClinicalDocumentIeehFormBody: React.FC<ClinicalDocumentIeehFormBody
   onPrintIeeh,
   onRemovePanel,
 }) => {
+  const [showDoctorConfig, setShowDoctorConfig] = React.useState(
+    Boolean(
+      localDraft.tratanteNombreCompleto?.trim() ||
+      localDraft.tratanteEspecialidad?.trim() ||
+      localDraft.tratanteRut?.trim()
+    )
+  );
+
   return (
     <div className="space-y-3 px-3 pb-3">
       <div>
@@ -288,17 +296,71 @@ export const ClinicalDocumentIeehFormBody: React.FC<ClinicalDocumentIeehFormBody
         )}
       </div>
 
-      <div>
-        <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">
-          RUT Médico Tratante <span className="font-normal text-slate-400">(opcional)</span>
-        </label>
-        <input
-          type="text"
-          value={localDraft.tratanteRut ?? ''}
-          onChange={e => onPatchField('tratanteRut', e.target.value)}
-          placeholder="12.345.678-9"
-          className="w-48 rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none"
-        />
+      <div className="rounded-md border border-emerald-100 bg-white/70 p-2">
+        <button
+          type="button"
+          onClick={() => setShowDoctorConfig(prev => !prev)}
+          className="flex w-full items-center gap-1.5 text-left text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
+          aria-expanded={showDoctorConfig}
+        >
+          <UserRound size={13} />
+          Configurar médico IEEH
+        </button>
+
+        {showDoctorConfig && (
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="ieeh-tratante-nombre"
+                className="mb-1 block text-[10px] font-semibold uppercase text-slate-500"
+              >
+                Nombre médico tratante
+              </label>
+              <input
+                id="ieeh-tratante-nombre"
+                type="text"
+                value={localDraft.tratanteNombreCompleto ?? ''}
+                onChange={e => onPatchField('tratanteNombreCompleto', e.target.value)}
+                placeholder="Nombre Apellido 1 Apellido 2"
+                className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="ieeh-tratante-especialidad"
+                className="mb-1 block text-[10px] font-semibold uppercase text-slate-500"
+              >
+                Especialidad médico tratante
+              </label>
+              <input
+                id="ieeh-tratante-especialidad"
+                type="text"
+                value={localDraft.tratanteEspecialidad ?? ''}
+                onChange={e => onPatchField('tratanteEspecialidad', e.target.value)}
+                placeholder="Especialidad"
+                className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="ieeh-tratante-rut"
+                className="mb-1 block text-[10px] font-semibold uppercase text-slate-500"
+              >
+                RUT médico tratante
+              </label>
+              <input
+                id="ieeh-tratante-rut"
+                type="text"
+                value={localDraft.tratanteRut ?? ''}
+                onChange={e => onPatchField('tratanteRut', e.target.value)}
+                placeholder="12.345.678-9"
+                className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between border-t border-emerald-100 pt-2">

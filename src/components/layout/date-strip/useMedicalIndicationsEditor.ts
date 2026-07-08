@@ -1,9 +1,21 @@
 import React from 'react';
-import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import {
+  calculateMedicalIndicationsStayDays,
+  formatMedicalIndicationsDate,
+  normalizeMedicalIndicationsDateKey,
+  type MedicalIndicationRecord,
+  type MedicalIndicationsKineType,
+  type MedicalIndicationsPatientOption,
+} from '@/shared/contracts/medicalIndications';
 
 const INDICATIONS_LINES = 15;
 
 const defaultSelectedPatient = (patients: MedicalIndicationsPatientOption[]) => patients[0] ?? null;
+
+const buildTodayDateKey = () => new Date().toISOString().slice(0, 10);
+
+const resolveInitialTargetDate = (patient: MedicalIndicationsPatientOption | null): string =>
+  normalizeMedicalIndicationsDateKey(patient?.sourceDailyRecordDate || '') || buildTodayDateKey();
 
 export const useMedicalIndicationsEditor = ({
   isOpen,
@@ -15,12 +27,11 @@ export const useMedicalIndicationsEditor = ({
   const [selectedBedId, setSelectedBedId] = React.useState('');
   const [reposo, setReposo] = React.useState('');
   const [regimen, setRegimen] = React.useState('');
-  const [kineType, setKineType] = React.useState<'motora' | 'respiratoria' | 'ambas' | 'ninguna'>(
-    'ninguna'
-  );
+  const [kineType, setKineType] = React.useState<MedicalIndicationsKineType>('ninguna');
   const [kineTimes, setKineTimes] = React.useState('');
   const [treatingDoctor, setTreatingDoctor] = React.useState('');
   const [pendingNotes, setPendingNotes] = React.useState('');
+  const [targetDate, setTargetDate] = React.useState('');
   const [indicationDraft, setIndicationDraft] = React.useState('');
   const [indications, setIndications] = React.useState<string[]>(() =>
     Array.from({ length: INDICATIONS_LINES }, () => '')
@@ -47,23 +58,52 @@ export const useMedicalIndicationsEditor = ({
     setTreatingDoctor(selectedPatient.treatingDoctor);
   }, [isOpen, selectedPatient]);
 
+  React.useEffect(() => {
+    if (!isOpen || !selectedPatient) return;
+    setTargetDate(resolveInitialTargetDate(selectedPatient));
+  }, [isOpen, selectedPatient]);
+
   const activeIndications = React.useMemo(
     () => indications.map(text => text.trim()).filter(Boolean),
     [indications]
   );
 
-  const addIndication = () => {
-    const trimmed = indicationDraft.trim();
-    if (!trimmed) return;
+  const targetDateLabel = React.useMemo(
+    () => formatMedicalIndicationsDate(targetDate),
+    [targetDate]
+  );
 
+  const daysOfStayForTargetDate = React.useMemo(
+    () =>
+      selectedPatient
+        ? calculateMedicalIndicationsStayDays(selectedPatient.admissionDate, targetDate)
+        : '',
+    [selectedPatient, targetDate]
+  );
+
+  const insertIndication = (text: string): boolean => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    let inserted = false;
     setIndications(current => {
       const next = [...current];
       const firstEmptyIndex = next.findIndex(item => !item.trim());
       if (firstEmptyIndex === -1) return next;
       next[firstEmptyIndex] = trimmed;
+      inserted = true;
       return next;
     });
-    setIndicationDraft('');
+    return inserted;
+  };
+
+  const addIndication = () => {
+    const trimmed = indicationDraft.trim();
+    if (!trimmed) return;
+
+    if (insertIndication(trimmed)) {
+      setIndicationDraft('');
+    }
   };
 
   const removeIndication = (targetIndex: number) => {
@@ -106,6 +146,39 @@ export const useMedicalIndicationsEditor = ({
     resetEditing();
   };
 
+  const hydrateFromRecord = React.useCallback((record: MedicalIndicationRecord) => {
+    setReposo(record.reposo);
+    setRegimen(record.regimen);
+    setKineType(record.kineType);
+    setKineTimes(record.kineTimes);
+    setTreatingDoctor(record.treatingDoctor);
+    setPendingNotes(record.pendingNotes);
+    const nextIndications = record.indications.slice(0, INDICATIONS_LINES);
+    setIndications([
+      ...nextIndications,
+      ...Array.from({ length: INDICATIONS_LINES - nextIndications.length }, () => ''),
+    ]);
+    setIndicationDraft('');
+    setEditingIndex(null);
+    setEditingValue('');
+  }, []);
+
+  const resetAppliedRecordDraft = React.useCallback(
+    (patient: MedicalIndicationsPatientOption | null = selectedPatient) => {
+      setReposo('');
+      setRegimen('');
+      setKineType('ninguna');
+      setKineTimes('');
+      setTreatingDoctor(patient?.treatingDoctor || '');
+      setPendingNotes('');
+      setIndications(Array.from({ length: INDICATIONS_LINES }, () => ''));
+      setIndicationDraft('');
+      setEditingIndex(null);
+      setEditingValue('');
+    },
+    [selectedPatient]
+  );
+
   return {
     selectedBedId,
     setSelectedBedId,
@@ -122,6 +195,10 @@ export const useMedicalIndicationsEditor = ({
     setTreatingDoctor,
     pendingNotes,
     setPendingNotes,
+    targetDate,
+    setTargetDate,
+    targetDateLabel,
+    daysOfStayForTargetDate,
     indicationDraft,
     setIndicationDraft,
     indications,
@@ -135,12 +212,15 @@ export const useMedicalIndicationsEditor = ({
     setEditingValue,
     isPrinting,
     setIsPrinting,
+    insertIndication,
     addIndication,
     removeIndication,
     moveIndication,
     startEditing,
     resetEditing,
     saveEditedIndication,
+    hydrateFromRecord,
+    resetAppliedRecordDraft,
     maxIndications: INDICATIONS_LINES,
   };
 };

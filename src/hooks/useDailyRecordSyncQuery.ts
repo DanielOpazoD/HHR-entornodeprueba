@@ -24,6 +24,7 @@ import {
   resolveSaveErrorFeedback,
   resolveSaveOutcomeFeedback,
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
+import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import {
   buildCreateDaySuccessMessage,
   resolveCreateDaySourceDate,
@@ -33,6 +34,7 @@ import { presentDailyRecordRefreshOutcome } from '@/hooks/controllers/dailyRecor
 import { dailyRecordSyncLogger } from '@/hooks/hookLoggers';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
+import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
   resolveDailyRecordBootstrapPhase,
@@ -40,6 +42,7 @@ import {
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import {
   useDeferredRemoteHydration,
+  usePostDeployRecentRecordRefresh,
   useRemoteDailyRecordSync,
   useTodayEmptyDailyRecordRecovery,
 } from '@/hooks/useDailyRecordSyncQuerySupport';
@@ -135,6 +138,18 @@ export const useDailyRecordSyncQuery = (
     },
   });
 
+  usePostDeployRecentRecordRefresh({
+    remoteSyncStatus: effectiveRemoteSyncStatus,
+    refetch,
+    runRemoteSync: async date => {
+      const outcome = await runRemoteSync(date);
+      if (!isMountedRef.current) {
+        return outcome;
+      }
+      return outcome;
+    },
+  });
+
   // 3. Status Mapping
   const syncStatus = useMemo(
     (): SyncStatus =>
@@ -205,7 +220,15 @@ export const useDailyRecordSyncQuery = (
       try {
         const payload = await saveMutation.mutateAsync(updatedRecord);
         presentChannelNotice(resolveSaveOutcomeFeedback(payload.result), 'Guardado');
+        assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
+        if (err instanceof DailyRecordFreshnessGateError) {
+          if (err.presentation !== 'silent') {
+            warning('Censo en actualización', err.message);
+          }
+          throw err;
+        }
+
         const feedback = resolveSaveErrorFeedback(err);
         if (feedback) {
           notifyError(feedback.title, feedback.message);
@@ -225,15 +248,25 @@ export const useDailyRecordSyncQuery = (
         throw err;
       }
     },
-    [saveMutation, notifyError, refetch, clearPendingRefetchTimeout, presentChannelNotice]
+    [saveMutation, notifyError, refetch, clearPendingRefetchTimeout, presentChannelNotice, warning]
   );
 
   const patchRecord = useCallback(
     async (partial: DailyRecordPatch) => {
-      const payload = await patchMutation.mutateAsync(partial);
-      presentChannelNotice(resolvePatchOutcomeFeedback(payload.result), 'Actualización');
+      try {
+        const payload = await patchMutation.mutateAsync(partial);
+        presentChannelNotice(resolvePatchOutcomeFeedback(payload.result), 'Actualización');
+        assertDailyRecordWriteAccepted(payload.result);
+      } catch (err) {
+        if (err instanceof DailyRecordFreshnessGateError) {
+          if (err.presentation !== 'silent') {
+            warning('Censo en actualización', err.message);
+          }
+        }
+        throw err;
+      }
     },
-    [patchMutation, presentChannelNotice]
+    [patchMutation, presentChannelNotice, warning]
   );
 
   const setRecord = useCallback(

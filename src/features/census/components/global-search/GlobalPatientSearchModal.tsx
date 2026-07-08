@@ -5,13 +5,22 @@
  * across all dates by name, last name, or RUT.
  */
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useRef, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Loader2, Users } from 'lucide-react';
 import { useGlobalPatientSearch } from '@/features/census/components/global-search/useGlobalPatientSearch';
 import { PatientSearchResultItem } from '@/features/census/components/global-search/PatientSearchResultItem';
 import { PatientEpisodeTimeline } from '@/features/census/components/global-search/PatientEpisodeTimeline';
 import { SearchResultsSkeleton } from '@/features/census/components/global-search/SearchResultsSkeleton';
+import type { ClinicalDocSummary } from '@/features/census/components/global-search/globalSearchContracts';
+import type { PatientData } from '@/features/clinical-documents';
+import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+
+const LazyClinicalDocumentsModal = lazy(() =>
+  import('@/features/clinical-documents').then(module => ({
+    default: module.ClinicalDocumentsModal,
+  }))
+);
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,6 +30,12 @@ interface GlobalPatientSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateToDate?: (isoDate: string) => void;
+}
+
+interface ActiveClinicalDocumentsViewer {
+  patient: PatientData;
+  currentDateString: string;
+  bedId: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,13 +48,45 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
   onNavigateToDate,
 }) => {
   const search = useGlobalPatientSearch();
+  const [activeClinicalDocumentsViewer, setActiveClinicalDocumentsViewer] =
+    useState<ActiveClinicalDocumentsViewer | null>(null);
+
+  const handleClose = useCallback(() => {
+    setActiveClinicalDocumentsViewer(null);
+    onClose();
+  }, [onClose]);
 
   const handleNavigateToDate = useCallback(
     (isoDate: string) => {
-      onClose();
+      handleClose();
       onNavigateToDate?.(isoDate);
     },
-    [onClose, onNavigateToDate]
+    [handleClose, onNavigateToDate]
+  );
+  const handleOpenClinicalDocument = useCallback(
+    (doc: ClinicalDocSummary) => {
+      const patient = search.selectedPatient?.master;
+      if (!patient) return;
+
+      const admissionDate =
+        resolveAdmissionDateFromClinicalEpisodeKey(doc.episodeKey) ||
+        patient.lastAdmission ||
+        search.selectedPatient?.history?.firstSeen;
+
+      setActiveClinicalDocumentsViewer({
+        patient: {
+          patientName: patient.fullName,
+          rut: patient.rut,
+          birthDate: patient.birthDate,
+          admissionDate,
+          firstSeenDate: admissionDate,
+          clinicalEpisodeId: doc.episodeKey,
+        },
+        currentDateString: admissionDate || doc.updatedAt.split('T')[0] || '',
+        bedId: 'global-search',
+      });
+    },
+    [search.selectedPatient]
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const resetRef = useRef(search.reset);
@@ -60,11 +107,14 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
   // ---- Keyboard navigation ----
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (activeClinicalDocumentsViewer) return;
+
       if (e.key === 'Escape') {
         if (search.selectedPatient) {
+          setActiveClinicalDocumentsViewer(null);
           search.clearSelection();
         } else {
-          onClose();
+          handleClose();
         }
         return;
       }
@@ -84,15 +134,17 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
         if (patient) search.selectPatient(patient);
       }
     },
-    [search, onClose]
+    [activeClinicalDocumentsViewer, search, handleClose]
   );
 
   // ---- Backdrop click ----
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onClose();
+      if (e.target === e.currentTarget) {
+        handleClose();
+      }
     },
-    [onClose]
+    [handleClose]
   );
 
   if (!isOpen) return null;
@@ -133,7 +185,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
             </kbd>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               aria-label="Cerrar"
             >
@@ -157,6 +209,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
                 episodeDocuments={search.episodeDocuments}
                 onLoadDocuments={search.loadEpisodeDocuments}
                 onDownloadPdf={search.downloadDocumentPdf}
+                onOpenClinicalDocument={handleOpenClinicalDocument}
                 onNavigateToDate={onNavigateToDate ? handleNavigateToDate : undefined}
                 onBack={search.clearSelection}
               />
@@ -238,6 +291,17 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
           </div>
         )}
       </div>
+      {activeClinicalDocumentsViewer ? (
+        <Suspense fallback={null}>
+          <LazyClinicalDocumentsModal
+            isOpen
+            onClose={() => setActiveClinicalDocumentsViewer(null)}
+            patient={activeClinicalDocumentsViewer.patient}
+            currentDateString={activeClinicalDocumentsViewer.currentDateString}
+            bedId={activeClinicalDocumentsViewer.bedId}
+          />
+        </Suspense>
+      ) : null}
     </div>,
     document.body
   );

@@ -8,6 +8,7 @@ import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { buildAppContentOverlayState } from '@/components/layout/app-content/appContentOverlaysController';
 import { usePatientSearchShortcut } from '@/components/layout/app-content/usePatientSearchShortcut';
+import { useReminderCenter } from '@/hooks/useReminders';
 
 const TestAgent = lazyWithRetry(() =>
   import('@/components/debug/TestAgent').then(m => ({ default: m.TestAgent }))
@@ -33,6 +34,7 @@ export const AppContentOverlays: React.FC<AppContentOverlaysProps> = ({
   onOpenCensusDate,
 }) => {
   usePatientSearchShortcut(ui.patientSearchModal.toggle);
+  const { isOpen: isReminderCenterOpen } = useReminderCenter();
   const overlayState = buildAppContentOverlayState({
     ui,
     runtime,
@@ -41,9 +43,11 @@ export const AppContentOverlays: React.FC<AppContentOverlaysProps> = ({
 
   return (
     <>
-      <React.Suspense fallback={null}>
-        <ReminderModal />
-      </React.Suspense>
+      {isReminderCenterOpen && (
+        <React.Suspense fallback={null}>
+          <ReminderModal />
+        </React.Suspense>
+      )}
 
       {overlayState.shouldRenderCensusEmailConfigModal && (
         <React.Suspense fallback={null}>
@@ -51,9 +55,11 @@ export const AppContentOverlays: React.FC<AppContentOverlaysProps> = ({
         </React.Suspense>
       )}
 
-      <React.Suspense fallback={null}>
-        <TestAgent {...overlayState.testAgentProps} />
-      </React.Suspense>
+      {overlayState.shouldRenderTestAgent && (
+        <React.Suspense fallback={null}>
+          <TestAgent {...overlayState.testAgentProps} />
+        </React.Suspense>
+      )}
 
       {overlayState.shouldRenderPatientSearchModal && (
         <React.Suspense fallback={null}>

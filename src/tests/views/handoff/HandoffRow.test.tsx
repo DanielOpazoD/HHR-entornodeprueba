@@ -48,8 +48,8 @@ describe('HandoffRow', () => {
         </tbody>
       </table>
     );
-    // From 1 to 11 is 11 days (counting both ends)
-    expect(screen.getAllByText(/11d/i)).toHaveLength(2); // One mobile, one desktop
+    // Matches the daily census operational counter: elapsed calendar days, without adding one.
+    expect(screen.getAllByText(/10d/i)).toHaveLength(2); // One mobile, one desktop
   });
 
   it('displays status badge with correct color', () => {

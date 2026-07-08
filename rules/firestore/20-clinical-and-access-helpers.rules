@@ -21,6 +21,92 @@
       return canCreateReadableClinicalDocument();
     }
 
+    function canWriteMedicalIndicationRecord() {
+      return isAdmin() || isDoctor() || isDoctorSpecialist();
+    }
+
+    function hasOnlyMedicalIndicationRecordKeys(payload) {
+      return payload.keys().hasOnly([
+               'id',
+               'patientRut',
+               'patientName',
+               'episodeId',
+               'bedId',
+               'targetDate',
+               'generatedAt',
+               'generatedByUserId',
+               'generatedByName',
+               'generatedByRole',
+               'generatedFromTemplateIds',
+               'admissionDate',
+               'daysOfStayForTargetDate',
+               'treatingDoctor',
+               'reposo',
+               'regimen',
+               'kineType',
+               'kineTimes',
+               'pendingNotes',
+               'indications',
+               'pdfPrintedAt'
+             ]);
+    }
+
+    function hasRequiredMedicalIndicationRecordKeys(payload) {
+      return payload.keys().hasAll([
+               'id',
+               'patientRut',
+               'patientName',
+               'episodeId',
+               'bedId',
+               'targetDate',
+               'generatedAt',
+               'generatedByUserId',
+               'generatedByName',
+               'generatedFromTemplateIds',
+               'admissionDate',
+               'daysOfStayForTargetDate',
+               'treatingDoctor',
+               'reposo',
+               'regimen',
+               'kineType',
+               'kineTimes',
+               'pendingNotes',
+               'indications',
+               'pdfPrintedAt'
+             ]);
+    }
+
+    function isValidMedicalIndicationRecordCreate() {
+      let payload = request.resource.data;
+
+      return canWriteMedicalIndicationRecord() &&
+             isAuthenticated() &&
+             hasOnlyMedicalIndicationRecordKeys(payload) &&
+             hasRequiredMedicalIndicationRecordKeys(payload) &&
+             payload.id is string &&
+             payload.patientRut is string &&
+             payload.patientName is string &&
+             payload.episodeId is string &&
+             payload.bedId is string &&
+             payload.targetDate is string &&
+             payload.generatedAt is string &&
+             payload.generatedByUserId == request.auth.uid &&
+             payload.generatedByName is string &&
+             isOptionalEnum(payload, 'generatedByRole', ['admin', 'doctor_urgency', 'doctor_specialist']) &&
+             payload.generatedFromTemplateIds is list &&
+             payload.admissionDate is string &&
+             payload.daysOfStayForTargetDate is string &&
+             payload.treatingDoctor is string &&
+             payload.reposo is string &&
+             payload.regimen is string &&
+             payload.kineType in ['motora', 'respiratoria', 'ambas', 'ninguna'] &&
+             payload.kineTimes is string &&
+             payload.pendingNotes is string &&
+             payload.indications is list &&
+             payload.indications.size() > 0 &&
+             (payload.pdfPrintedAt == null || payload.pdfPrintedAt is string);
+    }
+
     function canManageCensusAccess() {
       return hasAnyEffectiveRole(['admin', 'editor']);
     }

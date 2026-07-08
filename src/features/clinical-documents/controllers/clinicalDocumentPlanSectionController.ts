@@ -1,8 +1,12 @@
 import {
-  convertPlainTextToClinicalDocumentHtml,
   normalizeClinicalDocumentContentForStorage,
   sanitizeClinicalDocumentHtml,
 } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
+import {
+  appendClinicalDocumentPlanIndicationLine,
+  getClinicalDocumentPlanNodeHtml,
+  normalizeClinicalDocumentPlanSubsectionContent,
+} from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionDom';
 import type {
   ClinicalDocumentSection,
   ClinicalDocumentSectionLayout,
@@ -66,64 +70,6 @@ const hasRecognizedPlanHeading = (value: string): boolean => {
   );
 };
 
-const normalizeSubsectionContent = (value: string): string => {
-  const normalized = normalizeClinicalDocumentContentForStorage(value).replace(/(<br>\s*)+$/i, '');
-  return normalized === '<br>' ? '' : normalized;
-};
-
-const appendClinicalDocumentPlanIndicationLine = (
-  currentContent: string,
-  indicationText: string
-): string => {
-  const trimmedText = indicationText.trim();
-  if (!trimmedText) {
-    return normalizeSubsectionContent(currentContent);
-  }
-
-  const normalizedCurrent = normalizeSubsectionContent(currentContent);
-  const nextLineHtml = `<div>${convertPlainTextToClinicalDocumentHtml(trimmedText)}</div>`;
-
-  if (!normalizedCurrent) {
-    return normalizeSubsectionContent(sanitizeClinicalDocumentHtml(nextLineHtml));
-  }
-
-  if (typeof document === 'undefined') {
-    return sanitizeClinicalDocumentHtml(`${normalizedCurrent}${nextLineHtml}`);
-  }
-
-  const container = document.createElement('div');
-  container.innerHTML = normalizedCurrent;
-
-  const removeTrailingEmptyNodes = () => {
-    while (container.lastChild) {
-      const lastNode = container.lastChild;
-      if (lastNode.nodeType === Node.TEXT_NODE && !(lastNode.textContent || '').trim()) {
-        container.removeChild(lastNode);
-        continue;
-      }
-
-      if (lastNode.nodeType === Node.ELEMENT_NODE) {
-        const wrapper = document.createElement('div');
-        wrapper.appendChild(lastNode.cloneNode(true));
-        const normalizedLastNode = normalizeSubsectionContent(wrapper.innerHTML);
-        if (!normalizedLastNode || normalizedLastNode === '<br>') {
-          container.removeChild(lastNode);
-          continue;
-        }
-      }
-      break;
-    }
-  };
-
-  removeTrailingEmptyNodes();
-
-  const template = document.createElement('template');
-  template.innerHTML = nextLineHtml;
-  container.appendChild(template.content.cloneNode(true));
-
-  return normalizeSubsectionContent(sanitizeClinicalDocumentHtml(container.innerHTML));
-};
-
 /**
  * Parses HTML content of a plan section into per-subsection content by detecting heading markers.
  * @param value - The raw HTML content of the plan section.
@@ -166,17 +112,16 @@ export const parseClinicalDocumentPlanSectionContent = (
     }
 
     if (!currentSubsectionId) {
-      subsectionNodes.generales.push(nodeToHtml(node));
+      subsectionNodes.generales.push(getClinicalDocumentPlanNodeHtml(node));
       return;
     }
 
-    subsectionNodes[currentSubsectionId].push(nodeToHtml(node));
+    subsectionNodes[currentSubsectionId].push(getClinicalDocumentPlanNodeHtml(node));
   });
 
   const parsed = Object.entries(subsectionNodes).reduce((accumulator, [subsectionId, chunks]) => {
-    accumulator[subsectionId as ClinicalDocumentPlanSubsectionId] = normalizeSubsectionContent(
-      chunks.join('').trim()
-    );
+    accumulator[subsectionId as ClinicalDocumentPlanSubsectionId] =
+      normalizeClinicalDocumentPlanSubsectionContent(chunks.join('').trim());
     return accumulator;
   }, createEmptyPlanSubsections());
 
@@ -185,23 +130,19 @@ export const parseClinicalDocumentPlanSectionContent = (
 
 /**
  * Determines whether a plan section should render as "unified" or "structured" layout.
+ *
+ * Default is `'unified'` (simplified, single editor). Legacy documents that
+ * already contain the recognized subsection headings stay as `'structured'` so
+ * pre-existing content keeps its 3-section shape. An explicit `section.layout`
+ * always wins over both inferences.
+ *
  * @param section - Section with content and optional layout override.
  * @returns The resolved layout mode.
  */
 export const resolveClinicalDocumentPlanSectionLayout = (
   section: Pick<ClinicalDocumentSection, 'content' | 'layout'>
 ): ClinicalDocumentSectionLayout =>
-  section.layout ||
-  (section.content.trim() && !hasRecognizedPlanHeading(section.content) ? 'unified' : 'structured');
-
-const nodeToHtml = (node: ChildNode): string => {
-  if (typeof document === 'undefined') {
-    return '';
-  }
-  const wrapper = document.createElement('div');
-  wrapper.appendChild(node.cloneNode(true));
-  return wrapper.innerHTML;
-};
+  section.layout || (hasRecognizedPlanHeading(section.content) ? 'structured' : 'unified');
 
 const buildHeadingHtml = (title: string): string => `<div><strong>${title}</strong></div>`;
 
@@ -216,7 +157,7 @@ export const buildClinicalDocumentPlanSectionContent = (
   const normalized = Object.fromEntries(
     Object.entries(subsections).map(([subsectionId, content]) => [
       subsectionId,
-      normalizeSubsectionContent(content),
+      normalizeClinicalDocumentPlanSubsectionContent(content),
     ])
   ) as Record<ClinicalDocumentPlanSubsectionId, string>;
 
@@ -268,7 +209,9 @@ export const buildUnifiedClinicalDocumentPlanSectionContent = (value: string): s
     .filter(content => Boolean(content.trim()))
     .join('<div><br></div>');
 
-  return normalizeSubsectionContent(sanitizeClinicalDocumentHtml(mergedContent));
+  return normalizeClinicalDocumentPlanSubsectionContent(
+    sanitizeClinicalDocumentHtml(mergedContent)
+  );
 };
 
 /**
@@ -311,6 +254,16 @@ export const appendClinicalDocumentPlanSubsectionText = (
     [subsectionId]: appendClinicalDocumentPlanIndicationLine(parsed[subsectionId], text),
   });
 };
+
+/**
+ * Appends a plain-text indication to the simplified one-box plan layout without
+ * rebuilding the three structured subsection headings.
+ */
+export const appendClinicalDocumentUnifiedPlanText = (value: string, text: string): string =>
+  appendClinicalDocumentPlanIndicationLine(
+    buildUnifiedClinicalDocumentPlanSectionContent(value),
+    text
+  );
 
 /** Returns the display title for a plan subsection (e.g. "Indicaciones generales"). */
 export const getClinicalDocumentPlanSubsectionTitle = (

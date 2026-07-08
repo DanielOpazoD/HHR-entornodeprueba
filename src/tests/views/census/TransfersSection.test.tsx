@@ -50,6 +50,11 @@ describe('TransfersSection', () => {
     }),
   ];
 
+  const clickTransferAction = (name: RegExp | string) => {
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name }));
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useCensusActionCommands).mockReturnValue({
@@ -95,15 +100,15 @@ describe('TransfersSection', () => {
     expect(screen.getByText(content => content.includes('Nurse X'))).toBeInTheDocument();
     expect(screen.getByText('(11-12-2024)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    clickTransferAction(/deshacer/i);
     await waitFor(() => {
       expect(mockOnUndo).toHaveBeenCalledWith('t1');
     });
 
-    fireEvent.click(screen.getByTitle('Editar'));
+    clickTransferAction(/editar/i);
     expect(mockHandleEdit).toHaveBeenCalledWith(mockTransfers[0]);
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    clickTransferAction(/eliminar registro/i);
     await waitFor(() => {
       expect(mockOnDelete).toHaveBeenCalledWith('t1');
     });
@@ -168,7 +173,7 @@ describe('TransfersSection', () => {
     expect(screen.getByText('(12-12-2024)')).toBeInTheDocument();
   });
 
-  it('does not execute undo/delete when confirmation is rejected and ignores re-entrant click', async () => {
+  it('does not execute undo/delete when confirmation is rejected', async () => {
     mockConfirm.mockResolvedValue(false);
     vi.mocked(useDailyRecordMovements).mockReturnValue({
       transfers: mockTransfers,
@@ -178,11 +183,16 @@ describe('TransfersSection', () => {
 
     render(<TransfersSection />);
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    clickTransferAction(/deshacer/i);
 
     await waitFor(() => {
       expect(mockConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    clickTransferAction(/eliminar registro/i);
+
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalledTimes(2);
     });
     expect(mockOnUndo).not.toHaveBeenCalled();
     expect(mockOnDelete).not.toHaveBeenCalled();
@@ -198,7 +208,7 @@ describe('TransfersSection', () => {
 
     render(<TransfersSection />);
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    clickTransferAction(/deshacer/i);
 
     await waitFor(() => {
       expect(mockNotifyError).toHaveBeenCalledWith(

@@ -143,7 +143,7 @@ describe('clinicalDocumentBrowserPrintService', () => {
     `;
 
     const opened = await openClinicalDocumentBrowserPrintPreview(
-      'Anexo clínico',
+      'Anexo del documento',
       'epicrisis',
       undefined,
       {

@@ -274,3 +274,126 @@ describe('medicalSpecialtyHandoffController', () => {
     expect(tabStates).toHaveLength(6);
   });
 });
+
+// ===========================================================================
+// Branch coverage backfill for the controller's small pure helpers.
+// Targets the read-only / no-claim / fallback / role-table branches that
+// the integrated specs above exercise only along the happy path.
+// ===========================================================================
+describe('medicalSpecialtyHandoffController — branch coverage backfill', () => {
+  describe('resolveMedicalSpecialtyDailyStatus', () => {
+    it('returns "pending" when the note is undefined', () => {
+      expect(resolveMedicalSpecialtyDailyStatus(undefined, '2026-05-03')).toBe('pending');
+    });
+
+    it('returns "pending" when neither updatedAt nor continuity matches the date', () => {
+      const note = {
+        note: 'X',
+        updatedAt: '2026-04-30T12:00:00Z',
+        dailyContinuity: { '2026-05-02': { status: 'updated_by_specialist' } },
+      } as unknown as Parameters<typeof resolveMedicalSpecialtyDailyStatus>[0];
+      expect(resolveMedicalSpecialtyDailyStatus(note, '2026-05-03')).toBe('pending');
+    });
+
+    it('returns "confirmed_no_changes" when continuity for the date confirms it', () => {
+      const note = {
+        note: 'X',
+        updatedAt: '2026-04-30T12:00:00Z',
+        dailyContinuity: { '2026-05-03': { status: 'confirmed_no_changes' } },
+      } as unknown as Parameters<typeof resolveMedicalSpecialtyDailyStatus>[0];
+      expect(resolveMedicalSpecialtyDailyStatus(note, '2026-05-03')).toBe('confirmed_no_changes');
+    });
+
+    it('returns "updated_by_specialist" via continuity when updatedAt is on a different date', () => {
+      const note = {
+        note: 'X',
+        updatedAt: '2026-04-30T12:00:00Z',
+        dailyContinuity: { '2026-05-03': { status: 'updated_by_specialist' } },
+      } as unknown as Parameters<typeof resolveMedicalSpecialtyDailyStatus>[0];
+      expect(resolveMedicalSpecialtyDailyStatus(note, '2026-05-03')).toBe('updated_by_specialist');
+    });
+
+    it('returns "pending" when updatedAt is missing and no continuity exists', () => {
+      const note = { note: 'X' } as Parameters<typeof resolveMedicalSpecialtyDailyStatus>[0];
+      expect(resolveMedicalSpecialtyDailyStatus(note, '2026-05-03')).toBe('pending');
+    });
+  });
+
+  describe('resolveActiveMedicalSpecialty', () => {
+    it('returns the active specialty when it is in the editable list', () => {
+      expect(
+        resolveActiveMedicalSpecialty({
+          activeSpecialty: 'cirugia',
+          editableSpecialties: ['cirugia', 'pediatria'],
+        })
+      ).toBe('cirugia');
+    });
+
+    it('falls back to the first editable when active is not in the editable list', () => {
+      expect(
+        resolveActiveMedicalSpecialty({
+          activeSpecialty: 'pediatria',
+          editableSpecialties: ['cirugia', 'traumatologia'],
+        })
+      ).toBe('cirugia');
+    });
+
+    it('returns the active specialty when there is no editable list (read-only mode)', () => {
+      expect(
+        resolveActiveMedicalSpecialty({
+          activeSpecialty: 'cirugia',
+          editableSpecialties: [],
+        })
+      ).toBe('cirugia');
+    });
+  });
+
+  describe('buildMedicalSpecialtyActor', () => {
+    it('builds an actor with all four fields when the user has email and displayName', () => {
+      expect(
+        buildMedicalSpecialtyActor(
+          {
+            uid: 'u1',
+            email: 'doctor@hospital.cl',
+            displayName: 'Dra. X',
+          } as Parameters<typeof buildMedicalSpecialtyActor>[0],
+          'doctor_hospital'
+        )
+      ).toEqual({
+        uid: 'u1',
+        email: 'doctor@hospital.cl',
+        displayName: 'Dra. X',
+        role: 'doctor_hospital',
+      });
+    });
+
+    it('falls back to email as displayName when displayName is empty', () => {
+      expect(
+        buildMedicalSpecialtyActor(
+          { uid: 'u1', email: 'doctor@hospital.cl', displayName: '' } as Parameters<
+            typeof buildMedicalSpecialtyActor
+          >[0],
+          'doctor_hospital'
+        ).displayName
+      ).toBe('doctor@hospital.cl');
+    });
+
+    it('returns undefined fields when the user is null', () => {
+      expect(buildMedicalSpecialtyActor(null, 'doctor_hospital')).toEqual({
+        uid: undefined,
+        email: undefined,
+        displayName: undefined,
+        role: 'doctor_hospital',
+      });
+    });
+
+    it('returns undefined fields when the user is undefined and role is omitted', () => {
+      expect(buildMedicalSpecialtyActor(undefined)).toEqual({
+        uid: undefined,
+        email: undefined,
+        displayName: undefined,
+        role: undefined,
+      });
+    });
+  });
+});

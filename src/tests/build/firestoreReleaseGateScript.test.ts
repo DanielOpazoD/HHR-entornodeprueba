@@ -10,7 +10,10 @@ describe('firestore release gate script', () => {
     const script = readReleaseGateScript().replace(/\s+/g, ' ');
 
     expect(script).toContain(
-      'npm run test:e2e:critical && npm run test:e2e:flow-performance:built && npm run check:flow-performance-budget'
+      'npm run test:e2e:critical && node scripts/check-playwright-report-clean.mjs'
+    );
+    expect(script).toContain(
+      '&& npm run test:e2e:flow-performance:built && npm run check:flow-performance-budget'
     );
   });
 });

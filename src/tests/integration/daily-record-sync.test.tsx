@@ -311,6 +311,38 @@ describe('DailyRecord Sync Integration', () => {
     });
   });
 
+  it('passes the loaded record timestamp as the full-save concurrency token', async () => {
+    const { result } = renderHook(() => useDailyRecordSyncQuery('2024-12-28', false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    const newRecord = createMockRecord('2024-12-28');
+    newRecord.lastUpdated = '2024-12-28T12:00:00.000Z';
+    newRecord.cma = [
+      {
+        id: 'cma-local',
+        bedName: 'CMA',
+        patientName: 'Paciente CMA',
+        rut: '11.111.111-1',
+        age: '40a',
+        diagnosis: 'Procedimiento CMA',
+        specialty: 'Cirugia',
+        interventionType: 'Cirugía Mayor Ambulatoria',
+        timestamp: '2024-12-28T12:01:00.000Z',
+      },
+    ];
+
+    await waitFor(() => expect(result.current.syncStatus).toBe('idle'));
+
+    await act(async () => {
+      await result.current.saveAndUpdate(newRecord);
+    });
+
+    expect(mockDailyRecordRepositoryPort.saveDetailed).toHaveBeenCalledWith(
+      newRecord,
+      '2024-12-28T12:00:00.000Z'
+    );
+  });
+
   it('should perform patch update and keep state in sync', async () => {
     const initialRecord = createMockRecord('2024-12-28');
     mockGetForDate.mockReturnValue(initialRecord);

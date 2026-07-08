@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const readSetup = () => fs.readFileSync(path.join(process.cwd(), 'src/tests/setup.ts'), 'utf8');
-
 const EXPECTED_NOISY_CONSOLE_PATTERNS = [
   '[IndexedDB]',
   '[Migration]',
@@ -63,6 +61,8 @@ const EXPECTED_NOISY_CONSOLE_PATTERNS = [
   '[PrintTemplateRepository] Error fetching template',
   '[PrintTemplateRepository] Error subscribing to template',
   '[FirestoreWrites] Firestore write failed:',
+  '[FirestoreWrites] Firestore write retry:',
+  'GrpcConnection RPC',
   '[CensusAccessService] Error getting authorized emails',
   '[CensusAccessService] Error checking email authorization',
   '[JsonImport] JSON import failed',
@@ -71,7 +71,9 @@ const EXPECTED_NOISY_CONSOLE_PATTERNS = [
 ] as const;
 
 const extractAllowedPatterns = (setup: string) => {
-  const match = setup.match(/const allowedNoisyConsolePatterns = \[(?<body>[\s\S]*?)\];/);
+  const match = setup.match(
+    /export const ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS = \[(?<body>[\s\S]*?)\] as const;/
+  );
   if (!match?.groups?.body) return [];
 
   return [...match.groups.body.matchAll(/^\s*'(?<pattern>[^']+)',\s*$/gm)].map(
@@ -79,16 +81,37 @@ const extractAllowedPatterns = (setup: string) => {
   );
 };
 
+const readProjectFile = (relativePath: string) =>
+  fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+
 describe('test setup console noise filter', () => {
   it('keeps the expected operational-noise filters explicit and reviewed', () => {
-    const setup = readSetup();
-    const allowedPatterns = extractAllowedPatterns(setup);
+    const sharedFilter = readProjectFile('src/tests/utils/operationalConsoleNoiseFilter.ts');
+    const allowedPatterns = extractAllowedPatterns(sharedFilter);
 
     expect(allowedPatterns).toEqual(EXPECTED_NOISY_CONSOLE_PATTERNS);
 
-    expect(setup).not.toContain("'Firestore query failed'");
-    expect(setup).not.toContain("'Firebase bootstrap failed'");
-    expect(setup).not.toContain("'Network error'");
-    expect(setup).not.toContain("'Error'");
+    expect(sharedFilter).not.toContain("'Firestore query failed'");
+    expect(sharedFilter).not.toContain("'Firebase bootstrap failed'");
+    expect(sharedFilter).not.toContain("'Network error'");
+    expect(sharedFilter).not.toContain("'Error'");
+  });
+
+  it('shares the operational-noise filter with unit and emulator UI setup', () => {
+    const unitSetup = readProjectFile('src/tests/setup.ts');
+    const emulatorConfig = readProjectFile('vitest.emulator.config.ts');
+    const emulatorSetup = readProjectFile('src/tests/emulator/setup.ts');
+    const emulatorUiSetup = readProjectFile('src/tests/emulator-ui/setup.ts');
+    const sharedFilter = readProjectFile('src/tests/utils/operationalConsoleNoiseFilter.ts');
+
+    expect(sharedFilter).toContain('export const ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS');
+    expect(sharedFilter).toContain('export const shouldFilterOperationalConsoleMessage');
+    expect(sharedFilter).toContain('export const wrapConsoleForOperationalNoise');
+    expect(unitSetup).toContain(
+      "wrapConsoleForOperationalNoise(['log', 'warn', 'error', 'info', 'debug'])"
+    );
+    expect(emulatorConfig).toContain("setupFiles: ['./src/tests/emulator/setup.ts']");
+    expect(emulatorSetup).toContain("wrapConsoleForOperationalNoise(['warn', 'error'])");
+    expect(emulatorUiSetup).toContain("wrapConsoleForOperationalNoise(['warn', 'error'])");
   });
 });

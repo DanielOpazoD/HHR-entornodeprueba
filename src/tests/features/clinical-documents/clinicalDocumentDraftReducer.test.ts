@@ -253,6 +253,79 @@ describe('clinicalDocumentDraftReducer', () => {
     expect(matchingAutosave.pendingRemoteState.document).toBeNull();
   });
 
+  it('keeps a staged remote update visible after restoring template content locally', () => {
+    const document = buildDocument();
+    document.sections = document.sections.map(section =>
+      section.id === 'antecedentes'
+        ? { ...section, content: '<p>Contenido local que se va a restaurar</p>' }
+        : section
+    );
+    const remote = {
+      ...document,
+      audit: {
+        ...document.audit,
+        updatedAt: '2026-03-06T13:15:00.000Z',
+      },
+    };
+
+    const loaded = clinicalDocumentDraftReducer(createClinicalDocumentDraftReducerInitialState(), {
+      type: 'LOAD_DOCUMENT',
+      document,
+      snapshot: JSON.stringify(document),
+    });
+    const staged = clinicalDocumentDraftReducer(loaded, {
+      type: 'REMOTE_UPDATE_RECEIVED',
+      document: remote,
+      snapshot: JSON.stringify(remote),
+    });
+    const restored = clinicalDocumentDraftReducer(staged, {
+      type: 'RESTORE_TEMPLATE_CONTENT',
+    });
+
+    expect(restored.hasPendingRemoteUpdate).toBe(true);
+    expect(restored.pendingRemoteState.document?.audit.updatedAt).toBe('2026-03-06T13:15:00.000Z');
+    expect(restored.draft?.sections.every(section => section.content === '')).toBe(true);
+  });
+
+  it('swaps the visible draft without clearing base or staged remote state', () => {
+    const document = buildDocument();
+    const visibleReplacement = {
+      ...buildDocument(),
+      id: `${document.id}-visible-replacement`,
+      title: 'Borrador visible alternativo',
+    };
+    const remote = {
+      ...document,
+      audit: {
+        ...document.audit,
+        updatedAt: '2026-03-06T13:30:00.000Z',
+      },
+    };
+    const originalSnapshot = JSON.stringify(document);
+
+    const loaded = clinicalDocumentDraftReducer(createClinicalDocumentDraftReducerInitialState(), {
+      type: 'LOAD_DOCUMENT',
+      document,
+      snapshot: originalSnapshot,
+    });
+    const staged = clinicalDocumentDraftReducer(loaded, {
+      type: 'REMOTE_UPDATE_RECEIVED',
+      document: remote,
+      snapshot: JSON.stringify(remote),
+    });
+    const swapped = clinicalDocumentDraftReducer(staged, {
+      type: 'LOAD_DOCUMENT',
+      document: visibleReplacement,
+      snapshot: JSON.stringify(visibleReplacement),
+      commitAsBase: false,
+    });
+
+    expect(swapped.draft?.title).toBe('Borrador visible alternativo');
+    expect(swapped.baseState.snapshot).toBe(originalSnapshot);
+    expect(swapped.hasPendingRemoteUpdate).toBe(true);
+    expect(swapped.pendingRemoteState.document?.audit.updatedAt).toBe('2026-03-06T13:30:00.000Z');
+  });
+
   it('restores the original template structure while preserving patient values', () => {
     const document = buildDocument();
     document.title = 'Título manual';

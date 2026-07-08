@@ -10,9 +10,11 @@ export interface SyncQueueTelemetry {
   retrying: number;
   orphanedTasks?: number;
   oldestPendingAgeMs: number;
+  oldestDirectQueueAgeMs?: number;
   batchSize: number;
   pendingBudgetState?: SyncQueueBudgetState;
   oldestPendingBudgetState: SyncQueueBudgetState;
+  directQueueBudgetState?: SyncQueueBudgetState;
   retryingBudgetState: SyncQueueBudgetState;
   runtimeState: SyncQueueRuntimeState;
   readState?: 'ok' | 'unavailable';

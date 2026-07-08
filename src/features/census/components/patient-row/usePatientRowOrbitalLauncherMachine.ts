@@ -12,7 +12,7 @@
  *     interaction began). The trigger fades in and is clickable.
  *   - **open**: the user clicked the trigger; the action stack is visible.
  *   - **closing**: the pointer left and no grace period saved it.
- *     A brief visual fade plays before resetting to idle.
+ *     The trigger is hidden immediately while the state resets.
  *
  * Timing constants (`REVEAL_DELAY_MS`, `CLOSE_RESET_DELAY_MS`) control
  * how quickly transitions happen. They are exported so integration tests
@@ -55,7 +55,8 @@ export const REVEAL_DELAY_MS = 0;
 
 /**
  * Delay before the closing phase resets back to idle (ms).
- * Kept short so the launcher feels snappy but still plays its exit animation.
+ * Kept short so ownership/state cleanup remains snappy without leaving
+ * visible hover ghosts when the pointer sweeps across many rows.
  */
 export const CLOSE_RESET_DELAY_MS = 50;
 
@@ -187,6 +188,6 @@ export const usePatientRowOrbitalLauncherMachine = ({
 
   return {
     phase,
-    showTrigger: !supportsHoverFine || phase !== 'idle',
+    showTrigger: !supportsHoverFine || (phase !== 'idle' && phase !== 'closing'),
   };
 };

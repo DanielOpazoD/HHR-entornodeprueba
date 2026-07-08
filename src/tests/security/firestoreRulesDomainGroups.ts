@@ -13,8 +13,11 @@ export function registerFirestoreRulesDomainGroups({
   specialistWithoutClaim,
   doctorWithoutClaim,
   editor,
+  firestoreForUser,
   NOW_MS,
+  CURRENT_RECORD_DATE,
   setupDoc,
+  setupDocBypass,
 }: FirestoreRulesHarness): void {
   describe('Clinical Documents Collection', () => {
     const clinicalDocumentPath = 'hospitals/H1/clinicalDocuments/doc-1';
@@ -155,18 +158,233 @@ export function registerFirestoreRulesDomainGroups({
       );
     });
 
-    it('Delete is allowed for clinical editor roles and denied for viewer', async () => {
+    it('Delete is globally allowed only for admin and denied for non-author clinical roles', async () => {
       await setupDoc(admin(), clinicalDocumentPath, clinicalDocumentPayload);
-      await assertSucceeds(doctor().doc(clinicalDocumentPath).delete());
+      await assertSucceeds(admin().doc(clinicalDocumentPath).delete());
 
       await setupDoc(admin(), clinicalDocumentPath, clinicalDocumentPayload);
-      await assertSucceeds(nurse().doc(clinicalDocumentPath).delete());
+      await assertFails(doctor().doc(clinicalDocumentPath).delete());
 
       await setupDoc(admin(), clinicalDocumentPath, clinicalDocumentPayload);
-      await assertSucceeds(editor().doc(clinicalDocumentPath).delete());
+      await assertFails(nurse().doc(clinicalDocumentPath).delete());
+
+      await setupDoc(admin(), clinicalDocumentPath, clinicalDocumentPayload);
+      await assertFails(editor().doc(clinicalDocumentPath).delete());
 
       await setupDoc(admin(), clinicalDocumentPath, clinicalDocumentPayload);
       await assertFails(authed().doc(clinicalDocumentPath).delete());
+    });
+
+    it('Document authors can delete their own active unlocked clinical document', async () => {
+      await setupDoc(admin(), clinicalDocumentPath, {
+        ...clinicalDocumentPayload,
+        isActiveEpisodeDocument: true,
+        isLocked: false,
+        audit: {
+          ...clinicalDocumentPayload.audit,
+          createdBy: {
+            uid: 'user_specialist',
+            email: 'specialist@example.com',
+            displayName: 'Especialista Test',
+            role: 'doctor_specialist',
+          },
+        },
+      });
+
+      await assertSucceeds(specialist().doc(clinicalDocumentPath).delete());
+
+      await setupDoc(admin(), clinicalDocumentPath, {
+        ...clinicalDocumentPayload,
+        isActiveEpisodeDocument: true,
+        isLocked: true,
+        audit: {
+          ...clinicalDocumentPayload.audit,
+          createdBy: {
+            uid: 'user_specialist',
+            email: 'specialist@example.com',
+            displayName: 'Especialista Test',
+            role: 'doctor_specialist',
+          },
+        },
+      });
+
+      await assertFails(specialist().doc(clinicalDocumentPath).delete());
+
+      await setupDoc(admin(), clinicalDocumentPath, {
+        ...clinicalDocumentPayload,
+        isActiveEpisodeDocument: true,
+        isLocked: true,
+        audit: {
+          ...clinicalDocumentPayload.audit,
+          createdBy: {
+            uid: 'user_specialist',
+            email: 'specialist@example.com',
+            displayName: 'Especialista Test',
+            role: 'doctor_specialist',
+          },
+        },
+      });
+
+      await assertSucceeds(admin().doc(clinicalDocumentPath).delete());
+    });
+
+    it('Document authors can delete by email when a legacy uid no longer matches', async () => {
+      await setupDoc(admin(), clinicalDocumentPath, {
+        ...clinicalDocumentPayload,
+        isActiveEpisodeDocument: true,
+        isLocked: false,
+        audit: {
+          ...clinicalDocumentPayload.audit,
+          createdBy: {
+            uid: 'legacy_specialist_uid',
+            email: 'specialist@example.com',
+            displayName: 'Especialista Test',
+            role: 'doctor_specialist',
+          },
+        },
+      });
+
+      await assertSucceeds(
+        firestoreForUser('rotated_specialist_uid', {
+          email: 'specialist@example.com',
+          role: 'doctor_specialist',
+        })
+          .doc(clinicalDocumentPath)
+          .delete()
+      );
+
+      await setupDoc(admin(), clinicalDocumentPath, {
+        ...clinicalDocumentPayload,
+        isActiveEpisodeDocument: true,
+        isLocked: false,
+        audit: {
+          ...clinicalDocumentPayload.audit,
+          createdBy: {
+            uid: 'legacy_specialist_uid',
+            email: 'unconfigured.author@example.com',
+            displayName: 'Especialista Test',
+            role: 'doctor_specialist',
+          },
+        },
+      });
+
+      await assertFails(
+        firestoreForUser('other_specialist_uid', {
+          email: 'other.specialist@example.com',
+          role: 'doctor_specialist',
+        })
+          .doc(clinicalDocumentPath)
+          .delete()
+      );
+
+      await assertFails(
+        firestoreForUser('viewer_with_author_email', {
+          email: 'unconfigured.author@example.com',
+          role: 'viewer',
+        })
+          .doc(clinicalDocumentPath)
+          .delete()
+      );
+    });
+  });
+
+  describe('Clinical Attachments Collection', () => {
+    const clinicalAttachmentPath = 'hospitals/H1/clinicalAttachments/att-1';
+    const clinicalAttachmentPayload = {
+      id: 'att-1',
+      hospitalId: 'H1',
+      patientRut: '15.789.482-4',
+      patientRutKey: '15789482-4',
+      patientName: 'Paciente Test',
+      episodeKey: '157894824__2026-03-04',
+      documentId: 'doc-1',
+      documentType: 'epicrisis',
+      storagePath: 'clinical-attachments/H1/15789482-4/157894824__2026-03-04/att-1/informe.pdf',
+      downloadUrl: 'https://example.test/informe.pdf',
+      originalFileName: 'informe.pdf',
+      displayName: 'informe.pdf',
+      contentType: 'application/pdf',
+      fileKind: 'pdf',
+      sizeBytes: 1024,
+      status: 'active',
+      createdAt: new Date(NOW_MS).toISOString(),
+      createdBy: {
+        uid: 'user_doctor',
+        email: 'doctor@example.com',
+        displayName: 'Doctor Test',
+        role: 'doctor_urgency',
+      },
+      updatedAt: new Date(NOW_MS).toISOString(),
+      updatedBy: {
+        uid: 'user_doctor',
+        email: 'doctor@example.com',
+        displayName: 'Doctor Test',
+        role: 'doctor_urgency',
+      },
+    };
+
+    it('allows clinical write roles to create attachment metadata', async () => {
+      await assertSucceeds(doctor().doc(clinicalAttachmentPath).set(clinicalAttachmentPayload));
+      await assertSucceeds(
+        specialist()
+          .doc('hospitals/H1/clinicalAttachments/att-specialist')
+          .set({
+            ...clinicalAttachmentPayload,
+            id: 'att-specialist',
+          })
+      );
+      await assertSucceeds(
+        nurse()
+          .doc('hospitals/H1/clinicalAttachments/att-nurse')
+          .set({
+            ...clinicalAttachmentPayload,
+            id: 'att-nurse',
+          })
+      );
+      await assertSucceeds(
+        editor()
+          .doc('hospitals/H1/clinicalAttachments/att-editor')
+          .set({
+            ...clinicalAttachmentPayload,
+            id: 'att-editor',
+          })
+      );
+    });
+
+    it('allows clinical write roles to mark attachment metadata as deleted', async () => {
+      await setupDoc(admin(), clinicalAttachmentPath, clinicalAttachmentPayload);
+
+      await assertSucceeds(
+        doctor()
+          .doc(clinicalAttachmentPath)
+          .update({
+            status: 'deleted',
+            deletedAt: new Date(NOW_MS + 1).toISOString(),
+            updatedAt: new Date(NOW_MS + 1).toISOString(),
+          })
+      );
+    });
+
+    it('keeps viewers read-only for attachment metadata', async () => {
+      await setupDoc(admin(), clinicalAttachmentPath, clinicalAttachmentPayload);
+
+      await assertSucceeds(authed().doc(clinicalAttachmentPath).get());
+      await assertFails(
+        authed()
+          .doc('hospitals/H1/clinicalAttachments/att-viewer')
+          .set({
+            ...clinicalAttachmentPayload,
+            id: 'att-viewer',
+          })
+      );
+      await assertFails(
+        authed()
+          .doc(clinicalAttachmentPath)
+          .update({
+            status: 'deleted',
+            updatedAt: new Date(NOW_MS + 1).toISOString(),
+          })
+      );
     });
   });
 
@@ -287,6 +505,165 @@ export function registerFirestoreRulesDomainGroups({
     it('Non-admins cannot update backup files', async () => {
       await setupDoc(admin(), backupPath, { name: 'file.pdf' });
       await assertFails(authed().doc(backupPath).update({ name: 'file-v2.pdf' }));
+    });
+  });
+
+  describe('Medical Indications Collections', () => {
+    const templatePath = 'hospitals/H1/medicalIndicationTemplates/user_doctor/items/tpl-1';
+    const recordPath = 'hospitals/H1/medicalIndicationRecords/record-1';
+    const templatePayload = {
+      id: 'tpl-1',
+      userId: 'user_doctor',
+      text: 'Control de signos vitales cada 6 horas',
+      createdAt: new Date(NOW_MS).toISOString(),
+      updatedAt: new Date(NOW_MS).toISOString(),
+      createdByName: 'Doctor Test',
+      useCount: 0,
+      isArchived: false,
+    };
+    const recordPayload = {
+      id: 'record-1',
+      patientRut: '15.789.482-4',
+      patientName: 'Paciente Test',
+      episodeId: 'ep_test',
+      bedId: 'R1',
+      targetDate: CURRENT_RECORD_DATE,
+      generatedAt: new Date(NOW_MS).toISOString(),
+      generatedByUserId: 'user_doctor',
+      generatedByName: 'Doctor Test',
+      generatedByRole: 'doctor_urgency',
+      generatedFromTemplateIds: [],
+      admissionDate: CURRENT_RECORD_DATE,
+      daysOfStayForTargetDate: '1',
+      treatingDoctor: 'Doctor Test',
+      reposo: 'Relativo',
+      regimen: 'Liviano',
+      kineType: 'ninguna',
+      kineTimes: '',
+      pendingNotes: '',
+      indications: ['Control'],
+      pdfPrintedAt: null,
+    };
+
+    it('users can manage only their own personal medical indication templates', async () => {
+      await assertSucceeds(doctor().doc(templatePath).set(templatePayload));
+      await assertSucceeds(
+        doctor()
+          .doc(templatePath)
+          .update({
+            text: 'Control cada 8 horas',
+            updatedAt: new Date(NOW_MS + 1).toISOString(),
+            userId: 'user_doctor',
+          })
+      );
+
+      await assertFails(
+        specialist()
+          .doc(templatePath)
+          .set({ ...templatePayload, id: 'tpl-other' })
+      );
+      await assertFails(
+        doctor()
+          .doc('hospitals/H1/medicalIndicationTemplates/user_specialist/items/tpl-2')
+          .set({ ...templatePayload, id: 'tpl-2', userId: 'user_doctor' })
+      );
+    });
+
+    it('clinical write doctors can create generated medical indication records', async () => {
+      await assertSucceeds(doctor().doc(recordPath).set(recordPayload));
+      await assertSucceeds(
+        specialist()
+          .doc('hospitals/H1/medicalIndicationRecords/record-specialist')
+          .set({
+            ...recordPayload,
+            id: 'record-specialist',
+            generatedByUserId: 'user_specialist',
+            generatedByRole: 'doctor_specialist',
+          })
+      );
+      await assertSucceeds(
+        admin()
+          .doc('hospitals/H1/medicalIndicationRecords/record-admin')
+          .set({
+            ...recordPayload,
+            id: 'record-admin',
+            generatedByUserId: 'user_admin',
+            generatedByRole: 'admin',
+          })
+      );
+    });
+
+    it('rejects generated medical indication records with forged author identity or malformed payloads', async () => {
+      await assertFails(
+        doctor()
+          .doc('hospitals/H1/medicalIndicationRecords/record-forged')
+          .set({
+            ...recordPayload,
+            id: 'record-forged',
+            generatedByUserId: 'user_specialist',
+            generatedByName: 'Especialista Falso',
+          })
+      );
+      await assertFails(
+        doctor()
+          .doc('hospitals/H1/medicalIndicationRecords/record-malformed')
+          .set({
+            ...recordPayload,
+            id: 'record-malformed',
+            generatedByUserId: 'user_doctor',
+            generatedAt: NOW_MS,
+            indications: [],
+            extraDebugField: 'no debería persistir',
+          })
+      );
+    });
+
+    it('generated medical indication records are readable but append-only', async () => {
+      await setupDoc(admin(), recordPath, {
+        ...recordPayload,
+        generatedByUserId: 'user_admin',
+        generatedByRole: 'admin',
+      });
+
+      await assertSucceeds(nurse().doc(recordPath).get());
+      await assertSucceeds(authed().doc(recordPath).get());
+      await assertFails(
+        nurse().doc('hospitals/H1/medicalIndicationRecords/record-nurse').set(recordPayload)
+      );
+      await assertFails(doctor().doc(recordPath).update({ pendingNotes: 'Cambio posterior' }));
+      await assertFails(admin().doc(recordPath).delete());
+    });
+  });
+
+  describe('Analytics Specialty Reclassifications', () => {
+    const reclassificationPath =
+      'hospitals/H1/analyticsSpecialtyReclassifications/2026-03-05_discharge_d-1';
+    const reclassificationPayload = {
+      date: CURRENT_RECORD_DATE,
+      movementKind: 'discharge',
+      movementId: 'd-1',
+      originalSpecialty: 'Oftalmología',
+      reportingSpecialty: 'Cirugía',
+      active: true,
+      updatedAt: new Date(NOW_MS).toISOString(),
+      updatedByUid: 'user_admin',
+      updatedByEmail: 'admin@example.com',
+    };
+
+    it('clinical users can read official statistical specialty reclassifications', async () => {
+      await setupDocBypass(reclassificationPath, reclassificationPayload);
+
+      await assertSucceeds(nurse().doc(reclassificationPath).get());
+      await assertSucceeds(specialist().doc(reclassificationPath).get());
+    });
+
+    it('clients cannot write statistical specialty reclassifications directly', async () => {
+      await assertFails(admin().doc(reclassificationPath).set(reclassificationPayload));
+      await assertFails(nurse().doc(reclassificationPath).set(reclassificationPayload));
+
+      await setupDocBypass(reclassificationPath, reclassificationPayload);
+      await assertFails(admin().doc(reclassificationPath).update({ reportingSpecialty: 'Otro' }));
+      await assertFails(admin().doc(reclassificationPath).delete());
     });
   });
 }

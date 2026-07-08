@@ -4,6 +4,7 @@ import type {
   LabMicrobiologyEntry,
 } from '@/types/domain/labAnalyticsTypes';
 import { MICROBIOLOGY_PATTERNS } from '../constants/labExamConstants';
+import { MICROBIOLOGY_CATEGORY_RULES } from '../constants/labMicrobiologyRuleConstants';
 
 export const hasMicrobiologyPattern = (value: string): boolean => {
   const upper = value.toUpperCase();
@@ -17,124 +18,30 @@ const getMicrobiologyCategoryMatchScore = (
   category: LabMicrobiologyCategory,
   finding: LabResultRow
 ): number => {
-  const signature = `${finding.analysis} ${finding.result}`.toUpperCase();
+  const signature = `${finding.section} ${finding.analysis} ${finding.result}`.toUpperCase();
+  const rule = MICROBIOLOGY_CATEGORY_RULES[category];
 
-  switch (category) {
-    case 'clostridium_difficile':
-      if (
-        signature.includes('CLOSTRIDIUM') ||
-        signature.includes('TOXINA') ||
-        signature.includes('PRESENCIA DEL AG')
-      ) {
-        return 3;
-      }
-      return 0;
-    case 'coprocultivo':
-      if (
-        signature.includes('COPROCULTIVO') ||
-        signature.includes('SALMONELLA') ||
-        signature.includes('SHIGELLA')
-      ) {
-        return 3;
-      }
-      if (signature.includes('LEUCOCITOS FECALES')) return 2;
-      return 0;
-    case 'pcr_8_virus':
-      if (
-        signature.includes('INFLUENZA') ||
-        signature.includes('PARAINFLUENZA') ||
-        signature.includes('METAPNEUMOVIRUS') ||
-        signature.includes('RHINOVIRUS') ||
-        signature.includes('RINOVIRUS') ||
-        signature.includes('SINCICIAL') ||
-        signature.includes('ADENOVIRUS') ||
-        signature.includes('SARS') ||
-        signature.includes('CORONAVIRUS') ||
-        signature.includes('COVID') ||
-        signature.includes('PANEL RESPIRATORIO')
-      ) {
-        return 3;
-      }
-      return 0;
-    case 'pcr_arbovirus':
-      if (
-        signature.includes('ARBOVIROSIS') ||
-        signature.includes('DENGUE') ||
-        signature.includes('CHIKUNGUNYA') ||
-        signature.includes('ZIKA')
-      ) {
-        return 3;
-      }
-      return 0;
-    case 'urocultivo':
-      if (signature.includes('UROCULTIVO')) return 3;
-      if (
-        signature.includes('DESARROLLO') ||
-        signature.includes('SUSCEPTIBLE') ||
-        signature.includes('SUCEPTIBLE') ||
-        signature.includes('SENSIBLE') ||
-        signature.includes('RESISTENTE') ||
-        signature.includes('AISLADO')
-      ) {
-        return 2;
-      }
-      return 0;
-    case 'hemocultivo':
-      if (signature.includes('HEMOCULTIVO')) return 3;
-      if (
-        signature.includes('DESARROLLO') ||
-        signature.includes('SUSCEPTIBLE') ||
-        signature.includes('SUCEPTIBLE') ||
-        signature.includes('SENSIBLE') ||
-        signature.includes('RESISTENTE') ||
-        signature.includes('AISLADO')
-      ) {
-        return 2;
-      }
-      return 0;
-    case 'otros_cultivos':
-      if (
-        signature.includes('CULTIVO') ||
-        signature.includes('ANTIBIOGRAMA') ||
-        signature.includes('ATB') ||
-        signature.includes('BACILO')
-      ) {
-        return 3;
-      }
-      if (
-        signature.includes('DESARROLLO') ||
-        signature.includes('SUSCEPTIBLE') ||
-        signature.includes('SUCEPTIBLE') ||
-        signature.includes('SENSIBLE') ||
-        signature.includes('RESISTENTE') ||
-        signature.includes('AISLADO')
-      ) {
-        return 2;
-      }
-      return 0;
+  if (rule.findingStrong.some(pattern => signature.includes(pattern))) {
+    return 3;
   }
+
+  if (rule.findingWeak.some(pattern => signature.includes(pattern))) {
+    return 2;
+  }
+
+  return 0;
 };
 
 const getMicrobiologyCategoryForExamName = (examName: string): LabMicrobiologyCategory | null => {
   const upper = examName.toUpperCase();
-  if (upper.includes('CLOSTRIDIUM DIFFICILE')) return 'clostridium_difficile';
-  if (upper.includes('COPROCULTIVO')) return 'coprocultivo';
-  if (upper.includes('PCR ARBOVIROSIS')) return 'pcr_arbovirus';
-  if (
-    upper.includes('PCR PANEL') ||
-    upper.includes('PANEL RESPIRATORIO') ||
-    upper.includes('PANEL VIRAL')
-  )
-    return 'pcr_8_virus';
-  if (upper.includes('HEMOCULTIVO')) return 'hemocultivo';
-  if (upper.includes('UROCULTIVO')) return 'urocultivo';
-  if (
-    upper.includes('CULTIVO CORRIENTE') ||
-    upper.includes('ANTIBIOGRAMA') ||
-    upper.includes('ATB ') ||
-    upper.includes('BACILOS')
-  )
-    return 'otros_cultivos';
+  const matchingRule = Object.entries(MICROBIOLOGY_CATEGORY_RULES).find(([, rule]) =>
+    rule.exam.some(pattern => upper.includes(pattern))
+  );
+
+  if (matchingRule) {
+    return matchingRule[0] as LabMicrobiologyCategory;
+  }
+
   return null;
 };
 

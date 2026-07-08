@@ -145,6 +145,7 @@ const secondaryTemplate: ClinicalDocumentTemplate = {
 vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
   ClinicalDocumentRepository: {
     subscribeByEpisode: vi.fn(),
+    subscribeByEpisodeKeys: vi.fn(),
   },
 }));
 
@@ -196,6 +197,12 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
 
     vi.mocked(ClinicalDocumentRepository.subscribeByEpisode).mockImplementation(
       (_episodeKey, callback) => {
+        callback([clinicalDocument]);
+        return vi.fn();
+      }
+    );
+    vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
         callback([clinicalDocument]);
         return vi.fn();
       }
@@ -327,8 +334,8 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
 
   it('keeps the current draft visible when a stale remote subscription arrives over local changes', async () => {
     let subscriptionCallback: ((docs: ClinicalDocumentRecord[]) => void) | null = null;
-    vi.mocked(ClinicalDocumentRepository.subscribeByEpisode).mockImplementation(
-      (_episodeKey, callback) => {
+    vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
         subscriptionCallback = callback;
         callback([clinicalDocument]);
         return vi.fn();
@@ -379,8 +386,8 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
 
   it('keeps staged remote updates out of manual overwrite controls', async () => {
     let subscriptionCallback: ((docs: ClinicalDocumentRecord[]) => void) | null = null;
-    vi.mocked(ClinicalDocumentRepository.subscribeByEpisode).mockImplementation(
-      (_episodeKey, callback) => {
+    vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
         subscriptionCallback = callback;
         callback([clinicalDocument]);
         return vi.fn();

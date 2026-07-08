@@ -90,7 +90,7 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 - La definición de terminado vive en [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md).
 - La deuda priorizada vive en [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md).
 - El registro interno recurrente de iteraciones de mantenimiento vive en [docs/MAINTENANCE_ITERATION_LOG.md](./MAINTENANCE_ITERATION_LOG.md).
-- `ci:release-gate` valida `check:release-evidence`: primero exige `check:report-freshness` y luego bloquea si los reportes ejecutivos fueron generados desde un checkout con cambios locales significativos.
+- `ci:release-gate` valida `check:release-evidence`: primero exige `check:report-freshness:strict` y luego bloquea si los reportes ejecutivos fueron generados desde un checkout con cambios locales significativos, si `quality-metrics` conserva tests con riesgo flaky (`flakeRiskFiles > 0`) o si falta la evidencia dedicada del smoke visual clínico (`reports/e2e/clinical-visual-release-report.json`). El comando diario `check:report-freshness` es advisory para evitar que cada merge requiera una rama de reportes nueva.
 - Los fallos conocidos no resueltos deben vivir en `scripts/config/test-failure-catalog.json` con owner, clasificación y SLA.
 - Los riesgos flaky aceptados temporalmente deben vivir en `scripts/config/flaky-quarantine.json` y reflejarse también en el catálogo de fallos.
 

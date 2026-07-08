@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 import {
   addClinicalDocumentIndicationCatalogItem,
+  createClinicalDocumentIndicationsCatalogTab,
   deleteClinicalDocumentIndicationCatalogItem,
-  ensureClinicalDocumentIndicationsCatalog,
+  deleteClinicalDocumentIndicationsCatalogTab,
   getDefaultClinicalDocumentIndicationsCatalog,
+  renameClinicalDocumentIndicationsCatalogTab,
+  reorderClinicalDocumentIndicationsCatalogTab,
   replaceClinicalDocumentIndicationsCatalog,
   subscribeToClinicalDocumentIndicationsCatalog,
   type ClinicalDocumentIndicationsCatalog,
   updateClinicalDocumentIndicationCatalogItem,
 } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 interface UseClinicalDocumentIndicationsCatalogParams {
-  hospitalId: string;
+  user: {
+    uid?: string;
+    email?: string | null;
+  } | null;
   isActive: boolean;
   canEdit: boolean;
 }
@@ -24,19 +28,13 @@ interface UseClinicalDocumentIndicationsCatalogState {
   indicationsCatalog: ClinicalDocumentIndicationsCatalog;
   isSavingCustomIndication: boolean;
   customIndicationError: string | null;
-  addCustomIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    text: string
-  ) => Promise<boolean>;
-  updateIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string,
-    text: string
-  ) => Promise<boolean>;
-  deleteIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string
-  ) => Promise<boolean>;
+  createTab: (label: string) => Promise<boolean>;
+  renameTab: (tabId: string, label: string) => Promise<boolean>;
+  deleteTab: (tabId: string) => Promise<boolean>;
+  reorderTab: (tabId: string, direction: 'left' | 'right') => Promise<boolean>;
+  addCustomIndication: (tabId: string, text: string) => Promise<boolean>;
+  updateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
+  deleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
   importCatalog: (catalog: unknown) => Promise<boolean>;
 }
 
@@ -45,12 +43,19 @@ const clinicalDocumentIndicationsCatalogLogger = createScopedLogger(
 );
 
 export const useClinicalDocumentIndicationsCatalog = ({
-  hospitalId,
+  user,
   isActive,
-  canEdit,
+  canEdit: _canEdit,
 }: UseClinicalDocumentIndicationsCatalogParams): UseClinicalDocumentIndicationsCatalogState => {
+  const owner = useMemo(
+    () => ({
+      uid: String(user?.uid || '').trim(),
+      email: String(user?.email || '').trim(),
+    }),
+    [user?.email, user?.uid]
+  );
   const [indicationsCatalog, setIndicationsCatalog] = useState<ClinicalDocumentIndicationsCatalog>(
-    () => getDefaultClinicalDocumentIndicationsCatalog()
+    () => getDefaultClinicalDocumentIndicationsCatalog(undefined, owner)
   );
   const [isSavingCustomIndication, setIsSavingCustomIndication] = useState(false);
   const [customIndicationError, setCustomIndicationError] = useState<string | null>(null);
@@ -75,73 +80,89 @@ export const useClinicalDocumentIndicationsCatalog = ({
   };
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || !owner.uid) {
+      setIndicationsCatalog(getDefaultClinicalDocumentIndicationsCatalog(undefined, owner));
       return;
     }
 
-    if (!isFirestoreEnabled()) {
-      setIndicationsCatalog(getDefaultClinicalDocumentIndicationsCatalog());
-      return;
-    }
-
-    const unsubscribe = subscribeToClinicalDocumentIndicationsCatalog(
-      setIndicationsCatalog,
-      hospitalId
-    );
-
-    if (canEdit) {
-      void ensureClinicalDocumentIndicationsCatalog(hospitalId).catch(error => {
-        clinicalDocumentIndicationsCatalogLogger.error(
-          'Error seeding clinical document indications catalog',
-          error
-        );
-      });
-    }
+    const unsubscribe = subscribeToClinicalDocumentIndicationsCatalog(setIndicationsCatalog, owner);
 
     return () => {
       unsubscribe();
     };
-  }, [canEdit, hospitalId, isActive]);
+  }, [isActive, owner]);
 
-  const addCustomIndication = async (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    text: string
-  ): Promise<boolean> =>
+  const createTab = async (label: string): Promise<boolean> =>
+    runCatalogMutation(
+      () =>
+        createClinicalDocumentIndicationsCatalogTab({
+          ...owner,
+          label,
+        }),
+      'Error creating clinical indication tab:'
+    );
+
+  const renameTab = async (tabId: string, label: string): Promise<boolean> =>
+    runCatalogMutation(
+      () =>
+        renameClinicalDocumentIndicationsCatalogTab({
+          ...owner,
+          tabId,
+          label,
+        }),
+      'Error renaming clinical indication tab:'
+    );
+
+  const deleteTab = async (tabId: string): Promise<boolean> =>
+    runCatalogMutation(
+      () =>
+        deleteClinicalDocumentIndicationsCatalogTab({
+          ...owner,
+          tabId,
+        }),
+      'Error deleting clinical indication tab:'
+    );
+
+  const reorderTab = async (tabId: string, direction: 'left' | 'right'): Promise<boolean> =>
+    runCatalogMutation(
+      () =>
+        reorderClinicalDocumentIndicationsCatalogTab({
+          ...owner,
+          tabId,
+          direction,
+        }),
+      'Error reordering clinical indication tab:'
+    );
+
+  const addCustomIndication = async (tabId: string, text: string): Promise<boolean> =>
     runCatalogMutation(
       () =>
         addClinicalDocumentIndicationCatalogItem({
-          hospitalId,
-          specialtyId,
+          ...owner,
+          tabId,
           text,
         }),
       'Error saving custom clinical indication:'
     );
 
-  const updateIndication = async (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string,
-    text: string
-  ): Promise<boolean> =>
+  const updateIndication = async (tabId: string, itemId: string, text: string): Promise<boolean> =>
     runCatalogMutation(
       () =>
         updateClinicalDocumentIndicationCatalogItem({
-          hospitalId,
-          specialtyId,
+          ...owner,
+          tabId,
           itemId,
           text,
         }),
       'Error updating clinical indication:'
     );
 
-  const deleteIndication = async (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string
-  ): Promise<boolean> =>
+  const deleteIndication = async (tabId: string, itemId: string): Promise<boolean> =>
     runCatalogMutation(
       () =>
         deleteClinicalDocumentIndicationCatalogItem({
-          hospitalId,
-          specialtyId,
+          ...owner,
+          tabId,
           itemId,
         }),
       'Error deleting clinical indication:'
@@ -151,7 +172,7 @@ export const useClinicalDocumentIndicationsCatalog = ({
     runCatalogMutation(
       () =>
         replaceClinicalDocumentIndicationsCatalog({
-          hospitalId,
+          ...owner,
           catalog: catalog as Parameters<
             typeof replaceClinicalDocumentIndicationsCatalog
           >[0]['catalog'],
@@ -163,6 +184,10 @@ export const useClinicalDocumentIndicationsCatalog = ({
     indicationsCatalog,
     isSavingCustomIndication,
     customIndicationError,
+    createTab,
+    renameTab,
+    deleteTab,
+    reorderTab,
     addCustomIndication,
     updateIndication,
     deleteIndication,

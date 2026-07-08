@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { UIProvider, useUI } from '@/context/UIContext';
 
@@ -275,16 +275,6 @@ describe('UIContext', () => {
   });
 
   it('should throw error when useUI is used outside provider', () => {
-    const ErrorComponent = () => {
-      try {
-        useUI();
-        return <div>No error</div>;
-      } catch (_error) {
-        return <div>Error thrown</div>;
-      }
-    };
-
-    render(<ErrorComponent />);
-    expect(screen.getByText('Error thrown')).toBeInTheDocument();
+    expect(() => renderHook(() => useUI())).toThrow('useUI must be used within a UIProvider');
   });
 });

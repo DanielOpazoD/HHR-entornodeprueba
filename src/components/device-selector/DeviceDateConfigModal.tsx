@@ -1,8 +1,9 @@
 import React from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import type { DeviceInfo } from '@/types/domain/devices';
-import { VVP_DEVICE_KEYS } from '@/constants/clinicalDeviceConstants';
+import { DEVICE_OPTIONS, VVP_DEVICE_KEYS } from '@/constants/clinicalDeviceConstants';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { isAnyVvpDevice } from '@/components/device-selector/deviceSelectorController';
 
 // Legacy tracked devices list (kept for backward compatibility)
 export const TRACKED_DEVICES = ['CUP', 'CVC', 'VMI', ...VVP_DEVICE_KEYS] as const;
@@ -65,7 +66,8 @@ interface DeviceDateConfigModalProps {
   device: string; // Any device name (predefined or custom)
   deviceInfo: DeviceInfo;
   currentDate?: string;
-  onSave: (info: DeviceInfo) => void;
+  reservedDeviceNames?: string[];
+  onSave: (info: DeviceInfo, nextDeviceName?: string) => void;
   onClose: () => void;
 }
 
@@ -73,6 +75,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
   device,
   deviceInfo,
   currentDate,
+  reservedDeviceNames = [],
   onSave,
   onClose,
 }) => {
@@ -83,11 +86,27 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
     }
     return deviceInfo;
   });
+  const [deviceNameDraft, setDeviceNameDraft] = React.useState(device);
   const deviceLabel = getDeviceLabel(device);
   const isTET = device === 'TET';
+  const canRenameDevice = !DEVICE_OPTIONS.includes(device) && !isAnyVvpDevice(device);
+  const normalizedDeviceNameDraft = deviceNameDraft.trim();
+  const hasDeviceNameCollision =
+    canRenameDevice &&
+    Boolean(normalizedDeviceNameDraft) &&
+    reservedDeviceNames.includes(normalizedDeviceNameDraft);
+  const deviceNameError = hasDeviceNameCollision
+    ? 'Ya existe un dispositivo activo con ese nombre.'
+    : null;
+  const canSave =
+    Boolean(tempDetails.installationDate) &&
+    (!canRenameDevice || (Boolean(normalizedDeviceNameDraft) && !hasDeviceNameCollision));
 
   const handleSave = () => {
-    onSave(tempDetails);
+    if (!canSave) {
+      return;
+    }
+    onSave(tempDetails, canRenameDevice ? normalizedDeviceNameDraft : undefined);
     onClose();
   };
 
@@ -102,6 +121,32 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
       headerIconColor="text-medical-600"
     >
       <div className="space-y-4">
+        {canRenameDevice && (
+          <div>
+            <label
+              htmlFor="device-custom-name"
+              className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider"
+            >
+              Nombre del dispositivo
+            </label>
+            <input
+              id="device-custom-name"
+              type="text"
+              className="w-full p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-medical-500 focus:outline-none transition-all shadow-sm"
+              value={deviceNameDraft}
+              onChange={e => setDeviceNameDraft(e.target.value)}
+              placeholder="Nombre visible del dispositivo"
+              aria-invalid={hasDeviceNameCollision}
+              aria-describedby={deviceNameError ? 'device-custom-name-error' : undefined}
+            />
+            {deviceNameError && (
+              <p id="device-custom-name-error" className="mt-1 text-xs font-medium text-red-600">
+                {deviceNameError}
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
             {isTET ? 'Fecha de Inicio' : 'Fecha de Instalación'}
@@ -149,7 +194,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={!tempDetails.installationDate}
+            disabled={!canSave}
             className="px-6 py-2 bg-medical-600 text-white rounded-xl text-sm font-bold hover:bg-medical-700 transition-all shadow-lg shadow-medical-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
           >
             Confirmar e Instalar

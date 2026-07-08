@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildBedMovementAuditDetails,
+  buildPatientDischargedAuditDetails,
   buildDischargeUndoAuditDetails,
   buildPatientMovementSummary,
 } from '@/services/admin/auditClinicalEventCatalog';
@@ -41,6 +42,35 @@ describe('auditClinicalEventCatalog', () => {
       dischargeId: 'd-1',
       patientName: 'Paciente Dos',
       restoredBed: 'R3',
+    });
+  });
+
+  it('builds canonical patient discharge details with movement metadata', () => {
+    expect(
+      buildPatientDischargedAuditDetails({
+        patientName: 'Bernardo Orrego Llanos',
+        status: 'Vivo',
+        bedId: 'H2C2',
+        rut: '17.274.300-5',
+        episodeKey: '17.274.300-5__2026-06-28',
+        movementDate: '2026-07-01',
+        time: '13:24',
+        diagnosis: 'Diagnóstico de egreso',
+        dischargeType: 'Domicilio (Habitual)',
+        dischargeTarget: 'mother',
+      })
+    ).toEqual({
+      clinicalEvent: 'Alta de paciente',
+      patientName: 'Bernardo Orrego Llanos',
+      status: 'Vivo',
+      bedId: 'H2C2',
+      rut: '17.274.300-5',
+      episodeKey: '17.274.300-5__2026-06-28',
+      movementDate: '2026-07-01',
+      time: '13:24',
+      diagnosis: 'Diagnóstico de egreso',
+      dischargeType: 'Domicilio (Habitual)',
+      dischargeTarget: 'mother',
     });
   });
 

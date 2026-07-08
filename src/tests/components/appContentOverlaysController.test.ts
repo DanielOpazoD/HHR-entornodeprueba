@@ -52,6 +52,7 @@ describe('appContentOverlaysController', () => {
 
     expect(overlayState.shouldRenderCensusEmailConfigModal).toBe(true);
     expect(overlayState.shouldRenderPatientSearchModal).toBe(true);
+    expect(overlayState.shouldRenderTestAgent).toBe(true);
     expect(overlayState.censusEmailModalProps).toEqual(
       expect.objectContaining({
         recipients: ['a@hospital.cl'],

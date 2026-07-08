@@ -23,10 +23,14 @@ import {
 } from '@/hooks/controllers/clinicalCribController';
 
 export interface ClinicalCribActions {
-  createCrib: (bedId: string) => void;
-  removeCrib: (bedId: string) => void;
-  updateCribField: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
-  updateCribMultiple: (bedId: string, updates: Partial<PatientData>) => void;
+  createCrib: (bedId: string) => Promise<void>;
+  removeCrib: (bedId: string) => Promise<void>;
+  updateCribField: (
+    bedId: string,
+    field: keyof PatientData,
+    value: PatientFieldValue
+  ) => Promise<void>;
+  updateCribMultiple: (bedId: string, updates: Partial<PatientData>) => Promise<void>;
 }
 
 export const useClinicalCrib = (
@@ -39,17 +43,19 @@ export const useClinicalCrib = (
    */
   const createCrib = useCallback(
     (bedId: string) => {
-      if (!record) return;
+      if (!record) return Promise.resolve();
 
       const parentPatient = record.beds[bedId];
 
       // Validation: Cannot add crib to empty bed
       if (!parentPatient.patientName) {
         clinicalCribLogger.warn(`Cannot add clinical crib to empty bed ${bedId}`);
-        return;
+        return Promise.resolve();
       }
 
-      patchRecord(buildClinicalCribPatch(bedId, parentPatient));
+      return patchRecord(buildClinicalCribPatch(bedId, parentPatient)).catch(error => {
+        clinicalCribLogger.warn('Clinical crib create failed', error);
+      });
     },
     [record, patchRecord]
   );
@@ -59,9 +65,11 @@ export const useClinicalCrib = (
    */
   const removeCrib = useCallback(
     (bedId: string) => {
-      if (!record) return;
+      if (!record) return Promise.resolve();
 
-      patchRecord(buildRemoveClinicalCribPatch(bedId));
+      return patchRecord(buildRemoveClinicalCribPatch(bedId)).catch(error => {
+        clinicalCribLogger.warn('Clinical crib remove failed', error);
+      });
     },
     [record, patchRecord]
   );
@@ -71,19 +79,21 @@ export const useClinicalCrib = (
    */
   const updateCribField = useCallback(
     (bedId: string, field: keyof PatientData, value: PatientFieldValue) => {
-      if (!record) return;
+      if (!record) return Promise.resolve();
 
       if (!isClinicalCribFieldUpdateAllowed(field, value)) {
         clinicalCribLogger.warn('Cannot set admission date to future');
-        return;
+        return Promise.resolve();
       }
 
       const parentPatient = record.beds[bedId];
-      if (!parentPatient.clinicalCrib) return;
+      if (!parentPatient.clinicalCrib) return Promise.resolve();
 
-      patchRecord({
+      return patchRecord({
         [`beds.${bedId}.clinicalCrib.${field}`]: value,
-      } as DailyRecordPatch);
+      } as DailyRecordPatch).catch(error => {
+        clinicalCribLogger.warn('Clinical crib field update failed', error);
+      });
     },
     [record, patchRecord]
   );
@@ -93,17 +103,19 @@ export const useClinicalCrib = (
    */
   const updateCribMultiple = useCallback(
     (bedId: string, updates: Partial<PatientData>) => {
-      if (!record) return;
+      if (!record) return Promise.resolve();
 
       const parentPatient = record.beds[bedId];
-      if (!parentPatient.clinicalCrib) return;
+      if (!parentPatient.clinicalCrib) return Promise.resolve();
 
       const sanitizedUpdates = sanitizeClinicalCribUpdates(updates);
       if (updates.admissionDate && !sanitizedUpdates.admissionDate) {
         clinicalCribLogger.warn('Cannot set admission date to future');
       }
 
-      patchRecord(buildClinicalCribMultiplePatch(bedId, sanitizedUpdates));
+      return patchRecord(buildClinicalCribMultiplePatch(bedId, sanitizedUpdates)).catch(error => {
+        clinicalCribLogger.warn('Clinical crib multiple update failed', error);
+      });
     },
     [record, patchRecord]
   );

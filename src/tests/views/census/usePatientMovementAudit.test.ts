@@ -102,4 +102,43 @@ describe('usePatientMovementAudit', () => {
       '2025-01-03'
     );
   });
+
+  it('logs discharge diagnosis changes as a legal clinical event', () => {
+    const { result } = renderHook(() => usePatientMovementAudit());
+
+    result.current.logDischargeDiagnosisChange(
+      {
+        movementId: 'd-1',
+        entityType: 'discharge',
+        patientName: 'Paciente Egreso',
+        rut: '5-1',
+        movementLabel: 'Alta',
+        previousDiagnosis: 'Diagnostico inicial',
+        nextDiagnosis: 'Diagnostico final',
+        clinicalEpisodeId: 'episode-1',
+      },
+      '2025-01-04'
+    );
+
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      'PATIENT_DISCHARGE_DIAGNOSIS_CHANGED',
+      'discharge',
+      'd-1',
+      expect.objectContaining({
+        clinicalEvent: 'Actualización de diagnóstico de egreso',
+        patientName: 'Paciente Egreso',
+        movementId: 'd-1',
+        movementLabel: 'Alta',
+        clinicalEpisodeId: 'episode-1',
+        changes: {
+          diagnosis: {
+            old: 'Diagnostico inicial',
+            new: 'Diagnostico final',
+          },
+        },
+      }),
+      '5-1',
+      '2025-01-04'
+    );
+  });
 });

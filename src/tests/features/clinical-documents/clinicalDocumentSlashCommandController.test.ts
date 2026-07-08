@@ -61,7 +61,7 @@ describe('removeSlashCommandFromHtml', () => {
     expect(removeSlashCommandFromHtml('<p>Notes /lab </p>')).toBe('<p>Notes </p>');
   });
 
-  it('removes only the first occurrence', () => {
+  it('removes the trailing command occurrence (the one the user just typed)', () => {
     expect(removeSlashCommandFromHtml('/lab /lab ')).toBe('/lab ');
   });
 
@@ -71,5 +71,27 @@ describe('removeSlashCommandFromHtml', () => {
 
   it('handles empty string', () => {
     expect(removeSlashCommandFromHtml('')).toBe('');
+  });
+
+  it('does not corrupt an image src that contains "/lab"', () => {
+    expect(removeSlashCommandFromHtml('<img src="https://host/lab/result.png">Notas /lab ')).toBe(
+      '<img src="https://host/lab/result.png">Notas '
+    );
+  });
+
+  it('does not corrupt a link href that contains "/lab"', () => {
+    expect(removeSlashCommandFromHtml('<a href="https://host/labs">ver</a> resumen /lab ')).toBe(
+      '<a href="https://host/labs">ver</a> resumen '
+    );
+  });
+
+  it('removes the trailing command even when followed by closing tags', () => {
+    expect(removeSlashCommandFromHtml('<div><span>Texto /lab </span></div>')).toBe(
+      '<div><span>Texto </span></div>'
+    );
+  });
+
+  it('removes the trailing command even when a <br> follows it', () => {
+    expect(removeSlashCommandFromHtml('<div>Texto /lab <br></div>')).toBe('<div>Texto <br></div>');
   });
 });

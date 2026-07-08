@@ -12,6 +12,7 @@ type DailyRecordCudyrActions = Pick<
   DailyRecordActionsContextType,
   | 'updateCudyr'
   | 'updateCudyrMultiple'
+  | 'updateCudyrBatch'
   | 'updateClinicalCribCudyr'
   | 'updateClinicalCribCudyrMultiple'
 >;
@@ -82,6 +83,7 @@ export const useDailyRecordMovementActions = (): DailyRecordMovementActions => {
       updateDischarge: actions.updateDischarge,
       deleteDischarge: actions.deleteDischarge,
       undoDischarge: actions.undoDischarge,
+      convertDischargeToCma: actions.convertDischargeToCma,
       addTransfer: actions.addTransfer,
       updateTransfer: actions.updateTransfer,
       deleteTransfer: actions.deleteTransfer,
@@ -89,14 +91,19 @@ export const useDailyRecordMovementActions = (): DailyRecordMovementActions => {
       addCMA: actions.addCMA,
       deleteCMA: actions.deleteCMA,
       updateCMA: actions.updateCMA,
+      undoCMA: actions.undoCMA,
+      convertCmaToHomeDischarge: actions.convertCmaToHomeDischarge,
     }),
     [
       actions.addCMA,
       actions.addDischarge,
       actions.addTransfer,
+      actions.convertCmaToHomeDischarge,
+      actions.convertDischargeToCma,
       actions.deleteCMA,
       actions.deleteDischarge,
       actions.deleteTransfer,
+      actions.undoCMA,
       actions.undoDischarge,
       actions.undoTransfer,
       actions.updateCMA,
@@ -124,6 +131,7 @@ export const useDailyRecordCudyrActions = (): DailyRecordCudyrActions => {
     () => ({
       updateCudyr: actions.updateCudyr,
       updateCudyrMultiple: actions.updateCudyrMultiple,
+      updateCudyrBatch: actions.updateCudyrBatch,
       updateClinicalCribCudyr: actions.updateClinicalCribCudyr,
       updateClinicalCribCudyrMultiple: actions.updateClinicalCribCudyrMultiple,
     }),
@@ -131,6 +139,7 @@ export const useDailyRecordCudyrActions = (): DailyRecordCudyrActions => {
       actions.updateClinicalCribCudyr,
       actions.updateClinicalCribCudyrMultiple,
       actions.updateCudyr,
+      actions.updateCudyrBatch,
       actions.updateCudyrMultiple,
     ]
   );

@@ -129,6 +129,8 @@ export const ExamRequestModal: React.FC<ExamRequestModalProps> = ({
       }
       size="full"
       variant="white"
+      dataModule="exam-request"
+      dataTestId="exam-request-modal"
       className="!rounded-2xl ring-1 ring-black/[0.03]"
       bodyClassName="max-h-[90vh] overflow-y-auto px-5 py-4"
       headerActions={

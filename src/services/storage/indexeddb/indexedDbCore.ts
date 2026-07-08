@@ -1,31 +1,9 @@
 import { createIndexedDbBackgroundRecoveryScheduler } from './indexedDbBackgroundRecoveryScheduler';
 import { HangaRoaDatabase } from './indexedDbDatabase';
-import {
-  assignIndexedDbMockTables,
-  createIndexedDbDatabaseOrFallback,
-} from './indexedDbDatabaseLifecycle';
-import { createMockDatabase } from './indexedDbMockFactory';
 import { attachIndexedDbEvents } from './indexedDbBootstrap';
-import {
-  recoverIndexedDbInitialOpenRuntimeFailure,
-  restoreIndexedDbFromMockFallback,
-} from './indexedDbCoreRecovery';
-import {
-  recordIndexedDbRecoveryNotice,
-  recordIndexedDbRecoveryFailure,
-} from './indexedDbRecoveryController';
-import {
-  openIndexedDbWithRetries,
-  runIndexedDbOperationWithTimeout,
-  waitForIndexedDbOpenResolution,
-} from './indexedDbCoreSupport';
+import { recordIndexedDbRecoveryNotice } from './indexedDbRecoveryController';
 import { resolveIndexedDbOpenHealth } from './indexedDbOpenHealthController';
-import { resolveIndexedDbOpenWaitAction } from './indexedDbOpenWaitController';
-import {
-  INDEXED_DB_OPEN_TIMEOUT_MS,
-  INDEXED_DB_RECOVERY_RETRY_DELAYS_MS,
-  getIndexedDbRecoveryBudgetSnapshot,
-} from './indexedDbRecoveryBudgets';
+import { getIndexedDbRecoveryBudgetSnapshot } from './indexedDbRecoveryBudgets';
 import {
   buildLocalPersistenceRuntimeSnapshot,
   hasE2ERuntimeOverride,
@@ -33,6 +11,12 @@ import {
   shouldSkipReadyCheckForMock,
   type LocalPersistenceRuntimeSnapshot,
 } from './indexedDbRuntimeModeController';
+import {
+  initializeIndexedDbDatabase,
+  runFreshOpenAttempt,
+  runMockFallbackRecovery,
+  runOpeningWaitFlow,
+} from './indexedDbCoreFlows';
 
 let db: HangaRoaDatabase;
 let isUsingMock = false;
@@ -56,9 +40,8 @@ const attachDatabaseEvents = (database: HangaRoaDatabase) =>
   );
 
 const initializeDatabase = () => {
-  const outcome = createIndexedDbDatabaseOrFallback({
+  const outcome = initializeIndexedDbDatabase({
     createDatabase: () => new HangaRoaDatabase(),
-    createMockDatabase,
     attachDatabaseEvents,
   });
 
@@ -94,14 +77,11 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
 
   if (shouldSkipReadyCheckForMock({ isUsingMock, allowRecoveryWhenMock })) return;
   if (shouldAttemptMockRecovery({ isUsingMock, allowRecoveryWhenMock, stickyFallbackMode })) {
-    const recoveryOutcome = restoreIndexedDbFromMockFallback({
+    const recoveryOutcome = runMockFallbackRecovery({
       currentDatabase: db,
       createDatabase: () => new HangaRoaDatabase(),
       attachDatabaseEvents,
       resetRecoveryTracking: resetIndexedDbRecoveryTracking,
-      assignMockTables: assignIndexedDbMockTables,
-      createMockDatabase,
-      recordRecoveryFailure: recordIndexedDbRecoveryFailure,
     });
 
     db = recoveryOutcome.database;
@@ -127,15 +107,11 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
   }
 
   if (isOpening) {
-    const waitOutcome = await waitForIndexedDbOpenResolution({
+    const waitAction = await runOpeningWaitFlow({
       isOpening: () => isOpening,
       isDbOpen: () => db.isOpen(),
       isUsingMock: () => isUsingMock,
     });
-    const waitAction = resolveIndexedDbOpenWaitAction(waitOutcome);
-    if (waitAction === 'return') {
-      return;
-    }
     if (waitAction === 'fallback') {
       recordIndexedDbRecoveryNotice(
         'indexeddb_open_stalled',
@@ -144,48 +120,30 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
         'recoverable'
       );
       isUsingMock = true;
-      return;
     }
     return;
   }
 
   isOpening = true;
   try {
-    await openIndexedDbWithRetries({
-      open: () =>
-        runIndexedDbOperationWithTimeout(
-          () => db.open(),
-          INDEXED_DB_OPEN_TIMEOUT_MS,
-          'IndexedDB open timeout'
-        ),
-      retryDelays: INDEXED_DB_RECOVERY_RETRY_DELAYS_MS,
-    });
-
-    resetIndexedDbRecoveryTracking();
-  } catch (error: unknown) {
-    const recoveryOutcome = await recoverIndexedDbInitialOpenRuntimeFailure({
-      error,
+    const openOutcome = await runFreshOpenAttempt({
       database: db,
       attachDatabaseEvents,
     });
 
-    db = recoveryOutcome.database;
-    isUsingMock = recoveryOutcome.fallbackMode;
-    stickyFallbackMode = stickyFallbackMode || recoveryOutcome.stickyFallbackMode;
+    db = openOutcome.database;
+    isUsingMock = openOutcome.fallbackMode;
+    stickyFallbackMode = stickyFallbackMode || openOutcome.stickyFallbackMode;
 
-    if (recoveryOutcome.shouldResetRecoveryTracking) {
+    if (openOutcome.shouldResetRecoveryTracking) {
       resetIndexedDbRecoveryTracking();
     }
 
-    if (recoveryOutcome.shouldNotifyDatabaseRecreated) {
+    if (openOutcome.shouldNotifyDatabaseRecreated) {
       onDatabaseRecreated?.();
     }
 
-    if (!recoveryOutcome.fallbackMode) {
-      return;
-    }
-
-    if (recoveryOutcome.shouldScheduleBackgroundRecovery) {
+    if (openOutcome.fallbackMode && openOutcome.shouldScheduleBackgroundRecovery) {
       backgroundRecoveryScheduler.schedule();
     }
   } finally {

@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/utils/htmlEscape';
+
 export interface MMRADReportSections {
   title: string | null;
   technique: string | null;
@@ -167,14 +169,6 @@ const toPrintableBlock = (label: string, value: string | null): string =>
   value
     ? `<section style="margin-bottom:24px;"><h2 style="margin:0 0 10px;font-size:18px;font-weight:700;">${label}</h2><div style="white-space:pre-wrap;font-size:16px;line-height:1.5;">${value}</div></section>`
     : '';
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 
 export const buildMMRADReportPrintHtml = (
   examName: string,

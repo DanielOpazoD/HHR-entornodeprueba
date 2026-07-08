@@ -14,6 +14,7 @@ import type { PatientHistoryResult } from '@/services/patient/patientHistoryServ
 
 export interface ClinicalDocSummary {
   id: string;
+  episodeKey: string;
   documentType: string;
   status: string;
   createdAt: string;

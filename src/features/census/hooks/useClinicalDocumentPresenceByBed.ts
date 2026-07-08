@@ -42,7 +42,14 @@ export const useClinicalDocumentPresenceByBed = ({
 }: UseClinicalDocumentPresenceByBedParams): ClinicalDocumentPresenceResult => {
   const bindings = useMemo(() => buildBedEpisodeBindings(unifiedRows), [unifiedRows]);
   const episodeKeys = useMemo(
-    () => Array.from(new Set(bindings.map(binding => binding.episodeKey))).sort(),
+    () =>
+      Array.from(
+        new Set(
+          bindings.flatMap(binding =>
+            binding.episodeKeys?.length ? binding.episodeKeys : [binding.episodeKey]
+          )
+        )
+      ).sort(),
     [bindings]
   );
 
@@ -82,7 +89,7 @@ export const useClinicalDocumentPresenceByBed = ({
     const activeEpisodeKeys = buildActiveClinicalDocumentEpisodeKeys(query.data);
 
     return {
-      byBedId: buildClinicalDocumentPresenceByBed(bindings, activeEpisodeKeys),
+      byBedId: buildClinicalDocumentPresenceByBed(bindings, activeEpisodeKeys, query.data),
       infoByBedId: buildClinicalDocumentPresenceInfoByBed(bindings, query.data),
     };
   }, [bindings, enabled, query.data]);

@@ -23,9 +23,19 @@ export interface ClinicalDocumentPort {
     pdf: ClinicalDocumentPdfMeta,
     hospitalId?: string
   ) => Promise<void>;
+  lockDocumentsByEpisodeKey: (
+    episodeKey: string,
+    hospitalId?: string,
+    options?: { lockedAt?: string }
+  ) => Promise<string[]>;
   delete: (documentId: string, hospitalId?: string) => Promise<void>;
   subscribeByEpisode: (
     episodeKey: string,
+    callback: (documents: ClinicalDocumentRecord[]) => void,
+    hospitalId?: string
+  ) => () => void;
+  subscribeByEpisodeKeys: (
+    episodeKeys: string[],
     callback: (documents: ClinicalDocumentRecord[]) => void,
     hospitalId?: string
   ) => () => void;
@@ -41,8 +51,12 @@ export const defaultClinicalDocumentPort: ClinicalDocumentPort = {
     ClinicalDocumentRepository.createDraft(record, hospitalId),
   savePdfMetadata: async (documentId, pdf, hospitalId) =>
     ClinicalDocumentRepository.savePdfMetadata(documentId, pdf, hospitalId),
+  lockDocumentsByEpisodeKey: async (episodeKey, hospitalId, options) =>
+    ClinicalDocumentRepository.lockDocumentsByEpisodeKey(episodeKey, hospitalId, options),
   delete: async (documentId, hospitalId) =>
     ClinicalDocumentRepository.delete(documentId, hospitalId),
   subscribeByEpisode: (episodeKey, callback, hospitalId) =>
     ClinicalDocumentRepository.subscribeByEpisode(episodeKey, callback, hospitalId),
+  subscribeByEpisodeKeys: (episodeKeys, callback, hospitalId) =>
+    ClinicalDocumentRepository.subscribeByEpisodeKeys(episodeKeys, callback, hospitalId),
 };

@@ -7,6 +7,7 @@ import {
   formatReleaseReadinessScorecardMarkdown,
 } from './releaseReadinessScorecardSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'reports');
@@ -28,6 +29,11 @@ const issues = [
 const report = {
   ...baseReport,
   ...gitState,
+  generatedFor: buildEvidenceProvenance({
+    root: ROOT,
+    reportId: 'release-readiness-scorecard',
+    gitState,
+  }),
   indicators: [worktreeIndicator, ...baseReport.indicators],
   degradedByWorktreeOnly,
   overallStatusReason: degradedByWorktreeOnly

@@ -28,6 +28,9 @@ const buildMedicalIndicationsPatientOption = ({
     birthDate: data.birthDate || '',
     allergies: '',
     admissionDate: data.admissionDate || '',
+    admissionTime: data.admissionTime,
+    clinicalEpisodeId: data.clinicalEpisodeId,
+    sourceDailyRecordDate: currentDateString,
     daysOfStay: String(daysHospitalized ?? ''),
     treatingDoctor: '',
   };
@@ -41,6 +44,7 @@ const resolveRowActionCallback = <TAction extends (() => void) | undefined>(
 export const buildPatientActionSectionBinding = ({
   isBlocked,
   readOnly,
+  clinicalEditingDisabled,
   actionMenuAlign,
   indicators,
   mainRowViewState,
@@ -58,6 +62,7 @@ export const buildPatientActionSectionBinding = ({
   PatientMainRowViewProps,
   | 'isBlocked'
   | 'readOnly'
+  | 'clinicalEditingDisabled'
   | 'actionMenuAlign'
   | 'indicators'
   | 'mainRowViewState'
@@ -84,6 +89,7 @@ export const buildPatientActionSectionBinding = ({
   return {
     isBlocked,
     readOnly,
+    clinicalEditingDisabled,
     align: actionMenuAlign,
     showCmaAction: daysHospitalized === null || daysHospitalized <= 1,
     accessProfile,

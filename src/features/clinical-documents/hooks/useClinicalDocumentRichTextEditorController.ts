@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ClipboardEvent, KeyboardEvent, MutableRefObject } from 'react';
 
-import type { ClinicalDocumentFormattingCommand } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 import {
   buildPastedImageHtml,
+  buildPastedStorageImageHtml,
   classifyPasteContent,
   readFileAsDataUrl,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPasteController';
 import {
   insertClinicalDocumentHtmlAtCursor,
   insertClinicalDocumentPlainTextAtCursor,
+  removeTrailingPatternAtCaret,
 } from '@/features/clinical-documents/controllers/clinicalDocumentEditorInsertionController';
 import {
   applyClinicalDocumentEditorCommand,
@@ -19,30 +20,33 @@ import { resolveClinicalDocumentKeyboardShortcut } from '@/features/clinical-doc
 import {
   detectSlashCommand,
   removeSlashCommandFromHtml,
+  SLASH_LAB_TEXT_REMOVE,
 } from '@/features/clinical-documents/controllers/clinicalDocumentSlashCommandController';
-
-export type ClinicalDocumentRichTextEditorCommand =
-  | ClinicalDocumentFormattingCommand
-  | 'foreColor'
-  | 'hiliteColor';
-
-export interface ClinicalDocumentRichTextEditorActivationApi {
-  element: HTMLDivElement | null;
-  canUndo: boolean;
-  canRedo: boolean;
-  applyCommand: (command: ClinicalDocumentRichTextEditorCommand, value?: string) => void;
-  insertHtml: (html: string) => void;
-}
+import { enforceMandatoryListShape } from '@/features/clinical-documents/controllers/clinicalDocumentMandatoryListShapeController';
+import { useClinicalDocumentEditorHistory } from '@/features/clinical-documents/hooks/useClinicalDocumentEditorHistory';
+import type { ClinicalDocumentMandatoryListType } from '@/features/clinical-documents/controllers/clinicalDocumentEmptySectionTemplateController';
+import type {
+  ClinicalDocumentRichTextEditorActivationApi,
+  ClinicalDocumentRichTextEditorCommand,
+  UploadedClinicalDocumentPastedImage,
+} from '@/features/clinical-documents/hooks/clinicalDocumentRichTextEditorTypes';
 
 interface UseClinicalDocumentRichTextEditorControllerParams {
   sectionId: string;
   value: string;
   disabled: boolean;
   editorRef: MutableRefObject<HTMLDivElement | null>;
+  /**
+   * When set, command application (toolbar/keyboard) re-enforces the list
+   * wrapper so list-affecting commands cannot leave the section without its
+   * mandatory `<ol>`/`<ul>` shape.
+   */
+  mandatoryListType?: ClinicalDocumentMandatoryListType | null;
   onChange: (value: string) => void;
   onActivate?: (sectionId: string, editor: ClinicalDocumentRichTextEditorActivationApi) => void;
   onDeactivate?: (sectionId: string) => void;
-  /** Called when `/lab` command is detected. Should return formatted lab text. */
+  onUploadPastedImage?: (file: File) => Promise<UploadedClinicalDocumentPastedImage | null>;
+  onImagePasteRejected?: (message: string) => void;
   onSlashLab?: () => Promise<string | null>;
 }
 
@@ -51,21 +55,16 @@ export const useClinicalDocumentRichTextEditorController = ({
   value,
   disabled,
   editorRef,
+  mandatoryListType,
   onChange,
   onActivate,
   onDeactivate,
+  onUploadPastedImage,
+  onImagePasteRejected,
   onSlashLab,
 }: UseClinicalDocumentRichTextEditorControllerParams) => {
-  const historyRef = useRef<string[]>([]);
-  const historyIndexRef = useRef(-1);
-  const isApplyingHistoryRef = useRef(false);
   const isActiveRef = useRef(false);
   const lastLocalNormalizedValueRef = useRef('');
-  /** Timer for debouncing history snapshots while typing. */
-  const historyDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Pending HTML to push into history when the debounce fires. */
-  const pendingHistoryHtmlRef = useRef<string | null>(null);
-  /** External normalized value received while the editor is focused. */
   const pendingExternalNormalizedValueRef = useRef<string | null>(null);
   const onActivateRef = useRef(onActivate);
   const onDeactivateRef = useRef(onDeactivate);
@@ -74,22 +73,23 @@ export const useClinicalDocumentRichTextEditorController = ({
   >(null);
   const insertHtmlRef = useRef<((html: string) => void) | null>(null);
   const normalizedValue = useMemo(() => normalizeClinicalDocumentContentForStorage(value), [value]);
-  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+
+  // Undo/redo buffer. Driven through stable method callbacks so its internal
+  // refs never leak into this hook's dependency arrays.
+  const {
+    historyState,
+    seedHistory,
+    navigateHistory,
+    consumeApplyingFlag,
+    pushHistorySnapshot,
+    debouncedPushHistorySnapshot,
+    flushPendingHistorySnapshot,
+  } = useClinicalDocumentEditorHistory();
 
   useEffect(() => {
     onActivateRef.current = onActivate;
     onDeactivateRef.current = onDeactivate;
   }, [onActivate, onDeactivate]);
-
-  const updateHistoryState = useCallback(
-    (nextIndex = historyIndexRef.current, history = historyRef.current) => {
-      setHistoryState({
-        canUndo: nextIndex > 0,
-        canRedo: nextIndex >= 0 && nextIndex < history.length - 1,
-      });
-    },
-    []
-  );
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -108,105 +108,36 @@ export const useClinicalDocumentRichTextEditorController = ({
       }
     }
 
-    if (!isApplyingHistoryRef.current && !isFocused && !isLocalEcho) {
-      historyRef.current = [normalizedValue];
-      historyIndexRef.current = 0;
-      updateHistoryState(0, historyRef.current);
+    const wasApplyingHistory = consumeApplyingFlag();
+    if (!wasApplyingHistory && !isFocused && !isLocalEcho) {
+      seedHistory(normalizedValue);
     }
-
-    isApplyingHistoryRef.current = false;
-  }, [editorRef, normalizedValue, updateHistoryState]);
-
-  const pushHistorySnapshot = useCallback(
-    (html: string) => {
-      const normalizedHtml = normalizeClinicalDocumentContentForStorage(html);
-      const current = historyRef.current[historyIndexRef.current];
-
-      if (normalizedHtml === current) {
-        return;
-      }
-
-      historyRef.current = [
-        ...historyRef.current.slice(0, historyIndexRef.current + 1),
-        normalizedHtml,
-      ];
-      historyIndexRef.current = historyRef.current.length - 1;
-      updateHistoryState();
-    },
-    [updateHistoryState]
-  );
-
-  /** Delay (ms) before a typing pause commits a history snapshot. */
-  const HISTORY_DEBOUNCE_MS = 500;
-
-  /** Flush any pending debounced snapshot immediately (e.g. before blur). */
-  const flushPendingHistorySnapshot = useCallback(() => {
-    if (historyDebounceTimerRef.current) {
-      clearTimeout(historyDebounceTimerRef.current);
-      historyDebounceTimerRef.current = null;
-    }
-    const pending = pendingHistoryHtmlRef.current;
-    if (pending !== null) {
-      pendingHistoryHtmlRef.current = null;
-      pushHistorySnapshot(pending);
-    }
-  }, [pushHistorySnapshot]);
-
-  /**
-   * Schedules a history snapshot after a typing pause.
-   * Consecutive keystrokes reset the timer so the user's typing
-   * is grouped into a single undoable action.
-   */
-  const debouncedPushHistorySnapshot = useCallback(
-    (html: string) => {
-      pendingHistoryHtmlRef.current = html;
-      if (historyDebounceTimerRef.current) {
-        clearTimeout(historyDebounceTimerRef.current);
-      }
-      historyDebounceTimerRef.current = setTimeout(() => {
-        historyDebounceTimerRef.current = null;
-        pendingHistoryHtmlRef.current = null;
-        pushHistorySnapshot(html);
-      }, HISTORY_DEBOUNCE_MS);
-    },
-    [pushHistorySnapshot]
-  );
+  }, [editorRef, normalizedValue, consumeApplyingFlag, seedHistory]);
 
   const applyEditorCommand = useCallback(
     (command: ClinicalDocumentRichTextEditorCommand, value?: string) => {
       const editor = editorRef.current;
       if (!editor || disabled) return;
 
-      // Commit any pending typing before undo/redo or formatting
       flushPendingHistorySnapshot();
 
-      if (command === 'undo') {
-        if (historyIndexRef.current <= 0) return;
-        historyIndexRef.current -= 1;
-        const previous = historyRef.current[historyIndexRef.current] || '';
-        isApplyingHistoryRef.current = true;
-        editor.innerHTML = previous;
-        updateHistoryState();
-        lastLocalNormalizedValueRef.current = previous;
-        onChange(previous);
-        return;
-      }
-
-      if (command === 'redo') {
-        if (historyIndexRef.current >= historyRef.current.length - 1) return;
-        historyIndexRef.current += 1;
-        const next = historyRef.current[historyIndexRef.current] || '';
-        isApplyingHistoryRef.current = true;
-        editor.innerHTML = next;
-        updateHistoryState();
-        lastLocalNormalizedValueRef.current = next;
-        onChange(next);
+      if (command === 'undo' || command === 'redo') {
+        const snapshot = navigateHistory(command);
+        if (snapshot === null) return;
+        editor.innerHTML = snapshot;
+        lastLocalNormalizedValueRef.current = snapshot;
+        onChange(snapshot);
         return;
       }
 
       editor.focus();
       pendingExternalNormalizedValueRef.current = null;
       applyClinicalDocumentEditorCommand(command, value);
+      // List-affecting commands (toggle list, outdent) can strip the mandatory
+      // wrapper. Restore it here so the section never persists a broken shape.
+      if (mandatoryListType) {
+        enforceMandatoryListShape(editor, mandatoryListType);
+      }
       const html = normalizeClinicalDocumentContentForStorage(editor.innerHTML);
       lastLocalNormalizedValueRef.current = html;
       pushHistorySnapshot(html);
@@ -216,9 +147,10 @@ export const useClinicalDocumentRichTextEditorController = ({
       disabled,
       editorRef,
       flushPendingHistorySnapshot,
+      mandatoryListType,
+      navigateHistory,
       onChange,
       pushHistorySnapshot,
-      updateHistoryState,
     ]
   );
 
@@ -297,15 +229,24 @@ export const useClinicalDocumentRichTextEditorController = ({
     const editor = editorRef.current;
     if (!editor) return;
 
-    // Detect /lab slash command before normalizing
     const textContent = editor.textContent || '';
     const command = detectSlashCommand(textContent);
 
     if (command === 'lab' && onSlashLab) {
-      // Remove the command text immediately
-      editor.innerHTML = removeSlashCommandFromHtml(editor.innerHTML);
+      // Strip the typed command at the caret (keeps the cursor in place); fall
+      // back to an innerHTML-level strip only if the caret isn't where expected.
+      if (!removeTrailingPatternAtCaret(editor, SLASH_LAB_TEXT_REMOVE)) {
+        editor.innerHTML = removeSlashCommandFromHtml(editor.innerHTML);
+      }
 
-      // Async: fetch and insert lab summary
+      // Commit the cleaned content NOW so a null lab result can't leave the
+      // stranded "/lab " in `value` (which would otherwise resurface on blur).
+      const cleanedHtml = normalizeClinicalDocumentContentForStorage(editor.innerHTML);
+      pendingExternalNormalizedValueRef.current = null;
+      lastLocalNormalizedValueRef.current = cleanedHtml;
+      debouncedPushHistorySnapshot(cleanedHtml);
+      onChange(cleanedHtml);
+
       void onSlashLab().then(labText => {
         if (!labText) return;
         insertPlainText(labText);
@@ -330,18 +271,18 @@ export const useClinicalDocumentRichTextEditorController = ({
     if (editor && pendingExternalNormalizedValueRef.current != null) {
       const nextNormalizedValue = pendingExternalNormalizedValueRef.current;
       const currentNormalizedValue = normalizeClinicalDocumentContentForStorage(editor.innerHTML);
-      if (currentNormalizedValue !== nextNormalizedValue) {
+      const hasLocalEditAfterExternalValue =
+        currentNormalizedValue === lastLocalNormalizedValueRef.current;
+      if (!hasLocalEditAfterExternalValue && currentNormalizedValue !== nextNormalizedValue) {
         editor.innerHTML = nextNormalizedValue;
+        lastLocalNormalizedValueRef.current = nextNormalizedValue;
+        seedHistory(nextNormalizedValue);
       }
-      lastLocalNormalizedValueRef.current = nextNormalizedValue;
-      historyRef.current = [nextNormalizedValue];
-      historyIndexRef.current = 0;
-      updateHistoryState(0, historyRef.current);
       pendingExternalNormalizedValueRef.current = null;
     }
     isActiveRef.current = false;
     onDeactivateRef.current?.(sectionId);
-  }, [editorRef, flushPendingHistorySnapshot, sectionId, updateHistoryState]);
+  }, [editorRef, flushPendingHistorySnapshot, seedHistory, sectionId]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
@@ -355,13 +296,6 @@ export const useClinicalDocumentRichTextEditorController = ({
     [applyEditorCommand, disabled, editorRef]
   );
 
-  /**
-   * Intercepts paste to strip inline styles, colors, and backgrounds
-   * while preserving images, tables, and structural formatting.
-   *
-   * Uses {@link classifyPasteContent} to determine content kind, then
-   * performs the appropriate DOM insertion.
-   */
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -373,9 +307,28 @@ export const useClinicalDocumentRichTextEditorController = ({
       if (descriptor.kind === 'empty') return;
 
       if (descriptor.kind === 'image-file') {
+        if (descriptor.requiresStorage) {
+          if (!onUploadPastedImage) {
+            onImagePasteRejected?.('No se pudo subir la imagen como archivo del episodio.');
+            return;
+          }
+          void onUploadPastedImage(descriptor.file).then(uploadedImage => {
+            if (!uploadedImage) {
+              onImagePasteRejected?.('No se pudo subir la imagen como archivo del episodio.');
+              return;
+            }
+            insertHtml(buildPastedStorageImageHtml(uploadedImage));
+          });
+          return;
+        }
         void readFileAsDataUrl(descriptor.file).then(dataUrl => {
           insertHtml(buildPastedImageHtml(dataUrl));
         });
+        return;
+      }
+
+      if (descriptor.kind === 'image-too-large') {
+        onImagePasteRejected?.(descriptor.message);
         return;
       }
 
@@ -385,7 +338,7 @@ export const useClinicalDocumentRichTextEditorController = ({
         insertPlainText(descriptor.text);
       }
     },
-    [editorRef, insertHtml, insertPlainText]
+    [editorRef, insertHtml, insertPlainText, onImagePasteRejected, onUploadPastedImage]
   );
 
   return {

@@ -4,12 +4,12 @@ import clinicalDocumentSheetStyles from '@/features/clinical-documents/styles/cl
 import {
   applyClinicalDocumentAnnexPrintMode,
   CLINICAL_DOCUMENT_SHEET_ID,
-  escapeHtmlAttr,
-  escapeHtmlText,
   escapeStyleText,
   sanitizeClinicalDocumentSheetClone,
+  sanitizeCssValue,
   type ClinicalDocumentAnnexPrintMode,
 } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
+import { escapeHtml } from '@/utils/htmlEscape';
 
 interface PrintHtmlOptions {
   pageTitle?: string;
@@ -63,13 +63,15 @@ export const buildClinicalDocumentPrintHtml = async (
     return null;
   }
 
-  const baseHref = escapeHtmlAttr(`${window.location.origin}/`);
-  const pageTitle = escapeHtmlText(options.pageTitle?.trim() || 'Epicrisis médica');
+  const baseHref = escapeHtml(`${window.location.origin}/`);
+  const pageTitle = escapeHtml(options.pageTitle?.trim() || 'Epicrisis médica');
   const printOverrides = options.hidePatientInfoTitle
     ? '.clinical-document-patient-info-title{display:none !important;}'
     : '';
   const appStyles = options.includeAppStyles ? collectAppStyleTags() : '';
-  const bodyFontFamily = escapeHtmlText(
+  // CSS context (inside <style>): preserve the quotes that the font stack needs;
+  // HTML-escaping here would corrupt `'Segoe UI'` into `&#39;Segoe UI&#39;`.
+  const bodyFontFamily = sanitizeCssValue(
     options.bodyFontFamily?.trim() ||
       window.getComputedStyle(document.body).fontFamily ||
       "Inter, 'Segoe UI', Roboto, Arial, sans-serif"

@@ -67,6 +67,44 @@ export function registerFirestoreRulesIdentityGroups({
       await assertSucceeds(authed().doc('userSettings/user_basic').get());
     });
 
+    it('Users can persist their private clinical signature profile only in their own settings', async () => {
+      await assertSucceeds(
+        authed()
+          .doc('userSettings/user_basic')
+          .set({
+            clinicalSignatureProfile: {
+              uid: 'user_basic',
+              email: 'user@example.com',
+              displayName: 'Dra. Firma Personal',
+              specialty: 'Medicina Interna',
+              updatedAt: '2026-05-07T12:00:00.000Z',
+            },
+          })
+      );
+    });
+
+    it('Users can persist their private clinical indications only in their own settings', async () => {
+      await assertSucceeds(
+        authed()
+          .doc('userSettings/user_basic')
+          .set({
+            clinicalDocumentIndicationsProfile: {
+              uid: 'user_basic',
+              email: 'user@example.com',
+              updatedAt: '2026-05-07T12:30:00.000Z',
+              items: [
+                {
+                  id: 'custom-control',
+                  text: 'Control con equipo tratante',
+                  source: 'custom',
+                  createdAt: '2026-05-07T12:30:00.000Z',
+                },
+              ],
+            },
+          })
+      );
+    });
+
     it('Users cannot read settings for other users', async () => {
       await setupDoc(admin(), 'userSettings/user_other', { theme: 'dark' });
       await assertFails(authed().doc('userSettings/user_other').get());
@@ -152,6 +190,78 @@ export function registerFirestoreRulesIdentityGroups({
           })
       );
       await assertSucceeds(nurse().doc('stats/system_health/users/user_nurse').get());
+    });
+
+    it('Only admins can delete stale system health snapshots', async () => {
+      const healthPath = 'stats/system_health/users/user_nurse';
+      await assertSucceeds(
+        nurse()
+          .doc(healthPath)
+          .set({
+            ...validSystemHealthPayload,
+            uid: 'user_nurse',
+            email: 'hospitalizados@hospitalhangaroa.cl',
+            displayName: 'Nurse User',
+          })
+      );
+
+      await assertFails(nurse().doc(healthPath).delete());
+      await assertSucceeds(admin().doc(healthPath).delete());
+    });
+
+    it('Regular viewers cannot delete system health snapshots', async () => {
+      const healthPath = 'stats/system_health/users/user_basic';
+      await assertSucceeds(authed().doc(healthPath).set(validSystemHealthPayload));
+
+      await assertFails(authed().doc(healthPath).delete());
+    });
+
+    it('Only admins can persist system health incident resolutions', async () => {
+      const resolutionPath = 'stats/system_health/resolutions/user_nurse%3Aevent-1';
+      const resolutionPayload = {
+        resolutionKey: 'user_nurse:event-1',
+        status: 'resolved',
+        updatedAt: '2026-05-22T14:15:00.000Z',
+        resolvedAt: '2026-05-22T14:15:00.000Z',
+        resolvedByUid: 'user_admin',
+        resolvedByEmail: 'daniel.opazo@hospitalhangaroa.cl',
+        resolvedByName: 'Admin User',
+        note: 'Permiso corregido',
+        history: [
+          {
+            action: 'resolved',
+            at: '2026-05-22T14:15:00.000Z',
+            actorUid: 'user_admin',
+          },
+        ],
+      };
+
+      await assertFails(nurse().doc(resolutionPath).set(resolutionPayload));
+      await assertSucceeds(admin().doc(resolutionPath).set(resolutionPayload));
+      await assertSucceeds(nurse().doc(resolutionPath).get());
+    });
+
+    it('Regular viewers cannot write or read system health incident resolutions', async () => {
+      const resolutionPath = 'stats/system_health/resolutions/user_basic%3Aevent-1';
+
+      await assertFails(
+        authed().doc(resolutionPath).set({
+          resolutionKey: 'user_basic:event-1',
+          status: 'resolved',
+          updatedAt: '2026-05-22T14:15:00.000Z',
+          resolvedAt: '2026-05-22T14:15:00.000Z',
+          history: [],
+        })
+      );
+
+      await setupDoc(admin(), resolutionPath, {
+        resolutionKey: 'user_basic:event-1',
+        status: 'resolved',
+        updatedAt: '2026-05-22T14:15:00.000Z',
+        resolvedAt: '2026-05-22T14:15:00.000Z',
+        history: [],
+      });
+      await assertFails(authed().doc(resolutionPath).get());
     });
 
     it('Users cannot write system health for other users', async () => {

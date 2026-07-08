@@ -1,4 +1,6 @@
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentSignatureProfile } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
 import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import type { ClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
@@ -30,6 +32,7 @@ export interface ClinicalDocumentSheetProps {
   isSaving: boolean;
   lastSavedAt?: string;
   hasLocalDraftChanges: boolean;
+  flushPendingAutosave: () => void;
   isUploadingPdf: boolean;
   toolbar?: ReactNode;
   activeTitleTarget: string | null;
@@ -45,6 +48,28 @@ export interface ClinicalDocumentSheetProps {
   onToggleIndicationsPanel: () => void;
   onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
   onEditorDeactivate: (sectionId: string) => void;
+  onImagePasteRejected: (message: string) => void;
+  attachments: ClinicalAttachmentRecord[];
+  currentDocumentId?: string | null;
+  currentEpisodeKey?: string | null;
+  patientAttachments: ClinicalAttachmentRecord[];
+  isLoadingAttachments: boolean;
+  isLoadingPatientAttachments: boolean;
+  isUploadingAttachment: boolean;
+  uploadStatusMessage: string | null;
+  onUploadAttachment: (file: File) => Promise<void> | void;
+  onDeleteAttachment: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
+  onRenameAttachment: (
+    attachment: ClinicalAttachmentRecord,
+    displayName: string
+  ) => Promise<void> | void;
+  onRegenerateAttachmentAccess: (attachment: ClinicalAttachmentRecord) => Promise<void> | void;
+  onSuggestAttachmentName: (attachment: ClinicalAttachmentRecord) => Promise<string | null>;
+  onUploadPastedImage: (file: File) => Promise<{
+    attachmentId: string;
+    imageUrl: string;
+    storagePath: string;
+  } | null>;
   dragHandlers: {
     onDragStart: (event: DragEvent<HTMLButtonElement>, sectionId: string) => void;
     onDragOver: (event: DragEvent<HTMLElement>, sectionId: string, canInteract: boolean) => void;
@@ -75,22 +100,19 @@ export interface ClinicalDocumentSheetProps {
       Pick<ClinicalDocumentRecord, 'medico' | 'especialidad' | 'includePatientSignature'>
     >
   ) => void;
+  signatureProfile?: ClinicalDocumentSignatureProfile | null;
+  onSaveSignatureProfile?: () => void;
+  onApplySignatureProfile?: () => void;
   indicationsCatalog: ClinicalDocumentIndicationsCatalog;
   isSavingCustomIndication: boolean;
   customIndicationError: string | null;
-  addCustomIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    text: string
-  ) => Promise<boolean>;
-  updateIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string,
-    text: string
-  ) => Promise<boolean>;
-  deleteIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string
-  ) => Promise<boolean>;
+  createIndicationsTab: (label: string) => Promise<boolean>;
+  renameIndicationsTab: (tabId: string, label: string) => Promise<boolean>;
+  deleteIndicationsTab: (tabId: string) => Promise<boolean>;
+  reorderIndicationsTab: (tabId: string, direction: 'left' | 'right') => Promise<boolean>;
+  addCustomIndication: (tabId: string, text: string) => Promise<boolean>;
+  updateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
+  deleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
   importIndicationsCatalog: (catalog: unknown) => Promise<boolean>;
   onRestoreTemplate: () => void;
   addClinicalUpdate: () => void;
@@ -117,6 +139,8 @@ export interface ClinicalDocumentSpecialSectionRendererProps {
   onPatchSection: (sectionId: string, content: string) => void;
   onEditorActivate: (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => void;
   onEditorDeactivate: (sectionId: string) => void;
+  onUploadPastedImage: ClinicalDocumentSheetProps['onUploadPastedImage'];
+  onImagePasteRejected: (message: string) => void;
   indicationsCatalog: ClinicalDocumentIndicationsCatalog;
   isSavingCustomIndication: boolean;
   customIndicationError: string | null;
@@ -124,18 +148,12 @@ export interface ClinicalDocumentSpecialSectionRendererProps {
   setActiveIndicationsSpecialtyId: (specialtyId: ClinicalDocumentIndicationSpecialtyId) => void;
   isIndicationsPanelOpen: boolean;
   onToggleIndicationsPanel: () => void;
-  addCustomIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    text: string
-  ) => Promise<boolean>;
-  updateIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string,
-    text: string
-  ) => Promise<boolean>;
-  deleteIndication: (
-    specialtyId: ClinicalDocumentIndicationSpecialtyId,
-    itemId: string
-  ) => Promise<boolean>;
+  createIndicationsTab: (label: string) => Promise<boolean>;
+  renameIndicationsTab: (tabId: string, label: string) => Promise<boolean>;
+  deleteIndicationsTab: (tabId: string) => Promise<boolean>;
+  reorderIndicationsTab: (tabId: string, direction: 'left' | 'right') => Promise<boolean>;
+  addCustomIndication: (tabId: string, text: string) => Promise<boolean>;
+  updateIndication: (tabId: string, itemId: string, text: string) => Promise<boolean>;
+  deleteIndication: (tabId: string, itemId: string) => Promise<boolean>;
   importIndicationsCatalog: (catalog: unknown) => Promise<boolean>;
 }

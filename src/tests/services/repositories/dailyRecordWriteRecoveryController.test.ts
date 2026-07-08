@@ -20,6 +20,9 @@ describe('dailyRecordWriteRecoveryController', () => {
     expect(buildRecoveryTaskMeta(['beds.R1.patientName'], 'partial_update_retry')).toEqual({
       contexts: ['clinical'],
       origin: 'partial_update_retry',
+      syncContract: {
+        changedPaths: ['beds.R1.patientName'],
+      },
     });
   });
 

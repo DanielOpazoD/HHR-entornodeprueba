@@ -5,13 +5,14 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { PatientData } from '@/hooks/contracts/patientHookContracts';
-import type { CudyrScore } from '@/types/domain/cudyr';
+import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import { PatientFieldValue } from '@/types/valueTypes';
 import { usePatientValidation } from './usePatientValidation';
 import { useBedAudit } from './useBedAudit';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { useBedManagementActionCreators } from '@/hooks/useBedManagementActionCreators';
+import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 
 /**
  * Interface defining the actions available for bed management.
@@ -32,6 +33,8 @@ export interface BedManagementActions {
    * Updates a specific field in the CUDYR score for a patient.
    */
   updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
+  updateCudyrMultiple: (bedId: string, fields: CudyrScorePatch) => void;
+  updateCudyrBatch: (changes: CudyrBatchUpdate) => Promise<boolean>;
 
   /**
    * Manages clinical crib operations (create, remove, or update fields).
@@ -51,6 +54,7 @@ export interface BedManagementActions {
    * Updates a specific field in the CUDYR score for a clinical crib.
    */
   updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
+  updateClinicalCribCudyrMultiple: (bedId: string, fields: CudyrScorePatch) => void;
 
   /**
    * Clears patient data from a bed (Discharge/Cleanup).
@@ -97,7 +101,10 @@ export interface BedManagementActions {
 export const useBedManagement = (
   record: DailyRecord | null,
   _saveAndUpdate: PersistDailyRecord, // Kept for legacy compat
-  patchRecord: ApplyDailyRecordPatch
+  patchRecord: ApplyDailyRecordPatch,
+  // Injected from a layer that has the UI + audit providers (the authenticated
+  // runtime). Optional so lower-level tests can render this hook without them.
+  ensureStaleDayEditAllowed?: StaleDayEditGuard
 ): BedManagementActions => {
   const validation = usePatientValidation();
   const bedAudit = useBedAudit(record);
@@ -112,18 +119,25 @@ export const useBedManagement = (
   // Dispatcher
   // ========================================================================
 
-  const dispatch = useCallback(
-    (action: BedAction) => {
+  const dispatchAndWait = useCallback(
+    (action: BedAction): Promise<boolean> =>
       executeBedManagementAction({
         currentRecord: recordRef.current,
         action,
         validation,
         bedAudit,
         patchRecord,
-      });
-    },
-    [validation, patchRecord, bedAudit]
+        ensureStaleDayEditAllowed,
+      }),
+    [validation, patchRecord, bedAudit, ensureStaleDayEditAllowed]
   );
 
-  return useBedManagementActionCreators(dispatch);
+  const dispatch = useCallback(
+    (action: BedAction) => {
+      void dispatchAndWait(action);
+    },
+    [dispatchAndWait]
+  );
+
+  return useBedManagementActionCreators(dispatch, dispatchAndWait);
 };

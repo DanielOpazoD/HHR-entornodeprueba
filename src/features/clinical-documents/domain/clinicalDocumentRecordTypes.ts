@@ -53,6 +53,15 @@ export interface ClinicalDocumentRecord {
   especialidad: string;
   status: ClinicalDocumentStatus;
   isLocked: boolean;
+  /**
+   * Reason for the lock, set automatically when an episode closes
+   * (discharge home, transfer, death, fuga). Currently only
+   * `'episode_closed'` is emitted; future reasons (manual admin lock,
+   * compliance freeze, etc.) can extend this without breaking readers.
+   */
+  lockedReason?: 'episode_closed';
+  /** ISO timestamp when the lock was applied. Set together with `isLocked`. */
+  lockedAt?: string;
   isActiveEpisodeDocument: boolean;
   currentVersion: number;
   versionHistory: ClinicalDocumentVersionMeta[];

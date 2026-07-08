@@ -216,10 +216,12 @@ export const waitForClinicalDocumentSheetAssets = async (
   }
 };
 
-export const escapeHtmlAttr = (value: string): string =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-
-export const escapeHtmlText = (value: string): string =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 export const escapeStyleText = (value: string): string => value.replace(/<\/style/gi, '<\\/style');
+
+/**
+ * Neutralizes a value destined for a CSS declaration inside a `<style>` block by
+ * stripping the characters that could break out of it (`<` `>` `{` `}` `;`).
+ * Unlike HTML escaping, it PRESERVES quotes, which a `font-family` stack needs
+ * for quoted font names (e.g. `'Segoe UI'`).
+ */
+export const sanitizeCssValue = (value: string): string => value.replace(/[<>{};]/g, '');

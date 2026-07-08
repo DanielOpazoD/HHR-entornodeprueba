@@ -9,10 +9,15 @@ vi.mock('@/features/transfers/services/destinationHospitalCatalogService', () =>
   getDestinationHospitalCatalog: (...args: unknown[]) => getDestinationHospitalCatalog(...args),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntime', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: vi.fn(),
-  },
+const mockNotify = vi.fn();
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({
+    notify: mockNotify,
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  }),
 }));
 
 describe('TransferFormModal', () => {

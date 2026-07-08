@@ -39,10 +39,10 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
           )}
           value={localData.admissionOrigin}
           onChange={e =>
-            setLocalData({
-              ...localData,
+            setLocalData(current => ({
+              ...current,
               admissionOrigin: e.target.value as AdmissionOrigin,
-            })
+            }))
           }
         >
           <option value="">-- Seleccionar --</option>
@@ -77,7 +77,9 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
           )}
           placeholder="Especifique origen..."
           value={localData.admissionOriginDetails}
-          onChange={e => setLocalData({ ...localData, admissionOriginDetails: e.target.value })}
+          onChange={e =>
+            setLocalData(current => ({ ...current, admissionOriginDetails: e.target.value }))
+          }
           autoFocus
         />
       )}

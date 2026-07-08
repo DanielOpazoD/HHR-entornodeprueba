@@ -6,21 +6,15 @@
  * LAB moved to sidebar. Status (autosave, Drive) in header right side.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bold,
-  Eraser,
-  IndentDecrease,
-  IndentIncrease,
-  Italic,
   Link2,
-  List,
-  ListOrdered,
   Printer,
   Redo2,
   RotateCcw,
   Table2,
-  Underline,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -28,6 +22,19 @@ import {
 
 import { ClinicalDocumentLinkDialog } from '@/features/clinical-documents/components/ClinicalDocumentLinkDialog';
 import { ClinicalDocumentTableDialog } from '@/features/clinical-documents/components/ClinicalDocumentTableDialog';
+import {
+  defaultIconBtn,
+  FORMATTING_ICON_SIZE,
+  FORMATTING_PANEL_OFFSET_PX,
+  FORMATTING_PANEL_VIEWPORT_MARGIN_PX,
+  FORMATTING_PANEL_Z_INDEX,
+  iconBtn,
+  listFormattingActions,
+  renderToolbarButtons,
+  textFormattingActions,
+  ToolbarCluster,
+  TOOLBAR_ICON_SIZE,
+} from '@/features/clinical-documents/components/clinicalDocumentFormattingToolbarShared';
 
 import type {
   ClinicalDocumentFormattingCommand,
@@ -59,78 +66,6 @@ export interface ClinicalDocumentFormattingToolbarProps {
 }
 
 // ---------------------------------------------------------------------------
-// Formatting sub-panel actions
-// ---------------------------------------------------------------------------
-
-const textFormattingActions = [
-  { command: 'bold' as const, label: 'Negrita', icon: Bold },
-  { command: 'italic' as const, label: 'Cursiva', icon: Italic },
-  { command: 'underline' as const, label: 'Subrayado', icon: Underline },
-  { command: 'removeFormat' as const, label: 'Quitar formato', icon: Eraser },
-];
-
-const listFormattingActions = [
-  { command: 'insertUnorderedList' as const, label: 'Viñetas', icon: List },
-  { command: 'insertOrderedList' as const, label: 'Lista numerada', icon: ListOrdered },
-  { command: 'indent' as const, label: 'Aumentar sangría', icon: IndentIncrease },
-  { command: 'outdent' as const, label: 'Disminuir sangría', icon: IndentDecrease },
-];
-
-// ---------------------------------------------------------------------------
-// Shared styles
-// ---------------------------------------------------------------------------
-
-/** Icon size (px) for main toolbar buttons. */
-const TOOLBAR_ICON_SIZE = 15;
-
-/** Icon size (px) for the expanded formatting sub-panel. */
-const FORMATTING_ICON_SIZE = 14;
-
-const iconBtn =
-  'inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300';
-
-const defaultIconBtn = `${iconBtn} border-slate-200 text-slate-600 hover:bg-slate-50`;
-
-const ToolbarCluster: React.FC<{
-  label: string;
-  children: React.ReactNode;
-}> = ({ label, children }) => (
-  <div className="clinical-document-toolbar-cluster" role="group" aria-label={label}>
-    <span className="clinical-document-toolbar-cluster-label">{label}</span>
-    <div className="flex items-center gap-1">{children}</div>
-  </div>
-);
-
-type ToolbarAction = {
-  command: ClinicalDocumentFormattingCommand;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
-};
-
-const renderToolbarButtons = (
-  actions: ToolbarAction[],
-  onApplyFormatting: (command: ClinicalDocumentFormattingCommand) => void,
-  formattingDisabled: boolean
-) =>
-  actions.map(action => {
-    const Icon = action.icon;
-    return (
-      <button
-        key={action.command}
-        type="button"
-        className="clinical-document-toolbar-button"
-        onMouseDown={event => event.preventDefault()}
-        onClick={() => onApplyFormatting(action.command)}
-        disabled={formattingDisabled}
-        aria-label={action.label}
-        title={action.label}
-      >
-        <Icon size={FORMATTING_ICON_SIZE} />
-      </button>
-    );
-  });
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -156,6 +91,64 @@ export const ClinicalDocumentFormattingToolbar: React.FC<
   const editEnabled = canEdit && !selectedDocument.isLocked;
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const formatButtonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // The panel is portaled to <body> and positioned with `fixed` coordinates so
+  // it can never be clipped by the toolbar's scroll container (the modal header
+  // uses `overflow-x:auto`, which the browser coerces `overflow-y` to `auto`,
+  // hiding any absolutely-positioned child that drops below the header box).
+  //
+  // Placement is applied imperatively (no React state) so that re-renders of the
+  // toolbar while the panel is open — e.g. undo/redo state changing as the user
+  // types — never cause cascading renders.
+  const positionPanel = useCallback(() => {
+    const button = formatButtonRef.current;
+    const panel = panelRef.current;
+    if (!button || !panel || typeof window === 'undefined') {
+      return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const margin = FORMATTING_PANEL_VIEWPORT_MARGIN_PX;
+    const top = rect.bottom + FORMATTING_PANEL_OFFSET_PX;
+
+    // Anchor the panel's right edge to the button, then clamp BOTH horizontal
+    // edges so a button near the left edge (narrow viewports) can't push the
+    // panel off-screen, and bound the height so it never runs past the bottom.
+    const width = panel.offsetWidth;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const left = Math.min(Math.max(margin, rect.right - width), maxLeft);
+
+    panel.style.top = `${top}px`;
+    panel.style.left = `${left}px`;
+    panel.style.right = 'auto';
+    panel.style.maxHeight = `${Math.max(0, window.innerHeight - top - margin)}px`;
+    panel.style.visibility = 'visible';
+  }, []);
+
+  // Re-place after every render while open (keeps the anchor correct when the
+  // toolbar re-renders) — runs before paint, so the reset-then-place is invisible.
+  useLayoutEffect(() => {
+    if (isFormattingOpen) {
+      positionPanel();
+    }
+  });
+
+  // Keep the panel anchored to the button on viewport changes while it is open.
+  useEffect(() => {
+    if (!isFormattingOpen || typeof window === 'undefined') {
+      return;
+    }
+
+    window.addEventListener('resize', positionPanel);
+    // Capture phase so ancestor scrolls (modal body, header) reposition the panel.
+    window.addEventListener('scroll', positionPanel, true);
+    return () => {
+      window.removeEventListener('resize', positionPanel);
+      window.removeEventListener('scroll', positionPanel, true);
+    };
+  }, [isFormattingOpen, positionPanel]);
 
   return (
     <div
@@ -193,7 +186,9 @@ export const ClinicalDocumentFormattingToolbar: React.FC<
 
       <ToolbarCluster label="Formato">
         <button
+          ref={formatButtonRef}
           type="button"
+          onMouseDown={event => event.preventDefault()}
           onClick={onToggleFormatting}
           disabled={!editEnabled}
           aria-pressed={isFormattingOpen}
@@ -265,88 +260,109 @@ export const ClinicalDocumentFormattingToolbar: React.FC<
         </button>
       </ToolbarCluster>
 
-      {/* Formatting panel */}
-      {isFormattingOpen && (
-        <div
-          className={`clinical-document-global-toolbar-modal ${
-            formattingReady ? 'clinical-document-global-toolbar-modal--ready' : ''
-          }`}
-        >
-          <div className="clinical-document-toolbar-panel">
-            <section className="clinical-document-toolbar-panel-section">
-              <p className="clinical-document-toolbar-panel-title">Formato de texto</p>
-              <div
-                className="clinical-document-toolbar"
-                role="toolbar"
-                aria-label="Formato global del documento"
-              >
-                {renderToolbarButtons(textFormattingActions, onApplyFormatting, formattingDisabled)}
+      {/* Formatting panel — portaled to <body> so the modal header's scroll
+          container can never clip it (see updatePanelPosition). */}
+      {isFormattingOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className={`clinical-document-global-toolbar-modal clinical-document-global-toolbar-modal--floating ${
+                formattingReady ? 'clinical-document-global-toolbar-modal--ready' : ''
+              }`}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: FORMATTING_PANEL_VIEWPORT_MARGIN_PX,
+                zIndex: FORMATTING_PANEL_Z_INDEX,
+                // Hidden until positionPanel() places it (same paint frame).
+                visibility: 'hidden',
+              }}
+            >
+              <div className="clinical-document-toolbar-panel">
+                <section className="clinical-document-toolbar-panel-section">
+                  <p className="clinical-document-toolbar-panel-title">Formato de texto</p>
+                  <div
+                    className="clinical-document-toolbar"
+                    role="toolbar"
+                    aria-label="Formato global del documento"
+                  >
+                    {renderToolbarButtons(
+                      textFormattingActions,
+                      onApplyFormatting,
+                      formattingDisabled
+                    )}
+                  </div>
+                </section>
+
+                <section className="clinical-document-toolbar-panel-section">
+                  <p className="clinical-document-toolbar-panel-title">Listas y sangría</p>
+                  <div
+                    className="clinical-document-toolbar"
+                    role="toolbar"
+                    aria-label="Listas y sangría del documento"
+                  >
+                    {renderToolbarButtons(
+                      listFormattingActions,
+                      onApplyFormatting,
+                      formattingDisabled
+                    )}
+                  </div>
+                </section>
+
+                <section className="clinical-document-toolbar-panel-section">
+                  <p className="clinical-document-toolbar-panel-title">Tablas y enlaces</p>
+                  <div
+                    className="clinical-document-toolbar"
+                    role="toolbar"
+                    aria-label="Tablas y enlaces"
+                  >
+                    {onInsertHtml && (
+                      <>
+                        <button
+                          type="button"
+                          className="clinical-document-toolbar-button"
+                          onMouseDown={event => event.preventDefault()}
+                          onClick={() => setShowTableDialog(true)}
+                          disabled={!editEnabled}
+                          aria-label="Insertar tabla"
+                          title="Insertar tabla"
+                        >
+                          <Table2 size={FORMATTING_ICON_SIZE} />
+                        </button>
+                        <button
+                          type="button"
+                          className="clinical-document-toolbar-button"
+                          onMouseDown={event => event.preventDefault()}
+                          onClick={() => setShowLinkDialog(true)}
+                          disabled={!editEnabled}
+                          aria-label="Insertar enlace"
+                          title="Insertar enlace"
+                        >
+                          <Link2 size={FORMATTING_ICON_SIZE} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </section>
               </div>
-            </section>
 
-            <section className="clinical-document-toolbar-panel-section">
-              <p className="clinical-document-toolbar-panel-title">Listas y sangría</p>
-              <div
-                className="clinical-document-toolbar"
-                role="toolbar"
-                aria-label="Listas y sangría del documento"
-              >
-                {renderToolbarButtons(listFormattingActions, onApplyFormatting, formattingDisabled)}
-              </div>
-            </section>
+              {showTableDialog && onInsertHtml ? (
+                <ClinicalDocumentTableDialog
+                  onInsert={html => onInsertHtml(html)}
+                  onClose={() => setShowTableDialog(false)}
+                />
+              ) : null}
 
-            <section className="clinical-document-toolbar-panel-section">
-              <p className="clinical-document-toolbar-panel-title">Tablas y enlaces</p>
-              <div
-                className="clinical-document-toolbar"
-                role="toolbar"
-                aria-label="Tablas y enlaces"
-              >
-                {onInsertHtml && (
-                  <>
-                    <button
-                      type="button"
-                      className="clinical-document-toolbar-button"
-                      onMouseDown={event => event.preventDefault()}
-                      onClick={() => setShowTableDialog(true)}
-                      disabled={!editEnabled}
-                      aria-label="Insertar tabla"
-                      title="Insertar tabla"
-                    >
-                      <Table2 size={FORMATTING_ICON_SIZE} />
-                    </button>
-                    <button
-                      type="button"
-                      className="clinical-document-toolbar-button"
-                      onMouseDown={event => event.preventDefault()}
-                      onClick={() => setShowLinkDialog(true)}
-                      disabled={!editEnabled}
-                      aria-label="Insertar enlace"
-                      title="Insertar enlace"
-                    >
-                      <Link2 size={FORMATTING_ICON_SIZE} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </section>
-          </div>
-
-          {showTableDialog && onInsertHtml ? (
-            <ClinicalDocumentTableDialog
-              onInsert={html => onInsertHtml(html)}
-              onClose={() => setShowTableDialog(false)}
-            />
-          ) : null}
-
-          {showLinkDialog && onInsertHtml ? (
-            <ClinicalDocumentLinkDialog
-              onInsert={html => onInsertHtml(html)}
-              onClose={() => setShowLinkDialog(false)}
-            />
-          ) : null}
-        </div>
-      )}
+              {showLinkDialog && onInsertHtml ? (
+                <ClinicalDocumentLinkDialog
+                  onInsert={html => onInsertHtml(html)}
+                  onClose={() => setShowLinkDialog(false)}
+                />
+              ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 };

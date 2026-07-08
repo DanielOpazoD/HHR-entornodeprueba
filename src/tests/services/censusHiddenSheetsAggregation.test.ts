@@ -120,6 +120,46 @@ describe('censusHiddenSheetsAggregation', () => {
     expect(row.specialtyCounts[Specialty.PEDIATRIA]).toBe(1);
   });
 
+  it('does not count tombstoned movements in hidden-sheet summary rows', () => {
+    const record = buildRecord(
+      '2026-03-24',
+      { R1: buildPatient('R1') },
+      {
+        discharges: [
+          { id: 'd-active', status: 'Vivo' } as DailyRecord['discharges'][number],
+          {
+            id: 'd-deleted',
+            status: 'Fallecido',
+            deletedAt: '2026-03-24T12:00:00.000Z',
+          } as DailyRecord['discharges'][number],
+        ],
+        transfers: [
+          { id: 't-active' } as DailyRecord['transfers'][number],
+          {
+            id: 't-deleted',
+            deletedAt: '2026-03-24T12:00:00.000Z',
+          } as DailyRecord['transfers'][number],
+        ],
+        cma: [
+          { id: 'c-active' } as DailyRecord['cma'][number],
+          {
+            id: 'c-deleted',
+            deletedAt: '2026-03-24T12:00:00.000Z',
+          } as DailyRecord['cma'][number],
+        ],
+      }
+    );
+
+    const [row] = buildSummaryRows(
+      buildLogicalSnapshotSheets([buildSnapshotSheet(record, '24-03-2026')])
+    );
+
+    expect(row.discharges).toBe(1);
+    expect(row.deceased).toBe(0);
+    expect(row.transfers).toBe(1);
+    expect(row.cma).toBe(1);
+  });
+
   it('aggregates UPC patients across days and marks bed changes', () => {
     const firstDay = buildRecord('2026-03-24', {
       R1: buildPatient('R1', {

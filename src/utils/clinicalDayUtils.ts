@@ -14,4 +14,8 @@ export {
   resolveClinicalDayForDateTime,
   resolveCurrentClinicalDay,
 } from './clinicalDayAdmissionUtils';
-export { calculateDischargeStayDays, calculateHospitalizedDays } from './clinicalStayDayUtils';
+export {
+  calculateDischargeStayDays,
+  calculateHospitalizedDays,
+  calculateOperationalHospitalizedDays,
+} from './clinicalStayDayUtils';

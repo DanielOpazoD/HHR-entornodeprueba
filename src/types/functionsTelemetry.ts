@@ -33,6 +33,26 @@ export interface FunctionsTelemetryServiceSummary {
   lastEntryAt?: string;
 }
 
+export type DailyRecordAuthorityRolloutRecommendation =
+  | 'insufficient_data'
+  | 'ready_for_enforced'
+  | 'monitor_enforced'
+  | 'investigate';
+
+export interface DailyRecordAuthorityRolloutSummary {
+  total: number;
+  shadowRuns: number;
+  enforcedWrites: number;
+  successCount: number;
+  failureCount: number;
+  blockedCount: number;
+  permissionDeniedCount: number;
+  fallbackEpisodeKeys: number;
+  degenerateFallbackEpisodeKeys: number;
+  lastEntryAt?: string;
+  recommendation: DailyRecordAuthorityRolloutRecommendation;
+}
+
 export interface FunctionsTelemetryFilters {
   service?: string;
   status?: TelemetryStatus;

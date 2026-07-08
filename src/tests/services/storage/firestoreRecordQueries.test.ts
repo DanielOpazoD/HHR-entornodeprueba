@@ -169,7 +169,10 @@ describe('firestoreRecordQueries', () => {
     });
 
     const unsubscribe = subscribeToRecord('2026-03-14', callback);
-    expect(callback).toHaveBeenCalledWith({ date: '2026-03-14', beds: { R1: true } }, true);
+    expect(callback).toHaveBeenCalledWith({ date: '2026-03-14', beds: { R1: true } }, true, {
+      hasPendingWrites: true,
+      fromCache: undefined,
+    });
     expect(typeof unsubscribe).toBe('function');
 
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {

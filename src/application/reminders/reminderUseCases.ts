@@ -8,7 +8,6 @@ import type {
   ApplicationOutcome,
 } from '@/shared/contracts/applicationOutcomeTypes';
 
-import { ReminderImageService } from '@/services/reminders/ReminderImageService';
 import {
   ReminderReadService,
   type ReminderReadReceiptsResult,
@@ -27,7 +26,13 @@ import type { Reminder, ReminderReadReceipt, ReminderShift } from '@/types/remin
 interface ReminderUseCasesDependencies {
   reminderRepository?: typeof ReminderRepository;
   reminderReadService?: typeof ReminderReadService;
-  reminderImageService?: typeof ReminderImageService;
+  reminderImageService?: ReminderImageServicePort;
+  reminderImageServiceLoader?: () => Promise<ReminderImageServicePort>;
+}
+
+interface ReminderImageServicePort {
+  uploadImage(reminderId: string, file: File): Promise<{ imageUrl: string; imagePath: string }>;
+  deleteImage(imagePath?: string): Promise<void>;
 }
 
 interface SubscribeRemindersOptions {
@@ -125,10 +130,16 @@ const mapReminderReadReceiptsOutcome = (
   });
 };
 
+const loadDefaultReminderImageService = async (): Promise<ReminderImageServicePort> => {
+  const module = await import('@/services/reminders/ReminderImageService');
+  return module.ReminderImageService;
+};
+
 export const createReminderUseCases = ({
   reminderRepository = ReminderRepository,
   reminderReadService = ReminderReadService,
-  reminderImageService = ReminderImageService,
+  reminderImageService,
+  reminderImageServiceLoader = loadDefaultReminderImageService,
 }: ReminderUseCasesDependencies = {}) => ({
   subscribeToReminderFeed({ onOutcome }: SubscribeRemindersOptions): () => void {
     return reminderRepository.subscribe(
@@ -245,7 +256,8 @@ export const createReminderUseCases = ({
     ApplicationOutcome<{ imageUrl: string; imagePath: string } | null>
   > {
     try {
-      const uploadedImage = await reminderImageService.uploadImage(reminderId, file);
+      const imageService = reminderImageService ?? (await reminderImageServiceLoader());
+      const uploadedImage = await imageService.uploadImage(reminderId, file);
       return createApplicationSuccess(uploadedImage);
     } catch (error) {
       return createApplicationFailed(
@@ -266,7 +278,8 @@ export const createReminderUseCases = ({
 
   async deleteReminderImage(imagePath?: string): Promise<ApplicationOutcome<null>> {
     try {
-      await reminderImageService.deleteImage(imagePath);
+      const imageService = reminderImageService ?? (await reminderImageServiceLoader());
+      await imageService.deleteImage(imagePath);
       return createApplicationSuccess(null);
     } catch (error) {
       return createApplicationFailed(

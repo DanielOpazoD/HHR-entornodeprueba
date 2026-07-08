@@ -101,6 +101,7 @@ export const buildLocalData = (
     biologicalSex: (data.biologicalSex || 'Indeterminado') as BiologicalSex,
     admissionDate: data.admissionDate || '',
     admissionTime: data.admissionTime || '',
+    pathology: data.pathology || '',
   };
 };
 
@@ -120,7 +121,8 @@ export const hasMeaningfulDemographicSubset = (data: DemographicSubset): boolean
     (data.origin && data.origin !== 'Residente') ||
     (data.documentType && data.documentType !== 'RUT') ||
     (data.admissionDate || '').trim() ||
-    (data.admissionTime || '').trim()
+    (data.admissionTime || '').trim() ||
+    normalizeNamePart(data.pathology || '')
   );
 
 export const hasMeaningfulLocalDemographics = (localData: LocalDemographicsState): boolean =>
@@ -139,7 +141,8 @@ export const hasMeaningfulLocalDemographics = (localData: LocalDemographicsState
     localData.origin !== 'Residente' ||
     localData.documentType !== 'RUT' ||
     localData.admissionDate.trim() ||
-    localData.admissionTime.trim()
+    localData.admissionTime.trim() ||
+    normalizeNamePart(localData.pathology)
   );
 
 export interface DemographicsCompletionStatus {

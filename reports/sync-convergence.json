@@ -1,0 +1,240 @@
+{
+  "reportId": "sync-convergence",
+  "generatedAt": "2026-07-05T21:29:38.314Z",
+  "gitSha": "97df59fb",
+  "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "97df59fb",
+    "gitDirty": false,
+    "treeHash": "5f44df4ad79841099e0d991f99cda0c77d364a59",
+    "reportId": "sync-convergence",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "13c886e834c44da3b40a298cbf0a370a126a774da01166cfda3665e7f5f464df",
+      "files": [
+        "docs/CLINICAL_SYNC_SIMULATOR_CONTRACT.md",
+        "docs/clinical-sync-simulator.md",
+        "scripts/check-sync-convergence-evidence.mjs",
+        "scripts/report-sync-convergence-evidence.mjs",
+        "scripts/syncConvergenceEvidenceSupport.mjs",
+        "src/services/observability/syncConvergenceDiagnosticTypes.ts",
+        "src/services/observability/syncConvergenceDiagnostics.ts",
+        "src/services/observability/syncConvergenceHandoffDiagnostics.ts",
+        "src/services/observability/syncRecoveryPlanner.ts",
+        "src/services/repositories/dailyRecordConflictAutoMergeController.ts",
+        "src/services/storage/sync/firestoreSyncTransport.ts",
+        "src/services/storage/sync/syncQueueTaskFactory.ts",
+        "src/services/storage/sync/syncQueueTelemetryController.ts",
+        "src/tests/features/admin/systemHealthSyncConvergencePanel.test.ts",
+        "src/tests/hooks/controllers/systemHealthReporterController.test.ts",
+        "src/tests/services/observability/syncConvergenceDiagnostics.test.ts",
+        "src/tests/services/observability/syncRecoveryPlanner.test.ts",
+        "src/tests/services/storage/syncQueueMutationConflict.test.ts",
+        "src/tests/services/storage/syncQueueTelemetryController.test.ts",
+        "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts",
+        "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.dmi-episode.test.ts",
+        "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts",
+        "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.test.ts",
+        "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.ts"
+      ],
+      "missingFiles": []
+    }
+  },
+  "worktree": "clean",
+  "summary": {
+    "ok": true,
+    "sectionCount": 4,
+    "passingChecks": 18,
+    "failingChecks": 0
+  },
+  "sections": [
+    {
+      "id": "sync-convergence",
+      "title": "Post-merge convergence",
+      "ok": true,
+      "checks": [
+        {
+          "id": "diagnostic-status-contract",
+          "ok": true,
+          "description": "The convergence diagnostic exposes the four operational states used by support.",
+          "evidence": [
+            "src/services/observability/syncConvergenceDiagnosticTypes.ts",
+            "src/services/observability/syncConvergenceDiagnostics.ts"
+          ]
+        },
+        {
+          "id": "clinical-divergence-findings",
+          "ok": true,
+          "description": "The diagnostic detects duplicate active patients, missing movements and divergent handoff.",
+          "evidence": [
+            "src/services/observability/syncConvergenceDiagnosticTypes.ts",
+            "src/services/observability/syncConvergenceHandoffDiagnostics.ts"
+          ]
+        },
+        {
+          "id": "handoff-module-classification",
+          "ok": true,
+          "description": "Nursing and medical handoff divergences are classified with clinical module semantics.",
+          "evidence": [
+            "src/services/observability/syncConvergenceDiagnosticTypes.ts",
+            "src/services/observability/syncConvergenceHandoffDiagnostics.ts"
+          ]
+        },
+        {
+          "id": "diagnostic-tests",
+          "ok": true,
+          "description": "The diagnostic has focused tests for unsafe and recoverable divergence scenarios.",
+          "evidence": [
+            "src/tests/services/observability/syncConvergenceDiagnostics.test.ts"
+          ]
+        },
+        {
+          "id": "operational-panel",
+          "ok": true,
+          "description": "System Health summarizes convergence state without requiring raw log expansion.",
+          "evidence": [
+            "src/tests/features/admin/systemHealthSyncConvergencePanel.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "authority-replay",
+      "title": "Authority replay traceability",
+      "ok": true,
+      "checks": [
+        {
+          "id": "truth-selection-telemetry",
+          "ok": true,
+          "description": "Sync writes emit an explicit truth-selection telemetry event.",
+          "evidence": [
+            "src/services/storage/sync/syncQueueTelemetryController.ts"
+          ]
+        },
+        {
+          "id": "anonymous-actor-context",
+          "ok": true,
+          "description": "Operational snapshots preserve accepted versions and resolution while anonymizing client/tab identifiers.",
+          "evidence": [
+            "src/services/storage/sync/syncQueueTaskFactory.ts"
+          ]
+        },
+        {
+          "id": "transport-resolution-paths",
+          "ok": true,
+          "description": "Remote sync transport classifies accepted, merged, blocked and already-applied outcomes.",
+          "evidence": [
+            "src/services/storage/sync/firestoreSyncTransport.ts"
+          ]
+        },
+        {
+          "id": "telemetry-tests",
+          "ok": true,
+          "description": "Telemetry tests guard traceability and privacy posture.",
+          "evidence": [
+            "src/tests/services/storage/syncQueueTelemetryController.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recovery-readiness",
+      "title": "Conservative recovery readiness",
+      "ok": true,
+      "checks": [
+        {
+          "id": "planner-action-contract",
+          "ok": true,
+          "description": "The recovery planner exposes explicit support actions without performing writes.",
+          "evidence": [
+            "src/services/observability/syncRecoveryPlanner.ts"
+          ]
+        },
+        {
+          "id": "planner-no-aggressive-writes",
+          "ok": true,
+          "description": "The recovery planner remains a pure recommender and does not mutate Firestore or outbox state.",
+          "evidence": [
+            "src/services/observability/syncRecoveryPlanner.ts"
+          ]
+        },
+        {
+          "id": "auto-merge-invariant-gate",
+          "ok": true,
+          "description": "Auto-merge evaluates post-merge invariants before queueing/auditing a recovered record.",
+          "evidence": [
+            "src/services/repositories/dailyRecordConflictAutoMergeController.ts"
+          ]
+        },
+        {
+          "id": "three-client-replay-coverage",
+          "ok": true,
+          "description": "Replay tests cover stale restart convergence for movements, discharge/CMA and handoff data.",
+          "evidence": [
+            "src/tests/services/storage/syncQueueMutationConflict.test.ts"
+          ]
+        },
+        {
+          "id": "planner-tests",
+          "ok": true,
+          "description": "Recovery planner tests cover retry, manual block and already-applied acknowledgement decisions.",
+          "evidence": [
+            "src/tests/services/observability/syncRecoveryPlanner.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clinical-sync-simulator",
+      "title": "Clinical sync simulator",
+      "ok": true,
+      "checks": [
+        {
+          "id": "multi-client-simulator-coverage",
+          "ok": true,
+          "description": "The simulator models logical clients, stale outbox, restart/replay, invariant-blocked writes, incompatible field edits and idempotent retry.",
+          "evidence": [
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.ts",
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.test.ts"
+          ]
+        },
+        {
+          "id": "auditable-clinical-context",
+          "ok": true,
+          "description": "Simulator events preserve clinical context for observability: record date, mutation, client/tab, changed paths, bed, patient and RUT when available.",
+          "evidence": [
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.ts",
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts"
+          ]
+        },
+        {
+          "id": "census-replay-scenarios",
+          "ok": true,
+          "description": "Census scenarios cover admission, bed moves, discharge/transfer/CMA and DMI replay after stale clients.",
+          "evidence": [
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts"
+          ]
+        },
+        {
+          "id": "handoff-replay-scenarios",
+          "ok": true,
+          "description": "Nursing and medical handoff scenarios cover stale replay, parallel specialties and entry-level merge semantics.",
+          "evidence": [
+            "src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "validationCommands": [
+    "npx vitest run src/tests/support/clinicalSyncSimulator",
+    "npx vitest run src/tests/services/observability/syncConvergenceDiagnostics.test.ts src/tests/services/observability/syncRecoveryPlanner.test.ts",
+    "npx vitest run src/tests/services/storage/syncQueueTelemetryController.test.ts src/tests/services/storage/syncQueueMutationConflict.test.ts",
+    "npx vitest run src/tests/features/admin/systemHealthSyncConvergencePanel.test.ts src/tests/hooks/controllers/systemHealthReporterController.test.ts",
+    "npm run check:sync-convergence-evidence"
+  ],
+  "packageScripts": {
+    "check": "node scripts/check-sync-convergence-evidence.mjs",
+    "report": "node scripts/report-sync-convergence-evidence.mjs"
+  }
+}

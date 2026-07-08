@@ -8,9 +8,9 @@
  * Without this guard, the stale local data could be saved back to Firestore,
  * overwriting the newer changes.
  *
- * This hook ensures the user always sees fresh data when they return to the tab.
- * The invalidation triggers a React Query refetch, which pulls the latest
- * data from IndexedDB + Firestore before the user can edit anything.
+ * This hook triggers broad refetch work when the user returns to the tab.
+ * The clinical edit safety gate lives in the daily record query/mutation flow,
+ * where mutations wait for Firebase confirmation after longer inactivity.
  */
 
 import { useEffect, useRef } from 'react';

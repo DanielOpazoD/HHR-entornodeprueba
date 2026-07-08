@@ -51,7 +51,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
               placeholder="RN de Nombre Apellido Madre"
               value={localData.provisionalName}
               onChange={e => {
-                setLocalData({ ...localData, provisionalName: e.target.value });
+                setLocalData(current => ({ ...current, provisionalName: e.target.value }));
                 setError(null);
               }}
             />
@@ -78,7 +78,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                   placeholder="Nombre"
                   value={localData.firstName}
                   onChange={e => {
-                    setLocalData({ ...localData, firstName: e.target.value });
+                    setLocalData(current => ({ ...current, firstName: e.target.value }));
                     setError(null);
                   }}
                 />
@@ -102,7 +102,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                   placeholder="Apellido paterno"
                   value={localData.lastName}
                   onChange={e => {
-                    setLocalData({ ...localData, lastName: e.target.value });
+                    setLocalData(current => ({ ...current, lastName: e.target.value }));
                     setError(null);
                   }}
                 />
@@ -118,7 +118,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                   placeholder="Apellido materno"
                   value={localData.secondLastName}
                   onChange={e => {
-                    setLocalData({ ...localData, secondLastName: e.target.value });
+                    setLocalData(current => ({ ...current, secondLastName: e.target.value }));
                     setError(null);
                   }}
                 />
@@ -137,7 +137,10 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
               value={localData.documentType}
               disabled={isProvisionalRnMode}
               onChange={e => {
-                setLocalData({ ...localData, documentType: e.target.value as DocumentType });
+                setLocalData(current => ({
+                  ...current,
+                  documentType: e.target.value as DocumentType,
+                }));
                 setError(null);
               }}
             >
@@ -163,7 +166,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
               value={isProvisionalRnMode ? '' : localData.rut}
               disabled={isProvisionalRnMode}
               onChange={e => {
-                setLocalData({ ...localData, rut: e.target.value });
+                setLocalData(current => ({ ...current, rut: e.target.value }));
                 setError(null);
               }}
             />
@@ -188,7 +191,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
             )}
             value={localData.birthDate}
             onChange={e => {
-              setLocalData({ ...localData, birthDate: e.target.value });
+              setLocalData(current => ({ ...current, birthDate: e.target.value }));
               setError(null);
             }}
           />
@@ -208,7 +211,9 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
             <select
               className="w-full px-2.5 py-1.5 bg-slate-50 border border-transparent rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none cursor-pointer shadow-sm transition-all"
               value={localData.insurance}
-              onChange={e => setLocalData({ ...localData, insurance: e.target.value as Insurance })}
+              onChange={e =>
+                setLocalData(current => ({ ...current, insurance: e.target.value as Insurance }))
+              }
             >
               <option value="Fonasa">Fonasa</option>
               <option value="Isapre">Isapre</option>

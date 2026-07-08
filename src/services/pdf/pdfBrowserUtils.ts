@@ -3,17 +3,12 @@ import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 import { injectPrintScript } from './pdfBase';
+import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
 import type { CustomMark } from './pdfMarkTypes';
 
 const MARK_TEXT_Y_OFFSET = 3;
 const MARK_X_OFFSET = 4;
 const MARK_Y_OFFSET = 4;
-let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
-
-const loadPdfLib = () => {
-  pdfLibPromise ??= import('pdf-lib');
-  return pdfLibPromise;
-};
 
 export const getTodayFormatted = (): string => {
   const d = new Date();
@@ -24,7 +19,7 @@ export const getTodayFormatted = (): string => {
 };
 
 export const loadPdfTemplate = async (templatePath: string): Promise<PDFDocument> => {
-  const { PDFDocument } = await loadPdfLib();
+  const { PDFDocument } = await loadPdfLibGenerationRuntime();
   const response = await fetch(templatePath);
   const templateBytes = await response.arrayBuffer();
   return PDFDocument.load(templateBytes);
@@ -118,7 +113,7 @@ export const injectPrintScriptAndOpen = async ({
   filledBytes: Uint8Array;
   fileName: string;
 }) => {
-  const { PDFDocument } = await loadPdfLib();
+  const { PDFDocument } = await loadPdfLibGenerationRuntime();
   const printDoc = await PDFDocument.load(filledBytes);
   await injectPrintScript(printDoc);
   const finalBytes = await printDoc.save();
@@ -135,4 +130,4 @@ export const buildSuggestedPdfName = (prefix: string, patientName: string): stri
 };
 
 export const embedHelvetica = async (pdfDoc: PDFDocument) =>
-  pdfDoc.embedFont((await loadPdfLib()).StandardFonts.Helvetica);
+  pdfDoc.embedFont((await loadPdfLibGenerationRuntime()).StandardFonts.Helvetica);

@@ -95,8 +95,23 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/census',
         bootstrapState: createLoadingBootstrapState('rehydrating'),
+        hasRecentAuthenticatedSessionHint: true,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('bootstrap-route-chrome');
+  });
+
+  it('does not render protected route chrome during a clean incognito-style bootstrap', () => {
+    expect(
+      resolveRuntimeLoadingScreenMode({
+        pathname: '/census',
+        bootstrapState: createLoadingBootstrapState('bootstrapping'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: false,
+      })
+    ).toBe('silent');
   });
 
   it('keeps root-route bootstrapping visually silent', () => {
@@ -104,6 +119,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/',
         bootstrapState: createLoadingBootstrapState('bootstrapping'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('silent');
 
@@ -111,6 +129,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/',
         bootstrapState: createLoadingBootstrapState('rehydrating'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: true,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('bootstrap-route-chrome');
   });
@@ -120,6 +141,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/transfer-management',
         bootstrapState: createLoadingBootstrapState('rehydrating'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: true,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('bootstrap-route-chrome');
   });
@@ -129,6 +153,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/nursing-handoff',
         bootstrapState: createLoadingBootstrapState('bootstrapping'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: true,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('bootstrap-route-chrome');
 
@@ -136,6 +163,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/medical-handoff',
         bootstrapState: createLoadingBootstrapState('bootstrapping'),
+        hasRecentAuthenticatedSessionHint: true,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('bootstrap-route-chrome');
   });
@@ -145,6 +175,9 @@ describe('appShellLoadingPolicy', () => {
       resolveRuntimeLoadingScreenMode({
         pathname: '/',
         bootstrapState: createAuthorizedLoadingBootstrapState('bootstrapping'),
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: false,
       })
     ).toBe('silent');
   });

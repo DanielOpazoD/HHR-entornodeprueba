@@ -17,6 +17,7 @@ import type { RowMenuAlign } from './patientRowUiContracts';
 interface UsePatientActionMenuParams {
   isBlocked: boolean;
   readOnly: boolean;
+  clinicalEditingDisabled?: boolean;
   accessProfile?: CensusAccessProfile;
   hasPatientIdentity?: boolean;
   align?: RowMenuAlign;
@@ -51,6 +52,7 @@ interface UsePatientActionMenuResult {
 export const usePatientActionMenu = ({
   isBlocked,
   readOnly,
+  clinicalEditingDisabled = false,
   accessProfile = 'default',
   hasPatientIdentity = true,
   align,
@@ -73,6 +75,7 @@ export const usePatientActionMenu = ({
         showCmaAction,
         isBlocked,
         readOnly,
+        clinicalEditingDisabled,
         accessProfile,
         hasPatientIdentity,
         indicators,
@@ -94,6 +97,7 @@ export const usePatientActionMenu = ({
       onViewMedicalIndications,
       onViewHistory,
       accessProfile,
+      clinicalEditingDisabled,
       hasPatientIdentity,
       readOnly,
       showCmaAction,

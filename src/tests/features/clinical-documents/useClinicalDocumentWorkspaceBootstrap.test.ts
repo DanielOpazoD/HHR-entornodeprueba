@@ -10,7 +10,7 @@ import * as clinicalDocumentUseCases from '@/application/clinical-documents/clin
 const controllerMocks = vi.hoisted(() => ({
   listActiveClinicalDocumentTemplates: vi.fn(),
   buildClinicalDocumentEpisodeContext: vi.fn(),
-  hydrateLegacyClinicalDocument: vi.fn(),
+  hydrateClinicalDocumentWorkspaceRecord: vi.fn(),
 }));
 
 vi.mock('@/features/clinical-documents/controllers/clinicalDocumentTemplateController', () => ({
@@ -22,7 +22,7 @@ vi.mock('@/features/clinical-documents/controllers/clinicalDocumentEpisodeContro
 }));
 
 vi.mock('@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController', () => ({
-  hydrateLegacyClinicalDocument: controllerMocks.hydrateLegacyClinicalDocument,
+  hydrateClinicalDocumentWorkspaceRecord: controllerMocks.hydrateClinicalDocumentWorkspaceRecord,
 }));
 
 vi.mock('@/application/clinical-documents/clinicalDocumentTemplateUseCases', async () => {
@@ -42,7 +42,7 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   >('@/application/clinical-documents/clinicalDocumentUseCases');
   return {
     ...actual,
-    subscribeClinicalDocumentsByEpisode: vi.fn(),
+    subscribeClinicalDocumentsByEpisodeKeys: vi.fn(),
   };
 });
 
@@ -84,14 +84,21 @@ const remoteTemplate: ClinicalDocumentTemplate = {
   defaultFooterEspecialidadLabel: 'Especialidad',
 };
 
-const patient = {
+const patient: {
+  patientName: string;
+  rut: string;
+  specialty: string;
+  clinicalEpisodeId?: string;
+} = {
   patientName: 'Paciente Test',
   rut: '11.111.111-1',
   specialty: 'Medicina',
 };
 
-const buildDocument = () =>
-  createClinicalDocumentDraft({
+const buildDocument = (
+  overrides: Partial<ReturnType<typeof createClinicalDocumentDraft>> = {}
+) => ({
+  ...createClinicalDocumentDraft({
     templateId: 'epicrisis',
     hospitalId: 'hhr',
     actor: {
@@ -120,7 +127,9 @@ const buildDocument = () =>
     },
     medico: 'Doctor Test',
     especialidad: 'Medicina',
-  });
+  }),
+  ...overrides,
+});
 
 describe('useClinicalDocumentWorkspaceBootstrap', () => {
   beforeEach(() => {
@@ -128,10 +137,11 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     controllerMocks.listActiveClinicalDocumentTemplates.mockReturnValue([localTemplate]);
     controllerMocks.buildClinicalDocumentEpisodeContext.mockReturnValue({
       episodeKey: '11.111.111-1__2026-03-06',
+      documentLookupEpisodeKeys: ['11111111-1__2026-03-06'],
       sourceDailyRecordDate: '2026-03-06',
       specialty: 'Medicina',
     });
-    controllerMocks.hydrateLegacyClinicalDocument.mockImplementation(document => document);
+    controllerMocks.hydrateClinicalDocumentWorkspaceRecord.mockImplementation(document => document);
     vi.mocked(templateUseCases.executeListActiveClinicalDocumentTemplates).mockResolvedValue({
       status: 'success',
       data: [remoteTemplate],
@@ -142,8 +152,8 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
       data: [localTemplate],
       issues: [],
     });
-    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisode).mockImplementation(
-      (_episodeKey, callback) => {
+    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
         callback([buildDocument()]);
         return vi.fn();
       }
@@ -166,7 +176,7 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     await Promise.resolve();
 
     expect(templateUseCases.executeListActiveClinicalDocumentTemplates).not.toHaveBeenCalled();
-    expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisode).not.toHaveBeenCalled();
+    expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).not.toHaveBeenCalled();
   });
 
   it('loads remote templates and hydrates subscription documents', async () => {
@@ -188,11 +198,123 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
       expect(result.current.selectedDocumentId).toBe(result.current.documents[0]?.id);
     });
 
-    expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisode).toHaveBeenCalledWith(
-      '11.111.111-1__2026-03-06',
+    expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).toHaveBeenCalledWith(
+      ['11.111.111-1__2026-03-06', '11111111-1__2026-03-06'],
       expect.any(Function),
       'hhr'
     );
+  });
+
+  it('ignores legacy alternate-key documents when the current patient has a canonical episode id', async () => {
+    controllerMocks.buildClinicalDocumentEpisodeContext.mockReturnValue({
+      episodeKey: 'episode-current-patient',
+      documentLookupEpisodeKeys: ['11.111.111-1__2026-03-06'],
+      patientRut: '11.111.111-1',
+      sourceDailyRecordDate: '2026-03-06',
+      specialty: 'Medicina',
+    });
+    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
+        callback([
+          buildDocument({
+            id: 'old-bed-doc',
+            episodeKey: '11.111.111-1__2026-03-06',
+            patientName: 'Paciente anterior',
+          }),
+          buildDocument({
+            id: 'current-doc',
+            episodeKey: 'episode-current-patient',
+            patientName: 'Paciente Test',
+          }),
+        ]);
+        return vi.fn();
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useClinicalDocumentWorkspaceBootstrap({
+        patient: patient as never,
+        currentDateString: '2026-03-06',
+        bedId: 'R1',
+        isActive: true,
+        canRead: true,
+        hospitalId: 'hhr',
+        role: 'doctor_urgency',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.documents.map(document => document.id)).toEqual(['current-doc']);
+      expect(result.current.selectedDocumentId).toBe('current-doc');
+    });
+  });
+
+  it('clears documents immediately when the bed changes to a different patient episode', async () => {
+    controllerMocks.buildClinicalDocumentEpisodeContext.mockImplementation((nextPatient: never) => {
+      const rut = (nextPatient as { rut?: string }).rut;
+      return rut === '22.222.222-2'
+        ? {
+            episodeKey: 'ep_new_patient',
+            documentLookupEpisodeKeys: [],
+            patientRut: '22.222.222-2',
+            sourceDailyRecordDate: '2026-03-06',
+            specialty: 'Medicina',
+          }
+        : {
+            episodeKey: 'ep_old_patient',
+            documentLookupEpisodeKeys: [],
+            patientRut: '11.111.111-1',
+            sourceDailyRecordDate: '2026-03-06',
+            specialty: 'Medicina',
+          };
+    });
+    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
+      (episodeKeys, callback) => {
+        if (episodeKeys.includes('ep_old_patient')) {
+          callback([
+            buildDocument({
+              id: 'old-patient-doc',
+              episodeKey: 'ep_old_patient',
+              patientName: 'Paciente anterior',
+            }),
+          ]);
+        }
+        return vi.fn();
+      }
+    );
+
+    const { result, rerender } = renderHook(
+      ({ hookPatient }) =>
+        useClinicalDocumentWorkspaceBootstrap({
+          patient: hookPatient as never,
+          currentDateString: '2026-03-06',
+          bedId: 'R1',
+          isActive: true,
+          canRead: true,
+          hospitalId: 'hhr',
+          role: 'doctor_urgency',
+        }),
+      { initialProps: { hookPatient: patient } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.documents.map(document => document.id)).toEqual(['old-patient-doc']);
+      expect(result.current.selectedDocumentId).toBe('old-patient-doc');
+    });
+
+    rerender({
+      hookPatient: {
+        ...patient,
+        patientName: 'Paciente Nuevo',
+        rut: '22.222.222-2',
+        clinicalEpisodeId: 'ep_new_patient',
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.documents).toEqual([]);
+      expect(result.current.selectedDocumentId).toBeNull();
+    });
   });
 
   it('seeds templates for admin when remote catalog is empty', async () => {
@@ -253,8 +375,8 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     let subscriptionCallback: ((docs: ReturnType<typeof buildDocument>[]) => void) | null = null;
     const primary = buildDocument();
     const secondary = { ...buildDocument(), id: 'secondary-doc' };
-    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisode).mockImplementation(
-      (_episodeKey, callback) => {
+    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
+      (_episodeKeys, callback) => {
         subscriptionCallback = callback as typeof subscriptionCallback;
         callback([primary, secondary]);
         return vi.fn();

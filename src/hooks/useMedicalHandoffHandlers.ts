@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
   executeAddMedicalEntry,
@@ -14,12 +14,19 @@ import type { AuditLogEntry } from '@/types/auditLogTypes';
 import type { MedicalHandoffAuditActor, PatientData } from '@/hooks/contracts/patientHookContracts';
 import { canEditMedicalHandoffForDate } from '@/shared/access/operationalAccessPolicy';
 import {
+  buildEntryDeleteAuditPayload,
+  buildEntryNoteChangeAuditPayload,
+  buildEntryRefreshAuditPayload,
+  buildPrimaryNoteChangeAuditPayload,
   createMedicalFieldsPersister,
-  isSuccessfulMedicalHandoffOutcome,
   resolveMedicalHandoffMutationContext,
   resolveRefreshableMedicalEntry,
   shouldLogMedicalHandoffOutcome,
 } from '@/hooks/controllers/medicalHandoffHandlersController';
+import {
+  runMedicalHandoffMutation,
+  type MedicalHandoffMutationDeps,
+} from '@/hooks/controllers/medicalHandoffMutationRunner';
 import { medicalHandoffHandlersLogger } from './hookLoggers';
 
 type MedicalPatientFields = Pick<
@@ -95,248 +102,176 @@ export const useMedicalHandoffHandlers = ({
     [persistMedicalFields]
   );
 
-  const handleMedicalPrimaryNoteChange = useCallback(
-    async (bedId: string, value: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient, recordDate } = context;
-      const outcome = await executeUpdateMedicalPrimaryNote({
-        medicalAuditActor,
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-        recordDate,
-        value,
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalPrimaryNoteChange', outcome);
-        return;
-      }
-
-      logDebouncedEvent(
-        'MEDICAL_HANDOFF_MODIFIED',
-        'patient',
-        bedId,
-        {
-          patientName: patient?.patientName || (isNested ? 'Cuna' : 'ANONYMOUS'),
-          note: value,
-          changes: {
-            medicalHandoffNote: {
-              old: outcome.data.previousEntry?.note || '',
-              new: value,
-            },
-          },
-        },
-        patient?.rut,
-        recordDate,
-        undefined,
-        30000
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveFieldsPersister is a stable selector over persistMedicalFields; adding it would cause needless recreations
-    [
-      logDebouncedEvent,
+  const runnerDeps = useMemo<MedicalHandoffMutationDeps>(
+    () => ({
+      resolveContext: resolveMutationContext,
+      resolvePersister: resolveFieldsPersister,
       logUnexpectedOutcome,
-      medicalAuditActor,
-      persistMedicalFields,
-      resolveMutationContext,
-    ]
+      logDebouncedEvent,
+    }),
+    [resolveMutationContext, resolveFieldsPersister, logUnexpectedOutcome, logDebouncedEvent]
+  );
+
+  const handleMedicalPrimaryNoteChange = useCallback(
+    (bedId: string, value: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
+        bedId,
+        isNested,
+        handlerName: 'handleMedicalPrimaryNoteChange',
+        execute: (context, persist) =>
+          executeUpdateMedicalPrimaryNote({
+            medicalAuditActor,
+            patient: context.patient,
+            persistMedicalFields: persist,
+            recordDate: context.recordDate,
+            value,
+          }),
+        audit: {
+          debounceMs: 30000,
+          buildPayload: (context, data) =>
+            buildPrimaryNoteChangeAuditPayload({
+              patient: context.patient,
+              isNested,
+              value,
+              previousNote: data.previousEntry?.note || '',
+            }),
+        },
+      }),
+    [medicalAuditActor, runnerDeps]
   );
 
   const handleMedicalEntryNoteChange = useCallback(
-    async (bedId: string, entryId: string, value: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient, recordDate } = context;
-      const outcome = await executeUpdateMedicalEntryNote({
-        entryId,
-        medicalAuditActor,
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-        recordDate,
-        value,
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalEntryNoteChange', outcome);
-        return;
-      }
-
-      logDebouncedEvent(
-        'MEDICAL_HANDOFF_MODIFIED',
-        'patient',
+    (bedId: string, entryId: string, value: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
         bedId,
-        {
-          patientName: patient?.patientName || '',
-          specialty: outcome.data.entry?.specialty,
-          note: value,
-          changes: {
-            medicalHandoffNote: {
-              old: outcome.data.previousEntry?.note || '',
-              new: value,
-            },
-          },
+        isNested,
+        handlerName: 'handleMedicalEntryNoteChange',
+        execute: (context, persist) =>
+          executeUpdateMedicalEntryNote({
+            entryId,
+            medicalAuditActor,
+            patient: context.patient,
+            persistMedicalFields: persist,
+            recordDate: context.recordDate,
+            value,
+          }),
+        audit: {
+          debounceMs: 30000,
+          buildPayload: (context, data) =>
+            buildEntryNoteChangeAuditPayload({
+              patient: context.patient,
+              specialty: data.entry?.specialty,
+              value,
+              previousNote: data.previousEntry?.note || '',
+            }),
         },
-        patient?.rut,
-        recordDate,
-        undefined,
-        30000
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveFieldsPersister is a stable selector over persistMedicalFields; adding it would cause needless recreations
-    [
-      logDebouncedEvent,
-      logUnexpectedOutcome,
-      medicalAuditActor,
-      persistMedicalFields,
-      resolveMutationContext,
-    ]
+      }),
+    [medicalAuditActor, runnerDeps]
   );
 
   const handleMedicalEntrySpecialtyChange = useCallback(
-    async (bedId: string, entryId: string, specialty: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient } = context;
-      const outcome = await executeUpdateMedicalEntrySpecialty({
-        entryId,
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-        specialty,
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalEntrySpecialtyChange', outcome);
-      }
-    },
-    [logUnexpectedOutcome, resolveFieldsPersister, resolveMutationContext]
+    (bedId: string, entryId: string, specialty: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
+        bedId,
+        isNested,
+        handlerName: 'handleMedicalEntrySpecialtyChange',
+        execute: (context, persist) =>
+          executeUpdateMedicalEntrySpecialty({
+            entryId,
+            patient: context.patient,
+            persistMedicalFields: persist,
+            specialty,
+          }),
+      }),
+    [runnerDeps]
   );
 
   const handleMedicalEntryAdd = useCallback(
-    async (bedId: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient } = context;
-      const outcome = await executeAddMedicalEntry({
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalEntryAdd', outcome);
-      }
-    },
-    [logUnexpectedOutcome, resolveFieldsPersister, resolveMutationContext]
+    (bedId: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
+        bedId,
+        isNested,
+        handlerName: 'handleMedicalEntryAdd',
+        execute: (context, persist) =>
+          executeAddMedicalEntry({
+            patient: context.patient,
+            persistMedicalFields: persist,
+          }),
+      }),
+    [runnerDeps]
   );
 
   const handleMedicalPrimaryEntryCreate = useCallback(
-    async (bedId: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient } = context;
-      const outcome = await executeCreateMedicalPrimaryEntry({
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalPrimaryEntryCreate', outcome);
-      }
-    },
-    [logUnexpectedOutcome, resolveFieldsPersister, resolveMutationContext]
+    (bedId: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
+        bedId,
+        isNested,
+        handlerName: 'handleMedicalPrimaryEntryCreate',
+        execute: (context, persist) =>
+          executeCreateMedicalPrimaryEntry({
+            patient: context.patient,
+            persistMedicalFields: persist,
+          }),
+      }),
+    [runnerDeps]
   );
 
   const handleMedicalEntryDelete = useCallback(
-    async (bedId: string, entryId: string, isNested: boolean = false) => {
-      const context = resolveMutationContext(bedId, isNested);
-      if (!context) return;
-
-      const { patient, recordDate } = context;
-      const outcome = await executeDeleteMedicalEntry({
-        entryId,
-        patient,
-        persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-      });
-      if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-        logUnexpectedOutcome('handleMedicalEntryDelete', outcome);
-        return;
-      }
-
-      logDebouncedEvent(
-        'MEDICAL_HANDOFF_MODIFIED',
-        'patient',
+    (bedId: string, entryId: string, isNested: boolean = false) =>
+      runMedicalHandoffMutation(runnerDeps, {
         bedId,
-        {
-          patientName: patient?.patientName || '',
-          specialty: outcome.data.entry?.specialty,
-          operation: 'delete_medical_handoff_entry',
-          changes: {
-            medicalHandoffNote: {
-              old: outcome.data.previousEntry?.note || '',
-              new: '',
-            },
-          },
+        isNested,
+        handlerName: 'handleMedicalEntryDelete',
+        execute: (context, persist) =>
+          executeDeleteMedicalEntry({
+            entryId,
+            patient: context.patient,
+            persistMedicalFields: persist,
+          }),
+        audit: {
+          debounceMs: 10000,
+          buildPayload: (context, data) =>
+            buildEntryDeleteAuditPayload({
+              patient: context.patient,
+              specialty: data.entry?.specialty,
+              previousNote: data.previousEntry?.note || '',
+            }),
         },
-        patient?.rut,
-        recordDate,
-        undefined,
-        10000
-      );
-    },
-    [logDebouncedEvent, logUnexpectedOutcome, resolveFieldsPersister, resolveMutationContext]
+      }),
+    [runnerDeps]
   );
 
   const handleMedicalRefreshAsCurrent = useCallback(
     (bedId: string, entryId: string, isNested: boolean = false) => {
       const context = resolveMutationContext(bedId, isNested);
       if (!context) return;
+      if (!resolveRefreshableMedicalEntry(context.patient, entryId)) return;
 
-      const { patient, recordDate } = context;
-      if (!resolveRefreshableMedicalEntry(patient, entryId)) {
-        return;
-      }
-      void (async () => {
-        const outcome = await executeRefreshMedicalEntryAsCurrent({
-          entryId,
-          medicalAuditActor,
-          patient,
-          persistMedicalFields: resolveFieldsPersister(bedId, isNested),
-          recordDate,
-        });
-        if (!isSuccessfulMedicalHandoffOutcome(outcome)) {
-          logUnexpectedOutcome('handleMedicalRefreshAsCurrent', outcome);
-          return;
-        }
-
-        logDebouncedEvent(
-          'MEDICAL_HANDOFF_MODIFIED',
-          'patient',
-          bedId,
-          {
-            patientName: patient?.patientName || '',
-            specialty: outcome.data.entry?.specialty,
-            operation: 'refresh_medical_entry_as_current',
-            changes: {
-              medicalHandoffNoteTimestamp: {
-                old: outcome.data.previousEntry?.updatedAt || '',
-                new: outcome.data.entry?.updatedAt || '',
-              },
-            },
-          },
-          patient?.rut,
-          recordDate,
-          undefined,
-          10000
-        );
-      })();
+      void runMedicalHandoffMutation(runnerDeps, {
+        bedId,
+        isNested,
+        handlerName: 'handleMedicalRefreshAsCurrent',
+        execute: (ctx, persist) =>
+          executeRefreshMedicalEntryAsCurrent({
+            entryId,
+            medicalAuditActor,
+            patient: ctx.patient,
+            persistMedicalFields: persist,
+            recordDate: ctx.recordDate,
+          }),
+        audit: {
+          debounceMs: 10000,
+          buildPayload: (ctx, data) =>
+            buildEntryRefreshAuditPayload({
+              patient: ctx.patient,
+              specialty: data.entry?.specialty,
+              previousUpdatedAt: data.previousEntry?.updatedAt || '',
+              newUpdatedAt: data.entry?.updatedAt || '',
+            }),
+        },
+      });
     },
-    [
-      logDebouncedEvent,
-      logUnexpectedOutcome,
-      medicalAuditActor,
-      resolveFieldsPersister,
-      resolveMutationContext,
-    ]
+    [medicalAuditActor, resolveMutationContext, runnerDeps]
   );
 
   return {

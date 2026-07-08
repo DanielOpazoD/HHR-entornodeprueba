@@ -2,13 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
-const mockAlert = vi.fn();
-
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: (...args: unknown[]) => mockAlert(...args),
-  },
+const { mockAlert } = vi.hoisted(() => ({
+  mockAlert: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      alert: mockAlert,
+    }),
+  };
+});
 
 import { BookmarkEditorModal } from '@/components/bookmarks/BookmarkEditorModal';
 

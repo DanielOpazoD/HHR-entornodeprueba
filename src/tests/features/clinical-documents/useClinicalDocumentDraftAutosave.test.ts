@@ -371,4 +371,49 @@ describe('useClinicalDocumentDraftAutosave', () => {
       })
     );
   });
+
+  it('flushes a pending autosave when the workspace unmounts before the debounce fires', async () => {
+    const draft = buildDraft('<p>Edición antes de salir del módulo</p>');
+    const dispatch = vi.fn();
+    const draftRef = { current: draft };
+    const lastPersistedSnapshotRef = { current: '' };
+
+    executePersistClinicalDocumentEditorDraft.mockResolvedValue({
+      status: 'success',
+      data: draft,
+      issues: [],
+    });
+
+    const { unmount } = renderHook(() =>
+      useClinicalDocumentDraftAutosave({
+        draft,
+        canEdit: true,
+        isActive: true,
+        hospitalId: 'hhr',
+        role: 'doctor_urgency',
+        persistReason: 'autosave',
+        user: {
+          uid: 'u1',
+          email: 'doctor@test.com',
+          displayName: 'Doctor Test',
+        },
+        dispatch,
+        draftRef,
+        lastPersistedSnapshotRef,
+      })
+    );
+
+    await act(async () => {
+      unmount();
+      await Promise.resolve();
+    });
+
+    expect(executePersistClinicalDocumentEditorDraft).toHaveBeenCalledTimes(1);
+    expect(executePersistClinicalDocumentEditorDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        record: draft,
+        reason: 'autosave',
+      })
+    );
+  });
 });

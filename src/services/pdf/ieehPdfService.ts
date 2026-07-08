@@ -33,6 +33,7 @@ import { PatientData } from '@/services/contracts/patientServiceContracts';
 import { openPdfPrintDialog, saveAndDownloadPdf } from './pdfBase';
 import { FIELD_COORDS, mapInsurance, mapSex, mapProcedencia } from './ieehPdfCoordinates';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
 import type { DischargeFormData } from './ieehPdfContracts';
 import {
   buildIEEHFileName,
@@ -47,12 +48,6 @@ import {
 } from './ieehPdfSupport';
 
 export type { DischargeFormData } from './ieehPdfContracts';
-let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
-
-const loadPdfLib = () => {
-  pdfLibPromise ??= import('pdf-lib');
-  return pdfLibPromise;
-};
 
 // ── Template PDF path (loaded as asset via fetch) ──
 const TEMPLATE_PATH = '/docs/estadistico-egreso.pdf';
@@ -72,7 +67,7 @@ export const fillIEEHForm = async (
   patient: PatientData,
   discharge: DischargeFormData = {}
 ): Promise<Uint8Array> => {
-  const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
+  const { PDFDocument, StandardFonts, rgb } = await loadPdfLibGenerationRuntime();
 
   // 1. Load the template PDF
   const templateResponse = await fetch(TEMPLATE_PATH);

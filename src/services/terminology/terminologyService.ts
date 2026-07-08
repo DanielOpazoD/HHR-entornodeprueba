@@ -149,8 +149,6 @@ export async function forceAISearch(
   if (!query || query.length < 2) return [];
 
   try {
-    // console.debug(`🔄 Forcing AI search for "${query}" (updating cache)`);
-
     // Get local results first (async)
     const localResults = await searchCIE10(query);
     const localConcepts = localResults.map((entry: CIE10Entry) => ({
@@ -167,7 +165,6 @@ export async function forceAISearch(
     if (aiResults.length > 0) {
       // Save fresh results to cache
       cacheAIResults(query, aiResults);
-      // console.debug(`💾 Cached ${aiResults.length} fresh AI results for "${query}"`);
 
       const aiCodes = new Set(aiResults.map(c => c.code));
       const aiConcepts = aiResults.map((entry: CIE10Entry) => ({

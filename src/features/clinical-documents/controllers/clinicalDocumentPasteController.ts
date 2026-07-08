@@ -4,8 +4,9 @@
  * Pure logic for classifying and processing clipboard content pasted
  * into the clinical document rich-text editor.
  *
- * Paste content is classified into three categories:
+ * Paste content is classified into these categories:
  *  - `image-file`: a bitmap image (screenshot, copied image)
+ *  - `image-too-large`: an image that should not be embedded inline
  *  - `html`: rich HTML content (tables, formatted text, inline images)
  *  - `plain-text`: unformatted text fallback
  *
@@ -13,16 +14,34 @@
  */
 
 import { sanitizePastedHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
+import {
+  CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES,
+  CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES,
+  resolveClinicalAttachmentFilePolicy,
+} from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
+import { escapeHtml } from '@/utils/htmlEscape';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type PasteContentKind = 'image-file' | 'html' | 'plain-text' | 'empty';
+export const CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES = CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES;
+
+export type PasteContentKind = 'image-file' | 'image-too-large' | 'html' | 'plain-text' | 'empty';
 
 export interface PasteContentImageFile {
   kind: 'image-file';
   file: File;
+  requiresStorage: boolean;
+  requiresCompression: boolean;
+}
+
+export interface PasteContentImageTooLarge {
+  kind: 'image-too-large';
+  file: File;
+  actualBytes: number;
+  maxBytes: number;
+  message: string;
 }
 
 export interface PasteContentHtml {
@@ -41,9 +60,39 @@ export interface PasteContentEmpty {
 
 export type PasteContentDescriptor =
   | PasteContentImageFile
+  | PasteContentImageTooLarge
   | PasteContentHtml
   | PasteContentPlainText
   | PasteContentEmpty;
+
+const formatImageSize = (bytes: number): string => {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.ceil(bytes / 1024)} KB`;
+};
+
+export const buildInlineImageTooLargeMessage = (
+  actualBytes: number,
+  maxBytes = CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES
+): string =>
+  `La imagen pesa ${formatImageSize(actualBytes)} y supera el limite seguro de ${formatImageSize(
+    maxBytes
+  )} para procesarla como archivo del episodio. Reduzca la imagen o use un archivo mas liviano.`;
+
+export const resolveInlineImagePasteRejection = (file: File): PasteContentImageTooLarge | null => {
+  if (file.size <= CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES) {
+    return null;
+  }
+
+  return {
+    kind: 'image-too-large',
+    file,
+    actualBytes: file.size,
+    maxBytes: CLINICAL_ATTACHMENT_COMPRESSIBLE_IMAGE_MAX_BYTES,
+    message: buildInlineImageTooLargeMessage(file.size),
+  };
+};
 
 const normalizeClipboardHtml = (html: string): string =>
   html
@@ -130,7 +179,17 @@ export const classifyPasteContent = (clipboardData: DataTransfer): PasteContentD
   // 1. Image files
   const imageFile = Array.from(clipboardData.files).find(f => f.type.startsWith('image/'));
   if (imageFile) {
-    return { kind: 'image-file', file: imageFile };
+    const rejectedImage = resolveInlineImagePasteRejection(imageFile);
+    if (rejectedImage) {
+      return rejectedImage;
+    }
+    const policy = resolveClinicalAttachmentFilePolicy(imageFile, { source: 'pasted-image' });
+    return {
+      kind: 'image-file',
+      file: imageFile,
+      requiresStorage: policy.action !== 'inline_image',
+      requiresCompression: policy.action === 'compress_image',
+    };
   }
 
   // 2. Rich HTML
@@ -179,3 +238,18 @@ export const readFileAsDataUrl = (file: File): Promise<string> =>
  */
 export const buildPastedImageHtml = (dataUrl: string): string =>
   `<img src="${dataUrl}" alt="Imagen pegada" style="max-width:100%">`;
+
+export interface PastedStorageImageHtmlParams {
+  attachmentId: string;
+  imageUrl: string;
+  storagePath: string;
+}
+
+export const buildPastedStorageImageHtml = ({
+  attachmentId,
+  imageUrl,
+  storagePath,
+}: PastedStorageImageHtmlParams): string =>
+  `<img src="${escapeHtml(imageUrl)}" alt="Imagen adjunta" data-clinical-attachment-id="${escapeHtml(
+    attachmentId
+  )}" data-clinical-document-storage-path="${escapeHtml(storagePath)}" style="max-width:100%">`;

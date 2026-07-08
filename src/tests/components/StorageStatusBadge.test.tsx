@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 
-const mockReload = vi.fn();
-const mockUseDatabaseFallbackStatus = vi.fn();
+const { mockReload, mockUseDatabaseFallbackStatus } = vi.hoisted(() => ({
+  mockReload: vi.fn(),
+  mockUseDatabaseFallbackStatus: vi.fn(),
+}));
 
 vi.mock('@/services/storage/indexeddb/indexedDbMaintenanceService', () => ({
   resetLocalDatabase: vi.fn(),
@@ -13,11 +15,15 @@ vi.mock('@/hooks/useDatabaseFallbackStatus', () => ({
   useDatabaseFallbackStatus: (...args: unknown[]) => mockUseDatabaseFallbackStatus(...args),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    reload: () => mockReload(),
-  },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      reload: mockReload,
+    }),
+  };
+});
 
 import { resetLocalDatabase } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 import StorageStatusBadge from '@/components/layout/StorageStatusBadge';

@@ -1,6 +1,7 @@
 export interface ResolvePatientActionMenuViewParams {
   isBlocked: boolean;
   readOnly: boolean;
+  clinicalEditingDisabled?: boolean;
   accessProfile?: 'default' | 'specialist';
   hasPatientIdentity?: boolean;
   hasHistoryAction: boolean;
@@ -26,6 +27,7 @@ export interface PatientActionMenuViewState {
 export const resolvePatientActionMenuViewState = ({
   isBlocked,
   readOnly,
+  clinicalEditingDisabled = false,
   accessProfile = 'default',
   hasPatientIdentity = true,
   hasHistoryAction,
@@ -56,10 +58,14 @@ export const resolvePatientActionMenuViewState = ({
     };
   }
 
-  const showUtilityActions = !readOnly;
-  const showMenuTrigger = hasPatientIdentity && (!readOnly || hasHistoryAction);
-  const showDemographicsAction = !isBlocked && !readOnly;
-  const showClinicalSection = !isBlocked && (!readOnly || hasClinicalDocumentsAction);
+  const canEditClinical = !readOnly && !clinicalEditingDisabled;
+  const showUtilityActions = canEditClinical;
+  const showMenuTrigger =
+    !readOnly &&
+    hasPatientIdentity &&
+    (canEditClinical || hasHistoryAction || hasClinicalDocumentsAction);
+  const showDemographicsAction = !isBlocked && canEditClinical;
+  const showClinicalSection = !isBlocked && (canEditClinical || hasClinicalDocumentsAction);
   const showHistoryAction = !readOnly && hasHistoryAction;
 
   return {
@@ -68,12 +74,12 @@ export const resolvePatientActionMenuViewState = ({
     showHistoryAction,
     showUtilityActions,
     showClinicalSection,
-    showBuiltInClinicalActions: showClinicalSection && !readOnly,
+    showBuiltInClinicalActions: showClinicalSection && canEditClinical,
     showClinicalDocumentsAction: showClinicalSection && hasClinicalDocumentsAction,
-    showExamRequestAction: !readOnly && showClinicalSection && hasExamRequestAction,
-    showImagingRequestAction: !readOnly && showClinicalSection && hasImagingRequestAction,
+    showExamRequestAction: canEditClinical && showClinicalSection && hasExamRequestAction,
+    showImagingRequestAction: canEditClinical && showClinicalSection && hasImagingRequestAction,
     showMedicalIndicationsAction:
-      !readOnly && showClinicalSection && Boolean(hasMedicalIndicationsAction),
+      canEditClinical && showClinicalSection && Boolean(hasMedicalIndicationsAction),
   };
 };
 

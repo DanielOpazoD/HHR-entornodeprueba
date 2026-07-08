@@ -47,7 +47,31 @@ export const TRIGGER_CENTER_Y_OPEN = 36;
 export const ACTION_STACK_TOP = 68;
 
 /** Small horizontal nudge that keeps action labels away from the census table content. */
-export const ACTION_STACK_HORIZONTAL_SHIFT = 40;
+export const ACTION_STACK_HORIZONTAL_SHIFT = 84;
+
+/** Minimum visible distance between the open action menu and the viewport edge. */
+export const ACTION_STACK_VIEWPORT_GUTTER = 8;
+
+interface ResolveActionStackHorizontalShiftParams {
+  actionRowWidth: number;
+  preferredShift: number;
+  viewportGutter?: number;
+  wrapperLeft: number;
+  wrapperWidth: number;
+}
+
+export const resolveActionStackHorizontalShift = ({
+  actionRowWidth,
+  preferredShift,
+  viewportGutter = ACTION_STACK_VIEWPORT_GUTTER,
+  wrapperLeft,
+  wrapperWidth,
+}: ResolveActionStackHorizontalShiftParams): number => {
+  const centeredStackLeft = wrapperLeft + wrapperWidth / 2 - actionRowWidth / 2;
+  const maximumSafeShift = Math.max(0, centeredStackLeft - viewportGutter);
+
+  return Math.min(preferredShift, maximumSafeShift);
+};
 
 /**
  * Returns Tailwind class names that style the trigger button based on the

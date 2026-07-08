@@ -17,12 +17,19 @@ vi.mock('@/services/transfers/documentGeneratorService', () => ({
   generateTransferDocuments: vi.fn().mockResolvedValue([]),
 }));
 
-const mockRuntimeAlert = vi.fn();
-vi.mock('@/shared/runtime/browserWindowRuntime', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: (...args: unknown[]) => mockRuntimeAlert(...args),
-  },
+const { mockRuntimeAlert } = vi.hoisted(() => ({
+  mockRuntimeAlert: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntime', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      alert: mockRuntimeAlert,
+    }),
+  };
+});
 
 describe('useTransferViewStates modal state', () => {
   let mockRecord: DailyRecord;

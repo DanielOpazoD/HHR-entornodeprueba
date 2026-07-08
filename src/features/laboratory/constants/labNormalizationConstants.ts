@@ -9,6 +9,8 @@ export const ANALYSIS_NAME_REPLACEMENTS: [RegExp, string][] = [
   [/^\s*Creatinina(?:\s+s[eé]rica)?\s*$/i, 'Creatinina'],
   [/^\s*PCR\s*$/i, 'Proteina C Reactiva'],
   [/^\s*Prot\.?\s*C\.?\s*Reactiva\s*$/i, 'Proteina C Reactiva'],
+  [/^\s*Hemoglobina\s+Glicosilada(?:\s*#?\d*)?\s*$/i, 'Hb glicosilada'],
+  [/^\s*Triglic(?:#|e|é)ridos\s*$/i, 'Trigliceridos'],
   [/^\s*(?:Rel(?:aci[oó]n|ac\.?|\.?)\s*)?Proteinuria\s*\/\s*Creatininuria\s*[:=]?\s*$/i, 'RPC'],
   [
     /^\s*(?:Rel(?:aci[oó]n|ac\.?|\.?)\s*)?Albumina\s*\/\s*Creatin(?:in)?uri[a]?\s*[:=]?\s*$/i,

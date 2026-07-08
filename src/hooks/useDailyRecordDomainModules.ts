@@ -4,6 +4,7 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { useBedManagement } from '@/hooks/useBedManagement';
+import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import {
@@ -20,18 +21,24 @@ import { useValidation } from '@/hooks/useValidation';
 export const useDailyRecordDomainModules = (
   record: DailyRecord | null,
   saveAndUpdate: PersistDailyRecord,
-  patchRecord: ApplyDailyRecordPatch
+  patchRecord: ApplyDailyRecordPatch,
+  ensureStaleDayEditAllowed?: StaleDayEditGuard
 ) => {
   const inventory = useInventory(record);
   const stabilityRules = useStabilityRules(record);
   const validation = useValidation();
-  const bedManagement = useBedManagement(record, saveAndUpdate, patchRecord);
-  const dischargeManagement = usePatientDischarges(record, saveAndUpdate);
-  const transferManagement = usePatientTransfers(record, saveAndUpdate);
+  const bedManagement = useBedManagement(
+    record,
+    saveAndUpdate,
+    patchRecord,
+    ensureStaleDayEditAllowed
+  );
+  const dischargeManagement = usePatientDischarges(record, saveAndUpdate, undefined, patchRecord);
+  const transferManagement = usePatientTransfers(record, saveAndUpdate, undefined, patchRecord);
   const nurseManagement = useNurseManagement(record, patchRecord);
   const tensManagement = useTensManagement(record, patchRecord);
   const staffingManagement = useDetailedStaffingManagement(record, patchRecord);
-  const cmaManagement = useCMA(record, saveAndUpdate);
+  const cmaManagement = useCMA(record, saveAndUpdate, patchRecord);
   const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
 
   return {

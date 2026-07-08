@@ -1,8 +1,8 @@
-export type CensusMovementActionKind = 'undo' | 'edit' | 'delete';
+export type CensusMovementActionKind = 'undo' | 'viewDocuments' | 'edit' | 'delete' | 'convert';
 
 export interface CensusMovementActionDescriptor {
-    kind: CensusMovementActionKind;
-    title: string;
-    className: string;
-    onClick: () => void;
+  kind: CensusMovementActionKind;
+  title: string;
+  className: string;
+  onClick: () => void;
 }

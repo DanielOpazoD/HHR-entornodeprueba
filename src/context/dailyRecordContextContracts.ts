@@ -8,7 +8,7 @@ import type {
   MedicalSpecialty,
 } from '@/application/shared/dailyRecordMedicalContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
-import type { CudyrScore } from '@/types/domain/cudyr';
+import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { PatientMovementActions } from '@/types/movements';
@@ -95,12 +95,10 @@ export interface DailyRecordBedActions {
   ) => void;
   updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
   updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateClinicalCribCudyrMultiple?: (
-    bedId: string,
-    fields: Partial<Record<keyof CudyrScore, number>>
-  ) => void;
+  updateClinicalCribCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
   updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
-  updateCudyrMultiple?: (bedId: string, fields: Partial<Record<keyof CudyrScore, number>>) => void;
+  updateCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
+  updateCudyrBatch?: (changes: CudyrBatchUpdate) => Promise<boolean>;
   clearPatient: (bedId: string) => void;
   clearAllBeds: () => void;
   moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
@@ -121,6 +119,8 @@ export interface DailyRecordMovementActions extends PatientMovementActions {
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
   deleteCMA: (id: string) => void;
   updateCMA: (id: string, updates: Partial<CMAData>) => void;
+  undoCMA: (item: CMAData) => void;
+  convertCmaToHomeDischarge: (id: string) => void;
 }
 
 export interface DailyRecordHandoffActions {

@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState, useCallback } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useAuditData, AUDIT_SECTIONS } from '@/hooks/useAuditData';
+import { useAuditData } from '@/hooks/useAuditData';
 import { useAuditWorker } from '@/hooks/useAuditWorker';
 import * as fetchAuditLogsUseCase from '@/application/audit/fetchAuditLogsUseCase';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
+import {
+  AUDIT_DEFAULT_FETCH_LIMIT,
+  AUDIT_FETCH_LIMIT_STEP,
+} from '@/services/admin/auditViewConfig';
 import { AuditLogEntry, WorkerFilterParams } from '@/types/auditLogTypes';
 import * as auditWorkerLogic from '@/services/admin/auditWorkerLogic';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
@@ -19,6 +23,7 @@ vi.mock('@/services/admin/auditConstants', () => ({
     USER_LOGOUT: 'Cierre de Sesión',
     PATIENT_ADMITTED: 'Paciente Ingresado',
     PATIENT_DISCHARGED: 'Paciente Dado de Alta',
+    PATIENT_DIAGNOSIS_CHANGED: 'Cambio de Diagnóstico',
   },
   CRITICAL_ACTIONS: ['PATIENT_ADMITTED', 'PATIENT_DISCHARGED'],
   IMPORTANT_ACTIONS: [],
@@ -131,8 +136,40 @@ describe('useAuditData', () => {
     });
 
     expect(result.current.logs).toHaveLength(3);
-    expect(fetchAuditLogsUseCase.executeFetchAuditLogs).toHaveBeenCalledWith({});
+    expect(fetchAuditLogsUseCase.executeFetchAuditLogs).toHaveBeenCalledWith({
+      limit: AUDIT_DEFAULT_FETCH_LIMIT,
+    });
     expect(result.current.filters.groupedView).toBe(true);
+  });
+
+  it('loads audit logs with a bounded default window and can request a larger window', async () => {
+    const limitedLogs = Array.from({ length: AUDIT_DEFAULT_FETCH_LIMIT }, (_, index) => ({
+      ...mockLogs[1],
+      id: `limited-${index}`,
+      timestamp: `2025-01-01T11:${String(index % 60).padStart(2, '0')}:00Z`,
+    }));
+    vi.mocked(fetchAuditLogsUseCase.executeFetchAuditLogs).mockResolvedValue({
+      status: 'success',
+      data: limitedLogs,
+      issues: [],
+    });
+
+    const { result } = renderHook(() => useAuditData());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.fetchLimit).toBe(AUDIT_DEFAULT_FETCH_LIMIT);
+    expect(result.current.canLoadMoreLogs).toBe(true);
+
+    act(() => {
+      result.current.loadMoreLogs();
+    });
+
+    await waitFor(() => {
+      expect(fetchAuditLogsUseCase.executeFetchAuditLogs).toHaveBeenCalledWith({
+        limit: AUDIT_DEFAULT_FETCH_LIMIT + AUDIT_FETCH_LIMIT_STEP,
+      });
+    });
   });
 
   describe('Filtering', () => {
@@ -259,7 +296,9 @@ describe('useAuditData', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.displayLogs).toHaveLength(2);
+    await waitFor(() => {
+      expect(result.current.displayLogs).toHaveLength(2);
+    });
 
     act(() => {
       result.current.setGroupedView(true);
@@ -268,6 +307,106 @@ describe('useAuditData', () => {
     await waitFor(() => {
       expect(result.current.displayLogs).toHaveLength(2);
     });
+  });
+
+  it('builds patient-centered packages from filtered logs when grouped view is active', async () => {
+    const patientBurstLogs: AuditLogEntry[] = [
+      {
+        ...mockLogs[1],
+        id: 'status-1',
+        action: 'PATIENT_MODIFIED',
+        timestamp: '2025-01-01T11:00:00Z',
+        details: {
+          patientName: 'Juan Perez',
+          rut: '12.345.678-9',
+          bedId: 'R1',
+          changes: { status: { old: '', new: 'Estable' } },
+        },
+      },
+      {
+        ...mockLogs[1],
+        id: 'diagnosis-1',
+        action: 'PATIENT_DIAGNOSIS_CHANGED',
+        timestamp: '2025-01-01T11:02:00Z',
+        details: {
+          patientName: 'Juan Perez',
+          rut: '12.345.678-9',
+          bedId: 'R1',
+          changes: { diagnosis: { old: '', new: 'ICC' } },
+        },
+      },
+    ];
+    vi.mocked(fetchAuditLogsUseCase.executeFetchAuditLogs).mockResolvedValue({
+      status: 'success',
+      data: patientBurstLogs,
+      issues: [],
+    });
+
+    const { result } = renderHook(() => useAuditData());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.patientPackages).toHaveLength(1);
+    expect(result.current.paginatedPatientPackages).toHaveLength(1);
+    expect(result.current.patientPackages[0]).toMatchObject({
+      patientName: 'Juan Perez',
+      eventCount: 2,
+      modules: ['Estado', 'Diagnóstico'],
+    });
+  });
+
+  it('filters patient-centered packages with operational quick chips', async () => {
+    const operationalLogs: AuditLogEntry[] = [
+      {
+        ...mockLogs[1],
+        id: 'discharge-1',
+        action: 'PATIENT_DISCHARGED',
+        timestamp: '2025-01-01T11:00:00Z',
+        details: {
+          patientName: 'Bernardo Orrego',
+          rut: '17.274.300-5',
+          bedId: 'H2C2',
+        },
+      },
+      {
+        ...mockLogs[1],
+        id: 'cma-1',
+        action: 'PATIENT_MODIFIED',
+        timestamp: '2025-01-01T11:20:00Z',
+        patientIdentifier: '22.222.222-2',
+        details: {
+          patientName: 'Paciente CMA',
+          rut: '22.222.222-2',
+          bedId: 'H5C1',
+          changes: { specialty: { old: 'Medicina', new: 'CMA' } },
+        },
+      },
+    ];
+    vi.mocked(fetchAuditLogsUseCase.executeFetchAuditLogs).mockResolvedValue({
+      status: 'success',
+      data: operationalLogs,
+      issues: [],
+    });
+
+    const { result } = renderHook(() => useAuditData());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.patientPackageFilterOptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'ALL', count: 2 }),
+        expect.objectContaining({ id: 'DISCHARGE', count: 1 }),
+        expect.objectContaining({ id: 'CMA', count: 1 }),
+      ])
+    );
+
+    act(() => {
+      result.current.setActivePatientPackageFilter('CMA');
+    });
+
+    expect(result.current.filters.activePatientPackageFilter).toBe('CMA');
+    expect(result.current.patientPackages).toHaveLength(1);
+    expect(result.current.patientPackages[0].patientName).toBe('Paciente CMA');
   });
 
   it('falls back to a stable empty list when fetch is degraded', async () => {
@@ -356,11 +495,5 @@ describe('useAuditData', () => {
       // Two users with different actions should create multiple groups
       expect(result.current.displayLogs.length).toBeGreaterThanOrEqual(1);
     });
-  });
-
-  it('exports section definitions', () => {
-    expect(AUDIT_SECTIONS.ALL).toBeDefined();
-    expect(AUDIT_SECTIONS.SESSIONS).toBeDefined();
-    expect(AUDIT_SECTIONS.CENSUS).toBeDefined();
   });
 });

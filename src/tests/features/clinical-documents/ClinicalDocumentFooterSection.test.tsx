@@ -92,6 +92,69 @@ describe('ClinicalDocumentFooterSection', () => {
     expect(onPatchDocumentMeta).toHaveBeenCalledWith({ includePatientSignature: false });
   });
 
+  it('lets the specialist save and apply their private clinical signature profile', () => {
+    const onSaveSignatureProfile = vi.fn();
+    const onApplySignatureProfile = vi.fn();
+
+    render(
+      <ClinicalDocumentFooterSection
+        document={buildDocument()}
+        canEdit={true}
+        onPatchFooterLabel={vi.fn()}
+        onPatchDocumentMeta={vi.fn()}
+        onClearActiveTitleTarget={vi.fn()}
+        signatureProfile={{
+          uid: 'u1',
+          email: 'doctor@test.com',
+          displayName: 'Dra. Preferida',
+          specialty: 'Medicina Interna',
+          updatedAt: '2026-05-07T12:00:00.000Z',
+        }}
+        onSaveSignatureProfile={onSaveSignatureProfile}
+        onApplySignatureProfile={onApplySignatureProfile}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /usar mi firma/i }));
+    fireEvent.click(screen.getByRole('button', { name: /guardar mi firma/i }));
+
+    expect(onApplySignatureProfile).toHaveBeenCalledTimes(1);
+    expect(onSaveSignatureProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps specialist signature controls next to Medico and patient signature under Especialidad', () => {
+    render(
+      <ClinicalDocumentFooterSection
+        document={buildDocument()}
+        canEdit={true}
+        onPatchFooterLabel={vi.fn()}
+        onPatchDocumentMeta={vi.fn()}
+        onClearActiveTitleTarget={vi.fn()}
+        signatureProfile={{
+          uid: 'u1',
+          email: 'doctor@test.com',
+          displayName: 'Dra. Preferida',
+          specialty: 'Medicina Interna',
+          updatedAt: '2026-05-07T12:00:00.000Z',
+        }}
+        onSaveSignatureProfile={vi.fn()}
+        onApplySignatureProfile={vi.fn()}
+      />
+    );
+
+    const medicoTitle = screen.getByRole('button', { name: 'Médico' });
+    const saveSignature = screen.getByRole('button', { name: /guardar mi firma/i });
+    const applySignature = screen.getByRole('button', { name: /usar mi firma/i });
+    const specialtyTitle = screen.getByRole('button', { name: 'Especialidad' });
+    const patientSignature = screen.getByRole('button', {
+      name: /ocultar firma paciente\/familiar/i,
+    });
+
+    expect(medicoTitle.parentElement).toContainElement(saveSignature);
+    expect(medicoTitle.parentElement).toContainElement(applySignature);
+    expect(specialtyTitle.parentElement?.parentElement).toContainElement(patientSignature);
+  });
+
   it('makes the hidden patient/family signature state visible in the toggle itself', () => {
     render(
       <ClinicalDocumentFooterSection
@@ -105,7 +168,7 @@ describe('ClinicalDocumentFooterSection', () => {
 
     const toggle = screen.getByRole('button', { name: /mostrar firma paciente\/familiar/i });
 
-    expect(toggle).toHaveTextContent('Firma oculta');
+    expect(toggle).toHaveTextContent('Firma oculta paciente/familiar');
     expect(toggle).toHaveClass('border-amber-200');
   });
 

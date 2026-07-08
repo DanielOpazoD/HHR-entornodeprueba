@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveEpisodeCensusTargetDate } from '@/features/census/components/global-search/episodeGroupingController';
 import type { GroupedEpisode } from '@/features/census/components/global-search/globalSearchContracts';
 
-// We test the parseCompositeEpisodeKey logic indirectly through the hook's
+// We test patient-selection episode lookup parsing indirectly through the hook's
 // internal behavior. Here we test the normalizePatientSearchTerm from
 // patientMasterContracts since it was modified for case-insensitive search.
 

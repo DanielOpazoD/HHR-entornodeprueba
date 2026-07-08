@@ -11,6 +11,8 @@ import {
   resolvePatientChangeAudit,
 } from '@/hooks/controllers/bedAuditController';
 
+export const PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS = 1500;
+
 /**
  * useBedAudit Hook
  *
@@ -69,13 +71,38 @@ export const useBedAudit = (record: DailyRecord | null) => {
         return;
       }
 
+      if (decision.kind === 'diagnosis_changed') {
+        logDebouncedEvent(
+          'PATIENT_DIAGNOSIS_CHANGED',
+          'patient',
+          bedId,
+          {
+            patientName: decision.patientName,
+            bedId,
+            changes: {
+              diagnosis: {
+                old: decision.oldDiagnosis,
+                new: decision.newDiagnosis,
+              },
+            },
+          },
+          decision.patientRut,
+          currentRecord.date,
+          undefined,
+          PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
+        );
+        return;
+      }
+
       logDebouncedEvent(
         'PATIENT_MODIFIED',
         'patient',
         bedId,
         decision.details,
         decision.patientRut,
-        currentRecord.date
+        currentRecord.date,
+        undefined,
+        PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
       );
     },
     [logDebouncedEvent, logEvent, logPatientAdmission]
@@ -166,8 +193,9 @@ export const useBedAudit = (record: DailyRecord | null) => {
       const currentRecord = recordRef.current;
       if (!currentRecord) return;
       const patient = currentRecord.beds[bedId];
+      const action = details.movementKind === 'move' ? 'PATIENT_BED_CHANGED' : 'PATIENT_MODIFIED';
       logEvent(
-        'PATIENT_MODIFIED',
+        action,
         'patient',
         bedId,
         {

@@ -33,6 +33,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
   initialOtherDetails,
   initialTime,
   initialMovementDate,
+  diagnosis: initialDiagnosis,
   recordDate = '',
 }) => {
   const {
@@ -42,12 +43,14 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     dischargeTime,
     movementBounds,
     localTarget,
+    diagnosis,
     errors,
     setDischargeType,
     setOtherDetails,
     setDischargeDate,
     setDischargeTime,
     setLocalTarget,
+    setDiagnosis,
     submit,
   } = useDischargeModalForm({
     isOpen,
@@ -59,6 +62,7 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
     initialOtherDetails,
     initialTime,
     dischargeTarget,
+    initialDiagnosis,
     hasClinicalCrib,
     resolveDefaultTime: getTimeRoundedToStep,
     onConfirm,
@@ -125,6 +129,17 @@ export const DischargeModal: React.FC<DischargeModalProps> = ({
               onDateChange={setDischargeDate}
               onChange={setDischargeTime}
             />
+
+            {isEditing && (
+              <label className="block text-xs font-medium text-slate-600">
+                Diagnóstico de egreso
+                <textarea
+                  className="mt-1 min-h-20 w-full rounded border border-slate-200 bg-white p-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  value={diagnosis}
+                  onChange={event => setDiagnosis(event.target.value)}
+                />
+              </label>
+            )}
           </div>
         )}
 

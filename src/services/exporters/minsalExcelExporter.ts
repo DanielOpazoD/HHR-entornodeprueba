@@ -5,7 +5,7 @@
 
 import { MinsalStatistics, DailyStatsSnapshot } from '@/types/minsalTypes';
 import { createWorkbook } from './excelUtils';
-import { downloadWorkbookFile } from './excelFileDownload';
+import { downloadWorkbookFile, type DownloadWorkbookOutcome } from './excelFileDownload';
 
 /**
  * Export MINSAL statistics to Excel workbook
@@ -13,7 +13,7 @@ import { downloadWorkbookFile } from './excelFileDownload';
 export async function exportMinsalToExcel(
   stats: MinsalStatistics,
   trendData: DailyStatsSnapshot[]
-): Promise<void> {
+): Promise<DownloadWorkbookOutcome> {
   const workbook = await createWorkbook();
   workbook.creator = 'Hospital Hanga Roa';
   workbook.created = new Date();
@@ -149,7 +149,44 @@ export async function exportMinsalToExcel(
     { width: 22 },
   ];
 
-  // ===== Sheet 3: Serie Temporal =====
+  // ===== Sheet 3: CMA / Hospitalización Diurna =====
+  const cmaSheet = workbook.addWorksheet('CMA');
+  const cmaHeaders = [
+    'Especialidad',
+    'Total CMA/PMA',
+    'Cirugía Mayor Ambulatoria',
+    'Procedimiento Médico Ambulatorio',
+  ];
+  const cmaHeaderRow = cmaSheet.addRow(cmaHeaders);
+  cmaHeaderRow.eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0F766E' },
+    };
+    cell.alignment = { horizontal: 'center' };
+  });
+
+  stats.cma?.porEspecialidad.forEach(row => {
+    cmaSheet.addRow([
+      row.specialty,
+      row.total,
+      row.cirugiaMayorAmbulatoria,
+      row.procedimientoMedicoAmbulatorio,
+    ]);
+  });
+
+  cmaSheet.addRow([
+    'Total',
+    stats.cma?.total ?? 0,
+    stats.cma?.cirugiaMayorAmbulatoria ?? 0,
+    stats.cma?.procedimientoMedicoAmbulatorio ?? 0,
+  ]);
+
+  cmaSheet.columns = [{ width: 22 }, { width: 16 }, { width: 28 }, { width: 34 }];
+
+  // ===== Sheet 4: Serie Temporal =====
   const trendSheet = workbook.addWorksheet('Serie Temporal');
 
   const trendHeaders = [
@@ -196,10 +233,9 @@ export async function exportMinsalToExcel(
   ];
 
   const fileName = `Estadisticas_MINSAL_${stats.periodStart}_${stats.periodEnd}.xlsx`;
-  await downloadWorkbookFile({
+  return downloadWorkbookFile({
     workbook,
     filename: fileName,
-    invalidAlertMessage: 'Error al generar el archivo Excel:',
     successLogMessage: byteLength =>
       `📥 MINSAL Excel descargado: ${fileName} (${byteLength} bytes)`,
   });

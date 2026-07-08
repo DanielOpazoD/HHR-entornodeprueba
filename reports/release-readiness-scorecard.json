@@ -1,0 +1,209 @@
+{
+  "generatedAt": "2026-07-05T06:20:05.971Z",
+  "overallStatus": "ok",
+  "indicators": [
+    {
+      "name": "worktree_state",
+      "status": "ok",
+      "summary": "status=clean"
+    },
+    {
+      "name": "structural_quality",
+      "status": "ok",
+      "summary": "oversized=0, folderDebt=0, sourceAny=0"
+    },
+    {
+      "name": "system_confidence",
+      "status": "ok",
+      "summary": "overall=ok, openKnownFailures=0"
+    },
+    {
+      "name": "operational_readiness",
+      "status": "ok",
+      "summary": "flow=passing, bundle=ok"
+    },
+    {
+      "name": "frontend_startup",
+      "status": "ok",
+      "summary": "status=ok, preview=ok, issues=0"
+    },
+    {
+      "name": "release_hotspots",
+      "status": "ok",
+      "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-BM1LNf9O.js: 525.3 KB / 585.9 KB (near-limit) | vendor-pdfjs-C4G2Lk1-.js: 455.1 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-CSGvoZjH.js: 383.9 KB / 488.3 KB (ok) | vendor-pdf-lib-BrVFzLGn.js: 381.7 KB / 419.9 KB (near-limit)"
+    },
+    {
+      "name": "bundle_risk_ledger",
+      "status": "ok",
+      "summary": "surfaces=5, issues=0"
+    },
+    {
+      "name": "release_confidence",
+      "status": "ok",
+      "summary": "areas=11, blockingMapped=7/7"
+    },
+    {
+      "name": "ownership_governance",
+      "status": "ok",
+      "summary": "areas=11"
+    },
+    {
+      "name": "guardrail_governance",
+      "status": "ok",
+      "summary": "blockingTiers=5, reportOnly=15"
+    },
+    {
+      "name": "compatibility_governance",
+      "status": "ok",
+      "summary": "restrictedEntries=0, unauthorizedImports=0"
+    },
+    {
+      "name": "legacy_retirement_debt",
+      "status": "ok",
+      "summary": "openSurfaces=4/4, issues=0"
+    }
+  ],
+  "missingReports": [],
+  "releaseHotspots": {
+    "status": "ok",
+    "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-BM1LNf9O.js: 525.3 KB / 585.9 KB (near-limit) | vendor-pdfjs-C4G2Lk1-.js: 455.1 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-CSGvoZjH.js: 383.9 KB / 488.3 KB (ok) | vendor-pdf-lib-BrVFzLGn.js: 381.7 KB / 419.9 KB (near-limit)",
+    "assets": [
+      {
+        "file": "dist/assets/vendor-heic2any-ClJ2fQYX.js",
+        "sizeBytes": 1352091,
+        "maxBytes": 1450000,
+        "budgetLabel": "vendor-heic2any",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 93.2,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
+        "sizeBytes": 537942,
+        "maxBytes": 600000,
+        "budgetLabel": "app-authenticated-shell",
+        "budgetSource": "startupChunkBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 89.7,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-pdfjs-C4G2Lk1-.js",
+        "sizeBytes": 465976,
+        "maxBytes": 520000,
+        "budgetLabel": "vendor-pdfjs",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 89.6,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-firebase-firestore-CSGvoZjH.js",
+        "sizeBytes": 393147,
+        "maxBytes": 500000,
+        "budgetLabel": "vendor-firebase-firestore",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 78.6,
+        "status": "ok"
+      },
+      {
+        "file": "dist/assets/vendor-pdf-lib-BrVFzLGn.js",
+        "sizeBytes": 390824,
+        "maxBytes": 430000,
+        "budgetLabel": "vendor-pdf",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 90.9,
+        "status": "near-limit"
+      }
+    ]
+  },
+  "sources": {
+    "qualityMetrics": {
+      "file": "reports/quality-metrics.json",
+      "generatedAt": "2026-07-05T06:20:03.273Z"
+    },
+    "bundleRiskLedger": {
+      "file": "reports/bundle-risk-ledger.json",
+      "generatedAt": "stable:bundle-risk-ledger"
+    },
+    "systemConfidence": {
+      "file": "reports/system-confidence.json",
+      "generatedAt": "2026-07-05T06:20:05.363Z"
+    },
+    "operationalHealth": {
+      "file": "reports/operational-health.json",
+      "generatedAt": "2026-07-05T06:20:04.606Z"
+    },
+    "releaseConfidenceMatrix": {
+      "file": "reports/release-confidence-matrix.json",
+      "generatedAt": "2026-07-05T06:20:05.119Z"
+    },
+    "technicalOwnershipMap": {
+      "file": "reports/technical-ownership-map.json",
+      "generatedAt": "2026-07-05T06:17:55.749Z"
+    },
+    "guardrailGovernance": {
+      "file": "reports/guardrail-governance.json",
+      "generatedAt": "2026-07-05T06:17:55.938Z"
+    },
+    "compatibilityImportGovernance": {
+      "file": "reports/compatibility-import-governance.json",
+      "generatedAt": "2026-07-05T06:02:31.571Z"
+    },
+    "legacyRetirementDebt": {
+      "file": "reports/legacy-retirement-debt.json",
+      "generatedAt": "stable:legacy-retirement-debt"
+    }
+  },
+  "issues": [],
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "126d4b82",
+    "gitDirty": false,
+    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "reportId": "release-readiness-scorecard",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "61c16903130093485690132ddfc478bf3ffc3d599dd7013974e264a4a2d25152",
+      "files": [
+        "reports/bundle-risk-ledger.json",
+        "reports/bundle-risk-ledger.md",
+        "reports/compatibility-governance.json",
+        "reports/compatibility-governance.md",
+        "reports/compatibility-import-governance.json",
+        "reports/compatibility-import-governance.md",
+        "reports/critical-coverage.json",
+        "reports/critical-coverage.md",
+        "reports/e2e/preview-bootstrap/report.json",
+        "reports/guardrail-governance.json",
+        "reports/guardrail-governance.md",
+        "reports/legacy-bridge-governance.json",
+        "reports/legacy-bridge-governance.md",
+        "reports/legacy-retirement-debt.json",
+        "reports/legacy-retirement-debt.md",
+        "reports/operational-health.json",
+        "reports/operational-health.md",
+        "reports/quality-metrics.json",
+        "reports/quality-metrics.md",
+        "reports/release-confidence-matrix.json",
+        "reports/release-confidence-matrix.md",
+        "reports/system-confidence.json",
+        "reports/system-confidence.md",
+        "reports/technical-ownership-map.json",
+        "reports/technical-ownership-map.md",
+        "scripts/config/critical-coverage-thresholds.json",
+        "scripts/criticalCoverageSupport.mjs",
+        "scripts/report-critical-coverage.mjs",
+        "scripts/run-critical-coverage.mjs",
+        "vitest.critical-coverage.config.ts"
+      ],
+      "missingFiles": []
+    }
+  },
+  "degradedByWorktreeOnly": false,
+  "overallStatusReason": "all indicators ok"
+}

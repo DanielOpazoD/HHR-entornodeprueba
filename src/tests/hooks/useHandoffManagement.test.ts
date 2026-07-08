@@ -292,6 +292,41 @@ describe('useHandoffManagement', () => {
     );
   });
 
+  it('resets medical handoff send/signature state with a patch instead of full-record save', async () => {
+    mockRecord.medicalHandoffSentAt = '2026-02-11T12:00:00.000Z';
+    mockRecord.medicalSignature = {
+      doctorName: 'Dr. Test',
+      signedAt: '2026-02-11T12:01:00.000Z',
+    };
+    mockRecord.medicalHandoffSentAtByScope = {
+      all: '2026-02-11T12:00:00.000Z',
+    };
+    mockRecord.medicalSignatureByScope = {
+      all: {
+        doctorName: 'Dr. Test',
+        signedAt: '2026-02-11T12:01:00.000Z',
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useHandoffManagement(mockRecord, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await act(async () => {
+      await result.current.resetMedicalHandoffState();
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medicalHandoffSentAt: '',
+        medicalSignature: undefined,
+        medicalHandoffSentAtByScope: {},
+        medicalSignatureByScope: {},
+      })
+    );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+  });
+
   it('should scope sent timestamp when sending filtered medical handoff', async () => {
     const { result } = renderHook(() =>
       useHandoffManagement(mockRecord, mockSaveAndUpdate, mockPatchRecord)

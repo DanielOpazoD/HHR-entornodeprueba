@@ -28,7 +28,7 @@ export const TREND_GROUPS: { label: string; patterns: string[] }[] = [
   },
   {
     label: 'Glicemia',
-    patterns: ['Glicemia'],
+    patterns: ['Glicemia', 'Hb glicosilada'],
   },
   {
     label: 'Gases',

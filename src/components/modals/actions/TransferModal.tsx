@@ -33,6 +33,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   clinicalCribName,
   initialTime,
   initialMovementDate,
+  diagnosis,
   recordDate = '',
 }) => {
   const [linkedDestinationHospital, setLinkedDestinationHospital] = useState<string | null>(null);
@@ -116,6 +117,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     receivingCenter,
     receivingCenterOther,
     transferEscort,
+    diagnosis,
     onUpdate,
     onConfirm,
     resolveDefaultTime: getTimeRoundedToStep,
@@ -179,6 +181,17 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             onDateChange={setTransferDate}
             onChange={setTransferTime}
           />
+
+          {isEditing && (
+            <label className="block text-xs font-medium text-slate-600">
+              Diagnóstico de egreso
+              <textarea
+                className="mt-1 min-h-20 w-full rounded border border-slate-200 bg-white p-2 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={diagnosis || ''}
+                onChange={event => onUpdate('diagnosis', event.target.value)}
+              />
+            </label>
+          )}
         </div>
 
         <div className="pt-6 flex justify-end items-center gap-4">

@@ -57,10 +57,50 @@ describe('clinicalDocumentRuntimeContracts', () => {
     expect(() => parseClinicalDocumentRecord(record as ClinicalDocumentRecord)).toThrow();
   });
 
+  it('keeps new-write audit actor parsing strict', () => {
+    const record = buildRecord();
+    const createdBy = {
+      uid: record.audit.createdBy.uid,
+      email: record.audit.createdBy.email,
+    };
+
+    expect(
+      safeParseClinicalDocumentRecord({
+        ...record,
+        audit: {
+          ...record.audit,
+          createdBy,
+        },
+      }).success
+    ).toBe(false);
+  });
+
   it('accepts default clinical document templates', () => {
     expect(parseClinicalDocumentTemplate(CLINICAL_DOCUMENT_TEMPLATES.epicrisis).id).toBe(
       'epicrisis'
     );
+  });
+
+  it('preserves IEEH-only doctor override fields', () => {
+    const record = parseClinicalDocumentRecord({
+      ...buildRecord(),
+      ieehDraft: {
+        cie10Code: 'A00',
+        cie10Description: 'Cólera',
+        diagnosticoPrincipal: 'Cólera',
+        condicionEgreso: '1',
+        intervencionQuirurgica: '2',
+        procedimiento: '2',
+        tratanteNombreCompleto: 'Pérez Soto Ana María',
+        tratanteEspecialidad: 'Cirugía Adulto',
+        tratanteRut: '12.345.678-9',
+      },
+    });
+
+    expect(record.ieehDraft?.tratanteNombreCompleto).toBe('Pérez Soto Ana María');
+    expect(record.ieehDraft?.tratanteEspecialidad).toBe('Cirugía Adulto');
+    expect(record.medico).toBe('Doctor Test');
+    expect(record.especialidad).toBe('Cirugía');
   });
 
   it('safe parses invalid runtime records and templates', () => {

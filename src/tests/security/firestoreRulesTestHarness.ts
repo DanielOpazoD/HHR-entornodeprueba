@@ -27,6 +27,7 @@ export type FirestoreRulesHarness = {
   CURRENT_RECORD_DATE: string;
   PREVIOUS_RECORD_DATE: string;
   setupDoc: (db: FirestoreLike, path: string, data: Record<string, unknown>) => Promise<unknown>;
+  setupDocBypass: (path: string, data: Record<string, unknown>) => Promise<unknown>;
 };
 
 const runRulesTests =
@@ -117,6 +118,11 @@ export function registerFirestoreRulesSuite(
       CURRENT_RECORD_DATE,
       PREVIOUS_RECORD_DATE,
       setupDoc,
+      setupDocBypass: async (docPath, data) =>
+        testEnv.withSecurityRulesDisabled(async context => {
+          const docRef = context.firestore().doc(docPath);
+          await docRef.set(data);
+        }),
     };
 
     beforeAll(async () => {

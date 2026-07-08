@@ -21,6 +21,7 @@ export const evaluateSystemHealthState = (
   const conflictSyncTasks = status.conflictSyncTasks || 0;
   const retryingSyncTasks = status.retryingSyncTasks || 0;
   const oldestPendingAgeMs = status.oldestPendingAgeMs || 0;
+  const oldestDirectQueueAgeMs = status.oldestDirectQueueAgeMs || 0;
   const reasons: string[] = [];
 
   if (!status.isOnline) reasons.push('usuario sin conectividad');
@@ -31,6 +32,12 @@ export const evaluateSystemHealthState = (
     reasons.push('cola en modo reintento');
   if (oldestPendingAgeMs >= thresholds.warningOldestPendingAgeMs)
     reasons.push('cola con antiguedad elevada');
+  if (oldestDirectQueueAgeMs >= thresholds.warningOldestPendingAgeMs)
+    reasons.push(
+      oldestDirectQueueAgeMs >= thresholds.criticalOldestPendingAgeMs
+        ? 'pre-outbox directo pendiente con antiguedad critica'
+        : 'pre-outbox directo pendiente con antiguedad elevada'
+    );
   if (status.pendingMutations >= thresholds.warningPendingMutations)
     reasons.push('mutaciones pendientes acumuladas');
   if (status.localErrorCount >= thresholds.warningLocalErrorCount)
@@ -45,7 +52,8 @@ export const evaluateSystemHealthState = (
     status.failedSyncTasks > 0 ||
     conflictSyncTasks > 0 ||
     retryingSyncTasks >= thresholds.criticalRetryingSyncTasks ||
-    oldestPendingAgeMs >= thresholds.criticalOldestPendingAgeMs;
+    oldestPendingAgeMs >= thresholds.criticalOldestPendingAgeMs ||
+    oldestDirectQueueAgeMs >= thresholds.criticalOldestPendingAgeMs;
   const hasCriticalVolume =
     status.pendingMutations >= thresholds.criticalPendingMutations ||
     status.localErrorCount >= thresholds.criticalLocalErrorCount ||
@@ -78,6 +86,7 @@ export const evaluateSystemHealthState = (
     status.pendingSyncTasks > 0 ||
     retryingSyncTasks >= thresholds.warningRetryingSyncTasks ||
     oldestPendingAgeMs >= thresholds.warningOldestPendingAgeMs ||
+    oldestDirectQueueAgeMs >= thresholds.warningOldestPendingAgeMs ||
     status.localErrorCount >= thresholds.warningLocalErrorCount ||
     status.repositoryWarningCount >= thresholds.warningRepositoryWarningCount ||
     status.slowestRepositoryOperationMs >= thresholds.warningSlowRepositoryOperationMs;

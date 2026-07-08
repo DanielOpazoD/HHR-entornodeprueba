@@ -16,6 +16,10 @@ import { mergeAvailableDates } from '@/services/repositories/dailyRecordSyncComp
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import {
+  createLocalSyncHint,
+  shouldHintLocalSync,
+} from '@/services/observability/localSyncDiagnostics';
+import {
   createBridgedDailyRecordReadResult,
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,
@@ -56,11 +60,37 @@ const getE2EOverrideRecord = (date: string): DailyRecord | null => {
   return window.__HHR_E2E_OVERRIDE__[date] || null;
 };
 
+const getE2ELocalStorageRecord = (date: string): DailyRecord | null => {
+  if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
+    return null;
+  }
+
+  try {
+    const records = JSON.parse(
+      window.localStorage.getItem('hanga_roa_hospital_data') || '{}'
+    ) as Record<string, DailyRecord> | null;
+    return records?.[date] || null;
+  } catch {
+    return null;
+  }
+};
+
 const logRemoteFetchAttempt = (date: string): void => {
   if (!isRepositoryDebugEnabled()) return;
   logLegacyInfo(`[Repository DEBUG] Attempting Firestore fetch for ${date}`);
   logLegacyInfo(`[Repository] Checking remote + legacy fallback for ${date}...`);
 };
+
+// Dev-only: the first time a remote read fails on localhost (usually an incomplete
+// localhost sign-in), emit one actionable hint. Never fires in test or production.
+const emitLocalSyncHintOnce = createLocalSyncHint({
+  shouldHint: () =>
+    shouldHintLocalSync(
+      import.meta.env.MODE,
+      typeof window !== 'undefined' ? window.location.hostname : undefined
+    ),
+  warn: message => dailyRecordReadLogger.warn(message),
+});
 
 export const getForDate = async (
   date: string,
@@ -78,11 +108,14 @@ export const getForDateWithMeta = async (
     'dailyRecord.getForDate',
     async () => {
       const query = createGetDailyRecordQuery(date, syncFromRemote);
-      const localRecord = await getRecordFromIndexedDB(query.date);
+      const indexedDbLocalRecord = await getRecordFromIndexedDB(query.date);
+      const e2eOverride = getE2EOverrideRecord(query.date);
+      const localRecord = e2eOverride
+        ? getE2ELocalStorageRecord(query.date) || indexedDbLocalRecord
+        : indexedDbLocalRecord;
       const localCandidate = localRecord
         ? createLocalRuntimeReadCandidate(query.date, localRecord)
         : null;
-      const e2eOverride = getE2EOverrideRecord(query.date);
       if (e2eOverride) {
         dailyRecordReadLogger.warn(`Using E2E override record for ${query.date}`);
         return resolveRemoteGoldenPathReadResult({
@@ -108,6 +141,7 @@ export const getForDateWithMeta = async (
           logRemoteFetchAttempt,
           onRemoteFetchFailure: (err, failedDate) => {
             dailyRecordReadLogger.warn(`Remote fetch failed for ${failedDate}`, err);
+            emitLocalSyncHintOnce();
           },
         });
       }

@@ -3,10 +3,21 @@
  * Provides audit logging functionality throughout the app with user context.
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useAudit } from '@/hooks/useAudit';
+import { useAuth, type AuthUser } from '@/context/AuthContext';
+import { ANONYMOUS_AUDIT_ACTOR } from '@/application/audit/auditActorPolicy';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry } from '@/types/auditLogTypes';
+
+export { ANONYMOUS_AUDIT_ACTOR };
+
+export const resolveAuditActor = (currentUser: AuthUser | null): string => {
+  if (!currentUser) return ANONYMOUS_AUDIT_ACTOR;
+  if (currentUser.email) return currentUser.email;
+  if (currentUser.uid) return currentUser.uid;
+  return ANONYMOUS_AUDIT_ACTOR;
+};
 
 interface AuditContextType {
   logPatientAdmission: (
@@ -131,12 +142,13 @@ const AuditContext = createContext<AuditContextType | undefined>(undefined);
 
 interface AuditProviderProps {
   children: ReactNode;
-  userId: string;
 }
 
-export const AuditProvider: React.FC<AuditProviderProps> = ({ children, userId }) => {
+export const AuditProvider: React.FC<AuditProviderProps> = ({ children }) => {
+  const { currentUser } = useAuth();
+  const userId = useMemo(() => resolveAuditActor(currentUser), [currentUser]);
   const auditFunctions = useAudit(userId);
-  const value = { ...auditFunctions, userId };
+  const value = useMemo(() => ({ ...auditFunctions, userId }), [auditFunctions, userId]);
 
   return <AuditContext.Provider value={value}>{children}</AuditContext.Provider>;
 };

@@ -5,9 +5,14 @@
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import { fetchRecordsRangeSorted, syncRecordsRange } from '@/services/records/recordQueryService';
+import {
+  fetchAnalyticsSpecialtyReclassifications,
+  saveAnalyticsSpecialtyReclassification,
+  type SaveAnalyticsSpecialtyReclassificationRequest,
+} from '@/services/analytics/analyticsSpecialtyReclassificationService';
 import {
   calculateMinsalStats as calculateMinsalStatsLocal,
   filterRecordsByDateRange,
@@ -15,14 +20,23 @@ import {
   getDateRangeFromPreset,
 } from '@/services/calculations/minsalStatsCalculator';
 import { resolveDisplayedMinsalStats } from '@/hooks/controllers/minsalStatsPresentationController';
+import {
+  buildAnalyticsDataQualityIssues,
+  buildMinsalComparisonSummary,
+  resolvePreviousMinsalPeriod,
+} from '@/services/calculations/minsal/minsalStatsInsights';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import {
+  AnalyticsDataQualityIssue,
   DailyStatsSnapshot,
   DateRangeConfig,
   DateRangePreset,
+  MinsalCalculationOptions,
+  MinsalComparisonSummary,
   MinsalStatistics,
+  SpecialtyReclassification,
 } from '@/types/minsalTypes';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { MinsalDailyRecord as DailyRecord } from '@/services/calculations/minsal/minsalRecordContracts';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
@@ -41,6 +55,13 @@ interface UseMinsalStatsResult {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  comparison: MinsalComparisonSummary | null;
+  dataQualityIssues: AnalyticsDataQualityIssue[];
+  reclassifications: SpecialtyReclassification[];
+  saveReclassification: (
+    request: Omit<SaveAnalyticsSpecialtyReclassificationRequest, 'hospitalId'>
+  ) => Promise<void>;
+  isSavingReclassification: boolean;
 }
 
 const getDaysInRange = (start: string, end: string): number => {
@@ -59,10 +80,19 @@ const mergeByDateDesc = (base: DailyRecord[], incoming: DailyRecord[]): DailyRec
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): UseMinsalStatsResult {
+export function useMinsalStats(
+  initialPreset: DateRangePreset = 'lastMonth',
+  calculationOptions: MinsalCalculationOptions = {}
+): UseMinsalStatsResult {
   const queryClient = useQueryClient();
   const hospitalId = getActiveHospitalId();
   const [dateRange, setDateRange] = useState<DateRangeConfig>({ preset: initialPreset });
+  const safeRemoteOptions = useMemo(
+    () => ({
+      specialtyGroupingMode: calculationOptions.specialtyGroupingMode,
+    }),
+    [calculationOptions.specialtyGroupingMode]
+  );
 
   const { startDate, endDate } = useMemo(() => {
     try {
@@ -77,10 +107,26 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
       return { startDate: today, endDate: today };
     }
   }, [dateRange]);
+  const { previousPeriodStart, previousPeriodEnd } = useMemo(
+    () => resolvePreviousMinsalPeriod(startDate, endDate),
+    [startDate, endDate]
+  );
 
   const localRecordsQueryKey = useMemo(
-    () => queryKeys.analytics.recordsRange(startDate, endDate),
-    [startDate, endDate]
+    () => queryKeys.analytics.recordsRange(previousPeriodStart, endDate),
+    [previousPeriodStart, endDate]
+  );
+  const remoteStatsQueryKey = useMemo(
+    () =>
+      [
+        ...queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
+        JSON.stringify(safeRemoteOptions),
+      ] as const,
+    [hospitalId, startDate, endDate, safeRemoteOptions]
+  );
+  const reclassificationsQueryKey = useMemo(
+    () => queryKeys.analytics.specialtyReclassifications(hospitalId, previousPeriodStart, endDate),
+    [hospitalId, previousPeriodStart, endDate]
   );
 
   useEffect(() => {
@@ -90,7 +136,7 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
 
     const handleStoreChanged = (event: Event) => {
       const detail = (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail;
-      if (!isDailyRecordStoreChangeRelevantToRange(detail, startDate, endDate)) {
+      if (!isDailyRecordStoreChangeRelevantToRange(detail, previousPeriodStart, endDate)) {
         return;
       }
 
@@ -102,19 +148,19 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
     return () => window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
-  }, [queryClient, localRecordsQueryKey, startDate, endDate]);
+  }, [queryClient, localRecordsQueryKey, previousPeriodStart, endDate]);
 
   const recordsQuery = useQuery({
     queryKey: localRecordsQueryKey,
     queryFn: async (): Promise<DailyRecord[]> => {
-      const localRecords = await fetchRecordsRangeSorted(startDate, endDate);
-      const expectedDays = getDaysInRange(startDate, endDate);
+      const localRecords = await fetchRecordsRangeSorted(previousPeriodStart, endDate);
+      const expectedDays = getDaysInRange(previousPeriodStart, endDate);
 
       if (localRecords.length >= expectedDays) {
         return localRecords;
       }
 
-      const syncedRecords = await syncRecordsRange(startDate, endDate);
+      const syncedRecords = await syncRecordsRange(previousPeriodStart, endDate);
       if (syncedRecords.length === 0) {
         return localRecords;
       }
@@ -126,7 +172,7 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
   });
 
   const remoteStatsQuery = useQuery({
-    queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
+    queryKey: remoteStatsQueryKey,
     queryFn: async (): Promise<MinsalStatistics> => {
       const functions = await defaultFunctionsRuntime.getFunctions();
       const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
@@ -134,6 +180,7 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
         hospitalId,
         startDate,
         endDate,
+        options: safeRemoteOptions,
       });
       return result.data as MinsalStatistics;
     },
@@ -142,20 +189,82 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
     retry: 1,
   });
 
+  const reclassificationsQuery = useQuery({
+    queryKey: reclassificationsQueryKey,
+    queryFn: () =>
+      fetchAnalyticsSpecialtyReclassifications(previousPeriodStart, endDate, hospitalId),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    retry: 1,
+  });
+
+  const saveReclassificationMutation = useMutation({
+    mutationFn: (request: Omit<SaveAnalyticsSpecialtyReclassificationRequest, 'hospitalId'>) =>
+      saveAnalyticsSpecialtyReclassification({ ...request, hospitalId }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reclassificationsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: remoteStatsQueryKey }),
+      ]);
+    },
+  });
+
   const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
+  const currentRangeRecords = useMemo(
+    () => filterRecordsByDateRange(rangeRecords, startDate, endDate),
+    [rangeRecords, startDate, endDate]
+  );
+  const previousRangeRecords = useMemo(
+    () => filterRecordsByDateRange(rangeRecords, previousPeriodStart, previousPeriodEnd),
+    [rangeRecords, previousPeriodEnd, previousPeriodStart]
+  );
+  const allPeriodReclassifications = useMemo(
+    () => reclassificationsQuery.data ?? [],
+    [reclassificationsQuery.data]
+  );
+  const reclassifications = useMemo(
+    () =>
+      allPeriodReclassifications.filter(
+        item => !item.date || (item.date >= startDate && item.date <= endDate)
+      ),
+    [allPeriodReclassifications, endDate, startDate]
+  );
+  const effectiveCalculationOptions = useMemo<MinsalCalculationOptions>(
+    () => ({
+      ...calculationOptions,
+      specialtyReclassifications: allPeriodReclassifications,
+    }),
+    [allPeriodReclassifications, calculationOptions]
+  );
 
   const trendData = useMemo(() => {
-    if (rangeRecords.length === 0) return [];
-    const filtered = filterRecordsByDateRange(rangeRecords, startDate, endDate);
-    return generateDailyTrend(filtered);
-  }, [rangeRecords, startDate, endDate]);
+    if (currentRangeRecords.length === 0) return [];
+    return generateDailyTrend(currentRangeRecords);
+  }, [currentRangeRecords]);
 
   const localRangeStats = useMemo(() => {
-    if (rangeRecords.length === 0) {
+    if (currentRangeRecords.length === 0) {
       return null;
     }
-    return calculateMinsalStatsLocal(rangeRecords, startDate, endDate);
-  }, [rangeRecords, startDate, endDate]);
+    return calculateMinsalStatsLocal(
+      currentRangeRecords,
+      startDate,
+      endDate,
+      effectiveCalculationOptions
+    );
+  }, [currentRangeRecords, startDate, endDate, effectiveCalculationOptions]);
+
+  const previousLocalStats = useMemo(() => {
+    if (previousRangeRecords.length === 0) {
+      return null;
+    }
+    return calculateMinsalStatsLocal(
+      previousRangeRecords,
+      previousPeriodStart,
+      previousPeriodEnd,
+      effectiveCalculationOptions
+    );
+  }, [effectiveCalculationOptions, previousPeriodEnd, previousPeriodStart, previousRangeRecords]);
 
   const localFallbackStats = useMemo(() => {
     if (!remoteStatsQuery.isError) {
@@ -182,6 +291,19 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
 
     return null;
   }, [recordsQuery.error, remoteStatsQuery.isError, remoteStatsQuery.error, localFallbackStats]);
+
+  const comparison = useMemo<MinsalComparisonSummary | null>(() => {
+    if (!stats) {
+      return null;
+    }
+
+    return buildMinsalComparisonSummary(stats, previousLocalStats);
+  }, [previousLocalStats, stats]);
+
+  const dataQualityIssues = useMemo(
+    () => buildAnalyticsDataQualityIssues(currentRangeRecords, effectiveCalculationOptions),
+    [currentRangeRecords, effectiveCalculationOptions]
+  );
 
   const setPreset = useCallback(
     (preset: DateRangePreset) => {
@@ -221,25 +343,36 @@ export function useMinsalStats(initialPreset: DateRangePreset = 'lastMonth'): Us
   const refresh = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: queryKeys.analytics.recordsRange(startDate, endDate),
+        queryKey: localRecordsQueryKey,
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
+        queryKey: remoteStatsQueryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: reclassificationsQueryKey,
       }),
     ]);
-  }, [queryClient, hospitalId, startDate, endDate]);
+  }, [queryClient, localRecordsQueryKey, remoteStatsQueryKey, reclassificationsQueryKey]);
 
   return {
     stats,
     trendData,
-    allRecords: rangeRecords,
+    allRecords: currentRangeRecords,
     dateRange,
     setPreset,
     setCustomRange,
     setCurrentYearMonth,
-    isLoading: recordsQuery.isLoading || (remoteStatsQuery.isLoading && !localFallbackStats),
+    isLoading:
+      recordsQuery.isLoading ||
+      reclassificationsQuery.isLoading ||
+      (remoteStatsQuery.isLoading && !localFallbackStats),
     error,
     refresh,
+    comparison,
+    dataQualityIssues,
+    reclassifications,
+    saveReclassification: saveReclassificationMutation.mutateAsync,
+    isSavingReclassification: saveReclassificationMutation.isPending,
   };
 }
 

@@ -23,7 +23,40 @@ export interface SyncTask {
   lastErrorAt?: number;
   key?: string;
   ownerKey?: string;
+  leaseOwner?: string;
+  leaseUntil?: number;
+  attemptId?: string;
+  processingStartedAt?: number;
+  preOutboxHoldState?: 'AWAITING_REMOTE_ACK';
+  preOutboxHoldOwner?: string;
+  preOutboxHoldUntil?: number;
+  preOutboxHoldReason?: 'awaiting_remote_ack';
+  preOutboxHoldHeartbeatAt?: number;
   contexts?: SyncDomainContext[];
   origin?: SyncTaskOrigin;
   recoveryPolicy?: string;
+  syncContract?: SyncTaskContract;
+}
+
+export type SyncTaskResolution =
+  | 'accepted'
+  | 'replayed'
+  | 'merged'
+  | 'blocked'
+  | 'stale'
+  | 'already_applied';
+
+export interface SyncTaskContract {
+  expectedVersion?: string;
+  acceptedVersion?: string;
+  acceptedRevision?: number;
+  baseRevision?: number;
+  recordRevision?: string;
+  clinicalEpisodeKeys?: string[];
+  changedPaths?: string[];
+  mutationId?: string;
+  mutationIds?: string[];
+  clientId?: string;
+  tabId?: string;
+  resolution?: SyncTaskResolution;
 }

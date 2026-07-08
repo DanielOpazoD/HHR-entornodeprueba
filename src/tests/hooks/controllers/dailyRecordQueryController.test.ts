@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
+import { PatientStatus } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import {
   applyOptimisticDailyRecordPatch,
@@ -13,6 +14,10 @@ import {
   setDailyRecordQueryData,
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
+import {
+  clearPendingDailyRecordPatchesForTests,
+  registerPendingDailyRecordPatch,
+} from '@/hooks/controllers/dailyRecordPendingPatchController';
 
 vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   dailyRecordObservability: {
@@ -22,6 +27,10 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 }));
 
 describe('dailyRecordQueryController', () => {
+  afterEach(() => {
+    clearPendingDailyRecordPatchesForTests();
+  });
+
   it('keeps realtime sync disabled while Firestore runtime is bootstrapping', () => {
     setFirestoreSyncState({
       mode: 'bootstrapping',
@@ -212,6 +221,205 @@ describe('dailyRecordQueryController', () => {
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: previousRecord,
     });
+  });
+
+  it('accepts a confirmed remote snapshot over a newer local optimistic cache', () => {
+    const queryClient = new QueryClient();
+    const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    previousRecord.lastUpdated = '2025-01-08T12:00:10.000Z';
+    previousRecord.beds.R1.specialty = 'Otra especialidad local optimista';
+    previousRecord.beds.R1.secondarySpecialty = 'Texto local aun no confirmado';
+    previousRecord.beds.R1.status = PatientStatus.DE_CUIDADO;
+
+    const remoteRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    remoteRecord.lastUpdated = '2025-01-08T12:00:05.000Z';
+    remoteRecord.beds.R1.specialty = 'Medicina';
+    remoteRecord.beds.R1.secondarySpecialty = '';
+    remoteRecord.beds.R1.status = PatientStatus.ESTABLE;
+
+    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
+      record: previousRecord,
+      runtime: {
+        date: '2025-01-08',
+        availabilityState: 'resolved',
+        consistencyState: 'local_only',
+        sourceOfTruth: 'local',
+        retryability: 'not_applicable',
+        recoveryAction: 'none',
+        conflictSummary: null,
+        observabilityTags: ['daily_record', 'read'],
+        repairApplied: false,
+      },
+    });
+
+    const subscribeDetailed = vi.fn((_date, callback) => {
+      callback(
+        {
+          date: '2025-01-08',
+          outcome: 'clean',
+          record: remoteRecord,
+          consistencyState: 'remote_applied',
+          sourceOfTruth: 'remote',
+          retryability: 'not_applicable',
+          recoveryAction: 'none',
+          conflictSummary: null,
+          observabilityTags: ['daily_record', 'sync'],
+          repairApplied: false,
+        },
+        false
+      );
+      return vi.fn();
+    });
+
+    createDailyRecordSubscription(
+      { getForDate: vi.fn(), subscribeDetailed },
+      '2025-01-08',
+      queryClient
+    );
+
+    expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
+      record: {
+        beds: {
+          R1: expect.objectContaining({
+            specialty: 'Medicina',
+            secondarySpecialty: '',
+            status: PatientStatus.ESTABLE,
+          }),
+        },
+      },
+      runtime: {
+        sourceOfTruth: 'remote',
+      },
+    });
+  });
+
+  it('keeps pending local diagnosis, specialty and status edits visible over a newer realtime snapshot for the same episode', () => {
+    clearPendingDailyRecordPatchesForTests();
+    const queryClient = new QueryClient();
+    const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    previousRecord.lastUpdated = '2025-01-08T12:00:00.000Z';
+    previousRecord.beds.R1.clinicalEpisodeId = 'ep-r1';
+    previousRecord.beds.R1.rut = '11.111.111-1';
+    previousRecord.beds.R1.admissionDate = '2025-01-08';
+    previousRecord.beds.R1.specialty = 'Otorrino libre';
+    previousRecord.beds.R1.secondarySpecialty = 'Interconsulta libre';
+    previousRecord.beds.R1.status = PatientStatus.DE_CUIDADO;
+    previousRecord.beds.R1.pathology = 'Diagnostico local pendiente';
+
+    const incomingRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    incomingRecord.lastUpdated = '2025-01-08T12:00:05.000Z';
+    incomingRecord.beds.R1.clinicalEpisodeId = 'ep-r1';
+    incomingRecord.beds.R1.rut = '11.111.111-1';
+    incomingRecord.beds.R1.admissionDate = '2025-01-08';
+    incomingRecord.beds.R1.specialty = 'Medicina';
+    incomingRecord.beds.R1.secondarySpecialty = '';
+    incomingRecord.beds.R1.status = PatientStatus.ESTABLE;
+    incomingRecord.beds.R1.pathology = 'Diagnostico remoto concurrente';
+
+    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
+      record: previousRecord,
+      runtime: {
+        date: '2025-01-08',
+        availabilityState: 'resolved',
+        consistencyState: 'local_only',
+        sourceOfTruth: 'local',
+        retryability: 'not_applicable',
+        recoveryAction: 'none',
+        conflictSummary: null,
+        observabilityTags: ['daily_record', 'read'],
+        repairApplied: false,
+      },
+    });
+
+    const unregister = registerPendingDailyRecordPatch('2025-01-08', {
+      'beds.R1.pathology': 'Diagnostico local pendiente',
+      'beds.R1.specialty': 'Otorrino libre',
+      'beds.R1.secondarySpecialty': 'Interconsulta libre',
+      'beds.R1.status': 'De cuidado',
+    });
+
+    const subscribe = vi.fn((_date, callback) => {
+      callback(incomingRecord, false);
+      return vi.fn();
+    });
+
+    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+
+    expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
+      record: {
+        beds: {
+          R1: expect.objectContaining({
+            specialty: 'Otorrino libre',
+            secondarySpecialty: 'Interconsulta libre',
+            status: 'De cuidado',
+            pathology: 'Diagnostico local pendiente',
+          }),
+        },
+      },
+    });
+
+    unregister();
+    clearPendingDailyRecordPatchesForTests();
+  });
+
+  it('does not apply pending specialty patches to a different episode in the same bed', () => {
+    clearPendingDailyRecordPatchesForTests();
+    const queryClient = new QueryClient();
+    const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    previousRecord.lastUpdated = '2025-01-08T12:00:00.000Z';
+    previousRecord.beds.R1.clinicalEpisodeId = 'ep-old';
+    previousRecord.beds.R1.rut = '11.111.111-1';
+    previousRecord.beds.R1.admissionDate = '2025-01-08';
+    previousRecord.beds.R1.admissionTime = '08:00';
+    previousRecord.beds.R1.specialty = 'Otorrino libre';
+
+    const incomingRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    incomingRecord.lastUpdated = '2025-01-08T12:00:05.000Z';
+    incomingRecord.beds.R1.clinicalEpisodeId = 'ep-new';
+    incomingRecord.beds.R1.rut = '11.111.111-1';
+    incomingRecord.beds.R1.admissionDate = '2025-01-08';
+    incomingRecord.beds.R1.admissionTime = '16:00';
+    incomingRecord.beds.R1.specialty = 'Medicina';
+
+    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
+      record: previousRecord,
+      runtime: {
+        date: '2025-01-08',
+        availabilityState: 'resolved',
+        consistencyState: 'local_only',
+        sourceOfTruth: 'local',
+        retryability: 'not_applicable',
+        recoveryAction: 'none',
+        conflictSummary: null,
+        observabilityTags: ['daily_record', 'read'],
+        repairApplied: false,
+      },
+    });
+
+    const unregister = registerPendingDailyRecordPatch('2025-01-08', {
+      'beds.R1.specialty': 'Otorrino libre',
+    });
+
+    const subscribe = vi.fn((_date, callback) => {
+      callback(incomingRecord, false);
+      return vi.fn();
+    });
+
+    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+
+    expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
+      record: {
+        beds: {
+          R1: expect.objectContaining({
+            specialty: 'Medicina',
+            clinicalEpisodeId: 'ep-new',
+          }),
+        },
+      },
+    });
+
+    unregister();
+    clearPendingDailyRecordPatchesForTests();
   });
 
   it('ignores stale null reconciliation after the subscription is cleaned up', async () => {

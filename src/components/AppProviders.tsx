@@ -5,11 +5,12 @@
  */
 
 import React, { ReactNode } from 'react';
-import { DailyRecordProvider, StaffProvider } from '@/context';
+import { DailyRecordProvider } from '@/context/DailyRecordContext';
+import { StaffProvider } from '@/context/StaffContext';
 import { TableConfigProvider } from '@/context/TableConfigContext';
 import { UISettingsProvider } from '@/context/UISettingsContext';
 import { SecurityProvider } from '@/context/SecurityContext';
-import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
+import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 
 interface AppProvidersProps {
   children: ReactNode;

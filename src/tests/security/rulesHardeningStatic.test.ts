@@ -34,6 +34,35 @@ describe('Security hardening static guards', () => {
     );
   });
 
+  it('keeps user avatars scoped to the authenticated owner and image-limited', () => {
+    const rules = readProjectFile('storage.rules');
+    expect(rules).toContain('match /user-avatars/{userId}/{fileName}');
+    expect(rules).toContain('function isCurrentUser(userId)');
+    expect(rules).toMatch(
+      /match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?allow read:\s*if isCurrentUser\(userId\);/m
+    );
+    expect(rules).toMatch(
+      /match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?allow write:\s*if isCurrentUser\(userId\)[\s\S]*request\.resource\.size < 2 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches\('image\/\.\*'\);/m
+    );
+    expect(rules).not.toMatch(/match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?if true;/m);
+  });
+
+  it('keeps clinical attachment Storage scoped, authenticated, typed and size-limited', () => {
+    const rules = readProjectFile('storage.rules');
+    expect(rules).toContain(
+      'match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName}'
+    );
+    expect(rules).toMatch(
+      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow read:\s*if canReadClinicalStorage\(\);/m
+    );
+    expect(rules).toMatch(
+      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow write:\s*if hasClinicalWriteRole\(\)[\s\S]*request\.resource\.size < 15 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches/m
+    );
+    expect(rules).not.toMatch(
+      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow write:\s*if true;/m
+    );
+  });
+
   it('uses robust admin check in setUserRole callable', () => {
     const authCallablePolicy = readProjectFile('functions/lib/auth/authCallablePolicy.js');
 
@@ -47,7 +76,7 @@ describe('Security hardening static guards', () => {
   it('restricts dailyRecords delete operation to admins only', () => {
     const rules = readProjectFile('firestore.rules');
     const dailyRecordsMatch = rules.match(
-      /match \/dailyRecords\/\{date\}\s*\{([\s\S]*?)\n\s*\}\n\n\s*\/\/ Deleted Records/m
+      /match \/dailyRecords\/\{date\}\s*\{([\s\S]*?)\n\s*match \/clinicalDocuments\/\{documentId\}/m
     );
 
     expect(dailyRecordsMatch).not.toBeNull();
@@ -88,5 +117,45 @@ describe('Security hardening static guards', () => {
       expect(authShared).not.toContain(email);
       expect(netlifyAuth).not.toContain(email);
     }
+  });
+
+  describe('prescriptions module (monthly backup, manual deletion)', () => {
+    it('forbids client direct creates in Firestore — uploads must go through the Cloud Function', () => {
+      const rules = readProjectFile('firestore.rules');
+      expect(rules).toMatch(
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow create:\s*if false;/m
+      );
+    });
+
+    it('lets clinical staff read prescriptions and limits delete to admin or nursing', () => {
+      const rules = readProjectFile('firestore.rules');
+      expect(rules).toMatch(
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow read:\s*if canReadClinicalData\(\);/m
+      );
+      expect(rules).toMatch(
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow update:\s*if canEdit\(\);/m
+      );
+      expect(rules).toMatch(
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow delete:\s*if canEdit\(\);/m
+      );
+    });
+
+    it('keeps the PIN config readable only by admin and never client-writable', () => {
+      const rules = readProjectFile('firestore.rules');
+      expect(rules).toMatch(
+        /match \/config\/prescriptionsAccess[\s\S]*?allow read:\s*if isAdmin\(\);/m
+      );
+      expect(rules).toMatch(/match \/config\/prescriptionsAccess[\s\S]*?allow write:\s*if false;/m);
+    });
+
+    it('keeps prescription Storage blobs readable by clinical staff and never client-writable', () => {
+      const storageRules = readProjectFile('storage.rules');
+      expect(storageRules).toMatch(
+        /match \/prescriptions\/\{allPaths=\*\*\}[\s\S]*?allow read:\s*if canReadClinicalStorage\(\);/m
+      );
+      expect(storageRules).toMatch(
+        /match \/prescriptions\/\{allPaths=\*\*\}[\s\S]*?allow write:\s*if false;/m
+      );
+    });
   });
 });

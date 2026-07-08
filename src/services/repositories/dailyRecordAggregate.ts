@@ -6,6 +6,11 @@ import {
   resolveDayShiftNurses,
   resolveNightShiftNurses,
 } from '@/services/staff/dailyRecordStaffing';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 export interface DailyRecordClinicalFacet {
   beds: DailyRecord['beds'];
@@ -67,9 +72,9 @@ export const createDailyRecordAggregate = (record: DailyRecord): DailyRecordAggr
     tensNight: record.tensNightShift || [],
   },
   movements: {
-    discharges: record.discharges,
-    transfers: record.transfers,
-    cma: record.cma,
+    discharges: getActiveDischarges(record.discharges),
+    transfers: getActiveTransfers(record.transfers),
+    cma: getActiveCma(record.cma),
   },
   handoff: {
     dayNovedades: resolveNursingHandoffNovedadesText({

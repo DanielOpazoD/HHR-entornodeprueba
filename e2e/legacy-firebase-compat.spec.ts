@@ -30,9 +30,18 @@ test.describe('Legacy Firebase compatibility', () => {
     await demographicsButton.click();
     const demographicsDialog = page.getByRole('dialog', { name: 'Datos Demográficos' });
     await expect(demographicsDialog).toBeVisible();
-    await demographicsDialog.getByPlaceholder('Nombre').fill('Legacy');
-    await demographicsDialog.getByPlaceholder('Apellido paterno').fill('Patient');
-    await demographicsDialog.getByPlaceholder('Apellido materno').fill('Normalized');
+    const firstNameInput = demographicsDialog.getByPlaceholder('Nombre', { exact: true });
+    const lastNameInput = demographicsDialog.getByPlaceholder('Apellido paterno', { exact: true });
+    const secondLastNameInput = demographicsDialog.getByPlaceholder('Apellido materno', {
+      exact: true,
+    });
+
+    await firstNameInput.fill('Legacy');
+    await expect(firstNameInput).toHaveValue('Legacy');
+    await lastNameInput.fill('Patient');
+    await expect(lastNameInput).toHaveValue('Patient');
+    await secondLastNameInput.fill('Normalized');
+    await expect(secondLastNameInput).toHaveValue('Normalized');
     await demographicsDialog.getByRole('button', { name: /Guardar Cambios/i }).click();
     await expect(demographicsDialog).toBeHidden();
 

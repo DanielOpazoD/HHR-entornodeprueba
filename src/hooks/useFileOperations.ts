@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import * as ExportService from '@/services/exporters/exportService';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { useNotification } from '@/context/UIContext';
 import { buildJsonImportNotifications } from '@/hooks/controllers/fileImportFeedbackController';
@@ -12,13 +11,20 @@ import {
   isJsonImportFile,
   shouldRefreshAfterJsonImport,
 } from '@/hooks/controllers/fileOperationsController';
-import { executeImportJsonBackup } from '@/application/backup-export/backupExportMaintenanceUseCases';
-import { presentBackupExportOutcome } from '@/hooks/controllers/backupExportOutcomeController';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const logger = createScopedLogger('useFileOperations');
+const loadExportService = () => import('@/services/exporters/exportService');
+const loadBackupImportUseCase = () =>
+  import('@/application/backup-export/backupExportMaintenanceUseCases').then(
+    module => module.executeImportJsonBackup
+  );
+const loadBackupExportOutcomePresenter = () =>
+  import('@/hooks/controllers/backupExportOutcomeController').then(
+    module => module.presentBackupExportOutcome
+  );
 
 export interface UseFileOperationsReturn {
   handleExportJSON: () => void;
@@ -56,7 +62,8 @@ export const useFileOperations = (
   };
 
   const handleExportJSON = () => {
-    void ExportService.exportDataJSONWithResult()
+    void loadExportService()
+      .then(exportService => exportService.exportDataJSONWithResult())
       .then(outcome => {
         if (outcome.status === 'success') {
           dispatchNotification(buildExportJsonNotification('success'));
@@ -71,18 +78,26 @@ export const useFileOperations = (
   };
 
   const handleExportCSV = () => {
-    const outcome = ExportService.exportDataCSVWithResult(record);
-    if (outcome.status === 'success') {
-      dispatchNotification(buildExportCsvNotification('success'));
-      return;
-    }
+    void loadExportService()
+      .then(exportService => {
+        const outcome = exportService.exportDataCSVWithResult(record);
+        if (outcome.status === 'success') {
+          dispatchNotification(buildExportCsvNotification('success'));
+          return;
+        }
 
-    dispatchNotification(buildExportCsvNotification('error'));
+        dispatchNotification(buildExportCsvNotification('error'));
+      })
+      .catch(error => {
+        logger.error('CSV export failed', error);
+        dispatchNotification(buildExportCsvNotification('error'));
+      });
   };
 
   const handleImportFile = async (file: File) => {
     setError(null);
     if (isJsonImportFile(file)) {
+      const executeImportJsonBackup = await loadBackupImportUseCase();
       const outcome = await executeImportJsonBackup(file);
       recordOperationalOutcome('backup', 'import_json_backup', outcome, {
         context: { fileName: file.name },
@@ -96,6 +111,7 @@ export const useFileOperations = (
           onRefresh();
         }
       } else {
+        const presentBackupExportOutcome = await loadBackupExportOutcomePresenter();
         const notice = presentBackupExportOutcome(outcome, {
           successTitle: 'Importación completada',
           partialTitle: 'Importación completada con observaciones',

@@ -17,6 +17,10 @@ service firebase.storage {
       return isAuthenticated() && normalizedRole() in roles;
     }
 
+    function isCurrentUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
     function hasClinicalReadRole() {
       // Storage covers exports, templates, backups and reminder assets.
       // `doctor_specialist` keeps access to clinical data via Firestore rules,
@@ -44,4 +48,25 @@ service firebase.storage {
 
     function canReadClinicalStorage() {
       return hasClinicalReadRole();
+    }
+
+    function canReadClinicalAttachments() {
+      return hasNormalizedRole([
+        'admin',
+        'nurse_hospital',
+        'doctor_urgency',
+        'doctor_specialist',
+        'viewer',
+        'editor'
+      ]);
+    }
+
+    function canWriteClinicalAttachments() {
+      return hasNormalizedRole([
+        'admin',
+        'nurse_hospital',
+        'doctor_urgency',
+        'doctor_specialist',
+        'editor'
+      ]);
     }

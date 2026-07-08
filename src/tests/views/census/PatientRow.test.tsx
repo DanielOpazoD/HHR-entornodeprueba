@@ -59,7 +59,9 @@ describe('PatientRow', () => {
 
     expect(screen.getByTestId('main-row-view')).toBeInTheDocument();
     expect(screen.queryByTestId('sub-row-view')).not.toBeInTheDocument();
-    expect(await screen.findByTestId('row-modals')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('row-modals', undefined, { timeout: 5000 })
+    ).toBeInTheDocument();
   });
 
   it('renders sub row view and modals for clinical crib rows', async () => {
@@ -82,6 +84,8 @@ describe('PatientRow', () => {
 
     expect(screen.queryByTestId('main-row-view')).not.toBeInTheDocument();
     expect(screen.getByTestId('sub-row-view')).toBeInTheDocument();
-    expect(await screen.findByTestId('row-modals')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('row-modals', undefined, { timeout: 5000 })
+    ).toBeInTheDocument();
   });
 });

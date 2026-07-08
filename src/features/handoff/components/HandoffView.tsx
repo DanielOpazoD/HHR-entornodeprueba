@@ -5,6 +5,7 @@ import { HandoffNightCudyrActionButton } from './HandoffNightCudyrActionButton';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffMedicalContent } from './HandoffMedicalContent';
 import { HandoffNursingContent } from './HandoffNursingContent';
+import { ClinicalConflictCenterControl } from '@/components/clinical-conflicts/ClinicalConflictCenterControl';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 import {
   buildHandoffHeaderBindings,
@@ -143,6 +144,24 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     selectedShift,
     updateHandoffNovedades,
   });
+  const clinicalConflictAction = (
+    <ClinicalConflictCenterControl
+      date={record.date}
+      scope={isMedical ? 'medical_handoff' : 'nursing_handoff'}
+      currentRecord={record}
+      hideButtonLabel={!isMedical}
+    />
+  );
+  const nursingHeaderAction =
+    !isMedical &&
+    (medicalCapabilities.canOpenNightCudyr && headerBindings.showNightCudyrAction ? (
+      <div className="flex items-center gap-2">
+        {clinicalConflictAction}
+        <HandoffNightCudyrActionButton onClick={handleOpenCudyr} />
+      </div>
+    ) : (
+      clinicalConflictAction
+    ));
   return (
     <div className="space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0">
       <HandoffPrintHeader
@@ -170,16 +189,13 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         readOnly={effectiveReadOnly}
         onUpdateStaff={updateHandoffStaff}
         onUpdateChecklist={updateHandoffChecklist}
-        extraAction={
-          !isMedical &&
-          medicalCapabilities.canOpenNightCudyr &&
-          headerBindings.showNightCudyrAction ? (
-            <HandoffNightCudyrActionButton onClick={handleOpenCudyr} />
-          ) : undefined
-        }
+        extraAction={nursingHeaderAction || undefined}
       />
       {isMedical ? (
-        <HandoffMedicalContent {...medicalContentBindings} />
+        <HandoffMedicalContent
+          {...medicalContentBindings}
+          conflictCenterAction={clinicalConflictAction}
+        />
       ) : (
         <HandoffNursingContent {...nursingContentBindings} />
       )}

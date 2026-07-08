@@ -100,7 +100,11 @@ export const buildClinicalAISummaryContext = ({
     throw new Error(`Patient not found for bed '${bedId}' on record '${record.date}'.`);
   }
 
-  const episodeKey = buildClinicalEpisodeKey(patient.rut || '', patient.admissionDate);
+  const episodeKey = buildClinicalEpisodeKey(
+    patient.rut || '',
+    patient.admissionDate,
+    patient.admissionTime
+  );
 
   return {
     recordDate: record.date,

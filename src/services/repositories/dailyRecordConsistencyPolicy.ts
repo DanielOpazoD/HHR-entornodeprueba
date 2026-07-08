@@ -272,7 +272,7 @@ export const resolveDailyRecordSyncConsistency = ({
     });
   }
 
-  if (selectedRecord === localRecord && isLocalNewer(localRecord, remoteRecord)) {
+  if (selectedRecord !== remoteRecord && isLocalNewer(localRecord, remoteRecord)) {
     return createConsistencyMetadata({
       consistencyState: 'local_kept',
       sourceOfTruth: 'local',

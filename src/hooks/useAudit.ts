@@ -8,6 +8,8 @@ import React, { useCallback } from 'react';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry } from '@/types/auditLogTypes';
+import { reportAuditOutcome } from '@/hooks/controllers/auditEventRejectionLogger';
+import { logger } from '@/services/utils/loggerService';
 import {
   buildDebouncedAuditKey,
   buildMeaningfulAuditDetails,
@@ -26,8 +28,9 @@ import {
 import { useClinicalDocumentAuditLoggers } from '@/hooks/controllers/useClinicalDocumentAuditLoggers';
 import { useCudyrAuditLoggers } from '@/hooks/controllers/useCudyrAuditLoggers';
 import { useHandoffAuditLoggers } from '@/hooks/controllers/useHandoffAuditLoggers';
+import { usePatientLifecycleAuditLoggers } from '@/hooks/controllers/usePatientLifecycleAuditLoggers';
+import { loadWriteAuditEventUseCase } from '@/application/audit/writeAuditEventUseCaseLoader';
 
-const loadWriteAuditEventUseCase = () => import('@/application/audit/writeAuditEventUseCase');
 const loadFetchAuditLogsUseCase = () => import('@/application/audit/fetchAuditLogsUseCase');
 
 const getViewThrottleState = (): ViewThrottleState => {
@@ -188,7 +191,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
 
       void (async () => {
         const { executeWriteAuditEvent } = await loadWriteAuditEventUseCase();
-        await executeWriteAuditEvent({
+        const outcome = await executeWriteAuditEvent({
           userId,
           action,
           entityType,
@@ -198,7 +201,8 @@ export const useAudit = (userId: string): UseAuditReturn => {
           recordDate,
           authors,
         });
-      })().catch(() => undefined);
+        reportAuditOutcome(outcome, { userId, action, entityType, entityId });
+      })().catch(error => logger.warn('Failed to record audit event', error));
     },
     [userId]
   );
@@ -260,61 +264,14 @@ export const useAudit = (userId: string): UseAuditReturn => {
     [logEvent]
   );
 
-  const logPatientAdmission = useCallback(
-    (bedId: string, patientName: string, rut: string, recordDate: string) => {
-      logEvent('PATIENT_ADMITTED', 'patient', bedId, { patientName, bedId }, rut, recordDate);
-    },
-    [logEvent]
-  );
-
-  const logPatientDischarge = useCallback(
-    (bedId: string, patientName: string, rut: string, status: string, recordDate: string) => {
-      logEvent(
-        'PATIENT_DISCHARGED',
-        'discharge',
-        bedId,
-        { patientName, status, bedId, rut },
-        rut,
-        recordDate
-      );
-    },
-    [logEvent]
-  );
-
-  const logPatientTransfer = useCallback(
-    (bedId: string, patientName: string, rut: string, destination: string, recordDate: string) => {
-      logEvent(
-        'PATIENT_TRANSFERRED',
-        'transfer',
-        bedId,
-        { patientName, destination, bedId, rut },
-        rut,
-        recordDate
-      );
-    },
-    [logEvent]
-  );
-
-  const logPatientCleared = useCallback(
-    (bedId: string, patientName: string, rut: string, recordDate: string) => {
-      logEvent('PATIENT_CLEARED', 'patient', bedId, { patientName, bedId }, rut, recordDate);
-    },
-    [logEvent]
-  );
-
-  const logDailyRecordDeleted = useCallback(
-    (date: string) => {
-      logEvent('DAILY_RECORD_DELETED', 'dailyRecord', date, { date }, undefined, date);
-    },
-    [logEvent]
-  );
-
-  const logDailyRecordCreated = useCallback(
-    (date: string, copiedFrom?: string) => {
-      logEvent('DAILY_RECORD_CREATED', 'dailyRecord', date, { date, copiedFrom }, undefined, date);
-    },
-    [logEvent]
-  );
+  const {
+    logPatientAdmission,
+    logPatientDischarge,
+    logPatientTransfer,
+    logPatientCleared,
+    logDailyRecordDeleted,
+    logDailyRecordCreated,
+  } = usePatientLifecycleAuditLoggers(logEvent);
 
   const { logHandoffNovedadesModified, logMedicalHandoffModified, logNurseHandoffModified } =
     useHandoffAuditLoggers(logEvent);

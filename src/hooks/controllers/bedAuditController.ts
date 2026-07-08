@@ -40,10 +40,19 @@ export interface PatientSpecialtyChangedAuditDecision {
   patientRut?: string;
 }
 
+export interface PatientDiagnosisChangedAuditDecision {
+  kind: 'diagnosis_changed';
+  patientName: string;
+  patientRut?: string;
+  oldDiagnosis?: string;
+  newDiagnosis?: string;
+}
+
 export type PatientChangeAuditDecision =
   | PatientAdmissionAuditDecision
   | PatientModifiedAuditDecision
-  | PatientSpecialtyChangedAuditDecision;
+  | PatientSpecialtyChangedAuditDecision
+  | PatientDiagnosisChangedAuditDecision;
 
 export const resolvePatientChangeAudit = (
   field: keyof PatientData,
@@ -121,6 +130,16 @@ export const resolvePatientChangeAudit = (
       newSpecialty: (newValue ?? '') as string,
       patientName: oldPatient.patientName,
       patientRut: oldPatient.rut,
+    };
+  }
+
+  if (field === 'pathology') {
+    return {
+      kind: 'diagnosis_changed',
+      patientName: oldPatient.patientName,
+      patientRut: oldPatient.rut,
+      oldDiagnosis: (oldValue ?? '') as string,
+      newDiagnosis: (newValue ?? '') as string,
     };
   }
 

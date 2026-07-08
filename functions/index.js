@@ -6,11 +6,15 @@ const { createHandoffSignatureFunctions } = require('./lib/handoffSignatureFunct
 const {
   createSpecialistMedicalHandoffFunctions,
 } = require('./lib/specialistMedicalHandoffFunctions');
+const {
+  createDailyRecordWriteAuthorityFunctions,
+} = require('./lib/dailyRecordWriteAuthorityFunctions');
 const { createClinicalDocumentExportFunctions } = require('./lib/clinicalDocumentExportFunctions');
 const {
   createClinicalDocumentPdfRenderFunctions,
 } = require('./lib/clinicalDocumentPdfRenderFunctions');
 const { createWoundCareMobileUploadFunctions } = require('./lib/woundCareMobileUploadFunctions');
+const { createPrescriptionAccessFunctions } = require('./lib/prescriptionAccessFunctions');
 
 const authHelpers = createAuthHelpers(admin);
 
@@ -20,6 +24,7 @@ module.exports = {
     admin,
     hospitalCapacity: HOSPITAL_CAPACITY,
     hasCallableClinicalAccess: authHelpers.hasCallableClinicalAccess,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createAuthFunctions({
     admin,
@@ -32,6 +37,10 @@ module.exports = {
     admin,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
+  ...createDailyRecordWriteAuthorityFunctions({
+    admin,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
   ...createClinicalDocumentExportFunctions({
     admin,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
@@ -41,5 +50,9 @@ module.exports = {
   }),
   ...createWoundCareMobileUploadFunctions({
     admin,
+  }),
+  ...createPrescriptionAccessFunctions({
+    admin,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
 };

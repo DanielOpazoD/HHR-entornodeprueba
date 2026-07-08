@@ -2,12 +2,22 @@
  * ClinicalDocumentStatusBar
  *
  * Renders autosave status and Drive sync state in the modal header.
- * Separated from the formatting toolbar for clearer UI hierarchy.
+ * The autosave indicator occupies a fixed slot (always rendered) so the
+ * surrounding header layout never shifts when the sync phase changes.
  */
 
 import React, { useMemo } from 'react';
-import { AlertCircle, CheckCircle2, ExternalLink, Loader2, UploadCloud } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Cloud,
+  CloudUpload,
+  ExternalLink,
+  Loader2,
+  UploadCloud,
+} from 'lucide-react';
 import { resolveAutosaveIndicatorState } from '@/features/clinical-documents/controllers/clinicalDocumentAutosaveIndicatorController';
+import type { AutosaveIndicatorPhase } from '@/features/clinical-documents/controllers/clinicalDocumentAutosaveIndicatorController';
 import type { ClinicalDocumentPdfMeta } from '@/features/clinical-documents/domain/entities';
 
 interface ClinicalDocumentStatusBarProps {
@@ -22,6 +32,46 @@ interface ClinicalDocumentStatusBarProps {
 const btnBase =
   'inline-flex h-7 items-center rounded-md border px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300';
 
+interface AutosaveBadgeVariant {
+  Icon: typeof CheckCircle2;
+  iconClass: string;
+  containerClass: string;
+  label: (savedAtLabel: string | null) => string;
+  ariaLabel: (savedAtLabel: string | null) => string;
+}
+
+const AUTOSAVE_BADGE_VARIANTS: Record<AutosaveIndicatorPhase, AutosaveBadgeVariant> = {
+  idle: {
+    Icon: Cloud,
+    iconClass: 'text-slate-400',
+    containerClass: 'border-slate-200 bg-white text-slate-500',
+    label: () => 'Sin cambios',
+    ariaLabel: () => 'Documento sin cambios pendientes',
+  },
+  dirty: {
+    Icon: CloudUpload,
+    iconClass: 'text-amber-600',
+    containerClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    label: () => 'Sin guardar',
+    ariaLabel: () => 'Cambios locales sin guardar',
+  },
+  saving: {
+    Icon: Loader2,
+    iconClass: 'text-sky-600 animate-spin',
+    containerClass: 'border-sky-200 bg-sky-50 text-sky-700',
+    label: () => 'Guardando',
+    ariaLabel: () => 'Guardando cambios',
+  },
+  saved: {
+    Icon: CheckCircle2,
+    iconClass: 'text-emerald-600',
+    containerClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    label: savedAtLabel => (savedAtLabel ? `Guardado · ${savedAtLabel}` : 'Guardado'),
+    ariaLabel: savedAtLabel =>
+      savedAtLabel ? `Cambios guardados a las ${savedAtLabel}` : 'Cambios guardados',
+  },
+};
+
 export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps> = ({
   isSaving,
   lastSavedAt,
@@ -35,39 +85,31 @@ export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps>
     [hasLocalDraftChanges, isSaving, lastSavedAt]
   );
 
+  const variant = AUTOSAVE_BADGE_VARIANTS[autosaveState.phase];
+  const VariantIcon = variant.Icon;
+  const visibleLabel = variant.label(autosaveState.savedAtLabel);
+  const accessibleLabel = variant.ariaLabel(autosaveState.savedAtLabel);
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {autosaveState.phase === 'saving' && (
-        <span
-          className="flex items-center gap-1 text-[9px] font-semibold tracking-wide"
-          aria-live="polite"
-        >
-          <>
-            <Loader2 size={10} className="animate-spin text-slate-400" />
-            <span className="text-slate-400">Guardando...</span>
-          </>
-        </span>
-      )}
+      <span
+        role="status"
+        aria-live="polite"
+        aria-label={accessibleLabel}
+        title={accessibleLabel}
+        data-autosave-phase={autosaveState.phase}
+        className={`inline-flex h-7 min-w-[148px] items-center justify-center gap-1.5 rounded-md border px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors ${variant.containerClass}`}
+      >
+        <VariantIcon size={12} className={variant.iconClass} />
+        <span className="whitespace-nowrap">{visibleLabel}</span>
+      </span>
 
       <div className="flex items-center gap-1.5">
-        {hasLocalDraftChanges && (
-          <span className="inline-flex max-w-[220px] items-center truncate rounded-md border border-slate-200 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-700">
-            Cambios locales sin guardar
-          </span>
-        )}
         {pdf?.exportStatus === 'exported' ? (
           <>
             <span className="group relative inline-flex items-center gap-1 rounded-md border border-emerald-200 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">
               <CheckCircle2 size={11} />
               Drive exportado
-              {autosaveState.savedAtLabel && (
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case tracking-normal text-slate-600 opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
-                >
-                  Guardado {autosaveState.savedAtLabel}
-                </span>
-              )}
             </span>
             {pdf.webViewLink && (
               <a

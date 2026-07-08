@@ -10,7 +10,7 @@ import {
 import { PatientSelector } from './PatientSelector';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { ModalSection } from '@/components/shared/baseModalSection';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useNotification } from '@/context/UIContext';
 import { getDestinationHospitalCatalog } from '@/features/transfers/services/destinationHospitalCatalogService';
 import { getLocalDateInputValue } from '@/utils/localDate';
 import {
@@ -43,6 +43,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
 }) => {
   const isEditing = transfer !== null;
   const defaultRequestDate = getLocalDateInputValue();
+  const { notify } = useNotification();
 
   // Form state
   const [selectedPatientId, setSelectedPatientId] = useState(transfer?.bedId || '');
@@ -112,7 +113,11 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
     });
 
     if (!submission.ok) {
-      defaultBrowserWindowRuntime.alert(submission.error);
+      notify({
+        type: 'warning',
+        title: 'Solicitud incompleta',
+        message: submission.error,
+      });
       return;
     }
 

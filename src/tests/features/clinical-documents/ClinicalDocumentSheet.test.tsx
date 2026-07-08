@@ -1,129 +1,20 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/ClinicalDocumentSheet';
-import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import { getDefaultClinicalDocumentIndicationsCatalog } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 import { getClinicalDocumentPlanSubsectionTitle } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
-
-const buildDocument = () =>
-  createClinicalDocumentDraft({
-    templateId: 'epicrisis',
-    hospitalId: 'hhr',
-    actor: {
-      uid: 'u1',
-      email: 'doctor@test.com',
-      displayName: 'Doctor Test',
-      role: 'doctor_urgency',
-    },
-    episode: {
-      patientRut: '11.111.111-1',
-      patientName: 'Paciente Test',
-      episodeKey: '11.111.111-1__2026-03-06',
-      admissionDate: '2026-03-06',
-      sourceDailyRecordDate: '2026-03-06',
-      sourceBedId: 'R1',
-      specialty: 'Cirugía',
-    },
-    patientFieldValues: {
-      nombre: 'Paciente Test',
-      rut: '11.111.111-1',
-      edad: '40a',
-      fecnac: '1986-01-01',
-      fing: '2026-03-06',
-      finf: '2026-03-06',
-      hinf: '10:30',
-    },
-    medico: 'Doctor Test',
-    especialidad: 'Cirugía',
-  });
-
-const buildToolbar = (handlers: { onPrint: () => void; onRestoreTemplate: () => void }) => (
-  <>
-    <button type="button" aria-label="PDF" onClick={handlers.onPrint}>
-      PDF
-    </button>
-    <button type="button" aria-label="Reestablecer plantilla" onClick={handlers.onRestoreTemplate}>
-      Reestablecer plantilla
-    </button>
-    <button type="button" aria-label="Formato" aria-pressed="true">
-      Formato
-    </button>
-    <button type="button" aria-label="Deshacer" disabled>
-      Deshacer
-    </button>
-    <button type="button" aria-label="Rehacer" disabled>
-      Rehacer
-    </button>
-    <button type="button" aria-label="Negrita">
-      Negrita
-    </button>
-    <button type="button" aria-label="Guardado en Drive">
-      Guardado en Drive
-    </button>
-  </>
-);
-
-const defaultHandlers = {
-  onPrint: vi.fn(),
-  onUploadPdf: vi.fn(),
-  hasLocalDraftChanges: false,
-  onRestoreTemplate: vi.fn(),
-  activeTitleTarget: null,
-  activeEditorSectionId: null,
-  onSetActiveTitleTarget: vi.fn(),
-  draggedSectionId: null,
-  dragOverSectionId: null,
-  activePlanSubsectionId: 'generales' as const,
-  activeIndicationsSpecialtyId: 'tmt' as const,
-  isIndicationsPanelOpen: false,
-  onSetActivePlanSubsectionId: vi.fn(),
-  onSetActiveIndicationsSpecialtyId: vi.fn(),
-  onToggleIndicationsPanel: vi.fn(),
-  onEditorActivate: vi.fn(),
-  onEditorDeactivate: vi.fn(),
-  dragHandlers: {
-    onDragStart: vi.fn(),
-    onDragOver: vi.fn(),
-    onDragLeave: vi.fn(),
-    onDragEnd: vi.fn(),
-  },
-  patchDocumentTitle: vi.fn(),
-  patchPatientInfoTitle: vi.fn(),
-  patchPatientField: vi.fn(),
-  patchPatientFieldLabel: vi.fn(),
-  setPatientFieldVisibility: vi.fn(),
-  patchSectionTitle: vi.fn(),
-  patchSection: vi.fn(),
-  setSectionLayout: vi.fn(),
-  setSectionVisibility: vi.fn(),
-  moveSection: vi.fn(),
-  reorderSection: vi.fn(),
-  addSection: vi.fn(),
-  patchFooterLabel: vi.fn(),
-  patchDocumentMeta: vi.fn(),
-  addCustomIndication: vi.fn(async () => true),
-  updateIndication: vi.fn(async () => true),
-  deleteIndication: vi.fn(async () => true),
-  importIndicationsCatalog: vi.fn(async () => true),
-  addClinicalUpdate: vi.fn(),
-  patchAnnexContent: vi.fn(),
-  setAnnexIncludedInPrint: vi.fn(),
-  clearAnnexContent: vi.fn(),
-  onPrintAnnex: vi.fn(),
-  patchIeehDraft: vi.fn(),
-  clearIeehDraft: vi.fn(),
-  patchUpdateDate: vi.fn(),
-  patchUpdateTime: vi.fn(),
-};
+import {
+  buildDocument,
+  buildPersonalIndicationsCatalog,
+  buildToolbar,
+  defaultHandlers,
+  resetDefaultHandlers,
+} from './ClinicalDocumentSheet.testSupport';
 
 describe('ClinicalDocumentSheet', () => {
   beforeEach(() => {
-    Object.values(defaultHandlers).forEach(handler => {
-      if (typeof handler === 'function' && 'mockClear' in handler) {
-        handler.mockClear();
-      }
-    });
+    resetDefaultHandlers();
   });
 
   it('shows empty state when there is no selected document', () => {
@@ -149,6 +40,13 @@ describe('ClinicalDocumentSheet', () => {
 
   it('renders editor, local logos and delegates sheet actions', () => {
     const document = buildDocument();
+    const personalCatalog = buildPersonalIndicationsCatalog([
+      {
+        id: 'general',
+        label: 'General',
+        items: [{ id: 'item-reposo', text: 'Reposo Absoluto', source: 'custom' as const }],
+      },
+    ]);
     Object.defineProperty(globalThis.document, 'execCommand', {
       value: vi.fn(() => true),
       configurable: true,
@@ -160,7 +58,7 @@ describe('ClinicalDocumentSheet', () => {
         isSaving={false}
         isUploadingPdf={false}
         validationIssues={[{ message: 'Falta completar diagnóstico.' }]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
+        indicationsCatalog={personalCatalog}
         isSavingCustomIndication={false}
         customIndicationError={null}
         {...defaultHandlers}
@@ -217,13 +115,41 @@ describe('ClinicalDocumentSheet', () => {
     expect(defaultHandlers.onRestoreTemplate).toHaveBeenCalled();
     expect(defaultHandlers.patchSection).toHaveBeenCalledWith(
       'plan',
-      expect.stringContaining('Reposo Absoluto')
+      expect.stringContaining('- Reposo Absoluto')
     );
     expect(defaultHandlers.moveSection).toHaveBeenCalledWith('antecedentes', 'down');
     expect(defaultHandlers.setSectionVisibility).toHaveBeenCalledWith('antecedentes', false);
     expect(screen.getByRole('button', { name: /^formato$/i })).toHaveAttribute(
       'aria-pressed',
       'true'
+    );
+  });
+
+  it('places episode files after the document sheet so they read as global episode context', () => {
+    const document = buildDocument();
+    const { container } = render(
+      <ClinicalDocumentSheet
+        selectedDocument={document}
+        canEdit={true}
+        isSaving={false}
+        isUploadingPdf={false}
+        validationIssues={[]}
+        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
+        isSavingCustomIndication={false}
+        customIndicationError={null}
+        {...defaultHandlers}
+        toolbar={buildToolbar(defaultHandlers)}
+      />
+    );
+
+    const sheet = container.querySelector('#clinical-document-sheet');
+    const attachmentsPanel = container.querySelector('.clinical-document-attachments-panel');
+
+    expect(sheet).not.toBeNull();
+    expect(attachmentsPanel).not.toBeNull();
+    expect(sheet?.contains(attachmentsPanel)).toBe(false);
+    expect(sheet?.compareDocumentPosition(attachmentsPanel as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
     );
   });
 
@@ -306,77 +232,5 @@ describe('ClinicalDocumentSheet', () => {
     expect(
       screen.getByRole('button', { name: /panel de indicaciones predeterminadas/i })
     ).toBeInTheDocument();
-  });
-
-  it('allows adding a custom indication to the active specialty', async () => {
-    const document = buildDocument();
-
-    render(
-      <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        isUploadingPdf={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
-      />
-    );
-
-    fireEvent.change(screen.getByLabelText(/agregar propia/i), {
-      target: { value: 'Curación diaria de herida' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /agregar\+/i }));
-
-    await waitFor(() => {
-      expect(defaultHandlers.addCustomIndication).toHaveBeenCalledWith(
-        'tmt',
-        'Curación diaria de herida'
-      );
-    });
-  });
-
-  it('allows editing and deleting previous indications', async () => {
-    const document = buildDocument();
-
-    render(
-      <ClinicalDocumentSheet
-        selectedDocument={document}
-        canEdit={true}
-        isSaving={false}
-        isUploadingPdf={false}
-        validationIssues={[]}
-        indicationsCatalog={getDefaultClinicalDocumentIndicationsCatalog()}
-        isSavingCustomIndication={false}
-        customIndicationError={null}
-        {...defaultHandlers}
-        isIndicationsPanelOpen={true}
-        toolbar={buildToolbar(defaultHandlers)}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /editar indicación reposo absoluto/i }));
-    fireEvent.change(screen.getByDisplayValue('Reposo Absoluto'), {
-      target: { value: 'Reposo en domicilio' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /guardar indicación reposo absoluto/i }));
-
-    await waitFor(() => {
-      expect(defaultHandlers.updateIndication).toHaveBeenCalledWith(
-        'tmt',
-        expect.any(String),
-        'Reposo en domicilio'
-      );
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^Eliminar indicación Reposo Relativo$/i }));
-
-    await waitFor(() => {
-      expect(defaultHandlers.deleteIndication).toHaveBeenCalledWith('tmt', expect.any(String));
-    });
   });
 });

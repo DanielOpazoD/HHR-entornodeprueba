@@ -20,6 +20,7 @@ export interface CensusTableDependencies {
   warning: ReturnType<typeof useNotification>['warning'];
   role: ReturnType<typeof useAuth>['role'];
   config: ReturnType<typeof useTableConfig>['config'];
+  tableConfigLoading: ReturnType<typeof useTableConfig>['isLoading'];
   isEditMode: ReturnType<typeof useTableConfig>['isEditMode'];
   updateColumnWidth: ReturnType<typeof useTableConfig>['updateColumnWidth'];
   diagnosisMode: ReturnType<typeof useDiagnosisMode>['diagnosisMode'];
@@ -35,7 +36,7 @@ export const useCensusTableDependencies = (): CensusTableDependencies => {
   const { confirm } = useConfirmDialog();
   const { warning } = useNotification();
   const { role } = useAuth();
-  const { config, isEditMode, updateColumnWidth } = useTableConfig();
+  const { config, isLoading: tableConfigLoading, isEditMode, updateColumnWidth } = useTableConfig();
   const { diagnosisMode, toggleDiagnosisMode } = useDiagnosisMode();
 
   return {
@@ -48,6 +49,7 @@ export const useCensusTableDependencies = (): CensusTableDependencies => {
     warning,
     role,
     config,
+    tableConfigLoading,
     isEditMode,
     updateColumnWidth,
     diagnosisMode,

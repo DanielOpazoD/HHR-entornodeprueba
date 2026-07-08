@@ -14,3 +14,10 @@ export interface CudyrScore {
   pharmacology: number;
   invasiveElements: number;
 }
+
+export type CudyrScorePatch = Partial<Record<keyof CudyrScore, number>>;
+
+export interface CudyrBatchUpdate {
+  beds?: Record<string, CudyrScorePatch>;
+  clinicalCribs?: Record<string, CudyrScorePatch>;
+}

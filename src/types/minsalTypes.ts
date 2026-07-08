@@ -38,6 +38,20 @@ export interface PatientTraceability {
   admissionDate?: string;
   /** Patient discharge/transfer date */
   dischargeDate?: string;
+  /** Movement kind when the row comes from an explicit movement list */
+  movementKind?: 'discharge' | 'transfer' | 'cma';
+  /** Stable movement identifier for statistical reclassification/audit */
+  movementId?: string;
+  /** Original clinical specialty stored in the source record */
+  originalSpecialty?: string;
+  /** Specialty used for statistical reporting after grouping/reclassification */
+  reportingSpecialty?: string;
+  /** Why reportingSpecialty differs or matches the source specialty */
+  reportingSpecialtySource?: 'original' | 'grouped' | 'manual';
+  /** CMA intervention type when applicable */
+  interventionType?: string;
+  /** CMA or movement discharge time when applicable */
+  eventTime?: string;
 }
 
 /**
@@ -89,6 +103,101 @@ export interface SpecialtyStats {
   fachList?: PatientTraceability[];
   /** List of deaths that contributed to fallecidos */
   fallecidosList?: PatientTraceability[];
+}
+
+export type MinsalMovementKind = 'discharge' | 'transfer' | 'cma';
+
+export type SpecialtyGroupingMode = 'detailed' | 'group-other';
+
+export interface SpecialtyReclassification {
+  /** Date of the movement. Optional for legacy external callers, but preferred for audit-safe matching. */
+  date?: string;
+  movementKind: MinsalMovementKind;
+  movementId: string;
+  specialty: Specialty | string;
+  updatedAt?: string;
+  updatedBy?: string;
+  reason?: string;
+}
+
+export interface AnalyticsSpecialtyReclassificationRecord {
+  date: string;
+  movementKind: MinsalMovementKind;
+  movementId: string;
+  originalSpecialty: Specialty | string;
+  reportingSpecialty: Specialty | string | null;
+  active: boolean;
+  updatedAt: string;
+  updatedByUid?: string | null;
+  updatedByEmail?: string | null;
+  updatedByName?: string | null;
+  clientIp?: string | null;
+  userAgent?: string | null;
+}
+
+export type AnalyticsDataQualityIssueSeverity = 'critico' | 'advertencia' | 'info';
+
+export interface AnalyticsDataQualityIssue {
+  id: string;
+  severity: AnalyticsDataQualityIssueSeverity;
+  title: string;
+  description: string;
+  date?: string;
+  movementKind?: MinsalMovementKind | 'bed';
+  movementId?: string;
+  patientName?: string;
+  rut?: string;
+}
+
+export interface MinsalComparisonMetric {
+  current: number;
+  previous: number | null;
+  absoluteDelta: number | null;
+  relativeDelta: number | null;
+  direction: 'up' | 'down' | 'flat' | 'unavailable';
+}
+
+export interface MinsalComparisonSummary {
+  periodStart: string;
+  periodEnd: string;
+  previousPeriodStart: string;
+  previousPeriodEnd: string;
+  tasaOcupacion: MinsalComparisonMetric;
+  egresosTotal: MinsalComparisonMetric;
+  promedioDiasEstada: MinsalComparisonMetric;
+  cmaTotal: MinsalComparisonMetric;
+  mortalidadHospitalaria: MinsalComparisonMetric;
+}
+
+export interface MinsalCalculationOptions {
+  specialtyGroupingMode?: SpecialtyGroupingMode;
+  specialtyReclassifications?: SpecialtyReclassification[];
+}
+
+export interface CmaSpecialtyStats {
+  /** Specialty used for statistical reporting */
+  specialty: Specialty | string;
+  /** Total CMA/PMA events in the period */
+  total: number;
+  /** Cirugía Mayor Ambulatoria events */
+  cirugiaMayorAmbulatoria: number;
+  /** Procedimiento Médico Ambulatorio events */
+  procedimientoMedicoAmbulatorio: number;
+  /** Traceability rows for this specialty */
+  pacientesList?: PatientTraceability[];
+}
+
+export interface CmaStatistics {
+  /** Total CMA/PMA events in the period */
+  total: number;
+  /** Cirugía Mayor Ambulatoria events */
+  cirugiaMayorAmbulatoria: number;
+  /** Procedimiento Médico Ambulatorio events */
+  procedimientoMedicoAmbulatorio: number;
+  /** Breakdown by statistical specialty */
+  porEspecialidad: CmaSpecialtyStats[];
+  /** Full traceability list */
+  pacientesList?: PatientTraceability[];
 }
 
 /**
@@ -182,6 +291,10 @@ export interface MinsalStatistics {
   // ===== Breakdown by Specialty =====
   /** Statistics per medical specialty */
   porEspecialidad: SpecialtyStats[];
+
+  // ===== CMA / Hospitalización Diurna =====
+  /** CMA/PMA events separated from hospital bed-day indicators */
+  cma?: CmaStatistics;
 }
 
 /**
@@ -214,6 +327,7 @@ export type SpecialtyTraceabilityType =
   | 'traslados'
   | 'aerocardal'
   | 'fach'
+  | 'cma'
   | 'estada';
 
 /**

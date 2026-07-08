@@ -1,6 +1,7 @@
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { generateClinicalAIText, resolveClinicalAIProviderConfig } from './lib/ai-provider';
+import { loadClinicalAIRoutingConfigFromFirestore } from './lib/ai-provider-routing';
 import { invokeWithTelemetry } from './lib/observability';
 import {
   Cie10SearchRequestSchema,
@@ -66,9 +67,9 @@ const handler = async (event: NetlifyEventLike) => {
     return buildTooManyRequestsResponse(requestOrigin);
   }
 
-  const providerConfig = resolveClinicalAIProviderConfig();
+  const baselineProviderConfig = resolveClinicalAIProviderConfig();
 
-  if (!providerConfig) {
+  if (!baselineProviderConfig) {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -89,8 +90,25 @@ const handler = async (event: NetlifyEventLike) => {
           ? event.headers.Authorization
           : undefined;
 
-    extractBearerToken(authorizationHeader);
+    const bearerToken = extractBearerToken(authorizationHeader);
     await authorizeRoleRequest(db, authorizationHeader, CIE10_ALLOWED_ROLES);
+    const routingConfig = await loadClinicalAIRoutingConfigFromFirestore({ bearerToken });
+    const providerConfig = resolveClinicalAIProviderConfig({
+      action: 'cie10_search',
+      routingConfig,
+    });
+
+    if (!providerConfig) {
+      return buildJsonResponse(
+        200,
+        Cie10SearchResponseSchema.parse({
+          available: false,
+          results: [],
+          message: 'AI not configured',
+        }),
+        { requestOrigin }
+      );
+    }
 
     const body = parseJsonBody<unknown>(event.body);
     if (!body.ok) {

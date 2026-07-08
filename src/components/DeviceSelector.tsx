@@ -33,8 +33,20 @@ interface DeviceSelectorProps {
   deviceDetails?: DeviceDetails;
   onChange: (newDevices: string[]) => void;
   onDetailsChange?: (details: DeviceDetails) => void;
+  onConfigChange?: (
+    newDevices: string[] | null,
+    details: DeviceDetails,
+    options?: { renamedDevice?: { from: string; to: string } | null }
+  ) => void;
+  onRetireChange?: (newDevices: string[], details: DeviceDetails) => void;
   disabled?: boolean;
   currentDate?: string;
+}
+
+interface DeviceDraftState {
+  devices: string[];
+  details: DeviceDetails;
+  externalSnapshot: string;
 }
 
 export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
@@ -42,6 +54,8 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   deviceDetails = {},
   onChange,
   onDetailsChange,
+  onConfigChange,
+  onRetireChange,
   disabled,
   currentDate,
 }) => {
@@ -49,15 +63,44 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   const [editingDevice, setEditingDevice] = useState<string | null>(null);
   const [pendingAddition, setPendingAddition] = useState<string | null>(null);
   const [retiringDevice, setRetiringDevice] = useState<string | null>(null);
+  const externalSnapshot = JSON.stringify({ devices, deviceDetails });
+  const [draftState, setDraftState] = useState<DeviceDraftState>(() => ({
+    devices,
+    details: deviceDetails,
+    externalSnapshot,
+  }));
   const anchorRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useLatestRef(onChange);
   const onDetailsChangeRef = useLatestRef(onDetailsChange);
+  const onConfigChangeRef = useLatestRef(onConfigChange);
+  const onRetireChangeRef = useLatestRef(onRetireChange);
 
   // ========================================================================
   // Logic
   // ========================================================================
-  const normalizedDevices = useMemo(() => normalizeSelectedDevices(devices), [devices]);
+  const isEditingDevices = showMenu || Boolean(editingDevice || pendingAddition || retiringDevice);
+  const draftSnapshot = JSON.stringify({
+    devices: draftState.devices,
+    deviceDetails: draftState.details,
+  });
+
+  if (
+    draftState.externalSnapshot !== externalSnapshot ||
+    (!isEditingDevices && draftSnapshot !== externalSnapshot)
+  ) {
+    setDraftState({
+      devices,
+      details: deviceDetails,
+      externalSnapshot,
+    });
+  }
+
+  const draftDevices =
+    draftState.externalSnapshot === externalSnapshot ? draftState.devices : devices;
+  const draftDetails =
+    draftState.externalSnapshot === externalSnapshot ? draftState.details : deviceDetails;
+  const normalizedDevices = useMemo(() => normalizeSelectedDevices(draftDevices), [draftDevices]);
   const vvpDevices = useMemo(() => resolveVvpDevices(normalizedDevices), [normalizedDevices]);
   const vvpCount = vvpDevices.length;
 
@@ -74,21 +117,40 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       const mutation = buildRetireDeviceMutation({
         retiringDevice,
         normalizedDevices,
-        deviceDetails,
+        deviceDetails: draftDetails,
         removalDate: data.removalDate,
         note: data.note,
       });
 
-      if (onDetailsChangeRef.current) {
-        onDetailsChangeRef.current(mutation.nextDetails);
-      }
-      if (onChangeRef.current) {
-        onChangeRef.current(mutation.nextDevices);
+      setDraftState(previous => ({
+        ...previous,
+        devices: mutation.nextDevices,
+        details: mutation.nextDetails,
+      }));
+
+      if (onRetireChangeRef.current) {
+        onRetireChangeRef.current(mutation.nextDevices, mutation.nextDetails);
+      } else {
+        if (onDetailsChangeRef.current) {
+          onDetailsChangeRef.current(mutation.nextDetails);
+        }
+        if (onChangeRef.current) {
+          onChangeRef.current(mutation.nextDevices);
+        }
       }
 
       setRetiringDevice(null);
     },
-    [retiringDevice, deviceDetails, normalizedDevices, onChangeRef, onDetailsChangeRef]
+    [
+      retiringDevice,
+      draftDetails,
+      normalizedDevices,
+      onChangeRef,
+      onDetailsChangeRef,
+      onRetireChangeRef,
+      setDraftState,
+      setRetiringDevice,
+    ]
   );
 
   const toggleDevice = useCallback(
@@ -105,7 +167,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         setRetiringDevice(outcome.device);
       }
     },
-    [normalizedDevices]
+    [normalizedDevices, setPendingAddition, setRetiringDevice]
   );
 
   const addCustomDevice = useCallback(
@@ -114,20 +176,24 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         setPendingAddition(device);
       }
     },
-    [normalizedDevices]
+    [normalizedDevices, setPendingAddition]
   );
 
-  const removeDevice = useCallback((device: string) => {
-    setRetiringDevice(device);
-  }, []);
+  const removeDevice = useCallback(
+    (device: string) => {
+      setRetiringDevice(device);
+    },
+    [setRetiringDevice]
+  );
 
   const handleDeviceConfigSave = useCallback(
-    (info: DeviceInfo) => {
+    (info: DeviceInfo, nextDeviceName?: string) => {
       const mutation = buildDeviceConfigMutation({
         pendingAddition,
         editingDevice,
+        nextDeviceName,
         normalizedDevices,
-        deviceDetails,
+        deviceDetails: draftDetails,
         info,
       });
 
@@ -135,12 +201,37 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         return;
       }
 
-      if (mutation.nextDevices && onChangeRef.current) {
-        onChangeRef.current(mutation.nextDevices);
+      const nextDevices = mutation.nextDevices;
+      if (nextDevices) {
+        setDraftState(previous => ({
+          ...previous,
+          devices: nextDevices,
+          details: mutation.nextDetails ?? previous.details,
+        }));
+      }
+      if (mutation.nextDetails && !mutation.nextDevices) {
+        setDraftState(previous => ({
+          ...previous,
+          details: mutation.nextDetails ?? previous.details,
+        }));
       }
 
-      if (mutation.nextDetails && onDetailsChangeRef.current) {
-        onDetailsChangeRef.current(mutation.nextDetails);
+      if (mutation.nextDetails && onConfigChangeRef.current) {
+        if (mutation.renamedDevice) {
+          onConfigChangeRef.current(mutation.nextDevices, mutation.nextDetails, {
+            renamedDevice: mutation.renamedDevice,
+          });
+        } else {
+          onConfigChangeRef.current(mutation.nextDevices, mutation.nextDetails);
+        }
+      } else {
+        if (mutation.nextDevices && onChangeRef.current) {
+          onChangeRef.current(mutation.nextDevices);
+        }
+
+        if (mutation.nextDetails && onDetailsChangeRef.current) {
+          onDetailsChangeRef.current(mutation.nextDetails);
+        }
       }
 
       setPendingAddition(null);
@@ -149,10 +240,14 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     [
       editingDevice,
       pendingAddition,
-      deviceDetails,
+      draftDetails,
       normalizedDevices,
       onChangeRef,
+      onConfigChangeRef,
       onDetailsChangeRef,
+      setDraftState,
+      setEditingDevice,
+      setPendingAddition,
     ]
   );
 
@@ -162,7 +257,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
   const closeMenu = useCallback(() => {
     setShowMenu(false);
-  }, []);
+  }, [setShowMenu]);
 
   const resolveMenuPosition = useCallback((): DeviceMenuPosition | null => {
     if (!anchorRef.current) return null;
@@ -194,7 +289,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
           <DeviceBadge
             key={dev}
             device={dev}
-            deviceDetails={deviceDetails}
+            deviceDetails={draftDetails}
             currentDate={currentDate}
           />
         ))}
@@ -223,7 +318,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
           <DeviceBadge
             key={dev}
             device={dev}
-            deviceDetails={deviceDetails}
+            deviceDetails={draftDetails}
             currentDate={currentDate}
             onRemove={removeDevice}
           />
@@ -234,7 +329,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         ? createPortal(
             <DeviceMenu
               devices={normalizedDevices}
-              deviceDetails={deviceDetails}
+              deviceDetails={draftDetails}
               vvpCount={vvpCount}
               vvpDevices={vvpDevices}
               menuPosition={menuPosition}
@@ -252,8 +347,9 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       {(editingDevice || pendingAddition) && (
         <DeviceDateConfigModal
           device={editingDevice || pendingAddition || ''}
-          deviceInfo={pendingAddition ? {} : deviceDetails[editingDevice || ''] || {}}
+          deviceInfo={pendingAddition ? {} : draftDetails[editingDevice || ''] || {}}
           currentDate={currentDate}
+          reservedDeviceNames={normalizedDevices.filter(device => device !== editingDevice)}
           onSave={handleDeviceConfigSave}
           onClose={() => {
             setEditingDevice(null);
@@ -265,7 +361,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       {retiringDevice && (
         <DeviceRetireModal
           deviceLabel={resolveRetiringDeviceLabel(retiringDevice)}
-          installationDate={deviceDetails[retiringDevice]?.installationDate}
+          installationDate={draftDetails[retiringDevice]?.installationDate}
           currentDate={currentDate}
           onConfirm={handleRetireDevice}
           onClose={() => setRetiringDevice(null)}

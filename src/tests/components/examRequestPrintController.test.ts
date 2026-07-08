@@ -5,6 +5,7 @@ import {
   restoreExamRequestPrintSnapshot,
   runExamRequestPrint,
 } from '@/hooks/controllers/examRequestPrintController';
+import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
 
 describe('examRequestPrintController', () => {
   beforeEach(() => {
@@ -45,5 +46,10 @@ describe('examRequestPrintController', () => {
     expect(document.title).toBe('HHR');
     expect(document.getElementById('modal-title')?.textContent).toBe('Solicitud de Laboratorio');
     vi.useRealTimers();
+  });
+
+  it('targets the printable modal portal root instead of a nested dialog body child', () => {
+    expect(EXAM_REQUEST_PRINT_STYLES).toContain('body > [data-printable-modal-root]');
+    expect(EXAM_REQUEST_PRINT_STYLES).not.toContain('body > div[role="dialog"]');
   });
 });

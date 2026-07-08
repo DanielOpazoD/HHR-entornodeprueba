@@ -33,6 +33,8 @@ describe('censusEditStateController', () => {
       type: 'Otra',
       typeOther: 'Detalle',
       time: '10:15',
+      movementDate: undefined,
+      diagnosis: 'DX',
     });
   });
 
@@ -60,6 +62,8 @@ describe('censusEditStateController', () => {
       receivingCenterOther: '',
       transferEscort: DEFAULT_TRANSFER_ESCORT,
       time: '12:00',
+      movementDate: undefined,
+      diagnosis: 'DX',
     });
   });
 });

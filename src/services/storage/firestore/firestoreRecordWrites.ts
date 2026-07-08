@@ -6,9 +6,9 @@ import {
   type DocumentData,
   type UpdateData,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import { withRetry } from '@/utils/networkUtils';
+import { DataRegressionError } from '@/utils/integrityGuard';
 import {
   flattenObject,
   getRecordDocRef,
@@ -18,15 +18,33 @@ import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dail
 import {
   asFirestoreUpdatePayload,
   assertFirestoreConcurrency,
+  ConcurrencyError,
   createDeletedRecordRef,
   saveHistorySnapshot,
+  saveRecordAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { ensureUserRoleClaim } from '@/services/auth/authClaimSyncService';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
-import type { UserRole } from '@/types/authRoleTypes';
+import { resolveDailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
+import {
+  patchDailyRecordWithClinicalAuthorityCallable,
+  saveDailyRecordWithClinicalAuthorityCallable,
+} from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import {
+  assertDailyRecordClinicalAuthority,
+  extractClinicalAuthorityPatch,
+  shouldRouteClinicalAuthorityPatch,
+  shouldRouteDailyRecordSaveViaCallable,
+  shouldRouteSpecialistPatchViaCallable,
+  tryShadowDailyRecordPatchViaCallable,
+  tryShadowDailyRecordSaveViaCallable,
+  updateSpecialistMedicalHandoffViaCallable,
+  type DailyRecordPartialWriteOptions,
+  type DailyRecordSaveWriteOptions,
+} from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 
 const logFirestoreWriteRetry = (
   operation: 'save' | 'partialUpdate' | 'delete',
@@ -61,45 +79,6 @@ const isPermissionDeniedError = (error: unknown): boolean => {
   );
 };
 
-interface SpecialistMedicalHandoffCallablePayload {
-  date: string;
-  patch: Record<string, unknown>;
-}
-
-const isDoctorSpecialistRole = (role: UserRole | null): role is 'doctor_specialist' =>
-  role === 'doctor_specialist';
-
-const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> => {
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    if (!firebaseUser || firebaseUser.isAnonymous) {
-      return false;
-    }
-
-    return isDoctorSpecialistRole(await resolveFirebaseUserRole(firebaseUser));
-  } catch (error) {
-    firestoreWriteLogger.warn('Specialist callable routing role check failed', { error });
-    return false;
-  }
-};
-
-const updateSpecialistMedicalHandoffViaCallable = async (
-  date: string,
-  patch: Record<string, unknown>
-): Promise<void> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
-  const callable = httpsCallable<
-    SpecialistMedicalHandoffCallablePayload,
-    { success: boolean; date: string; bedId: string }
-  >(functions, 'updateSpecialistMedicalHandoff');
-
-  await callable({
-    date,
-    patch,
-  });
-};
-
 const tryRefreshCurrentUserRoleClaim = async (date: string): Promise<boolean> => {
   try {
     await defaultAuthRuntime.ready;
@@ -131,31 +110,79 @@ const tryRefreshCurrentUserRoleClaim = async (date: string): Promise<boolean> =>
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
+const buildAuthorityPatchSyncContract = (
+  syncContract: SyncTaskContract | undefined,
+  authorityPatch: Record<string, unknown>
+): SyncTaskContract | undefined => {
+  if (!syncContract) {
+    return undefined;
+  }
+
+  const authorityPaths = Object.keys(authorityPatch);
+  const changedPaths = (syncContract.changedPaths ?? []).filter(path =>
+    authorityPaths.includes(path)
+  );
+
+  return {
+    ...syncContract,
+    changedPaths: changedPaths.length > 0 ? changedPaths : authorityPaths,
+  };
+};
+
 export const saveRecordToFirestore = async (
   record: DailyRecord,
-  expectedLastUpdated?: string
+  expectedLastUpdated?: string,
+  options: DailyRecordSaveWriteOptions = {}
 ): Promise<void> => {
   try {
     const docRef = getRecordDocRef(record.date);
-    await assertFirestoreConcurrency(
-      docRef,
-      expectedLastUpdated,
-      'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-      'save'
-    );
 
-    await saveHistorySnapshot(record.date);
+    assertDailyRecordClinicalAuthority(record);
+
+    if (await shouldRouteDailyRecordSaveViaCallable()) {
+      await withRetry(
+        () =>
+          saveDailyRecordWithClinicalAuthorityCallable({
+            date: record.date,
+            record,
+            expectedLastUpdated,
+            mode: resolveDailyRecordAuthorityMode() === 'enforced' ? 'enforced' : 'shadow',
+            origin: 'direct_save',
+            syncContract: options.syncContract,
+          }),
+        {
+          onRetry: (err: unknown, attempt: number) =>
+            logFirestoreWriteRetry('save', record.date, attempt, err),
+        }
+      );
+      return;
+    }
+
+    await tryShadowDailyRecordSaveViaCallable(record, expectedLastUpdated, options.syncContract);
 
     const sanitizedRecord = sanitizeForFirestore({
       ...record,
       lastUpdated: Timestamp.now(),
-    });
+    }) as Record<string, unknown>;
 
     const persist = () =>
-      withRetry(() => setDoc(docRef, sanitizedRecord as Record<string, unknown>), {
-        onRetry: (err: unknown, attempt: number) =>
-          logFirestoreWriteRetry('save', record.date, attempt, err),
-      });
+      withRetry(
+        () =>
+          saveRecordAtomically(
+            docRef,
+            sanitizedRecord,
+            expectedLastUpdated,
+            'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+            'save',
+            options.assertSafeOverwrite
+          ),
+        {
+          onRetry: (err: unknown, attempt: number) =>
+            logFirestoreWriteRetry('save', record.date, attempt, err),
+          shouldRetry: (err: unknown) =>
+            !(err instanceof ConcurrencyError) && !(err instanceof DataRegressionError),
+        }
+      );
 
     try {
       await persist();
@@ -175,7 +202,8 @@ export const saveRecordToFirestore = async (
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
-  expectedLastUpdated?: string
+  expectedLastUpdated?: string,
+  options: DailyRecordPartialWriteOptions = {}
 ): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);
@@ -183,10 +211,9 @@ export const updateRecordPartial = async (
       docRef,
       expectedLastUpdated,
       'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-      'partial update'
+      'partial update',
+      { toleranceMs: 0, failClosed: true }
     );
-
-    await saveHistorySnapshot(date);
 
     // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
     // flattenObject would recursively expand nested objects into sub-field paths
@@ -210,6 +237,36 @@ export const updateRecordPartial = async (
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
           });
         }
+
+        const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
+        const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
+        if (isClinicalPatchForAuthority && (await shouldRouteDailyRecordSaveViaCallable())) {
+          return withRetry(
+            () =>
+              patchDailyRecordWithClinicalAuthorityCallable({
+                date,
+                patch: authorityPatch,
+                expectedLastUpdated,
+                mode: resolveDailyRecordAuthorityMode() === 'enforced' ? 'enforced' : 'shadow',
+                origin: 'direct_partial_update',
+                syncContract: buildAuthorityPatchSyncContract(options.syncContract, authorityPatch),
+              }),
+            {
+              onRetry: (err: unknown, attempt: number) =>
+                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            }
+          );
+        }
+
+        if (isClinicalPatchForAuthority) {
+          await tryShadowDailyRecordPatchViaCallable(
+            date,
+            authorityPatch,
+            expectedLastUpdated,
+            buildAuthorityPatchSyncContract(options.syncContract, authorityPatch)
+          );
+        }
+        await saveHistorySnapshot(date);
 
         return withRetry(
           () =>

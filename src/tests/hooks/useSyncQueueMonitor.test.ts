@@ -63,6 +63,31 @@ describe('useSyncQueueMonitor', () => {
     expect(result.current.hasQueueIssues).toBe(true);
   });
 
+  it('keeps telemetry visible when recent operation lookup is unavailable', async () => {
+    mockGetSyncQueueTelemetry.mockResolvedValueOnce({
+      pending: 4,
+      failed: 0,
+      retrying: 0,
+      conflict: 0,
+      batchSize: 25,
+      runtimeState: 'ok',
+      readState: 'ok',
+    });
+    mockListRecentSyncQueueOperations.mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+
+    const { result } = renderHook(() =>
+      useSyncQueueMonitor({ enabled: true, pollIntervalMs: 60_000, operationLimit: 1 })
+    );
+
+    await waitFor(() => expect(result.current.stats.pending).toBe(4));
+    expect(result.current.stats).toMatchObject({
+      readState: 'ok',
+      recentOperationsReadState: 'unavailable',
+    });
+    expect(result.current.operations).toEqual([]);
+    expect(result.current.hasQueueIssues).toBe(true);
+  });
+
   it('keeps the newest refresh result when older requests resolve later', async () => {
     const firstTelemetry = createDeferred<{
       pending: number;

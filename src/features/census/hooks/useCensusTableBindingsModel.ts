@@ -8,10 +8,13 @@ import { useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
+import type { HydratedRemoteClinicalFieldLocksByBedId } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 interface UseCensusTableBindingsModelParams {
   currentDateString: string;
   readOnly?: boolean;
+  clinicalEditingDisabled?: boolean;
+  clinicalFieldLocksByBedId?: HydratedRemoteClinicalFieldLocksByBedId;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -33,6 +36,8 @@ const buildDischargedRuts = (
 export const useCensusTableBindingsModel = ({
   currentDateString,
   readOnly = false,
+  clinicalEditingDisabled = false,
+  clinicalFieldLocksByBedId,
   accessProfile = 'default',
 }: UseCensusTableBindingsModelParams) => {
   const { remoteSyncStatus } = useAuth();
@@ -66,6 +71,8 @@ export const useCensusTableBindingsModel = ({
     return buildCensusTableLayoutBindings({
       currentDateString,
       readOnly,
+      clinicalEditingDisabled,
+      clinicalFieldLocksByBedId,
       columns: tableViewModel.columns,
       isEditMode: tableViewModel.isEditMode,
       canDeleteRecord: tableViewModel.canDeleteRecord,
@@ -87,6 +94,8 @@ export const useCensusTableBindingsModel = ({
   }, [
     clinicalDocumentPresenceByBedId,
     currentDateString,
+    clinicalEditingDisabled,
+    clinicalFieldLocksByBedId,
     dischargedRuts,
     readOnly,
     accessProfile,

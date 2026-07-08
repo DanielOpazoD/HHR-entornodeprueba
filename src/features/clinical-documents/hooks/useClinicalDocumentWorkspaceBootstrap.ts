@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 import type {
   ClinicalDocumentRecord,
@@ -6,16 +6,17 @@ import type {
 } from '@/features/clinical-documents/domain/entities';
 import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
-import { hydrateLegacyClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { hydrateClinicalDocumentWorkspaceRecord } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import {
   executeListActiveClinicalDocumentTemplates,
   executeSeedClinicalDocumentTemplates,
 } from '@/application/clinical-documents/clinicalDocumentTemplateUseCases';
-import { subscribeClinicalDocumentsByEpisode } from '@/application/clinical-documents/clinicalDocumentUseCases';
+import { subscribeClinicalDocumentsByEpisodeKeys } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import { clinicalDocumentObservability } from '@/features/clinical-documents/services/clinicalDocumentOperationalTelemetry';
 import {
   resolveNextSelectedClinicalDocumentId,
   resolveSelectedClinicalTemplateId,
+  filterClinicalDocumentsForCurrentEpisode,
   shouldSeedClinicalDocumentTemplates,
 } from './clinicalDocumentWorkspaceBootstrapSupport';
 
@@ -54,17 +55,44 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
   const [remoteTemplateCount, setRemoteTemplateCount] = useState<number | null>(null);
   const [hasLoadedRemoteTemplates, setHasLoadedRemoteTemplates] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('epicrisis');
-  const [documents, setDocuments] = useState<ClinicalDocumentRecord[]>([]);
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [documentsState, setDocumentsState] = useState<{
+    episodeKey: string;
+    documents: ClinicalDocumentRecord[];
+  }>({ episodeKey: '', documents: [] });
+  const [selectedDocumentState, setSelectedDocumentState] = useState<{
+    episodeKey: string;
+    id: string | null;
+  }>({ episodeKey: '', id: null });
 
   const episode = useMemo(
     () => buildClinicalDocumentEpisodeContext(patient, currentDateString, bedId),
     [bedId, currentDateString, patient]
   );
+  const episodeKeys = useMemo(
+    () => Array.from(new Set([episode.episodeKey, ...(episode.documentLookupEpisodeKeys || [])])),
+    [episode.documentLookupEpisodeKeys, episode.episodeKey]
+  );
 
   const resolvedSelectedTemplateId = useMemo(() => {
     return resolveSelectedClinicalTemplateId(templates, selectedTemplateId);
   }, [selectedTemplateId, templates]);
+
+  const documents =
+    documentsState.episodeKey === episode.episodeKey ? documentsState.documents : [];
+  const selectedDocumentId =
+    selectedDocumentState.episodeKey === episode.episodeKey ? selectedDocumentState.id : null;
+
+  const setSelectedDocumentId = useCallback<React.Dispatch<React.SetStateAction<string | null>>>(
+    value => {
+      setSelectedDocumentState(previousState => {
+        const previousId =
+          previousState.episodeKey === episode.episodeKey ? previousState.id : null;
+        const nextId = typeof value === 'function' ? value(previousId) : value;
+        return { episodeKey: episode.episodeKey, id: nextId };
+      });
+    },
+    [episode.episodeKey]
+  );
 
   useEffect(() => {
     if (!isActive || !canRead) {
@@ -136,12 +164,28 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
       return;
     }
 
-    const unsubscribe = subscribeClinicalDocumentsByEpisode(
-      episode.episodeKey,
+    const unsubscribe = subscribeClinicalDocumentsByEpisodeKeys(
+      episodeKeys,
       docs => {
-        const hydrated = docs.map(document => hydrateLegacyClinicalDocument(document));
-        setDocuments(hydrated);
-        setSelectedDocumentId(prev => resolveNextSelectedClinicalDocumentId(hydrated, prev));
+        const hydrated = docs.map(document => hydrateClinicalDocumentWorkspaceRecord(document));
+        const currentEpisodeDocuments = filterClinicalDocumentsForCurrentEpisode({
+          documents: hydrated,
+          currentEpisodeKey: episode.episodeKey,
+          allowedEpisodeKeys: episodeKeys,
+          currentPatientRut: patient.rut,
+        });
+        setDocumentsState({
+          episodeKey: episode.episodeKey,
+          documents: currentEpisodeDocuments,
+        });
+        setSelectedDocumentState(previousState => {
+          const previousId =
+            previousState.episodeKey === episode.episodeKey ? previousState.id : null;
+          return {
+            episodeKey: episode.episodeKey,
+            id: resolveNextSelectedClinicalDocumentId(currentEpisodeDocuments, previousId),
+          };
+        });
       },
       hospitalId
     );
@@ -149,7 +193,7 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
     return () => {
       unsubscribe();
     };
-  }, [canRead, episode.episodeKey, hospitalId, isActive]);
+  }, [canRead, episode.episodeKey, episodeKeys, hospitalId, isActive, patient.rut]);
 
   return {
     templates,

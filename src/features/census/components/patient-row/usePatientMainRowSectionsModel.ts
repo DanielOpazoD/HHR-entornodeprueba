@@ -9,6 +9,7 @@ export const usePatientMainRowSectionsModel = (props: PatientMainRowViewProps) =
       buildPatientActionSectionBinding({
         isBlocked: props.isBlocked,
         readOnly: props.readOnly,
+        clinicalEditingDisabled: props.clinicalEditingDisabled,
         actionMenuAlign: props.actionMenuAlign,
         data: props.data,
         currentDateString: props.currentDateString,
@@ -32,6 +33,7 @@ export const usePatientMainRowSectionsModel = (props: PatientMainRowViewProps) =
       props.indicators,
       props.isBlocked,
       props.mainRowViewState,
+      props.clinicalEditingDisabled,
       props.onAction,
       props.onOpenClinicalDocuments,
       props.onOpenDemographics,

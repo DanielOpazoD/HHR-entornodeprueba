@@ -12,6 +12,7 @@ import {
   toClinicalEventIso,
   validatePhotoForUpload,
 } from '../controllers/photoUploadController';
+import { buildMaskedPatientIdentity } from '../controllers/mobileIdentityMaskController';
 
 const blobToBase64 = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -40,6 +41,21 @@ export const WoundCareMobileUploadView: React.FC = () => {
   const [description, setDescription] = useState('');
   const [bodyLocation, setBodyLocation] = useState('');
   const [eventDateTime, setEventDateTime] = useState(() => toClinicalDatetimeLocalValue());
+  // Identity is shown masked until the clinician explicitly confirms
+  // the QR session belongs to the person they are about to photograph.
+  // Reduces the blast radius of an unattended phone screen — see
+  // tracker `wound-care-mobile-qr` (frontend slice).
+  const [identityConfirmed, setIdentityConfirmed] = useState(false);
+  const maskedIdentity = useMemo(
+    () =>
+      session
+        ? buildMaskedPatientIdentity({
+            patientName: session.patientName,
+            patientRut: session.patientRut,
+          })
+        : null,
+    [session]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -117,13 +133,32 @@ export const WoundCareMobileUploadView: React.FC = () => {
             <Camera className="h-5 w-5" />
           </div>
           <h1 className="mt-3 text-xl font-bold leading-tight">Registro clínico audiovisual</h1>
-          {session && (
+          {session && maskedIdentity && (
             <p className="mt-1 text-sm text-slate-600">
-              {session.patientName}
-              <span className="block font-mono text-xs text-slate-400">{session.patientRut}</span>
+              {identityConfirmed ? session.patientName : maskedIdentity.maskedName}
+              <span className="block font-mono text-xs text-slate-400">
+                {identityConfirmed ? session.patientRut : maskedIdentity.maskedRut}
+              </span>
             </p>
           )}
         </header>
+
+        {status === 'ready' && session && !identityConfirmed && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Confirme la identidad del paciente</p>
+            <p className="mt-1 text-xs leading-relaxed">
+              Verifique que las iniciales y los últimos 4 dígitos del RUT coinciden con la persona
+              que tiene en frente antes de subir cualquier foto.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIdentityConfirmed(true)}
+              className="mt-3 inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white"
+            >
+              Confirmar identidad y continuar
+            </button>
+          </div>
+        )}
 
         {status === 'loading' && (
           <div className="mt-10 flex flex-col items-center justify-center rounded-md border border-slate-200 bg-white p-6 text-center">
@@ -138,7 +173,7 @@ export const WoundCareMobileUploadView: React.FC = () => {
           </div>
         )}
 
-        {(status === 'ready' || status === 'uploading') && (
+        {(status === 'ready' || status === 'uploading') && identityConfirmed && (
           <form
             onSubmit={handleSubmit}
             className="space-y-3 rounded-md border border-slate-200 bg-white p-4"

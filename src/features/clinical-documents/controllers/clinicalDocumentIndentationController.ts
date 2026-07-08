@@ -95,6 +95,38 @@ const collectSelectedIndentableBlocks = (
   return Array.from(blocks);
 };
 
+const NESTED_LIST_TAGS = new Set(['UL', 'OL']);
+
+/**
+ * Repairs invalid list nesting where a `<ul>`/`<ol>` is a *direct* child of
+ * another list. Browsers' `execCommand('indent')` inside a list produces this
+ * malformed shape (`<ol><ol>…</ol></ol>`); HTML requires the sublist to live
+ * inside an `<li>`. Each offending list is relocated into its preceding `<li>`
+ * (or a fresh one), yielding valid `<li>…<ol>…</ol></li>`. Node identity is
+ * preserved, so the caret inside a moved item stays valid.
+ */
+export const normalizeNestedListStructure = (editorRoot: HTMLElement): void => {
+  // Re-query after each move because relocating a node changes the tree.
+  for (let guard = 0; guard < 1000; guard += 1) {
+    const offender = Array.from(editorRoot.querySelectorAll('ul, ol')).find(list => {
+      const parent = list.parentElement;
+      return parent != null && NESTED_LIST_TAGS.has(parent.tagName.toUpperCase());
+    });
+    if (!offender) {
+      return;
+    }
+
+    const previous = offender.previousElementSibling;
+    if (previous && previous.tagName.toUpperCase() === 'LI') {
+      previous.appendChild(offender);
+    } else {
+      const wrapper = document.createElement('li');
+      offender.parentElement?.insertBefore(wrapper, offender);
+      wrapper.appendChild(offender);
+    }
+  }
+};
+
 export const applyClinicalDocumentIndentationCommand = (command: 'indent' | 'outdent'): boolean => {
   if (typeof document === 'undefined' || typeof window === 'undefined') {
     return false;
@@ -111,9 +143,14 @@ export const applyClinicalDocumentIndentationCommand = (command: 'indent' | 'out
   }
 
   if (isInsideListContext(anchorElement, editorRoot)) {
-    return typeof document.execCommand === 'function'
-      ? document.execCommand(command, false)
-      : false;
+    if (typeof document.execCommand !== 'function') {
+      return false;
+    }
+    const result = document.execCommand(command, false);
+    // execCommand nests lists with invalid markup (a list directly inside a
+    // list); repair it so the document stays valid and renders consistently.
+    normalizeNestedListStructure(editorRoot);
+    return result;
   }
 
   if (!resolveNearestIndentableBlock(selection.anchorNode, editorRoot)) {

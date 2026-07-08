@@ -9,7 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Loader2, PencilLine, Search, Sparkles, X } from 'lucide-react';
 
 import type { FonasaEntry, FonasaCatalog } from '@/services/terminology/fonasaService';
 import {
@@ -251,6 +251,15 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
               IA
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('manual')}
+            className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            title="Escribir texto libre"
+          >
+            <PencilLine size={12} />
+            Texto libre
+          </button>
         </div>
         {showDropdown && results.length > 0 && (
           <div className="absolute z-30 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg">
@@ -286,13 +295,6 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
           </div>
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => handleSwitchMode('manual')}
-        className="mt-1 text-[9px] text-slate-400 hover:text-slate-600 transition-colors"
-      >
-        Escribir texto libre
-      </button>
     </div>
   );
 };

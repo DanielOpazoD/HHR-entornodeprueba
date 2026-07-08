@@ -8,6 +8,7 @@ import { DataFactory } from '../factories/DataFactory';
 import { calculateStats } from '@/services/calculations/statsCalculator';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { wireStatefulDailyRecordRepoMock } from '@/tests/utils/dailyRecordRepositoryMockUtils';
+import { getActiveTransfers } from '@/application/census/movementTombstonePolicy';
 
 // Mock Repositories and Services
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
@@ -179,7 +180,10 @@ describe('Master Integration Suite', () => {
       });
       await waitFor(() => {
         expect(result.current.record?.beds['R1'].patientName).toBe('Maria Garcia');
-        expect(result.current.record?.transfers.length).toBe(0);
+        expect(getActiveTransfers(result.current.record?.transfers ?? [])).toHaveLength(0);
+        expect(result.current.record?.transfers[0]).toEqual(
+          expect.objectContaining({ id: transferId, deletedAt: expect.any(String) })
+        );
       });
     });
   });

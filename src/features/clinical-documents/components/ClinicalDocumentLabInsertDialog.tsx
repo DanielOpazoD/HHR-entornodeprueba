@@ -26,6 +26,48 @@ interface ExamOption {
   link?: string;
 }
 
+const parseExamDateTimeKey = (exam: Pick<ExamOption, 'date' | 'time'>): string => {
+  const date = exam.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1');
+  return `${date}T${exam.time || '00:00:00'}`;
+};
+
+const sortExamOptionsNewestFirst = (a: ExamOption, b: ExamOption): number =>
+  parseExamDateTimeKey(b).localeCompare(parseExamDateTimeKey(a));
+
+const buildCachedExamOptions = (
+  cached: Awaited<ReturnType<typeof getLabResults>>
+): ExamOption[] => {
+  if (!cached) return [];
+
+  return Object.entries(cached.exams).map(([id, exam]) => ({
+    id,
+    date: exam.date,
+    time: exam.time,
+    label: `${exam.date} ${exam.time.substring(0, 5)}`,
+    findings: exam.findings,
+  }));
+};
+
+const mergeExamOptions = (cachedOptions: ExamOption[], liveOptions: ExamOption[]): ExamOption[] => {
+  const merged = new Map<string, ExamOption>();
+
+  for (const exam of cachedOptions) {
+    merged.set(exam.id, exam);
+  }
+
+  for (const exam of liveOptions) {
+    const cached = merged.get(exam.id);
+    merged.set(exam.id, {
+      ...cached,
+      ...exam,
+      findings: cached?.findings ?? exam.findings,
+      needsFetch: !cached?.findings && Boolean(exam.link),
+    });
+  }
+
+  return Array.from(merged.values()).sort(sortExamOptionsNewestFirst);
+};
+
 export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsertDialogProps> = ({
   patientRut,
   onInsert,
@@ -47,46 +89,26 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
       try {
         // 1. Try Firestore cache first
         const cached = await getLabResults(patientRut);
-        if (cached && Object.keys(cached.exams).length > 0) {
-          const opts: ExamOption[] = Object.entries(cached.exams)
-            .map(([id, exam]) => ({
-              id,
-              date: exam.date,
-              time: exam.time,
-              label: `${exam.date} ${exam.time.substring(0, 5)}`,
-              findings: exam.findings,
-            }))
-            .sort((a, b) => {
-              const da = a.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1');
-              const db = b.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1');
-              return db.localeCompare(da); // newest first
-            });
-
-          if (!cancelled) setExams(opts);
+        const cachedOpts = buildCachedExamOptions(cached);
+        if (cachedOpts.length > 0) {
+          if (!cancelled) setExams(cachedOpts.sort(sortExamOptionsNewestFirst));
         }
 
         // 2. Also try live Syslab (may have newer exams)
         const live = await searchSyslabExams(patientRut);
         if (!cancelled && live.success && live.data.length > 0) {
-          const liveOpts: ExamOption[] = live.data
-            .filter(e => e.link)
-            .map(e => ({
-              id: e.id,
-              date: e.date,
-              time: e.time,
-              label: `${e.date} ${e.time.substring(0, 5)}`,
-              // Check if we already have findings from cache
-              findings: cached?.exams[e.id]?.findings,
-              needsFetch: !cached?.exams[e.id],
-              link: e.link || undefined,
-            }))
-            .sort((a, b) => {
-              const da = a.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1');
-              const db = b.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1');
-              return db.localeCompare(da);
-            });
+          const liveOpts: ExamOption[] = live.data.map(e => ({
+            id: e.id,
+            date: e.date,
+            time: e.time,
+            label: `${e.date} ${e.time.substring(0, 5)}`,
+            // Check if we already have findings from cache
+            findings: cached?.exams[e.id]?.findings,
+            needsFetch: !cached?.exams[e.id],
+            link: e.link || undefined,
+          }));
 
-          if (!cancelled) setExams(liveOpts);
+          if (!cancelled) setExams(mergeExamOptions(cachedOpts, liveOpts));
         }
       } catch {
         if (!cancelled) setError('No se pudieron cargar los exámenes.');
@@ -167,6 +189,7 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
             key={exam.id}
             type="button"
             disabled={isInserting !== null}
+            onMouseDown={event => event.preventDefault()}
             onClick={() => handleSelect(exam)}
             className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-emerald-50 disabled:opacity-50"
           >

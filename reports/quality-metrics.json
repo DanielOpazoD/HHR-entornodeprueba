@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-07-05T06:20:03.273Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "126d4b82",
+    "gitDirty": false,
+    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "reportId": "quality-metrics",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": [],
+      "missingFiles": []
+    }
+  },
+  "source": {
+    "fileCount": 2207,
+    "lineCount": 231617,
+    "zones": [
+      {
+        "zone": "features",
+        "fileCount": 881
+      },
+      {
+        "zone": "services",
+        "fileCount": 567
+      },
+      {
+        "zone": "hooks",
+        "fileCount": 252
+      },
+      {
+        "zone": "components",
+        "fileCount": 164
+      },
+      {
+        "zone": "application",
+        "fileCount": 103
+      },
+      {
+        "zone": "types",
+        "fileCount": 49
+      },
+      {
+        "zone": "shared",
+        "fileCount": 46
+      },
+      {
+        "zone": "utils",
+        "fileCount": 30
+      },
+      {
+        "zone": "context",
+        "fileCount": 29
+      },
+      {
+        "zone": "domain",
+        "fileCount": 27
+      },
+      {
+        "zone": "constants",
+        "fileCount": 21
+      },
+      {
+        "zone": "schemas",
+        "fileCount": 14
+      },
+      {
+        "zone": "app-shell",
+        "fileCount": 10
+      },
+      {
+        "zone": "core",
+        "fileCount": 6
+      },
+      {
+        "zone": "config",
+        "fileCount": 2
+      },
+      {
+        "zone": "App.tsx",
+        "fileCount": 1
+      },
+      {
+        "zone": "contracts",
+        "fileCount": 1
+      },
+      {
+        "zone": "firebaseConfig.ts",
+        "fileCount": 1
+      },
+      {
+        "zone": "index.tsx",
+        "fileCount": 1
+      },
+      {
+        "zone": "service-worker.ts",
+        "fileCount": 1
+      },
+      {
+        "zone": "views",
+        "fileCount": 1
+      }
+    ]
+  },
+  "moduleSize": {
+    "globalMax": 400,
+    "allowlistHotspots": 0,
+    "oversizedCount": 0,
+    "topOversized": []
+  },
+  "folderDependencyDebt": {
+    "violations": 0,
+    "topZonePairs": []
+  },
+  "tests": {
+    "testFileCount": 1403,
+    "skippedMarkers": 0,
+    "onlyMarkers": 0,
+    "flakeRiskFiles": 0,
+    "flakeRiskFilePaths": [],
+    "megatestFilesOver500": 0,
+    "quarantinedFiles": 0,
+    "knownFailureEntries": 0,
+    "openKnownFailureEntries": 0
+  },
+  "typeSafety": {
+    "explicitAnyCount": 2,
+    "explicitAnySourceCount": 0,
+    "explicitAnyTestCount": 2
+  },
+  "convergence": {
+    "accidentalCopies": 0,
+    "featureBoundaryViolations": 0,
+    "deprecatedShimImports": 0,
+    "dailyRecordBoundaryViolations": 0,
+    "governedCompatibilityShims": 9,
+    "controllerOwnershipDrift": 0,
+    "rawConsoleOutsideStructuredSink": 0
+  },
+  "releaseConfidence": {
+    "overall": "ok",
+    "areaCount": 11,
+    "mappedCoverageZones": 15,
+    "totalCoverageZones": 15,
+    "mappedSmokeScenarios": 6,
+    "totalSmokeScenarios": 6,
+    "mappedFlowBudgets": 6,
+    "totalFlowBudgets": 6,
+    "mappedBlockingSteps": 7,
+    "totalBlockingSteps": 7
+  }
+}

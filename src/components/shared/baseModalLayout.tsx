@@ -16,6 +16,7 @@ export const BaseModalBackdrop: React.FC<BaseModalBackdropProps> = ({
   children,
 }) => (
   <div
+    data-printable-modal-root={printable ? '' : undefined}
     className={clsx(
       'fixed inset-0 bg-slate-900/60 z-[100] backdrop-blur-sm animate-fade-in',
       scrollableBody ? 'flex items-center justify-center p-4' : 'overflow-y-auto p-4',
@@ -49,19 +50,21 @@ export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
 }) => (
   <div
     className={clsx(
-      'px-4 py-2 border-b flex justify-between items-center sticky top-0 z-10',
+      'px-4 py-2 border-b flex justify-between items-center gap-2 sticky top-0 z-10',
       variant === 'white' ? 'bg-white border-slate-100' : 'bg-white/30 border-white/20'
     )}
   >
     <h3
       id="modal-title"
-      className="font-display font-bold text-slate-800 flex items-center gap-2 tracking-tight"
+      className="font-display flex min-w-0 items-center gap-2 font-bold tracking-tight text-slate-800"
     >
       {icon && <span className={headerIconColor}>{icon}</span>}
       {title}
     </h3>
-    <div className="flex items-center gap-2">
-      {headerActions && <div className="flex items-center gap-1.6 mr-1">{headerActions}</div>}
+    <div className="flex min-w-0 items-center gap-2">
+      {headerActions && (
+        <div className="mr-1 flex min-w-0 items-center gap-1.6">{headerActions}</div>
+      )}
       {showCloseButton && (
         <button
           onClick={onClose}

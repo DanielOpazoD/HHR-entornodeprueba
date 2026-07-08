@@ -68,6 +68,8 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
           size,
           className,
         })}
+        onMouseDown={event => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
         <BaseModalHeader
           title={title}

@@ -9,6 +9,7 @@ interface TerminologySuggestorProps {
   value: string;
   onChange: (value: string, concept?: TerminologyConcept) => void;
   placeholder?: string;
+  title?: string;
   className?: string;
   disabled?: boolean;
   cie10Code?: string; // Current CIE-10 code (shows as badge)
@@ -19,6 +20,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
   value,
   onChange,
   placeholder,
+  title,
   className,
   disabled = false,
   cie10Code,
@@ -55,6 +57,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
             className
           )}
           placeholder={placeholder || 'Buscar diagnóstico...'}
+          title={title}
           value={query}
           onClick={() => {
             if (!modalJustClosedRef.current) setIsModalOpen(true);

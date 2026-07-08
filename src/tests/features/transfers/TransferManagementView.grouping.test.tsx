@@ -37,8 +37,8 @@ const activeTransfers = [
   {
     id: 'tr-accepted',
     bedId: 'BED_H3',
-    status: 'ACCEPTED',
-    requestDate: '2026-03-05',
+    status: 'ACCEPTED_WITH_CAPACITY',
+    requestDate: '2026-06-05',
     statusHistory: [],
     destinationHospital: 'Hospital Del Salvador',
     patientSnapshot: { name: 'Paciente aceptado', rut: '3-5', diagnosis: 'Dx' },
@@ -266,6 +266,12 @@ describe('TransferManagementView grouping', () => {
     expect(screen.getByText('Cama: H1')).toBeInTheDocument();
     expect(screen.getAllByText('Dg: Dx').length).toBeGreaterThan(0);
     expect(screen.getByText('Nota de coordinación inicial')).toBeInTheDocument();
+    expect(screen.getByText('05-06-2026')).toBeInTheDocument();
+    expect(screen.queryByText('04-06-2026')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /completar traslado/i })).toHaveAttribute(
+      'title',
+      'Configurar traslado como completado (egreso)'
+    );
 
     expect(screen.queryByText('Paciente trasladado')).not.toBeInTheDocument();
     expect(screen.queryByText('Paciente cancelado')).not.toBeInTheDocument();

@@ -4,9 +4,9 @@ import type {
 } from '@/features/clinical-documents/internal';
 import {
   duplicateClinicalDocumentDraft,
-  hydrateLegacyClinicalDocument,
   safeParseClinicalDocumentRecord,
 } from '@/features/clinical-documents/internal';
+import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
 import {
   createApplicationFailed,
   createApplicationSuccess,
@@ -89,7 +89,7 @@ export const prepareClinicalDocumentJsonImportDraft = (
   }
 
   try {
-    const hydrated = hydrateLegacyClinicalDocument(candidate.document as ClinicalDocumentRecord);
+    const hydrated = hydrateClinicalDocumentRecord(candidate.document as ClinicalDocumentRecord);
     const parsed = safeParseClinicalDocumentRecord(hydrated);
     if (!parsed.success) {
       return createValidationFailure(

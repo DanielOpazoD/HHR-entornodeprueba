@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
@@ -19,6 +19,14 @@ const ZOOM_MIN = 60;
 const ZOOM_MAX = 150;
 const ZOOM_DEFAULT = 110;
 const ZOOM_WITH_SIDEBAR_COLLAPSED = 130;
+
+const escapeClinicalDocumentInlineHtml = (value: string): string =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 
 interface ClinicalDocumentsWorkspaceProps {
   patient: PatientData;
@@ -42,14 +50,22 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
     isActive,
   });
   const sheetState = useClinicalDocumentSheetState(sheetProps.selectedDocument);
+  const { flushPendingAutosave } = sheetProps;
+  const { handleEditorDeactivate: deactivateEditor } = sheetState;
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const zoomBeforeSidebarCollapseRef = useRef(ZOOM_DEFAULT);
   const [showLabDialog, setShowLabDialog] = useState(false);
   const [showMMRADDialog, setShowMMRADDialog] = useState(false);
 
   const handleInsertLabText = useCallback(
     (text: string) => {
+      const insertedAtCursor = sheetState.insertHtml(
+        `${escapeClinicalDocumentInlineHtml(text).replace(/\n/g, '<br>')}<br>`
+      );
+      if (insertedAtCursor) return;
+
       const insertTarget = resolveClinicalDocumentInsertTarget({
         document: sheetProps.selectedDocument,
         activeEditorSectionId: sheetState.activeEditorSectionId,
@@ -57,9 +73,8 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
       });
       if (!insertTarget || !sheetProps.patchSection) return;
       sheetProps.patchSection(insertTarget.sectionId, insertTarget.content);
-      setShowLabDialog(false);
     },
-    [sheetProps, sheetState.activeEditorSectionId]
+    [sheetProps, sheetState]
   );
 
   const handleToggleSidebar = useCallback(() => {
@@ -76,6 +91,27 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
       return true;
     });
   }, [zoom]);
+
+  const handleEditorDeactivate = useCallback(
+    (sectionId: string) => {
+      deactivateEditor(sectionId);
+      flushPendingAutosave();
+    },
+    [deactivateEditor, flushPendingAutosave]
+  );
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const syncCompactViewport = () => setIsCompactViewport(mediaQuery.matches);
+
+    syncCompactViewport();
+    mediaQuery.addEventListener('change', syncCompactViewport);
+    return () => mediaQuery.removeEventListener('change', syncCompactViewport);
+  }, []);
 
   if (!canRead) {
     return (
@@ -128,8 +164,12 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
     ) : null;
 
   const workspaceGridClass = isSidebarCollapsed
-    ? 'relative grid h-[86vh] min-h-[86vh] grid-cols-[minmax(0,1fr)]'
-    : 'relative grid h-[86vh] min-h-[86vh] grid-cols-[260px_minmax(0,1fr)]';
+    ? 'relative grid h-[86vh] min-h-[86vh] grid-cols-[minmax(0,1fr)] overflow-hidden'
+    : 'relative grid h-[86vh] min-h-[86vh] grid-cols-[260px_minmax(0,1fr)] overflow-hidden max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)]';
+  const effectiveZoom = isCompactViewport ? 100 : zoom;
+  const shouldPortalHeaderContent = Boolean(
+    headerContent && headerActionsContainer && !isCompactViewport
+  );
 
   return (
     <div
@@ -137,32 +177,34 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
       data-testid="clinical-documents-workspace"
       data-module="clinical-documents"
     >
-      {headerContent && headerActionsContainer
+      {shouldPortalHeaderContent && headerActionsContainer
         ? createPortal(headerContent, headerActionsContainer)
         : null}
       {!isSidebarCollapsed && (
-        <ClinicalDocumentsSidebar
-          {...sidebarProps}
-          onOpenLabDialog={
-            patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
-              ? () => {
-                  setShowMMRADDialog(false);
-                  setShowLabDialog(true);
-                }
-              : undefined
-          }
-          onOpenMMRADDialog={
-            patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
-              ? () => {
-                  setShowLabDialog(false);
-                  setShowMMRADDialog(true);
-                }
-              : undefined
-          }
-        />
+        <div className="min-w-0 overflow-y-auto overflow-x-hidden">
+          <ClinicalDocumentsSidebar
+            {...sidebarProps}
+            onOpenLabDialog={
+              patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
+                ? () => {
+                    setShowMMRADDialog(false);
+                    setShowLabDialog(true);
+                  }
+                : undefined
+            }
+            onOpenMMRADDialog={
+              patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
+                ? () => {
+                    setShowLabDialog(false);
+                    setShowMMRADDialog(true);
+                  }
+                : undefined
+            }
+          />
+        </div>
       )}
 
-      <section className="relative overflow-y-auto overflow-x-hidden bg-[#f3f4f6] p-3">
+      <section className="relative min-w-0 overflow-y-auto overflow-x-hidden bg-[#f3f4f6] p-3 max-md:p-2">
         <button
           type="button"
           onClick={handleToggleSidebar}
@@ -175,11 +217,14 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
 
         <div
           data-testid="clinical-document-sheet-zoom-layer"
-          style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
+          style={{ transform: `scale(${effectiveZoom / 100})`, transformOrigin: 'top center' }}
         >
           <ClinicalDocumentSheet
+            key={sheetProps.selectedDocument?.id ?? 'no-document'}
             {...sheetProps}
-            toolbar={headerContent && !headerActionsContainer ? headerContent : null}
+            toolbar={
+              headerContent && (!headerActionsContainer || isCompactViewport) ? headerContent : null
+            }
             activeTitleTarget={sheetState.activeTitleTarget}
             activeEditorSectionId={sheetState.activeEditorSectionId}
             onSetActiveTitleTarget={sheetState.setActiveTitleTarget}
@@ -192,7 +237,7 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
             onSetActiveIndicationsSpecialtyId={sheetState.setActiveIndicationsSpecialtyId}
             onToggleIndicationsPanel={() => sheetState.setIsIndicationsPanelOpen(prev => !prev)}
             onEditorActivate={sheetState.handleEditorActivate}
-            onEditorDeactivate={sheetState.handleEditorDeactivate}
+            onEditorDeactivate={handleEditorDeactivate}
             dragHandlers={sheetState.sectionDragHandlers}
           />
         </div>

@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { WoundCarePhotoRepository } from '@/services/repositories/WoundCarePhotoRepository';
+import { logger } from '@/services/utils/loggerService';
 
 /**
  * Lightweight check for whether a patient episode has wound care photos.
@@ -23,7 +24,9 @@ export const useWoundCarePhotoCount = (episodeKey: string | undefined): number =
         .then(photos => {
           if (!cancelled) setCount(photos.length);
         })
-        .catch(() => {});
+        .catch(error => {
+          if (!cancelled) logger.warn('Failed to refresh wound-care photo count', error);
+        });
     };
 
     fetch();

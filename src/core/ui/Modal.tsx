@@ -90,30 +90,36 @@ export const Modal: React.FC<ModalProps> = ({
       }
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-
-      // Initial focus
-      setTimeout(() => {
-        if (initialFocusRef?.current) {
-          initialFocusRef.current.focus();
-        } else if (modalRef.current) {
-          const firstInput = modalRef.current.querySelector(
-            'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
-          ) as HTMLElement;
-          if (firstInput) {
-            firstInput.focus();
-          } else {
-            const firstFocusable = modalRef.current.querySelector(
-              'button, [href], [tabindex]:not([tabindex="-1"])'
-            ) as HTMLElement;
-            firstFocusable?.focus();
-          }
-        }
-      }, 100);
+    if (!isOpen) {
+      return undefined;
     }
 
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Initial focus (deferred so the modal has mounted). Tracked so it is
+    // cleared if the modal closes/unmounts before it fires.
+    const focusTimeoutId = setTimeout(() => {
+      if (initialFocusRef?.current) {
+        initialFocusRef.current.focus();
+      } else if (modalRef.current) {
+        const firstInput = modalRef.current.querySelector(
+          'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+        ) as HTMLElement;
+        if (firstInput) {
+          firstInput.focus();
+        } else {
+          const firstFocusable = modalRef.current.querySelector(
+            'button, [href], [tabindex]:not([tabindex="-1"])'
+          ) as HTMLElement;
+          firstFocusable?.focus();
+        }
+      }
+    }, 100);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(focusTimeoutId);
+    };
   }, [isOpen, initialFocusRef, onClose]);
 
   if (!isOpen) return null;

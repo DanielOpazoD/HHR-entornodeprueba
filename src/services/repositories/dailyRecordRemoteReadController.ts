@@ -1,6 +1,9 @@
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
 import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
-import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
+import {
+  hasRemoteClinicalTextShrinkage,
+  resolveDailyRecordPersistenceGoldenPath,
+} from '@/services/repositories/dailyRecordPersistenceGoldenPath';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   createGoldenPathReadResult,
@@ -36,8 +39,12 @@ export const resolveRemoteGoldenPathReadResult = async ({
   remoteReadResult,
   persistHydratedRecord = persistHydratedRecordToLocalCache,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
+  const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
+    localCandidate?.record || null,
+    remoteReadResult.record
+  );
   const effectiveRemoteReadResult =
-    localCandidate?.record && remoteReadResult.record
+    localCandidate?.record && remoteReadResult.record && !shouldProtectLocalClinicalText
       ? {
           ...remoteReadResult,
           record: resolveDailyRecordConflict(remoteReadResult.record, localCandidate.record),
@@ -53,13 +60,22 @@ export const resolveRemoteGoldenPathReadResult = async ({
       effectiveRemoteReadResult.migrationRulesApplied.length > 0,
   });
 
-  if (goldenPath.shouldHydrateLocal && effectiveRemoteReadResult.record) {
+  const selectedLocalMerge =
+    goldenPath.selectedStore === 'local' &&
+    goldenPath.selectedRecord &&
+    localCandidate?.record &&
+    goldenPath.selectedRecord !== localCandidate.record
+      ? goldenPath.selectedRecord
+      : null;
+  const recordToHydrate =
+    selectedLocalMerge ||
+    (goldenPath.shouldHydrateLocal && effectiveRemoteReadResult.record
+      ? goldenPath.selectedRecord || effectiveRemoteReadResult.record
+      : null);
+
+  if (recordToHydrate) {
     try {
-      await persistHydratedRecord(
-        effectiveRemoteReadResult.record,
-        date,
-        localCandidate?.record || null
-      );
+      await persistHydratedRecord(recordToHydrate, date, localCandidate?.record || null);
     } catch (error) {
       if (error instanceof AdmissionDatePolicyViolationError) {
         dailyRecordReadLogger.warn(

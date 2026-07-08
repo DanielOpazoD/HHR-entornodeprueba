@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-07-05T06:20:05.363Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "126d4b82",
+    "gitDirty": false,
+    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "reportId": "system-confidence",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "c9faa66c3c6ac01814ac1d8237deab28f866c54438d0f3a97d54e9fc34e775e9",
+      "files": [
+        "reports/critical-coverage.json",
+        "reports/critical-coverage.md",
+        "reports/e2e/preview-bootstrap/report.json",
+        "reports/operational-health.json",
+        "reports/operational-health.md",
+        "reports/quality-metrics.json",
+        "reports/quality-metrics.md",
+        "scripts/config/critical-coverage-thresholds.json",
+        "scripts/criticalCoverageSupport.mjs",
+        "scripts/report-critical-coverage.mjs",
+        "scripts/run-critical-coverage.mjs",
+        "vitest.critical-coverage.config.ts"
+      ],
+      "missingFiles": []
+    }
+  },
+  "overallStatus": "ok",
+  "degradedByWorktreeOnly": false,
+  "overallStatusReason": "all indicators ok",
+  "indicators": [
+    {
+      "name": "worktree_state",
+      "status": "ok",
+      "summary": "status=clean"
+    },
+    {
+      "name": "structural_quality",
+      "status": "ok",
+      "summary": "oversized=0, folderDebt=0, sourceAny=0"
+    },
+    {
+      "name": "test_governance",
+      "status": "ok",
+      "summary": "flakeRisk=0, skip=0, only=0, quarantined=0"
+    },
+    {
+      "name": "known_failures",
+      "status": "ok",
+      "summary": "open=0, deterministic=0, bugReal=0, flaky=0, obsolete=0, infra=0"
+    },
+    {
+      "name": "critical_coverage",
+      "status": "ok",
+      "summary": "status=passing, zones=15"
+    },
+    {
+      "name": "operational_budgets",
+      "status": "ok",
+      "summary": "flow=passing, coverage=passing"
+    },
+    {
+      "name": "frontend_startup",
+      "status": "ok",
+      "summary": "status=ok, preview=ok, issues=0"
+    }
+  ],
+  "knownFailures": {
+    "openCount": 0,
+    "byClassification": {},
+    "owners": []
+  },
+  "missingPrerequisites": []
+}

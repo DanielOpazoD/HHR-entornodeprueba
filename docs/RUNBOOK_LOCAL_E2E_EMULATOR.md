@@ -38,6 +38,19 @@ Lanza los 7 specs emulator-críticos + el flow-performance spec en un solo run. 
 bash scripts/run-e2e-critical-emulator-ci.sh
 ```
 
+## Correr sólo el readback CMA/Firestore de release
+
+Usar este gate focal cuando se quiere cerrar rápido el riesgo de lectura/escritura CMA sin ejecutar todo `ci:release-gate`.
+El script levanta Firestore emulator con el helper compartido, elige un puerto local disponible y ejecuta sólo
+`src/tests/emulator/cma-specialty-readback.emulator.test.ts`.
+
+```bash
+npm run test:firestore:cma:ci
+```
+
+Este comando es preferible a correr `npx vitest ... cma-specialty-readback` directamente, porque el test requiere un
+emulador activo y fallará con `ECONNREFUSED 127.0.0.1:8080` si no se lanza dentro de `firebase emulators:exec`.
+
 Si el `webServer` de Playwright falla con `Timed out waiting 120000ms from config.webServer`, es porque `npm run dev` no arrancó a tiempo. Lo suelen gatillar:
 
 - Primera ejecución post `npm install` (caché Vite frío).
@@ -99,7 +112,7 @@ npm run check:quality
 `system_confidence.operational_budgets.flow` pasa de `unknown` a:
 
 - `ok` si todas las métricas cumplen **target** (1500 ms para censo, etc.).
-- `target-violations` si el **enforced max** (2500 ms censo) pasa pero el target no.
+- `target-violations` si el **enforced max** (2000 ms censo) pasa pero el target no.
 - `enforced-violations` si un flow supera el enforced max — **esto sí bloquea release**.
 
 ## Targets vs. enforced — política corta

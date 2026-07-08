@@ -29,6 +29,7 @@ export const useCensusTableRuntime = ({ currentDateString }: UseCensusTableRunti
   return {
     ...dependencies,
     columns,
+    tableConfigLoading: dependencies.tableConfigLoading,
     activateEmptyBed,
     handleColumnResize,
     ...tableModel,

@@ -1,4 +1,5 @@
 export interface EpisodeObservedPatient {
+  clinicalEpisodeId?: string;
   patientName?: string;
   rut?: string;
   admissionDate?: string;
@@ -8,9 +9,15 @@ export interface EpisodeObservedPatient {
 
 export interface EpisodeAdmissionTracker {
   observeBed: (bed: EpisodeObservedPatient | undefined, recordDate: string) => void;
-  resolveAdmissionDate: (rut?: string, fallbackAdmissionDate?: string) => string | undefined;
-  resolveEpisodeStartDate: (rut?: string, fallbackAdmissionDate?: string) => string | undefined;
-  closeEpisode: (rut?: string) => void;
+  resolveAdmissionDate: (
+    patientOrRut?: EpisodeObservedPatient | string,
+    fallbackAdmissionDate?: string
+  ) => string | undefined;
+  resolveEpisodeStartDate: (
+    patientOrRut?: EpisodeObservedPatient | string,
+    fallbackAdmissionDate?: string
+  ) => string | undefined;
+  closeEpisode: (patientOrRut?: EpisodeObservedPatient | string) => void;
 }
 
 export function createEpisodeAdmissionTracker(): EpisodeAdmissionTracker;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { AppContent } from '@/components/layout/AppContent';
 
 const mockUseAppContentRuntime = vi.fn();
@@ -16,6 +16,10 @@ vi.mock('@/components/AppProviders', () => ({
 
 vi.mock('@/context/ReminderCenterContext', () => ({
   ReminderCenterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/components/layout/app-content/reminderCenterProviderLoader', () => ({
+  loadReminderCenterProvider: () => new Promise(() => {}),
 }));
 
 vi.mock('@/components/layout/app-content/useAppContentRuntime', () => ({
@@ -100,8 +104,11 @@ describe('AppContent entrypoint wiring', () => {
     mockResolveModuleTheme.mockReturnValue('census');
   });
 
-  it('does not navigate the census date when the selection cannot be resolved', () => {
+  it('does not navigate the census date when the selection cannot be resolved', async () => {
     render(<AppContent ui={ui as never} />);
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
 
     const overlaysProps = mockAppContentOverlays.mock.calls[0][0] as {
       onOpenCensusDate: (isoDate: string) => void;
@@ -115,8 +122,11 @@ describe('AppContent entrypoint wiring', () => {
     expect(dateNav.setSelectedDay).not.toHaveBeenCalled();
   });
 
-  it('navigates the census date through the resolved selection', () => {
+  it('navigates the census date through the resolved selection', async () => {
     render(<AppContent ui={ui as never} />);
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
 
     const overlaysProps = mockAppContentOverlays.mock.calls[0][0] as {
       onOpenCensusDate: (isoDate: string) => void;
@@ -130,8 +140,11 @@ describe('AppContent entrypoint wiring', () => {
     expect(dateNav.setSelectedDay).toHaveBeenCalledWith(19);
   });
 
-  it('shares the same census date handler between chrome and overlays', () => {
+  it('shares the same census date handler between chrome and overlays', async () => {
     render(<AppContent ui={ui as never} />);
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
 
     const chromeProps = mockAppContentChrome.mock.calls[0][0] as {
       onOpenCensusDate: (isoDate: string) => void;

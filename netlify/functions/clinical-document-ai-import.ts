@@ -1,6 +1,7 @@
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { generateClinicalAIText, resolveClinicalAIProviderConfig } from './lib/ai-provider';
+import { loadClinicalAIRoutingConfigFromFirestore } from './lib/ai-provider-routing';
 import { invokeWithTelemetry } from './lib/observability';
 import {
   ClinicalDocumentAiImportRequestSchema,
@@ -36,6 +37,7 @@ interface ClinicalDocumentAiImportHandlerDependencies {
   extractBearerToken: typeof extractBearerToken;
   resolveClinicalAIProviderConfig: typeof resolveClinicalAIProviderConfig;
   generateClinicalAIText: typeof generateClinicalAIText;
+  loadClinicalAIRoutingConfigFromFirestore?: typeof loadClinicalAIRoutingConfigFromFirestore;
 }
 
 const stripJsonFence = (value: string): string => {
@@ -77,6 +79,7 @@ export const createClinicalDocumentAiImportHandler = (
     extractBearerToken,
     resolveClinicalAIProviderConfig,
     generateClinicalAIText,
+    loadClinicalAIRoutingConfigFromFirestore,
   }
 ) => {
   return async (event: NetlifyEventLike) => {
@@ -106,8 +109,8 @@ export const createClinicalDocumentAiImportHandler = (
       return buildTooManyRequestsResponse(requestOrigin);
     }
 
-    const providerConfig = dependencies.resolveClinicalAIProviderConfig();
-    if (!providerConfig) {
+    const baselineProviderConfig = dependencies.resolveClinicalAIProviderConfig();
+    if (!baselineProviderConfig) {
       return buildJsonResponse(
         200,
         ClinicalDocumentAiImportResponseSchema.parse({
@@ -125,8 +128,9 @@ export const createClinicalDocumentAiImportHandler = (
           ? event.headers.Authorization
           : undefined;
 
+    let bearerToken: string;
     try {
-      dependencies.extractBearerToken(authorizationHeader);
+      bearerToken = dependencies.extractBearerToken(authorizationHeader);
     } catch (error) {
       return buildJsonResponse(
         401,
@@ -142,6 +146,23 @@ export const createClinicalDocumentAiImportHandler = (
         authorizationHeader,
         CLINICAL_DOCUMENT_AI_IMPORT_ALLOWED_ROLES
       );
+      const routingConfig =
+        (await dependencies.loadClinicalAIRoutingConfigFromFirestore?.({ bearerToken })) ?? null;
+      const providerConfig = dependencies.resolveClinicalAIProviderConfig({
+        action: 'clinical_document_import',
+        routingConfig,
+      });
+
+      if (!providerConfig) {
+        return buildJsonResponse(
+          200,
+          ClinicalDocumentAiImportResponseSchema.parse({
+            available: false,
+            message: 'AI not configured',
+          }),
+          { requestOrigin }
+        );
+      }
 
       const body = parseJsonBody<unknown>(event.body);
       if (!body.ok) {

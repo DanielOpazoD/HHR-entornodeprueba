@@ -150,10 +150,17 @@ describe('FonasaSearchInput — catalog mode', () => {
 });
 
 describe('FonasaSearchInput — mode switching', () => {
+  it('shows a visible free-text button in the catalog control row', () => {
+    render(<FonasaSearchInput {...baseProps} />);
+
+    expect(screen.getByRole('button', { name: 'Texto libre' })).toBeInTheDocument();
+    expect(screen.queryByText('Escribir texto libre')).not.toBeInTheDocument();
+  });
+
   it('switches to manual mode and fires onClear', () => {
     render(<FonasaSearchInput {...baseProps} />);
 
-    fireEvent.click(screen.getByText('Escribir texto libre'));
+    fireEvent.click(screen.getByRole('button', { name: 'Texto libre' }));
     expect(baseProps.onClear).toHaveBeenCalledTimes(1);
 
     fireEvent.change(screen.getByPlaceholderText(/Descripción libre/), {
@@ -164,7 +171,7 @@ describe('FonasaSearchInput — mode switching', () => {
 
   it('switches back to catalog mode from manual', () => {
     render(<FonasaSearchInput {...baseProps} />);
-    fireEvent.click(screen.getByText('Escribir texto libre'));
+    fireEvent.click(screen.getByRole('button', { name: 'Texto libre' }));
 
     fireEvent.click(screen.getByText('Buscar en catálogo FONASA'));
 

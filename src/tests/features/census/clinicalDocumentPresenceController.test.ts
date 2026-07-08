@@ -8,13 +8,20 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildActiveClinicalDocumentEpisodeKeys,
+  buildBedEpisodeBindings,
   buildClinicalDocumentPresenceByBed,
   buildClinicalDocumentPresenceInfoByBed,
   type BedEpisodeBinding,
 } from '@/features/census/controllers/clinicalDocumentPresenceController';
+import { BedType } from '@/types/domain/beds';
+import { DataFactory } from '@/tests/factories/DataFactory';
 
 const bindings: BedEpisodeBinding[] = [
-  { bedId: 'R1', episodeKey: '12345678-9__2026-01-10' },
+  {
+    bedId: 'R1',
+    episodeKey: 'episode-canonical-r1',
+    episodeKeys: ['episode-canonical-r1', '12345678-9__2026-01-10'],
+  },
   { bedId: 'R2', episodeKey: '98765432-1__2026-02-15' },
   { bedId: 'NEO1', episodeKey: '11111111-1__2026-03-01' },
 ];
@@ -28,6 +35,35 @@ const records = [
 ];
 
 describe('clinicalDocumentPresenceController', () => {
+  describe('buildBedEpisodeBindings', () => {
+    it('does not bind canonical patients to legacy episode keys from prior bed occupants', () => {
+      const result = buildBedEpisodeBindings([
+        {
+          kind: 'occupied',
+          id: 'row-r1',
+          bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+          data: DataFactory.createMockPatient('R1', {
+            patientName: 'Paciente nuevo',
+            rut: '11.111.111-1',
+            admissionDate: '2026-03-06',
+            admissionTime: '15:00',
+            clinicalEpisodeId: 'ep_current_admission',
+          }),
+          isSubRow: false,
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          bedId: 'R1',
+          currentPatientRut: '11.111.111-1',
+          episodeKey: 'ep_current_admission',
+          episodeKeys: ['ep_current_admission'],
+        },
+      ]);
+    });
+  });
+
   describe('buildActiveClinicalDocumentEpisodeKeys', () => {
     it('returns only episode keys with non-archived documents', () => {
       const keys = buildActiveClinicalDocumentEpisodeKeys(records);
@@ -57,6 +93,29 @@ describe('clinicalDocumentPresenceController', () => {
         NEO1: false,
       });
     });
+
+    it('does not show presence for documents that belong to another patient rut', () => {
+      const contaminatedBindings: BedEpisodeBinding[] = [
+        {
+          bedId: 'R1',
+          episodeKey: 'ep_stale_bed_episode',
+          episodeKeys: ['ep_stale_bed_episode'],
+          currentPatientRut: '14.161.042-2',
+        },
+      ];
+      const contaminatedRecords = [
+        {
+          status: 'draft',
+          episodeKey: 'ep_stale_bed_episode',
+          patientRut: '17.444.506-0',
+        },
+      ];
+      const activeKeys = buildActiveClinicalDocumentEpisodeKeys(contaminatedRecords);
+
+      expect(
+        buildClinicalDocumentPresenceByBed(contaminatedBindings, activeKeys, contaminatedRecords)
+      ).toEqual({ R1: false });
+    });
   });
 
   describe('buildClinicalDocumentPresenceInfoByBed', () => {
@@ -67,6 +126,37 @@ describe('clinicalDocumentPresenceController', () => {
         present: true,
         totalCount: 2,
         draftCount: 1,
+      });
+    });
+
+    it('excludes mismatched-rut documents from presence counts', () => {
+      const contaminatedBindings: BedEpisodeBinding[] = [
+        {
+          bedId: 'R1',
+          episodeKey: 'ep_stale_bed_episode',
+          episodeKeys: ['ep_stale_bed_episode'],
+          currentPatientRut: '14.161.042-2',
+        },
+      ];
+      const contaminatedRecords = [
+        {
+          status: 'draft',
+          episodeKey: 'ep_stale_bed_episode',
+          patientRut: '17.444.506-0',
+        },
+        {
+          status: 'published',
+          episodeKey: 'ep_stale_bed_episode',
+          patientRut: '14.161.042-2',
+        },
+      ];
+
+      expect(
+        buildClinicalDocumentPresenceInfoByBed(contaminatedBindings, contaminatedRecords).R1
+      ).toEqual({
+        present: true,
+        totalCount: 1,
+        draftCount: 0,
       });
     });
 

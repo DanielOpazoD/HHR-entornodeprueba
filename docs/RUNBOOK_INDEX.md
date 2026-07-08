@@ -29,13 +29,15 @@ Usa cuando:
 - hay `failedSyncTasks`, `conflictSyncTasks` o colas atascadas
 - aparece fallback de IndexedDB o banner de resiliencia
 - hay dudas sobre conflictos de concurrencia o recuperación offline
+- un alta, traslado o conflicto del censo no coincide entre observabilidad y el estado visible
 
 Abrir en este orden:
 
 1. [RUNBOOK_DAILY_ADMIN_CHECKLIST.md](./RUNBOOK_DAILY_ADMIN_CHECKLIST.md)
-2. [RUNBOOK_SUPPORT_OPERATIONS.md](./RUNBOOK_SUPPORT_OPERATIONS.md)
-3. [RUNBOOK_SYNC_RESILIENCE.md](./RUNBOOK_SYNC_RESILIENCE.md)
-4. [RUNBOOK_OPERATIONAL_BUDGETS.md](./RUNBOOK_OPERATIONAL_BUDGETS.md)
+2. [RUNBOOK_DAILY_CENSUS_RECOVERY.md](./RUNBOOK_DAILY_CENSUS_RECOVERY.md)
+3. [RUNBOOK_SUPPORT_OPERATIONS.md](./RUNBOOK_SUPPORT_OPERATIONS.md)
+4. [RUNBOOK_SYNC_RESILIENCE.md](./RUNBOOK_SYNC_RESILIENCE.md)
+5. [RUNBOOK_OPERATIONAL_BUDGETS.md](./RUNBOOK_OPERATIONAL_BUDGETS.md)
 
 ### Reglas, Firestore/Storage o runtime sensible
 
@@ -72,6 +74,19 @@ Abrir en este orden:
 2. [CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md)
 3. [SERVERLESS_SENSITIVE_CONTRACTS.md](./SERVERLESS_SENSITIVE_CONTRACTS.md)
 
+### Recetas, respaldo mensual o eliminación manual
+
+Usa cuando:
+
+- necesitas cerrar el respaldo mensual de recetas
+- vas a eliminar recetas desde el visor
+- quieres confirmar que no hay eliminación automática programada
+
+Abrir en este orden:
+
+1. [RUNBOOK_PRESCRIPTIONS_BACKUP.md](./RUNBOOK_PRESCRIPTIONS_BACKUP.md)
+2. [CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md) si el cambio requiere deploy de Functions
+
 ### Release, preview o gates de CI
 
 Usa cuando:
@@ -84,7 +99,8 @@ Abrir en este orden:
 
 1. [DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
 2. [CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md)
-3. [QUALITY_GUARDRAILS.md](./QUALITY_GUARDRAILS.md)
+3. [RUNBOOK_PROFESSIONAL_RELEASE_CHECK.md](./RUNBOOK_PROFESSIONAL_RELEASE_CHECK.md)
+4. [QUALITY_GUARDRAILS.md](./QUALITY_GUARDRAILS.md)
 
 ### Operación AI, integraciones externas y secretos
 

@@ -2,14 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateHandoffPdf } from '@/services/pdf/handoffPdfGenerator';
 import { openPdfPrintDialog } from '@/services/pdf/pdfBase';
 import { addNovedadesSection } from '@/services/pdf/handoffPdfSections';
+import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
 
 const docMock = {
   output: vi.fn(() => new ArrayBuffer(8)),
 };
 
+const jsPdfConstructorMock = vi.hoisted(() => vi.fn());
+
 vi.mock('jspdf', () => ({
   default: vi.fn(
     class {
+      constructor(options?: unknown) {
+        jsPdfConstructorMock(options);
+      }
+
       output = docMock.output;
     }
   ),
@@ -36,6 +43,7 @@ vi.mock('@/services/pdf/handoffPdfSections', () => ({
 describe('handoffPdfGenerator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    jsPdfConstructorMock.mockClear();
   });
 
   it('opens the browser print dialog for a nursing day-shift export', async () => {
@@ -56,6 +64,12 @@ describe('handoffPdfGenerator', () => {
     );
 
     expect(docMock.output).toHaveBeenCalledWith('arraybuffer');
+    expect(jsPdfConstructorMock).toHaveBeenCalledWith({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
     expect(openPdfPrintDialog).toHaveBeenCalledWith(
       expect.any(Uint8Array),
       '03-01-2026 - Turno Largo.pdf'
@@ -129,7 +143,8 @@ describe('handoffPdfGenerator', () => {
       expect.anything(),
       'Noche con novedades',
       expect.any(Number),
-      expect.any(Number)
+      expect.any(Number),
+      HANDOFF_PDF_PAGE_LAYOUT.margin
     );
   });
 
@@ -154,7 +169,8 @@ describe('handoffPdfGenerator', () => {
       expect.anything(),
       'Texto heredado del turno largo',
       expect.any(Number),
-      expect.any(Number)
+      expect.any(Number),
+      HANDOFF_PDF_PAGE_LAYOUT.margin
     );
   });
 });

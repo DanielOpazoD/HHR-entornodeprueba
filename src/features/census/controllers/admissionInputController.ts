@@ -158,7 +158,14 @@ export const resolveAdmissionDateUpdatePlan = ({
     currentAdmissionTime,
     now,
   });
-  const shouldAnchorFirstSeenDate = !firstSeenDate;
+  const normalizedFirstSeenDate = normalizeDateOnly(firstSeenDate);
+  const normalizedNextDate = normalizeDateOnly(nextDate);
+  const shouldRepairStaleFirstSeenDate =
+    Boolean(normalizedFirstSeenDate) &&
+    Boolean(normalizedNextDate) &&
+    normalizedFirstSeenDate !== normalizedNextDate &&
+    normalizedNextDate === currentDateString;
+  const shouldAnchorFirstSeenDate = !firstSeenDate || shouldRepairStaleFirstSeenDate;
 
   return {
     nextPatch: {

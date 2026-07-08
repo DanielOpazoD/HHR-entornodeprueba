@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useBedAudit } from '@/hooks/useBedAudit';
+import { PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS, useBedAudit } from '@/hooks/useBedAudit';
 import { useAuditContext } from '@/context/AuditContext';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import type { CudyrScore } from '@/types/domain/cudyr';
@@ -114,7 +114,9 @@ describe('useBedAudit', () => {
       'B1',
       expect.objectContaining({ patientName: 'New Name' }),
       '111',
-      '2026-01-19'
+      '2026-01-19',
+      undefined,
+      PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
     );
   });
 
@@ -140,7 +142,9 @@ describe('useBedAudit', () => {
         }),
       }),
       '',
-      '2026-01-19'
+      '2026-01-19',
+      undefined,
+      PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
     );
   });
 
@@ -158,7 +162,40 @@ describe('useBedAudit', () => {
         changes: { status: { old: PatientStatus.ESTABLE, new: PatientStatus.DE_CUIDADO } },
       }),
       '',
-      '2026-01-19'
+      '2026-01-19',
+      undefined,
+      PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
+    );
+  });
+
+  it('should log diagnosis changes with an explicit clinical action', () => {
+    const { result } = renderHook(() => useBedAudit(mockRecord));
+    const oldPatient = buildPatient({
+      patientName: 'John',
+      rut: '123-4',
+      pathology: 'Diagnostico previo',
+    });
+
+    result.current.auditPatientChange('B1', 'pathology', oldPatient, 'Diagnostico actualizado');
+
+    expect(mockLogDebouncedEvent).toHaveBeenCalledWith(
+      'PATIENT_DIAGNOSIS_CHANGED',
+      'patient',
+      'B1',
+      expect.objectContaining({
+        patientName: 'John',
+        bedId: 'B1',
+        changes: {
+          diagnosis: {
+            old: 'Diagnostico previo',
+            new: 'Diagnostico actualizado',
+          },
+        },
+      }),
+      '123-4',
+      '2026-01-19',
+      undefined,
+      PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
     );
   });
 

@@ -22,6 +22,20 @@ describe('syslab-proxy', () => {
     });
   };
 
+  it('keeps details under the extended telemetry timeout budget', async () => {
+    const { resolveSyslabTelemetryOptions } =
+      await import('../../../netlify/functions/syslab-proxy');
+
+    expect(resolveSyslabTelemetryOptions('details')).toEqual({
+      timeoutMs: 55_000,
+      maxAttempts: 1,
+    });
+    expect(resolveSyslabTelemetryOptions('search')).toEqual({
+      timeoutMs: 15_000,
+      maxAttempts: 3,
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = {

@@ -12,6 +12,7 @@ const { mockUseAuth } = vi.hoisted(() => ({
 }));
 
 const mockUseDailyRecordData = vi.fn();
+const mockUseDailyRecordStatus = vi.fn();
 
 vi.mock('@/context', () => ({
   useAuth: () => mockUseAuth(),
@@ -19,6 +20,7 @@ vi.mock('@/context', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => mockUseDailyRecordData(),
+  useDailyRecordStatus: () => mockUseDailyRecordStatus(),
 }));
 
 vi.mock('@/features/census/hooks/useCensusViewModel', () => ({
@@ -112,6 +114,11 @@ describe('CensusView', () => {
     mockUseDailyRecordData.mockReturnValue({
       bootstrapPhase: 'confirmed_empty',
     });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'confirmed_empty',
+      syncStatus: 'idle',
+      lastSyncTime: null,
+    });
     vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel());
   });
 
@@ -127,7 +134,7 @@ describe('CensusView', () => {
 
     render(<CensusView {...defaultProps} />);
 
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
+    expect(screen.queryByTestId('census-operational-state-banner')).not.toBeInTheDocument();
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
     await act(async () => {
       await Promise.resolve();
@@ -141,15 +148,20 @@ describe('CensusView', () => {
   });
 
   it('shows the empty prompt immediately for dates that are not today', async () => {
+    vi.useFakeTimers();
     vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
 
     render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_300);
+    });
+    vi.useRealTimers();
     expect(await screen.findByTestId('empty-day-prompt')).toBeInTheDocument();
     expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
   });
 
-  it('keeps showing the loader while remote sync is still bootstrapping for an authenticated session', async () => {
+  it('keeps waiting silently while remote sync is still bootstrapping for an authenticated session', async () => {
     vi.useFakeTimers();
     mockUseAuth.mockReturnValue({
       sessionState: { status: 'authorized', user: { uid: 'user-1' } },
@@ -161,11 +173,16 @@ describe('CensusView', () => {
     mockUseDailyRecordData.mockReturnValue({
       bootstrapPhase: 'remote_record_bootstrapping',
     });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'remote_record_bootstrapping',
+      syncStatus: 'idle',
+      lastSyncTime: null,
+    });
     vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
 
     render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
 
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
+    expect(screen.queryByTestId('census-operational-state-banner')).not.toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });

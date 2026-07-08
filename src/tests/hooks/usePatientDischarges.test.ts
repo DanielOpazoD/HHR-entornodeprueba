@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import type {
+  ApplyDailyRecordPatch,
   DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
 import { useAuditContext } from '@/context/AuditContext';
+import {
+  getActiveDischarges,
+  isMovementDeleted,
+} from '@/application/census/movementTombstonePolicy';
 
 // Mock dependencies
 vi.mock('@/context/AuditContext', () => ({
@@ -17,6 +22,7 @@ vi.mock('@/services/factories/patientFactory', () => ({
   createEmptyPatient: (bedId: string) => ({
     bedId,
     patientName: '',
+    firstSeenDate: undefined,
     rut: '',
     location: '',
   }),
@@ -25,6 +31,7 @@ vi.mock('@/services/factories/patientFactory', () => ({
 describe('usePatientDischarges', () => {
   let mockRecord: DailyRecord;
   let mockSaveAndUpdate: PersistDailyRecord;
+  let mockPatchRecord: ApplyDailyRecordPatch;
   const mockLogEvent = vi.fn();
   const mockLogPatientDischarge = vi.fn();
 
@@ -35,6 +42,7 @@ describe('usePatientDischarges', () => {
       logPatientDischarge: mockLogPatientDischarge,
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
+    mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
     mockRecord = {
       date: '2024-12-28',
       beds: {
@@ -91,7 +99,7 @@ describe('usePatientDischarges', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should add discharge for occupied bed', () => {
+  it('should add discharge for occupied bed', async () => {
     const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
 
     act(() => {
@@ -99,7 +107,38 @@ describe('usePatientDischarges', () => {
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalled();
-    expect(mockLogPatientDischarge).toHaveBeenCalled();
+    await waitFor(() => expect(mockLogPatientDischarge).toHaveBeenCalled());
+  });
+
+  it('adds discharge and clears the source bed through one atomic patch when available', async () => {
+    const { result } = renderHook(() =>
+      usePatientDischarges(mockRecord, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => {
+      result.current.addDischarge('R1', 'Vivo', undefined, 'Alta Médica');
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledTimes(1);
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discharges: expect.arrayContaining([
+          expect.objectContaining({
+            bedId: 'R1',
+            patientName: 'Test Patient',
+          }),
+        ]),
+        'beds.R1': expect.objectContaining({
+          bedId: 'R1',
+          patientName: '',
+          rut: '',
+          firstSeenDate: undefined,
+          location: 'Room 1',
+        }),
+      })
+    );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockLogPatientDischarge).toHaveBeenCalled());
   });
 
   it('should update discharge', () => {
@@ -119,6 +158,33 @@ describe('usePatientDischarges', () => {
     expect(mockSaveAndUpdate).toHaveBeenCalled();
   });
 
+  it('updates discharge through a movement patch when available', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [{ id: 'discharge-1', patientName: 'Test', status: 'Vivo', time: '' }],
+    } as unknown as DailyRecord;
+
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => {
+      result.current.updateDischarge('discharge-1', 'Fallecido');
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discharges: [
+          expect.objectContaining({
+            id: 'discharge-1',
+            status: 'Fallecido',
+          }),
+        ],
+      })
+    );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+  });
+
   it('should delete discharge', () => {
     const recordWithDischarge = {
       ...mockRecord,
@@ -134,6 +200,97 @@ describe('usePatientDischarges', () => {
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalled();
+  });
+
+  it('deletes discharge through a movement patch when available', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [{ id: 'discharge-1', patientName: 'Test' }],
+    } as unknown as DailyRecord;
+
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => {
+      result.current.deleteDischarge('discharge-1');
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discharges: [
+          expect.objectContaining({
+            id: 'discharge-1',
+            deletedAt: expect.any(String),
+          }),
+        ],
+      })
+    );
+    expect(mockSaveAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('converts a home discharge into CMA in one movement patch', () => {
+    const originalData = {
+      bedId: 'R1',
+      patientName: 'Test Patient',
+      rut: '12345678-9',
+      birthDate: '1980-01-01',
+      biologicalSex: 'Femenino',
+      clinicalEpisodeId: 'episode-discharge',
+    } as PatientData;
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [
+        {
+          id: 'discharge-1',
+          bedId: 'R1',
+          bedName: 'R1',
+          bedType: 'Cama',
+          patientName: 'Test Patient',
+          rut: '12345678-9',
+          diagnosis: 'Test Diagnosis',
+          age: '44',
+          time: '10:20',
+          status: 'Vivo',
+          dischargeType: 'Domicilio (Habitual)',
+          clinicalEpisodeId: 'episode-discharge',
+          originalData,
+        },
+      ],
+    } as unknown as DailyRecord;
+
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => {
+      result.current.convertDischargeToCma('discharge-1');
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discharges: [
+          expect.objectContaining({
+            id: 'discharge-1',
+            deletedAt: expect.any(String),
+            deletedReason: 'converted_to_cma',
+          }),
+        ],
+        cma: [
+          expect.objectContaining({
+            patientName: 'Test Patient',
+            rut: '12345678-9',
+            age: '44',
+            birthDate: '1980-01-01',
+            biologicalSex: 'Femenino',
+            originalBedId: 'R1',
+            dischargeTime: '10:20',
+            interventionType: 'Cirugía Mayor Ambulatoria',
+            clinicalEpisodeId: 'episode-discharge',
+          }),
+        ],
+      })
+    );
   });
 
   it('should handle mother-only discharge', () => {
@@ -165,7 +322,7 @@ describe('usePatientDischarges', () => {
     expect(mockSaveAndUpdate).toHaveBeenCalled();
   });
 
-  it('should undo discharge and restore patient snapshot', () => {
+  it('should undo discharge and restore patient snapshot', async () => {
     const recordWithDischarge = {
       ...mockRecord,
       discharges: [
@@ -189,8 +346,9 @@ describe('usePatientDischarges', () => {
       usePatientDischarges(recordWithDischarge, mockSaveAndUpdate)
     );
 
-    act(() => {
+    await act(async () => {
       result.current.undoDischarge('d-1');
+      await Promise.resolve();
     });
 
     expect(mockSaveAndUpdate).toHaveBeenCalledTimes(1);
@@ -210,7 +368,15 @@ describe('usePatientDischarges', () => {
     );
     const payload = vi.mocked(mockSaveAndUpdate).mock.calls[0][0];
     expect(payload.beds.R2.patientName).toBe('Recovered');
-    expect(payload.discharges).toEqual([]);
+    expect(getActiveDischarges(payload.discharges)).toEqual([]);
+    expect(payload.discharges[0]).toEqual(
+      expect.objectContaining({
+        id: 'd-1',
+        deletedAt: expect.any(String),
+        deletedReason: 'manual_delete',
+      })
+    );
+    expect(isMovementDeleted(payload.discharges[0])).toBe(true);
   });
 
   it('should notify runtime when undo is blocked by occupied bed', () => {

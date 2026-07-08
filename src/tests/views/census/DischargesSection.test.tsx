@@ -36,6 +36,7 @@ describe('DischargesSection', () => {
 
   const mockOnUndo = vi.fn();
   const mockOnDelete = vi.fn();
+  const mockConvertDischargeToCma = vi.fn();
   const mockHandleEdit = vi.fn();
   const mockConfirm = vi.fn();
   const mockNotifyError = vi.fn();
@@ -67,6 +68,7 @@ describe('DischargesSection', () => {
     vi.mocked(useDailyRecordMovementActions).mockReturnValue({
       undoDischarge: mockOnUndo,
       deleteDischarge: mockOnDelete,
+      convertDischargeToCma: mockConvertDischargeToCma,
     } as unknown as MovementActionsValue);
     // Default empty movements
     vi.mocked(useDailyRecordMovements).mockReturnValue({
@@ -94,17 +96,40 @@ describe('DischargesSection', () => {
     expect(screen.getByText('R1')).toBeInTheDocument();
     expect(screen.getByText('(11-12-2024)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
     await waitFor(() => {
       expect(mockOnUndo).toHaveBeenCalledWith('1');
     });
 
-    fireEvent.click(screen.getByTitle('Editar'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^editar$/i }));
     expect(mockHandleEdit).toHaveBeenCalledWith(mockDischarges[0]);
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /eliminar/i }));
     await waitFor(() => {
       expect(mockOnDelete).toHaveBeenCalledWith('1');
+    });
+  });
+
+  it('converts a discharge into CMA from the shared actions menu', async () => {
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      discharges: mockDischarges,
+    } as unknown as MovementsValue);
+
+    render(<DischargesSection />);
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /convertir a cma/i }));
+
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Convertir alta a CMA',
+        })
+      );
+      expect(mockConvertDischargeToCma).toHaveBeenCalledWith('1');
     });
   });
 
@@ -116,8 +141,10 @@ describe('DischargesSection', () => {
 
     render(<DischargesSection />);
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /eliminar/i }));
 
     await waitFor(() => {
       expect(mockConfirm).toHaveBeenCalledTimes(1);
@@ -134,7 +161,8 @@ describe('DischargesSection', () => {
 
     render(<DischargesSection />);
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
 
     await waitFor(() => {
       expect(mockNotifyError).toHaveBeenCalledWith(

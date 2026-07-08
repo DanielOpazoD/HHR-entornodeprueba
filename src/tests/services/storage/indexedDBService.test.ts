@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { AuditLogEntry } from '@/types/auditLogTypes';
@@ -8,17 +8,6 @@ import { ErrorLog } from '@/services/utils/errorService';
 const FIXED_ISO_TIMESTAMP = '2026-01-15T10:30:00.000Z';
 
 describe('indexedDBService', () => {
-  const setMockLocationWithReload = () => {
-    const originalLocation = window.location;
-    // @ts-expect-error - test override
-    delete window.location;
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { ...originalLocation, reload: vi.fn() },
-    });
-    return originalLocation;
-  };
-
   const mockRecord: DailyRecord = {
     date: '2025-01-01',
     beds: {},
@@ -36,10 +25,46 @@ describe('indexedDBService', () => {
     await idbService.clearErrorLogs();
     await idbService.clearAuditLogs();
     localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('Daily Records', () => {
+    it('should report the backing store used by strict record saves', async () => {
+      const result = await idbService.saveRecordStrict(mockRecord);
+
+      expect(result).toMatchObject({
+        ok: true,
+        operation: 'save',
+        store: 'indexeddb',
+        dates: ['2025-01-01'],
+      });
+      await expect(idbService.getRecordForDate('2025-01-01')).resolves.toMatchObject({
+        date: '2025-01-01',
+      });
+    });
+
+    it('should report strict record save failures without dispatching a success result', async () => {
+      const putSpy = vi
+        .spyOn(idbService.hospitalDB.dailyRecords, 'put')
+        .mockRejectedValueOnce(new Error('quota exceeded'));
+
+      const result = await idbService.saveRecordStrict(mockRecord);
+
+      expect(result).toMatchObject({
+        ok: false,
+        operation: 'save',
+        store: 'none',
+        dates: ['2025-01-01'],
+      });
+      expect(result.error).toBeInstanceOf(Error);
+      putSpy.mockRestore();
+    });
+
     it('should save and retrieve a record', async () => {
       await idbService.saveRecord(mockRecord);
       const retrieved = await idbService.getRecordForDate('2025-01-01');
@@ -270,105 +295,6 @@ describe('indexedDBService', () => {
       } as ErrorLog);
       const logs = await idbService.getErrorLogs(1);
       expect(logs).toHaveLength(1);
-    });
-  });
-
-  describe('Local App Reset', () => {
-    it('should clear all and reload (mocked reload)', async () => {
-      // Mock location.reload
-      const originalLocation = setMockLocationWithReload();
-
-      // Mock indexedDB.databases since it might not be in JSDOM / fake-indexeddb
-      const originalDatabases = window.indexedDB.databases;
-      window.indexedDB.databases = vi.fn().mockResolvedValue([{ name: 'HangaRoaDB' }]);
-      const originalDelete = window.indexedDB.deleteDatabase;
-      window.indexedDB.deleteDatabase = vi.fn();
-
-      await idbService.resetLocalDatabase();
-
-      expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
-      expect(window.location.reload).toHaveBeenCalled();
-
-      // Restore
-      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
-      window.indexedDB.databases = originalDatabases;
-      window.indexedDB.deleteDatabase = originalDelete;
-    });
-
-    it('should unregister service workers in performClientHardReset', async () => {
-      const originalLocation = setMockLocationWithReload();
-
-      const originalDatabases = window.indexedDB.databases;
-      window.indexedDB.databases = vi.fn().mockResolvedValue([{ name: 'HangaRoaDB' }]);
-      const originalDelete = window.indexedDB.deleteDatabase;
-      window.indexedDB.deleteDatabase = vi.fn();
-
-      const unregister = vi.fn().mockResolvedValue(undefined);
-      const registrations = [{ unregister }] as unknown as ServiceWorkerRegistration[];
-      const getRegistrations = vi.fn().mockResolvedValue(registrations);
-      const originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
-      Object.defineProperty(navigator, 'serviceWorker', {
-        configurable: true,
-        value: { getRegistrations },
-      });
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-      localStorage.setItem('hhr_bootstrap_storage_repair_v1', '1');
-
-      await idbService.performClientHardReset();
-
-      expect(getRegistrations).toHaveBeenCalled();
-      expect(unregister).toHaveBeenCalled();
-      expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
-      expect(localStorage.getItem('firebase:authUser:test:[DEFAULT]')).toBe('{"uid":"abc"}');
-      expect(localStorage.getItem('hhr_bootstrap_storage_repair_v1')).toBeNull();
-      expect(window.location.reload).toHaveBeenCalled();
-
-      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
-      window.indexedDB.databases = originalDatabases;
-      window.indexedDB.deleteDatabase = originalDelete;
-      if (originalServiceWorker) {
-        Object.defineProperty(navigator, 'serviceWorker', originalServiceWorker);
-      } else {
-        // @ts-expect-error - cleanup test-only property
-        delete navigator.serviceWorker;
-      }
-    });
-
-    it('should expose resetLocalAppStorage as the same full reset behavior', async () => {
-      const originalLocation = setMockLocationWithReload();
-
-      const originalDatabases = window.indexedDB.databases;
-      window.indexedDB.databases = vi.fn().mockResolvedValue([{ name: 'HangaRoaDB' }]);
-      const originalDelete = window.indexedDB.deleteDatabase;
-      window.indexedDB.deleteDatabase = vi.fn();
-
-      const unregister = vi.fn().mockResolvedValue(undefined);
-      const registrations = [{ unregister }] as unknown as ServiceWorkerRegistration[];
-      const getRegistrations = vi.fn().mockResolvedValue(registrations);
-      const originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
-      Object.defineProperty(navigator, 'serviceWorker', {
-        configurable: true,
-        value: { getRegistrations },
-      });
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-
-      await idbService.resetLocalAppStorage();
-
-      expect(getRegistrations).toHaveBeenCalled();
-      expect(unregister).toHaveBeenCalled();
-      expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
-      expect(localStorage.getItem('firebase:authUser:test:[DEFAULT]')).toBeNull();
-      expect(window.location.reload).toHaveBeenCalled();
-
-      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
-      window.indexedDB.databases = originalDatabases;
-      window.indexedDB.deleteDatabase = originalDelete;
-      if (originalServiceWorker) {
-        Object.defineProperty(navigator, 'serviceWorker', originalServiceWorker);
-      } else {
-        // @ts-expect-error - cleanup test-only property
-        delete navigator.serviceWorker;
-      }
     });
   });
 

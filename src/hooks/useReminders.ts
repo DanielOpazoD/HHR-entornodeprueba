@@ -1,1 +1,1 @@
-export { useReminderCenter } from '@/context/ReminderCenterContext';
+export { useReminderCenter } from '@/context/reminderCenterContextContract';

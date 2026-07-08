@@ -6,6 +6,7 @@ import {
   buildToggleBedTypePatch,
   buildToggleBlockedPatch,
 } from '@/hooks/useBedOperationsController';
+import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
 
 interface BedOperationNoop {
   kind: 'noop';
@@ -47,28 +48,6 @@ export const toBedOperationAuditArgs = (
   resolvedOperation.audit.recordDate,
 ];
 
-const buildMoveOrCopyAuditDetails = (
-  record: DailyRecord,
-  type: 'move' | 'copy',
-  sourceBedId: string,
-  targetBedId: string
-): Record<string, unknown> => {
-  const sourceData = record.beds[sourceBedId];
-
-  return {
-    action: type,
-    sourceBed: sourceBedId,
-    targetBed: targetBedId,
-    patientName: sourceData.patientName,
-    changes: {
-      location: {
-        old: type === 'move' ? record.beds[sourceBedId].location : 'N/A',
-        new: record.beds[targetBedId].location,
-      },
-    },
-  };
-};
-
 export const resolveMoveOrCopyOperation = (
   record: DailyRecord,
   type: 'move' | 'copy',
@@ -101,7 +80,15 @@ export const resolveMoveOrCopyOperation = (
       entityId: targetBedId,
       patientRut: sourceData.rut,
       recordDate: record.date,
-      details: buildMoveOrCopyAuditDetails(record, type, sourceBedId, targetBedId),
+      details: buildBedMovementAuditDetails({
+        movementKind: type,
+        patientName: sourceData.patientName,
+        sourceBed: sourceBedId,
+        targetBed: targetBedId,
+        diagnosis: sourceData.pathology,
+        previousLocation: type === 'move' ? record.beds[sourceBedId].location : 'N/A',
+        newLocation: record.beds[targetBedId].location,
+      }),
     },
   };
 };

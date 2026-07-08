@@ -14,6 +14,17 @@
           allow create: if canCreateEditableHospitalDocument();
           allow update, delete: if canAdminMaintainHospitalDocument();
         }
+
+        // Recoverable conflict version snapshots. Auto-expire ~48h via a Firestore TTL policy on
+        // the `expireAt` field. Preview/restore is restricted to admin + Hospitalizados HHR
+        // (nurse_hospital); any user with editable hospital-document access
+        // (canCreateEditableHospitalDocument) may still create a snapshot during normal conflict
+        // resolution. See docs/ADR_CONFLICT_VERSION_RECOVERY.md.
+        match /conflictSnapshots/{snapshotId} {
+          allow read: if canManageClinicalConflictSnapshots();
+          allow create: if canCreateEditableHospitalDocument();
+          allow update, delete: if canAdminMaintainHospitalDocument();
+        }
       }
 
       // Deleted Records (Trash)
@@ -27,14 +38,45 @@
         allow delete: if canDeleteClinicalDocument();
       }
 
+      match /clinicalAttachments/{attachmentId} {
+        allow read: if canReadClinicalData();
+        allow create, update: if canWriteClinicalAttachment();
+        allow delete: if isAdmin();
+      }
+
       match /clinicalDocumentTemplates/{templateId} {
         allow read: if canReadClinicalData();
         allow write: if isAdmin();
       }
 
+      match /medicalIndicationTemplates/{userId} {
+        allow read, write: if isCurrentUser(userId);
+
+        match /items/{templateId} {
+          allow read: if isCurrentUser(userId);
+          allow create, update, delete: if isCurrentUser(userId) &&
+            request.resource.data.userId == userId;
+        }
+      }
+
+      match /medicalIndicationRecords/{recordId} {
+        allow read: if canReadClinicalData();
+        allow create: if isValidMedicalIndicationRecordCreate();
+        allow update, delete: if false;
+      }
+
+      // Server-owned statistical reporting layer. Clients can inspect the
+      // official reclassification applied to analytics, but writes must go
+      // through setMinsalSpecialtyReclassification so admin role, IP and audit
+      // metadata are captured consistently.
+      match /analyticsSpecialtyReclassifications/{reclassificationId} {
+        allow read: if canReadClinicalData();
+        allow create, update, delete: if false;
+      }
+
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
-        allow write: if canEdit();
+        allow write: if settingId == 'aiProviderRouting' ? isAdmin() : canEdit();
       }
 
       match /reminders/{reminderId} {
@@ -46,6 +88,15 @@
           allow create, update: if canWriteReminderReceipt();
           allow delete: if isAdmin();
         }
+      }
+
+      // Transient prescription-photo backup. Uploads are server-mediated by
+      // submitPrescriptionPhoto; clients can only read/edit metadata.
+      match /prescriptions/{prescriptionId} {
+        allow read: if canReadClinicalData();
+        allow create: if false;
+        allow update: if canEdit();
+        allow delete: if canEdit();
       }
       
       match /exportPasswords/{passwordId} {

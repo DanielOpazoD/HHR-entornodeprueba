@@ -1,5 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({
+    notify: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+  }),
+}));
+
 import { CudyrHeader } from '@/features/cudyr/components/CudyrHeader';
 
 vi.mock('lucide-react', () => ({
@@ -7,6 +20,8 @@ vi.mock('lucide-react', () => ({
   FileSpreadsheet: () => <span>XLSX</span>,
   FileText: () => <span>PDF</span>,
   Loader2: () => <span>Loading</span>,
+  RotateCcw: () => <span>Undo</span>,
+  Save: () => <span>Save</span>,
   X: () => <span>Close</span>,
 }));
 
@@ -25,6 +40,22 @@ describe('CudyrHeader', () => {
       'title',
       'Exportar resumen mensual CUDYR'
     );
+  });
+
+  it('keeps instrument and Excel actions beside the title with compact neutral styling', () => {
+    render(<CudyrHeader occupiedCount={10} categorizedCount={8} currentDate="2026-03-07" />);
+
+    const titleRow = screen.getByTestId('cudyr-title-row');
+    const statsBar = screen.getByTestId('cudyr-stats-actions-bar');
+    const instrumentButton = within(titleRow).getByRole('button', { name: /ver instrumento/i });
+    const excelButton = within(titleRow).getByRole('button', { name: /excel mensual/i });
+
+    expect(instrumentButton).toHaveClass('text-[10px]', 'text-slate-600', 'bg-white');
+    expect(excelButton).toHaveClass('text-[10px]', 'text-slate-600', 'bg-white');
+    expect(instrumentButton).not.toHaveClass('text-sky-700', 'bg-sky-50');
+    expect(excelButton).not.toHaveClass('bg-emerald-600', 'text-white');
+    expect(within(statsBar).queryByRole('button', { name: /ver instrumento/i })).toBeNull();
+    expect(within(statsBar).queryByRole('button', { name: /excel mensual/i })).toBeNull();
   });
 
   it('opens the instrument pdf from the header', () => {
@@ -65,6 +96,22 @@ describe('CudyrHeader', () => {
     expect(screen.getByText('13')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('77%')).toBeInTheDocument();
+  });
+
+  it('keeps header controls wrapped and bounded for narrow clinical workspaces', () => {
+    render(<CudyrHeader occupiedCount={13} categorizedCount={10} currentDate="2026-03-07" />);
+
+    expect(screen.getByTestId('cudyr-title-row')).toHaveClass('flex-wrap');
+    expect(screen.getByTestId('cudyr-stats-actions-bar')).toHaveClass('overflow-hidden');
+    expect(screen.getByTestId('cudyr-metrics')).toHaveClass('min-w-0', 'flex-wrap');
+    expect(screen.getByTestId('cudyr-actions')).toHaveClass('flex-wrap', 'justify-end');
+  });
+
+  it('keeps pending CUDYR save controls out of the header metrics area', () => {
+    render(<CudyrHeader occupiedCount={13} categorizedCount={10} currentDate="2026-03-07" />);
+
+    expect(screen.queryByTestId('cudyr-pending-save-row')).toBeNull();
+    expect(screen.queryByRole('button', { name: /guardar cudyr/i })).toBeNull();
   });
 
   it('shows only non-zero category pills when counts are provided', () => {

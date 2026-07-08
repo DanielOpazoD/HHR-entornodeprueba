@@ -10,7 +10,8 @@ export type TransferStateFieldUpdate =
   | 'evacuationMethodOther'
   | 'receivingCenter'
   | 'receivingCenterOther'
-  | 'transferEscort';
+  | 'transferEscort'
+  | 'diagnosis';
 
 export const applyTransferStateUpdate = (
   previousState: TransferState,
@@ -35,5 +36,7 @@ export const applyTransferStateUpdate = (
       return { ...previousState, receivingCenterOther: value };
     case 'transferEscort':
       return { ...previousState, transferEscort: value };
+    case 'diagnosis':
+      return { ...previousState, diagnosis: value };
   }
 };

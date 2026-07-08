@@ -3,6 +3,7 @@ import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import {
   buildDeviceHistoryTimestamp,
   buildInitialDeviceHistory,
+  type DeviceHistoryOwner,
 } from '@/features/census/controllers/deviceHistoryController';
 import {
   removeDeviceHistoryRecord,
@@ -13,6 +14,7 @@ interface UseDeviceHistoryEditorParams {
   history: DeviceInstance[];
   currentDevices: string[];
   deviceDetails: DeviceDetails;
+  owner?: DeviceHistoryOwner;
   createId?: () => string;
   now?: Date;
 }
@@ -21,6 +23,7 @@ export const useDeviceHistoryEditor = ({
   history,
   currentDevices,
   deviceDetails,
+  owner,
   createId = () => crypto.randomUUID(),
   now = new Date(),
 }: UseDeviceHistoryEditorParams) => {
@@ -29,6 +32,7 @@ export const useDeviceHistoryEditor = ({
       history,
       currentDevices,
       deviceDetails,
+      owner,
       timestamp: buildDeviceHistoryTimestamp({ now }),
       createId,
     })

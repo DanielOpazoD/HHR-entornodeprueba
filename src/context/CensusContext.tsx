@@ -14,6 +14,10 @@ export interface CensusContextType {
     isSignatureMode: boolean;
     currentDateString: string;
     existingDaysInMonth: number[]; // From useExistingDays
+    /** Active clinical day (08:00/09:00 shift rollover); reactive across the rollover. */
+    clinicalToday: string;
+    /** Jump the selection back to the clinical day (used by the banner + date strip). */
+    goToClinicalToday: () => void;
   };
 
   // Domain Services

@@ -4,10 +4,12 @@ import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 import { ClinicalDocumentFooterSection } from '@/features/clinical-documents/components/ClinicalDocumentFooterSection';
+import { ClinicalDocumentLockBanner } from '@/features/clinical-documents/components/ClinicalDocumentLockBanner';
 import { ClinicalDocumentPatientInfoSection } from '@/features/clinical-documents/components/ClinicalDocumentPatientInfoSection';
 import { ClinicalDocumentSectionList } from '@/features/clinical-documents/components/ClinicalDocumentSectionList';
 import { ClinicalDocumentSheetHeader } from '@/features/clinical-documents/components/ClinicalDocumentSheetHeader';
 import { ClinicalDocumentAnnexPage } from '@/features/clinical-documents/components/ClinicalDocumentAnnexPage';
+import { ClinicalAttachmentsPanel } from '@/features/clinical-documents/components/ClinicalAttachmentsPanel';
 import type { ClinicalDocumentSheetProps } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
 
 export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
@@ -27,6 +29,19 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
   onToggleIndicationsPanel,
   onEditorActivate,
   onEditorDeactivate,
+  onImagePasteRejected,
+  attachments,
+  patientAttachments,
+  isLoadingAttachments,
+  isLoadingPatientAttachments,
+  isUploadingAttachment,
+  uploadStatusMessage,
+  onUploadAttachment,
+  onDeleteAttachment,
+  onRenameAttachment,
+  onRegenerateAttachmentAccess,
+  onSuggestAttachmentName,
+  onUploadPastedImage,
   dragHandlers,
   patchDocumentTitle,
   patchPatientInfoTitle,
@@ -42,9 +57,16 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
   addSection,
   patchFooterLabel,
   patchDocumentMeta,
+  signatureProfile,
+  onSaveSignatureProfile,
+  onApplySignatureProfile,
   indicationsCatalog,
   isSavingCustomIndication,
   customIndicationError,
+  createIndicationsTab,
+  renameIndicationsTab,
+  deleteIndicationsTab,
+  reorderIndicationsTab,
   addCustomIndication,
   updateIndication,
   deleteIndication,
@@ -83,6 +105,12 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
   return (
     <div className="mx-auto max-w-6xl space-y-3">
       {toolbar}
+
+      <ClinicalDocumentLockBanner
+        isLocked={selectedDocument.isLocked}
+        lockedReason={selectedDocument.lockedReason}
+        lockedAt={selectedDocument.lockedAt}
+      />
 
       <div id="clinical-document-sheet" className="clinical-document-sheet">
         <ClinicalDocumentSheetHeader
@@ -147,6 +175,10 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
           indicationsCatalog={indicationsCatalog}
           isSavingCustomIndication={isSavingCustomIndication}
           customIndicationError={customIndicationError}
+          onCreateIndicationsTab={createIndicationsTab}
+          onRenameIndicationsTab={renameIndicationsTab}
+          onDeleteIndicationsTab={deleteIndicationsTab}
+          onReorderIndicationsTab={reorderIndicationsTab}
           onSetActiveTitleTarget={onSetActiveTitleTarget}
           onPatchSectionTitle={patchSectionTitle}
           onPatchSection={patchSection}
@@ -157,6 +189,8 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
           onAddSection={addSection}
           onEditorActivate={onEditorActivate}
           onEditorDeactivate={onEditorDeactivate}
+          onUploadPastedImage={onUploadPastedImage}
+          onImagePasteRejected={onImagePasteRejected}
           onSetActivePlanSubsectionId={onSetActivePlanSubsectionId}
           onSetActiveIndicationsSpecialtyId={onSetActiveIndicationsSpecialtyId}
           onToggleIndicationsPanel={onToggleIndicationsPanel}
@@ -177,6 +211,9 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
           canEdit={canEdit}
           onPatchFooterLabel={patchFooterLabel}
           onPatchDocumentMeta={patchDocumentMeta}
+          signatureProfile={signatureProfile}
+          onSaveSignatureProfile={onSaveSignatureProfile}
+          onApplySignatureProfile={onApplySignatureProfile}
           onClearActiveTitleTarget={() => onSetActiveTitleTarget(null)}
         />
 
@@ -196,9 +233,28 @@ export const ClinicalDocumentSheet: React.FC<ClinicalDocumentSheetProps> = ({
             onClear={clearAnnexContent}
             onEditorActivate={onEditorActivate}
             onEditorDeactivate={onEditorDeactivate}
+            onUploadPastedImage={onUploadPastedImage}
+            onImagePasteRejected={onImagePasteRejected}
           />
         )}
       </div>
+
+      <ClinicalAttachmentsPanel
+        canEdit={canEdit && !selectedDocument.isLocked}
+        currentDocumentId={selectedDocument.id}
+        currentEpisodeKey={selectedDocument.episodeKey}
+        attachments={attachments}
+        patientAttachments={patientAttachments}
+        isLoading={isLoadingAttachments}
+        isLoadingPatientAttachments={isLoadingPatientAttachments}
+        isUploading={isUploadingAttachment}
+        uploadStatusMessage={uploadStatusMessage}
+        onUploadAttachment={onUploadAttachment}
+        onDeleteAttachment={onDeleteAttachment}
+        onRenameAttachment={onRenameAttachment}
+        onRegenerateAttachmentAccess={onRegenerateAttachmentAccess}
+        onSuggestAttachmentName={onSuggestAttachmentName}
+      />
     </div>
   );
 };

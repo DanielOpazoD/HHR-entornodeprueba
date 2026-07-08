@@ -11,6 +11,9 @@ export interface DischargeModalConfirmPayload extends MovementDateTimeCommandPay
   type?: string;
   typeOther?: string;
   dischargeTarget?: DischargeTarget;
+  diagnosis?: string;
 }
 
-export type TransferModalConfirmPayload = MovementDateTimeCommandPayload;
+export interface TransferModalConfirmPayload extends MovementDateTimeCommandPayload {
+  diagnosis?: string;
+}

@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-07-05T06:02:30.599Z",
+  "policyVersion": "2026-04-v1",
+  "expansionRule": "Ninguna feature nueva puede depender de compatibilidad legacy salvo excepcion documentada y gobernada.",
+  "documentationRule": "Todo bridge debe tener owner, motivo, retirementCriteria y remainingConsumers.",
+  "exceptionProcess": "Las excepciones deben agregarse a este inventario antes de merge y deben quedar cubiertas por guardrail o test de regresion.",
+  "trackedEntries": 4,
+  "missingEntries": [],
+  "entries": [
+    {
+      "path": "functions/lib/auth/authHelpersFactory.js",
+      "owner": "auth",
+      "kind": "migration_shim",
+      "reason": "Autocorregir aliases legacy de roles al resolver acceso desde config/roles sin perder compatibilidad operacional.",
+      "remainingConsumers": "callables auth que todavía pueden encontrar viewer_census en config/roles legado",
+      "retirementCriteria": "Fuente real de roles sin aliases legacy y helper sin write-back de canonización.",
+      "target": "2026-Q2",
+      "exists": true,
+      "riskIfRetained": "Puede ocultar deuda transicional y retrasar el retiro del modelo legacy."
+    },
+    {
+      "path": "netlify/functions/lib/firebase-auth.ts",
+      "owner": "platform",
+      "kind": "migration_shim",
+      "reason": "Autocorregir aliases legacy de roles antes de autorizar endpoints serverless sensibles.",
+      "remainingConsumers": "Netlify Functions que dependen de config/roles como fuente operativa de autorización",
+      "retirementCriteria": "Fuente real de roles sin aliases legacy y helper sin compatibilidad viewer_census -> viewer.",
+      "target": "2026-Q2",
+      "exists": true,
+      "riskIfRetained": "Puede ocultar deuda transicional y retrasar el retiro del modelo legacy."
+    },
+    {
+      "path": "firestore.rules",
+      "owner": "security",
+      "kind": "legacy_bridge",
+      "reason": "Mantener compatibilidad temporal de claims/config legacy hasta cerrar la migración operacional completa.",
+      "remainingConsumers": "tokens o config/roles aún no recanonizados en ambientes desplegados",
+      "retirementCriteria": "Claims activos y config/roles sin viewer_census en producción, con rules recortadas al rol canónico.",
+      "target": "2026-Q2",
+      "exists": true,
+      "riskIfRetained": "Extiende superficie de compatibilidad y riesgo operativo en reglas o datos."
+    },
+    {
+      "path": "storage.rules",
+      "owner": "security",
+      "kind": "legacy_bridge",
+      "reason": "Mantener compatibilidad temporal de claims viewer legacy para storage mientras se completa la recanonización.",
+      "remainingConsumers": "sesiones existentes con claim viewer_census todavía sin refresh de token",
+      "retirementCriteria": "Claims activos sin viewer_census en producción y rules limitadas al rol viewer canónico.",
+      "target": "2026-Q2",
+      "exists": true,
+      "riskIfRetained": "Extiende superficie de compatibilidad y riesgo operativo en reglas o datos."
+    }
+  ]
+}

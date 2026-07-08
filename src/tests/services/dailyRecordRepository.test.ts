@@ -185,7 +185,13 @@ describe('DailyRecordRepository (Expanded)', () => {
       expect(firestoreMock.updateRecordPartial).toHaveBeenCalledWith(
         '2024-12-28',
         expect.objectContaining({ 'beds.R1.patientName': 'New' }),
-        expect.any(String)
+        expect.any(String),
+        expect.objectContaining({
+          syncContract: expect.objectContaining({
+            changedPaths: ['beds.R1.patientName'],
+            expectedVersion: expect.any(String),
+          }),
+        })
       );
     });
 

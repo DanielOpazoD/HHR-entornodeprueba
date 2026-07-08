@@ -78,7 +78,7 @@ describe('admissionInputController', () => {
     });
   });
 
-  it('builds a single-field update plan when time exists and firstSeenDate is already set', () => {
+  it('repairs firstSeenDate when time exists and date is corrected to current day', () => {
     expect(
       resolveAdmissionDateUpdatePlan({
         nextDate: '2026-02-15',
@@ -90,6 +90,42 @@ describe('admissionInputController', () => {
     ).toEqual({
       nextPatch: {
         admissionDate: '2026-02-15',
+        firstSeenDate: '2026-02-15',
+      },
+      shouldUseMultipleUpdate: true,
+    });
+  });
+
+  it('repairs stale firstSeenDate when admission date is corrected to current record day', () => {
+    expect(
+      resolveAdmissionDateUpdatePlan({
+        nextDate: '2026-02-15',
+        currentAdmissionTime: '05:30',
+        currentDateString: '2026-02-15',
+        firstSeenDate: '2026-02-14',
+        now: new Date('2026-02-15T06:42:00'),
+      })
+    ).toEqual({
+      nextPatch: {
+        admissionDate: '2026-02-15',
+        firstSeenDate: '2026-02-15',
+      },
+      shouldUseMultipleUpdate: true,
+    });
+  });
+
+  it('does not repair firstSeenDate when admission date is moved away from current record day', () => {
+    expect(
+      resolveAdmissionDateUpdatePlan({
+        nextDate: '2026-02-16',
+        currentAdmissionTime: '05:30',
+        currentDateString: '2026-02-15',
+        firstSeenDate: '2026-02-14',
+        now: new Date('2026-02-15T06:42:00'),
+      })
+    ).toEqual({
+      nextPatch: {
+        admissionDate: '2026-02-16',
       },
       shouldUseMultipleUpdate: false,
     });

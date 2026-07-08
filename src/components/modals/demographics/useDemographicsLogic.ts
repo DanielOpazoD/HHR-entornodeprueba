@@ -141,6 +141,7 @@ export const useDemographicsLogic = ({
         origin: localData.origin as Origin,
         isRapanui: localData.isRapanui,
         biologicalSex: localData.biologicalSex as BiologicalSex,
+        pathology: localData.pathology,
         age,
       });
       onClose();
@@ -179,6 +180,7 @@ export const useDemographicsLogic = ({
       origin: localData.origin as Origin,
       isRapanui: localData.isRapanui,
       biologicalSex: localData.biologicalSex as BiologicalSex,
+      pathology: localData.pathology,
       age,
     });
     onClose();

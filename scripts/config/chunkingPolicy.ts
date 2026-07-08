@@ -4,13 +4,20 @@ export const chunkForModule = (moduleId: string): string | undefined => {
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
 
   if (
+    has('/src/components/layout/app-content/AppContentOverlays.tsx') ||
+    has('/src/components/layout/app-content/appContentOverlaysController.ts') ||
+    has('/src/components/layout/app-content/usePatientSearchShortcut.ts')
+  ) {
+    return undefined;
+  }
+
+  if (
     has('/src/app-shell/runtime/AuthenticatedAppShell.tsx') ||
     has('/src/app-shell/runtime/useAuthenticatedAppRuntime.ts') ||
     has('/src/components/layout/AppContent.tsx') ||
     has('/src/components/layout/app-content/') ||
     has('/src/components/AppProviders.tsx') ||
-    has('/src/context/CensusContext.tsx') ||
-    has('/src/context/ReminderCenterContext.tsx')
+    has('/src/context/CensusContext.tsx')
   ) {
     return 'app-authenticated-shell';
   }
@@ -76,6 +83,14 @@ export const chunkForModule = (moduleId: string): string | undefined => {
 
     if (has('/node_modules/html2canvas/')) {
       return 'vendor-canvas';
+    }
+
+    if (has('/node_modules/heic2any/')) {
+      return 'vendor-heic2any';
+    }
+
+    if (has('/node_modules/pdfjs-dist/')) {
+      return 'vendor-pdfjs';
     }
 
     if (has('/node_modules/exceljs/lib/xlsx/')) {

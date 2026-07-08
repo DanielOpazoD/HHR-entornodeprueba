@@ -12,6 +12,7 @@ import type { PatientRowCapabilities } from '@/features/census/controllers/patie
 import type { PatientRowResolvedIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
 import { buildPatientMainRowViewState } from '@/features/census/controllers/patientRowMainViewController';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface PatientRowViewContext {
   capabilities: PatientRowCapabilities;
@@ -40,6 +41,8 @@ interface BuildMainSectionBindingsParams {
   data: PatientData;
   currentDateString: string;
   readOnly: boolean;
+  clinicalEditingDisabled?: boolean;
+  clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
   actionMenuAlign: RowMenuAlign;
   diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
@@ -54,6 +57,8 @@ export const buildPatientMainSectionBindings = ({
   data,
   currentDateString,
   readOnly,
+  clinicalEditingDisabled = false,
+  clinicalFieldLocks,
   actionMenuAlign,
   diagnosisMode,
   accessProfile,
@@ -63,7 +68,7 @@ export const buildPatientMainSectionBindings = ({
 }: BuildMainSectionBindingsParams): PatientMainRowBindings => {
   const mainRowViewState = buildPatientMainRowViewState({
     bedId: bed.id,
-    readOnly,
+    readOnly: readOnly || clinicalEditingDisabled,
     isEmpty: runtime.rowState.isEmpty,
     isBlocked: runtime.rowState.isBlocked,
     capabilities: viewContext.capabilities,
@@ -78,6 +83,8 @@ export const buildPatientMainSectionBindings = ({
     currentDateString,
     style,
     readOnly,
+    clinicalEditingDisabled,
+    clinicalFieldLocks,
     actionMenuAlign,
     diagnosisMode,
     accessProfile,
@@ -103,6 +110,8 @@ interface BuildSubSectionBindingsParams {
   data: PatientData;
   currentDateString: string;
   readOnly: boolean;
+  clinicalEditingDisabled?: boolean;
+  clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
   diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   style?: React.CSSProperties;
@@ -113,6 +122,8 @@ export const buildPatientSubSectionBindings = ({
   data,
   currentDateString,
   readOnly,
+  clinicalEditingDisabled = false,
+  clinicalFieldLocks,
   diagnosisMode,
   accessProfile,
   style,
@@ -121,6 +132,8 @@ export const buildPatientSubSectionBindings = ({
   data,
   currentDateString,
   readOnly,
+  clinicalEditingDisabled,
+  clinicalFieldLocks,
   diagnosisMode,
   accessProfile,
   style,
@@ -133,6 +146,7 @@ interface BuildModalSectionBindingsParams {
   data: PatientData;
   currentDateString: string;
   isSubRow: boolean;
+  canUseArbitraryAdmissionDate?: boolean;
   runtime: PatientRowRuntime;
   viewContext: PatientRowViewContext;
 }
@@ -142,6 +156,7 @@ export const buildPatientModalSectionBindings = ({
   data,
   currentDateString,
   isSubRow,
+  canUseArbitraryAdmissionDate = false,
   runtime,
   viewContext,
 }: BuildModalSectionBindingsParams): PatientRowModalsBindings => ({
@@ -162,4 +177,5 @@ export const buildPatientModalSectionBindings = ({
   onSaveDemographics: runtime.modalSavers.onSaveDemographics,
   onSaveCribDemographics: runtime.modalSavers.onSaveCribDemographics,
   onRevertEmptyDemographics: runtime.modalSavers.onRevertEmptyDemographics,
+  canUseArbitraryAdmissionDate,
 });

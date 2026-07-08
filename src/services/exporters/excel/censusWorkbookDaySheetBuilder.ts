@@ -9,6 +9,11 @@ import { addDischargesTable } from '@/services/exporters/excel/sections/discharg
 import { addTransfersTable } from '@/services/exporters/excel/sections/transfersTable';
 import { addCMATable } from '@/services/exporters/excel/sections/cmaTable';
 import { applyCensusDaySheetColumnLayout } from '@/services/exporters/excel/censusWorkbookColumnLayout';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 export const createCensusWorkbookDaySheet = (
   workbook: Workbook,
@@ -31,12 +36,12 @@ export const createCensusWorkbookDaySheet = (
   currentRow = addCensusTable(sheet, record, currentRow);
   currentRow++;
 
-  currentRow = addDischargesTable(sheet, record.discharges || [], currentRow);
+  currentRow = addDischargesTable(sheet, getActiveDischarges(record.discharges), currentRow);
   currentRow++;
 
-  currentRow = addTransfersTable(sheet, record.transfers || [], currentRow);
+  currentRow = addTransfersTable(sheet, getActiveTransfers(record.transfers), currentRow);
   currentRow++;
 
-  addCMATable(sheet, record.cma || [], currentRow);
+  addCMATable(sheet, getActiveCma(record.cma), currentRow);
   applyCensusDaySheetColumnLayout(sheet);
 };

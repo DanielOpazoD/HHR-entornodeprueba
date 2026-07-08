@@ -20,6 +20,8 @@ import {
 import { signInWithGoogleRedirect } from '@/services/auth/authFallback';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 
+const GOOGLE_POPUP_AUTH_TIMEOUT_MS = 30_000;
+
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
 }
@@ -44,6 +46,30 @@ const resolveE2EPopupUser = async (): Promise<AuthUser | null> => {
   }
 
   return consumeE2EPopupMockUser();
+};
+
+const signInWithPopupTimeout = async (
+  authRuntime: AuthRuntime
+): ReturnType<typeof signInWithPopup> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(
+        createAuthError(
+          'auth/popup-timeout',
+          'La ventana de Google no respondió a tiempo. Intenta nuevamente desde el botón principal.'
+        )
+      );
+    }, GOOGLE_POPUP_AUTH_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([signInWithPopup(authRuntime.auth, googleProvider), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 };
 
 const withGoogleLoginLock = async <T>(runner: () => Promise<T>): Promise<T> => {
@@ -82,7 +108,7 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
         return e2ePopupUser;
       }
 
-      const result = await signInWithPopup(authRuntime.auth, googleProvider);
+      const result = await signInWithPopupTimeout(authRuntime);
       return await authorizeFirebaseUser(result.user, { authRuntime });
     } catch (error: unknown) {
       const authError = error as { message?: string };

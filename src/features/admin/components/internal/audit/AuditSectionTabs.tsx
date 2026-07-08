@@ -29,10 +29,21 @@ export const AuditSectionTabs: React.FC<AuditSectionTabsProps> = ({
       : 'px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2';
 
   return (
-    <div className={containerClassName}>
+    <div
+      className={containerClassName}
+      role="tablist"
+      aria-label={
+        variant === 'clinical'
+          ? 'Categorías clínicas de auditoría'
+          : 'Categorías técnicas de auditoría'
+      }
+    >
       {sections.map(section => (
         <button
           key={section}
+          type="button"
+          role="tab"
+          aria-selected={activeSection === section}
           onClick={() => onSelectSection(section)}
           className={clsx(
             buttonClassName,

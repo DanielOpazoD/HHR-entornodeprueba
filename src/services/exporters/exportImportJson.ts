@@ -1,5 +1,5 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { saveRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { saveRecordsStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 
@@ -19,8 +19,14 @@ const readFileAsText = (file: File): Promise<string> =>
     reader.readAsText(file);
   });
 
-const persistImportedRecords = async (records: DailyRecord[]): Promise<void> => {
-  await Promise.all(records.map(record => saveRecord(record)));
+const persistImportedRecords = async (records: DailyRecord[]): Promise<boolean> => {
+  const result = await saveRecordsStrict(records);
+  if (!result.ok) {
+    jsonImportLogger.error('JSON import local persistence failed', result.error);
+    return false;
+  }
+
+  return true;
 };
 
 const parseImportPayload = (text: string): Record<string, unknown> => {
@@ -54,7 +60,9 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     });
 
     if (importedRecords.length === 0) {
-      alert('El archivo JSON no contiene registros importables.');
+      // No raw alert here: the caller (executeImportJsonBackup +
+      // UI consumer) already presents the failure via useNotification
+      // based on the outcome contract below.
       return {
         success: false,
         outcome: 'blocked',
@@ -64,7 +72,17 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       };
     }
 
-    await persistImportedRecords(importedRecords);
+    const persisted = await persistImportedRecords(importedRecords);
+    if (!persisted) {
+      return {
+        success: false,
+        outcome: 'blocked',
+        importedCount: 0,
+        repairedCount: 0,
+        skippedEntries,
+      };
+    }
+
     const outcome =
       skippedEntries.length > 0 ? 'partial' : repairedCount > 0 ? 'repaired' : 'clean';
     return {
@@ -76,7 +94,8 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     };
   } catch (error) {
     jsonImportLogger.error('JSON import failed', error);
-    alert('Error al procesar el archivo JSON.');
+    // No raw alert: the caller maps this to ApplicationOutcome 'failed'
+    // and presents the message through useNotification.
     return {
       success: false,
       outcome: 'blocked',

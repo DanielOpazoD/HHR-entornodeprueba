@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useBedOperations } from '@/hooks/useBedOperations';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -176,7 +176,7 @@ describe('useBedOperations', () => {
   });
 
   describe('clearPatient', () => {
-    it('should clear patient and call logPatientCleared if patientName exists', () => {
+    it('should clear patient and call logPatientCleared after persistence accepts the patch', async () => {
       const patient = createMockPatient('B1', 'To Clear');
       const record = createMockRecord({ B1: patient });
 
@@ -189,12 +189,14 @@ describe('useBedOperations', () => {
       expect(mockPatchRecord).toHaveBeenCalledWith({
         'beds.B1': expect.objectContaining({ patientName: '' }),
       });
-      expect(mockLogPatientCleared).toHaveBeenCalledWith(
-        'B1',
-        'To Clear',
-        patient.rut,
-        record.date
-      );
+      await waitFor(() => {
+        expect(mockLogPatientCleared).toHaveBeenCalledWith(
+          'B1',
+          'To Clear',
+          patient.rut,
+          record.date
+        );
+      });
     });
   });
 

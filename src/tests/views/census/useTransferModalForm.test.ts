@@ -53,6 +53,7 @@ describe('useTransferModalForm', () => {
           receivingCenter: DEFAULT_RECEIVING_CENTER,
           receivingCenterOther: '',
           transferEscort,
+          diagnosis: 'Neumonía basal derecha',
           onUpdate: vi.fn(),
           onConfirm,
           resolveDefaultTime: () => '09:00',
@@ -75,7 +76,11 @@ describe('useTransferModalForm', () => {
       result.current.submit();
     });
 
-    expect(onConfirm).toHaveBeenCalledWith({ time: '11:00', movementDate: undefined });
+    expect(onConfirm).toHaveBeenCalledWith({
+      time: '11:00',
+      movementDate: undefined,
+      diagnosis: 'Neumonía basal derecha',
+    });
   });
 
   it('blocks submit with canonical dateTime error when movement is out of shift range', () => {

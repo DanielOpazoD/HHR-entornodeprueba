@@ -26,10 +26,16 @@ describe('censusDischargesTableController', () => {
   });
 
   it('builds row action descriptors that invoke typed handlers', () => {
-    const discharge = DataFactory.createMockDischarge({ id: 'd-2' });
+    const discharge = DataFactory.createMockDischarge({
+      id: 'd-2',
+      status: 'Vivo',
+      dischargeType: 'Domicilio (Habitual)',
+    });
     let undoCalledWith = '';
+    let viewedId = '';
     let editedId = '';
     let deleteCalledWith = '';
+    let convertedId = '';
 
     const actions = buildDischargeRowActions(discharge, {
       undoDischarge: id => {
@@ -38,18 +44,49 @@ describe('censusDischargesTableController', () => {
       editDischarge: entry => {
         editedId = entry.id;
       },
+      viewClinicalDocuments: entry => {
+        viewedId = entry.id;
+      },
       deleteDischarge: id => {
         deleteCalledWith = id;
       },
+      convertDischargeToCma: id => {
+        convertedId = id;
+      },
     });
-    expect(actions.map(action => action.kind)).toEqual(['undo', 'edit', 'delete']);
+    expect(actions.map(action => action.kind)).toEqual([
+      'undo',
+      'viewDocuments',
+      'edit',
+      'convert',
+      'delete',
+    ]);
 
     actions[0].onClick();
     actions[1].onClick();
     actions[2].onClick();
+    actions[3].onClick();
+    actions[4].onClick();
 
     expect(undoCalledWith).toBe('d-2');
+    expect(viewedId).toBe('d-2');
     expect(editedId).toBe('d-2');
     expect(deleteCalledWith).toBe('d-2');
+    expect(convertedId).toBe('d-2');
+  });
+
+  it('does not expose CMA conversion for non-home discharges', () => {
+    const actions = buildDischargeRowActions(
+      DataFactory.createMockDischarge({ id: 'd-fuga', status: 'Vivo', dischargeType: 'Fuga' }),
+      {
+        undoDischarge: () => undefined,
+        editDischarge: () => undefined,
+        viewClinicalDocuments: () => undefined,
+        deleteDischarge: () => undefined,
+        convertDischargeToCma: () => undefined,
+      }
+    );
+
+    expect(actions.map(action => action.kind)).toEqual(['undo', 'viewDocuments', 'edit', 'delete']);
   });
 });

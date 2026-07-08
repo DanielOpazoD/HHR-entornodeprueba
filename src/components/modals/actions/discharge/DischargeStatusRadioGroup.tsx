@@ -15,10 +15,10 @@ export const DischargeStatusRadioGroup: React.FC<DischargeStatusRadioGroupProps>
   status,
   onChange,
 }) => (
-  <div className="space-y-1.5">
-    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+  <fieldset className="space-y-1.5">
+    <legend className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
       {label}
-    </label>
+    </legend>
     <div className="flex gap-6 pl-1">
       <label className="flex items-center gap-2 cursor-pointer group">
         <input
@@ -61,5 +61,5 @@ export const DischargeStatusRadioGroup: React.FC<DischargeStatusRadioGroupProps>
         </span>
       </label>
     </div>
-  </div>
+  </fieldset>
 );

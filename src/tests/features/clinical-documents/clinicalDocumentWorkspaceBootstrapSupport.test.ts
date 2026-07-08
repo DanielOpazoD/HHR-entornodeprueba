@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  filterClinicalDocumentsForCurrentEpisode,
   resolveNextSelectedClinicalDocumentId,
   resolveSelectedClinicalTemplateId,
   shouldSeedClinicalDocumentTemplates,
@@ -97,5 +98,29 @@ describe('clinicalDocumentWorkspaceBootstrapSupport', () => {
     );
     expect(resolveNextSelectedClinicalDocumentId([primary], 'missing')).toBe('primary');
     expect(resolveNextSelectedClinicalDocumentId([], 'missing')).toBeNull();
+  });
+
+  it('rejects documents from another patient even when a stale episode key matches the bed', () => {
+    const oldPatientDocument = {
+      ...buildDocument('old-patient-doc'),
+      episodeKey: 'ep_stale_bed_episode',
+      patientRut: '17.444.506-0',
+      patientName: 'Carla Walker Rapu',
+    };
+    const currentPatientDocument = {
+      ...buildDocument('current-patient-doc'),
+      episodeKey: 'ep_stale_bed_episode',
+      patientRut: '14.161.042-2',
+      patientName: 'Rodrigo Valenzuela Navarro',
+    };
+
+    expect(
+      filterClinicalDocumentsForCurrentEpisode({
+        documents: [oldPatientDocument, currentPatientDocument],
+        currentEpisodeKey: 'ep_stale_bed_episode',
+        allowedEpisodeKeys: ['ep_stale_bed_episode'],
+        currentPatientRut: '14.161.042-2',
+      }).map(document => document.id)
+    ).toEqual(['current-patient-doc']);
   });
 });

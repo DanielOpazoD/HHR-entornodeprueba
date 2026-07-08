@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type {
   CesareanLabor,
   DeliveryRoute,
@@ -19,8 +19,15 @@ import {
   buildPatientMultipleUpdater,
 } from '@/features/census/controllers/patientRowInputUpdateController';
 import { buildPatientRowInputCommands } from '@/features/census/controllers/patientRowInputHandlersController';
+import {
+  hasPatientRowPatchFields,
+  isClinicalInitialBlockField,
+  splitClinicalInitialBlockPatch,
+} from '@/features/census/controllers/clinicalInitialBlockCoalescingController';
 import { harmonizeEpisodeDemographicsHistorySafely } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
 import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
+
+const CLINICAL_INITIAL_BLOCK_COALESCE_MS = 400;
 
 interface UsePatientRowMainInputHandlersParams {
   bedId: string;
@@ -47,22 +54,91 @@ interface UsePatientRowUpdateAdapterParams {
   bedId: string;
   updateSingle: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
   updateMany: (bedId: string, fields: PatientRowPatientPatch) => void;
+  coalesceClinicalInitialBlock?: boolean;
 }
 
 const usePatientRowUpdateAdapter = ({
   bedId,
   updateSingle,
   updateMany,
+  coalesceClinicalInitialBlock = false,
 }: UsePatientRowUpdateAdapterParams) => {
-  const updateField = useMemo(
-    () => buildPatientFieldUpdater({ bedId, updateSingle }),
-    [bedId, updateSingle]
+  const pendingClinicalFieldsRef = useRef<PatientRowPatientPatch>({});
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateManyRef = useRef(updateMany);
+
+  useEffect(() => {
+    updateManyRef.current = updateMany;
+  }, [updateMany]);
+
+  const flushPendingClinicalFields = useCallback(() => {
+    if (pendingTimerRef.current) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+
+    const pendingFields = pendingClinicalFieldsRef.current;
+    pendingClinicalFieldsRef.current = {};
+    if (hasPatientRowPatchFields(pendingFields)) {
+      updateManyRef.current(bedId, pendingFields);
+    }
+  }, [bedId]);
+
+  const queueClinicalFields = useCallback(
+    (fields: PatientRowPatientPatch) => {
+      pendingClinicalFieldsRef.current = {
+        ...pendingClinicalFieldsRef.current,
+        ...fields,
+      };
+
+      if (pendingTimerRef.current) {
+        clearTimeout(pendingTimerRef.current);
+      }
+
+      pendingTimerRef.current = setTimeout(
+        flushPendingClinicalFields,
+        CLINICAL_INITIAL_BLOCK_COALESCE_MS
+      );
+    },
+    [flushPendingClinicalFields]
   );
 
-  const updateMultiple = useMemo(
-    () => buildPatientMultipleUpdater({ bedId, updateMany }),
-    [bedId, updateMany]
-  );
+  useEffect(() => flushPendingClinicalFields, [flushPendingClinicalFields]);
+
+  const updateField = useMemo(() => {
+    const immediateUpdateField = buildPatientFieldUpdater({ bedId, updateSingle });
+    if (!coalesceClinicalInitialBlock) {
+      return immediateUpdateField;
+    }
+
+    return (field: PatientRowPatientField, value: PatientFieldValue) => {
+      if (!isClinicalInitialBlockField(field)) {
+        immediateUpdateField(field, value);
+        return;
+      }
+
+      queueClinicalFields({ [field]: value });
+    };
+  }, [bedId, coalesceClinicalInitialBlock, queueClinicalFields, updateSingle]);
+
+  const updateMultiple = useMemo(() => {
+    const immediateUpdateMultiple = buildPatientMultipleUpdater({ bedId, updateMany });
+    if (!coalesceClinicalInitialBlock) {
+      return immediateUpdateMultiple;
+    }
+
+    return (fields: PatientRowPatientPatch) => {
+      const { clinicalFields, immediateFields } = splitClinicalInitialBlockPatch(fields);
+
+      if (hasPatientRowPatchFields(immediateFields)) {
+        immediateUpdateMultiple(immediateFields);
+      }
+
+      if (hasPatientRowPatchFields(clinicalFields)) {
+        queueClinicalFields(clinicalFields);
+      }
+    };
+  }, [bedId, coalesceClinicalInitialBlock, queueClinicalFields, updateMany]);
 
   return {
     updateField,
@@ -82,6 +158,7 @@ export const usePatientRowMainInputHandlers = ({
     bedId,
     updateSingle: updatePatient,
     updateMany: updatePatientMultiple,
+    coalesceClinicalInitialBlock: true,
   });
 
   const commands = useMemo(

@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import istanbulCoverage from 'istanbul-lib-coverage';
+import { getGitReportState } from './gitReportState.mjs';
 
 const { createCoverageMap } = istanbulCoverage;
 
@@ -226,6 +227,7 @@ export const getCriticalCoverageTestTargets = root => {
 export const buildCriticalCoverageReport = root => {
   const coverageMap = readCoverageMap(root);
   const configuredZones = loadCriticalCoverageConfig(root);
+  const gitState = getGitReportState(root);
 
   const criticalZones = configuredZones.map(zoneConfig => {
     const sourceFiles = listSourceFiles(root, zoneConfig.sources);
@@ -258,6 +260,7 @@ export const buildCriticalCoverageReport = root => {
 
   return {
     generatedAt: new Date().toISOString(),
+    ...gitState,
     mode: 'dual-gated',
     coverageArtifact: COVERAGE_FINAL_PATH,
     coverageArtifactPresent: coverageMap !== null,

@@ -91,16 +91,31 @@ export default tseslint.config(
       '@typescript-eslint/ban-ts-comment': 'warn',
 
       // Architecture boundaries rules
-      'boundaries/element-types': [
+      'boundaries/dependencies': [
         'error',
         {
           default: 'disallow',
           rules: [
-            { from: 'app', allow: ['features', 'services', 'shared'] },
-            { from: 'features', allow: ['services', 'shared'] },
-            { from: 'services', allow: ['shared'] },
-            { from: 'shared', allow: ['shared'] },
+            { from: { type: 'app' }, allow: { to: { type: ['features', 'services', 'shared'] } } },
+            { from: { type: 'features' }, allow: { to: { type: ['services', 'shared'] } } },
+            { from: { type: 'services' }, allow: { to: { type: 'shared' } } },
+            { from: { type: 'shared' }, allow: { to: { type: 'shared' } } },
           ],
+        },
+      ],
+
+      // Glossary enforcement — only terms with zero current usage are banned
+      // (see docs/GLOSSARY.md). Adding new ones requires first migrating all
+      // legitimate uses; otherwise the rule produces noise instead of signal.
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'Identifier[name="intake"]',
+          message: 'Use "admission" / "admisión" instead of "intake" — see docs/GLOSSARY.md',
+        },
+        {
+          selector: 'Identifier[name="swap"]',
+          message: 'Use "moveOrCopy" / "bedMovement" instead of "swap" — see docs/GLOSSARY.md',
         },
       ],
     },
@@ -156,7 +171,7 @@ export default tseslint.config(
   {
     files: ['netlify/functions/**/*.{ts,js}', 'functions/**/*.js'],
     rules: {
-      'boundaries/element-types': 'off',
+      'boundaries/dependencies': 'off',
     },
   },
   {

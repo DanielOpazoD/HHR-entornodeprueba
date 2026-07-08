@@ -1,19 +1,50 @@
 import React from 'react';
 import { AppProviders } from '@/components/AppProviders';
 import { UseUIStateReturn } from '@/hooks/useUIState';
-import { ReminderCenterProvider } from '@/context/ReminderCenterContext';
 import { AppContentChrome } from '@/components/layout/app-content/AppContentChrome';
-import { AppContentOverlays } from '@/components/layout/app-content/AppContentOverlays';
 import { useAppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { useAppContentShellEffects } from '@/components/layout/app-content/useAppContentShellEffects';
 import { buildOpenCensusDateHandler } from '@/components/layout/app-content/appContentCensusDateController';
 import { resolveModuleTheme } from '@/components/layout/app-content/moduleThemeController';
+import {
+  loadReminderCenterProvider,
+  type ReminderCenterProviderComponent,
+} from '@/components/layout/app-content/reminderCenterProviderLoader';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+
+const AppContentOverlays = lazyWithRetry(() =>
+  import('@/components/layout/app-content/AppContentOverlays').then(module => ({
+    default: module.AppContentOverlays,
+  }))
+);
 
 interface AppContentProps {
   ui: UseUIStateReturn;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
 }
+
+const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ children }) => {
+  const [Provider, setProvider] = React.useState<ReminderCenterProviderComponent | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    void loadReminderCenterProvider().then(provider => {
+      if (mounted) {
+        setProvider(() => provider);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!Provider) {
+    return <>{children}</>;
+  }
+
+  return <Provider>{children}</Provider>;
+};
 
 export const AppContent: React.FC<AppContentProps> = ({ ui, renderFeatureQuickActions }) => {
   const runtime = useAppContentRuntime({ ui });
@@ -47,7 +78,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui, renderFeatureQuickAc
 
   return (
     <AppProviders dailyRecordHook={dailyRecordHook}>
-      <ReminderCenterProvider>
+      <DeferredReminderCenterProvider>
         <div
           data-module={resolveModuleTheme(ui.currentModule)}
           className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0"
@@ -58,9 +89,11 @@ export const AppContent: React.FC<AppContentProps> = ({ ui, renderFeatureQuickAc
             onOpenCensusDate={openCensusDate}
             renderFeatureQuickActions={renderFeatureQuickActions}
           />
-          <AppContentOverlays ui={ui} runtime={runtime} onOpenCensusDate={openCensusDate} />
+          <React.Suspense fallback={null}>
+            <AppContentOverlays ui={ui} runtime={runtime} onOpenCensusDate={openCensusDate} />
+          </React.Suspense>
         </div>
-      </ReminderCenterProvider>
+      </DeferredReminderCenterProvider>
     </AppProviders>
   );
 };

@@ -45,9 +45,16 @@ describe('TransferRow', () => {
     expect(screen.getByText('Clinica Demo')).toBeInTheDocument();
     expect(screen.getByText(/Acompaña: Enfermera Demo/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
-    fireEvent.click(screen.getByTitle('Editar'));
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    expect(screen.queryByTitle('Deshacer (Restaurar a Cama)')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Deshacer (Restaurar a Cama)' }));
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar' }));
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Eliminar Registro' }));
 
     expect(onUndo).toHaveBeenCalledWith('t1');
     expect(onEdit).toHaveBeenCalledWith(item);

@@ -25,8 +25,8 @@ describe('shared loginBackgroundModeController', () => {
   });
 
   it('resolves day and night assets from the shared UI contract', () => {
-    expect(resolveLoginBackgroundImage('day')).toBe('/images/login/hhr-login-day.png');
-    expect(resolveLoginBackgroundImage('night')).toBe('/images/login/hhr-login-night.png');
+    expect(resolveLoginBackgroundImage('day')).toBe('/images/login/hhr-login-day.webp');
+    expect(resolveLoginBackgroundImage('night')).toBe('/images/login/hhr-login-night.webp');
   });
 
   it('uses day mode only during daytime hours', () => {

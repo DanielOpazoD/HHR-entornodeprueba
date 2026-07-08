@@ -6,6 +6,14 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
+  saveRecordStrict: vi.fn(record =>
+    Promise.resolve({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    })
+  ),
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
@@ -13,8 +21,22 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
 }));
 
 vi.mock('@/services/storage/sync', () => ({
+  ackDailyRecordSyncTask: vi.fn().mockResolvedValue(true),
   isRetryableSyncError: vi.fn(),
-  queueSyncTask: vi.fn(),
+  queueSyncTask: vi.fn().mockResolvedValue({
+    accepted: true,
+    mode: 'created',
+    pendingTasks: 1,
+    maxPendingTasks: 1000,
+  }),
+  queueDailyRecordSyncTaskWithLocalRecord: vi.fn().mockResolvedValue({
+    accepted: true,
+    mode: 'created',
+    pendingTasks: 1,
+    maxPendingTasks: 1000,
+  }),
+  releaseDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
+  renewDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -93,7 +115,13 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
       expect.not.objectContaining({
         'beds.R1.fhir_resource': expect.anything(),
       }),
-      current.lastUpdated
+      current.lastUpdated,
+      expect.objectContaining({
+        syncContract: expect.objectContaining({
+          changedPaths: ['beds.R1.medicalHandoffNote', 'beds.R1.medicalHandoffEntries'],
+          expectedVersion: current.lastUpdated,
+        }),
+      })
     );
   });
 
@@ -120,7 +148,13 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
         'beds.R2': expect.anything(),
         'beds.NEO1': expect.anything(),
       }),
-      current.lastUpdated
+      current.lastUpdated,
+      expect.objectContaining({
+        syncContract: expect.objectContaining({
+          changedPaths: ['beds.R1.medicalHandoffNote', 'beds.R1.medicalHandoffEntries'],
+          expectedVersion: current.lastUpdated,
+        }),
+      })
     );
   });
 });

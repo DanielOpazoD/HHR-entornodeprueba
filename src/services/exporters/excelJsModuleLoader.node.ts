@@ -7,8 +7,12 @@ interface ExcelJSModuleType {
     | typeof import('exceljs').Workbook;
 }
 
+const importExcelJsForNode = async (): Promise<unknown> => {
+  return await import('exceljs');
+};
+
 export const loadExcelJSModule = async (): Promise<ExcelJSModuleType> => {
-  return (await import('exceljs')) as unknown as ExcelJSModuleType;
+  return (await importExcelJsForNode()) as ExcelJSModuleType;
 };
 
 export const resolveExcelWorkbookConstructor = (

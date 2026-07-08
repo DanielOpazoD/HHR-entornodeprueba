@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveRowHoverActionFromGlobalPointer,
   resolveRowHoverActionFromRowPointer,
+  resolveLauncherPosition,
   resolveLauncherTriggerVisibility,
   resolveVisibilityHiddenLauncherState,
   shouldReleaseLauncherOwnership,
@@ -169,5 +170,43 @@ describe('row hover actions', () => {
         targetInsideRow: true,
       })
     ).toBe('preserve');
+  });
+});
+
+describe('resolveLauncherPosition', () => {
+  const createRow = (left: number, top = 120, height = 44): HTMLTableRowElement => {
+    const row = document.createElement('tr');
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      value: () => ({
+        x: left,
+        y: top,
+        left,
+        right: left + 680,
+        top,
+        bottom: top + height,
+        width: 680,
+        height,
+        toJSON: () => ({}),
+      }),
+    });
+    return row as HTMLTableRowElement;
+  };
+
+  it('keeps the launcher anchored outside the table when lateral room is tight', () => {
+    const row = createRow(220);
+
+    expect(resolveLauncherPosition(row, 80, 158, 206, 80, 36)).toEqual({
+      left: 60,
+      top: 106,
+    });
+  });
+
+  it('keeps the natural launcher position when there is enough lateral room', () => {
+    const row = createRow(360);
+
+    expect(resolveLauncherPosition(row, 80, 158, 206, 80, 36)).toEqual({
+      left: 200,
+      top: 106,
+    });
   });
 });

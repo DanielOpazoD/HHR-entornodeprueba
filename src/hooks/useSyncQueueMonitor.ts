@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  getSyncQueueTelemetry,
-  listRecentSyncQueueOperations,
-  type SyncQueueOperationSnapshot,
-} from '@/services/storage/sync';
+import { getSyncQueueTelemetry, listRecentSyncQueueOperations } from '@/services/storage/sync';
 import { syncQueueMonitorLogger } from '@/hooks/hookLoggers';
-import type { SyncQueueRuntimeState } from '@/services/storage/sync/syncQueueOperationalBudgets';
+import {
+  buildSyncQueueStats,
+  buildUnavailableSyncQueueStats,
+  EMPTY_SYNC_QUEUE_STATS,
+  hasSyncQueueIssues,
+  type SyncQueueOperation,
+  type SyncQueueStats,
+} from '@/hooks/controllers/syncQueueMonitorController';
 
 export const SYNC_QUEUE_POLL_INTERVAL_MS = 4000;
 
@@ -15,35 +18,7 @@ interface UseSyncQueueMonitorOptions {
   operationLimit?: number;
 }
 
-const EMPTY_STATS: SyncQueueStats = {
-  pending: 0,
-  failed: 0,
-  retrying: 0,
-  acked: 0,
-  conflict: 0,
-};
-
-export interface SyncQueueStats {
-  pending: number;
-  failed: number;
-  retrying: number;
-  acked: number;
-  conflict: number;
-  batchSize?: number;
-  runtimeState?: SyncQueueRuntimeState;
-  readState?: 'ok' | 'unavailable';
-}
-
-export interface SyncQueueOperation {
-  id?: SyncQueueOperationSnapshot['id'];
-  type: SyncQueueOperationSnapshot['type'];
-  status: SyncQueueOperationSnapshot['status'];
-  retryCount: number;
-  timestamp: number;
-  nextAttemptAt?: number;
-  error?: string;
-  key?: string;
-}
+export type { SyncQueueOperation, SyncQueueStats };
 
 export const useSyncQueueMonitor = (
   options: UseSyncQueueMonitorOptions = {}
@@ -58,7 +33,7 @@ export const useSyncQueueMonitor = (
     pollIntervalMs = SYNC_QUEUE_POLL_INTERVAL_MS,
     operationLimit = 5,
   } = options;
-  const [stats, setStats] = useState<SyncQueueStats>(EMPTY_STATS);
+  const [stats, setStats] = useState<SyncQueueStats>(EMPTY_SYNC_QUEUE_STATS);
   const [operations, setOperations] = useState<SyncQueueOperation[]>([]);
   const isMountedRef = useRef(true);
   const refreshRequestIdRef = useRef(0);
@@ -73,7 +48,7 @@ export const useSyncQueueMonitor = (
     const requestId = ++refreshRequestIdRef.current;
 
     try {
-      const [nextStats, nextOps] = await Promise.all([
+      const [telemetryResult, operationsResult] = await Promise.allSettled([
         getSyncQueueTelemetry(),
         listRecentSyncQueueOperations(operationLimit),
       ]);
@@ -82,17 +57,26 @@ export const useSyncQueueMonitor = (
         return;
       }
 
-      setStats({
-        pending: nextStats.pending,
-        failed: nextStats.failed,
-        retrying: nextStats.retrying,
-        acked: 0,
-        conflict: nextStats.conflict || 0,
-        batchSize: nextStats.batchSize,
-        runtimeState: nextStats.runtimeState,
-        readState: nextStats.readState,
-      });
-      setOperations(nextOps);
+      const recentOperationsReadState =
+        operationsResult.status === 'fulfilled' ? 'ok' : 'unavailable';
+
+      if (telemetryResult.status === 'rejected') {
+        syncQueueMonitorLogger.warn('Failed to refresh queue telemetry', telemetryResult.reason);
+      }
+
+      if (operationsResult.status === 'rejected') {
+        syncQueueMonitorLogger.warn(
+          'Failed to refresh recent queue operations',
+          operationsResult.reason
+        );
+      }
+
+      setStats(
+        telemetryResult.status === 'fulfilled'
+          ? buildSyncQueueStats(telemetryResult.value, recentOperationsReadState)
+          : buildUnavailableSyncQueueStats(recentOperationsReadState)
+      );
+      setOperations(operationsResult.status === 'fulfilled' ? operationsResult.value : []);
     } catch (error) {
       if (!isMountedRef.current || requestId !== refreshRequestIdRef.current) {
         return;
@@ -123,14 +107,7 @@ export const useSyncQueueMonitor = (
     };
   }, [enabled, pollIntervalMs, refresh]);
 
-  const hasQueueIssues =
-    stats.pending > 0 ||
-    stats.retrying > 0 ||
-    stats.failed > 0 ||
-    stats.conflict > 0 ||
-    stats.runtimeState === 'degraded' ||
-    stats.runtimeState === 'blocked' ||
-    stats.readState === 'unavailable';
+  const hasQueueIssues = hasSyncQueueIssues(stats);
 
   return { stats, operations, hasQueueIssues, refresh };
 };

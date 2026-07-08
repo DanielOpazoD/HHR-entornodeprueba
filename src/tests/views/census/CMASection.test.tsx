@@ -35,6 +35,7 @@ describe('CMASection', () => {
 
   const deleteCMA = vi.fn();
   const updateCMA = vi.fn();
+  const convertCmaToHomeDischarge = vi.fn();
   const updatePatientMultiple = vi.fn();
   const confirm = vi.fn();
   const notifyError = vi.fn();
@@ -54,6 +55,7 @@ describe('CMASection', () => {
     vi.mocked(useDailyRecordMovementActions).mockReturnValue({
       deleteCMA,
       updateCMA,
+      convertCmaToHomeDischarge,
     } as unknown as MovementActionsValue);
 
     vi.mocked(useDailyRecordBedActions).mockReturnValue({
@@ -115,6 +117,39 @@ describe('CMASection', () => {
     });
   });
 
+  it('saves CMA edit dialog changes in one atomic update', async () => {
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      discharges: [],
+      transfers: [],
+      cma: [
+        {
+          ...cmaItem,
+          diagnosis: 'Diagnóstico original',
+          interventionType: 'Cirugía Mayor Ambulatoria',
+          dischargeTime: '12:00',
+        },
+      ],
+    } as unknown as MovementsValue);
+
+    render(<CMASection />);
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /editar datos cma/i }));
+    fireEvent.change(screen.getByLabelText(/Diagnóstico de egreso/i), {
+      target: { value: 'Diagnóstico actualizado CMA' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
+
+    await waitFor(() => {
+      expect(updateCMA).toHaveBeenCalledTimes(1);
+      expect(updateCMA).toHaveBeenCalledWith('cma-1', {
+        interventionType: 'Cirugía Mayor Ambulatoria',
+        dischargeTime: '12:00',
+        diagnosis: 'Diagnóstico actualizado CMA',
+      });
+    });
+  });
+
   it('restores and deletes CMA entry when undo is confirmed', async () => {
     confirm.mockResolvedValue(true);
     vi.mocked(useDailyRecordMovements).mockReturnValue({
@@ -124,7 +159,8 @@ describe('CMASection', () => {
     } as unknown as MovementsValue);
 
     render(<CMASection />);
-    fireEvent.click(screen.getByTitle('Deshacer: Restaurar paciente a la cama'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
 
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
@@ -152,7 +188,8 @@ describe('CMASection', () => {
     } as unknown as MovementsValue);
 
     render(<CMASection />);
-    fireEvent.click(screen.getByTitle('Deshacer (sin datos originales)'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
 
     expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -163,8 +200,8 @@ describe('CMASection', () => {
     expect(deleteCMA).not.toHaveBeenCalled();
   });
 
-  it('notifies error when undo confirmation fails and supports direct deletion', async () => {
-    confirm.mockRejectedValue(new Error('dialog failed'));
+  it('notifies error when undo confirmation fails and deletes only after confirmation', async () => {
+    confirm.mockRejectedValueOnce(new Error('dialog failed')).mockResolvedValueOnce(true);
     vi.mocked(useDailyRecordMovements).mockReturnValue({
       discharges: [],
       transfers: [],
@@ -172,7 +209,8 @@ describe('CMASection', () => {
     } as unknown as MovementsValue);
 
     render(<CMASection />);
-    fireEvent.click(screen.getByTitle('Deshacer: Restaurar paciente a la cama'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /deshacer/i }));
 
     await waitFor(() => {
       expect(notifyError).toHaveBeenCalledWith(
@@ -181,8 +219,40 @@ describe('CMASection', () => {
       );
     });
 
-    fireEvent.click(screen.getByTitle('Eliminar registro'));
-    expect(deleteCMA).toHaveBeenCalledWith('cma-1');
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /eliminar/i }));
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Eliminar registro CMA',
+          confirmText: 'Eliminar',
+          variant: 'danger',
+        })
+      );
+      expect(deleteCMA).toHaveBeenCalledWith('cma-1');
+    });
+  });
+
+  it('converts CMA into home discharge from the shared actions menu', async () => {
+    confirm.mockResolvedValue(true);
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      discharges: [],
+      transfers: [],
+      cma: [cmaItem],
+    } as unknown as MovementsValue);
+
+    render(<CMASection />);
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /convertir a alta domicilio/i }));
+
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Convertir CMA a alta domicilio',
+        })
+      );
+      expect(convertCmaToHomeDischarge).toHaveBeenCalledWith('cma-1');
+    });
   });
 
   it('returns null when cma list is null', () => {

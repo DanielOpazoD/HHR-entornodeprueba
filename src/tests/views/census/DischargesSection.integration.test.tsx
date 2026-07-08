@@ -70,17 +70,20 @@ describe('DischargesSection integration', () => {
       </UIProvider>
     );
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Deshacer (Restaurar a Cama)' }));
     expect(await screen.findByText('Deshacer alta')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     await waitFor(() => {
       expect(undoDischarge).toHaveBeenCalledWith('d-int-1');
     });
 
-    fireEvent.click(screen.getByTitle('Editar'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Editar' }));
     expect(handleEditDischarge).toHaveBeenCalledWith(dischargeItem);
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Eliminar Registro' }));
     expect(await screen.findByText('Eliminar alta')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     await waitFor(() => {
@@ -88,7 +91,8 @@ describe('DischargesSection integration', () => {
     });
     expect(deleteDischarge).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Eliminar Registro' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }));
     await waitFor(() => {
       expect(deleteDischarge).toHaveBeenCalledWith('d-int-1');

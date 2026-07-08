@@ -66,6 +66,7 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
   requireScript(scripts, 'test:emulator:ui', 'vitest.emulator-ui.config.ts', issues);
   requireScript(scripts, 'test:emulator:sync:ci', 'scripts/run-firestore-sync-emulator-ci.sh', issues);
   requireScript(scripts, 'test:firestore:release:ci', 'scripts/run-firestore-release-gate-ci.sh', issues);
+  requireScript(scripts, 'test:firestore:cma:ci', 'scripts/run-firestore-cma-specialty-ci.sh', issues);
   requireScript(scripts, 'ci:release-gate', 'npm run test:firestore:release:ci', issues);
 
   const releasePack = readJson(root, 'scripts/config/release-confidence-pack.json', issues);
@@ -129,6 +130,29 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
     'scripts/run-firestore-release-gate-ci.sh',
     'npm run test:rules && npm run test:emulator:sync && npm run test:emulator:ui',
     'scripts/run-firestore-release-gate-ci.sh must include rules, sync and UI emulator suites.',
+    issues
+  );
+
+  const cmaGate = readText(root, 'scripts/run-firestore-cma-specialty-ci.sh');
+  requireText(
+    cmaGate,
+    'scripts/run-firestore-cma-specialty-ci.sh',
+    'ensure_java_available',
+    'scripts/run-firestore-cma-specialty-ci.sh must verify Java before starting the emulator.',
+    issues
+  );
+  requireText(
+    cmaGate,
+    'scripts/run-firestore-cma-specialty-ci.sh',
+    'run_firestore_emulator_exec',
+    'scripts/run-firestore-cma-specialty-ci.sh must execute the CMA specialty readback test through the Firestore emulator.',
+    issues
+  );
+  requireText(
+    cmaGate,
+    'scripts/run-firestore-cma-specialty-ci.sh',
+    'src/tests/emulator/cma-specialty-readback.emulator.test.ts',
+    'scripts/run-firestore-cma-specialty-ci.sh must target the CMA specialty readback emulator test.',
     issues
   );
 

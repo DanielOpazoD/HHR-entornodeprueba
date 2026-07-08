@@ -8,15 +8,12 @@ import {
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { type TransferDocumentPackageCacheEntry } from '@/hooks/controllers/transferDocumentPackageController';
 import {
-  prepareTransferDocumentPackage,
-  type TransferDocumentPackageCacheEntry,
-} from '@/hooks/controllers/transferDocumentPackageController';
-import {
-  resolveTransferDocumentPackageApplyPlan,
   resolveTransferDocumentWorkflowPlan,
   withSelectedTransfer,
 } from '@/hooks/controllers/transferViewStatesController';
+import { executeTransferPackageGeneration } from '@/hooks/controllers/transferPackageGenerationController';
 
 const transferViewStatesLogger = createScopedLogger('TransferViewStates');
 
@@ -59,7 +56,7 @@ export const useTransferViewStates = (
       setIsGenerating(true);
       setError(null);
       try {
-        const result = await prepareTransferDocumentPackage({
+        const outcome = await executeTransferPackageGeneration({
           cache: generatedPackageCacheRef.current,
           record,
           transfer,
@@ -69,22 +66,21 @@ export const useTransferViewStates = (
           persistResponses: options?.persistResponses,
         });
 
-        const applyPlan = resolveTransferDocumentPackageApplyPlan(result);
-        if (applyPlan.kind === 'message') {
-          if (applyPlan.shouldLogError && result.kind === 'error') {
-            transferViewStatesLogger.error('Error generating transfer documents', result.error);
+        if (outcome.kind === 'message') {
+          if (outcome.shouldLogError) {
+            transferViewStatesLogger.error('Error generating transfer documents', outcome.error);
           }
-          setError(applyPlan.message);
-          defaultBrowserWindowRuntime.alert(applyPlan.message);
+          setError(outcome.message);
+          defaultBrowserWindowRuntime.alert(outcome.message);
           return;
         }
 
-        if (applyPlan.kind !== 'open-package') {
+        if (outcome.kind !== 'open-package') {
           return;
         }
 
-        setGeneratedDocs(applyPlan.documents);
-        setPatientDataForDocs(applyPlan.patientData);
+        setGeneratedDocs(outcome.documents);
+        setPatientDataForDocs(outcome.patientData);
         setIsQuestionnaireOpen(false);
         setIsPackageModalOpen(true);
       } finally {

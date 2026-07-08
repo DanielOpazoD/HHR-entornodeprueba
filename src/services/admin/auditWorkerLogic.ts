@@ -4,6 +4,8 @@ import type {
   GroupedAuditLogEntry,
   WorkerFilterParams,
 } from '@/types/auditLogTypes';
+import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
+import { buildClinicalAuditPresentation } from '@/services/admin/clinicalAuditPresentation';
 
 /**
  * Pure function to parse timestamps in a worker-safe way.
@@ -43,22 +45,43 @@ export const filterLogs = (logs: AuditLogEntry[], params: WorkerFilterParams): A
   return logs.filter(log => {
     const logDate = parseAuditTimestamp(log.timestamp);
     const patientName = (log.details?.patientName as string) || '';
+    const presentation = buildClinicalAuditPresentation(log);
+    const searchableText = [
+      log.patientIdentifier,
+      log.details?.rut,
+      patientName,
+      log.userDisplayName,
+      log.userId,
+      log.userUid,
+      log.ipAddress,
+      log.entityId,
+      log.summary,
+      AUDIT_ACTION_LABELS[log.action],
+      presentation.title,
+      presentation.narrative,
+      presentation.affectedSubject,
+      presentation.actorLabel,
+      presentation.actorSecondary,
+      presentation.originLabel,
+      presentation.clinicalArea,
+      presentation.impact,
+    ]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(' ')
+      .toLowerCase();
 
     // 1. Global Search
-    const matchesSearch =
-      !searchTerm ||
-      (log.patientIdentifier || '').toLowerCase().includes(searchLower) ||
-      ((log.details?.rut as string) || '').toLowerCase().includes(searchLower) ||
-      patientName.toLowerCase().includes(searchLower) ||
-      (log.userDisplayName || '').toLowerCase().includes(searchLower) ||
-      (log.userId || '').toLowerCase().includes(searchLower);
+    const matchesSearch = !searchTerm || searchableText.includes(searchLower);
 
     // 2. Action Filter
     const matchesFilter = filterAction === 'ALL' || log.action === filterAction;
 
     // 3. Section categorization
     const actions = sectionActions[activeSection];
-    const matchesSection = activeSection === 'ALL' || (actions && actions.includes(log.action));
+    const matchesSection =
+      activeSection === 'ALL' ||
+      activeSection === 'TIMELINE' ||
+      (actions && actions.includes(log.action));
 
     // 4. Date Filter
     const matchesDate =

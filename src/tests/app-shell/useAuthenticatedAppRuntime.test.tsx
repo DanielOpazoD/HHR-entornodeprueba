@@ -45,6 +45,12 @@ vi.mock('@/services/staff/dailyRecordStaffing', () => ({
   resolveShiftNurseSignature: (...args: unknown[]) => mockResolveShiftNurseSignature(...args),
 }));
 
+// Provider-dependent; the runtime builds it inside UI + audit providers. Stub it so
+// the hook can render without those providers in this unit test.
+vi.mock('@/hooks/useStaleDayEditGuard', () => ({
+  useStaleDayEditGuard: () => async () => true,
+}));
+
 import {
   buildAuthenticatedAppRuntime,
   buildAuthenticatedCensusContextValue,
@@ -122,7 +128,12 @@ describe('useAuthenticatedAppRuntime', () => {
 
     const { result } = renderHook(() => useAuthenticatedAppRuntime({ auth, dateNav }));
 
-    expect(mockUseDailyRecord).toHaveBeenCalledWith('2026-03-27', false, 'ready');
+    expect(mockUseDailyRecord).toHaveBeenCalledWith(
+      '2026-03-27',
+      false,
+      'ready',
+      expect.any(Function)
+    );
     expect(mockUseExistingDaysQuery).toHaveBeenCalledWith(2026, 2, { enabled: true });
     expect(mockResolveShiftNurseSignature).toHaveBeenCalledWith(
       mockUseDailyRecord.mock.results[0]?.value.record,
@@ -197,10 +208,13 @@ describe('useAuthenticatedAppRuntime', () => {
       typeof mockUseCensusEmail
     >;
 
+    const goToClinicalToday = vi.fn();
     const result = buildAuthenticatedCensusContextValue({
       dailyRecordHook,
       dateNav,
       existingDaysInMonth: [1, 4, 8],
+      clinicalToday: '2026-03-27',
+      goToClinicalToday,
       fileOps,
       censusEmail,
       nurseSignature: 'Night Nurse',
@@ -208,6 +222,8 @@ describe('useAuthenticatedAppRuntime', () => {
 
     expect(result.dailyRecord).toBe(dailyRecordHook);
     expect(result.dateNav.existingDaysInMonth).toEqual([1, 4, 8]);
+    expect(result.dateNav.clinicalToday).toBe('2026-03-27');
+    expect(result.dateNav.goToClinicalToday).toBe(goToClinicalToday);
     expect(result.fileOps).toBe(fileOps);
     expect(result.censusEmail).toBe(censusEmail);
     expect(result.nurseSignature).toBe('Night Nurse');
@@ -229,6 +245,8 @@ describe('useAuthenticatedAppRuntime', () => {
       dailyRecordHook,
       dateNav,
       existingDaysInMonth: [3, 9],
+      clinicalToday: '2026-03-27',
+      goToClinicalToday: vi.fn(),
       fileOps,
       censusEmail,
       nurseSignature: 'Night Nurse',

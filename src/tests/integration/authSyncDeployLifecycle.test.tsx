@@ -146,7 +146,7 @@ describe('auth/sync/deploy lifecycle integration', () => {
 
     const secondRender = renderHook(() => useLifecycleHarness());
     await flushBootstrap();
-    expect(secondRender.result.current.auth.authLoading).toBe(false);
+    expect(secondRender.result.current.auth.authLoading).toBe(true);
 
     expect(secondRender.result.current.app.currentModule).toBe('CUDYR');
 
@@ -156,6 +156,8 @@ describe('auth/sync/deploy lifecycle integration', () => {
         user: user1,
       });
     });
+    await flushBootstrap();
+    expect(secondRender.result.current.auth.authLoading).toBe(false);
 
     await act(async () => {
       await secondRender.result.current.auth.handleLogout('manual');

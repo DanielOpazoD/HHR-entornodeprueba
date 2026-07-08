@@ -1,8 +1,10 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Bed, UserPlus } from 'lucide-react';
 import { LocalDemographicsState } from './types';
 
 interface DemographicsHeaderProps {
+  bedId: string;
   displayName: string;
   displayRut: string;
   age?: string;
@@ -12,6 +14,7 @@ interface DemographicsHeaderProps {
 }
 
 export const DemographicsHeader: React.FC<DemographicsHeaderProps> = ({
+  bedId,
   displayName,
   displayRut,
   age,
@@ -19,10 +22,29 @@ export const DemographicsHeader: React.FC<DemographicsHeaderProps> = ({
   localData,
   setLocalData,
 }) => {
+  const fillDemoPatient = () => {
+    setLocalData(prev => ({
+      ...prev,
+      firstName: 'Daniel',
+      lastName: 'Opazo',
+      secondLastName: 'Damiani',
+      provisionalName: '',
+      identityStatus: 'official',
+      documentType: 'RUT',
+      rut: '17.752.753-K',
+      birthDate: '1990-11-15',
+      pathology: 'Neumonía (Probando)',
+    }));
+  };
+
   return (
     <>
       <div className="flex items-center justify-between pb-2 border-b border-slate-100/80">
         <div>
+          <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-700">
+            <Bed size={12} aria-hidden="true" />
+            Cama {bedId}
+          </div>
           <p className="text-base font-display font-black text-slate-900 leading-tight tracking-tight">
             {displayName}
           </p>
@@ -30,11 +52,22 @@ export const DemographicsHeader: React.FC<DemographicsHeaderProps> = ({
             {displayRut}
           </p>
         </div>
-        {age && (
-          <div className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-blue-100">
-            {age}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {age && (
+            <div className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-blue-100">
+              {age}
+            </div>
+          )}
+          <button
+            type="button"
+            aria-label="Rellenar paciente ficticio"
+            title="Rellenar paciente ficticio"
+            onClick={fillDemoPatient}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
+            <UserPlus size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       {isClinicalCribPatient && (

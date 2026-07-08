@@ -6,16 +6,18 @@ Capa de persistencia concreta: IndexedDB, localStorage, Firestore bridge y sincr
 
 ## Entry points canónicos
 
-| Path                                      | Uso soportado                                               |
-| ----------------------------------------- | ----------------------------------------------------------- |
-| `storage/firestore`                       | lectura/escritura remota de registros y catálogos           |
-| `storage/sync`                            | cola, retry, métricas y telemetría de sincronización        |
-| `storage/core`                            | disponibilidad de IndexedDB, fallback y mantenimiento/reset |
-| `storage/records`                         | acceso directo al record store local                        |
-| `storage/runtime`                         | bootstrap/bindings y política visible de fallback           |
-| `storage/migration/legacyFirestoreBridge` | compatibilidad histórica explícita y controlada             |
+| Path                                        | Uso soportado                                               |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| `storage/firestore`                         | lectura/escritura remota de registros y catálogos           |
+| `storage/sync`                              | cola, retry, métricas y telemetría de sincronización        |
+| `storage/core`                              | disponibilidad de IndexedDB, fallback y mantenimiento/reset |
+| `storage/records`                           | acceso directo al record store local                        |
+| `storage/runtime`                           | bootstrap/bindings y política visible de fallback           |
+| `storage/migration/legacyRecordReadBridge`  | bridge angosto para reads legacy de registros               |
+| `storage/migration/legacyCatalogReadBridge` | bridge angosto para fallbacks legacy de catálogos           |
 
-La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports no deben entrar por bridges deprecated.
+La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports legacy deben entrar
+por los bridges angostos explícitos.
 
 ## Mapa
 
@@ -29,7 +31,8 @@ La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports no
 | `core/`                                       | Entry point público de disponibilidad y mantenimiento |
 | `records/`                                    | Entry point público del record store local            |
 | `runtime/`                                    | Entry point público de bootstrap y fallback UI        |
-| `migration/legacyFirestoreBridge.ts`          | Bridge canónico de migración Firestore legacy         |
+| `migration/legacyRecordReadBridge.ts`         | Bridge canónico para reads legacy de DailyRecord      |
+| `migration/legacyCatalogReadBridge.ts`        | Bridge canónico para fallbacks legacy de catálogos    |
 | `tableConfigService.ts`                       | Persistencia de configuración de tablas               |
 | `uiSettingsService.ts`                        | Persistencia de preferencias UI                       |
 | `localpersistence/localPersistenceService.ts` | Fallback local unificado (records/settings)           |
@@ -65,7 +68,8 @@ Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 - `indexedDBService.ts` es la fachada principal para persistencia local real.
 - `unifiedLocalService.ts` conserva compatibilidad útil para acceso local no-demo.
 - `localStorageService.ts` sigue existiendo solo como gateway legacy mínimo y deprecated.
-- `migration/legacyFirestoreBridge.ts` concentra la compatibilidad histórica de lectura desde rutas Firestore antiguas.
+- `migration/legacyRecordReadBridge.ts` es el entrypoint soportado para reads legacy de DailyRecord.
+- `migration/legacyCatalogReadBridge.ts` es el entrypoint soportado para fallbacks legacy de catálogos.
 - La compatibilidad legacy que entra por Firebase debe preservarse como frontera explícita de lectura
   y normalización; la simplificación de storage no debe convertirla otra vez en fallback implícito
   del hot path ni retirar los paths todavía soportados para registros históricos.

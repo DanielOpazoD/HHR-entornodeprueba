@@ -183,6 +183,45 @@ describe('useAuthState baseline', () => {
     await waitFor(() => expect(result.current.authLoading).toBe(false));
   });
 
+  it('starts directly on the unauthenticated login state when local reset removed every auth signal', () => {
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
+    vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(() => () => {});
+    vi.mocked(authUseCases.executeRedirectAuthResolution).mockImplementationOnce(
+      () => new Promise(() => {})
+    );
+    vi.mocked(authUseCases.executeResolvedCurrentAuthSessionState).mockImplementationOnce(
+      () => new Promise(() => {})
+    );
+
+    const { result } = renderHook(() => useAuthState());
+
+    expect(result.current.authLoading).toBe(false);
+    expect(result.current.sessionState).toEqual({
+      status: 'unauthenticated',
+      user: null,
+    });
+  });
+
+  it('keeps the app in auth bootstrap on same-tab refresh while a prior valid login is rehydrating', () => {
+    window.sessionStorage.setItem('hhr_logged_this_session', 'true');
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
+    vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(() => () => {});
+    vi.mocked(authUseCases.executeRedirectAuthResolution).mockImplementationOnce(
+      () => new Promise(() => {})
+    );
+    vi.mocked(authUseCases.executeResolvedCurrentAuthSessionState).mockImplementationOnce(
+      () => new Promise(() => {})
+    );
+
+    const { result } = renderHook(() => useAuthState());
+
+    expect(result.current.authLoading).toBe(true);
+    expect(result.current.sessionState).toEqual({
+      status: 'authenticating',
+      user: null,
+    });
+  });
+
   it('should handle inactivity timeout', async () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useAuthState());
@@ -300,6 +339,10 @@ describe('useAuthState baseline', () => {
   });
 
   it('hydrates user from redirect result before auth subscription resolves', async () => {
+    localStorage.setItem(
+      AUTH_BOOTSTRAP_PENDING_KEY,
+      JSON.stringify({ startedAt: Date.now(), mode: 'redirect' })
+    );
     const redirectUser: AuthUser = {
       uid: 'redirect-1',
       email: 'redirect@hhr.cl',
@@ -326,6 +369,7 @@ describe('useAuthState baseline', () => {
   });
 
   it('hydrates user from the current firebase session before auth observer resolves', async () => {
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(true);
     const existingUser: AuthUser = {
       uid: 'existing-1',
       email: 'existing@hhr.cl',
@@ -352,6 +396,7 @@ describe('useAuthState baseline', () => {
   });
 
   it('keeps auth loading active until direct current-session hydration resolves', async () => {
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(true);
     let resolveCurrentSession:
       | ((
           value: Awaited<ReturnType<typeof authUseCases.executeResolvedCurrentAuthSessionState>>
@@ -396,8 +441,7 @@ describe('useAuthState baseline', () => {
     expect(result.current.role).toBe('editor');
   });
 
-  it('local purge resolves to login quickly when same-tab history is the only remaining auth signal', async () => {
-    vi.useFakeTimers();
+  it('keeps bootstrap active when same-tab history is still present after direct checks are empty', async () => {
     window.sessionStorage.setItem('hhr_logged_this_session', 'true');
     window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"stale-user"}');
     vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
@@ -410,9 +454,9 @@ describe('useAuthState baseline', () => {
       await Promise.resolve();
     });
 
-    expect(result.current.authLoading).toBe(false);
+    expect(result.current.authLoading).toBe(true);
     expect(result.current.sessionState).toEqual({
-      status: 'unauthenticated',
+      status: 'authenticating',
       user: null,
     });
   });

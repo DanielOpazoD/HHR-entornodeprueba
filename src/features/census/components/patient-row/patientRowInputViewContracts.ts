@@ -8,6 +8,7 @@ import type {
 } from '@/features/census/components/patient-row/inputCellTypes';
 import type { PatientBedConfigCallbacks } from '@/features/census/components/patient-row/patientRowBedConfigContracts';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
+import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface PatientInputCellsProps {
   data: PatientData;
@@ -18,6 +19,8 @@ export interface PatientInputCellsProps {
   onChange: PatientInputChangeHandlers;
   onDemo: () => void;
   readOnly?: boolean;
+  clinicalEditingDisabled?: boolean;
+  clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
   diagnosisMode?: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
 }

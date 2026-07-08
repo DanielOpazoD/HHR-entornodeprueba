@@ -8,6 +8,10 @@ import {
   buildPatientMasterSeed,
   buildTransferHospitalizationSyncPlan,
 } from '@/services/repositories/dailyRecordMasterSyncController';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 type MasterSyncDailyRecordPatient = ReturnType<
   typeof collectDailyRecordPatientsForMasterSync
@@ -128,8 +132,8 @@ export const syncPatientsToMasterInBackground = (record: DailyRecord): void => {
       const patientsToSync = collectDailyRecordPatientsForMasterSync(record);
       const bedPatientRuts = new Set(patientsToSync.map(p => p.rut));
       await syncBedPatientsToMaster(patientsToSync);
-      await syncDischargesToMaster(record, bedPatientRuts, record.discharges || []);
-      await syncTransfersToMaster(record, bedPatientRuts, record.transfers || []);
+      await syncDischargesToMaster(record, bedPatientRuts, getActiveDischarges(record.discharges));
+      await syncTransfersToMaster(record, bedPatientRuts, getActiveTransfers(record.transfers));
     } catch {
       // intentionally ignored (non-critical background sync)
     }

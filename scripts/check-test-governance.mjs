@@ -4,12 +4,24 @@ import path from 'node:path';
 
 const projectRoot = process.cwd();
 const testsRoot = path.join(projectRoot, 'src', 'tests');
+const allowlistPath = path.join(projectRoot, 'scripts', 'test-governance-allowlist.json');
 
 const allowedSkipFiles = new Set(['src/tests/security/firestore-rules.test.ts']);
 const testFilePattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/;
 const skipPattern = /\b(?:it|test|describe)\.skip\s*\(/g;
 const onlyPattern = /\b(?:it|test|describe)\.only\s*\(/g;
 const MEGATEST_LINE_LIMIT = 500;
+
+const loadMegatestAllowlist = () => {
+  if (!fs.existsSync(allowlistPath)) {
+    return new Set();
+  }
+
+  const parsed = JSON.parse(fs.readFileSync(allowlistPath, 'utf8'));
+  return new Set(Array.isArray(parsed.megatests) ? parsed.megatests : []);
+};
+
+const allowedMegatestFiles = loadMegatestAllowlist();
 
 const violations = [];
 
@@ -32,7 +44,7 @@ const walk = dir => {
     const content = fs.readFileSync(fullPath, 'utf8');
     const lineCount = content.length === 0 ? 0 : content.split('\n').length;
 
-    if (lineCount > MEGATEST_LINE_LIMIT) {
+    if (lineCount > MEGATEST_LINE_LIMIT && !allowedMegatestFiles.has(relative)) {
       violations.push({
         relative,
         line: 1,

@@ -6,6 +6,7 @@ import type {
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 
 type DailyRecordReadService =
   typeof import('@/services/repositories/dailyRecordRepositoryReadService');
@@ -86,9 +87,14 @@ const createLazySubscription = (
 
 const updatePartialDailyRecord = (
   date: string,
-  patch: DailyRecordPatch
+  patch: DailyRecordPatch,
+  options?: PartialUpdateDailyRecordOptions
 ): Promise<UpdatePartialDailyRecordResult> =>
-  withWriteService(service => service.updatePartialDetailed(date, patch));
+  withWriteService(service =>
+    options
+      ? service.updatePartialDetailed(date, patch, options)
+      : service.updatePartialDetailed(date, patch)
+  );
 
 const saveDailyRecord = (
   record: DailyRecord,
@@ -113,7 +119,11 @@ export interface DailyRecordReadPort {
 }
 
 export interface DailyRecordWritePort {
-  updatePartial: (date: string, patch: DailyRecordPatch) => Promise<UpdatePartialDailyRecordResult>;
+  updatePartial: (
+    date: string,
+    patch: DailyRecordPatch,
+    options?: PartialUpdateDailyRecordOptions
+  ) => Promise<UpdatePartialDailyRecordResult>;
   save: (record: DailyRecord, expectedLastUpdated?: string) => Promise<SaveDailyRecordResult>;
   delete: (date: string) => Promise<void>;
 }
@@ -139,7 +149,8 @@ export interface DailyRecordRepositoryPort
   ) => Promise<SaveDailyRecordResult>;
   updatePartialDetailed: (
     date: string,
-    patch: DailyRecordPatch
+    patch: DailyRecordPatch,
+    options?: PartialUpdateDailyRecordOptions
   ) => Promise<UpdatePartialDailyRecordResult>;
   subscribe: (
     date: string,

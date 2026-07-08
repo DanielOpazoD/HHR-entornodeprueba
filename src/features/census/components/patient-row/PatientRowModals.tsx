@@ -55,6 +55,7 @@ export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
   onSaveDemographics,
   onSaveCribDemographics,
   onRevertEmptyDemographics,
+  canUseArbitraryAdmissionDate = false,
 }) => {
   const {
     demographicsBinding,
@@ -103,6 +104,7 @@ export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
             recordDate={currentDateString}
             isClinicalCribPatient={demographicsBinding.isRnIdentityContext}
             requiresCompleteDemographics={!isSubRow && !hasMeaningfulDemographicSubset(data)}
+            canUseArbitraryAdmissionDate={canUseArbitraryAdmissionDate}
           />
         </Suspense>
       ) : null}

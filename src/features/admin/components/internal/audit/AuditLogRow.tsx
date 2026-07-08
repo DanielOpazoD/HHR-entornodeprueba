@@ -3,17 +3,18 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
-  GitBranch,
   LayoutGrid,
   MapPin,
   History,
+  MonitorCheck,
+  ShieldCheck,
+  UserRound,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry, isGroupedAuditLogEntry } from '@/types/auditLogTypes';
-import { formatTimestamp, actionIcons, actionColors, renderHumanDetails } from './auditUIUtils';
-import { DiffHighlight } from './DiffHighlight';
-import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
+import { formatTimestamp, actionColors } from './auditUIUtils';
+import { buildClinicalAuditPresentation } from '@/services/admin/clinicalAuditPresentation';
 
 interface AuditLogRowProps {
   log: AuditLogEntry;
@@ -28,9 +29,18 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
   onToggle,
   compactView,
 }) => {
-  const bedId = (log.details?.bedId as string) || '';
-  const patientName = (log.details?.patientName as string) || '';
   const isGroup = isGroupedAuditLogEntry(log);
+  const presentation = buildClinicalAuditPresentation(log);
+  const technicalDetailText = JSON.stringify(
+    {
+      action: presentation.technical.action,
+      entityType: presentation.technical.entityType,
+      entityId: presentation.technical.entityId,
+      details: presentation.technical.details,
+    },
+    null,
+    2
+  );
 
   return (
     <>
@@ -68,17 +78,19 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
             <div className="flex flex-col">
               <span
                 className="text-xs font-semibold text-slate-700 truncate max-w-[140px]"
-                title={log.userId || 'Usuario desconocido'}
+                title={presentation.actorSecondary || presentation.actorLabel}
               >
-                {log.userDisplayName || (log.userId || 'anon@hhr.cl').split('@')[0]}
+                {presentation.actorLabel}
               </span>
-              {log.ipAddress && (
-                <span className="text-[9px] text-slate-400 font-mono">IP: {log.ipAddress}</span>
+              {presentation.actorSecondary && (
+                <span className="text-[9px] text-slate-400 font-mono truncate max-w-[160px]">
+                  {presentation.actorSecondary}
+                </span>
               )}
             </div>
           </div>
         </td>
-        {/* Acción (badge) - hidden in compact */}
+        {/* Evento clinico - hidden in compact */}
         {!compactView && (
           <td className="px-4 py-4">
             <span
@@ -88,46 +100,45 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
                   'bg-slate-50 text-slate-700 border-slate-100'
               )}
             >
-              {actionIcons[log.action as AuditAction]}
-              {AUDIT_ACTION_LABELS[log.action as AuditAction]}
+              <ShieldCheck size={14} />
+              {presentation.title}
             </span>
           </td>
         )}
-        {/* Resumen (HUMAN READABLE) */}
+        {/* Resumen clinico */}
         <td className="px-4 py-4">
-          <span
+          <div
             className={clsx(
-              'text-xs text-slate-700 font-medium block truncate',
-              compactView ? 'max-w-[300px]' : 'max-w-[180px]'
+              'flex flex-col gap-0.5',
+              compactView ? 'max-w-[360px]' : 'max-w-[260px]'
             )}
-            title={log.summary || renderHumanDetails(log)}
+            title={presentation.narrative}
           >
-            {log.summary || renderHumanDetails(log)}
-          </span>
+            {compactView && (
+              <span className="text-xs font-bold text-slate-800 truncate">
+                {presentation.title}
+              </span>
+            )}
+            <span className="text-xs text-slate-700 font-medium block truncate">
+              {presentation.narrative}
+            </span>
+          </div>
         </td>
         {/* Paciente - hidden in compact */}
         {!compactView && (
           <td className="px-4 py-4">
             <span className="text-xs font-medium text-slate-600 truncate max-w-[150px]">
-              {log.entityType === 'user' ? '-' : patientName || '-'}
+              {presentation.affectedSubject}
             </span>
           </td>
         )}
-        {/* Cama - hidden in compact */}
+        {/* Origen - hidden in compact */}
         {!compactView && (
           <td className="px-4 py-4">
-            {log.entityType === 'user' || log.entityType === 'dailyRecord' ? (
-              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-                {log.entityType === 'user' ? 'Sistema' : 'Registro'}
-              </span>
-            ) : bedId ? (
-              <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                <MapPin size={12} className="text-slate-400" />
-                {bedId}
-              </div>
-            ) : (
-              <span className="text-slate-300">-</span>
-            )}
+            <div className="flex items-center gap-1.5 font-bold text-slate-700">
+              <MonitorCheck size={12} className="text-slate-400" />
+              <span className="text-[10px]">{presentation.originLabel}</span>
+            </div>
           </td>
         )}
       </tr>
@@ -159,7 +170,7 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
                         )}
                       </div>
                       <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
-                        {child.summary || renderHumanDetails(child)}
+                        {buildClinicalAuditPresentation(child).narrative}
                       </p>
                     </div>
                   ))}
@@ -174,82 +185,100 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({
         <tr className="bg-slate-50/50">
           <td colSpan={compactView ? 4 : 7} className="px-12 py-6 border-l-4 border-indigo-500/30">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <FileText size={16} className="text-indigo-500" />
-                  <div className="flex flex-col">
-                    <span>{renderHumanDetails(log)}</span>
-                    {log.authors && (
-                      <span className="text-[10px] font-medium text-slate-400 italic">
-                        Responsables: {log.authors}
-                      </span>
-                    )}
-                  </div>
-                </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm lg:col-span-3">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <FileText size={14} className="text-indigo-500" />
+                    Resumen clínico
+                  </h4>
+                  <p className="text-sm font-bold text-slate-800">{presentation.title}</p>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    {presentation.narrative}
+                  </p>
+                  {log.authors && (
+                    <p className="text-[10px] font-medium text-slate-400 italic mt-2">
+                      Responsables documentados: {log.authors}
+                    </p>
+                  )}
+                </section>
+
+                <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <UserRound size={14} className="text-indigo-500" />
+                    Responsable
+                  </h4>
+                  <p className="text-xs font-bold text-slate-800">{presentation.actorLabel}</p>
+                  {presentation.actorSecondary && (
+                    <p className="text-[10px] text-slate-500 mt-1 break-all">
+                      {presentation.actorSecondary}
+                    </p>
+                  )}
+                </section>
+
+                <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <MonitorCheck size={14} className="text-indigo-500" />
+                    Origen de acceso
+                  </h4>
+                  <p className="text-xs font-bold text-slate-800">{presentation.originLabel}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{presentation.timestampLabel}</p>
+                </section>
+
+                <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <MapPin size={14} className="text-indigo-500" />
+                    Afectado
+                  </h4>
+                  <p className="text-xs font-bold text-slate-800">{presentation.affectedSubject}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Area: {presentation.clinicalArea} · Impacto: {presentation.impact}
+                  </p>
+                </section>
               </div>
 
-              {/* Comparison / Diff View */}
-              {(log.action.includes('MODIFIED') || log.details?.changes) && (
+              {presentation.importantChanges.length > 0 && (
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                   <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <History size={14} className="text-indigo-500" />
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Auditoría Diferencial
+                        Cambios relevantes
                       </span>
                     </div>
-                    <GitBranch size={12} className="text-slate-400" />
                   </div>
-                  <div className="p-4 space-y-4">
-                    {(() => {
-                      const details = log.details;
-                      const rawChanges = details.changes || {};
-                      const changes = Object.fromEntries(
-                        Object.entries(rawChanges).filter(
-                          ([field]) =>
-                            !(log.action === 'MEDICAL_HANDOFF_MODIFIED' && field === 'status')
-                        )
-                      );
-                      const renderedFields = [];
-
-                      if (Object.keys(changes).length > 0) {
-                        for (const field in changes) {
-                          renderedFields.push(
-                            <div key={field} className="space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                  CAMPO:
-                                </span>
-                                <span className="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase">
-                                  {field === 'note'
-                                    ? 'Nota Clínica'
-                                    : field === 'novedades'
-                                      ? 'Novedades'
-                                      : field}
-                                </span>
-                              </div>
-                              <DiffHighlight
-                                oldValue={changes[field].old}
-                                newValue={changes[field].new}
-                              />
-                            </div>
-                          );
-                        }
-                      }
-
-                      if (renderedFields.length === 0) {
-                        return (
-                          <div className="py-8 text-center text-slate-400 italic text-[11px]">
-                            No se detectaron cambios estructurales registrados en el log técnico.
-                          </div>
-                        );
-                      }
-
-                      return renderedFields;
-                    })()}
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {presentation.importantChanges.map(change => (
+                      <div
+                        key={change.fieldLabel}
+                        className="rounded-lg border border-slate-100 bg-slate-50/60 p-3"
+                      >
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          {change.fieldLabel}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Antes:{' '}
+                          <span className="text-rose-700">{String(change.oldValue ?? '-')}</span>
+                        </p>
+                        <p className="text-[11px] text-slate-600">
+                          Despues:{' '}
+                          <span className="font-bold text-emerald-700">
+                            {String(change.newValue ?? '-')}
+                          </span>
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              <details className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <summary className="cursor-pointer bg-slate-50 px-4 py-2 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Detalle técnico avanzado
+                </summary>
+                <pre className="p-4 text-[10px] text-slate-500 overflow-auto">
+                  {technicalDetailText}
+                </pre>
+              </details>
             </div>
           </td>
         </tr>

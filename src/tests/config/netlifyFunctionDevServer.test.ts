@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   DEFAULT_NETLIFY_FUNCTION_DEV_ENTRIES,
+  NETLIFY_FUNCTION_DEV_EXTERNAL_MODULES,
   handleNetlifyFunctionDevRequest,
   hydrateLocalFunctionEnv,
   resolveTsconfigAliasPath,
@@ -65,6 +66,7 @@ describe('netlifyFunctionDevServer', () => {
     expect(target.VITE_FIREBASE_API_KEY).toBe('firebase-key');
     expect(target.VITE_FIREBASE_APP_ID).toBe('firebase-app');
     expect(target.VITE_FIREBASE_PROJECT_ID).toBe('firebase-project');
+    expect(target.HHR_ALLOW_PRESCRIPTION_IMAGE_PROXY_FIXTURE).toBe('true');
   });
 
   it('does not override server-side AI env vars with local Vite fallbacks', () => {
@@ -146,6 +148,14 @@ describe('netlifyFunctionDevServer', () => {
       path: '/.netlify/functions/clinical-document-ai-import',
       query: 'trace=1',
     });
+  });
+
+  it('registers the prescription image proxy and externalizes native sharp in local dev', () => {
+    expect(DEFAULT_NETLIFY_FUNCTION_DEV_ENTRIES).toContainEqual({
+      route: '/.netlify/functions/prescription-image-proxy',
+      modulePath: '/netlify/functions/prescription-image-proxy.ts',
+    });
+    expect(NETLIFY_FUNCTION_DEV_EXTERNAL_MODULES).toContain('sharp');
   });
 
   it('resolves extensionless tsconfig aliases to source files for esbuild', () => {

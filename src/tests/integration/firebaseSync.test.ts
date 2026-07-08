@@ -24,12 +24,13 @@ class MockTimestamp {
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
+  const setDocFn = vi.fn((_ref?: unknown, _data?: unknown) => Promise.resolve<void>(undefined));
   return {
     ...actual,
     collection: vi.fn(),
     doc: vi.fn(() => ({})),
     getDoc: vi.fn(),
-    setDoc: vi.fn(() => Promise.resolve()),
+    setDoc: setDocFn,
     deleteDoc: vi.fn(),
     getDocs: vi.fn(),
     query: vi.fn(),
@@ -37,6 +38,19 @@ vi.mock('firebase/firestore', async importOriginal => {
     Timestamp: MockTimestamp,
     onSnapshot: vi.fn(),
     where: vi.fn(),
+    runTransaction: vi.fn(
+      async (
+        _db: unknown,
+        fn: (tx: {
+          get: (ref: unknown) => Promise<unknown>;
+          set: (ref: unknown, data: unknown) => void;
+        }) => Promise<unknown>
+      ) =>
+        fn({
+          get: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
+          set: (ref, data) => setDocFn(ref, data),
+        })
+    ),
   };
 });
 

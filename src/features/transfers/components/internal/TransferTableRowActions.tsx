@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import { Archive, CheckCircle, Eye, FileDown, Trash2, Undo2, XCircle } from 'lucide-react';
+import { Archive, CheckCheck, Eye, FileDown, Trash2, Undo2, XCircle } from 'lucide-react';
 import type { TransferRequest } from '@/types/transferRequestTypes';
 import type { TransferRowActionState } from '../controllers/transferTableController';
 
@@ -85,9 +85,9 @@ export const TransferTableRowActions: React.FC<TransferTableRowActionsProps> = (
       <button
         onClick={() => onMarkTransferred(transfer)}
         className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 transition-all hover:bg-emerald-100"
-        title="Marcar traslado como completado (egreso)"
+        title="Configurar traslado como completado (egreso)"
       >
-        <CheckCircle size={14} /> Traslado completado
+        <CheckCheck size={14} /> Completar traslado
       </button>
     )}
 

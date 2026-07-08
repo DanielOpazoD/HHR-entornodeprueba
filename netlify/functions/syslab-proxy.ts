@@ -36,6 +36,8 @@ import {
 } from './lib/http';
 
 const TIMEOUT_MS = 60_000; // 60s — PDF parsing can be slow
+const DEFAULT_TELEMETRY_TIMEOUT_MS = 15_000;
+const DETAILS_TELEMETRY_TIMEOUT_MS = 55_000;
 const SYSLAB_ALLOWED_ROLES = new Set([
   'admin',
   'nurse_hospital',
@@ -55,6 +57,13 @@ const getProxyUrl = (): string | null =>
   process.env.SYSLAB_PROXY_URL?.replace(/\/+$/, '') ||
   process.env.VITE_SYSLAB_API_URL?.replace(/\/+$/, '') ||
   null;
+
+export const resolveSyslabTelemetryOptions = (
+  action: 'search' | 'details' | 'pdf'
+): { timeoutMs: number; maxAttempts: number } => ({
+  timeoutMs: action === 'details' ? DETAILS_TELEMETRY_TIMEOUT_MS : DEFAULT_TELEMETRY_TIMEOUT_MS,
+  maxAttempts: action === 'details' ? 1 : 3,
+});
 
 const proxyFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
   const controller = new AbortController();
@@ -262,12 +271,14 @@ export const createSyslabProxyHandler = (
         return handleHealth(proxyUrl, requestOrigin);
       }
 
+      const telemetryOptions = resolveSyslabTelemetryOptions(action);
+
       return await invokeWithTelemetry({
         service: 'syslab',
         operation: action,
-        timeoutMs: 15_000,
+        timeoutMs: telemetryOptions.timeoutMs,
         // search/pdf are idempotent GETs, details posts links but parsing is deterministic
-        maxAttempts: action === 'details' ? 2 : 3,
+        maxAttempts: telemetryOptions.maxAttempts,
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: { action },

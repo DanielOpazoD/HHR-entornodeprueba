@@ -53,13 +53,13 @@ export const AuditFilters: React.FC<AuditFiltersProps> = ({
         {/* Search */}
         <div className="lg:col-span-3 space-y-1.5">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Búsqueda Inteligente
+            Búsqueda clínica/legal
           </label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Nombre o RUT..."
+              placeholder="Paciente, RUT, usuario, UID, IP, acción o registro..."
               value={searchTerm}
               onChange={e => onSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"

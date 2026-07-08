@@ -30,6 +30,38 @@ describe('zod schema modules', () => {
     expect(patient.clinicalCrib?.patientName).toBe('Bebe');
   });
 
+  it('construye fallback de paciente preservando CUDYR valido', () => {
+    const patient = buildFallbackPatientData(
+      {
+        patientName: 'Paciente CUDYR',
+        bedMode: 'Adulto',
+        cudyr: {
+          changeClothes: 2,
+          mobilization: 3,
+          feeding: 0,
+          elimination: 0,
+          psychosocial: 0,
+          surveillance: 0,
+          vitalSigns: 1,
+          fluidBalance: 0,
+          oxygenTherapy: 0,
+          airway: 0,
+          proInterventions: 0,
+          skinCare: 0,
+          pharmacology: 0,
+          invasiveElements: 0,
+        },
+      },
+      'R1'
+    );
+
+    expect(patient.cudyr).toMatchObject({
+      changeClothes: 2,
+      mobilization: 3,
+      vitalSigns: 1,
+    });
+  });
+
   it('reporta reparaciones estructurales y recupera DailyRecord', () => {
     const parsed = parseDailyRecordWithDefaultsReport(
       {

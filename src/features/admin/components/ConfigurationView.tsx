@@ -1,12 +1,21 @@
 import React, { Suspense, lazy, useRef, useState } from 'react';
-import { FileText, Settings2, Shield, ShieldCheck, Sparkles, TableProperties } from 'lucide-react';
+import {
+  Bot,
+  FileText,
+  Settings2,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  TableProperties,
+} from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { AccessRestricted } from './internal/AccessRestricted';
 import RoleManagementView from './RoleManagementView';
+import { ClinicalAIProviderRoutingPanel } from './ClinicalAIProviderRoutingPanel';
 import {
   SettingsVisualTab,
   SettingsSecurityTab,
@@ -19,13 +28,21 @@ const LazyClinicalDocumentTemplatesManager = lazy(() =>
   }))
 );
 
-type ConfigurationTab = 'VISUAL' | 'TABLE' | 'SECURITY' | 'ROLES' | 'CLINICAL_TEMPLATES';
+type ConfigurationTab =
+  | 'VISUAL'
+  | 'TABLE'
+  | 'SECURITY'
+  | 'ROLES'
+  | 'CLINICAL_TEMPLATES'
+  | 'AI_PROVIDERS';
 
 // Configuration view — admin-only page grouping BOTH user preferences (formerly
 // "Preferencias" modal: visual, table, security) AND system administration
 // (roles, clinical templates) as tabs on a single page.
 export const ConfigurationView: React.FC = () => {
   const { role } = useAuth();
+  const { confirm } = useConfirmDialog();
+  const { notify } = useNotification();
   const [activeTab, setActiveTab] = useState<ConfigurationTab>('VISUAL');
   const {
     config,
@@ -52,20 +69,31 @@ export const ConfigurationView: React.FC = () => {
     if (file) {
       try {
         await importConfig(file);
-        defaultBrowserWindowRuntime.alert('Configuración importada correctamente');
+        notify({
+          type: 'success',
+          title: 'Configuración importada',
+          message: 'La configuración se aplicó correctamente.',
+        });
       } catch {
-        defaultBrowserWindowRuntime.alert('Error al importar: archivo inválido');
+        notify({
+          type: 'error',
+          title: 'Importación inválida',
+          message: 'El archivo no se pudo procesar.',
+        });
       }
       event.target.value = '';
     }
   };
 
-  const handleReset = () => {
-    if (
-      defaultBrowserWindowRuntime.confirm(
-        '¿Está seguro de resetear la configuración de columnas a valores por defecto?'
-      )
-    ) {
+  const handleReset = async () => {
+    const confirmed = await confirm({
+      title: 'Resetear configuración de columnas',
+      message: '¿Está seguro de resetear la configuración de columnas a valores por defecto?',
+      confirmText: 'Resetear',
+      cancelText: 'Cancelar',
+      variant: 'warning',
+    });
+    if (confirmed) {
       resetToDefaults();
     }
   };
@@ -80,6 +108,12 @@ export const ConfigurationView: React.FC = () => {
     { id: 'TABLE', label: 'Tabla', icon: TableProperties, color: 'text-sky-400' },
     { id: 'SECURITY', label: 'Seguridad', icon: Shield, color: 'text-amber-400' },
     { id: 'ROLES', label: 'Roles y permisos', icon: ShieldCheck, color: 'text-indigo-400' },
+    {
+      id: 'AI_PROVIDERS',
+      label: 'IA',
+      icon: Bot,
+      color: 'text-cyan-400',
+    },
     {
       id: 'CLINICAL_TEMPLATES',
       label: 'Plantillas clínicas',
@@ -141,6 +175,7 @@ export const ConfigurationView: React.FC = () => {
         )}
         {activeTab === 'SECURITY' && <SettingsSecurityTab />}
         {activeTab === 'ROLES' && <RoleManagementView />}
+        {activeTab === 'AI_PROVIDERS' && <ClinicalAIProviderRoutingPanel />}
         {activeTab === 'CLINICAL_TEMPLATES' && (
           <Suspense
             fallback={

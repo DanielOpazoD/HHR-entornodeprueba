@@ -3,6 +3,7 @@ import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
 import { StaffShiftDetailsModal } from './StaffShiftDetailsModal';
+import { ConflictVersionsAdminControl } from './ConflictVersionsAdminControl';
 import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
 import {
   useDailyRecordData,
@@ -89,6 +90,11 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           newAdmissions={readModel.movementSummaryState.admissionsCount}
         />
       )}
+
+      <ConflictVersionsAdminControl
+        date={dailyRecordData.record?.date}
+        currentRecord={dailyRecordData.record}
+      />
 
       {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
         <StaffShiftDetailsModal

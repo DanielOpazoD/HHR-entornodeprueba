@@ -1,0 +1,1276 @@
+{
+  "generatedAt": "2026-07-05T06:17:54.609Z",
+  "gitSha": "ec9b5880",
+  "gitDirty": false,
+  "mode": "dual-gated",
+  "coverageArtifact": "coverage/critical/coverage-final.json",
+  "coverageArtifactPresent": true,
+  "status": "passing",
+  "criticalZones": [
+    {
+      "root": "src/features/census/controllers",
+      "label": "src/features/census/controllers",
+      "tests": "src/tests/views/census",
+      "sources": [
+        "src/features/census/controllers"
+      ],
+      "minTestFileCount": 200,
+      "minTestToSourceRatio": 1.5,
+      "coverageBaseline": {
+        "lines": 93.6,
+        "functions": 97.5,
+        "branches": 83.3
+      },
+      "sourceFiles": [
+        "src/features/census/controllers/admissionInputController.ts",
+        "src/features/census/controllers/admitPatientGate.ts",
+        "src/features/census/controllers/atomicPatientMovementPatchController.ts",
+        "src/features/census/controllers/bedManagerGridItemsController.ts",
+        "src/features/census/controllers/bedManagerModalController.ts",
+        "src/features/census/controllers/censusActionCommandsController.ts",
+        "src/features/census/controllers/censusActionDependenciesController.ts",
+        "src/features/census/controllers/censusActionDependenciesModelController.ts",
+        "src/features/census/controllers/censusActionErrorPresentation.ts",
+        "src/features/census/controllers/censusActionExecutionController.ts",
+        "src/features/census/controllers/censusActionHeaderController.ts",
+        "src/features/census/controllers/censusActionNotificationController.ts",
+        "src/features/census/controllers/censusActionPatientContracts.ts",
+        "src/features/census/controllers/censusActionRuntimeAdapterController.ts",
+        "src/features/census/controllers/censusActionRuntimeController.ts",
+        "src/features/census/controllers/censusActionRuntimeRefsController.ts",
+        "src/features/census/controllers/censusActionsProviderModelController.ts",
+        "src/features/census/controllers/censusBrowserRuntimeAdapter.ts",
+        "src/features/census/controllers/censusClockController.ts",
+        "src/features/census/controllers/censusCmaController.ts",
+        "src/features/census/controllers/censusCmaSectionController.ts",
+        "src/features/census/controllers/censusCmaTableController.ts",
+        "src/features/census/controllers/censusCreateDayAvailabilityController.ts",
+        "src/features/census/controllers/censusDatePresentationController.ts",
+        "src/features/census/controllers/censusDiagnosisHeaderController.ts",
+        "src/features/census/controllers/censusDiagnosisModeController.ts",
+        "src/features/census/controllers/censusDischargeCommandController.ts",
+        "src/features/census/controllers/censusDischargesTableController.ts",
+        "src/features/census/controllers/censusDischargeTransferGuardController.ts",
+        "src/features/census/controllers/censusEditStateController.ts",
+        "src/features/census/controllers/censusEmailRecipientsController.ts",
+        "src/features/census/controllers/censusEmailRecipientsEditorStateController.ts",
+        "src/features/census/controllers/censusEmptyBedActivationController.ts",
+        "src/features/census/controllers/censusLogicController.ts",
+        "src/features/census/controllers/censusMigrationBootstrapController.ts",
+        "src/features/census/controllers/censusModalBindingsController.ts",
+        "src/features/census/controllers/censusModalStateController.ts",
+        "src/features/census/controllers/censusMovementActionConfirmController.ts",
+        "src/features/census/controllers/censusMovementActionIconController.ts",
+        "src/features/census/controllers/censusMovementDatePresentationController.ts",
+        "src/features/census/controllers/censusMovementRowActionsController.ts",
+        "src/features/census/controllers/censusMovementSectionController.ts",
+        "src/features/census/controllers/censusMoveOrCopyCommandController.ts",
+        "src/features/census/controllers/censusOperationalStateController.ts",
+        "src/features/census/controllers/censusRegisterSectionsOrderController.ts",
+        "src/features/census/controllers/censusResetDayController.ts",
+        "src/features/census/controllers/censusRowActionController.ts",
+        "src/features/census/controllers/censusRowActionRuntimeAdapterController.ts",
+        "src/features/census/controllers/censusRowActionRuntimeController.ts",
+        "src/features/census/controllers/censusStaffHeaderController.ts",
+        "src/features/census/controllers/censusTableBodyController.ts",
+        "src/features/census/controllers/censusTableColumnProfileController.ts",
+        "src/features/census/controllers/censusTableHeaderController.ts",
+        "src/features/census/controllers/censusTableLayoutController.ts",
+        "src/features/census/controllers/censusTableViewController.ts",
+        "src/features/census/controllers/censusTransferCommandController.ts",
+        "src/features/census/controllers/censusTransfersTableController.ts",
+        "src/features/census/controllers/censusTransferStateController.ts",
+        "src/features/census/controllers/censusTransferSyncController.ts",
+        "src/features/census/controllers/censusViewController.ts",
+        "src/features/census/controllers/clinicalDocumentPresenceController.ts",
+        "src/features/census/controllers/clinicalInitialBlockCoalescingController.ts",
+        "src/features/census/controllers/clinicalShiftCalendarController.ts",
+        "src/features/census/controllers/conflictVersionsPresentationController.ts",
+        "src/features/census/controllers/controllerResult.ts",
+        "src/features/census/controllers/dateProvider.ts",
+        "src/features/census/controllers/deliveryRoutePopoverController.ts",
+        "src/features/census/controllers/deliveryRoutePopoverRuntimeController.ts",
+        "src/features/census/controllers/deliveryRoutePopoverStateController.ts",
+        "src/features/census/controllers/deliveryRoutePopoverViewController.ts",
+        "src/features/census/controllers/deviceHistoryController.ts",
+        "src/features/census/controllers/deviceHistoryModalController.ts",
+        "src/features/census/controllers/devicesCellController.ts",
+        "src/features/census/controllers/dischargeCanonicalAdoptionController.ts",
+        "src/features/census/controllers/dischargeModalController.ts",
+        "src/features/census/controllers/dischargeRowViewController.ts",
+        "src/features/census/controllers/fugaNotificationPolicyController.ts",
+        "src/features/census/controllers/ieehFormDataController.ts",
+        "src/features/census/controllers/modalFormController.ts",
+        "src/features/census/controllers/moveCopyModalController.ts",
+        "src/features/census/controllers/movementClinicalDocumentsController.ts",
+        "src/features/census/controllers/patientActionMenuBindingController.ts",
+        "src/features/census/controllers/patientActionMenuController.ts",
+        "src/features/census/controllers/patientActionMenuInteractionController.ts",
+        "src/features/census/controllers/patientActionMenuPanelController.ts",
+        "src/features/census/controllers/patientActionMenuViewController.ts",
+        "src/features/census/controllers/patientBedConfigCardController.ts",
+        "src/features/census/controllers/patientBedConfigMenuController.ts",
+        "src/features/census/controllers/patientBedConfigSectionsController.ts",
+        "src/features/census/controllers/patientBedConfigViewController.ts",
+        "src/features/census/controllers/patientDemographicsEpisodeSyncController.ts",
+        "src/features/census/controllers/patientIdentityController.ts",
+        "src/features/census/controllers/patientInputCellsController.ts",
+        "src/features/census/controllers/patientInputSectionBindingsController.ts",
+        "src/features/census/controllers/patientMainRowSectionsController.ts",
+        "src/features/census/controllers/patientMovementCommandRuntimeController.ts",
+        "src/features/census/controllers/patientMovementCreationController.ts",
+        "src/features/census/controllers/patientMovementCreationErrorPresentation.ts",
+        "src/features/census/controllers/patientMovementCreationInputController.ts",
+        "src/features/census/controllers/patientMovementCreationSharedController.ts",
+        "src/features/census/controllers/patientMovementDischargeMutationController.ts",
+        "src/features/census/controllers/patientMovementMutationController.ts",
+        "src/features/census/controllers/patientMovementRuntimeController.ts",
+        "src/features/census/controllers/patientMovementSelectionController.ts",
+        "src/features/census/controllers/patientMovementTransferMutationController.ts",
+        "src/features/census/controllers/patientMovementUndoController.ts",
+        "src/features/census/controllers/patientMovementUndoErrorPresentation.ts",
+        "src/features/census/controllers/patientMovementUndoMutationController.ts",
+        "src/features/census/controllers/patientRowActionSectionBindingsController.ts",
+        "src/features/census/controllers/patientRowAsyncActionController.ts",
+        "src/features/census/controllers/patientRowBedConfigController.ts",
+        "src/features/census/controllers/patientRowBedConfigRuntimeController.ts",
+        "src/features/census/controllers/patientRowBindingsController.ts",
+        "src/features/census/controllers/patientRowBindingSectionsController.ts",
+        "src/features/census/controllers/patientRowCapabilitiesController.ts",
+        "src/features/census/controllers/patientRowChangeHandlersController.ts",
+        "src/features/census/controllers/patientRowIndicatorsController.ts",
+        "src/features/census/controllers/patientRowInputController.ts",
+        "src/features/census/controllers/patientRowInputHandlersController.ts",
+        "src/features/census/controllers/patientRowInputUpdateController.ts",
+        "src/features/census/controllers/patientRowMainViewController.ts",
+        "src/features/census/controllers/patientRowModalController.ts",
+        "src/features/census/controllers/patientRowModalRenderController.ts",
+        "src/features/census/controllers/patientRowModalVisibilityController.ts",
+        "src/features/census/controllers/patientRowNewAdmissionIndicatorController.ts",
+        "src/features/census/controllers/patientRowOrbitalQuickActionsController.ts",
+        "src/features/census/controllers/patientRowRuntimeController.ts",
+        "src/features/census/controllers/patientRowRuntimeModelController.ts",
+        "src/features/census/controllers/patientRowStateController.ts",
+        "src/features/census/controllers/patientRowSubViewController.ts",
+        "src/features/census/controllers/patientRowUiStateController.ts",
+        "src/features/census/controllers/patientRowViewContextController.ts",
+        "src/features/census/controllers/sharedCensusBrowserRuntimeController.ts",
+        "src/features/census/controllers/sharedCensusFilesController.ts",
+        "src/features/census/controllers/sharedCensusModeController.ts",
+        "src/features/census/controllers/sharedCensusViewController.ts",
+        "src/features/census/controllers/specialtyCellController.ts",
+        "src/features/census/controllers/textChangeAdapterController.ts",
+        "src/features/census/controllers/timeInputController.ts",
+        "src/features/census/controllers/transferCanonicalAdoptionController.ts",
+        "src/features/census/controllers/transferModalController.ts",
+        "src/features/census/controllers/transferRowViewController.ts",
+        "src/features/census/controllers/upcChecklistPopoverController.ts"
+      ],
+      "sourceFileCount": 143,
+      "testFileCount": 236,
+      "testToSourceRatio": 1.6503496503496504,
+      "coverage": {
+        "lines": {
+          "total": 1947,
+          "covered": 1871,
+          "skipped": 0,
+          "pct": 96.1
+        },
+        "functions": {
+          "total": 554,
+          "covered": 549,
+          "skipped": 0,
+          "pct": 99.1
+        },
+        "branches": {
+          "total": 1579,
+          "covered": 1388,
+          "skipped": 0,
+          "pct": 87.9
+        },
+        "filesInCoverage": 143,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/features/clinical-documents",
+      "label": "src/features/clinical-documents",
+      "tests": "src/tests/features/clinical-documents",
+      "sources": [
+        "src/features/clinical-documents"
+      ],
+      "minTestFileCount": 15,
+      "minTestToSourceRatio": 0.25,
+      "coverageBaseline": {
+        "lines": 83,
+        "functions": 80,
+        "branches": 72
+      },
+      "sourceFiles": [
+        "src/features/clinical-documents/components/ClinicalAttachmentRow.tsx",
+        "src/features/clinical-documents/components/ClinicalAttachmentsPanel.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentAnnexPage.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentDriveFolderPicker.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentFooterSection.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentFormattingToolbar.tsx",
+        "src/features/clinical-documents/components/clinicalDocumentFormattingToolbarShared.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIeehFormBody.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIeehPanel.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentImageEditor.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIndicationsItems.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIndicationsPanel.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIndicationsPanelHeader.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentIndicationsTabSettings.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentLabInsertDialog.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentLinkDialog.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentLockBanner.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentMMRADCopyDialog.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentPatientInfoSection.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentPlanSection.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentRichTextEditor.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentSectionList.tsx",
+        "src/features/clinical-documents/components/clinicalDocumentSectionRendererRegistry.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentSheet.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentSheetHeader.tsx",
+        "src/features/clinical-documents/components/clinicalDocumentSheetShared.ts",
+        "src/features/clinical-documents/components/ClinicalDocumentsModal.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentsPanel.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentsSidebar.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentStatusBar.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentsWorkspace.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentTableDialog.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentVersionBadge.tsx",
+        "src/features/clinical-documents/components/ClinicalDocumentVersionHistory.tsx",
+        "src/features/clinical-documents/components/ClinicalUpdateDateTimeHeader.tsx",
+        "src/features/clinical-documents/components/FonasaSearchInput.tsx",
+        "src/features/clinical-documents/components/InlineEditableTitle.tsx",
+        "src/features/clinical-documents/contracts/clinicalAttachmentRuntimeContracts.ts",
+        "src/features/clinical-documents/contracts/clinicalDocumentAiImportContract.ts",
+        "src/features/clinical-documents/contracts/clinicalDocumentRuntimeContracts.ts",
+        "src/features/clinical-documents/contracts/clinicalDocumentsPatientContract.ts",
+        "src/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts.ts",
+        "src/features/clinical-documents/controllers/clinicalAttachmentFilePolicy.ts",
+        "src/features/clinical-documents/controllers/clinicalAttachmentImageCompressionController.ts",
+        "src/features/clinical-documents/controllers/clinicalAttachmentPathController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentAiImportController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentAutosaveIndicatorController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentCompatibilityController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentDraftRemoteSyncController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentEditorInsertionController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentEmptySectionTemplateController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentEpisodeController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentEpisodeStatusController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentExternalInsertController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentFormattingContract.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentHtmlSanitizer.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIeehController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIeehPrintController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentImageEditorController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIndentationController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIndicationsCatalogController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIndicationsCatalogModel.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentIndicationsController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentLinkController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentMandatoryListShapeController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentPasteController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentPermissionController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentPlanSectionController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentPlanSectionDom.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentRichTextController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentRichTextKeyboardController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentSectionOrderController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentSectionTitleController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentSlashCommandController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentsWorkspaceActionController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentsWorkspaceViewModel.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentTableController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentTemplateController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentTemplateEditorController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentUpdateController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentValidationController.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentWorkspaceController.ts",
+        "src/features/clinical-documents/domain/branding.ts",
+        "src/features/clinical-documents/domain/clinicalAttachmentTypes.ts",
+        "src/features/clinical-documents/domain/clinicalDocumentCoreTypes.ts",
+        "src/features/clinical-documents/domain/clinicalDocumentEpisodeTypes.ts",
+        "src/features/clinical-documents/domain/clinicalDocumentRecordTypes.ts",
+        "src/features/clinical-documents/domain/clinicalDocumentTemplateTypes.ts",
+        "src/features/clinical-documents/domain/definitions.ts",
+        "src/features/clinical-documents/domain/definitions/base.ts",
+        "src/features/clinical-documents/domain/definitions/epicrisis.ts",
+        "src/features/clinical-documents/domain/definitions/epicrisisTraslado.ts",
+        "src/features/clinical-documents/domain/definitions/evolucion.ts",
+        "src/features/clinical-documents/domain/definitions/informeMedico.ts",
+        "src/features/clinical-documents/domain/definitions/otro.ts",
+        "src/features/clinical-documents/domain/entities.ts",
+        "src/features/clinical-documents/domain/factories.ts",
+        "src/features/clinical-documents/domain/rules.ts",
+        "src/features/clinical-documents/domain/schema.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentDeleteActionController.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentDraftReducer.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentRichTextEditorTypes.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentsWorkspaceModelSupport.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentWorkspaceActionSupport.ts",
+        "src/features/clinical-documents/hooks/clinicalDocumentWorkspaceBootstrapSupport.ts",
+        "src/features/clinical-documents/hooks/useClinicalAttachments.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentDraftAutosave.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentDraftRemoteSync.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentEditorHistory.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentIndicationsCatalog.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentRichTextEditorController.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentSheetState.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentSignatureProfile.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentsWorkspaceModel.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentsWorkspaceNotifyPort.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceBootstrap.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDocumentActions.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDraft.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions.ts",
+        "src/features/clinical-documents/hooks/useClinicalDocumentWorkspaceImportActions.ts",
+        "src/features/clinical-documents/index.ts",
+        "src/features/clinical-documents/internal.ts",
+        "src/features/clinical-documents/public.ts",
+        "src/features/clinical-documents/services/clinicalDocumentAiFileTextService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentAiImportService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentBackendExportService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentBrowserPrintService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentDriveService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogOperations.ts",
+        "src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentLoggers.ts",
+        "src/features/clinical-documents/services/clinicalDocumentOperationalTelemetry.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPdfBinarySupport.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPdfRenderService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPdfService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPdfSnapshotSupport.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPrintPdfService.ts",
+        "src/features/clinical-documents/services/clinicalDocumentPrintSupport.ts",
+        "src/features/clinical-documents/services/clinicalDocumentSignatureProfileService.ts",
+        "src/features/clinical-documents/utils/hash.ts"
+      ],
+      "sourceFileCount": 141,
+      "testFileCount": 103,
+      "testToSourceRatio": 0.7304964539007093,
+      "coverage": {
+        "lines": {
+          "total": 4409,
+          "covered": 3785,
+          "skipped": 0,
+          "pct": 85.8
+        },
+        "functions": {
+          "total": 1160,
+          "covered": 984,
+          "skipped": 0,
+          "pct": 84.8
+        },
+        "branches": {
+          "total": 3049,
+          "covered": 2270,
+          "skipped": 0,
+          "pct": 74.5
+        },
+        "filesInCoverage": 141,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/transfers",
+      "label": "src/services/transfers",
+      "tests": "src/tests/services/transfers",
+      "sources": [
+        "src/services/transfers"
+      ],
+      "minTestFileCount": 6,
+      "minTestToSourceRatio": 0.3,
+      "coverageBaseline": {
+        "lines": 81.5,
+        "functions": 79.5,
+        "branches": 70.2
+      },
+      "sourceFiles": [
+        "src/services/transfers/documentFallbacks.ts",
+        "src/services/transfers/documentGeneratorService.ts",
+        "src/services/transfers/documentGeneratorUtils.ts",
+        "src/services/transfers/templateGeneratorService.ts",
+        "src/services/transfers/transferDocumentFallbackRegistry.ts",
+        "src/services/transfers/transferDocumentNamingController.ts",
+        "src/services/transfers/transferDocumentTelemetryController.ts",
+        "src/services/transfers/transferDocxSectionFactory.ts",
+        "src/services/transfers/transferDocxTableController.ts",
+        "src/services/transfers/transferErrorPolicy.ts",
+        "src/services/transfers/transferFirestoreCollections.ts",
+        "src/services/transfers/transferGeneratedDocumentController.ts",
+        "src/services/transfers/transferIaasWorkbookController.ts",
+        "src/services/transfers/transferLoggers.ts",
+        "src/services/transfers/transferMutationsService.ts",
+        "src/services/transfers/transferMutationSupport.ts",
+        "src/services/transfers/transferQueriesService.ts",
+        "src/services/transfers/transferQuestionnaireResponseController.ts",
+        "src/services/transfers/transferSerializationController.ts",
+        "src/services/transfers/transferService.ts",
+        "src/services/transfers/transferStatusController.ts",
+        "src/services/transfers/transferSubscriptionController.ts",
+        "src/services/transfers/transferSubscriptionsService.ts",
+        "src/services/transfers/transferTemplateFetchController.ts"
+      ],
+      "sourceFileCount": 24,
+      "testFileCount": 13,
+      "testToSourceRatio": 0.5416666666666666,
+      "coverage": {
+        "lines": {
+          "total": 663,
+          "covered": 567,
+          "skipped": 0,
+          "pct": 85.5
+        },
+        "functions": {
+          "total": 187,
+          "covered": 157,
+          "skipped": 0,
+          "pct": 84
+        },
+        "branches": {
+          "total": 331,
+          "covered": 248,
+          "skipped": 0,
+          "pct": 74.9
+        },
+        "filesInCoverage": 24,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/storage/firestore",
+      "label": "src/services/storage/firestore",
+      "tests": "src/tests/services/storage",
+      "sources": [
+        "src/services/storage/firestore"
+      ],
+      "minTestFileCount": 12,
+      "minTestToSourceRatio": 2,
+      "coverageBaseline": {
+        "lines": 82.5,
+        "functions": 89,
+        "branches": 78
+      },
+      "sourceFiles": [
+        "src/services/storage/firestore/dailyRecordAuthorityCallableClient.ts",
+        "src/services/storage/firestore/dailyRecordAuthorityMode.ts",
+        "src/services/storage/firestore/dailyRecordConflictSnapshotService.ts",
+        "src/services/storage/firestore/firestoreCatalogService.ts",
+        "src/services/storage/firestore/firestoreDailyRecordAuthorityRouting.ts",
+        "src/services/storage/firestore/firestoreDatabaseProvider.ts",
+        "src/services/storage/firestore/firestoreDocumentStore.ts",
+        "src/services/storage/firestore/firestoreQuerySupport.ts",
+        "src/services/storage/firestore/firestoreRecordQueries.ts",
+        "src/services/storage/firestore/firestoreRecordWrites.ts",
+        "src/services/storage/firestore/firestoreRuntimeSupport.ts",
+        "src/services/storage/firestore/firestoreServiceRuntime.ts",
+        "src/services/storage/firestore/firestoreShared.ts",
+        "src/services/storage/firestore/firestoreWriteSupport.ts",
+        "src/services/storage/firestore/index.ts",
+        "src/services/storage/firestore/ports/firestoreServiceRuntimePort.ts"
+      ],
+      "sourceFileCount": 16,
+      "testFileCount": 51,
+      "testToSourceRatio": 3.1875,
+      "coverage": {
+        "lines": {
+          "total": 552,
+          "covered": 495,
+          "skipped": 0,
+          "pct": 89.7
+        },
+        "functions": {
+          "total": 146,
+          "covered": 138,
+          "skipped": 0,
+          "pct": 94.5
+        },
+        "branches": {
+          "total": 247,
+          "covered": 202,
+          "skipped": 0,
+          "pct": 81.8
+        },
+        "filesInCoverage": 16,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/auth",
+      "label": "src/services/auth",
+      "tests": "src/tests/services/auth",
+      "sources": [
+        "src/services/auth"
+      ],
+      "minTestFileCount": 10,
+      "minTestToSourceRatio": 0.3,
+      "coverageBaseline": {
+        "lines": 72,
+        "functions": 73,
+        "branches": 57
+      },
+      "sourceFiles": [
+        "src/services/auth/authAccessResolution.ts",
+        "src/services/auth/authBootstrapBudgets.ts",
+        "src/services/auth/authBootstrapState.ts",
+        "src/services/auth/authBroadcastChannel.ts",
+        "src/services/auth/authClaimSyncService.ts",
+        "src/services/auth/authCredentialFlow.ts",
+        "src/services/auth/authE2EPopupRuntime.ts",
+        "src/services/auth/authE2ERedirectRuntime.ts",
+        "src/services/auth/authErrorPolicy.ts",
+        "src/services/auth/authFallback.ts",
+        "src/services/auth/authFlow.ts",
+        "src/services/auth/authGoogleFlow.ts",
+        "src/services/auth/authLoggers.ts",
+        "src/services/auth/authLogoutState.ts",
+        "src/services/auth/authOperationalState.ts",
+        "src/services/auth/authOperationalTelemetry.ts",
+        "src/services/auth/authPolicy.ts",
+        "src/services/auth/authRedirectEnvironment.ts",
+        "src/services/auth/authRedirectRuntime.ts",
+        "src/services/auth/authRedirectSupportController.ts",
+        "src/services/auth/authRemoteSyncState.ts",
+        "src/services/auth/authRequestHeaders.ts",
+        "src/services/auth/authRoleCache.ts",
+        "src/services/auth/authRoleLookup.ts",
+        "src/services/auth/authRoleResolutionController.ts",
+        "src/services/auth/authRuntimeSnapshot.ts",
+        "src/services/auth/authSession.ts",
+        "src/services/auth/authSessionController.ts",
+        "src/services/auth/authSessionState.ts",
+        "src/services/auth/authShared.ts",
+        "src/services/auth/authStorageHints.ts",
+        "src/services/auth/authUiCopy.ts",
+        "src/services/auth/firebaseAuthConfigPolicy.ts",
+        "src/services/auth/firebaseStartupUiPolicy.ts",
+        "src/services/auth/firebaseStartupWarningRenderer.ts",
+        "src/services/auth/googleLoginLock.ts",
+        "src/services/auth/sharedCensusAuth.ts"
+      ],
+      "sourceFileCount": 37,
+      "testFileCount": 22,
+      "testToSourceRatio": 0.5945945945945946,
+      "coverage": {
+        "lines": {
+          "total": 885,
+          "covered": 751,
+          "skipped": 0,
+          "pct": 84.9
+        },
+        "functions": {
+          "total": 175,
+          "covered": 151,
+          "skipped": 0,
+          "pct": 86.3
+        },
+        "branches": {
+          "total": 700,
+          "covered": 498,
+          "skipped": 0,
+          "pct": 71.1
+        },
+        "filesInCoverage": 37,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/auth/bootstrap",
+      "label": "src/services/auth/bootstrap",
+      "tests": "src/tests/services/auth",
+      "sources": [
+        "src/services/auth/authBootstrapBudgets.ts",
+        "src/services/auth/authBootstrapState.ts",
+        "src/services/auth/authLogoutState.ts",
+        "src/services/auth/firebaseStartupUiPolicy.ts",
+        "src/services/auth/firebaseStartupWarningRenderer.ts"
+      ],
+      "minTestFileCount": 3,
+      "minTestToSourceRatio": 0.6,
+      "coverageBaseline": {
+        "lines": 87,
+        "functions": 89,
+        "branches": 75
+      },
+      "sourceFiles": [
+        "src/services/auth/authBootstrapBudgets.ts",
+        "src/services/auth/authBootstrapState.ts",
+        "src/services/auth/authLogoutState.ts",
+        "src/services/auth/firebaseStartupUiPolicy.ts",
+        "src/services/auth/firebaseStartupWarningRenderer.ts"
+      ],
+      "sourceFileCount": 5,
+      "testFileCount": 22,
+      "testToSourceRatio": 4.4,
+      "coverage": {
+        "lines": {
+          "total": 99,
+          "covered": 91,
+          "skipped": 0,
+          "pct": 91.9
+        },
+        "functions": {
+          "total": 22,
+          "covered": 22,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 82,
+          "covered": 67,
+          "skipped": 0,
+          "pct": 81.7
+        },
+        "filesInCoverage": 5,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/backup",
+      "label": "src/services/backup",
+      "tests": "src/tests/services/backup",
+      "sources": [
+        "src/services/backup"
+      ],
+      "minTestFileCount": 12,
+      "minTestToSourceRatio": 0.75,
+      "coverageBaseline": {
+        "lines": 78,
+        "functions": 80,
+        "branches": 63
+      },
+      "sourceFiles": [
+        "src/services/backup/backupCrudResults.ts",
+        "src/services/backup/backupLoggers.ts",
+        "src/services/backup/backupService.ts",
+        "src/services/backup/backupServiceHelpers.ts",
+        "src/services/backup/backupStorageRuntimeSupport.ts",
+        "src/services/backup/baseStorageService.ts",
+        "src/services/backup/censusStorageService.ts",
+        "src/services/backup/cudyrStorageService.ts",
+        "src/services/backup/monthlyBackfillService.ts",
+        "src/services/backup/pdfContentBuilder.ts",
+        "src/services/backup/pdfStorageService.ts",
+        "src/services/backup/storageAvailability.ts",
+        "src/services/backup/storageContracts.ts",
+        "src/services/backup/storageErrorPolicy.ts",
+        "src/services/backup/storageListFactories.ts",
+        "src/services/backup/storageListSupport.ts",
+        "src/services/backup/storageLookupContracts.ts",
+        "src/services/backup/storageObservability.ts",
+        "src/services/backup/storageUiPolicy.ts",
+        "src/services/backup/woundCareStorageService.ts"
+      ],
+      "sourceFileCount": 20,
+      "testFileCount": 18,
+      "testToSourceRatio": 0.9,
+      "coverage": {
+        "lines": {
+          "total": 894,
+          "covered": 725,
+          "skipped": 0,
+          "pct": 81.1
+        },
+        "functions": {
+          "total": 167,
+          "covered": 137,
+          "skipped": 0,
+          "pct": 82
+        },
+        "branches": {
+          "total": 441,
+          "covered": 286,
+          "skipped": 0,
+          "pct": 64.9
+        },
+        "filesInCoverage": 20,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/features/reminders/admin",
+      "label": "src/features/reminders/admin",
+      "tests": "src/tests/features/reminders",
+      "sources": [
+        "src/features/reminders/components/admin/ReminderAdminView.tsx",
+        "src/features/reminders/components/admin/ReminderFormModal.tsx",
+        "src/features/reminders/components/admin/ReminderReadStatusTable.tsx"
+      ],
+      "minTestFileCount": 1,
+      "minTestToSourceRatio": 0.3,
+      "coverageBaseline": {
+        "lines": 77.5,
+        "functions": 60,
+        "branches": 85
+      },
+      "sourceFiles": [
+        "src/features/reminders/components/admin/ReminderAdminView.tsx",
+        "src/features/reminders/components/admin/ReminderFormModal.tsx",
+        "src/features/reminders/components/admin/ReminderReadStatusTable.tsx"
+      ],
+      "sourceFileCount": 3,
+      "testFileCount": 4,
+      "testToSourceRatio": 1.3333333333333333,
+      "coverage": {
+        "lines": {
+          "total": 59,
+          "covered": 58,
+          "skipped": 0,
+          "pct": 98.3
+        },
+        "functions": {
+          "total": 41,
+          "covered": 40,
+          "skipped": 0,
+          "pct": 97.6
+        },
+        "branches": {
+          "total": 68,
+          "covered": 62,
+          "skipped": 0,
+          "pct": 91.2
+        },
+        "filesInCoverage": 3,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/app-shell",
+      "label": "src/app-shell",
+      "tests": "src/tests/components",
+      "sources": [
+        "src/App.tsx",
+        "src/index.tsx",
+        "src/app-shell/bootstrap/appShellLoadingPolicy.ts",
+        "src/app-shell/bootstrap/useAppBootstrapState.ts",
+        "src/components/layout/AppContent.tsx",
+        "src/components/layout/NavbarMenu.tsx",
+        "src/components/layout/NavbarTabs.tsx",
+        "src/components/layout/StorageStatusBadge.tsx",
+        "src/components/layout/app-content/useAppContentEventBridge.ts",
+        "src/components/layout/app-content/useAppContentRuntime.ts",
+        "src/components/ui/DatabaseStatusBanner.tsx"
+      ],
+      "minTestFileCount": 6,
+      "minTestToSourceRatio": 1.5,
+      "coverageBaseline": {
+        "lines": 80,
+        "functions": 70,
+        "branches": 81
+      },
+      "sourceFiles": [
+        "src/app-shell/bootstrap/appShellLoadingPolicy.ts",
+        "src/app-shell/bootstrap/useAppBootstrapState.ts",
+        "src/App.tsx",
+        "src/components/layout/app-content/useAppContentEventBridge.ts",
+        "src/components/layout/app-content/useAppContentRuntime.ts",
+        "src/components/layout/AppContent.tsx",
+        "src/components/layout/NavbarMenu.tsx",
+        "src/components/layout/NavbarTabs.tsx",
+        "src/components/layout/StorageStatusBadge.tsx",
+        "src/components/ui/DatabaseStatusBanner.tsx",
+        "src/index.tsx"
+      ],
+      "sourceFileCount": 11,
+      "testFileCount": 104,
+      "testToSourceRatio": 9.454545454545455,
+      "coverage": {
+        "lines": {
+          "total": 340,
+          "covered": 315,
+          "skipped": 0,
+          "pct": 92.6
+        },
+        "functions": {
+          "total": 90,
+          "covered": 84,
+          "skipped": 0,
+          "pct": 93.3
+        },
+        "branches": {
+          "total": 225,
+          "covered": 183,
+          "skipped": 0,
+          "pct": 81.3
+        },
+        "filesInCoverage": 11,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/patient-history",
+      "label": "src/services/patient-history",
+      "tests": "src/tests/services/patient",
+      "sources": [
+        "src/services/patient/patientHistoryService.ts",
+        "src/features/census/components/global-search/patientEpisodeTimelineController.ts"
+      ],
+      "minTestFileCount": 1,
+      "minTestToSourceRatio": 0.5,
+      "coverageBaseline": {
+        "lines": 80,
+        "functions": 80,
+        "branches": 70
+      },
+      "sourceFiles": [
+        "src/features/census/components/global-search/patientEpisodeTimelineController.ts",
+        "src/services/patient/patientHistoryService.ts"
+      ],
+      "sourceFileCount": 2,
+      "testFileCount": 1,
+      "testToSourceRatio": 0.5,
+      "coverage": {
+        "lines": {
+          "total": 126,
+          "covered": 121,
+          "skipped": 0,
+          "pct": 96
+        },
+        "functions": {
+          "total": 22,
+          "covered": 22,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 111,
+          "covered": 87,
+          "skipped": 0,
+          "pct": 78.4
+        },
+        "filesInCoverage": 2,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/export-manager",
+      "label": "src/services/export-manager",
+      "tests": "src/tests",
+      "sources": [
+        "src/hooks/useExportManager.ts",
+        "src/components/layout/app-content/useAppContentRuntime.ts"
+      ],
+      "minTestFileCount": 4,
+      "minTestToSourceRatio": 1,
+      "coverageBaseline": {
+        "lines": 75,
+        "functions": 75,
+        "branches": 65
+      },
+      "sourceFiles": [
+        "src/components/layout/app-content/useAppContentRuntime.ts",
+        "src/hooks/useExportManager.ts"
+      ],
+      "sourceFileCount": 2,
+      "testFileCount": 1403,
+      "testToSourceRatio": 701.5,
+      "coverage": {
+        "lines": {
+          "total": 125,
+          "covered": 120,
+          "skipped": 0,
+          "pct": 96
+        },
+        "functions": {
+          "total": 29,
+          "covered": 28,
+          "skipped": 0,
+          "pct": 96.6
+        },
+        "branches": {
+          "total": 53,
+          "covered": 49,
+          "skipped": 0,
+          "pct": 92.5
+        },
+        "filesInCoverage": 2,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/shared/census/upc-critical",
+      "label": "src/shared/census/upc-critical",
+      "tests": "src/tests",
+      "sources": [
+        "src/shared/census/upcBedPolicy.ts",
+        "src/hooks/controllers/bedManagementPatchController.ts",
+        "src/features/census/components/patient-row/useUpcChecklistState.ts"
+      ],
+      "minTestFileCount": 4,
+      "minTestToSourceRatio": 1,
+      "coverageBaseline": {
+        "lines": 80,
+        "functions": 80,
+        "branches": 70
+      },
+      "sourceFiles": [
+        "src/features/census/components/patient-row/useUpcChecklistState.ts",
+        "src/hooks/controllers/bedManagementPatchController.ts",
+        "src/shared/census/upcBedPolicy.ts"
+      ],
+      "sourceFileCount": 3,
+      "testFileCount": 1403,
+      "testToSourceRatio": 467.6666666666667,
+      "coverage": {
+        "lines": {
+          "total": 178,
+          "covered": 175,
+          "skipped": 0,
+          "pct": 98.3
+        },
+        "functions": {
+          "total": 48,
+          "covered": 47,
+          "skipped": 0,
+          "pct": 97.9
+        },
+        "branches": {
+          "total": 118,
+          "covered": 100,
+          "skipped": 0,
+          "pct": 84.7
+        },
+        "filesInCoverage": 3,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/storage/sync-critical",
+      "label": "src/services/storage/sync-critical",
+      "tests": "src/tests/services/storage",
+      "sources": [
+        "src/services/storage/sync/syncDomainPolicy.ts",
+        "src/services/storage/sync/syncQueueOperationalBudgets.ts",
+        "src/services/storage/sync/syncQueueTelemetryController.ts"
+      ],
+      "minTestFileCount": 8,
+      "minTestToSourceRatio": 2,
+      "coverageBaseline": {
+        "lines": 95,
+        "functions": 95,
+        "branches": 90.5
+      },
+      "sourceFiles": [
+        "src/services/storage/sync/syncDomainPolicy.ts",
+        "src/services/storage/sync/syncQueueOperationalBudgets.ts",
+        "src/services/storage/sync/syncQueueTelemetryController.ts"
+      ],
+      "sourceFileCount": 3,
+      "testFileCount": 51,
+      "testToSourceRatio": 17,
+      "coverage": {
+        "lines": {
+          "total": 103,
+          "covered": 102,
+          "skipped": 0,
+          "pct": 99
+        },
+        "functions": {
+          "total": 27,
+          "covered": 26,
+          "skipped": 0,
+          "pct": 96.3
+        },
+        "branches": {
+          "total": 85,
+          "covered": 85,
+          "skipped": 0,
+          "pct": 100
+        },
+        "filesInCoverage": 3,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/services/storage/indexeddb-recovery",
+      "label": "src/services/storage/indexeddb-recovery",
+      "tests": "src/tests/services/storage",
+      "sources": [
+        "src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts",
+        "src/services/storage/indexeddb/indexedDbRecoveryController.ts",
+        "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
+      ],
+      "minTestFileCount": 8,
+      "minTestToSourceRatio": 2,
+      "coverageBaseline": {
+        "lines": 99,
+        "functions": 99,
+        "branches": 83
+      },
+      "sourceFiles": [
+        "src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts",
+        "src/services/storage/indexeddb/indexedDbRecoveryController.ts",
+        "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
+      ],
+      "sourceFileCount": 3,
+      "testFileCount": 51,
+      "testToSourceRatio": 17,
+      "coverage": {
+        "lines": {
+          "total": 31,
+          "covered": 31,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 10,
+          "covered": 10,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 30,
+          "covered": 26,
+          "skipped": 0,
+          "pct": 86.7
+        },
+        "filesInCoverage": 3,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    },
+    {
+      "root": "src/features/handoff",
+      "label": "src/features/handoff",
+      "tests": "src/tests/views/handoff",
+      "sources": [
+        "src/features/handoff"
+      ],
+      "minTestFileCount": 15,
+      "minTestToSourceRatio": 0.3,
+      "coverageBaseline": {
+        "lines": 84,
+        "functions": 76.5,
+        "branches": 78
+      },
+      "sourceFiles": [
+        "src/features/handoff/components/ClinicalEventsPanel.tsx",
+        "src/features/handoff/components/HandoffBedCell.tsx",
+        "src/features/handoff/components/HandoffChecklistDay.tsx",
+        "src/features/handoff/components/HandoffChecklistNight.tsx",
+        "src/features/handoff/components/HandoffChecklistSection.tsx",
+        "src/features/handoff/components/HandoffCudyrPrint.tsx",
+        "src/features/handoff/components/HandoffCudyrPrintHeader.tsx",
+        "src/features/handoff/components/handoffCudyrPrintSupport.ts",
+        "src/features/handoff/components/HandoffCudyrPrintTable.tsx",
+        "src/features/handoff/components/HandoffDevicesCell.tsx",
+        "src/features/handoff/components/HandoffDiagnosisCell.tsx",
+        "src/features/handoff/components/HandoffHeader.tsx",
+        "src/features/handoff/components/HandoffMedicalContent.tsx",
+        "src/features/handoff/components/HandoffMedicalObservationsCell.tsx",
+        "src/features/handoff/components/HandoffNightCudyrActionButton.tsx",
+        "src/features/handoff/components/HandoffNovedades.tsx",
+        "src/features/handoff/components/HandoffNursingContent.tsx",
+        "src/features/handoff/components/HandoffObservationsCell.tsx",
+        "src/features/handoff/components/HandoffPatientCell.tsx",
+        "src/features/handoff/components/HandoffPatientTable.tsx",
+        "src/features/handoff/components/HandoffPrintHeader.tsx",
+        "src/features/handoff/components/HandoffRow.tsx",
+        "src/features/handoff/components/HandoffRowCells.tsx",
+        "src/features/handoff/components/handoffRowContracts.ts",
+        "src/features/handoff/components/HandoffShiftSelector.tsx",
+        "src/features/handoff/components/HandoffShiftSwitcher.tsx",
+        "src/features/handoff/components/HandoffStaffDisplay.tsx",
+        "src/features/handoff/components/HandoffStaffSelector.tsx",
+        "src/features/handoff/components/HandoffView.tsx",
+        "src/features/handoff/components/HandoffWhatsAppActions.tsx",
+        "src/features/handoff/components/MedicalHandoffHeader.tsx",
+        "src/features/handoff/components/MedicalHandoffObservationEntry.tsx",
+        "src/features/handoff/components/MedicalHandoffPrintMenu.tsx",
+        "src/features/handoff/components/MedicalHandoffTabs.tsx",
+        "src/features/handoff/components/MedicalHandoffTabSwitcher.tsx",
+        "src/features/handoff/components/MedicalHandoffValidityEntry.tsx",
+        "src/features/handoff/components/MedicalShareActions.tsx",
+        "src/features/handoff/components/MedicalSpecialtyHandoffSection.tsx",
+        "src/features/handoff/components/MovementsSummary.tsx",
+        "src/features/handoff/controllers/clinicalEventsPanelController.ts",
+        "src/features/handoff/controllers/handoffManagementController.ts",
+        "src/features/handoff/controllers/handoffMedicalContentController.ts",
+        "src/features/handoff/controllers/handoffPatientTableController.ts",
+        "src/features/handoff/controllers/handoffPrintHeaderController.ts",
+        "src/features/handoff/controllers/handoffRowCellsController.ts",
+        "src/features/handoff/controllers/handoffRowController.ts",
+        "src/features/handoff/controllers/handoffViewBindingsController.ts",
+        "src/features/handoff/controllers/handoffViewController.ts",
+        "src/features/handoff/controllers/medicalHandoffAccessController.ts",
+        "src/features/handoff/controllers/medicalHandoffHeaderController.ts",
+        "src/features/handoff/controllers/medicalHandoffScopeController.ts",
+        "src/features/handoff/controllers/medicalHandoffTabsController.ts",
+        "src/features/handoff/controllers/medicalPatientHandoffController.ts",
+        "src/features/handoff/controllers/medicalPatientHandoffMutationController.ts",
+        "src/features/handoff/controllers/medicalSpecialtyHandoffController.ts",
+        "src/features/handoff/controllers/movementsSummaryController.ts",
+        "src/features/handoff/hooks/useHandoffViewScreenModel.ts",
+        "src/features/handoff/index.ts",
+        "src/features/handoff/public.ts"
+      ],
+      "sourceFileCount": 59,
+      "testFileCount": 32,
+      "testToSourceRatio": 0.5423728813559322,
+      "coverage": {
+        "lines": {
+          "total": 834,
+          "covered": 714,
+          "skipped": 0,
+          "pct": 85.6
+        },
+        "functions": {
+          "total": 317,
+          "covered": 248,
+          "skipped": 0,
+          "pct": 78.2
+        },
+        "branches": {
+          "total": 905,
+          "covered": 718,
+          "skipped": 0,
+          "pct": 79.3
+        },
+        "filesInCoverage": 59,
+        "missingFiles": []
+      },
+      "structuralGate": {
+        "passed": true,
+        "failures": []
+      },
+      "coverageGate": {
+        "passed": true,
+        "failures": []
+      },
+      "passed": true
+    }
+  ],
+  "notes": [
+    "El gate principal usa cobertura instrumentada por zona critica.",
+    "La metrica estructural se mantiene como guardrail auxiliar para detectar zonas sin masa critica de pruebas."
+  ]
+}

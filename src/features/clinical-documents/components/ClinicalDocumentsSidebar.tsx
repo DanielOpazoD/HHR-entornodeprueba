@@ -3,10 +3,10 @@ import {
   ChevronDown,
   Copy,
   Download,
+  FileText,
   FilePlus2,
   FlaskConical,
   MoreHorizontal,
-  Paperclip,
   PenLine,
   Sparkles,
   Trash2,
@@ -38,6 +38,7 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
   onSelectDocument,
   onDuplicateDocument,
   onDeleteDocument,
+  canDeleteDocument,
   onExportJson,
   onImportJson,
   onImportWithAi,
@@ -180,8 +181,8 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   )}
                 >
-                  <Paperclip size={10} className="inline mr-1" />
-                  Anexo
+                  <FileText size={10} className="inline mr-1" />
+                  Agregar Anexos
                 </button>
               )}
             </div>
@@ -297,65 +298,74 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
           </div>
         ) : (
           <div className="space-y-1.5">
-            {documents.map(document => (
-              <div
-                key={document.id}
-                className={clsx(
-                  'group/doc rounded-lg border bg-white px-2 py-1.5 transition-all',
-                  selectedDocumentId === document.id
-                    ? 'border-medical-300 bg-medical-50'
-                    : 'border-slate-200 hover:border-slate-300'
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onSelectDocument(document.id)}
-                    className="flex-1 text-left"
-                  >
-                    <span className="text-[11px] font-semibold leading-tight text-slate-700">
-                      {getClinicalDocumentTypeLabel(document.documentType)}
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => onDuplicateDocument(document)}
-                        className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-medical-600 hover:bg-medical-50"
-                        title="Duplicar documento"
-                      >
-                        <Copy size={11} />
-                      </button>
-                    )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDocument(document)}
-                        className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-red-500 hover:bg-red-50"
-                        title="Eliminar documento"
-                      >
-                        <Trash2 size={11} />
-                      </button>
+            {documents.map(document => {
+              const canDeleteThisDocument = canDelete || Boolean(canDeleteDocument?.(document));
+
+              return (
+                <div
+                  key={document.id}
+                  className={clsx(
+                    'group/doc rounded-lg border bg-white px-2 py-1.5 transition-all',
+                    selectedDocumentId === document.id
+                      ? 'border-medical-300 bg-medical-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelectDocument(document.id)}
+                      className="flex-1 text-left"
+                    >
+                      <span className="text-[11px] font-semibold leading-tight text-slate-700">
+                        {document.title}
+                      </span>
+                      <span className="mt-0.5 block text-[9px] font-medium text-slate-400">
+                        {getClinicalDocumentTypeLabel(document.documentType)}
+                      </span>
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onDuplicateDocument(document)}
+                          className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-medical-600 hover:bg-medical-50"
+                          title="Duplicar documento"
+                        >
+                          <Copy size={11} />
+                        </button>
+                      )}
+                      {canDeleteThisDocument && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteDocument(document)}
+                          className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-red-500 hover:bg-red-50"
+                          title="Eliminar documento"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between">
+                    <p className="text-[9px] text-slate-500">
+                      {formatClinicalDocumentAuthorName(document.audit.updatedBy.displayName)} ·{' '}
+                      {formatClinicalDocumentDateTime(document.audit.updatedAt)}
+                    </p>
+                    {document.versionHistory && document.versionHistory.length > 0 && (
+                      <ClinicalDocumentVersionBadge
+                        currentVersion={document.currentVersion}
+                        versionHistory={withCurrentClinicalDocumentVersionSnapshotFallback(
+                          document
+                        )}
+                        canRestoreSection={canEdit && selectedDocumentId === document.id}
+                        onRestoreSection={onRestoreVersionSection}
+                      />
                     )}
                   </div>
                 </div>
-                <div className="mt-0.5 flex items-center justify-between">
-                  <p className="text-[9px] text-slate-500">
-                    {formatClinicalDocumentAuthorName(document.audit.updatedBy.displayName)} ·{' '}
-                    {formatClinicalDocumentDateTime(document.audit.updatedAt)}
-                  </p>
-                  {document.versionHistory && document.versionHistory.length > 0 && (
-                    <ClinicalDocumentVersionBadge
-                      currentVersion={document.currentVersion}
-                      versionHistory={withCurrentClinicalDocumentVersionSnapshotFallback(document)}
-                      canRestoreSection={canEdit && selectedDocumentId === document.id}
-                      onRestoreSection={onRestoreVersionSection}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

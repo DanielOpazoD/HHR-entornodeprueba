@@ -24,12 +24,12 @@ describe('clinicalDocumentPermissionController', () => {
     expect(canEditClinicalDocuments('nurse_hospital')).toBe(false);
   });
 
-  it('allows document delete for editor and clinical roles', () => {
+  it('keeps document delete globally restricted to admin', () => {
     expect(canDeleteClinicalDocuments('admin')).toBe(true);
-    expect(canDeleteClinicalDocuments('doctor_urgency')).toBe(true);
-    expect(canDeleteClinicalDocuments('doctor_specialist')).toBe(true);
-    expect(canDeleteClinicalDocuments('nurse_hospital')).toBe(true);
-    expect(canDeleteClinicalDocuments('editor')).toBe(true);
+    expect(canDeleteClinicalDocuments('doctor_urgency')).toBe(false);
+    expect(canDeleteClinicalDocuments('doctor_specialist')).toBe(false);
+    expect(canDeleteClinicalDocuments('nurse_hospital')).toBe(false);
+    expect(canDeleteClinicalDocuments('editor')).toBe(false);
     expect(canDeleteClinicalDocuments('viewer')).toBe(false);
     expect(canDeleteClinicalDocuments(undefined)).toBe(false);
   });

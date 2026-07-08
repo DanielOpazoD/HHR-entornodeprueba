@@ -19,6 +19,7 @@ const baseStatus = (): UserHealthStatus => ({
   retryingSyncTasks: 0,
   syncOrphanedTasks: 0,
   oldestPendingAgeMs: 0,
+  oldestDirectQueueAgeMs: 0,
   remoteSyncReason: 'ready',
   versionUpdateReason: 'current',
   localErrorCount: 0,
@@ -82,6 +83,15 @@ describe('systemHealthStatusPolicy', () => {
 
     const result = evaluateSystemHealthState(status);
     expect(result.level).toBe('critical');
+  });
+
+  it('returns critical when direct_queue pre-outbox work stays old', () => {
+    const status = baseStatus();
+    status.oldestDirectQueueAgeMs = DEFAULT_SYSTEM_HEALTH_THRESHOLDS.criticalOldestPendingAgeMs;
+
+    const result = evaluateSystemHealthState(status);
+    expect(result.level).toBe('critical');
+    expect(result.reasons).toContain('pre-outbox directo pendiente con antiguedad critica');
   });
 
   it('returns critical when local persistence is degraded', () => {

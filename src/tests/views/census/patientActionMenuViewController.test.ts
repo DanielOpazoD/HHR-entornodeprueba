@@ -74,6 +74,33 @@ describe('patientActionMenuViewController', () => {
     expect(view.showImagingRequestAction).toBe(false);
   });
 
+  it('keeps read-only navigation actions visible during a freshness clinical lock', () => {
+    const view = resolvePatientActionMenuViewState({
+      isBlocked: false,
+      readOnly: false,
+      clinicalEditingDisabled: true,
+      accessProfile: 'default',
+      hasHistoryAction: true,
+      hasClinicalDocumentsAction: true,
+      hasExamRequestAction: true,
+      hasImagingRequestAction: true,
+      hasMedicalIndicationsAction: true,
+    });
+
+    expect(view).toMatchObject({
+      showDemographicsAction: false,
+      showMenuTrigger: true,
+      showHistoryAction: true,
+      showUtilityActions: false,
+      showClinicalSection: true,
+      showBuiltInClinicalActions: false,
+      showClinicalDocumentsAction: true,
+      showExamRequestAction: false,
+      showImagingRequestAction: false,
+      showMedicalIndicationsAction: false,
+    });
+  });
+
   it('keeps only clinical documents, exam and imaging actions for specialist census access', () => {
     const view = resolvePatientActionMenuViewState({
       isBlocked: false,

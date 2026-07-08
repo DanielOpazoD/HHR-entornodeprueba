@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useFileOperations } from '@/hooks/useFileOperations';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import * as ExportService from '@/services/exporters/exportService';
@@ -62,24 +62,28 @@ describe('useFileOperations', () => {
     expect(typeof result.current.handleImportFile).toBe('function');
   });
 
-  it('should export JSON', () => {
+  it('should export JSON', async () => {
     const { result } = renderHook(() => useFileOperations(mockRecord, mockOnRefresh));
 
     act(() => {
       result.current.handleExportJSON();
     });
 
-    expect(ExportService.exportDataJSONWithResult).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(ExportService.exportDataJSONWithResult).toHaveBeenCalled();
+    });
   });
 
-  it('should export CSV', () => {
+  it('should export CSV', async () => {
     const { result } = renderHook(() => useFileOperations(mockRecord, mockOnRefresh));
 
     act(() => {
       result.current.handleExportCSV();
     });
 
-    expect(ExportService.exportDataCSVWithResult).toHaveBeenCalledWith(mockRecord);
+    await waitFor(() => {
+      expect(ExportService.exportDataCSVWithResult).toHaveBeenCalledWith(mockRecord);
+    });
   });
 
   it('should import JSON file', async () => {

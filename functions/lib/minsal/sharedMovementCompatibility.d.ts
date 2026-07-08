@@ -1,4 +1,5 @@
 export interface ReportingMovementSnapshot {
+  clinicalEpisodeId?: string;
   rut?: string;
   specialty?: string;
   admissionDate?: string;

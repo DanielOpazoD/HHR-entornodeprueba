@@ -118,6 +118,28 @@ describe('useClinicalCrib', () => {
         'beds.R1.clinicalCrib.patientName': 'Updated Baby Name',
       });
     });
+
+    it('handles rejected crib field persistence without an unhandled rejection', async () => {
+      const patient = createMockPatient('R1', {
+        clinicalCrib: createMockPatient('R1-crib', {
+          patientName: 'Baby',
+          bedMode: 'Cuna',
+        }),
+      });
+      const record = createMockRecord({ R1: patient });
+      const failingPatchRecord = vi.fn().mockRejectedValue(new Error('blocked'));
+
+      const { result } = renderHook(() =>
+        useClinicalCrib(record, mockSaveAndUpdate, failingPatchRecord)
+      );
+
+      await expect(
+        result.current.updateCribField('R1', 'patientName', 'Updated Baby Name')
+      ).resolves.toBeUndefined();
+      expect(failingPatchRecord).toHaveBeenCalledWith({
+        'beds.R1.clinicalCrib.patientName': 'Updated Baby Name',
+      });
+    });
   });
 
   describe('updateCribMultiple', () => {

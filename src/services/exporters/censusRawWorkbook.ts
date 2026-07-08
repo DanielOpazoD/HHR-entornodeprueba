@@ -135,11 +135,27 @@ export const buildCensusDailyRawWorkbook = async (
   const rows = extractRowsFromRecord(record);
   rows.forEach(r => sheet.addRow(r));
 
-  sheet.columns.forEach(column => {
-    column.width = 20;
-  });
+  applyCensusRawFormatting(sheet);
 
   return workbook;
+};
+
+export const applyCensusRawFormatting = (worksheet: ReturnType<Workbook['addWorksheet']>) => {
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0F4C81' },
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  headerRow.height = 22;
+
+  worksheet.columns.forEach(column => {
+    column.width = 20;
+  });
 };
 
 export const buildCensusDailyRawBuffer = async (record: DailyRecordRawExportState) => {

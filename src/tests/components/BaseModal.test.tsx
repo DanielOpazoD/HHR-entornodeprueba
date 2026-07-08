@@ -134,6 +134,31 @@ describe('BaseModal z-index behavior', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('does not leak inner modal pointer events to document listeners', () => {
+    const documentClick = vi.fn();
+    const documentMouseDown = vi.fn();
+    document.addEventListener('click', documentClick);
+    document.addEventListener('mousedown', documentMouseDown);
+
+    render(
+      <BaseModal isOpen={true} onClose={() => {}} title="Test Modal">
+        <button type="button">Inner action</button>
+      </BaseModal>
+    );
+
+    const innerButton = document.querySelector('button[type="button"]');
+    expect(innerButton).toBeTruthy();
+
+    fireEvent.mouseDown(innerButton!);
+    fireEvent.click(innerButton!);
+
+    expect(documentMouseDown).not.toHaveBeenCalled();
+    expect(documentClick).not.toHaveBeenCalled();
+
+    document.removeEventListener('click', documentClick);
+    document.removeEventListener('mousedown', documentMouseDown);
+  });
+
   it('focuses the dialog container when there is no focusable body control', () => {
     vi.useFakeTimers();
 

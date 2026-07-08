@@ -1,6 +1,7 @@
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
 import type { CensusMovementTableHeader } from '@/features/census/types/censusMovementTableTypes';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
+import { canConvertDischargeToCma } from '@/application/census/movementTypeConversionPolicy';
 
 export const DISCHARGES_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
   { label: 'Cama Origen' },
@@ -19,16 +20,43 @@ export const getDischargeStatusBadgeClassName = (status: DischargeData['status']
 
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void;
+  viewClinicalDocuments: (discharge: DischargeData) => void;
   editDischarge: (discharge: DischargeData) => void;
   deleteDischarge: (id: string) => void;
+  convertDischargeToCma: (id: string) => void;
 }
 
 export const buildDischargeRowActions = (
   discharge: DischargeData,
   handlers: DischargeRowActionHandlers
-) =>
-  buildMovementRowActions(discharge, {
+): ReturnType<typeof buildMovementRowActions> => {
+  const [undoAction, editAction, deleteAction] = buildMovementRowActions(discharge, {
     onUndo: handlers.undoDischarge,
     onEdit: handlers.editDischarge,
     onDelete: handlers.deleteDischarge,
   });
+  const actions = [
+    undoAction,
+    {
+      kind: 'viewDocuments' as const,
+      title: 'Visualizar documentos clínicos',
+      className: 'text-blue-600 hover:text-blue-700',
+      onClick: () => handlers.viewClinicalDocuments(discharge),
+    },
+    editAction,
+  ];
+
+  if (canConvertDischargeToCma(discharge)) {
+    actions.push({
+      kind: 'convert',
+      title: 'Convertir a CMA',
+      className: 'text-orange-500 hover:text-orange-700',
+      onClick: () => {
+        void handlers.convertDischargeToCma(discharge.id);
+      },
+    });
+  }
+
+  actions.push(deleteAction);
+  return actions;
+};

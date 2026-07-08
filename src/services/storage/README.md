@@ -15,9 +15,9 @@ Capa de persistencia concreta: IndexedDB, localStorage, Firestore bridge y sincr
 | `storage/runtime`                           | bootstrap/bindings y política visible de fallback           |
 | `storage/migration/legacyRecordReadBridge`  | bridge angosto para reads legacy de registros               |
 | `storage/migration/legacyCatalogReadBridge` | bridge angosto para fallbacks legacy de catálogos           |
-| `storage/migration/legacyFirestoreBridge`   | shim deprecated de compatibilidad histórica explícita       |
 
-La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports no deben entrar por bridges deprecated.
+La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports legacy deben entrar
+por los bridges angostos explícitos.
 
 ## Mapa
 
@@ -33,7 +33,6 @@ La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports no
 | `runtime/`                                    | Entry point público de bootstrap y fallback UI        |
 | `migration/legacyRecordReadBridge.ts`         | Bridge canónico para reads legacy de DailyRecord      |
 | `migration/legacyCatalogReadBridge.ts`        | Bridge canónico para fallbacks legacy de catálogos    |
-| `migration/legacyFirestoreBridge.ts`          | Shim deprecated de compatibilidad legacy              |
 | `tableConfigService.ts`                       | Persistencia de configuración de tablas               |
 | `uiSettingsService.ts`                        | Persistencia de preferencias UI                       |
 | `localpersistence/localPersistenceService.ts` | Fallback local unificado (records/settings)           |
@@ -71,7 +70,6 @@ Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 - `localStorageService.ts` sigue existiendo solo como gateway legacy mínimo y deprecated.
 - `migration/legacyRecordReadBridge.ts` es el entrypoint soportado para reads legacy de DailyRecord.
 - `migration/legacyCatalogReadBridge.ts` es el entrypoint soportado para fallbacks legacy de catálogos.
-- `migration/legacyFirestoreBridge.ts` queda como shim deprecated para compatibilidad histórica transitoria.
 - La compatibilidad legacy que entra por Firebase debe preservarse como frontera explícita de lectura
   y normalización; la simplificación de storage no debe convertirla otra vez en fallback implícito
   del hot path ni retirar los paths todavía soportados para registros históricos.

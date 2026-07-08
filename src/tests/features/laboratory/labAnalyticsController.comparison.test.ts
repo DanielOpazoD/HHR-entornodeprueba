@@ -161,6 +161,43 @@ describe('labAnalyticsController comparison output', () => {
     expect(hemoglobinGroup?.variables.Hemoglobina).toHaveLength(2);
   });
 
+  it('normalizes hemoglobina glicosilada to short metabolic row and trend', () => {
+    const result = buildAnalysisData(
+      [
+        buildDetail({
+          url: 'http://example.com/100',
+          findings: [
+            buildFinding({
+              section: 'HEMOGLOBINA GLICOSILADA #2',
+              analysis: 'Hemoglobina Glicosilada',
+              result: '6,6',
+              unit: 'o/o',
+              refValue: '4,0 - 6,5',
+            }),
+          ],
+        }),
+        buildDetail({
+          url: 'http://example.com/200',
+          findings: [
+            buildFinding({
+              section: 'HEMOGLOBINA GLICOSILADA',
+              analysis: 'Hemoglobina Glicosilada',
+              result: '7,4',
+              unit: 'o/o',
+              refValue: '4,0 - 6,0',
+            }),
+          ],
+        }),
+      ],
+      [examWithTime, examWithTime2]
+    );
+
+    expect(result.comparison['Hb glicosilada']).toBeDefined();
+    expect(result.comparison['Hemoglobina Glicosilada']).toBeUndefined();
+    const metabolicTrend = result.trendGroups.find(group => group.variables['Hb glicosilada']);
+    expect(metabolicTrend?.variables['Hb glicosilada']).toHaveLength(2);
+  });
+
   it('returns an empty structure when details are empty', () => {
     const result = buildAnalysisData([], []);
     expect(result.trendGroups).toEqual([]);

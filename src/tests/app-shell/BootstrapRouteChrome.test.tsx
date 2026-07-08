@@ -61,7 +61,8 @@ describe('BootstrapRouteChrome', () => {
         selectedDay: 22,
       })
     );
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
+    expect(screen.queryByTestId('census-operational-state-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
   });
 
   it('renders the nursing handoff chrome for nursing-handoff refreshes', () => {

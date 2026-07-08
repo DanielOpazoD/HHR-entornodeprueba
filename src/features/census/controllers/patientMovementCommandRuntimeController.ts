@@ -16,7 +16,9 @@ export const executeDischargeRuntimeCommand = (
       command.payload.type,
       command.payload.typeOther,
       command.payload.time,
-      command.payload.movementDate
+      command.payload.movementDate,
+      undefined,
+      command.payload.diagnosis
     );
     return;
   }

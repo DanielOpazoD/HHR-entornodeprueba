@@ -4,16 +4,16 @@
       // Append-only: admin tampering prevention. Consolidation is read-time.
       allow update, delete: if false;
     }
-    
+
     match /allowedUsers/{userId} {
       allow read, write: if false;
     }
-    
+
     match /staffCatalogs/{catalogType} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
     }
-    
+
     match /userSettings/{userId} {
       allow read: if isAdmin() || isCurrentUser(userId);
       allow write: if isAdmin() || isCurrentUser(userId);
@@ -42,6 +42,11 @@
     match /stats/system_health/users/{userId} {
       allow read: if canReportSystemHealth();
       allow create, update: if isValidSystemHealthWrite(userId);
+      allow delete: if canManageSystemHealthOperations();
+    }
+    match /stats/system_health/resolutions/{resolutionId} {
+      allow read: if canReportSystemHealth();
+      allow create, update: if isValidSystemHealthResolutionWrite();
       allow delete: if false;
     }
 
@@ -52,6 +57,11 @@
 
     match /config/roles {
       allow read, write: if isAdmin();
+    }
+
+    match /config/prescriptionsAccess {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /census-access-invitations/{invitationId} {

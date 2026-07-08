@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { DateStripQuickActions } from '@/components/layout/date-strip/DateStripQuickActions';
 
@@ -41,46 +41,58 @@ describe('DateStripQuickActions', () => {
     expect(await screen.findByText(/Radiology Viewer Juan Perez/i)).toBeInTheDocument();
   });
 
-  it('filters out patients without rut or patient name before invoking feature quick actions', () => {
+  it('defers feature quick actions during startup and filters patients before invoking them', async () => {
+    vi.useFakeTimers();
     const renderFeatureQuickActions = vi.fn(() => <div>Feature quick actions</div>);
 
-    render(
-      <DateStripQuickActions
-        medicalIndicationsPatients={[
-          ...patients,
-          {
-            bedId: 'R2',
-            label: 'R2 · incompleto',
-            patientName: '',
-            rut: '22.222.222-2',
-            diagnosis: 'Sin nombre',
-            age: '45',
-            birthDate: '1981-02-03',
-            allergies: 'Ninguna',
-            admissionDate: '2026-04-01',
-            daysOfStay: '1',
-            treatingDoctor: 'Dr. Kai',
-          },
-          {
-            bedId: 'R3',
-            label: 'R3 · sin rut',
-            patientName: 'Paciente sin rut',
-            rut: '',
-            diagnosis: 'Sin rut',
-            age: '39',
-            birthDate: '1987-04-10',
-            allergies: 'Ninguna',
-            admissionDate: '2026-04-02',
-            daysOfStay: '1',
-            treatingDoctor: 'Dra. Moana',
-          },
-        ]}
-        renderFeatureQuickActions={renderFeatureQuickActions}
-      />
-    );
+    try {
+      render(
+        <DateStripQuickActions
+          medicalIndicationsPatients={[
+            ...patients,
+            {
+              bedId: 'R2',
+              label: 'R2 · incompleto',
+              patientName: '',
+              rut: '22.222.222-2',
+              diagnosis: 'Sin nombre',
+              age: '45',
+              birthDate: '1981-02-03',
+              allergies: 'Ninguna',
+              admissionDate: '2026-04-01',
+              daysOfStay: '1',
+              treatingDoctor: 'Dr. Kai',
+            },
+            {
+              bedId: 'R3',
+              label: 'R3 · sin rut',
+              patientName: 'Paciente sin rut',
+              rut: '',
+              diagnosis: 'Sin rut',
+              age: '39',
+              birthDate: '1987-04-10',
+              allergies: 'Ninguna',
+              admissionDate: '2026-04-02',
+              daysOfStay: '1',
+              treatingDoctor: 'Dra. Moana',
+            },
+          ]}
+          renderFeatureQuickActions={renderFeatureQuickActions}
+        />
+      );
 
-    expect(renderFeatureQuickActions).toHaveBeenCalledWith(patients);
-    expect(screen.getByText('Feature quick actions')).toBeInTheDocument();
+      expect(renderFeatureQuickActions).not.toHaveBeenCalled();
+      expect(screen.getByTitle('Lab (cargando...)')).toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(1200);
+      });
+
+      expect(renderFeatureQuickActions).toHaveBeenCalledWith(patients);
+      expect(screen.getByText('Feature quick actions')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('hides radiology and lab actions when clinical quick actions are disabled', () => {

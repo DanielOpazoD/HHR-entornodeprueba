@@ -82,6 +82,8 @@ export const queryKeys = {
       ['analytics', 'recordsRange', startDate, endDate] as const,
     remoteStats: (hospitalId: string, startDate: string, endDate: string) =>
       ['analytics', 'remoteStats', hospitalId, startDate, endDate] as const,
+    specialtyReclassifications: (hospitalId: string, startDate: string, endDate: string) =>
+      ['analytics', 'specialtyReclassifications', hospitalId, startDate, endDate] as const,
   },
   transfers: {
     all: ['transfers'] as const,

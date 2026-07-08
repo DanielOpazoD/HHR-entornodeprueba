@@ -31,6 +31,10 @@ export interface ClinicalDocumentIeehDraft {
   procedimientoDescrip?: string;
   /** FONASA Anexo 14 code for the procedure (e.g. "0403001"). */
   procedimientoCodigo?: string;
+  /** IEEH-only treating doctor full name override. Does not change epicrisis authorship. */
+  tratanteNombreCompleto?: string;
+  /** IEEH-only treating doctor specialty override. Does not change epicrisis specialty. */
+  tratanteEspecialidad?: string;
   /** Treating doctor RUT (optional, for PDF field #49). */
   tratanteRut?: string;
 }

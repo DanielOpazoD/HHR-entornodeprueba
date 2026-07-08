@@ -1,5 +1,6 @@
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
+import { clearIndexedDatabases } from '@/services/storage/indexeddb/indexedDbDeleteController';
 
 const canUseWindow = (): boolean => typeof window !== 'undefined';
 const APP_STORAGE_PREFIXES = ['hhr_', 'hanga_roa_', 'indexeddb_'];
@@ -9,26 +10,6 @@ interface ClearBrowserStorageOptions {
   preserveFirebaseAuth?: boolean;
   clearAll?: boolean;
 }
-
-const clearIndexedDatabases = async (): Promise<void> => {
-  if (!canUseWindow()) return;
-
-  try {
-    const dbs = await window.indexedDB.databases();
-    for (const dbInfo of dbs) {
-      if (dbInfo.name) {
-        window.indexedDB.deleteDatabase(dbInfo.name);
-      }
-    }
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_databases', error, {
-      code: 'indexeddb_clear_databases_failed',
-      message: 'No fue posible limpiar las bases locales IndexedDB.',
-      severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar las bases locales del navegador.',
-    });
-  }
-};
 
 const clearStorageBucket = (storage: Storage, options: ClearBrowserStorageOptions = {}): void => {
   if (options.clearAll) {
@@ -84,6 +65,22 @@ const unregisterServiceWorkers = async (): Promise<void> => {
   }
 };
 
+const clearCacheStorage = async (): Promise<void> => {
+  if (!canUseWindow() || !('caches' in window)) return;
+
+  try {
+    const cacheNames = await window.caches.keys();
+    await Promise.all(cacheNames.map(cacheName => window.caches.delete(cacheName)));
+  } catch (error) {
+    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_cache_storage', error, {
+      code: 'indexeddb_clear_cache_storage_failed',
+      message: 'No fue posible limpiar caches locales del navegador.',
+      severity: 'warning',
+      userSafeMessage: 'No fue posible limpiar algunos caches locales del navegador.',
+    });
+  }
+};
+
 export const resetLocalDatabase = async (): Promise<void> => {
   await clearIndexedDatabases();
   clearBrowserStorage({ preserveFirebaseAuth: true });
@@ -92,14 +89,16 @@ export const resetLocalDatabase = async (): Promise<void> => {
 
 export const performClientHardReset = async (): Promise<void> => {
   await unregisterServiceWorkers();
-  await clearIndexedDatabases();
+  await clearCacheStorage();
   clearBrowserStorage({ preserveFirebaseAuth: true });
+  await clearIndexedDatabases();
   defaultBrowserWindowRuntime.reload();
 };
 
 export const resetLocalAppStorage = async (): Promise<void> => {
   await unregisterServiceWorkers();
-  await clearIndexedDatabases();
+  await clearCacheStorage();
   clearBrowserStorage({ clearAll: true });
+  await clearIndexedDatabases();
   defaultBrowserWindowRuntime.reload();
 };

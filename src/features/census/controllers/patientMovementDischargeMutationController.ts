@@ -7,6 +7,7 @@ import {
   clonePatientSnapshot,
   type MovementAuditEntry,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
+import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 interface BuildDischargeEntriesParams {
   patient: PatientData;
@@ -40,62 +41,82 @@ export const buildDischargeEntries = ({
   const auditEntries: MovementAuditEntry[] = [];
 
   if (target === 'mother' || target === 'both') {
+    const patientWithEpisodeId = ensurePatientClinicalEpisodeId(patient);
+    const movementId = createId();
     discharges.push({
-      id: createId(),
+      id: movementId,
       movementDate: resolvedMovementDate,
-      admissionDate: patient.admissionDate,
+      admissionDate: patientWithEpisodeId.admissionDate,
+      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
       bedName: bedDef?.name || bedId,
       bedId,
       bedType: bedDef?.type || '',
-      patientName: patient.patientName,
-      rut: patient.rut,
-      diagnosis: patient.pathology,
-      specialty: patient.specialty,
+      patientName: patientWithEpisodeId.patientName,
+      rut: patientWithEpisodeId.rut,
+      diagnosis: patientWithEpisodeId.pathology,
+      specialty: patientWithEpisodeId.specialty,
       time: time || '',
       status,
       dischargeType: status === 'Vivo' ? (dischargeType as DischargeType) : undefined,
       dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
-      age: patient.age,
-      insurance: patient.insurance,
-      origin: patient.origin,
-      isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(patient),
+      age: patientWithEpisodeId.age,
+      insurance: patientWithEpisodeId.insurance,
+      origin: patientWithEpisodeId.origin,
+      isRapanui: patientWithEpisodeId.isRapanui,
+      originalData: clonePatientSnapshot(patientWithEpisodeId),
       isNested: false,
     });
     auditEntries.push({
+      movementId,
       bedId,
       patientName: patient.patientName,
       rut: patient.rut,
       status,
+      diagnosis: patientWithEpisodeId.pathology,
+      movementDate: resolvedMovementDate,
+      time: time || '',
+      dischargeType: status === 'Vivo' ? dischargeType : undefined,
+      dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
+      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
     });
   }
 
   if ((target === 'baby' || target === 'both') && patient.clinicalCrib?.patientName && cribStatus) {
+    const cribWithEpisodeId = ensurePatientClinicalEpisodeId(patient.clinicalCrib);
+    const movementId = createId();
     discharges.push({
-      id: createId(),
+      id: movementId,
       movementDate: resolvedMovementDate,
-      admissionDate: patient.clinicalCrib.admissionDate,
+      admissionDate: cribWithEpisodeId.admissionDate,
+      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',
-      patientName: patient.clinicalCrib.patientName,
-      rut: patient.clinicalCrib.rut,
-      diagnosis: patient.clinicalCrib.pathology,
-      specialty: patient.clinicalCrib.specialty,
+      patientName: cribWithEpisodeId.patientName,
+      rut: cribWithEpisodeId.rut,
+      diagnosis: cribWithEpisodeId.pathology,
+      specialty: cribWithEpisodeId.specialty,
       time: time || '',
       status: cribStatus,
-      age: patient.clinicalCrib.age,
+      age: cribWithEpisodeId.age,
       insurance: patient.insurance,
       origin: patient.origin,
       isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(patient.clinicalCrib),
+      originalData: clonePatientSnapshot(cribWithEpisodeId),
       isNested: true,
     });
     auditEntries.push({
+      movementId,
       bedId,
       patientName: patient.clinicalCrib.patientName,
       rut: patient.clinicalCrib.rut,
       status: cribStatus,
+      diagnosis: cribWithEpisodeId.pathology,
+      movementDate: resolvedMovementDate,
+      time: time || '',
+      dischargeType: cribStatus === 'Vivo' ? dischargeType : undefined,
+      dischargeTypeOther: dischargeType === 'Otra' ? dischargeTypeOther : undefined,
+      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
     });
   }
 

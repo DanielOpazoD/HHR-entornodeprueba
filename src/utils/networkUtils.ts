@@ -11,9 +11,11 @@ export interface RetryOptions {
   maxDelay?: number;
   factor?: number;
   onRetry?: (error: unknown, attempt: number, delay: number) => void;
+  /** Return false to abort retries immediately and rethrow the error. */
+  shouldRetry?: (error: unknown) => boolean;
 }
 
-const DEFAULT_OPTIONS: Required<Omit<RetryOptions, 'onRetry'>> = {
+const DEFAULT_OPTIONS: Required<Omit<RetryOptions, 'onRetry' | 'shouldRetry'>> = {
   maxRetries: 3,
   initialDelay: 1000,
   maxDelay: 10000,
@@ -45,8 +47,9 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
     } catch (error) {
       lastError = error;
 
-      // Don't retry on last attempt
+      // Don't retry on last attempt or when caller opts out
       if (attempt === maxRetries) break;
+      if (options.shouldRetry && !options.shouldRetry(error)) break;
 
       // Log or notify about the retry attempt
       if (options.onRetry) {

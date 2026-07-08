@@ -37,12 +37,18 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
 
   if (isEditing && canEdit) {
     return (
-      <span className="inline-flex items-center gap-1.5 ml-3">
+      <span
+        className="inline-flex items-center gap-1.5 ml-3"
+        onBlur={event => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsEditing(false);
+          }
+        }}
+      >
         <input
           type="date"
           value={date || ''}
           onChange={e => onPatchDate?.(sectionId, e.target.value)}
-          onBlur={() => setIsEditing(false)}
           className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5"
           autoFocus
         />
@@ -50,7 +56,6 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
           type="time"
           value={time || ''}
           onChange={e => onPatchTime?.(sectionId, e.target.value)}
-          onBlur={() => setIsEditing(false)}
           className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5 w-[80px]"
         />
       </span>

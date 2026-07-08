@@ -25,6 +25,7 @@ export const CONFLICT_CONTEXT_RUNBOOK_ACTIONS: Record<ConflictDomainContext, str
 };
 
 export const resolveConflictDomainContextForPath = (path: string): ConflictDomainContext => {
+  if (path.toLowerCase().includes('handoff')) return 'handoff';
   if (path.startsWith('beds.')) return 'clinical';
   if (
     path.startsWith('nurses') ||
@@ -37,7 +38,6 @@ export const resolveConflictDomainContextForPath = (path: string): ConflictDomai
   if (path.startsWith('discharges') || path.startsWith('transfers') || path.startsWith('cma')) {
     return 'movements';
   }
-  if (path.toLowerCase().includes('handoff')) return 'handoff';
   if (
     path === 'date' ||
     path === 'lastUpdated' ||

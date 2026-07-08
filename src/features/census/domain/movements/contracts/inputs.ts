@@ -9,9 +9,11 @@ export interface DischargeExecutionInput {
   time?: string;
   movementDate?: string;
   dischargeTarget?: DischargeTarget;
+  diagnosis?: string;
 }
 
 export interface TransferExecutionInput {
   time?: string;
   movementDate?: string;
+  diagnosis?: string;
 }

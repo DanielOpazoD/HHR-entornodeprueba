@@ -1,6 +1,10 @@
 export interface DeviceInstance {
   id: string;
   type: string;
+  /** Stable clinical episode owner; prevents bed-scoped history leakage after moves/discharges. */
+  clinicalEpisodeId?: string;
+  patientRut?: string;
+  patientName?: string;
   installationDate: string;
   installationTime?: string;
   removalDate?: string;

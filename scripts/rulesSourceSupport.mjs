@@ -6,6 +6,10 @@ import path from 'node:path';
 export const RULE_ASSETS = {
   firestore: {
     output: 'firestore.rules',
+    generatedFormat: {
+      stripBlankLines: true,
+      stripLineComments: true,
+    },
     sources: [
       'rules/firestore/00-auth-and-role-helpers.rules',
       'rules/firestore/10-specialist-bed-update-helpers.rules',
@@ -31,6 +35,24 @@ export const RULE_ASSETS = {
 
 const ensureTrailingNewline = content => (content.endsWith('\n') ? content : `${content}\n`);
 
+export const normalizeGeneratedRuleFragment = (content, generatedFormat = {}) => {
+  const normalized = content.replace(/\r\n/g, '\n');
+  const withoutFinalNewline = normalized.endsWith('\n') ? normalized.slice(0, -1) : normalized;
+  const lines = withoutFinalNewline.length === 0 ? [] : withoutFinalNewline.split('\n');
+  const filteredLines = lines.filter(line => {
+    const trimmed = line.trim();
+    if (generatedFormat.stripBlankLines && trimmed === '') {
+      return false;
+    }
+    if (generatedFormat.stripLineComments && trimmed.startsWith('//')) {
+      return false;
+    }
+    return true;
+  });
+
+  return filteredLines.length === 0 ? '' : ensureTrailingNewline(filteredLines.join('\n'));
+};
+
 export const buildRuleAssetContent = (root, assetName) => {
   const asset = RULE_ASSETS[assetName];
   if (!asset) {
@@ -44,7 +66,7 @@ export const buildRuleAssetContent = (root, assetName) => {
         throw new Error(`Missing rules source fragment: ${relativePath}`);
       }
 
-      return fs.readFileSync(absolutePath, 'utf8');
+      return normalizeGeneratedRuleFragment(fs.readFileSync(absolutePath, 'utf8'), asset.generatedFormat);
     })
     .join('');
 };

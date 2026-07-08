@@ -56,6 +56,7 @@ interface BuildPatientActionMenuModelParams {
   align?: RowMenuAlign;
   isBlocked: boolean;
   readOnly: boolean;
+  clinicalEditingDisabled?: boolean;
   accessProfile?: CensusAccessProfile;
   hasPatientIdentity?: boolean;
   showCmaAction?: boolean;
@@ -72,6 +73,7 @@ export const buildPatientActionMenuModel = ({
   align,
   isBlocked,
   readOnly,
+  clinicalEditingDisabled = false,
   accessProfile = 'default',
   hasPatientIdentity = true,
   showCmaAction,
@@ -83,12 +85,16 @@ export const buildPatientActionMenuModel = ({
     showCmaAction,
     isBlocked,
     readOnly,
+    clinicalEditingDisabled,
     accessProfile,
     hasPatientIdentity,
     indicators,
     ...callbackAvailability,
   }),
-  utilityActions: canUseCensusUtilityActions({ readOnly, accessProfile })
+  utilityActions: canUseCensusUtilityActions({
+    readOnly: readOnly || clinicalEditingDisabled,
+    accessProfile,
+  })
     ? getVisibleUtilityActions(isBlocked)
     : [],
 });

@@ -17,6 +17,10 @@ service firebase.storage {
       return isAuthenticated() && normalizedRole() in roles;
     }
 
+    function isCurrentUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
     function hasClinicalReadRole() {
       // Storage covers exports, templates, backups and reminder assets.
       // `doctor_specialist` keeps access to clinical data via Firestore rules,
@@ -46,6 +50,27 @@ service firebase.storage {
       return hasClinicalReadRole();
     }
 
+    function canReadClinicalAttachments() {
+      return hasNormalizedRole([
+        'admin',
+        'nurse_hospital',
+        'doctor_urgency',
+        'doctor_specialist',
+        'viewer',
+        'editor'
+      ]);
+    }
+
+    function canWriteClinicalAttachments() {
+      return hasNormalizedRole([
+        'admin',
+        'nurse_hospital',
+        'doctor_urgency',
+        'doctor_specialist',
+        'editor'
+      ]);
+    }
+
     // Entrega de enfermería backups: editable only by clinical editors.
     match /entregas-enfermeria/{allPaths=**} {
       allow read: if canReadClinicalStorage();
@@ -73,6 +98,27 @@ service firebase.storage {
     match /reminders/{allPaths=**} {
       allow read: if canReadClinicalStorage();
       allow write: if canWriteReminderAssets();
+    }
+
+    match /user-avatars/{userId}/{fileName} {
+      allow read: if isCurrentUser(userId);
+      allow write: if isCurrentUser(userId)
+                   && request.resource.size < 2 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName} {
+      allow read: if canReadClinicalAttachments();
+      allow write: if canWriteClinicalAttachments()
+                      && request.resource.size < 15 * 1024 * 1024
+                      && request.resource.contentType.matches('image/.*|application/pdf|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    // Prescription-photo backup blobs are written and cleaned up only by
+    // server-side Cloud Functions. Clinical clients only resolve thumbnails/full images.
+    match /prescriptions/{allPaths=**} {
+      allow read: if canReadClinicalStorage();
+      allow write: if false;
     }
 
     // Wound care: clinical photography and informed consent documents.

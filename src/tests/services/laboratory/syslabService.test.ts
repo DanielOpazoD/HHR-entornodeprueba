@@ -415,6 +415,54 @@ describe('fetchSyslabExamDetails', () => {
     expect(result.data[0].findings).toHaveLength(1);
   });
 
+  it('splits large details requests into batches of three and merges results', async () => {
+    const links = [
+      'http://example.com/exam1',
+      'http://example.com/exam2',
+      'http://example.com/exam3',
+      'http://example.com/exam4',
+      'http://example.com/exam5',
+      'http://example.com/exam6',
+      'http://example.com/exam7',
+    ];
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: links.slice(0, 3).map(url => ({ url, findings: [] })),
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: links.slice(3, 6).map(url => ({ url, findings: [] })),
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: links.slice(6).map(url => ({ url, findings: [] })),
+          }),
+      });
+
+    const result = await fetchSyslabExamDetails(links);
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ links: links.slice(0, 3) });
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body)).toEqual({ links: links.slice(3, 6) });
+    expect(JSON.parse(mockFetch.mock.calls[2][1].body)).toEqual({ links: links.slice(6) });
+    expect(result).toEqual({
+      success: true,
+      data: links.map(url => ({ url, findings: [] })),
+    });
+  });
+
   it('throws on non-OK HTTP response', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

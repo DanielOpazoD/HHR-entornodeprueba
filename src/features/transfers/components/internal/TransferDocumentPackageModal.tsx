@@ -38,8 +38,9 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
 
   const handleEdit = async (doc: GeneratedDocument) => {
     if (!isCloudEditingConfigured) {
-      defaultBrowserWindowRuntime.alert(
-        'La edición en nube aún no está disponible en este entorno. Descarga el archivo para editarlo localmente.'
+      info(
+        'Edición en nube no disponible',
+        'Descarga el archivo para editarlo localmente. La edición en nube aún no está habilitada en este entorno.'
       );
       return;
     }
@@ -57,11 +58,12 @@ export const TransferDocumentPackageModal: React.FC<TransferDocumentPackageModal
       const err = error as Error;
       const msg = err.message || 'Error al conectar con Google Drive';
       if (msg.includes('configured')) {
-        defaultBrowserWindowRuntime.alert(
-          'La edición online no está configurada aún (falta Client ID). Por favor, descarga el archivo para editarlo localmente.'
+        warning(
+          'Edición online no configurada',
+          'Falta el Client ID de Google. Descarga el archivo para editarlo localmente.'
         );
       } else {
-        defaultBrowserWindowRuntime.alert(msg);
+        warning('No se pudo editar en la nube', msg);
       }
     } finally {
       setIsUploading(null);

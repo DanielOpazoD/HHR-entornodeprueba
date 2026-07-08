@@ -40,7 +40,7 @@ export const ClinicalDocumentsModal: React.FC<ClinicalDocumentsModalProps> = ({
       headerActions={
         <div
           id={headerActionsId}
-          className="flex min-h-[60px] flex-1 items-center justify-center overflow-visible"
+          className="flex min-h-[60px] min-w-0 flex-1 items-center justify-end overflow-x-auto overflow-y-visible sm:justify-center"
         />
       }
     >

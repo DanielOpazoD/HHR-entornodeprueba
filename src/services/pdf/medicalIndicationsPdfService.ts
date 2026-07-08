@@ -6,16 +6,11 @@ import {
   MEDICAL_INDICATIONS_PDF_TEMPLATE_FALLBACK_PATHS,
   MEDICAL_INDICATIONS_PDF_TEMPLATE_PATH,
 } from '@/services/pdf/medicalIndicationsPdfCoordinates';
+import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import { formatMedicalIndicationsDate } from '@/shared/contracts/medicalIndications';
 
 const FONT_SIZE = 11;
 const PDF_HEADER = '%PDF-';
-let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
-
-const loadPdfLib = () => {
-  pdfLibPromise ??= import('pdf-lib');
-  return pdfLibPromise;
-};
 
 export interface MedicalIndicationsPdfData {
   paciente_nombre: string;
@@ -27,6 +22,7 @@ export interface MedicalIndicationsPdfData {
   medicotratante: string;
   fecha_ingreso: string;
   fecha_actual: string;
+  fecha_generacion?: string;
   diasEstada: string;
   Reposoindicacion: string;
   Regimenindicacion: string;
@@ -130,7 +126,7 @@ const drawIndications = (page: PDFPage, font: PDFFont, indications: string[]): v
 export const fillMedicalIndicationsPdf = async (
   data: MedicalIndicationsPdfData
 ): Promise<Uint8Array> => {
-  const { PDFDocument, StandardFonts } = await loadPdfLib();
+  const { PDFDocument, StandardFonts } = await loadPdfLibGenerationRuntime();
   const templateBytes = await loadMedicalIndicationsTemplateBytes();
   const pdfDoc = await PDFDocument.load(templateBytes);
   const page = pdfDoc.getPage(0);
@@ -152,6 +148,16 @@ export const fillMedicalIndicationsPdf = async (
   drawFieldText(page, font, 'Kinerespiratoria', data.Kinerespiratoria);
   drawFieldText(page, font, 'Kinecantidadvecesdia', data.Kinecantidadvecesdia);
   drawFieldText(page, font, 'Pendientes', data.Pendientes);
+
+  if (data.fecha_generacion?.trim()) {
+    page.drawText(`Generado el ${data.fecha_generacion.trim()}`, {
+      x: 305,
+      y: 399,
+      size: 8,
+      font,
+      maxWidth: 210,
+    });
+  }
 
   drawIndications(page, font, data.indicaciones);
 

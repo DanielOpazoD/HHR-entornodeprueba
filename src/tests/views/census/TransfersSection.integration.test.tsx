@@ -63,6 +63,11 @@ describe('TransfersSection integration', () => {
     );
   });
 
+  const clickTransferMenuAction = (name: string) => {
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name }));
+  };
+
   it('executes undo/edit/delete through real confirm dialog flow', async () => {
     render(
       <UIProvider>
@@ -70,17 +75,17 @@ describe('TransfersSection integration', () => {
       </UIProvider>
     );
 
-    fireEvent.click(screen.getByTitle('Deshacer (Restaurar a Cama)'));
+    clickTransferMenuAction('Deshacer (Restaurar a Cama)');
     expect(await screen.findByText('Deshacer traslado')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     await waitFor(() => {
       expect(undoTransfer).toHaveBeenCalledWith('t-int-1');
     });
 
-    fireEvent.click(screen.getByTitle('Editar'));
+    clickTransferMenuAction('Editar');
     expect(handleEditTransfer).toHaveBeenCalledWith(transferItem);
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    clickTransferMenuAction('Eliminar Registro');
     expect(await screen.findByText('Eliminar traslado')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     await waitFor(() => {
@@ -88,7 +93,7 @@ describe('TransfersSection integration', () => {
     });
     expect(deleteTransfer).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByTitle('Eliminar Registro'));
+    clickTransferMenuAction('Eliminar Registro');
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }));
     await waitFor(() => {
       expect(deleteTransfer).toHaveBeenCalledWith('t-int-1');

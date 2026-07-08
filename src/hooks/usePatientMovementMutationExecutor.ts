@@ -1,27 +1,48 @@
 import { useCallback, MutableRefObject } from 'react';
 import type {
+  ApplyDailyRecordPatch,
   DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
-import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurrentRecord';
+import {
+  buildAtomicPatientMovementPatch,
+  type AtomicPatientMovementListKey,
+} from '@/application/census/public';
 
 interface UsePatientMovementMutationExecutorParams {
   recordRef: MutableRefObject<DailyRecord | null>;
   saveAndUpdate: PersistDailyRecord;
+  patchRecord?: ApplyDailyRecordPatch;
+  movementKey?: AtomicPatientMovementListKey;
 }
 
 export const usePatientMovementMutationExecutor = ({
   recordRef,
   saveAndUpdate,
+  patchRecord,
+  movementKey,
 }: UsePatientMovementMutationExecutorParams) => {
-  const withCurrentRecord = usePatientMovementCurrentRecord({ recordRef });
-
   return useCallback(
-    (mutation: (record: DailyRecord) => DailyRecord) => {
-      withCurrentRecord(record => {
-        saveAndUpdate(mutation(record));
-      });
+    async (mutation: (record: DailyRecord) => DailyRecord): Promise<void> => {
+      const record = recordRef.current;
+      if (!record) {
+        return;
+      }
+
+      const updatedRecord = mutation(record);
+      if (patchRecord && movementKey) {
+        await patchRecord(
+          buildAtomicPatientMovementPatch({
+            updatedRecord,
+            movementKey,
+            sourceBedIds: [],
+          })
+        );
+        return;
+      }
+
+      await saveAndUpdate(updatedRecord);
     },
-    [saveAndUpdate, withCurrentRecord]
+    [movementKey, patchRecord, recordRef, saveAndUpdate]
   );
 };

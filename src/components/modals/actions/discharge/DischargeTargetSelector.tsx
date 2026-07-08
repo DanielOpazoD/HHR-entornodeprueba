@@ -12,13 +12,14 @@ export const DischargeTargetSelector: React.FC<DischargeTargetSelectorProps> = (
   target,
   onChange,
 }) => (
-  <div className="space-y-2">
-    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+  <fieldset className="space-y-2">
+    <legend className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
       ¿A quién dar de alta?
-    </label>
+    </legend>
     <div className="grid grid-cols-3 gap-2">
       <button
         type="button"
+        aria-pressed={target === 'mother'}
         onClick={() => onChange('mother')}
         className={clsx(
           'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all',
@@ -32,6 +33,7 @@ export const DischargeTargetSelector: React.FC<DischargeTargetSelectorProps> = (
       </button>
       <button
         type="button"
+        aria-pressed={target === 'baby'}
         onClick={() => onChange('baby')}
         className={clsx(
           'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all',
@@ -45,6 +47,7 @@ export const DischargeTargetSelector: React.FC<DischargeTargetSelectorProps> = (
       </button>
       <button
         type="button"
+        aria-pressed={target === 'both'}
         onClick={() => onChange('both')}
         className={clsx(
           'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all',
@@ -67,5 +70,5 @@ export const DischargeTargetSelector: React.FC<DischargeTargetSelectorProps> = (
         La madre permanecerá en la cama. La cuna clínica se eliminará.
       </p>
     )}
-  </div>
+  </fieldset>
 );

@@ -1,6 +1,35 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
+  "precacheMaxBytes": 4700000,
+  "precacheIgnoredAssetPatterns": [
+    "^docs/",
+    "^templates/",
+    "^images/forms/",
+    "^vendor/exceljs\\.bare\\.min\\.js$",
+    "^assets/exceljs\\.min-.*\\.js$",
+    "^assets/pdf\\.worker-.*\\.mjs$",
+    "^assets/vendor-pdfjs-.*\\.js$",
+    "^assets/pdf-.*\\.js$",
+    "^assets/vendor-pdf-.*\\.js$",
+    "^assets/docxtemplater-.*\\.js$",
+    "^assets/LineChart-.*\\.js$",
+    "^assets/documentFallbacks-.*\\.js$",
+    "^assets/vendor-excel-.*\\.js$",
+    "^assets/vendor-canvas-.*\\.js$",
+    "^assets/terminologyService-.*\\.js$",
+    "^assets/fonasaDatabase-.*\\.js$",
+    "^assets/clinicalDocumentTemplateEditorController-.*\\.js$",
+    "^assets/vendor-heic2any-.*\\.js$"
+  ],
+  "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
+  "assetPatternBudgets": [
+    {
+      "pattern": "^vendor/exceljs\\.bare\\.min\\.js$",
+      "_comment": "Browser ExcelJS is served as a runtime asset instead of a duplicated Vite chunk. This ceiling keeps the measured ~948 KB asset near the warning band so payload drift stays visible without blocking the current release.",
+      "maxBytes": 960000
+    }
+  ],
   "startupChunkBudgets": [
     {
       "label": "entry-app",
@@ -18,8 +47,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Raised from 525000 to 560000 after the census public-split fix brought the chunk to ~483 KB. The 560 KB ceiling gives ~14% headroom for incremental post-merge growth (wound-care, new shell context providers) without another same-week refactor. Revisit if utilization exceeds 93%.",
-      "maxBytes": 560000,
+      "_comment": "Measured at ~533 KB with ES2022 + two-pass production minification. The remaining shell graph is the authenticated census runtime; direct-import guardrails protect growth, while this ceiling keeps roughly 11% headroom without creating a permanent false near-limit warning.",
+      "maxBytes": 600000,
       "severity": "error"
     }
   ],
@@ -42,8 +71,33 @@
       "maxBytes": 950000
     },
     {
+      "pattern": "^pdf-.*\\.js$",
+      "_comment": "PDF.js worker/runtime remains async, but this protects the large PDF viewer chunk from silently drifting toward the global chunk limit.",
+      "maxBytes": 560000
+    },
+    {
+      "pattern": "^vendor-pdfjs-.*\\.js$",
+      "_comment": "PDF.js text/import runtime is async and must stay out of the PWA precache. This dedicated budget keeps PDF.js drift visible separately from app-level PDF chunks.",
+      "maxBytes": 520000
+    },
+    {
+      "pattern": "^pdf\\.worker-.*\\.mjs$",
+      "_comment": "PDF.js worker is a large async runtime asset excluded from install-time precache. Keep it governed separately so worker drift is visible without misclassifying it under the generic JS chunk ceiling.",
+      "maxBytes": 2500000
+    },
+    {
+      "pattern": "^vendor-pdf-.*\\.js$",
+      "_comment": "PDF vendor chunks are async but among the largest payloads; keep a dedicated ceiling so PDF library drift stays visible before it reaches the global chunk budget.",
+      "maxBytes": 430000
+    },
+    {
       "pattern": "^TransferManagementView-.*\\.js$",
       "maxBytes": 750000
+    },
+    {
+      "pattern": "^vendor-heic2any-.*\\.js$",
+      "_comment": "HEIC/HEIF conversion is loaded only for high-efficiency mobile prescription photos and kept out of the PWA precache. A dedicated ceiling preserves release visibility without relaxing the global chunk budget.",
+      "maxBytes": 1450000
     }
   ]
 }

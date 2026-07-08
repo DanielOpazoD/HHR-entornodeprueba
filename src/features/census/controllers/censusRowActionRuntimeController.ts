@@ -69,7 +69,6 @@ export const executeRowActionController = async ({
         return ok({ applied: false });
       }
       actions.addCMA(command.cmaData);
-      actions.clearPatient(command.bedId);
       return ok({ applied: true });
     }
   }

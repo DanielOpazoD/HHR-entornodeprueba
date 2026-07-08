@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -9,6 +8,9 @@ import {
   summarizeFrontendStartupHealth,
   summarizePreviewGate,
 } from './operationalHealthSupport.mjs';
+import { classifyBuildAssetBudget, classifyBudgetStatus } from './bundleBudgetSupport.mjs';
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+import { getGitReportState } from './gitReportState.mjs';
 
 const workspaceRoot = process.cwd();
 const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
@@ -137,34 +139,13 @@ const extractEntryAssetsFromHtml = (htmlContent, { entryMaxBytes }) =>
       file,
       sizeBytes,
       maxBytes: entryMaxBytes,
-      status: classifyBudgetStatus(sizeBytes, entryMaxBytes, entryMaxBytes),
+      status: classifyBudgetStatus({
+        actual: sizeBytes,
+        target: entryMaxBytes,
+        enforced: entryMaxBytes,
+      }),
     };
   });
-
-const getGitSha = () => {
-  try {
-    return execSync('git rev-parse --short HEAD', {
-      cwd: workspaceRoot,
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return 'unknown';
-  }
-};
-
-const NEAR_LIMIT_RATIO = 0.85;
-
-const classifyBudgetStatus = (actual, target, enforced) => {
-  if (!Number.isFinite(actual) || !Number.isFinite(target) || !Number.isFinite(enforced)) {
-    return 'unknown';
-  }
-  if (actual > enforced) return 'blocking';
-  if (actual > target) return 'target-miss';
-  if (actual >= enforced * NEAR_LIMIT_RATIO || actual >= target * NEAR_LIMIT_RATIO) {
-    return 'near-limit';
-  }
-  return 'ok';
-};
 
 const collectLargestBuildAssets = (relativeDir, limit = 8) => {
   const assetsDir = path.join(workspaceRoot, relativeDir);
@@ -278,11 +259,13 @@ const indexHtmlContent = fs.existsSync(path.join(workspaceRoot, 'dist', 'index.h
 const largestBuildAssets = collectLargestBuildAssets('dist/assets');
 const chunkMaxBytes = bundleBudgetConfig?.chunkMaxBytes ?? null;
 const entryBuildAssets = extractEntryAssetsFromHtml(indexHtmlContent, { entryMaxBytes });
-const buildAssets = largestBuildAssets.map(asset => ({
-  ...asset,
-  maxBytes: chunkMaxBytes,
-  status: classifyBudgetStatus(asset.sizeBytes, chunkMaxBytes, chunkMaxBytes),
-}));
+const buildAssets = largestBuildAssets.map(asset =>
+  classifyBuildAssetBudget({
+    file: asset.file,
+    sizeBytes: asset.sizeBytes,
+    budgetConfig: bundleBudgetConfig,
+  })
+);
 const bootstrapTelemetrySignals = extractBootstrapTelemetrySignals(bootstrapRuntimeTelemetryContent);
 const frontendStartup = summarizeFrontendStartupHealth({
   previewGate: summarizePreviewGate(previewBootstrapReport),
@@ -292,10 +275,17 @@ const frontendStartup = summarizeFrontendStartupHealth({
   }),
   bootstrapTelemetrySignals,
 });
+const gitState = getGitReportState(workspaceRoot);
 
 const summary = {
   generatedAt: new Date().toISOString(),
-  gitSha: getGitSha(),
+  gitSha: gitState.gitSha,
+  gitDirty: gitState.gitDirty,
+  generatedFor: buildEvidenceProvenance({
+    root: workspaceRoot,
+    reportId: 'operational-health',
+    gitState,
+  }),
   schema: {
     current: currentVersionMatch ? Number(currentVersionMatch[1]) : null,
     legacy: legacyVersionMatch ? Number(legacyVersionMatch[1]) : null,
@@ -486,7 +476,7 @@ ${Object.entries(summary.conflictContexts)
     ? summary.authAccess.roleNormalizationBridges
         .map(bridge => `${bridge.from} -> ${bridge.to}`)
         .join(', ')
-    : 'unknown'
+    : 'none'
 }
 - Modelo canónico: \`${summary.authAccess.canonicalModelDoc}\`
 - Runbook auth: \`${summary.authAccess.authIncidentRunbook}\`
@@ -526,16 +516,21 @@ ${Object.entries(summary.conflictContexts)
     : 'none'
 }
 
-| Critical startup asset | Size (bytes) | Max (bytes) | Status |
-| --- | ---: | ---: | --- |
+| Critical startup asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
+| --- | ---: | ---: | ---: | --- | --- |
 ${
   summary.frontendStartup?.criticalAssets?.length
     ? summary.frontendStartup.criticalAssets
         .map(
-          asset => `| \`${asset.file}\` | ${asset.sizeBytes} | ${asset.maxBytes ?? '-'} | ${asset.status} |`
+          asset =>
+            `| \`${asset.file}\` | ${asset.sizeBytes} | ${asset.maxBytes ?? '-'} | ${
+              typeof asset.budgetUtilizationPct === 'number'
+                ? `${asset.budgetUtilizationPct}%`
+                : '-'
+            } | ${asset.budgetLabel ?? asset.budgetSource ?? '-'} | ${asset.status} |`
         )
         .join('\n')
-    : '| `unavailable` | - | - | missing |'
+    : '| `unavailable` | - | - | - | - | missing |'
 }
 
 ## Incident Signals To Watch
@@ -594,17 +589,21 @@ ${
 
 - Chunk budget max (bytes): ${summary.buildAssets.chunkMaxBytes ?? 'unknown'}
 
-| Asset | Size (bytes) | Max (bytes) | Status |
-| --- | ---: | ---: | --- |
+| Asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
+| --- | ---: | ---: | ---: | --- | --- |
 ${
   summary.buildAssets.largestAssets.length > 0
     ? summary.buildAssets.largestAssets
         .map(
           asset =>
-            `| \`${asset.file}\` | ${asset.sizeBytes} | ${asset.maxBytes ?? '-'} | ${asset.status} |`
+            `| \`${asset.file}\` | ${asset.sizeBytes} | ${asset.maxBytes ?? '-'} | ${
+              typeof asset.budgetUtilizationPct === 'number'
+                ? `${asset.budgetUtilizationPct}%`
+                : '-'
+            } | ${asset.budgetLabel ?? asset.budgetSource ?? '-'} | ${asset.status} |`
         )
         .join('\n')
-    : '| `unavailable` | - | - | missing |'
+    : '| `unavailable` | - | - | - | - | missing |'
 }
 
 ## Repository Performance Thresholds

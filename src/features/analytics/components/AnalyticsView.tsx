@@ -6,14 +6,26 @@
 import React from 'react';
 import { Loader2, Download, BarChart3, RefreshCw } from 'lucide-react';
 import { useMinsalStats } from '@/hooks/useMinsalStats';
+import { useAuth } from '@/context/AuthContext';
 import { DateRangeSelector } from './internal/DateRangeSelector';
 import { MinsalKPICards } from './internal/MinsalKPICards';
 import { SpecialtyBreakdownTable } from './internal/SpecialtyBreakdownTable';
 import { OccupancyTrendChart } from './internal/OccupancyTrendChart';
+import { CmaStatsSection } from './internal/CmaStatsSection';
+import { SpecialtyReportingControls } from './internal/SpecialtyReportingControls';
+import {
+  AnalyticsComparisonPanel,
+  AnalyticsTraceabilityPanel,
+} from './internal/AnalyticsSummaryPanels';
+import {
+  applySpecialtyReclassificationChange,
+  buildAnalyticsMovementReclassificationRows,
+} from '@/features/analytics/controllers/analyticsSpecialtyReclassificationController';
 import { resolveAnalyticsPresentationCopy } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useNotification } from '@/context/UIContext';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import type { SpecialtyGroupingMode } from '@/types/minsalTypes';
 
 interface AnalyticsViewProps {
   onOpenCensusDate?: (date: string) => void;
@@ -21,8 +33,30 @@ interface AnalyticsViewProps {
 
 const analyticsViewLogger = createScopedLogger('AnalyticsView');
 
+type AnalyticsTab = 'summary' | 'hospitalization' | 'cma' | 'specialties' | 'traceability';
+
+const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string }> = [
+  { id: 'summary', label: 'Resumen' },
+  { id: 'hospitalization', label: 'Hospitalización' },
+  { id: 'cma', label: 'CMA/PMA' },
+  { id: 'specialties', label: 'Especialidades' },
+  { id: 'traceability', label: 'Trazabilidad' },
+];
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }) => {
   const copy = resolveAnalyticsPresentationCopy();
+  const { error: notifyError } = useNotification();
+  const auth = useAuth();
+  const isAdmin = auth.role === 'admin' || auth.currentUser?.role === 'admin';
+  const [specialtyGroupingMode, setSpecialtyGroupingMode] =
+    React.useState<SpecialtyGroupingMode>('detailed');
+  const [activeTab, setActiveTab] = React.useState<AnalyticsTab>('summary');
+  const calculationOptions = React.useMemo(
+    () => ({
+      specialtyGroupingMode,
+    }),
+    [specialtyGroupingMode]
+  );
   const {
     stats,
     trendData,
@@ -34,16 +68,52 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
     isLoading,
     error,
     refresh,
-  } = useMinsalStats('lastMonth');
+    comparison,
+    dataQualityIssues,
+    reclassifications,
+    saveReclassification,
+    isSavingReclassification,
+  } = useMinsalStats('lastMonth', calculationOptions);
+
+  const reclassificationRows = React.useMemo(
+    () => buildAnalyticsMovementReclassificationRows(allRecords, reclassifications),
+    [allRecords, reclassifications]
+  );
+
+  const handleReclassificationChange = React.useCallback(
+    async (row: Parameters<typeof applySpecialtyReclassificationChange>[1], specialty: string) => {
+      if (!isAdmin) return;
+      const next = applySpecialtyReclassificationChange(reclassifications, row, specialty).find(
+        item =>
+          item.date === row.date &&
+          item.movementKind === row.movementKind &&
+          item.movementId === row.movementId
+      );
+      await saveReclassification({
+        date: row.date,
+        movementKind: row.movementKind,
+        movementId: row.movementId,
+        reportingSpecialty: next?.specialty ? String(next.specialty) : null,
+      });
+    },
+    [isAdmin, reclassifications, saveReclassification]
+  );
 
   const handleExportExcel = async () => {
     if (!stats) return;
     try {
       const { exportMinsalToExcel } = await import('@/services/exporters/minsalExcelExporter');
-      await exportMinsalToExcel(stats, trendData);
+      const result = await exportMinsalToExcel(stats, trendData);
+      if (result.outcome === 'failed') {
+        analyticsViewLogger.error(`MINSAL Excel rejected by validation: ${result.reason}`);
+        notifyError('No se pudo generar el Excel MINSAL', result.userSafeMessage);
+      }
     } catch (err) {
       analyticsViewLogger.error('Error exporting analytics to Excel', err);
-      defaultBrowserWindowRuntime.alert('Error al exportar el archivo Excel');
+      notifyError(
+        'Error al exportar Excel',
+        'No fue posible generar el archivo. Por favor intenta nuevamente.'
+      );
     }
   };
 
@@ -143,61 +213,116 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
         </span>
       </div>
 
-      {/* KPI Cards */}
-      <MinsalKPICards stats={stats} />
+      <nav
+        role="tablist"
+        aria-label="Secciones de estadísticas"
+        className="flex gap-2 overflow-x-auto border-b border-slate-200"
+      >
+        {ANALYTICS_TABS.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`shrink-0 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+              activeTab === tab.id
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Occupancy Trend */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="mb-4">
-            <h3 className="font-bold text-slate-700">{copy.trendTitle}</h3>
-            <p className="text-xs text-slate-500 mt-1">{copy.trendSubtitle}</p>
-          </div>
-          <OccupancyTrendChart data={trendData} />
-        </div>
+      {activeTab === 'summary' && (
+        <section className="space-y-6">
+          <MinsalKPICards stats={stats} />
+          <AnalyticsComparisonPanel comparison={comparison} />
+        </section>
+      )}
 
-        {/* Current Snapshot */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="mb-4">
-            <h3 className="font-bold text-slate-700">{copy.currentSnapshotTitle}</h3>
-            <p className="text-xs text-slate-500 mt-1">{copy.currentSnapshotSubtitle}</p>
+      {activeTab === 'hospitalization' && (
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <div className="mb-4">
+              <h3 className="font-bold text-slate-700">{copy.trendTitle}</h3>
+              <p className="text-xs text-slate-500 mt-1">{copy.trendSubtitle}</p>
+            </div>
+            <OccupancyTrendChart data={trendData} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-sky-50 rounded-lg p-4 text-center">
-              <div className="text-4xl font-bold text-sky-600">{stats.pacientesActuales ?? 0}</div>
-              <div className="text-sm text-sky-800 mt-1">Pacientes del último registro</div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <div className="mb-4">
+              <h3 className="font-bold text-slate-700">{copy.currentSnapshotTitle}</h3>
+              <p className="text-xs text-slate-500 mt-1">{copy.currentSnapshotSubtitle}</p>
             </div>
-            <div className="bg-emerald-50 rounded-lg p-4 text-center">
-              <div className="text-4xl font-bold text-emerald-600">{stats.camasLibres ?? 0}</div>
-              <div className="text-sm text-emerald-800 mt-1">Camas libres del último registro</div>
-            </div>
-            <div className="bg-orange-50 rounded-lg p-4 text-center">
-              <div className="text-4xl font-bold text-orange-600">{stats.camasBloqueadas ?? 0}</div>
-              <div className="text-sm text-orange-800 mt-1">
-                Camas bloqueadas del último registro
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-sky-50 rounded-lg p-4 text-center">
+                <div className="text-4xl font-bold text-sky-600">
+                  {stats.pacientesActuales ?? 0}
+                </div>
+                <div className="text-sm text-sky-800 mt-1">Pacientes del último registro</div>
+              </div>
+              <div className="bg-emerald-50 rounded-lg p-4 text-center">
+                <div className="text-4xl font-bold text-emerald-600">{stats.camasLibres ?? 0}</div>
+                <div className="text-sm text-emerald-800 mt-1">
+                  Camas libres del último registro
+                </div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+                <div className="text-4xl font-bold text-orange-600">
+                  {stats.camasBloqueadas ?? 0}
+                </div>
+                <div className="text-sm text-orange-800 mt-1">
+                  Camas bloqueadas del último registro
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <div className="text-4xl font-bold text-slate-700">
+                  {stats.tasaOcupacionActual ?? 0}%
+                </div>
+                <div className="text-sm text-slate-700 mt-1">{copy.currentOccupancyLabel}</div>
               </div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4 text-center">
-              <div className="text-4xl font-bold text-purple-600">
-                {stats.tasaOcupacionActual ?? 0}%
-              </div>
-              <div className="text-sm text-purple-800 mt-1">{copy.currentOccupancyLabel}</div>
-            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      )}
 
-      {/* Specialty Breakdown */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="font-bold text-slate-700 mb-4">Desglose por especialidad del período</h3>
-        <SpecialtyBreakdownTable
-          data={stats.porEspecialidad || []}
-          records={allRecords}
-          summary={stats}
+      {activeTab === 'cma' && (
+        <CmaStatsSection cma={stats.cma} onOpenCensusDate={onOpenCensusDate} />
+      )}
+
+      {activeTab === 'specialties' && (
+        <section className="space-y-6">
+          <SpecialtyReportingControls
+            groupingMode={specialtyGroupingMode}
+            rows={reclassificationRows}
+            canEdit={isAdmin}
+            isSaving={isSavingReclassification}
+            onGroupingModeChange={setSpecialtyGroupingMode}
+            onReclassificationChange={handleReclassificationChange}
+          />
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="font-bold text-slate-700 mb-4">Desglose por especialidad del período</h3>
+            <SpecialtyBreakdownTable
+              data={stats.porEspecialidad || []}
+              records={allRecords}
+              summary={stats}
+              onOpenCensusDate={onOpenCensusDate}
+            />
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'traceability' && (
+        <AnalyticsTraceabilityPanel
+          dataQualityIssues={dataQualityIssues}
+          reclassifications={reclassifications}
           onOpenCensusDate={onOpenCensusDate}
         />
-      </div>
+      )}
 
       {/* Footer Info */}
       <div className="text-xs text-slate-400 text-center py-4">

@@ -15,6 +15,7 @@ import { recordOperationalOutcome } from '@/services/observability/operationalTe
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
+import { useAuditContext } from '@/context/AuditContext';
 import {
   resolveClinicalDocumentExceptionMessage,
   updateClinicalDocumentPdfFailure,
@@ -103,6 +104,33 @@ export const useClinicalDocumentWorkspaceExportActions = ({
   setDraft,
 }: UseClinicalDocumentWorkspaceExportActionsParams) => {
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const { logEvent } = useAuditContext();
+
+  const logClinicalDocumentExportAudit = useCallback(
+    (
+      document: ClinicalDocumentRecord,
+      action: 'CLINICAL_DOCUMENT_EXPORTED' | 'CLINICAL_DOCUMENT_PRINTED',
+      exportType: 'json' | 'pdf' | 'print',
+      context?: Record<string, unknown>
+    ) => {
+      logEvent(
+        action,
+        'clinicalDocument',
+        document.id,
+        {
+          documentId: document.id,
+          templateId: document.templateId,
+          documentTitle: document.title,
+          patientName: document.patientName,
+          exportType,
+          ...context,
+        },
+        document.patientRut,
+        document.sourceDailyRecordDate
+      );
+    },
+    [logEvent]
+  );
 
   const handleExportJson = useCallback(
     (document: ClinicalDocumentRecord) => {
@@ -124,6 +152,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           outcome: 'success',
           exportType: 'json',
         });
+        logClinicalDocumentExportAudit(document, 'CLINICAL_DOCUMENT_EXPORTED', 'json');
         notify.success('JSON exportado', 'El documento clínico se descargó como respaldo JSON.');
       } catch (error) {
         const errorMessage = resolveClinicalDocumentExceptionMessage(
@@ -148,7 +177,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
         notify.error('Falló la exportación JSON', errorMessage);
       }
     },
-    [notify]
+    [logClinicalDocumentExportAudit, notify]
   );
 
   const handleUploadPdf = useCallback(
@@ -213,6 +242,10 @@ export const useClinicalDocumentWorkspaceExportActions = ({
             annexMode: options.annexMode,
           },
         });
+        logClinicalDocumentExportAudit(recordToExport, 'CLINICAL_DOCUMENT_EXPORTED', 'pdf', {
+          fileId: exportedPdf.fileId,
+          annexMode: options.annexMode,
+        });
         setDraft(prev => updateClinicalDocumentPdfSuccess(prev, exportedPdf));
         if (options.notifySuccess !== false) {
           notify.success(
@@ -247,7 +280,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
         setIsUploadingPdf(false);
       }
     },
-    [hospitalId, notify, selectedDocument, setDraft]
+    [hospitalId, logClinicalDocumentExportAudit, notify, selectedDocument, setDraft]
   );
 
   const handlePrint = useCallback(async () => {
@@ -298,17 +331,20 @@ export const useClinicalDocumentWorkspaceExportActions = ({
       exportType: 'print',
       context: { annexMode },
     });
+    logClinicalDocumentExportAudit(selectedDocument, 'CLINICAL_DOCUMENT_PRINTED', 'print', {
+      annexMode,
+    });
     await handleUploadPdf({ notifySuccess: false, annexMode });
-  }, [handleUploadPdf, notify, selectedDocument]);
+  }, [handleUploadPdf, logClinicalDocumentExportAudit, notify, selectedDocument]);
 
   const handlePrintAnnex = useCallback(async () => {
     if (!selectedDocument?.annexContent?.trim()) {
-      notify.info('Sin anexo para imprimir', 'Agrega contenido al anexo clínico primero.');
+      notify.info('Sin anexo para imprimir', 'Agrega contenido al anexo del documento primero.');
       return;
     }
 
     const executeOpenClinicalDocumentPrint = await loadClinicalDocumentPrintUseCase();
-    const pageTitle = `Anexo clínico - ${selectedDocument.patientName || selectedDocument.title}`;
+    const pageTitle = `Anexo del documento - ${selectedDocument.patientName || selectedDocument.title}`;
     const opened = await executeOpenClinicalDocumentPrint(
       {
         ...selectedDocument,

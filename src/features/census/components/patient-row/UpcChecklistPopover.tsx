@@ -13,6 +13,7 @@ import { resolveEffectiveUpcState, isUciEligibleBedId } from '@/shared/census/up
 import type { UpcChecklistRecord } from '@/features/census/contracts/censusUpcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
+import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 
 interface UpcChecklistPopoverProps extends BaseCellProps {
   checklist: UpcChecklistRecord | undefined;
@@ -26,11 +27,14 @@ export const UpcChecklistPopover: React.FC<UpcChecklistPopoverProps> = ({
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
+  readOnlyReason,
+  clinicalPause,
   checklist,
   onSave,
   eligible,
   actor,
 }) => {
+  const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const uciAllowed = isUciEligibleBedId(data.bedId);
 
   const {
@@ -81,15 +85,19 @@ export const UpcChecklistPopover: React.FC<UpcChecklistPopoverProps> = ({
   }
 
   return (
-    <td className="p-0.5 text-center w-[26px]">
+    <td className="p-0.5 text-center w-[26px] relative">
       <button
         ref={buttonRef}
         type="button"
-        onClick={togglePopover}
+        onClick={event => {
+          if (freshnessPause.acknowledge(event)) return;
+          togglePopover(event);
+        }}
         disabled={readOnly}
         className={clsx(
           'inline-flex items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold transition-all min-w-[36px] min-h-[20px]',
           readOnly && 'cursor-default',
+          freshnessPause.pauseClassName,
           label
             ? clsx('border', colors.text, colors.bg, colors.border, !readOnly && 'hover:opacity-80')
             : clsx(
@@ -98,13 +106,15 @@ export const UpcChecklistPopover: React.FC<UpcChecklistPopoverProps> = ({
               )
         )}
         title={
-          label
+          readOnlyReason ||
+          (label
             ? `UPC-${label} — Click para editar criterios`
-            : 'Sin clasificación UPC — Click para evaluar'
+            : 'Sin clasificación UPC — Click para evaluar')
         }
       >
         {label ? label : <ShieldCheck size={11} className="text-slate-300" />}
       </button>
+      {freshnessPause.hint}
 
       {isOpen &&
         createPortal(

@@ -13,7 +13,10 @@
  *   records → buildClinicalDocumentPresenceInfoByBed (counts per bed)
  */
 
-import { buildPatientPresenceSnapshot } from '@/application/patient-flow/clinicalEpisode';
+import {
+  buildClinicalEpisodeLookupKeys,
+  buildPatientPresenceSnapshot,
+} from '@/application/patient-flow/clinicalEpisode';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 
 // ---------------------------------------------------------------------------
@@ -24,12 +27,15 @@ import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 type ClinicalDocumentPresenceRecord = {
   status: string;
   episodeKey: string;
+  patientRut?: string;
 };
 
 /** Maps a bed to its patient's clinical episode key. */
 export interface BedEpisodeBinding {
   bedId: string;
   episodeKey: string;
+  episodeKeys?: string[];
+  currentPatientRut?: string;
 }
 
 /** Per-bed record presence with counts for badge display. */
@@ -63,8 +69,45 @@ export const buildBedEpisodeBindings = (unifiedRows: UnifiedBedRow[]): BedEpisod
         return [];
       }
 
-      return [{ bedId: snapshot.bedId, episodeKey: snapshot.episodeKey }];
+      return [
+        {
+          bedId: snapshot.bedId,
+          episodeKey: snapshot.episodeKey,
+          episodeKeys: buildClinicalEpisodeLookupKeys(row.data, snapshot.episodeKey),
+          currentPatientRut: snapshot.patientRut,
+        },
+      ];
     });
+
+const normalizePatientRut = (rut?: string): string =>
+  String(rut || '')
+    .replace(/[^0-9kK]/g, '')
+    .toUpperCase();
+
+const recordMatchesPatientRut = (
+  record: ClinicalDocumentPresenceRecord,
+  binding: BedEpisodeBinding
+): boolean => {
+  const currentPatientRut = normalizePatientRut(binding.currentPatientRut);
+  if (!currentPatientRut) {
+    return true;
+  }
+
+  const documentRut = normalizePatientRut(record.patientRut);
+  return !documentRut || documentRut === currentPatientRut;
+};
+
+const recordMatchesBinding = (
+  record: ClinicalDocumentPresenceRecord,
+  binding: BedEpisodeBinding
+): boolean => {
+  if (record.status === 'archived') {
+    return false;
+  }
+
+  const episodeKeys = binding.episodeKeys?.length ? binding.episodeKeys : [binding.episodeKey];
+  return episodeKeys.includes(record.episodeKey) && recordMatchesPatientRut(record, binding);
+};
 
 // ---------------------------------------------------------------------------
 // Active episode keys (boolean presence)
@@ -87,11 +130,18 @@ export const buildActiveClinicalDocumentEpisodeKeys = (
  */
 export const buildClinicalDocumentPresenceByBed = (
   bindings: BedEpisodeBinding[],
-  activeEpisodeKeys: Set<string>
+  activeEpisodeKeys: Set<string>,
+  records?: ClinicalDocumentPresenceRecord[]
 ): Record<string, boolean> => {
   const result: Record<string, boolean> = {};
   bindings.forEach(b => {
-    result[b.bedId] = activeEpisodeKeys.has(b.episodeKey);
+    if (records) {
+      result[b.bedId] = records.some(record => recordMatchesBinding(record, b));
+      return;
+    }
+
+    const episodeKeys = b.episodeKeys?.length ? b.episodeKeys : [b.episodeKey];
+    result[b.bedId] = episodeKeys.some(episodeKey => activeEpisodeKeys.has(episodeKey));
   });
   return result;
 };
@@ -99,24 +149,6 @@ export const buildClinicalDocumentPresenceByBed = (
 // ---------------------------------------------------------------------------
 // Document counts (badge display)
 // ---------------------------------------------------------------------------
-
-/** Aggregates active document counts grouped by episode key. */
-const buildDocumentCountsByEpisodeKey = (
-  records: ClinicalDocumentPresenceRecord[] | undefined
-): Map<string, { total: number; drafts: number }> => {
-  const counts = new Map<string, { total: number; drafts: number }>();
-
-  (records || [])
-    .filter(r => r.status !== 'archived')
-    .forEach(r => {
-      const entry = counts.get(r.episodeKey) || { total: 0, drafts: 0 };
-      entry.total++;
-      if (r.status === 'draft') entry.drafts++;
-      counts.set(r.episodeKey, entry);
-    });
-
-  return counts;
-};
 
 /**
  * Maps each bed to detailed document presence info including counts.
@@ -126,15 +158,16 @@ export const buildClinicalDocumentPresenceInfoByBed = (
   bindings: BedEpisodeBinding[],
   records: ClinicalDocumentPresenceRecord[] | undefined
 ): Record<string, ClinicalDocumentPresenceInfo> => {
-  const counts = buildDocumentCountsByEpisodeKey(records);
   const result: Record<string, ClinicalDocumentPresenceInfo> = {};
 
   bindings.forEach(b => {
-    const entry = counts.get(b.episodeKey);
+    const matchingRecords = (records || []).filter(record => recordMatchesBinding(record, b));
+    const totalCount = matchingRecords.length;
+    const draftCount = matchingRecords.filter(record => record.status === 'draft').length;
     result[b.bedId] = {
-      present: !!entry,
-      totalCount: entry?.total ?? 0,
-      draftCount: entry?.drafts ?? 0,
+      present: totalCount > 0,
+      totalCount,
+      draftCount,
     };
   });
 

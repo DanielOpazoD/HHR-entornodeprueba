@@ -3,13 +3,19 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { StaffCard } from '@/features/whatsapp/components/internal/StaffCard';
 
-const mockOpen = vi.fn();
-
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    open: (...args: unknown[]) => mockOpen(...args),
-  },
+const { mockOpen } = vi.hoisted(() => ({
+  mockOpen: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      open: mockOpen,
+    }),
+  };
+});
 
 describe('StaffCard', () => {
   const member = {

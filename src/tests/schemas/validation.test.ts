@@ -257,6 +257,11 @@ describe('validation schema helpers', () => {
       expect(SpecialtySchema.parse(Specialty.CIRUGIA)).toBe(Specialty.CIRUGIA);
     });
 
+    it('should accept custom free-text specialties', () => {
+      expect(SpecialtySchema.parse('ORL')).toBe('ORL');
+      expect(SpecialtySchema.parse('Cardiología')).toBe('Cardiología');
+    });
+
     it('should salvage partially corrupted records', () => {
       const corrupted = {
         date: '2025-01-01',

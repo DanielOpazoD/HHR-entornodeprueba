@@ -12,7 +12,13 @@ import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverl
 import { InitialLoadingScreen } from '@/components/ui/InitialLoadingScreen';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
-import { MedicalSignatureView, WoundCareMobileUploadView } from '@/views/LazyViews';
+import {
+  MedicalSignatureView,
+  PrescriptionAdminView,
+  PrescriptionUploadView,
+  PrescriptionVisorView,
+  WoundCareMobileUploadView,
+} from '@/views/LazyViews';
 import { resolveRuntimeLoadingScreenMode } from '@/app-shell/bootstrap/appShellLoadingPolicy';
 import { AuditProvider } from '@/context/AuditContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -74,6 +80,9 @@ function App() {
 
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const isWoundCareMobileUploadRoute = pathname.startsWith('/wound-care/mobile-upload/');
+  const isPrescriptionsUploadRoute = pathname.startsWith('/recetas/upload');
+  const isPrescriptionsVisorRoute = pathname.startsWith('/recetas/visor');
+  const isPrescriptionsAdminRoute = pathname.startsWith('/admin/recetas-config');
   const loadingScreenMode =
     bootstrapState.status === 'loading'
       ? resolveRuntimeLoadingScreenMode({
@@ -87,6 +96,16 @@ function App() {
       <VersionedAppShell>
         <React.Suspense fallback={<ViewLoader />}>
           <WoundCareMobileUploadView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
+  if (isPrescriptionsUploadRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <PrescriptionUploadView />
         </React.Suspense>
       </VersionedAppShell>
     );
@@ -128,6 +147,26 @@ function App() {
     );
   }
 
+  if (isPrescriptionsVisorRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <PrescriptionVisorView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
+  if (isPrescriptionsAdminRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <PrescriptionAdminView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
   return (
     <VersionedAppShell>
       <React.Suspense fallback={<BootstrapRouteChrome />}>
@@ -152,7 +191,7 @@ export default function ProvidedApp() {
         <DefaultRepositoryProvider>
           <HospitalProvider>
             <UIProvider>
-              <AuditProvider userId="anon">
+              <AuditProvider>
                 <AppWithErrorBoundary />
               </AuditProvider>
             </UIProvider>

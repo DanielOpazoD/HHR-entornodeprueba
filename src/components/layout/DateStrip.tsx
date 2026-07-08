@@ -4,22 +4,62 @@
  */
 
 import React, { useRef } from 'react';
-import { Search } from 'lucide-react';
-import { PdfButtons } from './date-strip/actions/PdfButtons';
-import { SaveDropdown } from './date-strip/actions/SaveDropdown';
-import { HandoffSaveDropdown } from './date-strip/actions/HandoffSaveDropdown';
-import { EmailDropdown } from './date-strip/actions/EmailDropdown';
+import { CalendarClock, Search } from 'lucide-react';
 import { resolveShiftedMonthYear } from '@/components/layout/date-strip/dateStripNavigationController';
 import { DateStripDayButtons } from '@/components/layout/date-strip/DateStripDayButtons';
-import { DateStripQuickActions } from '@/components/layout/date-strip/DateStripQuickActions';
-import { DateStripBookmarkToggle } from '@/components/layout/date-strip/DateStripBookmarkToggle';
-import { DateStripYearNavigator } from '@/components/layout/date-strip/DateStripYearNavigator';
-import { DateStripMonthNavigator } from '@/components/layout/date-strip/DateStripMonthNavigator';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import type { ModuleType } from '@/constants/navigationConfig';
+
+const SaveDropdown = React.lazy(() =>
+  import('./date-strip/actions/SaveDropdown').then(module => ({
+    default: module.SaveDropdown,
+  }))
+);
+const HandoffSaveDropdown = React.lazy(() =>
+  import('./date-strip/actions/HandoffSaveDropdown').then(module => ({
+    default: module.HandoffSaveDropdown,
+  }))
+);
+const EmailDropdown = React.lazy(() =>
+  import('./date-strip/actions/EmailDropdown').then(module => ({
+    default: module.EmailDropdown,
+  }))
+);
+const PdfButtons = React.lazy(() =>
+  import('./date-strip/actions/PdfButtons').then(module => ({
+    default: module.PdfButtons,
+  }))
+);
+const DateStripQuickActions = React.lazy(() =>
+  import('@/components/layout/date-strip/DateStripQuickActions').then(module => ({
+    default: module.DateStripQuickActions,
+  }))
+);
+const DateStripBookmarkToggle = React.lazy(() =>
+  import('@/components/layout/date-strip/DateStripBookmarkToggle').then(module => ({
+    default: module.DateStripBookmarkToggle,
+  }))
+);
+const DateStripYearNavigator = React.lazy(() =>
+  import('@/components/layout/date-strip/DateStripYearNavigator').then(module => ({
+    default: module.DateStripYearNavigator,
+  }))
+);
+const DateStripMonthNavigator = React.lazy(() =>
+  import('@/components/layout/date-strip/DateStripMonthNavigator').then(module => ({
+    default: module.DateStripMonthNavigator,
+  }))
+);
+
+const DateStripActionFallback = ({ widthClassName }: { widthClassName: string }) => (
+  <div
+    className={`h-[30px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70 ${widthClassName}`}
+    aria-hidden="true"
+  />
+);
 
 export interface DateNavigationProps {
   selectedYear: number;
@@ -29,6 +69,10 @@ export interface DateNavigationProps {
   selectedDay: number;
   setSelectedDay: React.Dispatch<React.SetStateAction<number>>;
   currentDateString: string;
+  /** Active clinical day (08:00/09:00 shift rollover) — drives the HOY marker. */
+  clinicalToday?: string;
+  /** Jump the selection back to the clinical day (the "Ir a hoy" affordance). */
+  goToClinicalToday?: () => void;
   daysInMonth: number;
   existingDaysInMonth: number[];
   navigateDays: (delta: number) => void;
@@ -36,6 +80,7 @@ export interface DateNavigationProps {
 
 export interface DateStripActionsProps {
   onExportPDF?: () => void;
+  onPrintWithBrowserOptions?: () => void;
   onOpenBedManager?: () => void;
   onExportExcel?: () => void;
   onBackupExcel?: () => Promise<void>;
@@ -85,11 +130,14 @@ export const DateStrip: React.FC<DateStripProps> = ({
   setSelectedMonth,
   selectedDay,
   setSelectedDay,
-  currentDateString: _currentDateString,
+  currentDateString,
+  clinicalToday,
+  goToClinicalToday,
   navigateDays,
   daysInMonth,
   existingDaysInMonth,
   onExportPDF,
+  onPrintWithBrowserOptions,
   onOpenBedManager,
   onExportExcel,
   onBackupExcel,
@@ -136,6 +184,12 @@ export const DateStrip: React.FC<DateStripProps> = ({
     currentModule === 'NURSING_HANDOFF' || currentModule === 'MEDICAL_HANDOFF';
   const canShowRoleRestrictedActions = !isGuest && !specialistCensusAccess;
 
+  // "Ir a hoy" is census-only (where editing the wrong day corrupts a clinical
+  // record) and only when the viewed day is not the clinical today.
+  const isViewingClinicalToday = !clinicalToday || currentDateString === clinicalToday;
+  const showGoToToday =
+    currentModule === 'CENSUS' && !isViewingClinicalToday && Boolean(goToClinicalToday);
+
   useDateStripWheelNavigation({ containerRef: daysContainerRef, navigateDays });
 
   return (
@@ -144,62 +198,79 @@ export const DateStrip: React.FC<DateStripProps> = ({
       style={{ transform: 'translateZ(0)' }}
     >
       <div className="max-w-screen-2xl mx-auto px-2 py-0.5 w-full">
-        <div className="flex items-center justify-center gap-2 w-full">
+        <div className="flex w-full items-center justify-center gap-2 max-md:justify-start max-md:overflow-x-auto">
           <div className="flex items-center gap-1 shrink-0 min-w-0">
             {!isGuest && onToggleBookmarks && (
-              <DateStripBookmarkToggle
-                onToggleBookmarks={onToggleBookmarks}
-                showBookmarks={showBookmarks}
-              />
+              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[30px]" />}>
+                <DateStripBookmarkToggle
+                  onToggleBookmarks={onToggleBookmarks}
+                  showBookmarks={showBookmarks}
+                />
+              </React.Suspense>
             )}
 
             {currentModule === 'NURSING_HANDOFF' && !isGuest && (
-              <HandoffSaveDropdown
-                onExportPDF={onExportPDF}
-                onBackupPDF={onBackupPDF}
-                isArchived={isArchived}
-                isBackingUp={isBackingUp}
-                showFirebaseBackupOption={false}
-              />
+              <React.Suspense fallback={<DateStripActionFallback widthClassName="min-w-[40px]" />}>
+                <HandoffSaveDropdown
+                  onExportPDF={onExportPDF}
+                  onPrintWithBrowserOptions={onPrintWithBrowserOptions}
+                  onBackupPDF={onBackupPDF}
+                  isArchived={isArchived}
+                  isBackingUp={isBackingUp}
+                  showFirebaseBackupOption={false}
+                />
+              </React.Suspense>
             )}
 
             {currentModule === 'CENSUS' && canShowRoleRestrictedActions && (
-              <SaveDropdown
-                onExportExcel={onExportExcel}
-                onBackupExcel={onBackupExcel}
-                isArchived={isArchived}
-                isBackingUp={isBackingUp}
-                showFirebaseBackupOption={false}
-              />
+              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[34px]" />}>
+                <SaveDropdown
+                  onExportExcel={onExportExcel}
+                  onBackupExcel={onBackupExcel}
+                  isArchived={isArchived}
+                  isBackingUp={isBackingUp}
+                  showFirebaseBackupOption={false}
+                />
+              </React.Suspense>
             )}
 
             {canShowRoleRestrictedActions && (
-              <EmailDropdown
-                onSendEmail={onSendEmail}
-                onCopyShareLink={onCopyShareLink}
-                onConfigureEmail={onConfigureEmail}
-                emailStatus={emailStatus}
-                emailErrorMessage={emailErrorMessage}
-              />
+              <React.Suspense fallback={<DateStripActionFallback widthClassName="min-w-[116px]" />}>
+                <EmailDropdown
+                  onSendEmail={onSendEmail}
+                  onCopyShareLink={onCopyShareLink}
+                  onConfigureEmail={onConfigureEmail}
+                  emailStatus={emailStatus}
+                  emailErrorMessage={emailErrorMessage}
+                />
+              </React.Suspense>
             )}
 
-            {currentModule === 'CENSUS' && <PdfButtons onExportPDF={onExportPDF} />}
+            {currentModule === 'CENSUS' && (
+              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[54px]" />}>
+                <PdfButtons onExportPDF={onExportPDF} />
+              </React.Suspense>
+            )}
           </div>
 
           <div className="h-4 w-px bg-slate-200/70" />
 
-          <DateStripYearNavigator selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
+          <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[78px]" />}>
+            <DateStripYearNavigator selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
+          </React.Suspense>
 
           <div className="h-4 w-px bg-slate-200/70" />
 
-          <DateStripMonthNavigator
-            selectedMonth={selectedMonth}
-            onChangeMonth={changeMonth}
-            onSelectMonth={(month: number) => {
-              setSelectedMonth(month);
-              setSelectedDay(1);
-            }}
-          />
+          <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[104px]" />}>
+            <DateStripMonthNavigator
+              selectedMonth={selectedMonth}
+              onChangeMonth={changeMonth}
+              onSelectMonth={(month: number) => {
+                setSelectedMonth(month);
+                setSelectedDay(1);
+              }}
+            />
+          </React.Suspense>
 
           <div className="h-4 w-px bg-slate-200/70" />
 
@@ -216,13 +287,26 @@ export const DateStrip: React.FC<DateStripProps> = ({
               selectedMonth={selectedMonth}
               isCurrentMonth={isCurrentMonth}
               today={today}
+              clinicalToday={clinicalToday}
               currentModule={currentModule}
             />
           </div>
 
+          {showGoToToday && (
+            <button
+              onClick={goToClinicalToday}
+              aria-label="Ir a hoy"
+              className="flex h-[30px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-0 text-[10px] font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+              title="Volver al día de hoy"
+            >
+              <CalendarClock size={13} aria-hidden="true" />
+              <span className="hidden sm:inline">Ir a hoy</span>
+            </button>
+          )}
+
           <div className="h-4 w-px bg-slate-200/70" />
 
-          <div className="flex items-center justify-end gap-1 min-w-0 shrink-0">
+          <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-x-auto">
             {!isHandoffModule && onOpenPatientSearch && (
               <button
                 onClick={onOpenPatientSearch}
@@ -234,14 +318,23 @@ export const DateStrip: React.FC<DateStripProps> = ({
               </button>
             )}
 
-            <DateStripQuickActions
-              onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
-              renderFeatureQuickActions={renderFeatureQuickActions}
-              hideClinicalQuickActions={isHandoffModule}
-              medicalIndicationsPatients={
-                currentModule === 'CENSUS' ? medicalIndicationsPatients : []
+            <React.Suspense
+              fallback={
+                <div
+                  className="h-[30px] w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
+                  aria-hidden="true"
+                />
               }
-            />
+            >
+              <DateStripQuickActions
+                onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
+                renderFeatureQuickActions={renderFeatureQuickActions}
+                hideClinicalQuickActions={isHandoffModule}
+                medicalIndicationsPatients={
+                  currentModule === 'CENSUS' ? medicalIndicationsPatients : []
+                }
+              />
+            </React.Suspense>
           </div>
         </div>
       </div>

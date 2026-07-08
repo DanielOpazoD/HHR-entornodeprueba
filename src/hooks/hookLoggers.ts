@@ -2,6 +2,7 @@ import { createScopedLogger } from '@/services/utils/loggerScope';
 
 export const auditDataLogger = createScopedLogger('useAuditData');
 export const authStateLogger = createScopedLogger('useAuthState');
+export const bedOperationsLogger = createScopedLogger('useBedOperations');
 export const clinicalCribLogger = createScopedLogger('useClinicalCrib');
 export const dailyRecordSyncLogger = createScopedLogger('DailyRecordSync');
 export const excelParserLogger = createScopedLogger('useExcelParser');

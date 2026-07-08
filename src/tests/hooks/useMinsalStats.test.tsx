@@ -14,6 +14,8 @@ const mockGenerateDailyTrend = vi.fn();
 const mockGetDateRangeFromPreset = vi.fn();
 const mockCallable = vi.fn();
 const mockGetFunctionsInstance = vi.fn();
+const mockFetchReclassifications = vi.fn();
+const mockSaveReclassification = vi.fn();
 
 vi.mock('@/services/records/recordQueryService', () => ({
   fetchRecordsRangeSorted: (...args: unknown[]) => mockFetchRecordsRangeSorted(...args),
@@ -33,6 +35,12 @@ vi.mock('@/firebaseConfig', () => ({
 
 vi.mock('firebase/functions', () => ({
   httpsCallable: () => mockCallable,
+}));
+
+vi.mock('@/services/analytics/analyticsSpecialtyReclassificationService', () => ({
+  fetchAnalyticsSpecialtyReclassifications: (...args: unknown[]) =>
+    mockFetchReclassifications(...args),
+  saveAnalyticsSpecialtyReclassification: (...args: unknown[]) => mockSaveReclassification(...args),
 }));
 
 const buildStats = (overrides?: Partial<MinsalStatistics>): MinsalStatistics => ({
@@ -81,7 +89,12 @@ describe('useMinsalStats', () => {
       endDate: '2026-03-31',
     });
     mockGetFunctionsInstance.mockResolvedValue({});
-    mockFilterRecordsByDateRange.mockImplementation((records: DailyRecord[]) => records);
+    mockFetchReclassifications.mockResolvedValue([]);
+    mockSaveReclassification.mockResolvedValue(undefined);
+    mockFilterRecordsByDateRange.mockImplementation(
+      (records: DailyRecord[], startDate: string, endDate: string) =>
+        records.filter(record => record.date >= startDate && record.date <= endDate)
+    );
     mockGenerateDailyTrend.mockReturnValue([
       {
         date: '2026-03-31',
@@ -113,7 +126,78 @@ describe('useMinsalStats', () => {
 
     expect(result.current.stats?.tasaOcupacion).toBe(69.9);
     expect(result.current.trendData).toHaveLength(1);
-    expect(mockCalculateMinsalStats).toHaveBeenCalledWith(localRecords, '2026-03-01', '2026-03-31');
+    expect(mockCalculateMinsalStats).toHaveBeenCalledWith(
+      localRecords,
+      '2026-03-01',
+      '2026-03-31',
+      { specialtyReclassifications: [] }
+    );
+  });
+
+  it('uses persisted specialty reclassifications locally and keeps remote calculations server-owned', async () => {
+    const localRecords = [{ date: '2026-03-31' } as DailyRecord];
+    const localStats = buildStats({ tasaOcupacion: 69.9 });
+    const options = {
+      specialtyGroupingMode: 'group-other' as const,
+      specialtyReclassifications: [
+        {
+          date: '2026-03-31',
+          movementKind: 'discharge' as const,
+          movementId: 'd-1',
+          specialty: 'Cirugía',
+        },
+      ],
+    };
+    const persistedReclassifications = [
+      {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      },
+      {
+        date: '2026-02-28',
+        movementKind: 'transfer' as const,
+        movementId: 't-previous',
+        specialty: 'Medicina Interna',
+      },
+    ];
+
+    mockFetchRecordsRangeSorted.mockResolvedValue(localRecords);
+    mockSyncRecordsRange.mockResolvedValue([]);
+    mockFetchReclassifications.mockResolvedValue(persistedReclassifications);
+    mockCalculateMinsalStats.mockReturnValue(localStats);
+    mockCallable.mockResolvedValue({ data: buildStats({ tasaOcupacion: 30.1 }) });
+
+    const { result } = renderHook(() => useMinsalStats('lastMonth', options), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.stats).not.toBeNull());
+
+    expect(mockCalculateMinsalStats).toHaveBeenCalledWith(
+      localRecords,
+      '2026-03-01',
+      '2026-03-31',
+      {
+        specialtyGroupingMode: 'group-other',
+        specialtyReclassifications: persistedReclassifications,
+      }
+    );
+    expect(result.current.reclassifications).toEqual([persistedReclassifications[0]]);
+    expect(mockFetchReclassifications).toHaveBeenCalledWith(
+      '2026-01-29',
+      '2026-03-31',
+      'hanga_roa'
+    );
+    expect(mockCallable).toHaveBeenCalledWith({
+      hospitalId: 'hanga_roa',
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+      options: {
+        specialtyGroupingMode: 'group-other',
+      },
+    });
   });
 
   it('falls back to remote stats when there is no synchronized local range data', async () => {
@@ -175,8 +259,8 @@ describe('useMinsalStats', () => {
 
     expect(result.current.stats?.pacientesActuales).toBe(14);
     expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(2);
-    expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(1, '2026-03-01', '2026-03-31');
-    expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(2, '2026-03-01', '2026-03-31');
+    expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(1, '2026-01-29', '2026-03-31');
+    expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(2, '2026-01-29', '2026-03-31');
     expect(mockCallable).toHaveBeenCalledTimes(1);
   });
 

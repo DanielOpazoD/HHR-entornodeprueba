@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'reports');
@@ -104,6 +105,11 @@ const overallStatus = indicators.every(indicator => indicator.status === 'ok') ?
 const report = {
   generatedAt: new Date().toISOString(),
   ...gitState,
+  generatedFor: buildEvidenceProvenance({
+    root: ROOT,
+    reportId: 'system-confidence',
+    gitState,
+  }),
   overallStatus,
   degradedByWorktreeOnly,
   overallStatusReason: degradedByWorktreeOnly

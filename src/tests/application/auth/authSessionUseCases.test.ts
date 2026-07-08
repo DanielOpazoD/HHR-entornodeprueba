@@ -8,6 +8,7 @@ const mockHandleSignInRedirectResult = vi.fn();
 const mockGetCurrentAuthSessionState = vi.fn();
 const mockResolveCurrentAuthSessionState = vi.fn();
 const mockIsPopupRecoverableAuthError = vi.fn();
+const mockIsPopupCancellationAuthError = vi.fn();
 const mockResolveAuthErrorCode = vi.fn();
 
 vi.mock('@/services/auth/authFlow', () => ({
@@ -27,6 +28,7 @@ vi.mock('@/services/auth/authFallback', () => ({
 
 vi.mock('@/services/auth/authErrorPolicy', () => ({
   isPopupRecoverableAuthError: (...args: unknown[]) => mockIsPopupRecoverableAuthError(...args),
+  isPopupCancellationAuthError: (...args: unknown[]) => mockIsPopupCancellationAuthError(...args),
   resolveAuthErrorCode: (...args: unknown[]) => mockResolveAuthErrorCode(...args),
 }));
 
@@ -42,6 +44,7 @@ describe('authSessionUseCases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsPopupRecoverableAuthError.mockReturnValue(false);
+    mockIsPopupCancellationAuthError.mockReturnValue(false);
     mockResolveAuthErrorCode.mockReturnValue(null);
   });
 
@@ -76,6 +79,25 @@ describe('authSessionUseCases', () => {
     expect(outcome.status).toBe('failed');
     expect(outcome.reason).toBe('auth/popup-blocked');
     expect(outcome.retryable).toBe(true);
+    expect(outcome.data.status).toBe('auth_error');
+  });
+
+  it('returns retryable cancellation metadata without classifying it as popup blocking', async () => {
+    mockSignInWithGoogle.mockRejectedValue(
+      Object.assign(new Error('Inicio de sesión cancelado. Intenta nuevamente desde el botón.'), {
+        code: 'auth/cancelled-popup-request',
+      })
+    );
+    mockResolveAuthErrorCode.mockReturnValue('auth/cancelled-popup-request');
+    mockIsPopupRecoverableAuthError.mockReturnValue(false);
+    mockIsPopupCancellationAuthError.mockReturnValue(true);
+
+    const outcome = await executeGoogleSignIn();
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.reason).toBe('auth/cancelled-popup-request');
+    expect(outcome.retryable).toBe(true);
+    expect(outcome.severity).toBe('warning');
     expect(outcome.data.status).toBe('auth_error');
   });
 

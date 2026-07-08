@@ -150,6 +150,13 @@ const isPermissionDeniedAuditError = (error: unknown): boolean => {
   return code.includes('permission-denied');
 };
 
+const sortAuditLogsByNewestTimestamp = (logs: AuditLogEntry[]): AuditLogEntry[] =>
+  [...logs].sort((a, b) => {
+    const aTime = Date.parse(a.timestamp || '');
+    const bTime = Date.parse(b.timestamp || '');
+    return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+  });
+
 export const createAuditCoreService = (
   database: Pick<IDatabaseProvider, 'setDoc' | 'getDocs'> = firestoreDb,
   localStore: AuditLocalStore = defaultAuditLocalStore,
@@ -245,10 +252,10 @@ export const createAuditCoreService = (
       }
 
       try {
-        return await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), {
+        const logs = await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), {
           where: [{ field: 'recordDate', operator: '==', value: date }],
-          orderBy: [{ field: 'timestamp', direction: 'desc' }],
         });
+        return sortAuditLogsByNewestTimestamp(logs);
       } catch (error) {
         auditCoreLogger.error('Failed to fetch audit logs for date', error);
         return await localStore.getAuditLogsForDate(date);

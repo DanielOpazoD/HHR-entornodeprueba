@@ -49,7 +49,11 @@ Estos son los entrypoints recomendados para trabajo normal.
 3. Si necesitas snapshots actualizados: `npm run report:governance-snapshots`
 4. Recién después usar `reports/*` como evidencia del checkout actual
 
-Para release real, usar `npm run check:release-evidence`: además de frescura, bloquea reportes generados desde un checkout con cambios locales significativos.
+`check:report-freshness` es advisory para uso diario: muestra drift de reportes sin bloquear ramas operativas. Para release real, usar `npm run check:release-evidence`: ejecuta `check:report-freshness:strict` y además bloquea reportes generados desde un checkout con cambios locales significativos.
+La evidencia de release también exige el artefacto dedicado del smoke visual clínico en `reports/e2e/clinical-visual-release-report.json`; `npm run report:release-evidence` lo genera antes de refrescar los reportes ejecutivos.
+`check:report-freshness:strict` considera frescos los reportes generados para `HEAD`. Los reportes generados para un padre directo de un merge commit solo pasan si incluyen `generatedFor.dependencyFingerprint` y el fingerprint coincide con las dependencias transitivas actuales; esto distingue un drift inocuo de merge commit de un cambio real en la evidencia. Ancestros antiguos, padres de commits lineales normales y fingerprints divergentes bloquean el gate con un comando de recuperación concreto.
+
+Después de un merge a `main`, usar `npm run postmerge:evidence` para generar `reports/postmerge-evidence.{json,md}`. En GitHub Actions, el job `postmerge-evidence` lo ejecuta solo en `push` a `main` y sube el artifact `postmerge-release-evidence`.
 
 ### Si tocas reglas, runbooks o documentación operativa
 
@@ -69,6 +73,7 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run test:rules:ci`
 - `npm run test:emulator:sync`
 - `npm run test:emulator:ui`
+- `npm run test:firestore:cma:ci`
 - `npm run test:e2e`
 - `npm run test:e2e:critical`
 - `npm run test:e2e:flow-performance`
@@ -85,6 +90,9 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run check:runtime-contracts`
 - `npm run check:critical-coverage`
 - `npm run check:flow-performance-budget`
+- `npm run check:unit-shard-balance`
+- `npm run check:ci-runtime-telemetry`
+- `npm run check:test-runtime-governance`
 - `npm run check:security`
 - `npm run check:docs-drift`
 - `npm run check:operational-runbooks`
@@ -102,6 +110,10 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run report:operational-health`
 - `npm run report:system-confidence`
 - `npm run report:architectural-hotspots`
+- `npm run report:unit-shard-runtime-profile`
+- `npm run profile:unit-shard-runtime`
+- `npm run report:ci-runtime-observed-profile`
+- `npm run report:test-runtime-governance`
 - `npm run report:release-readiness-scorecard`
 - `npm run report:runtime-contracts`
 
@@ -110,6 +122,7 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `dev`, `typecheck`, `lint`, `test:ci:unit`, `check:quality` y `ci:*` son la superficie pública recomendada.
 - `check:*`, `report:*` y `test:*` más específicos deben tratarse como herramientas de diagnóstico o validación focalizada.
 - Si aparece un script nuevo que debería usar casi todo el equipo, debe entrar a esta lista oficial o no vale la pena publicitarlo.
+- `npm run test:e2e` corre Chromium por defecto para mantener el ciclo local rápido. Para una revisión cross-browser puntual usa `E2E_BROWSERS=chromium,firefox,webkit npm run test:e2e`; no lo promuevas a gate diario sin una señal real de compatibilidad.
 
 ## Higiene mínima de commits
 

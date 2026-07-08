@@ -81,56 +81,63 @@ describe('ClinicalDocumentAnnexPage', () => {
     const onClear = vi.fn();
     render(<ClinicalDocumentAnnexPage {...baseProps} onClear={onClear} />);
 
-    const title = screen.getByText('Anexos clínicos').closest('div[title]') as HTMLElement;
+    expect(screen.getByText('Anexo del documento')).toBeInTheDocument();
+    expect(screen.getByText('Pertenece solo a este documento')).toBeInTheDocument();
+
+    const title = screen.getByText('Anexo del documento').closest('div[title]') as HTMLElement;
     fireEvent.doubleClick(title);
 
-    const deleteButton = screen.getByTitle('Eliminar sección de anexos');
+    const deleteButton = screen.getByTitle('Eliminar anexo del documento');
     fireEvent.click(deleteButton);
 
-    expect(screen.getByText('¿Eliminar anexos?')).toBeInTheDocument();
+    expect(screen.getByText('¿Eliminar anexo del documento?')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Sí, eliminar'));
 
     expect(onClear).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('¿Eliminar anexos?')).not.toBeInTheDocument();
+    expect(screen.queryByText('¿Eliminar anexo del documento?')).not.toBeInTheDocument();
   });
 
   it('allows cancelling the delete confirmation', () => {
     const onClear = vi.fn();
     render(<ClinicalDocumentAnnexPage {...baseProps} onClear={onClear} />);
 
-    fireEvent.doubleClick(screen.getByText('Anexos clínicos').closest('div[title]') as HTMLElement);
-    fireEvent.click(screen.getByTitle('Eliminar sección de anexos'));
-    expect(screen.getByText('¿Eliminar anexos?')).toBeInTheDocument();
+    fireEvent.doubleClick(
+      screen.getByText('Anexo del documento').closest('div[title]') as HTMLElement
+    );
+    fireEvent.click(screen.getByTitle('Eliminar anexo del documento'));
+    expect(screen.getByText('¿Eliminar anexo del documento?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('No'));
 
     expect(onClear).not.toHaveBeenCalled();
-    expect(screen.queryByText('¿Eliminar anexos?')).not.toBeInTheDocument();
+    expect(screen.queryByText('¿Eliminar anexo del documento?')).not.toBeInTheDocument();
   });
 
   it('hides delete controls immediately via the cancel (X) button before confirming', () => {
     render(<ClinicalDocumentAnnexPage {...baseProps} />);
 
-    fireEvent.doubleClick(screen.getByText('Anexos clínicos').closest('div[title]') as HTMLElement);
+    fireEvent.doubleClick(
+      screen.getByText('Anexo del documento').closest('div[title]') as HTMLElement
+    );
     fireEvent.click(screen.getByTitle('Cancelar'));
 
-    expect(screen.queryByTitle('Eliminar sección de anexos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Eliminar anexo del documento')).not.toBeInTheDocument();
   });
 
   it('does not reveal delete controls when the user cannot edit', () => {
     render(<ClinicalDocumentAnnexPage {...baseProps} canEdit={false} />);
 
-    fireEvent.doubleClick(screen.getByText('Anexos clínicos').closest('div') as HTMLElement);
+    fireEvent.doubleClick(screen.getByText('Anexo del documento').closest('div') as HTMLElement);
 
-    expect(screen.queryByTitle('Eliminar sección de anexos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Eliminar anexo del documento')).not.toBeInTheDocument();
   });
 
   it('does not reveal delete controls when the document is locked', () => {
     render(<ClinicalDocumentAnnexPage {...baseProps} isLocked />);
 
-    fireEvent.doubleClick(screen.getByText('Anexos clínicos').closest('div') as HTMLElement);
+    fireEvent.doubleClick(screen.getByText('Anexo del documento').closest('div') as HTMLElement);
 
-    expect(screen.queryByTitle('Eliminar sección de anexos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Eliminar anexo del documento')).not.toBeInTheDocument();
   });
 
   it('forwards editor changes via onChange', () => {

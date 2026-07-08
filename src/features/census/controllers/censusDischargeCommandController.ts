@@ -40,6 +40,10 @@ export const resolveDischargeCommand = ({
   const movementDate =
     normalizeOptionalText(data?.movementDate) || normalizeOptionalText(dischargeState.movementDate);
   const dischargeTarget = data?.dischargeTarget || dischargeState.dischargeTarget;
+  const diagnosis =
+    data?.diagnosis !== undefined
+      ? normalizeOptionalText(data.diagnosis)
+      : normalizeOptionalText(dischargeState.diagnosis);
 
   const dischargeValidationErrors = validateDischargeExecutionInput({
     status,
@@ -56,7 +60,7 @@ export const resolveDischargeCommand = ({
     return ok({
       kind: 'updateDischarge',
       id: dischargeState.recordId,
-      payload: { status, type, typeOther, time, movementDate },
+      payload: { status, type, typeOther, time, movementDate, diagnosis },
     });
   }
 
@@ -75,6 +79,7 @@ export const resolveDischargeCommand = ({
       time,
       movementDate,
       dischargeTarget,
+      diagnosis,
     },
   });
 };

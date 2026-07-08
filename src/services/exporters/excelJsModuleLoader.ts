@@ -9,7 +9,8 @@ interface ExcelJSModuleType {
 
 declare const __ENABLE_NODE_EXCEL_LOADER__: boolean;
 
-const EXCELJS_RUNTIME_SRC = '/vendor/exceljs.min.js';
+const EXCELJS_RUNTIME_SRC = '/vendor/exceljs.bare.min.js';
+const NODE_EXCELJS_PACKAGE = ['excel', 'js'].join('');
 let browserExcelModulePromise: Promise<ExcelJSModuleType> | null = null;
 
 const shouldUseNodeExcelLoader = (): boolean => {
@@ -81,14 +82,19 @@ const loadExcelJsFromRuntimeAsset = async (): Promise<ExcelJSModuleType> => {
 };
 export const loadExcelJSModule = async (): Promise<ExcelJSModuleType> => {
   if (shouldUseNodeExcelLoader()) {
-    const nodeLoader = await loadNodeExcelLoader();
-    return nodeLoader.loadExcelJSModule();
+    return importExcelJsForNodeRuntime();
   }
   return loadExcelJsFromRuntimeAsset();
 };
 
-const loadNodeExcelLoader = async () => {
-  return import('@/services/exporters/excelJsModuleLoader.node');
+const importExcelJsForNodeRuntime = async (): Promise<ExcelJSModuleType> => {
+  // Keep the Node/test ExcelJS import opaque to Vite so browser builds do not
+  // bundle a second copy alongside the browser runtime asset.
+  const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+    specifier: string
+  ) => Promise<ExcelJSModuleType>;
+
+  return dynamicImport(NODE_EXCELJS_PACKAGE);
 };
 
 export const resolveExcelWorkbookConstructor = (

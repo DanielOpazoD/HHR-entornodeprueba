@@ -39,4 +39,4 @@ export const resolveInitialLoginBackgroundMode = (): LoginBackgroundMode =>
   readStoredLoginBackgroundMode() ?? resolveTimeBasedLoginBackgroundMode();
 
 export const resolveLoginBackgroundImage = (mode: LoginBackgroundMode): string =>
-  mode === 'day' ? '/images/login/hhr-login-day.png' : '/images/login/hhr-login-night.png';
+  mode === 'day' ? '/images/login/hhr-login-day.webp' : '/images/login/hhr-login-night.webp';

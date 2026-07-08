@@ -156,4 +156,92 @@ describe('useClinicalDocumentWorkspaceDraft autosave integration', () => {
     );
     expect(result.current.draft?.id).toBe(secondDraft.id);
   });
+
+  it('does not let a completed autosave from the previous document mark the current document clean', async () => {
+    const firstDraft = buildDraft('doc-1', '<p>Documento uno original</p>');
+    const secondDraft = buildDraft('doc-2', '<p>Documento dos original</p>');
+    let resolveFirstAutosave: (value: {
+      status: 'success';
+      data: ClinicalDocumentRecord;
+      issues: [];
+    }) => void = () => undefined;
+
+    executePersistClinicalDocumentEditorDraft.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveFirstAutosave = resolve;
+      })
+    );
+
+    const { result, rerender } = renderHook(
+      ({ documents, selectedDocumentId }) =>
+        useClinicalDocumentWorkspaceDraft({
+          documents,
+          selectedDocumentId,
+          canEdit: true,
+          isActive: true,
+          hospitalId: 'hhr',
+          role: 'doctor_urgency',
+          persistReason: 'autosave',
+          user: {
+            uid: 'u1',
+            email: 'doctor@test.com',
+            displayName: 'Doctor Test',
+          },
+        }),
+      {
+        initialProps: {
+          documents: [firstDraft],
+          selectedDocumentId: firstDraft.id,
+        },
+      }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.patchSection('antecedentes', '<p>Documento uno pendiente</p>');
+    });
+
+    await act(async () => {
+      rerender({
+        documents: [firstDraft, secondDraft],
+        selectedDocumentId: secondDraft.id,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.patchSection('antecedentes', '<p>Documento dos pendiente</p>');
+    });
+
+    await act(async () => {
+      resolveFirstAutosave({
+        status: 'success',
+        data: {
+          ...firstDraft,
+          sections: firstDraft.sections.map(section =>
+            section.id === 'antecedentes'
+              ? { ...section, content: '<p>Documento uno pendiente</p>' }
+              : section
+          ),
+        },
+        issues: [],
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.draft?.id).toBe(secondDraft.id);
+    expect(result.current.draft?.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'antecedentes',
+          content: '<p>Documento dos pendiente</p>',
+        }),
+      ])
+    );
+    expect(result.current.hasLocalDraftChanges).toBe(true);
+  });
 });

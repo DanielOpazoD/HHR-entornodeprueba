@@ -23,6 +23,7 @@ export interface DischargeModalBinding {
   initialOtherDetails?: string;
   initialTime?: string;
   initialMovementDate?: string;
+  diagnosis?: string;
 }
 
 export interface TransferModalBinding {
@@ -38,6 +39,7 @@ export interface TransferModalBinding {
   clinicalCribName?: string;
   initialTime?: string;
   initialMovementDate?: string;
+  diagnosis?: string;
 }
 
 export const buildMoveCopyModalBinding = (actionState: ActionState): MoveCopyModalBinding => ({
@@ -61,6 +63,7 @@ export const buildDischargeModalBinding = (
   initialOtherDetails: dischargeState.typeOther,
   initialTime: dischargeState.time,
   initialMovementDate: dischargeState.movementDate,
+  diagnosis: dischargeState.diagnosis,
 });
 
 export const buildTransferModalBinding = (transferState: TransferState): TransferModalBinding => ({
@@ -76,4 +79,5 @@ export const buildTransferModalBinding = (transferState: TransferState): Transfe
   clinicalCribName: transferState.clinicalCribName,
   initialTime: transferState.time,
   initialMovementDate: transferState.movementDate,
+  diagnosis: transferState.diagnosis,
 });

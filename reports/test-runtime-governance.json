@@ -1,0 +1,316 @@
+{
+  "reportId": "test-runtime-governance",
+  "generatedAt": "2026-07-06T05:44:53.359Z",
+  "gitSha": "cf972b18",
+  "gitDirty": false,
+  "budgets": {
+    "prCriticalPathMinutes": 35,
+    "unitShardMaxMinutes": 13,
+    "e2eCriticalMaxMinutes": 8,
+    "rulesEmulatorMaxMinutes": 4,
+    "nightlyMaxMinutes": 45
+  },
+  "summary": {
+    "prBlockingSuites": 4,
+    "nightlySuites": 3,
+    "unitShardCount": 4,
+    "fixtureWatchlistItems": 3
+  },
+  "prBlockingSuites": [
+    {
+      "id": "unit-risk-shards",
+      "label": "Unit risk shards",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "unit-risk-shards",
+      "script": "test:ci:unit:shard",
+      "shards": 4,
+      "maxMinutes": 13,
+      "artifact": "coverage-report-${shard}",
+      "reason": "Broad unit/integration coverage remains PR-blocking but horizontally sharded.",
+      "scripts": [
+        "test:ci:unit:shard"
+      ],
+      "commands": [
+        {
+          "script": "test:ci:unit:shard",
+          "command": "node scripts/run-unit-shard.mjs"
+        }
+      ]
+    },
+    {
+      "id": "clinical-sync-release-gate",
+      "label": "Clinical sync simulator release gate",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "clinical-sync-release-gate",
+      "script": "test:clinical-sync-simulator",
+      "maxMinutes": 2,
+      "artifact": "sync-convergence",
+      "reason": "Distributed clinical sync regressions must stay visible in PR CI.",
+      "scripts": [
+        "test:clinical-sync-simulator"
+      ],
+      "commands": [
+        {
+          "script": "test:clinical-sync-simulator",
+          "command": "vitest run src/tests/support/clinicalSyncSimulator"
+        }
+      ]
+    },
+    {
+      "id": "rules-emulator",
+      "label": "Firestore rules and sync emulator",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "rules-emulator",
+      "scripts": [
+        "test:rules:ci",
+        "test:emulator:sync:ci"
+      ],
+      "maxMinutes": 4,
+      "reason": "Security rules and sync emulator behavior protect production writes.",
+      "commands": [
+        {
+          "script": "test:rules:ci",
+          "command": "bash scripts/run-firestore-rules-ci.sh"
+        },
+        {
+          "script": "test:emulator:sync:ci",
+          "command": "bash scripts/run-firestore-sync-emulator-ci.sh"
+        }
+      ]
+    },
+    {
+      "id": "e2e-critical",
+      "label": "Critical browser flows",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "e2e-critical-emulator",
+      "script": "test:e2e:critical:ci",
+      "maxMinutes": 8,
+      "artifact": "e2e-critical-emulator-artifacts",
+      "reason": "Critical user-visible clinical flows remain PR-blocking.",
+      "scripts": [
+        "test:e2e:critical:ci"
+      ],
+      "commands": [
+        {
+          "script": "test:e2e:critical:ci",
+          "command": "bash scripts/run-e2e-critical-emulator-ci.sh"
+        }
+      ]
+    }
+  ],
+  "nightlySuites": [
+    {
+      "id": "sync-load",
+      "label": "Sync queue load budget",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:sync-load",
+      "maxMinutes": 5,
+      "reason": "Load behavior is valuable trend evidence but should not lengthen every PR.",
+      "scripts": [
+        "test:sync-load"
+      ],
+      "commands": [
+        {
+          "script": "test:sync-load",
+          "command": "vitest run src/tests/services/storage/syncQueueLoad.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "release-confidence-full",
+      "label": "Full release confidence pack",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:release-confidence:full",
+      "maxMinutes": 20,
+      "reason": "Full pack catches cross-surface drift on schedule/manual runs.",
+      "scripts": [
+        "test:release-confidence:full"
+      ],
+      "commands": [
+        {
+          "script": "test:release-confidence:full",
+          "command": "node scripts/run-release-confidence-pack.mjs --profile full"
+        }
+      ]
+    },
+    {
+      "id": "clinical-stability",
+      "label": "Clinical stability E2E",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:e2e:clinical-stability:ci",
+      "maxMinutes": 20,
+      "reason": "Long browser scenario suite belongs in nightly coverage, not the PR critical path.",
+      "scripts": [
+        "test:e2e:clinical-stability:ci"
+      ],
+      "commands": [
+        {
+          "script": "test:e2e:clinical-stability:ci",
+          "command": "bash scripts/run-e2e-clinical-stability-ci.sh"
+        }
+      ]
+    }
+  ],
+  "slowRuntimeSignals": {
+    "qualityStaticSlowest": [
+      {
+        "id": "check:feature-public-api-boundary",
+        "group": "boundaries",
+        "durationMs": 6162
+      },
+      {
+        "id": "check:security",
+        "group": "security",
+        "durationMs": 3407
+      },
+      {
+        "id": "check:test-runtime-governance",
+        "group": "tests",
+        "durationMs": 2474
+      },
+      {
+        "id": "check:unit-shard-balance",
+        "group": "tests",
+        "durationMs": 1910
+      },
+      {
+        "id": "check:architecture",
+        "group": "boundaries",
+        "durationMs": 1692
+      },
+      {
+        "id": "check:module-dependencies",
+        "group": "boundaries",
+        "durationMs": 1429
+      },
+      {
+        "id": "check:firestore-runtime-boundary",
+        "group": "boundaries",
+        "durationMs": 1392
+      },
+      {
+        "id": "check:native-dialogs",
+        "group": "boundaries",
+        "durationMs": 1366
+      }
+    ],
+    "e2eCritical": null,
+    "unitShardBalance": {
+      "totalFiles": 1401,
+      "shardCount": 4,
+      "spreadPercent": 0,
+      "tolerancePercent": 25,
+      "perFileOverheadMs": 100,
+      "shards": [
+        {
+          "index": 1,
+          "files": 412,
+          "estimatedDurationMs": 67003
+        },
+        {
+          "index": 2,
+          "files": 329,
+          "estimatedDurationMs": 67003
+        },
+        {
+          "index": 3,
+          "files": 328,
+          "estimatedDurationMs": 67003
+        },
+        {
+          "index": 4,
+          "files": 332,
+          "estimatedDurationMs": 67003
+        }
+      ]
+    },
+    "ciRuntimeObserved": {
+      "status": "no_observed_ci_data",
+      "summary": {
+        "observedShardCount": 0,
+        "expectedShardCount": 4,
+        "totalDurationMs": 0,
+        "spreadPercent": 0,
+        "tolerancePercent": 25
+      },
+      "recommendation": "No observed CI unit shard data is available yet; keep this signal advisory until GitHub Actions data is captured.",
+      "comparison": {
+        "status": "no_observed_ci_data",
+        "blockingIssues": [],
+        "advisoryFindings": [
+          "No observed CI runtime data is available yet."
+        ],
+        "shards": [],
+        "summary": {
+          "estimatedTotalDurationMs": 267612,
+          "observedTotalDurationMs": 0,
+          "totalDeltaMs": 0,
+          "totalRatioPercent": 0
+        }
+      }
+    }
+  },
+  "fixtureGovernance": {
+    "maxInlineDailyRecordFixtureLines": 80,
+    "preferredSharedFixtureRoots": [
+      "src/tests/support",
+      "src/tests/utils",
+      "src/tests/integration/setup.tsx"
+    ],
+    "duplicationWatchlist": [
+      {
+        "pattern": "large-inline-daily-record",
+        "preferred": "shared builders under src/tests/support or src/tests/utils",
+        "reason": "DailyRecord fixtures are expensive to maintain when copied across clinical tests."
+      },
+      {
+        "pattern": "browser-runtime-mock",
+        "preferred": "src/tests/utils/browserWindowRuntimeMock.ts",
+        "reason": "Runtime adapter mocks should stay centralized to avoid subtle UI/runtime drift."
+      },
+      {
+        "pattern": "sync-client-scenario",
+        "preferred": "src/tests/support/clinicalSyncSimulator",
+        "reason": "Multi-PC/replay cases should reuse the simulator harness rather than bespoke stale-client fixtures."
+      }
+    ],
+    "signals": [
+      {
+        "id": "large-inline-daily-record",
+        "files": 135,
+        "examples": [
+          "src/tests/application/ai/clinicalSummaryContextUseCase.test.ts",
+          "src/tests/application/census-email/sendCensusEmailUseCases.test.ts",
+          "src/tests/application/handoff/handoffManagementUseCases.test.ts",
+          "src/tests/domain/handoff/view.test.ts",
+          "src/tests/emulator/atomic-write-guards.emulator.test.ts"
+        ],
+        "preferred": "shared DailyRecord builders under src/tests/support or src/tests/utils"
+      },
+      {
+        "id": "browser-runtime-mock",
+        "files": 10,
+        "examples": [
+          "src/tests/components/BookmarkEditorModal.test.tsx",
+          "src/tests/components/DatabaseStatusBanner.test.tsx",
+          "src/tests/components/IEEHFormDialog.test.tsx",
+          "src/tests/components/StorageStatusBadge.test.tsx",
+          "src/tests/components/TransferDocumentPackageModal.test.tsx"
+        ],
+        "preferred": "src/tests/utils/browserWindowRuntimeMock.ts"
+      },
+      {
+        "id": "sync-client-scenario",
+        "files": 24,
+        "examples": [
+          "src/tests/emulator/sync-mutation-idempotency.emulator.test.ts",
+          "src/tests/functions/dailyRecordWriteAuthorityFullSaveRevision.test.ts",
+          "src/tests/functions/dailyRecordWriteAuthorityFunctions.test.ts",
+          "src/tests/functions/dailyRecordWriteAuthorityIdempotency.test.ts",
+          "src/tests/integration/sync-resilience.test.ts"
+        ],
+        "preferred": "src/tests/support/clinicalSyncSimulator"
+      }
+    ]
+  }
+}

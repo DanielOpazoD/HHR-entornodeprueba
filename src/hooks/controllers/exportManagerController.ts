@@ -1,6 +1,8 @@
 export {
-  buildArchiveStatusState,
   mergeMonthlyRecordsForBackup,
   resolveHandoffBackupStaff,
-  shouldCheckArchiveStatus,
 } from '@/application/backup-export/backupExportSupport';
+export {
+  buildArchiveStatusState,
+  shouldCheckArchiveStatus,
+} from '@/hooks/controllers/backupArchiveStatusController';

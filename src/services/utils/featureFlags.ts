@@ -26,6 +26,28 @@ export const FEATURE_FLAGS = {
   // Experimental Features
   ENABLE_OPTIMISTIC_UPDATES: true,
   ENABLE_OFFLINE_MODE: false,
+  // Routes empty-bed admission saves through the canonical
+  // useAdmitPatient command (validated → audited → typed outcome) when
+  // the input qualifies as a "pure admission" (only patientName + rut +
+  // admissionDate, optional pathology). Mixed edits stay on the legacy
+  // updatePatientMultiple dispatch via `resolveEmptyBedSaveAction`.
+  // ON by default since the routing controller is exhaustively unit
+  // tested and the integration test exercises the full hook → port →
+  // repository chain. The flag remains user-toggleable for emergency
+  // rollback. See TECHNICAL_DEBT_REGISTER `command-layer-adoption`.
+  USE_ADMIT_PATIENT_COMMAND: true,
+
+  // Routes the existing discharge modal (`useCensusDischargeCommand` →
+  // `usePatientDischarges.addDischarge`) through a thin canonical
+  // facade that adds anonymous-actor rejection, typed outcome, and
+  // dispatches the PATIENT_DISCHARGED audit through the canonical
+  // command pipeline. OFF by default — see TECHNICAL_DEBT_REGISTER
+  // `command-layer-discharge` for the rollout plan.
+  USE_DISCHARGE_PATIENT_COMMAND: false,
+
+  // Same facade for the transfer modal flow. OFF by default — see
+  // TECHNICAL_DEBT_REGISTER `command-layer-transfer`.
+  USE_TRANSFER_PATIENT_COMMAND: false,
 
   // Integration Features
   ENABLE_WHATSAPP_INTEGRATION: true,

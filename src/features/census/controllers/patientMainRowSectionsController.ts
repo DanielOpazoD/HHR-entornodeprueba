@@ -33,7 +33,7 @@ export const buildPatientMainRowSections = (
     onToggleClinicalCrib: props.onToggleClinicalCrib,
     onTextChange: props.onChange.text,
     onUpdateClinicalCrib: props.onUpdateClinicalCrib,
-    readOnly: props.readOnly,
+    readOnly: props.readOnly || props.clinicalEditingDisabled,
     align: props.actionMenuAlign,
   },
   bedType: {
@@ -41,7 +41,7 @@ export const buildPatientMainRowSections = (
     patientRut: props.data.rut || '',
     bedType: props.bedType,
     hasPatient: Boolean(props.data.patientName),
-    canToggleBedType: props.mainRowViewState.canToggleBedType,
+    canToggleBedType: props.mainRowViewState.canToggleBedType && !props.clinicalEditingDisabled,
     onToggleBedType: props.onToggleBedType,
   },
   blocked: {
@@ -56,6 +56,8 @@ export const buildPatientMainRowSections = (
     onChange: props.onChange,
     onDemo: props.onOpenDemographics,
     readOnly: props.readOnly,
+    clinicalEditingDisabled: props.clinicalEditingDisabled,
+    clinicalFieldLocks: props.clinicalFieldLocks,
     diagnosisMode: props.diagnosisMode,
     accessProfile: props.accessProfile,
   },

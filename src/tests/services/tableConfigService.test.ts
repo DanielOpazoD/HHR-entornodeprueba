@@ -6,6 +6,8 @@ import {
   DEFAULT_COLUMN_WIDTHS,
   DEFAULT_PAGE_MARGIN,
   CURRENT_TABLE_CONFIG_VERSION,
+  cacheTableConfigLocally,
+  getInitialTableConfig,
 } from '@/services/storage/tableConfigService';
 import { getDoc, setDoc } from 'firebase/firestore';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
@@ -28,6 +30,7 @@ describe('tableConfigService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   describe('getDefaultConfig', () => {
@@ -36,6 +39,37 @@ describe('tableConfigService', () => {
       expect(config.columns).toEqual(DEFAULT_COLUMN_WIDTHS);
       expect(config.pageMargin).toBe(DEFAULT_PAGE_MARGIN);
       expect(config.version).toBe(CURRENT_TABLE_CONFIG_VERSION);
+    });
+  });
+
+  describe('getInitialTableConfig', () => {
+    it('hydrates the initial table config from the local last-known cache', () => {
+      const cachedConfig = {
+        ...getDefaultConfig(),
+        columns: {
+          ...DEFAULT_COLUMN_WIDTHS,
+          name: 96,
+          diagnosis: 118,
+        },
+        pageMargin: 18,
+      };
+
+      cacheTableConfigLocally(cachedConfig);
+
+      const config = getInitialTableConfig();
+
+      expect(config.columns.name).toBe(96);
+      expect(config.columns.diagnosis).toBe(118);
+      expect(config.pageMargin).toBe(18);
+    });
+
+    it('falls back to defaults when the local table config cache is invalid', () => {
+      window.localStorage.setItem('hhr.tableConfig.lastKnown', '{invalid');
+
+      const config = getInitialTableConfig();
+
+      expect(config.columns).toEqual(DEFAULT_COLUMN_WIDTHS);
+      expect(config.pageMargin).toBe(DEFAULT_PAGE_MARGIN);
     });
   });
 

@@ -22,6 +22,10 @@ vi.mock('../../../netlify/functions/lib/firebase-auth', () => ({
   extractBearerToken: (...args: unknown[]) => extractBearerTokenMock(...args),
 }));
 
+vi.mock('../../../netlify/functions/lib/ai-provider-routing', () => ({
+  loadClinicalAIRoutingConfigFromFirestore: vi.fn().mockResolvedValue(null),
+}));
+
 import { handler } from '../../../netlify/functions/cie10-ai-search';
 
 describe('cie10-ai-search netlify function', () => {

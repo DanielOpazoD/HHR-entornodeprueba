@@ -18,7 +18,7 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
 
   const hasValidEpisode = Boolean(patient.rut?.trim()) && Boolean(patient.admissionDate?.trim());
   const episodeKey = hasValidEpisode
-    ? buildClinicalEpisodeKey(patient.rut, patient.admissionDate)
+    ? buildClinicalEpisodeKey(patient.rut, patient.admissionDate, patient.admissionTime)
     : '';
   const photoCount = useWoundCarePhotoCount(hasValidEpisode && !isSubRow ? episodeKey : undefined);
   const hasPhotos = photoCount > 0;

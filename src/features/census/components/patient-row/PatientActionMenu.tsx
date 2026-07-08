@@ -27,6 +27,7 @@ const LazyMedicalIndicationsDialog = lazy(() =>
 interface PatientActionMenuProps extends PatientActionMenuCallbacks, PatientActionMenuIndicators {
   isBlocked: boolean;
   readOnly?: boolean;
+  clinicalEditingDisabled?: boolean;
   align?: RowMenuAlign;
   showCmaAction?: boolean;
   accessProfile?: CensusAccessProfile;
@@ -70,6 +71,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   onViewMedicalIndications,
   onViewHistory,
   readOnly = false,
+  clinicalEditingDisabled = false,
   align = 'top',
   showCmaAction = true,
   accessProfile = 'default',
@@ -95,6 +97,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   } = usePatientActionMenu({
     isBlocked,
     readOnly,
+    clinicalEditingDisabled,
     accessProfile,
     hasPatientIdentity,
     align,

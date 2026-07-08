@@ -4,9 +4,17 @@ import type { MasterPatient } from '@/types/domain/patientMaster';
 import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
 
 const mockGetPatientMovementHistory = vi.fn();
+const mockListClinicalDocumentsByEpisode = vi.fn();
 
 vi.mock('@/services/patient/patientHistoryService', () => ({
   getPatientMovementHistory: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
+}));
+
+vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
+  ClinicalDocumentRepository: {
+    listByEpisode: (...args: unknown[]) => mockListClinicalDocumentsByEpisode(...args),
+    get: vi.fn(),
+  },
 }));
 
 import { usePatientSelection } from '@/features/census/components/global-search/usePatientSelection';
@@ -131,5 +139,43 @@ describe('usePatientSelection', () => {
 
     await waitFor(() => expect(result.current.selectedPatient?.timelineState.episodeCount).toBe(1));
     expect(result.current.selectedPatient?.isLoadingHistory).toBe(false);
+  });
+
+  it('finds clinical documents when the search episode date is one day before the clinical document key', async () => {
+    mockListClinicalDocumentsByEpisode.mockImplementation(async (episodeKey: string) =>
+      episodeKey === '13.545.665-9__2026-04-16'
+        ? [
+            {
+              id: 'doc-epicrisis-1',
+              documentType: 'epicrisis',
+              status: 'draft',
+              audit: {
+                createdAt: '2026-04-22T10:00:00.000Z',
+                updatedAt: '2026-04-22T10:30:00.000Z',
+                createdBy: { displayName: 'Daniel' },
+              },
+            },
+          ]
+        : []
+    );
+
+    const { result } = renderHook(() => usePatientSelection());
+
+    act(() => {
+      result.current.loadEpisodeDocuments('13.545.665-9__2026-04-15');
+    });
+
+    await waitFor(() =>
+      expect(result.current.episodeDocuments['13.545.665-9__2026-04-15']?.docs).toHaveLength(1)
+    );
+
+    expect(mockListClinicalDocumentsByEpisode).toHaveBeenCalledWith('13.545.665-9__2026-04-16');
+    expect(result.current.episodeDocuments['13.545.665-9__2026-04-15']?.docs[0]).toMatchObject({
+      id: 'doc-epicrisis-1',
+      episodeKey: '13.545.665-9__2026-04-16',
+      documentType: 'epicrisis',
+      status: 'draft',
+      createdBy: 'Daniel',
+    });
   });
 });

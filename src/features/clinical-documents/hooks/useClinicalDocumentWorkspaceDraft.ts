@@ -4,7 +4,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
 import { validateClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentValidationController';
 import {
-  hydrateLegacyClinicalDocument,
+  hydrateClinicalDocumentWorkspaceRecord,
   serializeClinicalDocument,
 } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import {
@@ -39,6 +39,7 @@ export interface ClinicalDocumentWorkspaceDraftState {
   setIsSaving: Dispatch<SetStateAction<boolean>>;
   validationIssues: Array<{ message: string }>;
   lastPersistedSnapshotRef: MutableRefObject<string>;
+  flushPendingAutosave: () => void;
   patchPatientField: (fieldId: string, value: string) => void;
   patchPatientFieldLabel: (fieldId: string, label: string) => void;
   setPatientFieldVisibility: (fieldId: string, visible: boolean) => void;
@@ -77,7 +78,7 @@ export interface ClinicalDocumentWorkspaceDraftState {
 const hydrateIncomingDocument = (
   document: ClinicalDocumentRecord | null
 ): ClinicalDocumentRecord | null =>
-  document ? hydrateLegacyClinicalDocument(structuredClone(document)) : null;
+  document ? hydrateClinicalDocumentWorkspaceRecord(structuredClone(document)) : null;
 
 export const useClinicalDocumentWorkspaceDraft = ({
   documents,
@@ -122,7 +123,7 @@ export const useClinicalDocumentWorkspaceDraft = ({
     baseStateRef,
   });
 
-  useClinicalDocumentDraftAutosave({
+  const flushPendingAutosave = useClinicalDocumentDraftAutosave({
     draft: state.draft,
     canEdit,
     isActive,
@@ -187,6 +188,7 @@ export const useClinicalDocumentWorkspaceDraft = ({
     setIsSaving,
     validationIssues,
     lastPersistedSnapshotRef,
+    flushPendingAutosave,
     patchPatientField: (fieldId, value) => dispatch({ type: 'PATCH_FIELD', fieldId, value }),
     patchPatientFieldLabel: (fieldId, label) =>
       dispatch({ type: 'PATCH_FIELD_LABEL', fieldId, label }),

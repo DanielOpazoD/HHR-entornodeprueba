@@ -3,9 +3,12 @@ import { AuditLogEntry } from '@/types/auditLogTypes';
 import { generateAuditPdfHtml } from '@/features/admin/components/internal/audit/utils/auditPdfUtils';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import type { ClinicalAuditPatientPackage } from '@/services/admin/clinicalAuditPatientPackages';
 
 interface UseAuditExportParams {
   filteredLogs: AuditLogEntry[];
+  patientPackages?: ClinicalAuditPatientPackage[];
+  exportMode?: 'raw-events' | 'patient-packages';
   stats: {
     activeUserCount: number;
     criticalCount: number;
@@ -18,6 +21,8 @@ const auditExportLogger = createScopedLogger('AuditExportHook');
 
 export const useAuditExport = ({
   filteredLogs,
+  patientPackages = [],
+  exportMode = 'raw-events',
   stats,
   startDate,
   endDate,
@@ -28,7 +33,10 @@ export const useAuditExport = ({
     setIsExporting(true);
     try {
       const { generateAuditWorkbook } = await import('@/services/exporters/auditWorkbook');
-      const workbook = await generateAuditWorkbook(filteredLogs);
+      const workbook = await generateAuditWorkbook(
+        filteredLogs,
+        exportMode === 'patient-packages' ? { patientPackages } : undefined
+      );
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([new Uint8Array(buffer)], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -45,6 +53,8 @@ export const useAuditExport = ({
   const handlePdfExport = useCallback(() => {
     const printContent = generateAuditPdfHtml({
       filteredLogs,
+      patientPackages,
+      exportMode,
       stats,
       startDate,
       endDate,
@@ -58,7 +68,7 @@ export const useAuditExport = ({
         printWindow.print();
       };
     }
-  }, [filteredLogs, stats, startDate, endDate]);
+  }, [filteredLogs, patientPackages, exportMode, stats, startDate, endDate]);
 
   return {
     isExporting,

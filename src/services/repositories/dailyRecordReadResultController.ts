@@ -75,32 +75,45 @@ export const createGoldenPathReadResult = (
   remoteReadResult?: DailyRecordRemoteLoadResult
 ): DailyRecordReadResult => {
   if (goldenPath.selectedStore === 'remote' && remoteReadResult?.record) {
-    return createDailyRecordReadResult(date, remoteReadResult.record, remoteReadResult.source, {
-      compatibilityTier: remoteReadResult.compatibilityTier,
-      compatibilityIntensity: remoteReadResult.compatibilityIntensity,
-      migrationRulesApplied: remoteReadResult.migrationRulesApplied,
-      consistencyState: goldenPath.consistencyState,
-      sourceOfTruth: goldenPath.sourceOfTruth,
-      retryability: goldenPath.retryability,
-      recoveryAction: goldenPath.recoveryAction,
-      conflictSummary: goldenPath.conflictSummary,
-      observabilityTags: goldenPath.observabilityTags,
-      userSafeMessage: goldenPath.userSafeMessage,
-      repairApplied: goldenPath.repairApplied,
-    });
+    return createDailyRecordReadResult(
+      date,
+      goldenPath.selectedRecord || remoteReadResult.record,
+      remoteReadResult.source,
+      {
+        compatibilityTier: remoteReadResult.compatibilityTier,
+        compatibilityIntensity: remoteReadResult.compatibilityIntensity,
+        migrationRulesApplied: remoteReadResult.migrationRulesApplied,
+        consistencyState: goldenPath.consistencyState,
+        sourceOfTruth: goldenPath.sourceOfTruth,
+        retryability: goldenPath.retryability,
+        recoveryAction: goldenPath.recoveryAction,
+        conflictSummary: goldenPath.conflictSummary,
+        observabilityTags: goldenPath.observabilityTags,
+        userSafeMessage: goldenPath.userSafeMessage,
+        repairApplied: goldenPath.repairApplied,
+      }
+    );
   }
 
   if (goldenPath.selectedStore === 'local' && localCandidate) {
-    return createLocalRuntimeReadResult(date, localCandidate, 'indexeddb', {
-      consistencyState: goldenPath.consistencyState,
-      sourceOfTruth: goldenPath.sourceOfTruth,
-      retryability: goldenPath.retryability,
-      recoveryAction: goldenPath.recoveryAction,
-      conflictSummary: goldenPath.conflictSummary,
-      observabilityTags: goldenPath.observabilityTags,
-      userSafeMessage: goldenPath.userSafeMessage,
-      repairApplied: goldenPath.repairApplied,
-    });
+    return createDailyRecordReadResult(
+      date,
+      goldenPath.selectedRecord || localCandidate.record,
+      'indexeddb',
+      {
+        compatibilityTier: 'local_runtime',
+        compatibilityIntensity: localCandidate.compatibilityIntensity,
+        migrationRulesApplied: localCandidate.migrationRulesApplied,
+        consistencyState: goldenPath.consistencyState,
+        sourceOfTruth: goldenPath.sourceOfTruth,
+        retryability: goldenPath.retryability,
+        recoveryAction: goldenPath.recoveryAction,
+        conflictSummary: goldenPath.conflictSummary,
+        observabilityTags: goldenPath.observabilityTags,
+        userSafeMessage: goldenPath.userSafeMessage,
+        repairApplied: goldenPath.repairApplied,
+      }
+    );
   }
 
   return createDailyRecordReadResult(date, null, 'not_found', {

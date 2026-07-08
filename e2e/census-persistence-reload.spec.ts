@@ -4,6 +4,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
 import { seedPersistedBedFields, waitForPersistedBedFields } from './fixtures/censusPersistence';
 
 const PERSISTENCE_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
@@ -39,7 +40,6 @@ test.describe('Census persistence and reload', () => {
 
     const row = getRow(page, 'R1');
     const demographicsButton = row.getByRole('button', { name: /Datos del Paciente/i });
-    const diagnosisInput = row.locator('input[placeholder*="Diagnóstico"]').first();
     await demographicsButton.click();
     const demographicsDialog = page.getByRole('dialog', { name: 'Datos Demográficos' });
     await expect(demographicsDialog).toBeVisible();
@@ -49,11 +49,10 @@ test.describe('Census persistence and reload', () => {
     await expect(demographicsDialog).toBeHidden();
 
     const patientNameInput = row.locator('input[name="patientName"]').first();
-    await diagnosisInput.fill('UPDATED DX');
-    await diagnosisInput.blur();
-
     await expect(patientNameInput).toHaveValue('Updated Patient');
-    await expect(diagnosisInput).toHaveValue('UPDATED DX');
+    await updateClinicalDiagnosis(page, row, 'R1', 'UPDATED DX');
+
+    await expectClinicalDiagnosis(row, 'UPDATED DX');
     await seedPersistedBedFields({
       page,
       date: PERSISTENCE_DATE,
@@ -83,6 +82,6 @@ test.describe('Census persistence and reload', () => {
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
     await expect(getRow(page, 'R1')).toBeVisible();
     await expect(patientNameInput).toHaveValue('Updated Patient');
-    await expect(diagnosisInput).toHaveValue('UPDATED DX');
+    await expectClinicalDiagnosis(row, 'UPDATED DX');
   });
 });

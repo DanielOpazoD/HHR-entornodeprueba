@@ -20,10 +20,14 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
-import type { EpisodeDocuments } from '@/features/census/components/global-search/globalSearchContracts';
+import type {
+  ClinicalDocSummary,
+  EpisodeDocuments,
+} from '@/features/census/components/global-search/globalSearchContracts';
 import type { GroupedEpisode } from '@/features/census/components/global-search/globalSearchContracts';
 import { resolveEpisodeCensusTargetDate } from '@/features/census/components/global-search/episodeGroupingController';
 import { DocRow } from '@/features/census/components/global-search/DocRow';
+import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 import { formatDateToCL } from '@/utils/clinicalUtils';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +41,7 @@ interface EpisodeBlockCardProps {
   episodeDocuments: Record<string, EpisodeDocuments>;
   onLoadDocuments: (key: string) => void;
   onDownloadPdf: (docId: string, docType: string) => Promise<void>;
+  onOpenClinicalDocument?: (doc: ClinicalDocSummary) => void;
   onNavigateToDate?: (isoDate: string) => void;
 }
 
@@ -44,12 +49,8 @@ interface EpisodeBlockCardProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Build episode lookup key preserving original RUT format.
- * The canonical format is `RUT__admissionDate` (e.g., "8.258.248-7__2026-03-17").
- */
 const buildEpisodeKey = (rut: string, admissionDate: string): string =>
-  `${rut || 'sin-rut'}__${admissionDate || 'sin-ingreso'}`;
+  buildClinicalEpisodeKey(rut, admissionDate);
 
 const dischargeTypeIcon = (type: string) => {
   switch (type) {
@@ -87,6 +88,7 @@ export const EpisodeBlockCard: React.FC<EpisodeBlockCardProps> = ({
   episodeDocuments,
   onLoadDocuments,
   onDownloadPdf,
+  onOpenClinicalDocument,
   onNavigateToDate,
 }) => {
   const [isDocsExpanded, setIsDocsExpanded] = useState(false);
@@ -210,7 +212,12 @@ export const EpisodeBlockCard: React.FC<EpisodeBlockCardProps> = ({
                 <p className="text-xs text-slate-400 py-2">Sin documentos clinicos</p>
               )}
               {docsState?.docs.map(doc => (
-                <DocRow key={doc.id} doc={doc} onDownloadPdf={onDownloadPdf} />
+                <DocRow
+                  key={doc.id}
+                  doc={doc}
+                  onDownloadPdf={onDownloadPdf}
+                  onOpenDocument={onOpenClinicalDocument}
+                />
               ))}
             </div>
           )}

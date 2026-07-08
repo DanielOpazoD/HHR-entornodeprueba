@@ -40,6 +40,7 @@
       "requiredScripts": [
         "check:bundle-budget",
         "check:chunk-graph",
+        "check:runtime-asset-margin",
         "test:e2e:preview:census-bootstrap:built"
       ],
       "purpose": "Valida budgets, chunk graph aciclico y que el bundle productivo monte correctamente en preview local."
@@ -49,7 +50,12 @@
       "label": "Release Gate",
       "script": "ci:release-gate",
       "level": "release-gate",
-      "requiredScripts": ["ci:merge-gate", "check:release-evidence", "test:firestore:release:ci"],
+      "requiredScripts": [
+        "ci:merge-gate",
+        "check:daily-record-authority-release-gate",
+        "check:release-evidence",
+        "test:firestore:release:ci"
+      ],
       "purpose": "Validacion final con emuladores, reglas Firestore y E2E criticos."
     }
   ],
@@ -77,6 +83,11 @@
       "artifact": "reports/operational-health.md"
     },
     {
+      "id": "bundle_risk_ledger",
+      "script": "report:bundle-risk-ledger",
+      "artifact": "reports/bundle-risk-ledger.md"
+    },
+    {
       "id": "system_confidence",
       "script": "report:system-confidence",
       "artifact": "reports/system-confidence.md"
@@ -85,6 +96,11 @@
       "id": "compatibility_governance",
       "script": "report:compatibility-governance",
       "artifact": "reports/compatibility-governance.md"
+    },
+    {
+      "id": "legacy_retirement_debt",
+      "script": "report:legacy-retirement-debt",
+      "artifact": "reports/legacy-retirement-debt.md"
     },
     {
       "id": "serverless_sensitive_coverage",
@@ -130,6 +146,21 @@
       "id": "sustainable_change_policy",
       "script": "report:sustainable-change-policy",
       "artifact": "reports/sustainable-change-policy.md"
+    },
+    {
+      "id": "test_runtime_governance",
+      "script": "report:test-runtime-governance",
+      "artifact": "reports/test-runtime-governance.md"
+    },
+    {
+      "id": "unit_shard_runtime_profile",
+      "script": "report:unit-shard-runtime-profile",
+      "artifact": "reports/unit-shard-runtime-profile.md"
+    },
+    {
+      "id": "ci_runtime_observed_profile",
+      "script": "report:ci-runtime-observed-profile",
+      "artifact": "reports/ci-runtime-observed-profile.md"
     }
   ],
   "qualityAggregate": {
@@ -141,13 +172,11 @@
       { "id": "check:core-test-boundary", "group": "boundaries" },
       { "id": "check:core-trivial-tests", "group": "tests" },
       { "id": "check:core-console-usage", "group": "hygiene" },
-      { "id": "check:auth-feature-boundary", "group": "boundaries" },
       { "id": "check:census-feature-boundary", "group": "boundaries" },
       { "id": "check:census-export-contract-boundary", "group": "boundaries" },
       { "id": "check:clinical-documents-feature-boundary", "group": "boundaries" },
-      { "id": "check:handoff-feature-boundary", "group": "boundaries" },
       { "id": "check:handoff-pdf-contract-boundary", "group": "boundaries" },
-      { "id": "check:transfers-feature-boundary", "group": "boundaries" },
+      { "id": "check:feature-public-api-boundary", "group": "boundaries" },
       { "id": "check:lazy-views-feature-entrypoints", "group": "boundaries" },
       { "id": "check:feature-dependencies", "group": "boundaries" },
       { "id": "check:shared-layer-boundary", "group": "boundaries" },
@@ -159,9 +188,14 @@
       { "id": "check:persistence-hub-boundaries", "group": "boundaries" },
       { "id": "check:legacy-localstorage-imports", "group": "boundaries" },
       { "id": "check:legacy-bridge-boundary", "group": "boundaries" },
+      { "id": "check:legacy-read-gating", "group": "boundaries" },
+      { "id": "report:legacy-bridge", "group": "governance-inputs" },
+      { "id": "report:compatibility-governance", "group": "governance-inputs" },
+      { "id": "check:legacy-retirement-debt", "group": "governance" },
       { "id": "check:compatibility-import-governance", "group": "governance" },
       { "id": "check:schema-governance", "group": "governance" },
       { "id": "check:runtime-contracts", "group": "governance" },
+      { "id": "check:sync-invariants", "group": "governance" },
       { "id": "check:serverless-runtime-governance", "group": "governance" },
       { "id": "check:serverless-sensitive-coverage", "group": "governance" },
       { "id": "check:docs-drift", "group": "governance" },
@@ -176,18 +210,31 @@
       { "id": "check:hotspot-growth", "group": "size" },
       { "id": "check:census-runtime-boundary", "group": "boundaries" },
       { "id": "check:runtime-adapter-boundary", "group": "boundaries" },
+      { "id": "check:native-dialogs", "group": "boundaries" },
       { "id": "check:firestore-runtime-boundary", "group": "boundaries" },
       { "id": "check:firestore-emulator-governance", "group": "governance" },
+      { "id": "check:ci-artifact-contracts", "group": "governance" },
       { "id": "check:domain-hotspot-boundary", "group": "boundaries" },
       { "id": "check:legacy-permissions-boundary", "group": "boundaries" },
       { "id": "check:test-governance", "group": "tests" },
+      { "id": "check:unit-shard-balance", "group": "tests" },
+      { "id": "check:ci-runtime-telemetry", "group": "tests" },
+      { "id": "check:test-runtime-governance", "group": "tests" },
       { "id": "check:test-failure-catalog", "group": "tests" },
       { "id": "check:flaky-quarantine", "group": "tests" },
       { "id": "check:guardrail-governance", "group": "governance" },
+      {
+        "id": "check:report-freshness",
+        "group": "reports",
+        "reportOnly": true,
+        "rationale": "Surfaces stale report artifacts as advisory in the inner loop; ci:release-gate already regenerates and enforces them blocking. Avoids forcing a 30s+ regeneration on every check:quality run."
+      },
       { "id": "check:critical-any", "group": "type-safety" },
       { "id": "check:source-any", "group": "type-safety" },
       { "id": "check:repo-hygiene", "group": "hygiene" },
-      { "id": "check:security", "group": "security" }
+      { "id": "check:clinical-mutation-audit-policy", "group": "security" },
+      { "id": "check:security", "group": "security" },
+      { "id": "check:bundle-risk-ledger", "group": "size" }
     ]
   },
   "guardrailPolicy": {

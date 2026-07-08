@@ -60,7 +60,7 @@ describe('InitialLoadingScreen', () => {
     );
     expect(screen.getByTestId('login-loading-shell')).toHaveAttribute(
       'data-background-image',
-      '/images/login/hhr-login-night.png'
+      '/images/login/hhr-login-night.webp'
     );
   });
 

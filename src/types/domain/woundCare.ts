@@ -100,6 +100,20 @@ export interface WoundCareMobileUploadSession {
   scope: WoundCareMobileUploadScope;
   revokedAt?: string;
   revokedBy?: WoundCareAuditActor;
+  /**
+   * Maximum number of photos that can be uploaded against this session
+   * before the backend rejects further attempts. Caps the blast radius
+   * of a leaked QR code. Sessions persisted before this field was
+   * added may omit it; the backend treats `undefined` as a generous
+   * default.
+   */
+  maxUploads?: number;
+  /**
+   * Number of photos already uploaded through this session. Incremented
+   * by `uploadWoundCareMobilePhoto` after a successful write. Starts at
+   * 0 on creation.
+   */
+  uploadCount?: number;
 }
 
 // ============================================================================

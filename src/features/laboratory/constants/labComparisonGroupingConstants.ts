@@ -53,7 +53,7 @@ export const COMPARISON_DISPLAY_GROUPS = [
   {
     label: 'Metabólico',
     patterns: [
-      'Hemoglobina Glicosilada',
+      'Hb glicosilada',
       'Acido Urico',
       'Glicemia',
       'TSH',

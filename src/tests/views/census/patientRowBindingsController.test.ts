@@ -179,6 +179,14 @@ describe('patientRowBindingsController', () => {
       role: 'viewer',
       runtime,
     });
+    const adminModals = buildPatientRowModalsBindings({
+      bed,
+      data,
+      currentDateString: '2026-02-15',
+      isSubRow: false,
+      role: 'admin',
+      runtime,
+    });
 
     expect(main.isBlocked).toBe(true);
     expect(main.hasCompanion).toBe(true);
@@ -190,6 +198,8 @@ describe('patientRowBindingsController', () => {
     expect(modals.canOpenImagingRequest).toBe(true);
     expect(modals.canOpenHistory).toBe(true);
     expect(modals.showHistory).toBe(true);
+    expect(modals.canUseArbitraryAdmissionDate).toBe(false);
+    expect(adminModals.canUseArbitraryAdmissionDate).toBe(true);
   });
 
   it('builds modal bindings from section builder when capabilities are overridden', () => {

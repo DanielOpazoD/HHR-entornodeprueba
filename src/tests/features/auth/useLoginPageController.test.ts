@@ -11,7 +11,9 @@ import type { AuthSessionState } from '@/types/authSessionTypes';
 const mockExecuteGoogleSignIn = vi.fn();
 const mockIsPopupRecoverableAuthError = vi.fn();
 const mockResolveAuthErrorCode = vi.fn();
+const mockIsPopupCancellationAuthError = vi.fn();
 const mockIsAuthBootstrapPending = vi.fn();
+const mockClearAuthBootstrapPending = vi.fn();
 const mockGetCurrentAuthSessionState = vi.fn();
 const mockPreloadDefaultPostLoginRoute = vi.fn();
 
@@ -21,11 +23,13 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
 
 vi.mock('@/services/auth/authErrorPolicy', () => ({
   isPopupRecoverableAuthError: (...args: unknown[]) => mockIsPopupRecoverableAuthError(...args),
+  isPopupCancellationAuthError: (...args: unknown[]) => mockIsPopupCancellationAuthError(...args),
   resolveAuthErrorCode: (...args: unknown[]) => mockResolveAuthErrorCode(...args),
 }));
 
 vi.mock('@/services/auth/authBootstrapState', () => ({
   isAuthBootstrapPending: (...args: unknown[]) => mockIsAuthBootstrapPending(...args),
+  clearAuthBootstrapPending: (...args: unknown[]) => mockClearAuthBootstrapPending(...args),
 }));
 
 vi.mock('@/services/auth/authSession', () => ({
@@ -43,7 +47,9 @@ describe('useLoginPageController', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     mockIsPopupRecoverableAuthError.mockReturnValue(false);
+    mockIsPopupCancellationAuthError.mockReturnValue(false);
     mockResolveAuthErrorCode.mockReturnValue(null);
     mockIsAuthBootstrapPending.mockReturnValue(false);
     mockGetCurrentAuthSessionState.mockReturnValue({
@@ -67,6 +73,7 @@ describe('useLoginPageController', () => {
   afterEach(() => {
     vi.useRealTimers();
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it('initializes from the persisted login background mode', () => {
@@ -78,10 +85,10 @@ describe('useLoginPageController', () => {
     expect(result.current.isDayGradient).toBe(false);
   });
 
-  it('warms the default post-login route on mount', () => {
+  it('keeps the login mount light and defers the post-login route preload', () => {
     renderHook(() => useLoginPageController(vi.fn()));
 
-    expect(mockPreloadDefaultPostLoginRoute).toHaveBeenCalledTimes(1);
+    expect(mockPreloadDefaultPostLoginRoute).not.toHaveBeenCalled();
   });
 
   it('surfaces a bootstrap auth error passed from the app shell', () => {
@@ -111,7 +118,23 @@ describe('useLoginPageController', () => {
   });
 
   it('calls onLoginSuccess when Google login succeeds', async () => {
+    const events: string[] = [];
     const onLoginSuccess = vi.fn();
+    mockPreloadDefaultPostLoginRoute.mockImplementationOnce(async () => {
+      events.push('preload');
+    });
+    mockExecuteGoogleSignIn.mockImplementationOnce(async () => {
+      events.push('sign-in');
+      return createApplicationSuccess<AuthSessionState>({
+        status: 'authorized',
+        user: {
+          uid: 'google-1',
+          email: 'test@hospital.cl',
+          displayName: 'Google User',
+          role: 'admin',
+        },
+      });
+    });
     const { result } = renderHook(() => useLoginPageController(onLoginSuccess));
 
     await act(async () => {
@@ -121,6 +144,8 @@ describe('useLoginPageController', () => {
     });
 
     expect(mockExecuteGoogleSignIn).toHaveBeenCalledTimes(1);
+    expect(mockPreloadDefaultPostLoginRoute).toHaveBeenCalledTimes(1);
+    expect(events).toEqual(['sign-in', 'preload']);
     expect(onLoginSuccess).toHaveBeenCalledTimes(1);
     expect(result.current.error).toBeNull();
     expect(result.current.isAnyLoading).toBe(false);
@@ -155,6 +180,112 @@ describe('useLoginPageController', () => {
     expect(result.current.error).toBe(AUTH_UI_COPY.blockedPopupStayOnPage);
     expect(result.current.isGoogleLoading).toBe(false);
     expect(result.current.isAnyLoading).toBe(false);
+    expect(window.sessionStorage.getItem('hhr_google_login_attempt_pending')).toBeNull();
+  });
+
+  it('clears a stale bootstrap auth error locally before running the reset action', () => {
+    const { result, rerender } = renderHook(
+      ({ initialAuthError }) => useLoginPageController(vi.fn(), initialAuthError),
+      {
+        initialProps: {
+          initialAuthError: {
+            code: 'auth/bootstrap-timeout',
+            message: 'No se pudo confirmar la sesion con Google en este navegador.',
+          },
+        },
+      }
+    );
+
+    expect(result.current.errorCode).toBe('auth/bootstrap-timeout');
+
+    act(() => {
+      result.current.handleLocalResetStart();
+    });
+    rerender({
+      initialAuthError: {
+        code: 'auth/bootstrap-timeout',
+        message: 'No se pudo confirmar la sesion con Google en este navegador.',
+      },
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.errorCode).toBeNull();
+  });
+
+  it('returns quietly to idle when the Google popup request was cancelled', async () => {
+    mockExecuteGoogleSignIn.mockResolvedValueOnce(
+      createApplicationFailed<AuthSessionState>(
+        {
+          status: 'auth_error',
+          user: null,
+          error: {
+            code: 'auth/cancelled-popup-request',
+            message: 'Inicio de sesión cancelado. Intenta nuevamente desde el botón principal.',
+          },
+        },
+        [
+          {
+            kind: 'unknown',
+            code: 'auth/cancelled-popup-request',
+            message: 'Inicio de sesión cancelado. Intenta nuevamente desde el botón principal.',
+          },
+        ]
+      )
+    );
+    mockIsPopupRecoverableAuthError.mockReturnValueOnce(false);
+    mockIsPopupCancellationAuthError.mockReturnValueOnce(true);
+    mockResolveAuthErrorCode.mockReturnValueOnce('auth/cancelled-popup-request');
+
+    const { result } = renderHook(() => useLoginPageController(vi.fn()));
+
+    await act(async () => {
+      const promise = result.current.handleGoogleSignIn();
+      await vi.advanceTimersByTimeAsync(600);
+      await promise;
+    });
+
+    expect(result.current.errorCode).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.isGoogleLoading).toBe(false);
+    expect(window.sessionStorage.getItem('hhr_google_login_attempt_pending')).toBeNull();
+  });
+
+  it('does not retain a blocked-popup alert after the user closes the Google account picker', async () => {
+    mockExecuteGoogleSignIn.mockResolvedValueOnce(
+      createApplicationFailed<AuthSessionState>(
+        {
+          status: 'auth_error',
+          user: null,
+          error: {
+            code: 'auth/popup-closed-by-user',
+            message: 'Inicio de sesión cancelado. Intenta nuevamente desde el botón principal.',
+          },
+        },
+        [
+          {
+            kind: 'unknown',
+            code: 'auth/popup-closed-by-user',
+            message: 'Inicio de sesión cancelado. Intenta nuevamente desde el botón principal.',
+          },
+        ]
+      )
+    );
+    mockIsPopupRecoverableAuthError.mockReturnValueOnce(true);
+    mockIsPopupCancellationAuthError.mockReturnValueOnce(true);
+    mockResolveAuthErrorCode.mockReturnValueOnce('auth/popup-closed-by-user');
+
+    const { result } = renderHook(() => useLoginPageController(vi.fn()));
+
+    await act(async () => {
+      const promise = result.current.handleGoogleSignIn();
+      await vi.advanceTimersByTimeAsync(600);
+      await promise;
+    });
+
+    expect(result.current.errorCode).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.error).not.toBe(AUTH_UI_COPY.blockedPopupStayOnPage);
+    expect(result.current.isGoogleLoading).toBe(false);
   });
 
   it('surfaces non-recoverable popup errors without switching flows', async () => {

@@ -25,6 +25,7 @@ interface UseTransferModalFormParams {
   receivingCenter: ReceivingCenter;
   receivingCenterOther: string;
   transferEscort: string;
+  diagnosis?: string;
   onUpdate: (field: TransferUpdateField, value: string) => void;
   onConfirm: (data: TransferModalConfirmPayload) => void;
   resolveDefaultTime: () => string;
@@ -78,6 +79,7 @@ export const useTransferModalForm = ({
   receivingCenter,
   receivingCenterOther,
   transferEscort,
+  diagnosis,
   onUpdate,
   onConfirm,
   resolveDefaultTime,
@@ -121,6 +123,7 @@ export const useTransferModalForm = ({
     buildPayload: state => ({
       time: state.transferTime,
       movementDate: includeMovementDate ? state.transferDate : undefined,
+      diagnosis,
     }),
     onConfirm,
   });

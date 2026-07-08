@@ -27,9 +27,9 @@ export const ClinicalDocumentIndicationsPanelHeader: React.FC<
   <div className="clinical-document-indications-panel-header">
     <div>
       <p className="clinical-document-indications-panel-eyebrow">
-        Catálogo sincronizado con Firebase
+        Lista personal sincronizada con Firebase
       </p>
-      <h3 className="clinical-document-indications-panel-title">Indicaciones</h3>
+      <h3 className="clinical-document-indications-panel-title">Mis indicaciones</h3>
     </div>
     <div className="clinical-document-indications-panel-header-actions">
       <div className="clinical-document-indications-transfer-menu-wrap">
@@ -45,7 +45,7 @@ export const ClinicalDocumentIndicationsPanelHeader: React.FC<
           className="clinical-document-inline-action"
           onMouseDown={event => event.preventDefault()}
           onClick={onToggleTransferMenu}
-          aria-label="Importar o exportar catálogo"
+          aria-label="Importar o exportar mis indicaciones"
           title="Importar o exportar"
         >
           <EllipsisVertical size={12} />

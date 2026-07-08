@@ -140,6 +140,10 @@ describe('censusTransferSyncController', () => {
         requestDate: '2026-03-12',
         createdBy: 'test@example.com',
         status: 'TRANSFERRED',
+        customFields: {
+          source: 'census_transfer_autocreate',
+          executedDate: '2026-03-12',
+        },
       }),
       'test@example.com'
     );

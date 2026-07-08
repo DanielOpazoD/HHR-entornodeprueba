@@ -7,8 +7,40 @@ import {
 
 export const parseTransferDate = (value: string | undefined): Date | null => {
   if (!value) return null;
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+  }
+
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isLastCalendarDayOfMonth = (date: Date): boolean => {
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return date.getDate() === lastDay;
+};
+
+const isNextCalendarMonth = (from: Date, selectedPeriodStart: Date): boolean => {
+  const nextMonthStart = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+  return (
+    selectedPeriodStart.getFullYear() === nextMonthStart.getFullYear() &&
+    selectedPeriodStart.getMonth() === nextMonthStart.getMonth()
+  );
+};
+
+const resolveFinalizedOperationalDate = (transfer: TransferRequest): string | undefined => {
+  const executedDate = transfer.customFields?.executedDate;
+  if (executedDate) {
+    return executedDate;
+  }
+
+  if (transfer.customFields?.source === 'census_transfer_autocreate') {
+    return transfer.requestDate;
+  }
+
+  return transfer.statusHistory.at(-1)?.timestamp;
 };
 
 export const collectTransferAvailableYears = ({
@@ -49,13 +81,17 @@ export const isTransferVisibleInSelectedPeriod = ({
   const requestInPeriod = isSameTransferOperationalMonth(transfer.requestDate, selectedMonthKey);
   const isClosed = closedStatuses.has(transfer.status);
   if (!isClosed) {
-    return requestInPeriod;
+    return (
+      requestInPeriod ||
+      (isLastCalendarDayOfMonth(requestDate) &&
+        isNextCalendarMonth(requestDate, selectedPeriodStart))
+    );
   }
 
-  const latestStatusDate = parseTransferDate(transfer.statusHistory.at(-1)?.timestamp);
-  const closedInPeriod = latestStatusDate
-    ? latestStatusDate >= selectedPeriodStart && latestStatusDate <= selectedPeriodEnd
+  const finalizedDate = parseTransferDate(resolveFinalizedOperationalDate(transfer));
+  const closedInPeriod = finalizedDate
+    ? finalizedDate >= selectedPeriodStart && finalizedDate <= selectedPeriodEnd
     : false;
 
-  return requestInPeriod || closedInPeriod;
+  return closedInPeriod;
 };

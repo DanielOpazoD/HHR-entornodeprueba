@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { DateStrip } from '@/components/layout/DateStrip';
+import { CensusStaleDayBanner } from '@/components/layout/app-content/CensusStaleDayBanner';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { AppRouter } from '@/components/AppRouter';
 
@@ -49,15 +50,28 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   const navbarProps = buildNavbarProps({ ui, runtime });
   const appRouterShellState = buildAppRouterShellState({ ui, runtime, onOpenCensusDate });
 
+  const showDateStrip = shouldRenderDateStrip({
+    currentModule: ui.currentModule,
+    censusViewMode: ui.censusViewMode,
+    isSignatureMode,
+  });
+
   return (
     <>
       {!isSignatureMode && <Navbar {...navbarProps} />}
 
-      {shouldRenderDateStrip({
-        currentModule: ui.currentModule,
-        censusViewMode: ui.censusViewMode,
-        isSignatureMode,
-      }) && <DateStrip {...dateStripProps} />}
+      {showDateStrip && <DateStrip {...dateStripProps} />}
+
+      {showDateStrip &&
+        ui.currentModule === 'CENSUS' &&
+        dateStripProps.clinicalToday &&
+        dateStripProps.goToClinicalToday && (
+          <CensusStaleDayBanner
+            currentDateString={dateStripProps.currentDateString}
+            clinicalToday={dateStripProps.clinicalToday}
+            onGoToToday={dateStripProps.goToClinicalToday}
+          />
+        )}
 
       {shouldRenderBookmarkBar({
         currentModule: ui.currentModule,

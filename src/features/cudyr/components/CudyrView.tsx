@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Loader2, RotateCcw, Save } from 'lucide-react';
 import { CudyrHeader } from './CudyrHeader';
 import { CudyrRow, VerticalHeader } from './CudyrRow';
 import { useCudyrLogic } from '../hooks/useCudyrLogic';
@@ -17,8 +17,12 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
     stats,
     cudyrSummary,
     isEditingLocked,
+    pendingCudyrChangeCount,
+    isSavingCudyrChanges,
     handleScoreChange,
     handleCribScoreChange,
+    saveCudyrChanges,
+    discardCudyrChanges,
     resolveCudyrEligibility,
   } = useCudyrLogic(readOnly);
 
@@ -82,6 +86,7 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
             currentDate={record.date}
             updatedAt={record.cudyrUpdatedAt}
             categoryCounts={cudyrSummary?.counts}
+            currentRecord={record}
           />
         </div>
 
@@ -151,6 +156,41 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
               </tr>
             </thead>
             <tbody>
+              {pendingCudyrChangeCount > 0 && (
+                <tr data-testid="cudyr-pending-save-row" className="print:hidden">
+                  <td colSpan={19} className="border border-amber-200 bg-amber-50/70 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="rounded-md border border-amber-200 bg-white/80 px-3 py-1.5 text-sm font-bold text-amber-800">
+                        {pendingCudyrChangeCount}{' '}
+                        {pendingCudyrChangeCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}
+                      </span>
+                      <div className="flex-1" />
+                      <button
+                        type="button"
+                        onClick={discardCudyrChanges}
+                        disabled={isSavingCudyrChanges}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <RotateCcw size={14} />
+                        Descartar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveCudyrChanges}
+                        disabled={isSavingCudyrChanges}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-wait disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        {isSavingCudyrChanges ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Save size={14} />
+                        )}
+                        {isSavingCudyrChanges ? 'Guardando...' : 'Guardar CUDYR'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {visibleBeds.map(bed => {
                 const patient = record.beds[bed.id];
                 const patientEligibility = resolveCudyrEligibility(patient);

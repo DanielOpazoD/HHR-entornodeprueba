@@ -114,10 +114,39 @@ describe('useExportManager', () => {
     );
 
     expect(typeof result.current.handleExportPDF).toBe('function');
+    expect(typeof result.current.handlePrintWithBrowserOptions).toBe('function');
     expect(typeof result.current.handleBackupExcel).toBe('function');
     expect(typeof result.current.handleBackupHandoff).toBe('function');
     expect(result.current.isArchived).toBe(false);
     expect(result.current.isBackingUp).toBe(false);
+  });
+
+  it('opens browser print after flushing local handoff state for configurable Chrome print options', async () => {
+    vi.useFakeTimers();
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    const flushBeforeExport = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useExportManager({
+        ...defaultProps,
+        currentModule: 'NURSING_HANDOFF',
+        flushBeforeExport,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handlePrintWithBrowserOptions();
+    });
+
+    expect(flushBeforeExport).toHaveBeenCalledTimes(1);
+    expect(printSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+    printSpy.mockRestore();
   });
 
   it('exports nursing handoff PDFs in print-preview mode', async () => {

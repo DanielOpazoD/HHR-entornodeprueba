@@ -16,6 +16,7 @@ const createPatient = (bedId: string, patientName = 'Paciente', location = 'Sala
     patientName,
     rut: '12.345.678-9',
     location,
+    pathology: 'Neumonía en tratamiento',
     isBlocked: false,
   }) as PatientData;
 
@@ -42,14 +43,21 @@ describe('bedOperationsAuditController', () => {
 
     expect(move.patch).toEqual(
       expect.objectContaining({
-        'beds.R2': expect.objectContaining({ patientName: 'Paciente 1', bedId: 'R2' }),
+        'beds.R2': expect.objectContaining({
+          patientName: 'Paciente 1',
+          bedId: 'R2',
+          pathology: 'Neumonía en tratamiento',
+        }),
       })
     );
     expect(move.audit.details).toEqual(
       expect.objectContaining({
-        action: 'move',
+        movementKind: 'move',
         sourceBed: 'R1',
         targetBed: 'R2',
+        diagnosis: 'Neumonía en tratamiento',
+        previousLocation: 'Sala 1',
+        newLocation: 'Sala 2',
       })
     );
     expect(toBedOperationAuditArgs(move)).toEqual([
@@ -57,7 +65,7 @@ describe('bedOperationsAuditController', () => {
       'patient',
       'R2',
       expect.objectContaining({
-        action: 'move',
+        movementKind: 'move',
         sourceBed: 'R1',
         targetBed: 'R2',
       }),

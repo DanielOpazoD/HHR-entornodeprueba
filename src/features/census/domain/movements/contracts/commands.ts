@@ -7,6 +7,7 @@ export interface DischargeUpdateCommandPayload {
   typeOther?: string;
   time: string;
   movementDate?: string;
+  diagnosis?: string;
 }
 
 export interface DischargeAddCommandPayload extends DischargeUpdateCommandPayload {
@@ -21,6 +22,7 @@ export interface TransferCommandPayload {
   transferEscort: string;
   time: string;
   movementDate?: string;
+  diagnosis?: string;
 }
 
 export type DischargeCommand =

@@ -16,7 +16,18 @@ export interface IeehData {
   tratanteRut?: string;
 }
 
-export interface DischargeData {
+export interface MovementTombstoneFields {
+  deletedAt?: string;
+  deletedBy?: string;
+  deletedReason?: string;
+}
+
+export interface MovementEpisodeFields {
+  /** Stable episode identifier. Optional while legacy movement rows are backfilled. */
+  clinicalEpisodeId?: string;
+}
+
+export interface DischargeData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;
   movementDate?: string; // YYYY-MM-DD
   admissionDate?: string; // Explicit episode admission date for reporting
@@ -40,7 +51,7 @@ export interface DischargeData {
   ieehData?: IeehData; // Persisted IEEH PDF generation data
 }
 
-export interface TransferData {
+export interface TransferData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;
   movementDate?: string; // YYYY-MM-DD
   admissionDate?: string; // Explicit episode admission date for reporting
@@ -65,7 +76,7 @@ export interface TransferData {
   isNested?: boolean; // Identifies if it was a clinical crib
 }
 
-export interface CMAData {
+export interface CMAData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;
   bedName: string; // Generic location or identifier
   patientName: string;
@@ -89,3 +100,23 @@ export interface CMAData {
   originalBedId?: string; // For undo: original bed ID
   originalData?: PatientData; // For undo: snapshot of original patient data
 }
+
+export const resolveCmaHistoricalAdmissionDate = (
+  movement: Pick<CMAData, 'originalData'>
+): string => movement.originalData?.admissionDate || '';
+
+interface MovementHistoricalEpisodeSnapshot {
+  admissionDate?: string;
+  originalData?: Pick<PatientData, 'admissionDate' | 'firstSeenDate' | 'admissionTime'>;
+}
+
+export const resolveMovementHistoricalAdmissionDate = (
+  movement: MovementHistoricalEpisodeSnapshot
+): string | undefined =>
+  movement.admissionDate ||
+  movement.originalData?.firstSeenDate ||
+  movement.originalData?.admissionDate;
+
+export const resolveMovementHistoricalAdmissionTime = (
+  movement: MovementHistoricalEpisodeSnapshot
+): string | undefined => movement.originalData?.admissionTime;

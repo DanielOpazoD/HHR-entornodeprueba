@@ -98,6 +98,7 @@ const addDailySheets = (workbook: Workbook, dailySummaries: CudyrDailySummary[])
     dailySheetNames.push(sheetName);
 
     const daySheet = workbook.addWorksheet(sheetName);
+    daySheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 3 }];
     daySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
     daySheet.getCell('A1').value = `CUDYR Diario del Registro - ${sheetName}`;
     daySheet.getCell('A1').font = { bold: true, size: 12 };
@@ -132,8 +133,21 @@ export const buildCudyrWorkbook = async ({
   const workbook = await createWorkbook();
   workbook.creator = 'Hospital Hanga Roa';
   workbook.created = new Date();
+  workbook.views = [
+    {
+      x: 0,
+      y: 0,
+      width: 24_000,
+      height: 16_000,
+      activeTab: 0,
+      firstSheet: 0,
+      visibility: 'visible',
+    },
+  ];
 
-  const dailySheetNames = addDailySheets(workbook, monthlySummary.dailySummaries);
+  const dailySheetNames = monthlySummary.dailySummaries.map(daySummary =>
+    formatDateDMY(daySummary.date)
+  );
   addMonthlySummarySheet(
     workbook,
     year,
@@ -143,6 +157,7 @@ export const buildCudyrWorkbook = async ({
     dailySheetNames,
     BORDER_THIN
   );
+  addDailySheets(workbook, monthlySummary.dailySummaries);
 
   return {
     workbook,

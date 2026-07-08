@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyClinicalDocumentEditorCommand,
   normalizeClinicalDocumentContentForStorage,
+  sanitizePastedHtml,
   stripClinicalDocumentHtml,
 } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 
@@ -150,5 +151,37 @@ describe('clinicalDocumentRichTextController', () => {
     expect(block.style.marginLeft).toBe('');
 
     editor.remove();
+  });
+
+  // -------------------------------------------------------------------------
+  // Orphaned table rows/cells (regression: pasting a partial table whose
+  // <table> wrapper was lost dropped every cell, because the HTML parser
+  // discards <tr>/<td> that have no <table> ancestor)
+  // -------------------------------------------------------------------------
+
+  it('preserves pasted table rows that arrive without a <table> wrapper', () => {
+    const sanitized = sanitizePastedHtml(
+      '<tr><td>A1</td><td>B1</td></tr><tr><td>A2</td><td>B2</td></tr>'
+    );
+    expect(sanitized).toContain('<table');
+    expect(sanitized).toContain('<td>A1</td>');
+    expect(sanitized).toContain('<td>B2</td>');
+  });
+
+  it('preserves orphaned cells during storage normalization', () => {
+    const normalized = normalizeClinicalDocumentContentForStorage('<td>Solo celda</td>');
+    expect(normalized).toContain('<table');
+    expect(normalized).toContain('Solo celda');
+  });
+
+  it('keeps a well-formed table untouched (no double wrapping)', () => {
+    const sanitized = sanitizePastedHtml('<table><tbody><tr><td>X</td></tr></tbody></table>');
+    expect(sanitized.match(/<table/g) ?? []).toHaveLength(1);
+    expect(sanitized).toContain('<td>X</td>');
+  });
+
+  it('does not inject a table when there are no table cells', () => {
+    const sanitized = sanitizePastedHtml('<p>Texto normal</p>');
+    expect(sanitized).not.toContain('<table');
   });
 });

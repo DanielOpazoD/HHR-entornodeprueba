@@ -1,7 +1,10 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ViewLoader } from '@/components/ui/ViewLoader';
+import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
+import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
 import { CensusRegisterContent } from './CensusRegisterContent';
+import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 
 const LazyEmptyDayPrompt = lazy(() =>
@@ -49,6 +52,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     allowAdminCopyOverride,
     accessProfile,
   });
+  const dailyRecordStatus = useDailyRecordStatus();
 
   // Show loader briefly on every date change so the empty-day prompt
   // never flashes before Firestore has a chance to deliver the record.
@@ -75,13 +79,22 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   }, [branch, currentDateString]);
 
   const isDateSettled = settledDate === currentDateString;
+  const isEmptyBranchPending =
+    branch === 'empty' &&
+    (!isDateSettled || (shouldDeferTodayEmptyState && resolvedTodayEmptyDate !== currentDateString));
+  const loadingOperationalState = resolveCensusOperationalState({
+    branch,
+    bootstrapPhase: isEmptyBranchPending
+      ? 'remote_record_bootstrapping'
+      : dailyRecordStatus.bootstrapPhase,
+    syncStatus: dailyRecordStatus.syncStatus,
+    hasRecord: Boolean(registerContentProps),
+    isAuthenticated: true,
+  });
 
   if (branch === 'empty') {
-    if (
-      !isDateSettled ||
-      (shouldDeferTodayEmptyState && resolvedTodayEmptyDate !== currentDateString)
-    ) {
-      return <ViewLoader />;
+    if (isEmptyBranchPending) {
+      return <CensusOperationalStateBanner state={loadingOperationalState} />;
     }
 
     return (

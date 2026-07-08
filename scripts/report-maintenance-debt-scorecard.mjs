@@ -3,13 +3,18 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
 import { buildFirestoreRulesGovernanceReport } from './firestoreRulesGovernanceSupport.mjs';
-import { buildMaintenanceDebtWatchlistRows } from './maintenanceDebtScorecardSupport.mjs';
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+import {
+  buildLegacyRetirementDebtRows,
+  buildMaintenanceDebtWatchlistRows,
+} from './maintenanceDebtScorecardSupport.mjs';
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'reports');
 const JSON_OUTPUT = path.join(REPORTS_DIR, 'maintenance-debt-scorecard.json');
 const MD_OUTPUT = path.join(REPORTS_DIR, 'maintenance-debt-scorecard.md');
 const QUALITY_METRICS_JSON = path.join(REPORTS_DIR, 'quality-metrics.json');
+const LEGACY_RETIREMENT_DEBT_JSON = path.join(REPORTS_DIR, 'legacy-retirement-debt.json');
 const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
 const HOOK_LIMITS_PATH = path.join(ROOT, 'scripts', 'hook-hotspots-limits.json');
 
@@ -91,6 +96,7 @@ const buildRecentChurnRows = () => {
 };
 
 const qualityMetrics = readJson(QUALITY_METRICS_JSON);
+const legacyRetirementDebt = buildLegacyRetirementDebtRows(readJson(LEGACY_RETIREMENT_DEBT_JSON));
 const moduleConfig = readJson(MODULE_ALLOWLIST_PATH) ?? {};
 const hookConfig = readJson(HOOK_LIMITS_PATH) ?? {};
 const firestoreRulesGovernance = buildFirestoreRulesGovernanceReport(ROOT);
@@ -117,6 +123,11 @@ const gitState = getGitReportState(ROOT);
 const payload = {
   generatedAt: new Date().toISOString(),
   ...gitState,
+  generatedFor: buildEvidenceProvenance({
+    root: ROOT,
+    reportId: 'maintenance-debt-scorecard',
+    gitState,
+  }),
   pendingHotspots,
   watchlist,
   tests: {
@@ -124,6 +135,7 @@ const payload = {
     knownFailureEntries: qualityMetrics?.tests?.knownFailureEntries ?? null,
     openKnownFailureEntries: qualityMetrics?.tests?.openKnownFailureEntries ?? null,
   },
+  legacyRetirementDebt,
   firestoreRules: {
     lines: watchlist.find(entry => entry.file === 'firestore.rules')?.lines ?? 0,
     maxLines: firestoreRulesGovernance.generatedRules.maxLines,
@@ -171,6 +183,24 @@ ${watchlist
 - Flake-risk test files: ${payload.tests.flakeRiskFiles ?? 'n/a'}
 - Known failure entries: ${payload.tests.knownFailureEntries ?? 'n/a'}
 - Open known failure entries: ${payload.tests.openKnownFailureEntries ?? 'n/a'}
+
+## Legacy Retirement Debt
+
+- Status: ${payload.legacyRetirementDebt.status}
+- Open surfaces: ${payload.legacyRetirementDebt.openSurfaceCount ?? 'n/a'} / ${
+  payload.legacyRetirementDebt.maxOpenSurfaces ?? 'n/a'
+}
+
+${
+  payload.legacyRetirementDebt.rows.length === 0
+    ? '- No legacy retirement snapshot available'
+    : payload.legacyRetirementDebt.rows
+        .map(
+          entry =>
+            `- ${entry.label}: ${entry.status} (${entry.phase}, owner ${entry.owner}; ${entry.signal}) - next: ${entry.nextAction}`
+        )
+        .join('\n')
+}
 
 ## Firestore Rules Growth
 

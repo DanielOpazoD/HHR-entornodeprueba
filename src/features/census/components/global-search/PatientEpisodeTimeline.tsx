@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
 import type {
+  ClinicalDocSummary,
   EpisodeDocuments,
   PatientEpisodeTimelineState,
 } from '@/features/census/components/global-search/globalSearchContracts';
@@ -29,6 +30,7 @@ interface PatientEpisodeTimelineProps {
   episodeDocuments: Record<string, EpisodeDocuments>;
   onLoadDocuments: (episodeKey: string) => void;
   onDownloadPdf: (docId: string, docType: string) => Promise<void>;
+  onOpenClinicalDocument?: (doc: ClinicalDocSummary) => void;
   onNavigateToDate?: (isoDate: string) => void;
   onBack: () => void;
 }
@@ -45,6 +47,7 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
   episodeDocuments,
   onLoadDocuments,
   onDownloadPdf,
+  onOpenClinicalDocument,
   onNavigateToDate,
   onBack,
 }) => {
@@ -91,6 +94,7 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
             episodeDocuments={episodeDocuments}
             onLoadDocuments={onLoadDocuments}
             onDownloadPdf={onDownloadPdf}
+            onOpenClinicalDocument={onOpenClinicalDocument}
             onNavigateToDate={onNavigateToDate}
           />
         ))}

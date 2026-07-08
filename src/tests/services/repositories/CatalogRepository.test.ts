@@ -8,6 +8,7 @@ import * as catalogService from '@/services/storage/indexeddb/indexedDbCatalogSe
 import * as firestoreService from '@/services/storage/firestore';
 import * as legacyCatalogBridge from '@/services/storage/migration/legacyCatalogReadBridge';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { isLegacyBridgeEnabled } from '@/services/repositories/legacyCompatibilityPolicy';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 
 vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
@@ -34,11 +35,15 @@ vi.mock('@/services/storage/migration/legacyCatalogReadBridge', () => ({
   getLegacyNurseCatalog: vi.fn().mockResolvedValue([]),
   getLegacyTensCatalog: vi.fn().mockResolvedValue([]),
 }));
+vi.mock('@/services/repositories/legacyCompatibilityPolicy', () => ({
+  isLegacyBridgeEnabled: vi.fn(() => true),
+}));
 
 describe('CatalogRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
+    vi.mocked(isLegacyBridgeEnabled).mockReturnValue(true);
   });
 
   describe('Nurses', () => {
@@ -55,6 +60,20 @@ describe('CatalogRepository', () => {
       vi.mocked(firestoreService.getNurseCatalogFromFirestore).mockResolvedValueOnce([]);
 
       const result = await CatalogRepository.getNurses();
+      expect(result).toEqual(['Enfermero/a 1', 'Enfermero/a 2']);
+    });
+
+    it('getNurses skips the legacy fallback when the legacy bridge is disabled', async () => {
+      // Regression: the legacy catalog read must honor isLegacyBridgeEnabled() like the
+      // record bridge, so VITE_LEGACY_COMPATIBILITY_MODE=disabled (e.g. local dev with no
+      // legacy config) does not error on the missing VITE_LEGACY_FIREBASE_* vars.
+      vi.mocked(isLegacyBridgeEnabled).mockReturnValue(false);
+      vi.mocked(catalogService.getCatalog).mockResolvedValueOnce([]);
+      vi.mocked(firestoreService.getNurseCatalogFromFirestore).mockResolvedValueOnce([]);
+
+      const result = await CatalogRepository.getNurses();
+
+      expect(legacyCatalogBridge.getLegacyNurseCatalog).not.toHaveBeenCalled();
       expect(result).toEqual(['Enfermero/a 1', 'Enfermero/a 2']);
     });
 
@@ -99,6 +118,16 @@ describe('CatalogRepository', () => {
       expect(catalogService.getCatalog).toHaveBeenCalledWith('tens');
       expect(firestoreService.getTensCatalogFromFirestore).toHaveBeenCalled();
       expect(legacyCatalogBridge.getLegacyTensCatalog).toHaveBeenCalled();
+    });
+
+    it('getTens skips the legacy fallback when the legacy bridge is disabled', async () => {
+      vi.mocked(isLegacyBridgeEnabled).mockReturnValue(false);
+      vi.mocked(catalogService.getCatalog).mockResolvedValueOnce([]);
+
+      const result = await CatalogRepository.getTens();
+
+      expect(legacyCatalogBridge.getLegacyTensCatalog).not.toHaveBeenCalled();
+      expect(result).toEqual(['TENS 1', 'TENS 2', 'TENS 3']);
     });
 
     it('saveTens should save to both', async () => {

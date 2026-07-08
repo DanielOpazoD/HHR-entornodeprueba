@@ -14,7 +14,11 @@ import {
   resolveCurrentAuthSessionState,
 } from '@/services/auth/authSession';
 import { handleSignInRedirectResult } from '@/services/auth/authFallback';
-import { isPopupRecoverableAuthError, resolveAuthErrorCode } from '@/services/auth/authErrorPolicy';
+import {
+  isPopupCancellationAuthError,
+  isPopupRecoverableAuthError,
+  resolveAuthErrorCode,
+} from '@/services/auth/authErrorPolicy';
 import { toResolvedAuthSessionState } from '@/services/auth/authSessionState';
 import {
   normalizeCredentialSignInInput,
@@ -74,7 +78,7 @@ const buildAuthIssue = (
 ): ApplicationIssue => {
   const code = resolveAuthErrorCode(error) || fallbackCode;
   const message = error instanceof Error ? error.message || fallbackMessage : fallbackMessage;
-  const retryable = isPopupRecoverableAuthError(error);
+  const retryable = isPopupRecoverableAuthError(error) || isPopupCancellationAuthError(error);
   return {
     kind: 'unknown',
     code,

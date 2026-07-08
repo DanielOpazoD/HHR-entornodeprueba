@@ -31,6 +31,8 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 /** Maximum number of retry attempts for transient network failures. */
 const MAX_RETRIES = 1;
 
+const SYSLAB_DETAILS_BATCH_SIZE = 3;
+
 const isNetlifyDevRuntime = (): boolean =>
   typeof globalThis.location !== 'undefined' &&
   /^(localhost|127\.0\.0\.1)$/.test(globalThis.location.hostname) &&
@@ -202,17 +204,42 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
     ? buildSyslabProxyUrl('?action=details')
     : `${getSyslabBaseUrl()}/api/exams/details`;
 
-  try {
+  const fetchDetailsBatch = async (batchLinks: string[]): Promise<SyslabDetailsResponse> => {
     const response = await fetchWithRetry(
       url,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ links }),
+        body: JSON.stringify({ links: batchLinks }),
       },
       60_000 // 60s timeout for PDF parsing
     );
     return await response.json();
+  };
+
+  try {
+    if (links.length <= SYSLAB_DETAILS_BATCH_SIZE) {
+      return await fetchDetailsBatch(links);
+    }
+
+    const mergedData: SyslabDetailsResponse['data'] = [];
+
+    for (let index = 0; index < links.length; index += SYSLAB_DETAILS_BATCH_SIZE) {
+      const batch = links.slice(index, index + SYSLAB_DETAILS_BATCH_SIZE);
+      const batchResponse = await fetchDetailsBatch(batch);
+
+      if (!batchResponse.success) {
+        return {
+          success: false,
+          data: mergedData,
+          error: batchResponse.error || 'No se pudieron obtener todos los detalles de laboratorio.',
+        };
+      }
+
+      mergedData.push(...batchResponse.data);
+    }
+
+    return { success: true, data: mergedData };
   } catch (error) {
     syslabLogger.error('Syslab exam details fetch failed', error);
     throw error;

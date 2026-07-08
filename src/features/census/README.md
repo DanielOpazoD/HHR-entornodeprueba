@@ -71,7 +71,7 @@ El launcher usa un esquema de capas CSS que evita interceptar clics destinados a
 
 - El **wrapper** del portal se renderiza con `pointer-events-none` para que los clics lo atraviesen hacia la tabla.
 - El **contenedor de acciones** y el **trigger** activan `pointer-events-auto` para capturar solo los clics sobre los botones del launcher.
-- Capas de z-index: backdrop `z-[60]`, wrapper `z-[70]`, acciones `z-[80]`.
+- Capas de z-index: backdrop `z-[38]`, wrapper `z-[39]`, acciones internas `z-10`. El launcher queda sobre el encabezado y acciones de la tabla (`z-30`/`z-[36]`) y bajo las barras sticky de navegación/fecha (`z-40`/`z-60`).
 
 #### Fix de stale closures en grace timer
 

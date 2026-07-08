@@ -1,18 +1,10 @@
 import React from 'react';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
 
-import type {
-  ClinicalDocumentIndicationCatalogItem,
-  ClinicalDocumentIndicationCatalogSpecialty,
-} from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
-
-const renderItemBadge = (item: ClinicalDocumentIndicationCatalogItem) =>
-  item.source === 'custom' ? (
-    <span className="clinical-document-indications-badge">Propia</span>
-  ) : null;
+import type { ClinicalDocumentIndicationCatalogItem } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 
 interface ClinicalDocumentIndicationsItemsProps {
-  activeSpecialty: ClinicalDocumentIndicationCatalogSpecialty;
+  items: ClinicalDocumentIndicationCatalogItem[];
   canEdit: boolean;
   isSavingCustomIndication: boolean;
   editingItemId: string | null;
@@ -26,7 +18,7 @@ interface ClinicalDocumentIndicationsItemsProps {
 }
 
 export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicationsItemsProps> = ({
-  activeSpecialty,
+  items,
   canEdit,
   isSavingCustomIndication,
   editingItemId,
@@ -39,8 +31,8 @@ export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicati
   onDeleteIndication,
 }) => (
   <div className="clinical-document-indications-list">
-    {activeSpecialty.items.length > 0 ? (
-      activeSpecialty.items.map((item: ClinicalDocumentIndicationCatalogItem) => {
+    {items.length > 0 ? (
+      items.map((item: ClinicalDocumentIndicationCatalogItem) => {
         const isEditing = editingItemId === item.id;
 
         return (
@@ -58,7 +50,6 @@ export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicati
                 <button
                   type="button"
                   className="clinical-document-indications-item-insert"
-                  onMouseDown={event => event.preventDefault()}
                   onClick={() => onInsertIndication(item.text)}
                   disabled={!canEdit}
                 >
@@ -66,7 +57,6 @@ export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicati
                 </button>
 
                 <div className="clinical-document-indications-item-meta">
-                  {renderItemBadge(item)}
                   <div className="clinical-document-indications-item-actions">
                     <button
                       type="button"
@@ -96,7 +86,6 @@ export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicati
             )}
             {isEditing && (
               <div className="clinical-document-indications-item-meta">
-                {renderItemBadge(item)}
                 <div className="clinical-document-indications-item-actions">
                   <button
                     type="button"
@@ -127,7 +116,7 @@ export const ClinicalDocumentIndicationsItems: React.FC<ClinicalDocumentIndicati
       })
     ) : (
       <p className="clinical-document-indications-empty">
-        No hay indicaciones cargadas para esta especialidad.
+        No hay indicaciones guardadas en tu cuenta.
       </p>
     )}
   </div>

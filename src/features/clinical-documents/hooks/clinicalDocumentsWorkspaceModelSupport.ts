@@ -16,6 +16,8 @@ export interface ClinicalDocumentsWorkspaceAccessState {
   canRead: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canDeleteByRole: boolean;
+  canMutateEpisode: boolean;
   readOnlyMessage: string | null;
   persistReason: 'autosave' | 'admin_fix';
 }
@@ -33,9 +35,71 @@ export const resolveClinicalDocumentsWorkspaceAccessState = (
     canRead,
     canEdit: canEditByRole && canMutateEpisode,
     canDelete: canDeleteByRole && canMutateEpisode,
+    canDeleteByRole,
+    canMutateEpisode,
     readOnlyMessage: buildClinicalDocumentsReadOnlyMessage(patient, role, canEditByRole),
     persistReason: resolveClinicalDocumentPersistReason(patient, role),
   };
+};
+
+interface ClinicalDocumentDeleteWorkspaceUser {
+  uid?: string | null;
+  email?: string | null;
+}
+
+const normalizeActorIdentity = (value: string | null | undefined): string =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
+
+const isClinicalDocumentAuthor = (
+  document: ClinicalDocumentRecord,
+  user: ClinicalDocumentDeleteWorkspaceUser | null | undefined
+): boolean => {
+  if (!user) return false;
+
+  const author = document.audit.createdBy;
+  const userUid = normalizeActorIdentity(user.uid);
+  const authorUid = normalizeActorIdentity(author.uid);
+  if (userUid && authorUid && userUid === authorUid) {
+    return true;
+  }
+
+  const userEmail = normalizeActorIdentity(user.email);
+  const authorEmail = normalizeActorIdentity(author.email);
+  return Boolean(userEmail && authorEmail && userEmail === authorEmail);
+};
+
+const canMedicalRoleDeleteOwnActiveDocument = (role: UserRole | undefined): boolean =>
+  canEditClinicalDocuments(role);
+
+export const canDeleteClinicalDocumentFromWorkspace = ({
+  document,
+  canDeleteByRole,
+  canMutateEpisode,
+  role,
+  user,
+}: {
+  document: ClinicalDocumentRecord;
+  canDeleteByRole: boolean;
+  canMutateEpisode: boolean;
+  role: UserRole | undefined;
+  user: ClinicalDocumentDeleteWorkspaceUser | null | undefined;
+}): boolean => {
+  if (!canMutateEpisode) {
+    return false;
+  }
+
+  if (canDeleteByRole) {
+    return true;
+  }
+
+  return (
+    canMedicalRoleDeleteOwnActiveDocument(role) &&
+    document.isActiveEpisodeDocument &&
+    !document.isLocked &&
+    isClinicalDocumentAuthor(document, user)
+  );
 };
 
 export const mergeDraftIntoClinicalDocumentsSidebar = (

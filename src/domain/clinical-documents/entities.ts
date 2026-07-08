@@ -87,6 +87,13 @@ export interface ClinicalDocumentRecord {
   especialidad: string;
   status: ClinicalDocumentStatus;
   isLocked: boolean;
+  /**
+   * Reason the document was locked. Set automatically when the
+   * hospitalization episode closes (discharge, transfer, death, fuga).
+   */
+  lockedReason?: 'episode_closed';
+  /** ISO timestamp captured when the lock flipped from `false` to `true`. */
+  lockedAt?: string;
   isActiveEpisodeDocument: boolean;
   currentVersion: number;
   versionHistory: ClinicalDocumentVersionMeta[];
@@ -113,6 +120,8 @@ export interface ClinicalDocumentRecord {
   integrityHash?: string;
   /** Rich text content for the annexes page (printed as a separate page). */
   annexContent?: string;
+  annexIncludedInPrint?: boolean;
+  includePatientSignature?: boolean;
   /** Statistical discharge draft filled from epicrisis (optional). */
   ieehDraft?: {
     cie10Code: string;

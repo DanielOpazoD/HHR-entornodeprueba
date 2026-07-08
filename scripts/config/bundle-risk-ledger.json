@@ -1,0 +1,80 @@
+{
+  "policyVersion": "2026-06-v1",
+  "surfaces": [
+    {
+      "id": "vendor-heic2any",
+      "owner": "prescriptions/runtime",
+      "workflow": "HEIC/HEIF prescription photo conversion",
+      "loadReason": "Only high-efficiency prescription photos need client-side conversion; JPEG/PNG/WebP uploads bypass this runtime.",
+      "thresholdLabel": "1,450,000 bytes chunk budget",
+      "chunkBudgetPattern": "^vendor-heic2any-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/vendor-heic2any-.*\\.js$",
+      "releasePosture": "Async only for high-efficiency prescription photos; not a release blocker while below threshold and outside install-time precache.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Keep heic2any behind the prescription runtime loader and revisit only if usage telemetry or chunk size crosses the warning band."
+    },
+    {
+      "id": "vendor-pdfjs",
+      "owner": "clinical-documents/PDF runtime",
+      "workflow": "PDF text/import runtime",
+      "loadReason": "Only PDF text extraction flows in clinical documents and laboratory imports need PDF.js.",
+      "thresholdLabel": "520,000 bytes chunk budget",
+      "chunkBudgetPattern": "^vendor-pdfjs-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/vendor-pdfjs-.*\\.js$",
+      "releasePosture": "Async PDF.js runtime remains acceptable while excluded from PWA install-time precache.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Keep PDF.js text extraction behind workflow loaders and split further only if it starts sharing startup dependencies."
+    },
+    {
+      "id": "pdfjs-worker",
+      "owner": "clinical-documents/PDF runtime",
+      "workflow": "PDF.js worker runtime",
+      "loadReason": "Only browser PDF text extraction needs the PDF.js worker; it must remain async and outside install-time precache.",
+      "thresholdLabel": "2,500,000 bytes async worker budget",
+      "chunkBudgetPattern": "^pdf\\.worker-.*\\.mjs$",
+      "precacheIgnoredPattern": "^assets/pdf\\.worker-.*\\.mjs$",
+      "releasePosture": "Async worker remains acceptable while excluded from PWA install-time precache and under its dedicated ceiling.",
+      "guardrails": ["check:runtime-asset-margin", "src/tests/build/pwaPrecachePolicy.test.ts"],
+      "nextAction": "Treat worker growth as PDF.js dependency drift; do not raise the budget without confirming extraction workflows still need the current worker."
+    },
+    {
+      "id": "vendor-pdf-lib",
+      "owner": "clinical-documents/PDF generation",
+      "workflow": "PDF generation and manipulation",
+      "loadReason": "Only browser PDF generation, form filling and print/download workflows need pdf-lib.",
+      "thresholdLabel": "430,000 bytes async vendor budget",
+      "chunkBudgetPattern": "^vendor-pdf-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/vendor-pdf-.*\\.js$",
+      "releasePosture": "Async PDF generation remains acceptable while on-demand and under its dedicated ceiling.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/bundleBudgetConfig.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Separate generation/viewer imports only if the PDF family grows past the current dedicated ceiling."
+    },
+    {
+      "id": "app-authenticated-shell",
+      "owner": "app-shell/census runtime",
+      "workflow": "Authenticated census shell",
+      "loadReason": "Post-login shell required to render the census runtime; secondary concerns must stay behind lazy boundaries.",
+      "thresholdLabel": "600,000 bytes startup chunk budget",
+      "startupBudgetLabel": "app-authenticated-shell",
+      "releasePosture": "Startup chunk remains below hard ceiling; secondary authenticated concerns should keep moving behind lazy boundaries.",
+      "guardrails": [
+        "check:bundle-budget",
+        "check:chunk-graph",
+        "src/tests/build/chunkingPolicy.test.ts"
+      ],
+      "nextAction": "Move the next secondary authenticated concern behind a lazy boundary if this chunk exceeds the warning band again."
+    }
+  ]
+}

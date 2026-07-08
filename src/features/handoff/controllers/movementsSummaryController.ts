@@ -2,6 +2,11 @@ import type { CMAData, DischargeData, TransferData } from '@/types/domain/moveme
 import type { ShiftType } from '@/types/domain/shift';
 import { isWithinDayShift } from '@/utils/shiftTimeUtils';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 interface ShiftMovement {
   time?: string;
@@ -24,18 +29,22 @@ export const filterDischargesByShift = (
   discharges: DischargeData[] | undefined,
   selectedShift: ShiftType
 ): DischargeData[] =>
-  (discharges || []).filter(discharge => isMovementInSelectedShift(discharge, selectedShift));
+  getActiveDischarges(discharges).filter(discharge =>
+    isMovementInSelectedShift(discharge, selectedShift)
+  );
 
 export const filterTransfersByShift = (
   transfers: TransferData[] | undefined,
   selectedShift: ShiftType
 ): TransferData[] =>
-  (transfers || []).filter(transfer => isMovementInSelectedShift(transfer, selectedShift));
+  getActiveTransfers(transfers).filter(transfer =>
+    isMovementInSelectedShift(transfer, selectedShift)
+  );
 
 export const filterCmaByShift = (
   cma: CMAData[] | undefined,
   selectedShift: ShiftType
-): CMAData[] => (selectedShift === 'night' ? [] : cma || []);
+): CMAData[] => (selectedShift === 'night' ? [] : getActiveCma(cma));
 
 export const resolveMovementEmptyMessage = (
   kind: 'discharges' | 'transfers' | 'cma',

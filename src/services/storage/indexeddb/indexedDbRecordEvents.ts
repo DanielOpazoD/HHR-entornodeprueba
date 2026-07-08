@@ -1,3 +1,8 @@
+import {
+  broadcastDailyRecordStoreChanged,
+  onSyncBroadcastMessage,
+} from '@/services/storage/sync/syncBroadcastChannel';
+
 export const DAILY_RECORD_STORE_CHANGED_EVENT = 'daily-record-store-changed';
 
 export interface DailyRecordStoreChangedEventDetail {
@@ -8,9 +13,7 @@ export interface DailyRecordStoreChangedEventDetail {
 const buildMonthPrefix = (year: number, monthOneBased: number): string =>
   `${year}-${String(monthOneBased).padStart(2, '0')}-`;
 
-export const dispatchDailyRecordStoreChanged = (
-  detail: DailyRecordStoreChangedEventDetail
-): void => {
+const dispatchDailyRecordStoreChangedLocal = (detail: DailyRecordStoreChangedEventDetail): void => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -21,6 +24,20 @@ export const dispatchDailyRecordStoreChanged = (
     })
   );
 };
+
+export const dispatchDailyRecordStoreChanged = (
+  detail: DailyRecordStoreChangedEventDetail
+): void => {
+  dispatchDailyRecordStoreChangedLocal(detail);
+  broadcastDailyRecordStoreChanged(detail);
+};
+
+onSyncBroadcastMessage(message => {
+  if (message.type !== 'DAILY_RECORD_STORE_CHANGED') {
+    return;
+  }
+  dispatchDailyRecordStoreChangedLocal(message.detail);
+});
 
 export const isDailyRecordStoreChangeRelevantToMonth = (
   detail: DailyRecordStoreChangedEventDetail | undefined,

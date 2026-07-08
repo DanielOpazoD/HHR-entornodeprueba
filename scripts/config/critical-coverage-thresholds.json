@@ -15,9 +15,9 @@
       "minTestFileCount": 15,
       "minTestToSourceRatio": 0.25,
       "coverageBaseline": {
-        "lines": 79.5,
-        "functions": 75,
-        "branches": 67
+        "lines": 83.0,
+        "functions": 80.0,
+        "branches": 72.0
       }
     },
     "src/services/transfers": {
@@ -201,9 +201,9 @@
       "minTestFileCount": 15,
       "minTestToSourceRatio": 0.3,
       "coverageBaseline": {
-        "lines": 72.0,
-        "functions": 61.5,
-        "branches": 64.5
+        "lines": 84.0,
+        "functions": 76.5,
+        "branches": 78.0
       }
     }
   }

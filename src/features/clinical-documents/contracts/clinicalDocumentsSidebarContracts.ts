@@ -23,6 +23,7 @@ export interface ClinicalDocumentsSidebarProps {
   onSelectDocument: (documentId: string) => void;
   onDuplicateDocument: (document: ClinicalDocumentRecord) => void;
   onDeleteDocument: (document: ClinicalDocumentRecord) => void;
+  canDeleteDocument?: (document: ClinicalDocumentRecord) => boolean;
   onExportJson?: (document: ClinicalDocumentRecord) => void;
   onImportJson?: (file: File) => void;
   onImportWithAi?: (file: File) => void;

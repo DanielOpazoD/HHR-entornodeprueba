@@ -165,8 +165,14 @@ export async function setupE2EContext(
   const targetDate = targetDateOverride || E2E_DEFAULT_DATE;
 
   await page.addInitScript(() => {
-    (window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> }).__HHR_E2E_OVERRIDE__ =
-      {};
+    const runtimeWindow = window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> };
+    const remoteShadow = localStorage.getItem('hhr_e2e_remote_override_shadow');
+    if (remoteShadow) {
+      const parsed = JSON.parse(remoteShadow) as { date: string; record: unknown };
+      runtimeWindow.__HHR_E2E_OVERRIDE__ = { [parsed.date]: parsed.record };
+      return;
+    }
+    runtimeWindow.__HHR_E2E_OVERRIDE__ = {};
   });
 
   // 1. Navigate to home
@@ -377,6 +383,12 @@ export async function bootstrapSeededRecord(
       const runtimeWindow = window as Window & {
         __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
       };
+      const remoteShadow = localStorage.getItem('hhr_e2e_remote_override_shadow');
+      if (remoteShadow) {
+        const parsed = JSON.parse(remoteShadow) as { date: string; record: unknown };
+        runtimeWindow.__HHR_E2E_OVERRIDE__ = { [parsed.date]: parsed.record };
+        return;
+      }
       // Keep the E2E runtime flag enabled for auth/bootstrap while forcing record
       // reads through the persisted storage stack after the seeded reload.
       runtimeWindow.__HHR_E2E_OVERRIDE__ = {};

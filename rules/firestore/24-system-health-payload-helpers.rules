@@ -80,6 +80,43 @@
              ]);
     }
 
+    function hasOnlySystemHealthResolutionKeys(payload) {
+      return payload.keys().hasOnly([
+               'resolutionKey',
+               'status',
+               'updatedAt',
+               'resolvedAt',
+               'resolvedByUid',
+               'resolvedByEmail',
+               'resolvedByName',
+               'reopenedAt',
+               'reopenedByUid',
+               'reopenedByEmail',
+               'reopenedByName',
+               'note',
+               'history'
+             ]);
+    }
+
+    function isValidSystemHealthResolutionWrite() {
+      let payload = request.resource.data;
+      return canManageSystemHealthOperations() &&
+             hasOnlySystemHealthResolutionKeys(payload) &&
+             payload.resolutionKey is string &&
+             payload.updatedAt is string &&
+             payload.status in ['open', 'resolved'] &&
+             isOptionalString(payload, 'resolvedAt') &&
+             isOptionalString(payload, 'resolvedByUid') &&
+             isOptionalString(payload, 'resolvedByEmail') &&
+             isOptionalString(payload, 'resolvedByName') &&
+             isOptionalString(payload, 'reopenedAt') &&
+             isOptionalString(payload, 'reopenedByUid') &&
+             isOptionalString(payload, 'reopenedByEmail') &&
+             isOptionalString(payload, 'reopenedByName') &&
+             isOptionalString(payload, 'note') &&
+             (!('history' in payload) || payload.history is list);
+    }
+
     function hasValidSystemHealthCriticalOperationalCounters(payload) {
       return isSystemHealthCounter(payload, 'operationalFailureCount') &&
              isSystemHealthCounter(payload, 'operationalSyncReadUnavailableCount');

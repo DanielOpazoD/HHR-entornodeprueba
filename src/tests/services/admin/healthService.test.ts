@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  deleteUserHealthSnapshot,
   reportUserHealth,
+  reopenSystemHealthIncident,
+  resolveSystemHealthIncident,
   subscribeToSystemHealth,
+  subscribeToSystemHealthIncidentResolutions,
   getSystemHealthSnapshot,
   normalizeUserHealthStatus,
   buildSystemHealthSummary,
@@ -11,7 +15,9 @@ import {
 // Mock the db abstraction layer
 vi.mock('@/services/storage/firestore', () => ({
   firestoreDb: {
+    getDoc: vi.fn().mockResolvedValue(null),
     setDoc: vi.fn().mockResolvedValue(undefined),
+    deleteDoc: vi.fn().mockResolvedValue(undefined),
     getDocs: vi.fn().mockResolvedValue([]),
     subscribeQuery: vi.fn().mockImplementation((_path, _options, _callback) => {
       // Return an unsubscribe function
@@ -74,6 +80,7 @@ describe('healthService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(firestoreDb.getDoc).mockResolvedValue(null);
   });
 
   describe('reportUserHealth', () => {
@@ -109,6 +116,136 @@ describe('healthService', () => {
 
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('deleteUserHealthSnapshot', () => {
+    it('deletes the selected user health snapshot from the users subcollection', async () => {
+      await deleteUserHealthSnapshot('user123');
+
+      expect(firestoreDb.deleteDoc).toHaveBeenCalledWith(
+        expect.stringContaining('users'),
+        'user123'
+      );
+    });
+  });
+
+  describe('system health incident resolutions', () => {
+    it('persists a resolved incident with actor and audit history', async () => {
+      await resolveSystemHealthIncident({
+        resolutionKey: 'u1:event-1',
+        resolvedAt: '2026-05-22T14:15:00.000Z',
+        actor: {
+          uid: 'admin-1',
+          email: 'admin@example.com',
+          displayName: 'Admin User',
+        },
+        note: 'Se corrigio permiso Firestore',
+      });
+
+      expect(firestoreDb.setDoc).toHaveBeenCalledWith(
+        'stats/system_health/resolutions',
+        'u1%3Aevent-1',
+        expect.objectContaining({
+          resolutionKey: 'u1:event-1',
+          status: 'resolved',
+          resolvedAt: '2026-05-22T14:15:00.000Z',
+          resolvedByUid: 'admin-1',
+          resolvedByEmail: 'admin@example.com',
+          resolvedByName: 'Admin User',
+          note: 'Se corrigio permiso Firestore',
+          history: [
+            expect.objectContaining({
+              action: 'resolved',
+              at: '2026-05-22T14:15:00.000Z',
+              actorUid: 'admin-1',
+            }),
+          ],
+        }),
+        { merge: true }
+      );
+    });
+
+    it('persists a reopened incident while keeping audit history', async () => {
+      await reopenSystemHealthIncident({
+        resolutionKey: 'u1:event-1',
+        reopenedAt: '2026-05-22T14:25:00.000Z',
+        actor: {
+          uid: 'admin-1',
+          email: 'admin@example.com',
+          displayName: 'Admin User',
+        },
+      });
+
+      expect(firestoreDb.setDoc).toHaveBeenCalledWith(
+        'stats/system_health/resolutions',
+        'u1%3Aevent-1',
+        expect.objectContaining({
+          resolutionKey: 'u1:event-1',
+          status: 'open',
+          reopenedAt: '2026-05-22T14:25:00.000Z',
+          reopenedByUid: 'admin-1',
+          reopenedByEmail: 'admin@example.com',
+          reopenedByName: 'Admin User',
+          history: [
+            expect.objectContaining({
+              action: 'reopened',
+              at: '2026-05-22T14:25:00.000Z',
+              actorUid: 'admin-1',
+            }),
+          ],
+        }),
+        { merge: true }
+      );
+    });
+
+    it('normalizes subscribed resolution docs by resolution key', () => {
+      const onUpdate = vi.fn();
+      let capturedCallback: ((data: unknown[]) => void) | undefined;
+
+      vi.mocked(firestoreDb.subscribeQuery).mockImplementation((path, options, callback) => {
+        capturedCallback = callback as unknown as (data: unknown[]) => void;
+        return vi.fn();
+      });
+
+      subscribeToSystemHealthIncidentResolutions(onUpdate);
+      capturedCallback?.([
+        {
+          resolutionKey: 'u1:event-1',
+          status: 'resolved',
+          resolvedAt: '2026-05-22T14:15:00.000Z',
+          resolvedByUid: 'admin-1',
+          resolvedByEmail: 'admin@example.com',
+          resolvedByName: 'Admin User',
+          history: [{ action: 'resolved', at: '2026-05-22T14:15:00.000Z' }],
+        },
+        {
+          resolutionKey: '',
+          status: 'resolved',
+        },
+      ]);
+
+      expect(firestoreDb.subscribeQuery).toHaveBeenCalledWith(
+        'stats/system_health/resolutions',
+        {
+          orderBy: [{ field: 'updatedAt', direction: 'desc' }],
+          limit: 300,
+        },
+        expect.any(Function)
+      );
+      expect(onUpdate).toHaveBeenCalledWith({
+        'u1:event-1': expect.objectContaining({
+          status: 'resolved',
+          resolvedAt: '2026-05-22T14:15:00.000Z',
+          resolvedByEmail: 'admin@example.com',
+          history: [
+            expect.objectContaining({
+              action: 'resolved',
+              at: '2026-05-22T14:15:00.000Z',
+            }),
+          ],
+        }),
+      });
     });
   });
 

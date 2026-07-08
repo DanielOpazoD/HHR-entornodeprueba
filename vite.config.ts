@@ -35,9 +35,9 @@ function excelJsRuntimeAssetPlugin(): Plugin {
     'node_modules',
     'exceljs',
     'dist',
-    'exceljs.min.js'
+    'exceljs.bare.min.js'
   );
-  const runtimeAssetRoute = '/vendor/exceljs.min.js';
+  const runtimeAssetRoute = '/vendor/exceljs.bare.min.js';
 
   return {
     name: 'exceljs-runtime-asset',
@@ -55,7 +55,7 @@ function excelJsRuntimeAssetPlugin(): Plugin {
     generateBundle() {
       this.emitFile({
         type: 'asset',
-        fileName: 'vendor/exceljs.min.js',
+        fileName: 'vendor/exceljs.bare.min.js',
         source: fs.readFileSync(runtimeAssetPath, 'utf8'),
       });
     },
@@ -78,6 +78,26 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       hmr: isNetlifyLocalDev ? false : undefined,
+      // Mirror netlify.toml's Cross-Origin-Opener-Policy so Firebase Auth's
+      // Google sign-in popup works on localhost. Without unsafe-none the dev
+      // server leaves COOP at the browser default and Chrome blocks the
+      // post-auth window.close() call, degrading popup sign-in (and the
+      // Firestore session that depends on it). Dev-only; production sets this
+      // same header via netlify.toml.
+      headers: {
+        'Cross-Origin-Opener-Policy': 'unsafe-none',
+      },
+      fs: {
+        // Allow Vite to serve files (notably @fontsource .woff2 assets) when
+        // node_modules is symlinked from a `.claude/worktrees/<name>/`
+        // git-worktree to the parent project's install. The worktree sits
+        // three levels deeper than the original project root; without this,
+        // Vite returns 403 for any URL that resolves outside the worktree
+        // via the symlink, which silently breaks font loading and falls
+        // back to system serif. The added paths are dev-only and do not
+        // affect production builds.
+        allow: ['..', '../..', '../../..'],
+      },
     },
     plugins: [
       versionPlugin(buildVersionInfo),
@@ -98,6 +118,29 @@ export default defineConfig(({ mode }) => {
         injectManifest: {
           swSrc: 'src/service-worker.ts',
           injectionPoint: 'self.__WB_MANIFEST',
+          // Keep large optional references/runtime chunks out of install-time
+          // precache. They remain available as normal on-demand assets, while
+          // first-run PWA install stays focused on app shell/critical runtime.
+          globIgnores: [
+            '**/docs/**',
+            '**/templates/**',
+            '**/images/forms/**',
+            '**/vendor/exceljs.bare.min.js',
+            '**/assets/exceljs.min-*.js',
+            '**/assets/pdf.worker-*.mjs',
+            '**/assets/vendor-pdfjs-*.js',
+            '**/assets/pdf-*.js',
+            '**/assets/vendor-pdf-*.js',
+            '**/assets/docxtemplater-*.js',
+            '**/assets/LineChart-*.js',
+            '**/assets/documentFallbacks-*.js',
+            '**/assets/vendor-excel-*.js',
+            '**/assets/vendor-canvas-*.js',
+            '**/assets/terminologyService-*.js',
+            '**/assets/fonasaDatabase-*.js',
+            '**/assets/clinicalDocumentTemplateEditorController-*.js',
+            '**/assets/vendor-heic2any-*.js',
+          ],
         },
         registerType: 'autoUpdate',
         injectRegister: 'script',
@@ -172,6 +215,7 @@ export default defineConfig(({ mode }) => {
         compress: {
           drop_console: isProduction,
           drop_debugger: isProduction,
+          passes: isProduction ? 2 : 1,
           pure_funcs: isProduction ? ['console.log', 'console.debug'] : [],
         },
         mangle: {
@@ -179,7 +223,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       // Target modern browsers for smaller output
-      target: 'es2020',
+      target: 'es2022',
       // Enable source maps only in development
       sourcemap: !isProduction,
     },
@@ -197,7 +241,6 @@ export default defineConfig(({ mode }) => {
         'react/jsx-runtime',
         'react/jsx-dev-runtime',
         'motion/react',
-        'react-use',
         'firebase/app',
         'firebase/auth',
         'firebase/firestore',

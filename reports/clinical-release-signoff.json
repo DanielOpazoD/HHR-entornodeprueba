@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-07-05T06:20:04.876Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "releaseCandidate": "codex/release-readiness-blocks",
+  "overall": "ok",
+  "counts": {
+    "scenarioCount": 6,
+    "signoffCount": 6,
+    "pendingScenarioCount": 0
+  },
+  "signoffs": [
+    {
+      "scenarioId": "census_reload_remote_reconcile",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#census_reload_remote_reconcile"
+        },
+        {
+          "type": "visual_e2e",
+          "reference": "reports/e2e/clinical-visual-release-report.json"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    },
+    {
+      "scenarioId": "pending_patch_patient_movement",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#pending_patch_patient_movement"
+        },
+        {
+          "type": "automated_regression",
+          "reference": "src/tests/hooks/controllers/dailyRecordPendingPatchController.test.ts"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    },
+    {
+      "scenarioId": "clinical_documents_pdf_print",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#clinical_documents_pdf_print"
+        },
+        {
+          "type": "visual_e2e",
+          "reference": "reports/e2e/clinical-visual-release-report.json"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    },
+    {
+      "scenarioId": "handoff_shift_export",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#handoff_shift_export"
+        },
+        {
+          "type": "visual_e2e",
+          "reference": "reports/e2e/clinical-visual-release-report.json"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    },
+    {
+      "scenarioId": "external_clinical_dependencies",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#external_clinical_dependencies"
+        },
+        {
+          "type": "automated_regression",
+          "reference": "npm run test:risk:platform"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    },
+    {
+      "scenarioId": "backup_restore_export",
+      "status": "passed",
+      "validatedBy": "Dr. Nombre Apellido / Daniel / Equipo clínico HHR",
+      "validatedAt": "2026-05-16T19:07:20Z",
+      "evidence": [
+        {
+          "type": "manual_signoff",
+          "reference": "docs/runbooks/clinical-release-signoff-2026-05-16.md#backup_restore_export"
+        },
+        {
+          "type": "automated_regression",
+          "reference": "npm run test:platform-resilience"
+        }
+      ],
+      "notes": "Approved after localhost clinical release walkthrough."
+    }
+  ],
+  "issues": []
+}

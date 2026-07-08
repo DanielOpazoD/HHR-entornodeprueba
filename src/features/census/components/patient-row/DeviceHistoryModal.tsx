@@ -9,12 +9,14 @@ import type { DeviceInstance, DeviceDetails } from '@/types/domain/devices';
 import { BaseModal as Modal } from '@/components/shared/BaseModal';
 import clsx from 'clsx';
 import { useDeviceHistoryEditor } from '@/features/census/components/patient-row/useDeviceHistoryEditor';
+import type { DeviceHistoryOwner } from '@/features/census/controllers/deviceHistoryController';
 
 interface DeviceHistoryModalProps {
   patientName: string;
   history: DeviceInstance[];
   currentDevices: string[];
   deviceDetails: DeviceDetails;
+  owner?: DeviceHistoryOwner;
   onSave: (newHistory: DeviceInstance[]) => void;
   onClose: () => void;
 }
@@ -24,6 +26,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
   history = [],
   currentDevices = [],
   deviceDetails = {},
+  owner,
   onSave,
   onClose,
 }) => {
@@ -31,6 +34,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
     history,
     currentDevices,
     deviceDetails,
+    owner,
   });
 
   const handleSave = () => {
@@ -52,7 +56,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-500">
             <History size={12} />
             <span className="text-[10px] font-medium tracking-wide uppercase">
-              Reflejo de dispositivos instalados
+              Historial por episodio clínico
             </span>
           </div>
         </div>

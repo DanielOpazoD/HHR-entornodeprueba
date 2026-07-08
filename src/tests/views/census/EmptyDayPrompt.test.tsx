@@ -2,10 +2,18 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
+import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
+
+vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
+  dailyRecordObservability: {
+    recordEvent: vi.fn(),
+  },
+}));
 
 describe('EmptyDayPrompt', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   it('disables copy button and shows countdown before 08:00 for today', () => {
@@ -90,5 +98,48 @@ describe('EmptyDayPrompt', () => {
     expect(screen.getByTestId('copy-previous-btn')).toBeDisabled();
     expect(screen.getByText('Disponible desde el 4 de Marzo a las 8:00 hrs.')).toBeInTheDocument();
     expect(screen.getByText('Se habilita en 24:00:00')).toBeInTheDocument();
+  });
+
+  it('shows the empty-state diagnostic and records its telemetry source', () => {
+    render(
+      <EmptyDayPrompt
+        selectedDay={10}
+        selectedMonth={4}
+        currentDateString="2026-05-10"
+        previousRecordAvailable={false}
+        onCreateDay={() => undefined}
+        emptyStateDiagnostic={{
+          source: 'remote_missing',
+          message:
+            'Firebase y la copia local no tienen registro para esta fecha. Crea el dia solo si corresponde iniciar un censo nuevo.',
+        }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Firebase y la copia local no tienen registro para esta fecha/i)
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('empty-day-diagnostic-message')).toHaveAttribute('role', 'status');
+    expect(screen.getByTestId('empty-day-diagnostic-message')).toHaveAttribute(
+      'aria-live',
+      'polite'
+    );
+    expect(screen.getByTestId('empty-day-diagnostic-source')).toHaveTextContent(
+      'Firebase/local confirmado'
+    );
+    expect(screen.getByTestId('empty-day-diagnostic-source')).toHaveAttribute(
+      'data-source',
+      'remote_missing'
+    );
+    expect(dailyRecordObservability.recordEvent).toHaveBeenCalledWith(
+      'census_empty_state_visible',
+      'degraded',
+      expect.objectContaining({
+        date: '2026-05-10',
+        context: expect.objectContaining({
+          source: 'remote_missing',
+        }),
+      })
+    );
   });
 });

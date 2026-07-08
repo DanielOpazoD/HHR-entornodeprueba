@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "shardCount": 4,
+  "tolerancePercent": 25,
+  "maxShardMinutes": 13,
+  "perFileOverheadMs": 100,
+  "slowestFileCount": 20,
+  "excludedFromUnitSuite": [
+    "src/tests/security/firestore-rules.test.ts",
+    "src/tests/emulator/**",
+    "src/tests/emulator-ui/**"
+  ],
+  "criticalTestGlobs": [
+    "src/tests/integration/sync-resilience.test.ts",
+    "src/tests/integration/sync-ui-resilience.test.tsx",
+    "src/tests/integration/offline-persistence.test.ts",
+    "src/tests/services/admin/healthService.test.ts",
+    "src/tests/features/admin/systemHealthStatusPolicy.test.ts",
+    "src/tests/services/auth/*.test.ts",
+    "src/tests/services/authService.test.ts",
+    "src/tests/services/admin/roleService.test.ts",
+    "src/tests/security/netlify*Static.test.ts",
+    "src/tests/security/legacyRoleAliasStatic.test.ts",
+    "src/tests/netlify/*.test.ts",
+    "src/tests/services/backup/*.test.ts",
+    "src/tests/services/storage/syncQueueLoad.test.ts",
+    "src/tests/support/clinicalSyncSimulator/*.test.ts"
+  ],
+  "affinityGroups": [
+    {
+      "id": "clinical-sync-simulator",
+      "globs": ["src/tests/support/clinicalSyncSimulator/*.test.ts"]
+    },
+    {
+      "id": "sync-integration-resilience",
+      "globs": [
+        "src/tests/integration/sync*.test.ts*",
+        "src/tests/integration/offline-persistence.test.ts"
+      ]
+    },
+    {
+      "id": "firestore-repository-contracts",
+      "globs": [
+        "src/tests/services/repositories/*.test.ts",
+        "src/tests/services/dailyRecordRepository.test.ts"
+      ]
+    }
+  ],
+  "durationHints": [
+    {
+      "id": "sync-and-storage",
+      "globs": [
+        "src/tests/services/storage/**/*.test.ts",
+        "src/tests/services/storage/*.test.ts",
+        "src/tests/integration/sync*.test.ts*",
+        "src/tests/support/clinicalSyncSimulator/*.test.ts"
+      ],
+      "estimatedDurationMs": 1800
+    },
+    {
+      "id": "tsx-ui-components",
+      "globs": ["src/tests/**/*.test.tsx"],
+      "estimatedDurationMs": 1400
+    },
+    {
+      "id": "repository-contracts",
+      "globs": [
+        "src/tests/services/repositories/*.test.ts",
+        "src/tests/services/dailyRecordRepository.test.ts"
+      ],
+      "estimatedDurationMs": 1600
+    },
+    {
+      "id": "governance-static",
+      "globs": ["src/tests/build/*.test.ts", "src/tests/security/*Static.test.ts"],
+      "estimatedDurationMs": 700
+    }
+  ],
+  "lockedAssignments": {}
+}

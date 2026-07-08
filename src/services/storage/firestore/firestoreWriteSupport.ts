@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  runTransaction,
   setDoc,
   Timestamp,
   type DocumentData,
@@ -42,7 +43,8 @@ export const assertFirestoreConcurrency = async (
   docRef: DocumentReference,
   expectedLastUpdated: string | undefined,
   conflictMessage: string,
-  contextLabel: string
+  contextLabel: string,
+  options: { toleranceMs?: number; failClosed?: boolean } = {}
 ): Promise<void> => {
   if (!expectedLastUpdated) {
     return;
@@ -61,7 +63,9 @@ export const assertFirestoreConcurrency = async (
 
     const drift = new Date(remoteLastUpdated).getTime() - new Date(expectedLastUpdated).getTime();
 
-    if (drift > SAME_SESSION_TOLERANCE_MS) {
+    const toleranceMs = options.toleranceMs ?? SAME_SESSION_TOLERANCE_MS;
+
+    if (drift > toleranceMs) {
       recordOperationalErrorTelemetry(
         'firestore',
         'verify_record_concurrency',
@@ -94,13 +98,117 @@ export const assertFirestoreConcurrency = async (
     recordOperationalErrorTelemetry('firestore', 'verify_record_concurrency', error, {
       code: 'firestore_concurrency_verification_failed',
       message: `No se pudo verificar concurrencia para ${contextLabel}.`,
-      severity: 'warning',
+      severity: options.failClosed ? 'error' : 'warning',
       userSafeMessage: `No se pudo verificar concurrencia para ${contextLabel}.`,
       context: {
         contextLabel,
       },
     });
+
+    // Fail closed when the caller cannot tolerate an unverified write (e.g. partial updates that
+    // could overwrite a field with stale data): abort instead of silently proceeding.
+    if (options.failClosed) {
+      throw error;
+    }
   }
+};
+
+/**
+ * Writes a daily record using an atomic Firestore transaction that:
+ *   1. Reads the current server state (never cache)
+ *   2. Throws ConcurrencyError if the remote is newer than expectedLastUpdated
+ *   3. Writes a history snapshot of the pre-write state
+ *   4. Commits the new record
+ *
+ * This replaces the previous assertFirestoreConcurrency + saveHistorySnapshot + setDoc
+ * three-step sequence, which had a TOCTOU race and could fail open on network errors.
+ */
+export const saveRecordAtomically = async (
+  docRef: DocumentReference,
+  record: Record<string, unknown>,
+  expectedLastUpdated: string | undefined,
+  conflictMessage: string,
+  contextLabel: string,
+  assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void,
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<void> => {
+  const db = runtime.getDb();
+
+  await runTransaction(db, async transaction => {
+    const snap = await transaction.get(docRef);
+
+    // Refuse to full-replace an existing document without a base version: with no
+    // expectedLastUpdated the optimistic CAS below cannot run, so we cannot prove this write is not
+    // clobbering a newer remote. Surface it as a conflict so the caller reloads and retries.
+    if (snap.exists() && !expectedLastUpdated) {
+      recordOperationalErrorTelemetry(
+        'firestore',
+        'atomic_save_concurrency',
+        createOperationalError({
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+          context: { contextLabel, reason: 'missing_base_version' },
+        }),
+        {
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+        }
+      );
+      throw new ConcurrencyError(conflictMessage);
+    }
+
+    if (snap.exists() && expectedLastUpdated) {
+      const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
+      if (remoteLastUpdated) {
+        const drift =
+          new Date(remoteLastUpdated).getTime() - new Date(expectedLastUpdated).getTime();
+        if (drift > 0) {
+          recordOperationalErrorTelemetry(
+            'firestore',
+            'atomic_save_concurrency',
+            createOperationalError({
+              code: 'firestore_concurrency_conflict',
+              message: conflictMessage,
+              severity: 'warning',
+              userSafeMessage: conflictMessage,
+              context: {
+                contextLabel,
+                remoteLastUpdated,
+                expectedLastUpdated,
+                driftSeconds: Math.round(drift / 1000),
+              },
+            }),
+            {
+              code: 'firestore_concurrency_conflict',
+              message: conflictMessage,
+              severity: 'warning',
+              userSafeMessage: conflictMessage,
+            }
+          );
+          throw new ConcurrencyError(conflictMessage);
+        }
+      }
+    }
+
+    if (snap.exists()) {
+      // Atomic erasure backstop: validate the new record against the freshly-read remote state
+      // INSIDE the transaction. This holds even when expectedLastUpdated is absent (CAS skipped)
+      // and closes the TOCTOU window between the pre-write integrity check and this commit.
+      assertSafeOverwrite?.(snap.data() as Record<string, unknown>);
+
+      const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+      transaction.set(historyRef, {
+        ...(snap.data() as Record<string, unknown>),
+        snapshotTimestamp: Timestamp.now(),
+      });
+    }
+
+    transaction.set(docRef, record);
+  });
 };
 
 export const saveHistorySnapshot = async (date: string): Promise<void> => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
+import { useTransientFlag } from '@/hooks/useTransientFlag';
 import {
   resolveAllSelectableExamsSelected,
   resolveLabExamDateRange,
@@ -37,7 +38,7 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
 }) => {
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
-  const [copiedExamId, setCopiedExamId] = React.useState<string | null>(null);
+  const [copiedExamId, flashCopiedExamId] = useTransientFlag<string | null>(null, 2000);
   const [copyingExamId, setCopyingExamId] = React.useState<string | null>(null);
 
   const selectableExams = resolveSelectableLabExams(exams);
@@ -54,10 +55,7 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
     const copied = await onCopySummary(exam);
     setCopyingExamId(null);
     if (!copied) return;
-    setCopiedExamId(exam.id);
-    window.setTimeout(() => {
-      setCopiedExamId(current => (current === exam.id ? null : current));
-    }, 2000);
+    flashCopiedExamId(exam.id);
   };
 
   return (

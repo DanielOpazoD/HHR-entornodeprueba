@@ -78,12 +78,13 @@ vi.mock('@/hooks/useShiftPanel', () => ({
   })),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntime', () => ({
-  defaultBrowserWindowRuntime: {
-    open: vi.fn(),
-    alert: vi.fn(),
-  },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntime', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime(),
+  };
+});
 
 vi.mock('@/utils/dateFormattingUtils', () => ({
   formatDateDDMMYYYY: (d: string) => d,

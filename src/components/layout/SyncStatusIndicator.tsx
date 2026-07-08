@@ -8,11 +8,20 @@ import { Cloud, RefreshCw, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 
+const SYNC_STATUS_SLOT_CLASS =
+  'flex h-8 w-[88px] items-center justify-center gap-1.5 rounded-full border px-0 py-0 text-[10px] font-semibold uppercase tracking-wider transition-colors duration-200';
+
 export const SyncStatusIndicator: React.FC = () => {
   const { syncStatus, lastSyncTime } = useDailyRecordStatus();
 
   if (syncStatus === 'idle' || syncStatus === 'saved') {
-    return null;
+    return (
+      <div
+        className={clsx(SYNC_STATUS_SLOT_CLASS, 'invisible border-transparent')}
+        data-testid="sync-status-indicator-slot"
+        aria-hidden="true"
+      />
+    );
   }
 
   const getStatusConfig = () => {
@@ -59,13 +68,9 @@ export const SyncStatusIndicator: React.FC = () => {
 
   return (
     <div
-      className={clsx(
-        'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border transition-all duration-300',
-        config.bgColor,
-        config.borderColor,
-        config.textColor
-      )}
+      className={clsx(SYNC_STATUS_SLOT_CLASS, config.bgColor, config.borderColor, config.textColor)}
       title={timeString}
+      data-testid="sync-status-indicator-slot"
     >
       <Icon size={12} className={clsx(config.iconColor, config.animate && 'animate-spin')} />
       <span className="hidden sm:inline">{config.text}</span>

@@ -27,6 +27,7 @@ interface UseDischargeModalFormParams {
   initialOtherDetails?: string;
   initialTime?: string;
   dischargeTarget: DischargeTarget;
+  initialDiagnosis?: string;
   hasClinicalCrib?: boolean;
   resolveDefaultTime: () => string;
   onConfirm: (payload: DischargeModalConfirmPayload) => void;
@@ -39,12 +40,14 @@ interface UseDischargeModalFormResult {
   dischargeTime: string;
   movementBounds: ReturnType<typeof resolveMovementDateTimeBounds>;
   localTarget: DischargeTarget;
+  diagnosis: string;
   errors: DischargeModalFieldErrors;
   setDischargeType: (nextType: DischargeType) => void;
   setOtherDetails: (nextDetails: string) => void;
   setDischargeDate: (nextDate: string) => void;
   setDischargeTime: (nextTime: string) => void;
   setLocalTarget: (nextTarget: DischargeTarget) => void;
+  setDiagnosis: (nextDiagnosis: string) => void;
   submit: () => boolean;
 }
 
@@ -54,6 +57,7 @@ interface DischargeModalLocalFormState {
   dischargeDate: string;
   dischargeTime: string;
   localTarget: DischargeTarget;
+  diagnosis: string;
 }
 
 export const useDischargeModalForm = ({
@@ -66,6 +70,7 @@ export const useDischargeModalForm = ({
   initialOtherDetails,
   initialTime,
   dischargeTarget,
+  initialDiagnosis,
   hasClinicalCrib,
   resolveDefaultTime,
   onConfirm,
@@ -89,6 +94,7 @@ export const useDischargeModalForm = ({
       dischargeDate: initialState.movementDate,
       dischargeTime: initialState.dischargeTime,
       localTarget: initialState.localTarget,
+      diagnosis: initialDiagnosis || '',
     };
   }, [
     dischargeTarget,
@@ -96,6 +102,7 @@ export const useDischargeModalForm = ({
     initialOtherDetails,
     initialTime,
     initialType,
+    initialDiagnosis,
     recordDate,
     resolveDefaultTimeRef,
   ]);
@@ -140,6 +147,7 @@ export const useDischargeModalForm = ({
         movementDate: includeMovementDate ? state.dischargeDate : undefined,
         hasClinicalCrib,
         localTarget: state.localTarget,
+        diagnosis: includeMovementDate ? state.diagnosis : undefined,
       }),
     onConfirm,
   });
@@ -179,6 +187,13 @@ export const useDischargeModalForm = ({
     [setFormField]
   );
 
+  const setDiagnosis = useCallback(
+    (nextDiagnosis: string) => {
+      setFormField('diagnosis', nextDiagnosis);
+    },
+    [setFormField]
+  );
+
   return {
     dischargeType: formState.dischargeType,
     otherDetails: formState.otherDetails,
@@ -186,12 +201,14 @@ export const useDischargeModalForm = ({
     dischargeTime: formState.dischargeTime,
     movementBounds,
     localTarget: formState.localTarget,
+    diagnosis: formState.diagnosis,
     errors,
     setDischargeType,
     setOtherDetails,
     setDischargeDate,
     setDischargeTime,
     setLocalTarget,
+    setDiagnosis,
     submit,
   };
 };

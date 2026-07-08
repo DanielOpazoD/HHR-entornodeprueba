@@ -177,6 +177,54 @@ describe('useClinicalDocumentWorkspaceDocumentActions', () => {
     );
   });
 
+  it('uses the specialist signature profile when creating a new clinical document', async () => {
+    const selectedDocument = buildRecord();
+    const createdDocument = { ...selectedDocument, id: 'new-document-id' };
+    vi.mocked(clinicalDocumentUseCases.executeCreateClinicalDocumentDraft).mockResolvedValue({
+      status: 'success',
+      data: createdDocument,
+      issues: [],
+    });
+
+    const { result } = renderHook(() =>
+      useClinicalDocumentWorkspaceDocumentActions({
+        patient: patient as never,
+        role: 'doctor_specialist',
+        user: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
+        hospitalId: 'hhr',
+        episode: selectedDocument,
+        selectedTemplateId: 'epicrisis',
+        templates,
+        selectedDocumentId: selectedDocument.id,
+        canEdit: true,
+        canDelete: true,
+        notify,
+        setSelectedDocumentId,
+        setDraft,
+        lastPersistedSnapshotRef,
+        signatureProfile: {
+          uid: 'u1',
+          email: 'doctor@test.com',
+          displayName: 'Dra. Firma Preferida',
+          specialty: 'Cardiologia',
+          updatedAt: '2026-05-07T12:00:00.000Z',
+        },
+      })
+    );
+
+    await act(async () => {
+      await result.current.createDocument();
+    });
+
+    expect(clinicalDocumentUseCases.executeCreateClinicalDocumentDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medico: 'Dra. Firma Preferida',
+        especialidad: 'Cardiologia',
+      }),
+      'hhr'
+    );
+  });
+
   it('duplicates a document and selects the copied draft on success', async () => {
     const selectedDocument = buildRecord();
     const duplicatedDocument = { ...selectedDocument, id: 'duplicated-document-id' };
@@ -271,12 +319,94 @@ describe('useClinicalDocumentWorkspaceDocumentActions', () => {
       'Documento eliminado',
       `${selectedDocument.title} fue eliminado correctamente.`
     );
-    expect(auditContextMocks.logClinicalDocumentDeleted).toHaveBeenCalledWith(
+    // The audit is now owned by the use-case (fail-closed: audited before delete), not the
+    // fire-and-forget hook logger. Assert the use-case received the audit context.
+    expect(clinicalDocumentUseCases.executeDeleteClinicalDocument).toHaveBeenCalledWith(
       selectedDocument.id,
-      selectedDocument.templateId,
-      selectedDocument.title,
-      patient.rut,
-      selectedDocument.sourceDailyRecordDate
+      'hhr',
+      expect.objectContaining({
+        templateId: selectedDocument.templateId,
+        documentTitle: selectedDocument.title,
+        patientRut: patient.rut,
+        recordDate: selectedDocument.sourceDailyRecordDate,
+      })
+    );
+  });
+
+  it('allows deleting an authored document when the per-document delete guard allows it', async () => {
+    const selectedDocument = buildRecord();
+    vi.mocked(clinicalDocumentUseCases.executeDeleteClinicalDocument).mockResolvedValue({
+      status: 'success',
+      data: null,
+      issues: [],
+    });
+
+    const { result } = renderHook(() =>
+      useClinicalDocumentWorkspaceDocumentActions({
+        patient: patient as never,
+        role: 'doctor_specialist',
+        user: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
+        hospitalId: 'hhr',
+        episode: selectedDocument,
+        selectedTemplateId: 'epicrisis',
+        templates,
+        selectedDocumentId: selectedDocument.id,
+        canEdit: true,
+        canDelete: false,
+        canDeleteDocument: document => document.audit.createdBy.uid === 'u1',
+        notify,
+        setSelectedDocumentId,
+        setDraft,
+        lastPersistedSnapshotRef,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleDeleteDocument(selectedDocument);
+    });
+
+    expect(clinicalDocumentUseCases.executeDeleteClinicalDocument).toHaveBeenCalledWith(
+      selectedDocument.id,
+      'hhr',
+      expect.objectContaining({ templateId: selectedDocument.templateId })
+    );
+    expect(notify.warning).not.toHaveBeenCalledWith(
+      'Permiso insuficiente',
+      'No tienes permisos para eliminar documentos clínicos.'
+    );
+  });
+
+  it('blocks delete when both global and per-document delete guards deny it', async () => {
+    const selectedDocument = buildRecord();
+
+    const { result } = renderHook(() =>
+      useClinicalDocumentWorkspaceDocumentActions({
+        patient: patient as never,
+        role: 'doctor_specialist',
+        user: { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' },
+        hospitalId: 'hhr',
+        episode: selectedDocument,
+        selectedTemplateId: 'epicrisis',
+        templates,
+        selectedDocumentId: selectedDocument.id,
+        canEdit: true,
+        canDelete: false,
+        canDeleteDocument: () => false,
+        notify,
+        setSelectedDocumentId,
+        setDraft,
+        lastPersistedSnapshotRef,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleDeleteDocument(selectedDocument);
+    });
+
+    expect(clinicalDocumentUseCases.executeDeleteClinicalDocument).not.toHaveBeenCalled();
+    expect(notify.warning).toHaveBeenCalledWith(
+      'Permiso insuficiente',
+      'No tienes permisos para eliminar documentos clínicos.'
     );
   });
 

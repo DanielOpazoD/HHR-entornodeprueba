@@ -165,6 +165,45 @@ describe('censusActionExecutionController', () => {
           transferEscort: DEFAULT_TRANSFER_ESCORT,
           time: '12:20',
           movementDate: undefined,
+          diagnosis: undefined,
+        },
+      },
+    });
+  });
+
+  it('resolves transfer update command with the edited discharge diagnosis', () => {
+    const transferState: TransferState = {
+      bedId: null,
+      recordId: 'transfer-1',
+      isOpen: true,
+      evacuationMethod: DEFAULT_EVACUATION_METHOD,
+      evacuationMethodOther: '',
+      receivingCenter: DEFAULT_RECEIVING_CENTER,
+      receivingCenterOther: '',
+      transferEscort: DEFAULT_TRANSFER_ESCORT,
+      diagnosis: 'Diagnóstico previo',
+    };
+
+    const result = resolveTransferCommand({
+      transferState,
+      data: { time: '12:20', diagnosis: 'Diagnóstico actualizado' },
+      stabilityRules: unlockedRules,
+      nowTime: '10:30',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        kind: 'updateTransfer',
+        id: 'transfer-1',
+        payload: {
+          evacuationMethod: DEFAULT_EVACUATION_METHOD,
+          receivingCenter: DEFAULT_RECEIVING_CENTER,
+          receivingCenterOther: '',
+          transferEscort: DEFAULT_TRANSFER_ESCORT,
+          time: '12:20',
+          movementDate: undefined,
+          diagnosis: 'Diagnóstico actualizado',
         },
       },
     });

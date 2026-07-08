@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChangeEvent } from 'react';
 import {
   usePatientRowCribInputHandlers,
@@ -13,7 +13,12 @@ vi.mock('@/features/census/controllers/patientDemographicsEpisodeSyncController'
 }));
 
 describe('usePatientRowInputHandlers', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('maps main row handlers to daily record actions', () => {
+    vi.useFakeTimers();
     const updatePatient = vi.fn();
     const updatePatientMultiple = vi.fn();
     const data = DataFactory.createMockPatient('R1', {
@@ -38,6 +43,9 @@ describe('usePatientRowInputHandlers', () => {
       result.current.handleCheckboxChange('isUPC')({
         target: { checked: true },
       } as ChangeEvent<HTMLInputElement>);
+      result.current.handleTextChange('status')({
+        target: { value: 'De cuidado' },
+      } as ChangeEvent<HTMLSelectElement>);
       result.current.toggleDocumentType();
       result.current.handleDemographicsSave({ age: '40' });
       result.current.handleDeliveryRouteChange('Vaginal', '2026-02-12', undefined);
@@ -56,6 +64,128 @@ describe('usePatientRowInputHandlers', () => {
       deliveryRoute: 'Vaginal',
       deliveryDate: '2026-02-12',
       deliveryCesareanLabor: undefined,
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(updatePatientMultiple).toHaveBeenCalledWith('R1', { status: 'De cuidado' });
+  });
+
+  it('coalesces rapid initial clinical fields into one daily record patch', () => {
+    vi.useFakeTimers();
+    const updatePatient = vi.fn();
+    const updatePatientMultiple = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePatientRowMainInputHandlers({
+        bedId: 'R1',
+        currentDateString: '2026-01-03',
+        data: DataFactory.createMockPatient('R1'),
+        documentType: 'RUT',
+        updatePatient,
+        updatePatientMultiple,
+      })
+    );
+
+    act(() => {
+      result.current.handleTextChange('pathology')({
+        target: { value: 'Neumonia' },
+      } as ChangeEvent<HTMLInputElement>);
+      result.current.handleTextChange('specialty')({
+        target: { value: 'Med Interna' },
+      } as ChangeEvent<HTMLInputElement>);
+      result.current.handleTextChange('status')({
+        target: { value: 'Estable' },
+      } as ChangeEvent<HTMLSelectElement>);
+    });
+
+    expect(updatePatient).not.toHaveBeenCalledWith('R1', 'pathology', 'Neumonia');
+    expect(updatePatient).not.toHaveBeenCalledWith('R1', 'specialty', 'Med Interna');
+    expect(updatePatient).not.toHaveBeenCalledWith('R1', 'status', 'Estable');
+    expect(updatePatientMultiple).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(updatePatientMultiple).toHaveBeenCalledTimes(1);
+    expect(updatePatientMultiple).toHaveBeenCalledWith('R1', {
+      pathology: 'Neumonia',
+      specialty: 'Med Interna',
+      status: 'Estable',
+    });
+  });
+
+  it('keeps non clinical fields immediate while deferring clinical fields from mixed patches', () => {
+    vi.useFakeTimers();
+    const updatePatient = vi.fn();
+    const updatePatientMultiple = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePatientRowMainInputHandlers({
+        bedId: 'R1',
+        currentDateString: '2026-01-03',
+        data: DataFactory.createMockPatient('R1'),
+        documentType: 'RUT',
+        updatePatient,
+        updatePatientMultiple,
+      })
+    );
+
+    act(() => {
+      result.current.handleDemographicsSave({
+        patientName: 'Paciente X',
+        specialty: 'Pediatria',
+        secondarySpecialty: undefined,
+      });
+    });
+
+    expect(updatePatientMultiple).toHaveBeenCalledWith('R1', {
+      patientName: 'Paciente X',
+    });
+    expect(updatePatientMultiple).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(updatePatientMultiple).toHaveBeenCalledTimes(2);
+    expect(updatePatientMultiple).toHaveBeenLastCalledWith('R1', {
+      specialty: 'Pediatria',
+      secondarySpecialty: undefined,
+    });
+  });
+
+  it('flushes pending initial clinical fields when the row unmounts', () => {
+    vi.useFakeTimers();
+    const updatePatient = vi.fn();
+    const updatePatientMultiple = vi.fn();
+
+    const { result, unmount } = renderHook(() =>
+      usePatientRowMainInputHandlers({
+        bedId: 'R1',
+        currentDateString: '2026-01-03',
+        data: DataFactory.createMockPatient('R1'),
+        documentType: 'RUT',
+        updatePatient,
+        updatePatientMultiple,
+      })
+    );
+
+    act(() => {
+      result.current.handleTextChange('pathology')({
+        target: { value: 'Neumonia' },
+      } as ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(updatePatientMultiple).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(updatePatientMultiple).toHaveBeenCalledWith('R1', {
+      pathology: 'Neumonia',
     });
   });
 

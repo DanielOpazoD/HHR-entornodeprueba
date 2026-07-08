@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS } from '@/hooks/useBedAudit';
 import { useBedManagement } from '@/hooks/useBedManagement';
 import type {
   DailyRecord,
@@ -41,6 +42,13 @@ vi.mock('@/services/admin/attributionService', () => ({
 describe('useBedManagement patient updates', () => {
   const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
+
+  const runBedAction = async (action: () => void) => {
+    await act(async () => {
+      action();
+      await Promise.resolve();
+    });
+  };
 
   const createMockPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData => ({
     bedId,
@@ -95,7 +103,7 @@ describe('useBedManagement patient updates', () => {
       });
     });
 
-    it('logs patient admission when patientName is set for the first time', () => {
+    it('logs patient admission when patientName is set for the first time', async () => {
       const emptyPatient = createEmptyPatient('R1');
       const record = createMockRecord({ R1: emptyPatient });
 
@@ -103,14 +111,12 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.updatePatient('R1', 'patientName', 'New Name');
-      });
+      await runBedAction(() => result.current.updatePatient('R1', 'patientName', 'New Name'));
 
       expect(mockAuditContextValue.logPatientAdmission).toHaveBeenCalled();
     });
 
-    it('logs PATIENT_MODIFIED when patientName changes', () => {
+    it('logs PATIENT_MODIFIED when patientName changes', async () => {
       const patient = createMockPatient('R1', { patientName: 'Old Name' });
       const record = createMockRecord({ R1: patient });
 
@@ -118,9 +124,7 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.updatePatient('R1', 'patientName', 'New Name');
-      });
+      await runBedAction(() => result.current.updatePatient('R1', 'patientName', 'New Name'));
 
       expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalledWith(
         'PATIENT_MODIFIED',
@@ -128,11 +132,13 @@ describe('useBedManagement patient updates', () => {
         'R1',
         expect.objectContaining({ patientName: 'New Name' }),
         patient.rut,
-        record.date
+        record.date,
+        undefined,
+        PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
       );
     });
 
-    it('logs PATIENT_MODIFIED for critical fields', () => {
+    it('logs PATIENT_MODIFIED for critical fields', async () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
@@ -140,9 +146,7 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.updatePatient('R1', 'status', PatientStatus.GRAVE);
-      });
+      await runBedAction(() => result.current.updatePatient('R1', 'status', PatientStatus.GRAVE));
 
       expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalledWith(
         'PATIENT_MODIFIED',
@@ -157,11 +161,13 @@ describe('useBedManagement patient updates', () => {
           }),
         }),
         patient.rut,
-        record.date
+        record.date,
+        undefined,
+        PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS
       );
     });
 
-    it('logs PATIENT_MODIFIED when devices change', () => {
+    it('logs PATIENT_MODIFIED when devices change', async () => {
       const patient = createMockPatient('R1', {
         deviceDetails: { VMI: { installationDate: '2025-01-01' } },
       });
@@ -171,12 +177,12 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
+      await runBedAction(() =>
         result.current.updatePatient('R1', 'deviceDetails', {
           VMI: { installationDate: '2025-01-01' },
           CVC: { installationDate: '2025-01-02' },
-        });
-      });
+        })
+      );
 
       expect(mockAuditContextValue.logDebouncedEvent).toHaveBeenCalled();
     });
@@ -258,59 +264,6 @@ describe('useBedManagement patient updates', () => {
     });
   });
 
-  describe('updateCudyr', () => {
-    it('updates the Cudyr field and logs modification', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-23T10:15:00.000Z'));
-      const patient = createMockPatient('R1');
-      const record = createMockRecord({ R1: patient });
-
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
-
-      act(() => {
-        result.current.updateCudyr('R1', 'changeClothes', 3);
-      });
-
-      expect(mockPatchRecord).toHaveBeenCalledWith({
-        'beds.R1.cudyr.changeClothes': 3,
-        cudyrUpdatedAt: '2026-03-23T10:15:00.000Z',
-      });
-      expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledWith(
-        'R1',
-        'Test Patient',
-        patient.rut,
-        'changeClothes',
-        3,
-        0,
-        record.date,
-        'Test Author'
-      );
-    });
-
-    it('ignores CUDYR updates for beds without a real patient name', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-23T10:20:00.000Z'));
-      const patient = createMockPatient('R1', {
-        patientName: '   ',
-        rut: '',
-      });
-      const record = createMockRecord({ R1: patient });
-
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
-
-      act(() => {
-        result.current.updateCudyr('R1', 'changeClothes', 3);
-      });
-
-      expect(mockPatchRecord).not.toHaveBeenCalled();
-      expect(mockAuditContextValue.logDebouncedEvent).not.toHaveBeenCalled();
-    });
-  });
-
   describe('clinical crib helpers', () => {
     it('handles updateClinicalCrib create', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
@@ -321,38 +274,6 @@ describe('useBedManagement patient updates', () => {
       act(() => {
         result.current.updateClinicalCrib('R1', 'create');
       });
-    });
-
-    it('updates clinical crib CUDYR', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-23T11:05:00.000Z'));
-      const patient = createMockPatient('R1', {
-        clinicalCrib: { patientName: 'Baby', rut: '1-1', cudyr: {} } as PatientData,
-      });
-      const record = createMockRecord({ R1: patient });
-
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
-
-      act(() => {
-        result.current.updateClinicalCribCudyr('R1', 'feeding', 2);
-      });
-
-      expect(mockPatchRecord).toHaveBeenCalledWith({
-        'beds.R1.clinicalCrib.cudyr.feeding': 2,
-        cudyrUpdatedAt: '2026-03-23T11:05:00.000Z',
-      });
-      expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledWith(
-        'R1-crib',
-        'Baby',
-        '1-1',
-        'feeding',
-        2,
-        0,
-        record.date,
-        'Test Author'
-      );
     });
 
     it('updates multiple clinical crib fields', () => {

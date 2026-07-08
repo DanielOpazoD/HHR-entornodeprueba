@@ -1,11 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '../../../');
 const INDEX_HTML_PATH = path.join(ROOT, 'index.html');
+const STARTUP_SURFACE_PATH = path.join(ROOT, 'public/startup-surface.js');
+const LOGIN_IMAGE_DIR = path.join(ROOT, 'public/images/login');
 
 const readIndexHtml = () => readFileSync(INDEX_HTML_PATH, 'utf8');
+const readStartupSurface = () => readFileSync(STARTUP_SURFACE_PATH, 'utf8');
 
 describe('Startup preboot contract', () => {
   it('keeps the startup surface contract in index.html without recreating the app chrome', () => {
@@ -37,5 +40,28 @@ describe('Startup preboot contract', () => {
     expect(html).not.toContain('Preparando acceso seguro');
     expect(html).not.toContain('data-testid="default-loading-screen"');
     expect(html).not.toContain('data-testid="login-loading-shell"');
+  });
+
+  it('does not use the login image surface for authenticated module deep links without a session hint', () => {
+    const script = readStartupSurface();
+
+    expect(script).toContain(
+      'var shouldUseLoginSurface = isLoginSurfacePath && !hasAnySessionHint;'
+    );
+    expect(script).not.toContain('|| !hasAnySessionHint');
+  });
+
+  it('uses the optimized login background asset in the preboot surface', () => {
+    const script = readStartupSurface();
+
+    expect(script).toContain("url('/images/login/hhr-login-day.webp')");
+    expect(script).not.toContain("url('/images/login/hhr-login-day.png')");
+  });
+
+  it('keeps legacy PNG login backgrounds out of deployable public assets', () => {
+    expect(existsSync(path.join(LOGIN_IMAGE_DIR, 'hhr-login-day.png'))).toBe(false);
+    expect(existsSync(path.join(LOGIN_IMAGE_DIR, 'hhr-login-night.png'))).toBe(false);
+    expect(existsSync(path.join(LOGIN_IMAGE_DIR, 'hhr-login-day.webp'))).toBe(true);
+    expect(existsSync(path.join(LOGIN_IMAGE_DIR, 'hhr-login-night.webp'))).toBe(true);
   });
 });

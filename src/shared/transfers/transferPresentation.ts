@@ -7,7 +7,15 @@ const TRANSFER_STATUS_FALLBACK = {
   bgColor: 'bg-slate-100',
 };
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 export const formatTransferDate = (value: string): string => {
+  const dateOnlyMatch = value.match(DATE_ONLY_PATTERN);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return `${day}-${month}-${year}`;
+  }
+
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('es-CL');
 };

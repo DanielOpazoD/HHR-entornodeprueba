@@ -14,6 +14,22 @@ describe('syncDomainPolicy', () => {
     expect(metadataProfile.delayMultiplier).toBeGreaterThan(clinicalProfile.delayMultiplier);
   });
 
+  it('assigns movement and handoff retry profiles by clinical intent', () => {
+    expect(resolveSyncDomainRetryProfile(['movements'])).toMatchObject({
+      id: 'movements_priority',
+      retryBudget: 4,
+      delayMultiplier: 1.2,
+    });
+    expect(resolveSyncDomainRetryProfile(['staffing', 'handoff'])).toMatchObject({
+      id: 'staffing_handoff_priority',
+      retryBudget: 4,
+      delayMultiplier: 1.35,
+    });
+    expect(resolveSyncDomainRetryProfile(undefined)).toMatchObject({
+      id: 'default_domain_retry',
+    });
+  });
+
   it('builds per-context metrics from queued tasks', () => {
     const metrics = buildSyncQueueDomainMetrics([
       {
@@ -38,12 +54,34 @@ describe('syncDomainPolicy', () => {
         origin: 'conflict_auto_merge',
         recoveryPolicy: 'staffing_handoff_priority',
       },
+      {
+        opId: 'three',
+        type: 'UPDATE_DAILY_RECORD',
+        payload: {},
+        timestamp: 3,
+        retryCount: 2,
+        status: 'PENDING',
+        contexts: ['movements'],
+      },
+      {
+        opId: 'four',
+        type: 'UPDATE_DAILY_RECORD',
+        payload: {},
+        timestamp: 4,
+        retryCount: 0,
+        status: 'FAILED',
+        contexts: ['metadata'],
+      },
     ]);
 
     expect(metrics.byContext.clinical.pending).toBe(1);
     expect(metrics.byContext.handoff.conflict).toBe(1);
+    expect(metrics.byContext.movements.retrying).toBe(1);
+    expect(metrics.byContext.metadata.failed).toBe(1);
     expect(metrics.byOrigin.full_save_retry).toBe(1);
     expect(metrics.byOrigin.conflict_auto_merge).toBe(1);
     expect(metrics.byRecoveryPolicy.clinical_priority).toBe(1);
+    expect(metrics.byRecoveryPolicy.movements_priority).toBe(1);
+    expect(metrics.byRecoveryPolicy.metadata_remote_priority).toBe(1);
   });
 });

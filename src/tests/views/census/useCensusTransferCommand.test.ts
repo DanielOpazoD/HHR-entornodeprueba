@@ -187,14 +187,24 @@ describe('useCensusTransferCommand', () => {
   });
 
   it('does not sync transfer request when editing an existing transfer record', async () => {
-    const { result, addTransfer, updateTransfer } = createHook({ recordId: 'TR-EXISTING' });
+    const { result, addTransfer, updateTransfer } = createHook({
+      recordId: 'TR-EXISTING',
+      diagnosis: 'Diagnóstico previo',
+    });
 
     await act(async () => {
-      result.current({ time: '11:00' });
+      result.current({ time: '11:00', diagnosis: 'Diagnóstico actualizado' });
     });
 
     expect(addTransfer).not.toHaveBeenCalled();
     expect(updateTransfer).toHaveBeenCalledTimes(1);
+    expect(updateTransfer).toHaveBeenCalledWith(
+      'TR-EXISTING',
+      expect.objectContaining({
+        time: '11:00',
+        diagnosis: 'Diagnóstico actualizado',
+      })
+    );
     expect(mockGetLatestOpenTransferRequestByBedId).not.toHaveBeenCalled();
     expect(mockCreateFinalizedTransferRequestWithResult).not.toHaveBeenCalled();
   });

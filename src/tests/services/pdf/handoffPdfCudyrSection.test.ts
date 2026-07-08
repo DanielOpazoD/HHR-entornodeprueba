@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { addCudyrTable } from '@/services/pdf/handoffPdfCudyrSection';
+import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const createDocMock = () =>
@@ -31,6 +32,12 @@ describe('handoffPdfCudyrSection', () => {
 
     addCudyrTable(doc, record, 10, autoTable as never);
 
+    expect(autoTable).toHaveBeenCalledWith(
+      doc,
+      expect.objectContaining({
+        margin: HANDOFF_PDF_PAGE_LAYOUT.margin,
+      })
+    );
     expect(doc.text).toHaveBeenCalledWith(
       expect.stringContaining('Enfermeros/as (Noche): Carla, Rosa'),
       expect.any(Number),

@@ -41,7 +41,9 @@ export const DemographicsSexField: React.FC<DemographicsSexFieldProps> = ({
             name="biologicalSex"
             className="sr-only"
             checked={localData.biologicalSex === sex}
-            onChange={() => setLocalData({ ...localData, biologicalSex: sex as BiologicalSex })}
+            onChange={() =>
+              setLocalData(current => ({ ...current, biologicalSex: sex as BiologicalSex }))
+            }
           />
           {sex === 'Masculino' ? 'M' : sex === 'Femenino' ? 'F' : '?'}
           <span className="hidden sm:inline sm:ml-1 text-[9px] font-normal opacity-80">

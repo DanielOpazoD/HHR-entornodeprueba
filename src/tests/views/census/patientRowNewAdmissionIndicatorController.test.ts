@@ -107,4 +107,15 @@ describe('patientRowNewAdmissionIndicatorController', () => {
       })
     ).toBe(false);
   });
+
+  it('shows new-admission when firstSeenDate is stale from a copied prior day but admission date/time are from the current day', () => {
+    expect(
+      resolveIsNewAdmissionForRecord({
+        recordDate: '2026-03-05',
+        firstSeenDate: '2026-03-04',
+        admissionDate: '2026-03-05',
+        admissionTime: '10:15',
+      })
+    ).toBe(true);
+  });
 });

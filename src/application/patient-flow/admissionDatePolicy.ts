@@ -131,6 +131,12 @@ export const resolveAdmissionDateWindowViolation = ({
     return null;
   }
 
+  const normalizedRecordDate = normalizeDateOnly(recordDate);
+  const normalizedFirstSeenDate = normalizeDateOnly(patient.firstSeenDate);
+  if (normalizedRecordDate !== normalizedFirstSeenDate) {
+    return null;
+  }
+
   const audit = resolveAdmissionDateAudit({
     recordDate,
     admissionDate: patient.admissionDate,

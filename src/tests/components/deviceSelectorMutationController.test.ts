@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDeviceConfigMutation,
   buildRetireDeviceMutation,
+  renameCustomDeviceBundle,
   resolveRetiringDeviceLabel,
 } from '@/components/device-selector/deviceSelectorMutationController';
 
@@ -68,6 +69,127 @@ describe('deviceSelectorMutationController', () => {
     expect(mutation.nextDetails?.CVC).toEqual({
       installationDate: '2026-02-10',
       note: 'reconfigurado',
+    });
+  });
+
+  it('renames a custom device across active list, details and history', () => {
+    const renamed = renameCustomDeviceBundle({
+      previousDevice: 'drenaje pleural izquierdo',
+      nextDevice: 'drenaje pleural',
+      normalizedDevices: ['VVP#1', 'drenaje pleural izquierdo'],
+      deviceDetails: {
+        'VVP#1': { installationDate: '2026-02-14' },
+        'drenaje pleural izquierdo': {
+          installationDate: '2026-02-15',
+          note: 'lado izquierdo',
+        },
+      },
+      history: [
+        {
+          id: 'custom-1',
+          type: 'drenaje pleural izquierdo',
+          status: 'Active',
+          installationDate: '2026-02-15',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    expect(renamed.nextDevices).toEqual(['VVP#1', 'drenaje pleural']);
+    expect(renamed.nextDetails).toEqual({
+      'VVP#1': { installationDate: '2026-02-14' },
+      'drenaje pleural': {
+        installationDate: '2026-02-15',
+        note: 'lado izquierdo',
+      },
+    });
+    expect(renamed.nextHistory).toEqual([
+      expect.objectContaining({
+        id: 'custom-1',
+        type: 'drenaje pleural',
+      }),
+    ]);
+  });
+
+  it('does not rename a configured device over another active device', () => {
+    const mutation = buildDeviceConfigMutation({
+      pendingAddition: null,
+      editingDevice: 'drenaje pleural izquierdo',
+      nextDeviceName: 'CVC',
+      normalizedDevices: ['CVC', 'drenaje pleural izquierdo'],
+      deviceDetails: {
+        CVC: { installationDate: '2026-02-14', note: 'central' },
+        'drenaje pleural izquierdo': { installationDate: '2026-02-15' },
+      },
+      info: {
+        installationDate: '2026-02-16',
+        note: 'revisado',
+      },
+    });
+
+    expect(mutation.renamedDevice).toBeNull();
+    expect(mutation.nextDevices).toBeNull();
+    expect(mutation.nextDetails).toEqual({
+      CVC: { installationDate: '2026-02-14', note: 'central' },
+      'drenaje pleural izquierdo': {
+        installationDate: '2026-02-16',
+        note: 'revisado',
+      },
+    });
+  });
+
+  it('does not add a pending custom device over another active device', () => {
+    const mutation = buildDeviceConfigMutation({
+      pendingAddition: 'drenaje pleural izquierdo',
+      editingDevice: null,
+      nextDeviceName: 'CVC',
+      normalizedDevices: ['CVC'],
+      deviceDetails: {
+        CVC: { installationDate: '2026-02-14', note: 'central' },
+      },
+      info: {
+        installationDate: '2026-02-16',
+        note: 'nuevo',
+      },
+    });
+
+    expect(mutation).toEqual({
+      operatedDevice: 'drenaje pleural izquierdo',
+      renamedDevice: null,
+      nextDevices: null,
+      nextDetails: null,
+    });
+  });
+
+  it('keeps bundle unchanged when a custom device rename collides with an active device', () => {
+    const history = [
+      {
+        id: 'custom-1',
+        type: 'drenaje pleural izquierdo',
+        status: 'Active' as const,
+        installationDate: '2026-02-15',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ];
+    const deviceDetails = {
+      CVC: { installationDate: '2026-02-14', note: 'central' },
+      'drenaje pleural izquierdo': { installationDate: '2026-02-15' },
+    };
+
+    const renamed = renameCustomDeviceBundle({
+      previousDevice: 'drenaje pleural izquierdo',
+      nextDevice: 'CVC',
+      normalizedDevices: ['CVC', 'drenaje pleural izquierdo'],
+      deviceDetails,
+      history,
+    });
+
+    expect(renamed).toEqual({
+      nextDevices: ['CVC', 'drenaje pleural izquierdo'],
+      nextDetails: deviceDetails,
+      nextHistory: history,
     });
   });
 

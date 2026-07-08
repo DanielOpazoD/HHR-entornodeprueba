@@ -1,5 +1,9 @@
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import {
+  POST_DEPLOY_RECENT_RECORD_REFRESH_KEY,
+  writePostDeployRecentRecordRefreshMarker,
+} from '@/services/config/postDeployRecentRecordRefresh';
 
 const VERSION_KEY = 'hhr_app_version';
 const FIREBASE_CONFIG_CACHE_KEY = 'hhr_firebase_config';
@@ -243,6 +247,10 @@ export const prepareClientBootstrap = async (): Promise<ClientBootstrapRecoveryR
     });
 
     defaultBrowserWindowRuntime.setLocalStorageItem(VERSION_KEY, serverVersion.version);
+    writePostDeployRecentRecordRefreshMarker({
+      fromVersion: localVersion,
+      toVersion: serverVersion.version,
+    });
     if (recoveryAttempt !== 'version-change') {
       return performRecoveryReload('version-change');
     }
@@ -258,5 +266,6 @@ export const prepareClientBootstrap = async (): Promise<ClientBootstrapRecoveryR
 export const getClientBootstrapRecoveryConstants = () => ({
   bootstrapRecoveryKey: BOOTSTRAP_RECOVERY_KEY,
   firebaseConfigCacheKey: FIREBASE_CONFIG_CACHE_KEY,
+  postDeployRecentRecordRefreshKey: POST_DEPLOY_RECENT_RECORD_REFRESH_KEY,
   versionKey: VERSION_KEY,
 });

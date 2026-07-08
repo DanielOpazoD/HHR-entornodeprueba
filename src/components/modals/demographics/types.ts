@@ -18,6 +18,7 @@ export type DemographicSubset = Pick<
   | 'documentType'
   | 'age'
   | 'birthDate'
+  | 'pathology'
   | 'insurance'
   | 'admissionOrigin'
   | 'admissionOriginDetails'
@@ -39,6 +40,7 @@ export interface DemographicsModalProps {
   recordDate: string;
   isClinicalCribPatient?: boolean;
   requiresCompleteDemographics?: boolean;
+  canUseArbitraryAdmissionDate?: boolean;
 }
 
 export interface LocalDemographicsState {
@@ -58,4 +60,5 @@ export interface LocalDemographicsState {
   biologicalSex: BiologicalSex;
   admissionDate: string;
   admissionTime: string;
+  pathology: string;
 }

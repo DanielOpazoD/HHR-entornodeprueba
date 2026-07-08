@@ -5,7 +5,7 @@
  * to insert into the clinical document rich-text editor.
  */
 
-import { escapeHtml } from '@/features/clinical-documents/controllers/clinicalDocumentHtmlSanitizer';
+import { escapeHtml } from '@/utils/htmlEscape';
 
 // ---------------------------------------------------------------------------
 // Types

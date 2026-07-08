@@ -127,7 +127,15 @@ describe('useCensusDischargeCommand', () => {
   });
 
   it('asks for confirmation and executes discharge when active transfer is confirmed', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({ id: 'TR-1', status: 'REQUESTED' });
+    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({
+      id: 'TR-1',
+      status: 'REQUESTED',
+      patientSnapshot: {
+        rut: '12.345.678-9',
+        name: 'Paciente Traslado',
+        admissionDate: '2026-03-01',
+      },
+    });
     const { result, addDischarge, confirm } = createHook();
     confirm.mockResolvedValue(true);
 
@@ -147,7 +155,15 @@ describe('useCensusDischargeCommand', () => {
   });
 
   it('asks for confirmation and aborts discharge when user cancels', async () => {
-    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({ id: 'TR-1', status: 'REQUESTED' });
+    mockGetLatestOpenTransferRequestByBedId.mockResolvedValue({
+      id: 'TR-1',
+      status: 'REQUESTED',
+      patientSnapshot: {
+        rut: '12.345.678-9',
+        name: 'Paciente Traslado',
+        admissionDate: '2026-03-01',
+      },
+    });
     const { result, addDischarge, confirm } = createHook();
     confirm.mockResolvedValue(false);
 

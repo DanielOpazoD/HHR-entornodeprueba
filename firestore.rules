@@ -1,39 +1,29 @@
 rules_version = '2';
-
-// Auth access changes must update src/tests/security/rulesHardeningStatic.test.ts.
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isAuthenticated() {
       return request.auth != null;
     }
-    
     function normalizeEmail(email) {
       return email.lower();
     }
-
     function getUserEmail() {
       return normalizeEmail(request.auth.token.email);
     }
-
     function hasEmail() {
       return isAuthenticated() && request.auth.token.email != null;
     }
-
     function normalizeRole(role) {
       return role == 'viewer_census'
         ? 'viewer'
         : role;
     }
-
     function getConfiguredRole() {
       return hasEmail() &&
              exists(/databases/$(database)/documents/config/roles)
         ? normalizeRole(get(/databases/$(database)/documents/config/roles).data[getUserEmail()])
         : null;
     }
-
     function getClaimRole() {
       return isAuthenticated() &&
              request.auth.token.keys().hasAny(['role']) &&
@@ -41,67 +31,48 @@ service cloud.firestore {
         ? normalizeRole(request.auth.token.role)
         : null;
     }
-
     function getEffectiveRole() {
       let configuredRole = getConfiguredRole();
       return configuredRole != null
         ? configuredRole
         : getClaimRole();
     }
-
     function hasEffectiveRole(role) {
       return isAuthenticated() && getEffectiveRole() == role;
     }
-
     function hasAnyEffectiveRole(roles) {
       let effectiveRole = getEffectiveRole();
       return isAuthenticated() &&
              effectiveRole != null &&
              roles.hasAny([effectiveRole]);
     }
-
-    //
-    // 1.3 Role predicates (convenience wrappers)
-    // ---------------------------------------------
-
     function isAdmin() {
       return hasEffectiveRole('admin');
     }
-
     function hasAdminOrEffectiveRole(role) {
       return isAdmin() || hasEffectiveRole(role);
     }
-
-    function isNurse() {
-      return hasAdminOrEffectiveRole('nurse_hospital');
-    }
-
     function isDoctor() {
       return hasAdminOrEffectiveRole('doctor_urgency');
     }
-
     function isDoctorSpecialist() {
       return hasAdminOrEffectiveRole('doctor_specialist');
     }
-
-    // Check if user can edit (admin or nurse)
     function canEdit() {
       return hasAnyEffectiveRole(['admin', 'nurse_hospital']);
     }
-
     function canReportSystemHealth() {
       return canEdit();
     }
-
+    function canManageSystemHealthOperations() {
+      return isAdmin();
+    }
+    function canManageClinicalConflictSnapshots() {
+      return hasAnyEffectiveRole(['admin', 'nurse_hospital']);
+    }
     function isEditorRole() {
       return hasEffectiveRole('editor');
     }
-
-    //
-    // 1.4 Specialist medical handoff validators
-    // ---------------------------------------------
-    // Bed-scoped handoff edits for a single affected bed.
-
     function isValidSpecialistClinicalCribMedicalUpdate(beforeCrib, afterCrib) {
       return beforeCrib != null &&
              afterCrib != null &&
@@ -112,10 +83,8 @@ service cloud.firestore {
                'clinicalEvents'
              ]);
     }
-
     function isValidSpecialistMedicalBedRootUpdate(beforeBed, afterBed) {
       let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
-
       return affectedBedKeys.hasOnly([
                'medicalHandoffEntries',
                'medicalHandoffNote',
@@ -123,18 +92,14 @@ service cloud.firestore {
                'clinicalEvents'
              ]);
     }
-
     function isValidSpecialistMedicalBedClinicalCribUpdate(beforeBed, afterBed) {
       let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
-
       return affectedBedKeys.hasOnly(['clinicalCrib']) &&
              isValidSpecialistClinicalCribMedicalUpdate(beforeBed.clinicalCrib, afterBed.clinicalCrib);
     }
-
     function isValidSpecialistMedicalBedUpdate(bedId) {
       let beforeBed = resource.data.beds[bedId];
       let afterBed = request.resource.data.beds[bedId];
-
       return beforeBed != null &&
              afterBed != null &&
              (
@@ -142,13 +107,11 @@ service cloud.firestore {
                isValidSpecialistMedicalBedClinicalCribUpdate(beforeBed, afterBed)
              );
     }
-
     function isOnlySpecialistAffectedBed(affectedBedIds, bedId) {
       return affectedBedIds.size() == 1 &&
              affectedBedIds.hasOnly([bedId]) &&
              isValidSpecialistMedicalBedUpdate(bedId);
     }
-
     function isAnySpecialistAffectedBed(affectedBedIds) {
       return isOnlySpecialistAffectedBed(affectedBedIds, 'R1') ||
              isOnlySpecialistAffectedBed(affectedBedIds, 'R2') ||
@@ -174,24 +137,16 @@ service cloud.firestore {
              isOnlySpecialistAffectedBed(affectedBedIds, 'E4') ||
              isOnlySpecialistAffectedBed(affectedBedIds, 'E5');
     }
-
-    //
-    // 1.4 Specialist medical handoff validators
-    // ---------------------------------------------
-    // Structured specialty-scoped handoff edits.
-
     function getSpecialistStructuredBeforeBySpecialty() {
       return resource.data.medicalHandoffBySpecialty == null
         ? {}
         : resource.data.medicalHandoffBySpecialty;
     }
-
     function getSpecialistStructuredAfterBySpecialty() {
       return request.resource.data.medicalHandoffBySpecialty == null
         ? {}
         : request.resource.data.medicalHandoffBySpecialty;
     }
-
     function hasOnlySpecialistStructuredRecordKeys(affectedRecordKeys) {
       return affectedRecordKeys.hasOnly([
         'medicalHandoffBySpecialty',
@@ -200,11 +155,9 @@ service cloud.firestore {
         'dateTimestamp'
       ]);
     }
-
     function hasOnlySpecialistBedRecordKeys(affectedRecordKeys) {
       return affectedRecordKeys.hasOnly(['beds', 'lastUpdated', 'dateTimestamp']);
     }
-
     function isAllowedSpecialistStructuredSpecialty(specialty) {
       return [
         'cirugia',
@@ -215,14 +168,12 @@ service cloud.firestore {
         'medicinaInterna'
       ].hasAny([specialty]);
     }
-
     function isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, specialty) {
       return affectedSpecialties.size() == 1 &&
              affectedSpecialties.hasOnly([specialty]) &&
              isAllowedSpecialistStructuredSpecialty(specialty) &&
              isValidSpecialistStructuredMedicalSpecialtyEntry(specialty);
     }
-
     function isAnyAllowedSpecialistStructuredSpecialtyAffected(affectedSpecialties) {
       return isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'cirugia') ||
              isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'traumatologia') ||
@@ -231,11 +182,9 @@ service cloud.firestore {
              isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'psiquiatria') ||
              isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'medicinaInterna');
     }
-
     function isValidSpecialistStructuredMedicalSpecialtyEntry(specialty) {
       let beforeEntry = getSpecialistStructuredBeforeBySpecialty()[specialty];
       let afterEntry = getSpecialistStructuredAfterBySpecialty()[specialty];
-
       return afterEntry != null &&
              (
                beforeEntry == null ||
@@ -250,28 +199,19 @@ service cloud.firestore {
                ])
              );
     }
-
     function resolveAffectedSpecialistStructuredSpecialties() {
       return getSpecialistStructuredAfterBySpecialty()
         .diff(getSpecialistStructuredBeforeBySpecialty())
         .affectedKeys();
     }
-
     function isSpecialistStructuredMedicalHandoffUpdate(affectedSpecialties) {
       return isAnyAllowedSpecialistStructuredSpecialtyAffected(affectedSpecialties);
     }
-
-    //
-    // 1.4 Specialist medical handoff validators
-    // ---------------------------------------------
-    // Shared boundary and entrypoint for specialist handoff writes.
-
     function isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) {
       let now = request.time.toMillis();
       return effectiveRecordTimestamp == null ||
              (now >= effectiveRecordTimestamp && now < (effectiveRecordTimestamp + 86400000));
     }
-
     function resolveSpecialistMedicalHandoffRecordTimestamp() {
       let currentRecordTimestamp = resource.data.dateTimestamp;
       let nextRecordTimestamp = request.resource.data.dateTimestamp;
@@ -279,33 +219,27 @@ service cloud.firestore {
         ? nextRecordTimestamp
         : currentRecordTimestamp;
     }
-
     function resolveAffectedSpecialistBedIds() {
       return request.resource.data.beds.diff(resource.data.beds).affectedKeys();
     }
-
     function hasValidSpecialistRecordTimestampChange(affectedRecordKeys) {
       return !affectedRecordKeys.hasAny(['dateTimestamp']) ||
              !resource.data.keys().hasAny(['dateTimestamp']) ||
              resource.data.dateTimestamp == null;
     }
-
     function isSpecialistStructuredMedicalHandoffPayload(affectedRecordKeys) {
       return hasOnlySpecialistStructuredRecordKeys(affectedRecordKeys) &&
              isSpecialistStructuredMedicalHandoffUpdate(
                resolveAffectedSpecialistStructuredSpecialties()
              );
     }
-
     function isSpecialistBedMedicalHandoffPayload(affectedRecordKeys) {
       return hasOnlySpecialistBedRecordKeys(affectedRecordKeys) &&
              isAnySpecialistAffectedBed(resolveAffectedSpecialistBedIds());
     }
-
     function isSpecialistMedicalHandoffPayload() {
       let affectedRecordKeys = request.resource.data.diff(resource.data).affectedKeys();
       let effectiveRecordTimestamp = resolveSpecialistMedicalHandoffRecordTimestamp();
-
       return isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
              hasValidSpecialistRecordTimestampChange(affectedRecordKeys) &&
              (
@@ -313,11 +247,6 @@ service cloud.firestore {
                isSpecialistBedMedicalHandoffPayload(affectedRecordKeys)
              );
     }
-
-    //
-    // 1.5 Clinical document write/delete permissions
-    // ---------------------------------------------
-
     function isSpecialistClinicalDocumentDraftWrite() {
       return isDoctorSpecialist() &&
              request.resource.data.status == 'draft' &&
@@ -327,20 +256,57 @@ service cloud.firestore {
                resource.data.status == 'draft'
              );
     }
-
     function canWriteClinicalDocument() {
       return isAdmin() || isDoctor() || isSpecialistClinicalDocumentDraftWrite();
     }
-
-    function canDeleteClinicalDocument() {
-      return canWriteClinicalDocument() || isNurse() || isEditorRole();
+    function canDeleteOwnActiveClinicalDocument() {
+      return hasAnyEffectiveRole([
+               'doctor_urgency',
+               'doctor_specialist'
+             ]);
     }
-
-    //
-    // 1.6 Clinical read access and shared access helpers
-    // ---------------------------------------------
-
-    // Consolidated read access for clinical data
+    function hasClinicalDocumentAuthorAudit() {
+      return resource.data.keys().hasAny(['audit']) &&
+             resource.data.audit is map &&
+             resource.data.audit.keys().hasAny(['createdBy']) &&
+             resource.data.audit.createdBy is map;
+    }
+    function isClinicalDocumentAuthorByUid() {
+      return hasClinicalDocumentAuthorAudit() &&
+             resource.data.audit.createdBy.keys().hasAny(['uid']) &&
+             resource.data.audit.createdBy.uid == request.auth.uid;
+    }
+    function isClinicalDocumentAuthorByEmail() {
+      return hasClinicalDocumentAuthorAudit() &&
+             hasEmail() &&
+             resource.data.audit.createdBy.keys().hasAny(['email']) &&
+             resource.data.audit.createdBy.email is string &&
+             normalizeEmail(resource.data.audit.createdBy.email) == getUserEmail();
+    }
+    function isClinicalDocumentAuthorForActiveEpisode() {
+      return isAuthenticated() &&
+             canDeleteOwnActiveClinicalDocument() &&
+             resource != null &&
+             resource.data.isActiveEpisodeDocument == true &&
+             resource.data.isLocked == false &&
+             (
+               isClinicalDocumentAuthorByUid() ||
+               isClinicalDocumentAuthorByEmail()
+             );
+    }
+    function canDeleteClinicalDocument() {
+      return isAdmin() ||
+             isClinicalDocumentAuthorForActiveEpisode();
+    }
+    function canWriteClinicalAttachment() {
+      return hasAnyEffectiveRole([
+               'admin',
+               'nurse_hospital',
+               'doctor_urgency',
+               'doctor_specialist',
+               'editor'
+             ]);
+    }
     function canReadClinicalData() {
       return hasAnyEffectiveRole([
                'admin',
@@ -351,46 +317,114 @@ service cloud.firestore {
                'viewer'
              ]);
     }
-
     function canReadAppendOnlyOperationalLog() {
       return isAdmin();
     }
-
     function canCreateAppendOnlyOperationalLogEntry() {
       return canCreateReadableClinicalDocument();
     }
-
+    function canWriteMedicalIndicationRecord() {
+      return isAdmin() || isDoctor() || isDoctorSpecialist();
+    }
+    function hasOnlyMedicalIndicationRecordKeys(payload) {
+      return payload.keys().hasOnly([
+               'id',
+               'patientRut',
+               'patientName',
+               'episodeId',
+               'bedId',
+               'targetDate',
+               'generatedAt',
+               'generatedByUserId',
+               'generatedByName',
+               'generatedByRole',
+               'generatedFromTemplateIds',
+               'admissionDate',
+               'daysOfStayForTargetDate',
+               'treatingDoctor',
+               'reposo',
+               'regimen',
+               'kineType',
+               'kineTimes',
+               'pendingNotes',
+               'indications',
+               'pdfPrintedAt'
+             ]);
+    }
+    function hasRequiredMedicalIndicationRecordKeys(payload) {
+      return payload.keys().hasAll([
+               'id',
+               'patientRut',
+               'patientName',
+               'episodeId',
+               'bedId',
+               'targetDate',
+               'generatedAt',
+               'generatedByUserId',
+               'generatedByName',
+               'generatedFromTemplateIds',
+               'admissionDate',
+               'daysOfStayForTargetDate',
+               'treatingDoctor',
+               'reposo',
+               'regimen',
+               'kineType',
+               'kineTimes',
+               'pendingNotes',
+               'indications',
+               'pdfPrintedAt'
+             ]);
+    }
+    function isValidMedicalIndicationRecordCreate() {
+      let payload = request.resource.data;
+      return canWriteMedicalIndicationRecord() &&
+             isAuthenticated() &&
+             hasOnlyMedicalIndicationRecordKeys(payload) &&
+             hasRequiredMedicalIndicationRecordKeys(payload) &&
+             payload.id is string &&
+             payload.patientRut is string &&
+             payload.patientName is string &&
+             payload.episodeId is string &&
+             payload.bedId is string &&
+             payload.targetDate is string &&
+             payload.generatedAt is string &&
+             payload.generatedByUserId == request.auth.uid &&
+             payload.generatedByName is string &&
+             isOptionalEnum(payload, 'generatedByRole', ['admin', 'doctor_urgency', 'doctor_specialist']) &&
+             payload.generatedFromTemplateIds is list &&
+             payload.admissionDate is string &&
+             payload.daysOfStayForTargetDate is string &&
+             payload.treatingDoctor is string &&
+             payload.reposo is string &&
+             payload.regimen is string &&
+             payload.kineType in ['motora', 'respiratoria', 'ambas', 'ninguna'] &&
+             payload.kineTimes is string &&
+             payload.pendingNotes is string &&
+             payload.indications is list &&
+             payload.indications.size() > 0 &&
+             (payload.pdfPrintedAt == null || payload.pdfPrintedAt is string);
+    }
     function canManageCensusAccess() {
       return hasAnyEffectiveRole(['admin', 'editor']);
     }
-
     function isCurrentUser(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-
     function hasResourceData() {
       return resource != null && resource.data != null;
     }
-
-    //
-    // 1.7 Invitation, census access and receipt helpers
-    // ---------------------------------------------
-
     function isInvitationOwner() {
       return hasEmail() &&
              hasResourceData() &&
              resource.data.email == getUserEmail();
     }
-
     function isPendingUnexpiredInvitationResource() {
       return hasResourceData() &&
              resource.data.status == 'pending' &&
              (resource.data.expiresAt == null || request.time.toMillis() <= resource.data.expiresAt);
     }
-
     function isValidInvitationClaim() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-
       return isAuthenticated() &&
              isInvitationOwner() &&
              isPendingUnexpiredInvitationResource() &&
@@ -399,27 +433,21 @@ service cloud.firestore {
              request.resource.data.usedBy == request.auth.uid &&
              request.resource.data.usedAt is int;
     }
-
     function isValidCensusAccessUserWrite(userId) {
       let payload = request.resource.data;
-
       return payload.id == userId &&
              payload.email is string &&
              payload.role in ['viewer', 'editor', 'admin'] &&
              payload.isActive is bool;
     }
-
     function canReadCensusAccessLog(logOwnerId) {
       return isAdmin() || isCurrentUser(logOwnerId);
     }
-
     function hasOnlyCensusAccessLogKeys(payload) {
       return payload.keys().hasOnly(['userId', 'email', 'action', 'timestamp']);
     }
-
     function isValidOwnCensusAccessLog() {
       let payload = request.resource.data;
-
       return isAuthenticated() &&
              hasEmail() &&
              hasOnlyCensusAccessLogKeys(payload) &&
@@ -428,20 +456,16 @@ service cloud.firestore {
              payload.action is string &&
              payload.timestamp is int;
     }
-
     function canReadReminderReceipt() {
       return isAdmin() ||
              (hasResourceData() &&
               isCurrentUser(resource.data.userId));
     }
-
     function hasOnlyReminderReceiptKeys(payload) {
       return payload.keys().hasOnly(['userId', 'userName', 'readAt', 'shift', 'dateKey']);
     }
-
     function isValidOwnReminderReceiptWrite() {
       let payload = request.resource.data;
-
       return isAuthenticated() &&
              hasOnlyReminderReceiptKeys(payload) &&
              payload.userId is string &&
@@ -451,43 +475,31 @@ service cloud.firestore {
              payload.shift in ['day', 'night'] &&
              payload.dateKey is string;
     }
-
     function canWriteReminderReceipt() {
       return isAdmin() || isValidOwnReminderReceiptWrite();
     }
-
-    //
-    // 1.8 Payload schema helpers (optional types, bounded ints)
-    // ---------------------------------------------
-
     function isOptionalString(payload, key) {
       return !(key in payload) || payload[key] == null || payload[key] is string;
     }
-
     function isOptionalBool(payload, key) {
       return !(key in payload) || payload[key] == null || payload[key] is bool;
     }
-
     function isOptionalBoundedInt(payload, key, maxValue) {
       return !(key in payload) ||
              payload[key] == null ||
              (payload[key] is int && payload[key] >= 0 && payload[key] <= maxValue);
     }
-
     function isOptionalEnum(payload, key, allowedValues) {
       return !(key in payload) ||
              payload[key] == null ||
              allowedValues.hasAny([payload[key]]);
     }
-
     function isSystemHealthCounter(payload, key) {
       return isOptionalBoundedInt(payload, key, 10000);
     }
-
     function isSystemHealthAgeMs(payload, key) {
       return isOptionalBoundedInt(payload, key, 864000000);
     }
-
     function hasOnlySystemHealthKeys(payload) {
       return payload.keys().hasOnly([
                'uid',
@@ -538,19 +550,45 @@ service cloud.firestore {
                'userAgent'
              ]);
     }
-
+    function hasOnlySystemHealthResolutionKeys(payload) {
+      return payload.keys().hasOnly([
+               'resolutionKey',
+               'status',
+               'updatedAt',
+               'resolvedAt',
+               'resolvedByUid',
+               'resolvedByEmail',
+               'resolvedByName',
+               'reopenedAt',
+               'reopenedByUid',
+               'reopenedByEmail',
+               'reopenedByName',
+               'note',
+               'history'
+             ]);
+    }
+    function isValidSystemHealthResolutionWrite() {
+      let payload = request.resource.data;
+      return canManageSystemHealthOperations() &&
+             hasOnlySystemHealthResolutionKeys(payload) &&
+             payload.resolutionKey is string &&
+             payload.updatedAt is string &&
+             payload.status in ['open', 'resolved'] &&
+             isOptionalString(payload, 'resolvedAt') &&
+             isOptionalString(payload, 'resolvedByUid') &&
+             isOptionalString(payload, 'resolvedByEmail') &&
+             isOptionalString(payload, 'resolvedByName') &&
+             isOptionalString(payload, 'reopenedAt') &&
+             isOptionalString(payload, 'reopenedByUid') &&
+             isOptionalString(payload, 'reopenedByEmail') &&
+             isOptionalString(payload, 'reopenedByName') &&
+             isOptionalString(payload, 'note') &&
+             (!('history' in payload) || payload.history is list);
+    }
     function hasValidSystemHealthCriticalOperationalCounters(payload) {
       return isSystemHealthCounter(payload, 'operationalFailureCount') &&
              isSystemHealthCounter(payload, 'operationalSyncReadUnavailableCount');
     }
-
-    //
-    // 1.9 System health payload guard
-    // ---------------------------------------------
-    // - caller can only write own doc
-    // - schema is constrained
-    // - numeric counters are bounded to non-negative values
-
     function isValidSystemHealthWrite(userId) {
       let payload = request.resource.data;
       return isAuthenticated() &&
@@ -590,28 +628,13 @@ service cloud.firestore {
              isSystemHealthAgeMs(payload, 'slowestRepositoryOperationMs') &&
              hasValidSystemHealthCriticalOperationalCounters(payload);
     }
-
-    //
-    // 1.10 Editing window helpers
-    // ---------------------------------------------
-    // Nurse window: can edit yesterday, today and tomorrow.
-    // Calculation: (CurrentTime - RecordTime) should be between -24h and +48h.
-    // If dateTimestamp is null (legacy record), allow the edit (grace mode).
-
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
-      // Legacy records without dateTimestamp are allowed (they'll be fixed on save)
       return recordTS == null || (
              now > (recordTS - 86400000) && 
              now < (recordTS + 172800000)
       );
     }
-
-    //
-    // 1.11 Medical signature update helpers
-    // ---------------------------------------------
-    // Checks whether an update is limited to medical signature fields.
-
     function isMedicalUpdate() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       return affectedKeys.hasOnly([
@@ -624,27 +647,21 @@ service cloud.firestore {
         'lastUpdated'
       ]);
     }
-
     function canNurseUpdatePersistedDailyRecord() {
       return hasPersistedRecordTimestampPayload() &&
              isWithinEditingWindow(request.resource.data.dateTimestamp);
     }
-
     function canDoctorUpdatePersistedDailyRecord() {
       return isMedicalUpdate();
     }
-
     function canSpecialistUpdatePersistedDailyRecord() {
       return isSpecialistMedicalHandoffPayload();
     }
-
     function hasPersistedDailyRecordResource() {
       return resource != null && resource.data != null;
     }
-
     function canUpdatePersistedDailyRecord() {
       let effectiveRole = getEffectiveRole();
-
       return hasPersistedDailyRecordResource()
         ? (
             effectiveRole == 'admin'
@@ -659,135 +676,138 @@ service cloud.firestore {
           )
         : false;
     }
-
     function hasPersistedRecordTimestampPayload() {
       return request.resource.data.keys().hasAll(['dateTimestamp']) &&
              request.resource.data.dateTimestamp != null;
     }
-
     function canAdminMaintainHospitalDocument() {
       return isAdmin();
     }
-
     function canCreateEditableHospitalDocument() {
       return canEdit();
     }
-
     function canCreateReadableClinicalDocument() {
       return canReadClinicalData();
     }
-    
-    // ============================================
     match /hospitals/{hospitalId} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
-      
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
         allow create: if canEdit();
         allow update: if canUpdatePersistedDailyRecord();
-        // Delete: Admin only (nurses must not hard-delete census records)
         allow delete: if isAdmin();
-        
         match /history/{historyId} {
           allow read: if canReadClinicalData();
           allow create: if canCreateEditableHospitalDocument();
           allow update, delete: if canAdminMaintainHospitalDocument();
         }
+        match /conflictSnapshots/{snapshotId} {
+          allow read: if canManageClinicalConflictSnapshots();
+          allow create: if canCreateEditableHospitalDocument();
+          allow update, delete: if canAdminMaintainHospitalDocument();
+        }
       }
-
-      // Deleted Records (Trash)
       match /deletedRecords/{trashId} {
         allow read, write: if isAdmin();
       }
-      
       match /clinicalDocuments/{documentId} {
         allow read: if canReadClinicalData();
         allow create, update: if canWriteClinicalDocument();
         allow delete: if canDeleteClinicalDocument();
       }
-
+      match /clinicalAttachments/{attachmentId} {
+        allow read: if canReadClinicalData();
+        allow create, update: if canWriteClinicalAttachment();
+        allow delete: if isAdmin();
+      }
       match /clinicalDocumentTemplates/{templateId} {
         allow read: if canReadClinicalData();
         allow write: if isAdmin();
       }
-
+      match /medicalIndicationTemplates/{userId} {
+        allow read, write: if isCurrentUser(userId);
+        match /items/{templateId} {
+          allow read: if isCurrentUser(userId);
+          allow create, update, delete: if isCurrentUser(userId) &&
+            request.resource.data.userId == userId;
+        }
+      }
+      match /medicalIndicationRecords/{recordId} {
+        allow read: if canReadClinicalData();
+        allow create: if isValidMedicalIndicationRecordCreate();
+        allow update, delete: if false;
+      }
+      match /analyticsSpecialtyReclassifications/{reclassificationId} {
+        allow read: if canReadClinicalData();
+        allow create, update, delete: if false;
+      }
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
-        allow write: if canEdit();
+        allow write: if settingId == 'aiProviderRouting' ? isAdmin() : canEdit();
       }
-
       match /reminders/{reminderId} {
         allow read: if canReadClinicalData();
         allow create, update, delete: if isAdmin();
-
         match /readReceipts/{receiptId} {
           allow read: if canReadReminderReceipt();
           allow create, update: if canWriteReminderReceipt();
           allow delete: if isAdmin();
         }
       }
-      
+      match /prescriptions/{prescriptionId} {
+        allow read: if canReadClinicalData();
+        allow create: if false;
+        allow update: if canEdit();
+        allow delete: if canEdit();
+      }
       match /exportPasswords/{passwordId} {
         allow read: if canReadClinicalData();
         allow write: if isAdmin();
       }
-      
       match /auditLogs/{logId} {
         allow read: if canReadAppendOnlyOperationalLog();
         allow create: if canCreateAppendOnlyOperationalLogEntry();
-        // Append-only: admin tampering prevention. Consolidation is read-time.
         allow update, delete: if false;
       }
-      
       match /transferRequests/{transferId} {
         allow read: if canReadClinicalData();
         allow create, update: if canEdit();
         allow delete: if canEdit();
       }
-      
       match /transferHistory/{transferId} {
         allow read: if canReadClinicalData();
         allow create: if canCreateEditableHospitalDocument();
         allow update, delete: if canAdminMaintainHospitalDocument();
       }
-      
       match /bookmarks/{bookmarkId} {
         allow read: if canReadClinicalData();
         allow write: if canReadClinicalData();
       }
-
       match /backupFiles/{fileId} {
         allow read: if canReadClinicalData();
         allow create: if canCreateEditableHospitalDocument();
         allow update, delete: if canAdminMaintainHospitalDocument();
       }
-
       match /patients/{rut} {
         allow read: if canReadClinicalData();
         allow write: if canEdit();
       }
-
       match /woundCareConsents/{consentId} {
         allow read: if canReadClinicalData();
         allow create, update: if canEdit();
         allow delete: if isAdmin();
       }
-
       match /woundCarePhotos/{photoId} {
         allow read: if canReadClinicalData();
         allow create, update: if canEdit();
         allow delete: if isAdmin();
       }
-
       match /woundCareMobileUploadSessions/{sessionId} {
         allow read: if canReadClinicalData();
         allow create, update: if canEdit();
         allow delete: if isAdmin();
       }
-
-      // Append-only. Writes mostly come from server-side Admin SDK (bypasses rules).
-      // Client rule mirrors auditLogs: admin read-only.
       match /functionsTelemetry/{entryId} {
         allow read: if canReadAppendOnlyOperationalLog();
         allow create: if canCreateAppendOnlyOperationalLogEntry();
@@ -797,71 +817,66 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
       allow create: if canCreateAppendOnlyOperationalLogEntry();
-      // Append-only: admin tampering prevention. Consolidation is read-time.
       allow update, delete: if false;
     }
-    
     match /allowedUsers/{userId} {
       allow read, write: if false;
     }
-    
     match /staffCatalogs/{catalogType} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
     }
-    
     match /userSettings/{userId} {
       allow read: if isAdmin() || isCurrentUser(userId);
       allow write: if isAdmin() || isCurrentUser(userId);
     }
-    
     match /whatsapp/{docId} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
     }
-    
     match /whatsappLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
       allow create: if canCreateAppendOnlyOperationalLogEntry();
       allow update, delete: if false;
     }
-    
     match /whatsappMessages/{messageId} {
       allow read, write: if isAdmin();
     }
-    
     match /shifts/{path=**} {
       allow read: if canReadClinicalData();
       allow write: if isAdmin();
     }
-    
     match /stats/system_health/users/{userId} {
       allow read: if canReportSystemHealth();
       allow create, update: if isValidSystemHealthWrite(userId);
+      allow delete: if canManageSystemHealthOperations();
+    }
+    match /stats/system_health/resolutions/{resolutionId} {
+      allow read: if canReportSystemHealth();
+      allow create, update: if isValidSystemHealthResolutionWrite();
       allow delete: if false;
     }
-
     match /emailRecipientLists/{listId} {
       allow read: if canReadClinicalData();
       allow write: if canEdit() || isEditorRole();
     }
-
     match /config/roles {
       allow read, write: if isAdmin();
     }
-
+    match /config/prescriptionsAccess {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
     match /census-access-invitations/{invitationId} {
       allow read: if canManageCensusAccess() || isInvitationOwner();
       allow create, delete: if canManageCensusAccess();
       allow update: if canManageCensusAccess() || isValidInvitationClaim();
     }
-
     match /census-access-users/{userId} {
       allow read: if canManageCensusAccess();
       allow create, update: if canManageCensusAccess() && isValidCensusAccessUserWrite(userId);
       allow delete: if canManageCensusAccess();
     }
-
     match /census-access-logs/{logId} {
       allow read: if resource != null &&
                    resource.data != null &&
@@ -869,7 +884,6 @@ service cloud.firestore {
       allow create: if isValidOwnCensusAccessLog();
       allow update, delete: if false;
     }
-
     match /{document=**} {
       allow read, write: if false;
     }

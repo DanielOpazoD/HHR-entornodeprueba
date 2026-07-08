@@ -186,6 +186,75 @@ describe('ClinicalDocumentFormattingToolbar', () => {
     expect(screen.getByRole('button', { name: 'Rehacer' })).toBeDisabled();
   });
 
+  // -----------------------------------------------------------------------
+  // Floating panel placement (regression: panel was clipped by the modal
+  // header's overflow scroll container and never appeared on screen)
+  // -----------------------------------------------------------------------
+
+  it('portals the formatting panel to <body> with fixed positioning so it cannot be clipped', () => {
+    const { container } = render(
+      <ClinicalDocumentFormattingToolbar {...buildProps({ isFormattingOpen: true })} />
+    );
+
+    const panel = document.body.querySelector<HTMLElement>(
+      '.clinical-document-global-toolbar-modal'
+    );
+
+    expect(panel).not.toBeNull();
+    // Rendered outside the toolbar's own subtree (the render container), as a
+    // direct child of <body>, so an ancestor's overflow can never hide it.
+    expect(container.contains(panel)).toBe(false);
+    expect(panel?.parentElement).toBe(document.body);
+    expect(panel?.style.position).toBe('fixed');
+  });
+
+  it('does not render the formatting panel when closed', () => {
+    render(<ClinicalDocumentFormattingToolbar {...buildProps({ isFormattingOpen: false })} />);
+
+    expect(document.body.querySelector('.clinical-document-global-toolbar-modal')).toBeNull();
+  });
+
+  const mockButtonRect = (button: HTMLElement, rect: { bottom: number; right: number }) => {
+    vi.spyOn(button, 'getBoundingClientRect').mockReturnValue({
+      bottom: rect.bottom,
+      right: rect.right,
+      top: rect.bottom - 20,
+      left: rect.right - 50,
+      width: 50,
+      height: 20,
+      x: rect.right - 50,
+      y: rect.bottom - 20,
+      toJSON: () => ({}),
+    } as DOMRect);
+  };
+
+  it('anchors the panel under the button, clamps both edges, and bounds the height', () => {
+    render(<ClinicalDocumentFormattingToolbar {...buildProps({ isFormattingOpen: true })} />);
+
+    const button = screen.getByRole('button', { name: 'Formato' });
+    const panel = document.body.querySelector<HTMLElement>(
+      '.clinical-document-global-toolbar-modal'
+    )!;
+    // jsdom has no layout; give the panel a real width so clamping is exercised.
+    Object.defineProperty(panel, 'offsetWidth', { configurable: true, value: 220 });
+
+    // Normal anchor: right edge aligned to the button (left = right - width).
+    mockButtonRect(button, { bottom: 100, right: 300 });
+    fireEvent(window, new Event('resize'));
+
+    expect(panel.style.position).toBe('fixed');
+    expect(panel.style.visibility).toBe('visible');
+    expect(panel.style.top).toBe('108px');
+    expect(panel.style.left).toBe('80px'); // 300 - 220
+    expect(panel.style.right).toBe('auto');
+    expect(panel.style.maxHeight).toBe(`${window.innerHeight - 116}px`); // viewport - top - margin
+
+    // Button near the left edge: left is clamped to the viewport margin (not negative).
+    mockButtonRect(button, { bottom: 100, right: 100 });
+    fireEvent(window, new Event('resize'));
+    expect(panel.style.left).toBe('8px');
+  });
+
   it('inserts a table through the toolbar dialog', async () => {
     const onInsertHtml = vi.fn();
 

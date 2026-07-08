@@ -2,18 +2,24 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { ChangeEvent } from 'react';
 
-const mockImportBookmarksFromJson = vi.fn();
-const mockAlert = vi.fn();
+const { mockImportBookmarksFromJson, mockAlert } = vi.hoisted(() => ({
+  mockImportBookmarksFromJson: vi.fn(),
+  mockAlert: vi.fn(),
+}));
 
 vi.mock('@/services/bookmarks/bookmarkService', () => ({
   importBookmarksFromJson: (...args: unknown[]) => mockImportBookmarksFromJson(...args),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: (...args: unknown[]) => mockAlert(...args),
-  },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      alert: mockAlert,
+    }),
+  };
+});
 
 import { useBookmarkImport } from '@/components/bookmarks/hooks/useBookmarkImport';
 

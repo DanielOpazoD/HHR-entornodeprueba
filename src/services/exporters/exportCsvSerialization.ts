@@ -6,6 +6,10 @@ import { CSV_HEADERS } from '@/constants/export';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { resolveExportableNursesText } from '@/services/staff/dailyRecordStaffing';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 const escapeCsvValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
@@ -160,8 +164,8 @@ export const buildDailyRecordCsv = (record: DailyRecordCsvExportState): string =
     }
   });
 
-  rows.push(...generateDischargeRows(record.discharges));
-  rows.push(...generateTransferRows(record.transfers));
+  rows.push(...generateDischargeRows(getActiveDischarges(record.discharges)));
+  rows.push(...generateTransferRows(getActiveTransfers(record.transfers)));
 
   return rows.join('\n');
 };

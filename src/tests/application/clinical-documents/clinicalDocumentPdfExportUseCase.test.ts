@@ -81,8 +81,10 @@ describe('clinicalDocumentPdfExportUseCase', () => {
           saveDraft: vi.fn(),
           createDraft: vi.fn(),
           savePdfMetadata,
+          lockDocumentsByEpisodeKey: vi.fn(),
           delete: vi.fn(),
           subscribeByEpisode: vi.fn(),
+          subscribeByEpisodeKeys: vi.fn(),
         },
       }
     );
@@ -125,8 +127,10 @@ describe('clinicalDocumentPdfExportUseCase', () => {
           saveDraft: vi.fn(),
           createDraft: vi.fn(),
           savePdfMetadata,
+          lockDocumentsByEpisodeKey: vi.fn(),
           delete: vi.fn(),
           subscribeByEpisode: vi.fn(),
+          subscribeByEpisodeKeys: vi.fn(),
         },
       }
     );

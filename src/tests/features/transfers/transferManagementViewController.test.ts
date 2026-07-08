@@ -45,14 +45,14 @@ describe('transferManagementViewController', () => {
     expect(model.filteredActiveCount).toBe(1);
   });
 
-  it('keeps finalized requests only when requested or closed inside the selected month', () => {
+  it('keeps finalized requests only when they were finalized inside the selected month', () => {
     const model = buildTransferManagementPeriodModel({
       transfers: [
         buildTransfer({
           id: 'TR-OLD',
-          requestDate: '2026-01-10',
+          requestDate: '2026-03-10',
           status: 'TRANSFERRED',
-          statusHistory: [{ timestamp: '2026-01-11T10:00:00.000Z' }] as never,
+          statusHistory: [{ timestamp: '2026-04-01T10:00:00.000Z' }] as never,
         }),
         buildTransfer({
           id: 'TR-CLOSED-IN-PERIOD',
@@ -67,6 +67,63 @@ describe('transferManagementViewController', () => {
     });
 
     expect(model.finalizedTransfers.map(transfer => transfer.id)).toEqual(['TR-CLOSED-IN-PERIOD']);
+  });
+
+  it('keeps active end-of-month carryover visible while it remains unresolved', () => {
+    const model = buildTransferManagementPeriodModel({
+      transfers: [
+        buildTransfer({
+          id: 'TR-MONTH-END-ACTIVE',
+          requestDate: '2026-03-31',
+          status: 'ACCEPTED',
+        }),
+        buildTransfer({
+          id: 'TR-MID-MONTH-ACTIVE',
+          requestDate: '2026-03-15',
+          status: 'ACCEPTED',
+        }),
+        buildTransfer({
+          id: 'TR-MONTH-END-CLOSED',
+          requestDate: '2026-03-31',
+          status: 'TRANSFERRED',
+          statusHistory: [{ timestamp: '2026-04-02T10:00:00.000Z' }] as never,
+        }),
+      ],
+      selectedYear: 2026,
+      selectedMonth: 4,
+      currentYear: 2026,
+    });
+
+    expect(model.activeTransfers.map(transfer => transfer.id)).toEqual(['TR-MONTH-END-ACTIVE']);
+    expect(model.finalizedTransfers.map(transfer => transfer.id)).toEqual(['TR-MONTH-END-CLOSED']);
+  });
+
+  it('keeps census-origin finalized transfers in the month of their executed movement date', () => {
+    const transferredNowForHistoricalCensusDate = buildTransfer({
+      id: 'TR-CENSUS-MARCH',
+      requestDate: '2026-03-31',
+      status: 'TRANSFERRED',
+      statusHistory: [{ timestamp: '2026-04-02T10:00:00.000Z' }] as never,
+      customFields: {
+        source: 'census_transfer_autocreate',
+      },
+    });
+
+    const marchModel = buildTransferManagementPeriodModel({
+      transfers: [transferredNowForHistoricalCensusDate],
+      selectedYear: 2026,
+      selectedMonth: 3,
+      currentYear: 2026,
+    });
+    const aprilModel = buildTransferManagementPeriodModel({
+      transfers: [transferredNowForHistoricalCensusDate],
+      selectedYear: 2026,
+      selectedMonth: 4,
+      currentYear: 2026,
+    });
+
+    expect(marchModel.finalizedTransfers.map(transfer => transfer.id)).toEqual(['TR-CENSUS-MARCH']);
+    expect(aprilModel.finalizedTransfers).toEqual([]);
   });
 
   it('builds reusable table bindings for active and finalized tables', async () => {

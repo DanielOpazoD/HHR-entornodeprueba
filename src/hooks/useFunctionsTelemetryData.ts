@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  buildDailyRecordAuthorityRolloutSummary,
   buildServiceSummaries,
   fetchFunctionsTelemetry,
 } from '@/services/admin/functionsTelemetryService';
@@ -56,6 +57,10 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
   );
 
   const summaries = useMemo(() => buildServiceSummaries(entries), [entries]);
+  const authorityRolloutSummary = useMemo(
+    () => buildDailyRecordAuthorityRolloutSummary(entries),
+    [entries]
+  );
 
   const availableServices = useMemo(() => {
     const set = new Set(entries.map(e => e.service));
@@ -66,6 +71,7 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
     entries,
     filteredEntries,
     summaries,
+    authorityRolloutSummary,
     availableServices,
     loading,
     error,

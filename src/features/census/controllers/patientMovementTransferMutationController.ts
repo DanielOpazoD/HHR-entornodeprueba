@@ -6,6 +6,7 @@ import {
   buildClearedBedPatient,
   clonePatientSnapshot,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
+import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 interface BuildTransferEntriesParams {
   patient: PatientData;
@@ -31,55 +32,59 @@ export const buildTransferEntries = ({
     transferEscort: escort,
     time,
   } = payload;
+  const patientWithEpisodeId = ensurePatientClinicalEpisodeId(patient);
 
   const transfers: TransferData[] = [
     {
       id: createId(),
       movementDate: resolvedMovementDate,
-      admissionDate: patient.admissionDate,
+      admissionDate: patientWithEpisodeId.admissionDate,
+      clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
       bedName: bedDef?.name || bedId,
       bedId,
       bedType: bedDef?.type || '',
-      patientName: patient.patientName,
-      rut: patient.rut,
-      diagnosis: patient.pathology,
-      specialty: patient.specialty,
+      patientName: patientWithEpisodeId.patientName,
+      rut: patientWithEpisodeId.rut,
+      diagnosis: patientWithEpisodeId.pathology,
+      specialty: patientWithEpisodeId.specialty,
       time: time || '',
       evacuationMethod: method,
       receivingCenter: center,
       receivingCenterOther: centerOther,
       transferEscort: escort,
-      age: patient.age,
-      insurance: patient.insurance,
-      origin: patient.origin,
-      isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(patient),
+      age: patientWithEpisodeId.age,
+      insurance: patientWithEpisodeId.insurance,
+      origin: patientWithEpisodeId.origin,
+      isRapanui: patientWithEpisodeId.isRapanui,
+      originalData: clonePatientSnapshot(patientWithEpisodeId),
       isNested: false,
     },
   ];
 
   if (patient.clinicalCrib?.patientName) {
+    const cribWithEpisodeId = ensurePatientClinicalEpisodeId(patient.clinicalCrib);
     transfers.push({
       id: createId(),
       movementDate: resolvedMovementDate,
-      admissionDate: patient.clinicalCrib.admissionDate,
+      admissionDate: cribWithEpisodeId.admissionDate,
+      clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
       bedName: `${bedDef?.name || bedId} (Cuna)`,
       bedId,
       bedType: 'Cuna',
-      patientName: patient.clinicalCrib.patientName,
-      rut: patient.clinicalCrib.rut,
-      diagnosis: patient.clinicalCrib.pathology,
-      specialty: patient.clinicalCrib.specialty,
+      patientName: cribWithEpisodeId.patientName,
+      rut: cribWithEpisodeId.rut,
+      diagnosis: cribWithEpisodeId.pathology,
+      specialty: cribWithEpisodeId.specialty,
       time: time || '',
       evacuationMethod: method,
       receivingCenter: center,
       receivingCenterOther: centerOther,
       transferEscort: escort,
-      age: patient.clinicalCrib.age,
+      age: cribWithEpisodeId.age,
       insurance: patient.insurance,
       origin: patient.origin,
       isRapanui: patient.isRapanui,
-      originalData: clonePatientSnapshot(patient.clinicalCrib),
+      originalData: clonePatientSnapshot(cribWithEpisodeId),
       isNested: true,
     });
   }

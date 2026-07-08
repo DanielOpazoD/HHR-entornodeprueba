@@ -43,7 +43,7 @@ export const useClinicalDocumentDraftAutosave = ({
   dispatch,
   draftRef,
   lastPersistedSnapshotRef,
-}: UseClinicalDocumentDraftAutosaveParams) => {
+}: UseClinicalDocumentDraftAutosaveParams): (() => void) => {
   const { logClinicalDocumentEdited } = useAuditContext();
   const autosaveTimerRef = useRef<number | null>(null);
   const latestAutosaveRequestIdRef = useRef(0);
@@ -117,8 +117,13 @@ export const useClinicalDocumentDraftAutosave = ({
               result.data.sourceDailyRecordDate
             );
           }
+          const currentDraft = draftRef.current;
+          if ((currentDraft?.id ?? null) !== result.data.id) {
+            dispatch({ type: 'SET_IS_SAVING', value: false });
+            return;
+          }
           const savedSnapshot = serializeClinicalDocument(result.data);
-          const currentDraftSnapshot = serializeClinicalDocument(draftRef.current);
+          const currentDraftSnapshot = serializeClinicalDocument(currentDraft);
           const commitMode = resolveClinicalDocumentAutosaveCommit({
             requestedSnapshot,
             currentDraftSnapshot,
@@ -181,6 +186,30 @@ export const useClinicalDocumentDraftAutosave = ({
       user,
     ]
   );
+  const flushPendingAutosave = useCallback(() => {
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    const pendingAutosave = pendingAutosaveRef.current;
+    if (!pendingAutosave) {
+      return;
+    }
+
+    pendingAutosaveRef.current = null;
+    scheduledDraftIdRef.current = null;
+    void performAutosave({
+      record: pendingAutosave.draft,
+      requestedSnapshot: pendingAutosave.requestedSnapshot,
+    });
+  }, [performAutosave]);
+
+  const flushPendingAutosaveRef = useRef(flushPendingAutosave);
+
+  useEffect(() => {
+    flushPendingAutosaveRef.current = flushPendingAutosave;
+  }, [flushPendingAutosave]);
 
   useEffect(() => {
     const pendingAutosave = pendingAutosaveRef.current;
@@ -257,21 +286,15 @@ export const useClinicalDocumentDraftAutosave = ({
       return;
     }
 
-    if (autosaveTimerRef.current) {
-      window.clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
+    flushPendingAutosave();
+  }, [flushPendingAutosave, isActive]);
 
-    const pendingAutosave = pendingAutosaveRef.current;
-    if (!pendingAutosave) {
-      return;
-    }
+  useEffect(
+    () => () => {
+      flushPendingAutosaveRef.current();
+    },
+    []
+  );
 
-    pendingAutosaveRef.current = null;
-    scheduledDraftIdRef.current = null;
-    void performAutosave({
-      record: pendingAutosave.draft,
-      requestedSnapshot: pendingAutosave.requestedSnapshot,
-    });
-  }, [isActive, performAutosave]);
+  return flushPendingAutosave;
 };

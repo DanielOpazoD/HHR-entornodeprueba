@@ -14,9 +14,13 @@ import type {
   ClinicalDocSummary,
 } from '@/features/census/components/global-search/globalSearchContracts';
 import { buildPatientEpisodeTimelineState } from '@/features/census/components/global-search/patientEpisodeTimelineController';
+import {
+  buildPatientSelectionDocumentLookupKeys,
+  parsePatientSelectionEpisodeLookupKey,
+  summarizeClinicalDocuments,
+} from '@/features/census/components/global-search/patientSelectionDocumentController';
 import { globalPatientSearchLogger } from '@/hooks/hookLoggers';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 
 // ---------------------------------------------------------------------------
 // Lazy loaders
@@ -46,15 +50,6 @@ const loadClinicalDocPdf = () => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const parseCompositeEpisodeKey = (key: string): { rut: string; admissionDate: string } | null => {
-  const separatorIdx = key.indexOf('__');
-  if (separatorIdx < 1) return null;
-  const rut = key.slice(0, separatorIdx);
-  const admissionDate = key.slice(separatorIdx + 2);
-  if (!rut || !admissionDate) return null;
-  return { rut, admissionDate };
-};
 
 const buildPatientHistoryCacheKey = (patient: MasterPatient): string =>
   `${patient.rut}::${patient.updatedAt ?? 0}`;
@@ -149,7 +144,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   }, []);
 
   const loadEpisodeDocuments = useCallback(async (compositeKey: string) => {
-    const parsed = parseCompositeEpisodeKey(compositeKey);
+    const parsed = parsePatientSelectionEpisodeLookupKey(compositeKey);
     if (!parsed) {
       globalPatientSearchLogger.warn(`Malformed episode key: ${compositeKey}`);
       return;
@@ -163,27 +158,13 @@ export function usePatientSelection(): UsePatientSelectionReturn {
 
     try {
       const docMod = await loadClinicalDocRepo();
-
-      const rutWithoutDots = parsed.rut.replace(/\./g, '');
-      const candidateKeys = [
-        ...new Set([
-          buildClinicalEpisodeKey(parsed.rut, parsed.admissionDate),
-          buildClinicalEpisodeKey(rutWithoutDots, parsed.admissionDate),
-        ]),
-      ];
+      const candidateKeys = buildPatientSelectionDocumentLookupKeys(parsed);
 
       let foundDocs: ClinicalDocSummary[] = [];
       for (const candidateKey of candidateKeys) {
         const docs = await docMod.ClinicalDocumentRepository.listByEpisode(candidateKey);
         if (docs.length > 0) {
-          foundDocs = docs.map(d => ({
-            id: d.id || '',
-            documentType: d.documentType || '',
-            status: d.status || '',
-            createdAt: d.audit?.createdAt || '',
-            createdBy: d.audit?.createdBy?.displayName || '',
-            updatedAt: d.audit?.updatedAt || '',
-          }));
+          foundDocs = summarizeClinicalDocuments(docs, candidateKey);
           break;
         }
       }

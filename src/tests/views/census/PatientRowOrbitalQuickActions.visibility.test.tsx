@@ -84,6 +84,23 @@ describe('PatientRowOrbitalQuickActions visibility', () => {
     });
   });
 
+  it('keeps launcher layers below the sticky app bars', async () => {
+    renderSinglePatientRowOrbitalQuickActions();
+
+    fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
+    const trigger = await screen.findByRole('button', { name: /acciones clínicas rápidas/i });
+    fireEvent.click(trigger);
+
+    const documentsButton = screen.getByRole('button', { name: /documentos clínicos/i });
+    const wrapper = trigger.closest('.fixed');
+    const actionStack = documentsButton.closest('[data-state="open"]');
+    const backdrop = document.querySelector('.fixed.inset-0.z-\\[38\\]');
+
+    expect(wrapper).toHaveClass('z-[39]');
+    expect(actionStack).toHaveClass('z-10');
+    expect(backdrop).toBeInTheDocument();
+  });
+
   it('keeps the honu in the same screen position after opening the menu', async () => {
     const originalInnerWidth = window.innerWidth;
     try {

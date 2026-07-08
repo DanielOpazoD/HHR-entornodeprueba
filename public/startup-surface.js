@@ -3,6 +3,7 @@
   var AUTHENTICATED_SESSION_HINT_KEY = 'hhr_logged_this_session';
   // Startup UX contract:
   // - login: no spinner nuevo ni flash blanco; conservar solo el fondo/login real
+  // - rutas internas sin pista de sesion: no cargar imagen de login como superficie temporal
   // - refresh autenticado en modulos: mostrar el mismo chrome real del
   //   modulo origen desde React bootstrap, no una recreacion en index.html
   // - no reintroducir loaders/skeletons/spinners full-screen en esta capa
@@ -11,7 +12,7 @@
     image: [
       'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',
       'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%)',
-      "url('/images/login/hhr-login-day.png')",
+      "url('/images/login/hhr-login-day.webp')",
     ].join(','),
     position: 'center, center, center',
     repeat: 'no-repeat, no-repeat, no-repeat',
@@ -69,8 +70,7 @@
   }
 
   var hasAnySessionHint = hasPersistedFirebaseAuthHint || hasRecentAuthenticatedSessionHint;
-  var shouldUseLoginSurface =
-    normalizedPath === 'login' || (isLoginSurfacePath && !hasAnySessionHint) || !hasAnySessionHint;
+  var shouldUseLoginSurface = isLoginSurfacePath && !hasAnySessionHint;
 
   document.documentElement.dataset.prebootSurface = shouldUseLoginSurface ? 'login' : 'app';
   applyPrebootSurfaceBackground(

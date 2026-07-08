@@ -21,4 +21,4 @@ export const getActionCriticality = (action: AuditAction): 'critical' | 'importa
 };
 
 export const isAuditTableSection = (section: AuditSection): boolean =>
-  ['ALL', 'SESSIONS', 'CENSUS', 'CUDYR', 'HANDOFF_NURSE', 'HANDOFF_MEDICAL'].includes(section);
+  !['EXPORT_KEYS', 'MAINTENANCE'].includes(section);

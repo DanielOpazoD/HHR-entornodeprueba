@@ -2,10 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  getDefaultClinicalDocumentIndicationsCatalog,
   addClinicalDocumentIndicationCatalogItem,
+  createClinicalDocumentIndicationsCatalogTab,
   deleteClinicalDocumentIndicationCatalogItem,
-  ensureClinicalDocumentIndicationsCatalog,
+  deleteClinicalDocumentIndicationsCatalogTab,
+  getDefaultClinicalDocumentIndicationsCatalog,
+  renameClinicalDocumentIndicationsCatalogTab,
+  reorderClinicalDocumentIndicationsCatalogTab,
   replaceClinicalDocumentIndicationsCatalog,
   subscribeToClinicalDocumentIndicationsCatalog,
   updateClinicalDocumentIndicationCatalogItem,
@@ -32,7 +35,10 @@ vi.mock(
     return {
       ...actual,
       subscribeToClinicalDocumentIndicationsCatalog: vi.fn(),
-      ensureClinicalDocumentIndicationsCatalog: vi.fn(),
+      createClinicalDocumentIndicationsCatalogTab: vi.fn(),
+      renameClinicalDocumentIndicationsCatalogTab: vi.fn(),
+      deleteClinicalDocumentIndicationsCatalogTab: vi.fn(),
+      reorderClinicalDocumentIndicationsCatalogTab: vi.fn(),
       addClinicalDocumentIndicationCatalogItem: vi.fn(),
       updateClinicalDocumentIndicationCatalogItem: vi.fn(),
       deleteClinicalDocumentIndicationCatalogItem: vi.fn(),
@@ -44,12 +50,19 @@ vi.mock(
 describe('useClinicalDocumentIndicationsCatalog', () => {
   const unsubscribe = vi.fn();
   const defaultCatalog = getDefaultClinicalDocumentIndicationsCatalog();
+  const user = {
+    uid: 'specialist-uid',
+    email: 'especialista@hospital.cl',
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
     unsubscribe.mockReset();
     vi.mocked(subscribeToClinicalDocumentIndicationsCatalog).mockReturnValue(unsubscribe);
-    vi.mocked(ensureClinicalDocumentIndicationsCatalog).mockResolvedValue(defaultCatalog);
+    vi.mocked(createClinicalDocumentIndicationsCatalogTab).mockResolvedValue(defaultCatalog);
+    vi.mocked(renameClinicalDocumentIndicationsCatalogTab).mockResolvedValue(defaultCatalog);
+    vi.mocked(deleteClinicalDocumentIndicationsCatalogTab).mockResolvedValue(defaultCatalog);
+    vi.mocked(reorderClinicalDocumentIndicationsCatalogTab).mockResolvedValue(defaultCatalog);
     vi.mocked(addClinicalDocumentIndicationCatalogItem).mockResolvedValue(defaultCatalog);
     vi.mocked(updateClinicalDocumentIndicationCatalogItem).mockResolvedValue(defaultCatalog);
     vi.mocked(deleteClinicalDocumentIndicationCatalogItem).mockResolvedValue(defaultCatalog);
@@ -57,25 +70,25 @@ describe('useClinicalDocumentIndicationsCatalog', () => {
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
   });
 
-  it('stays idle when the catalog is not active', () => {
+  it('stays idle when the personal catalog is not active', () => {
     const { result } = renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: false,
         canEdit: true,
       })
     );
 
-    expect(result.current.indicationsCatalog.version).toBe(defaultCatalog.version);
-    expect(result.current.indicationsCatalog.specialties).toEqual(defaultCatalog.specialties);
+    expect(result.current.indicationsCatalog.tabs).toEqual([
+      { id: 'general', label: 'General', items: [] },
+    ]);
     expect(subscribeToClinicalDocumentIndicationsCatalog).not.toHaveBeenCalled();
-    expect(ensureClinicalDocumentIndicationsCatalog).not.toHaveBeenCalled();
   });
 
-  it('subscribes and seeds the catalog when active with edit access', async () => {
+  it('subscribes to the current user settings document when active', async () => {
     renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: true,
         canEdit: true,
       })
@@ -84,34 +97,37 @@ describe('useClinicalDocumentIndicationsCatalog', () => {
     await waitFor(() => {
       expect(subscribeToClinicalDocumentIndicationsCatalog).toHaveBeenCalledWith(
         expect.any(Function),
-        'hhr'
+        user
       );
     });
-    expect(ensureClinicalDocumentIndicationsCatalog).toHaveBeenCalledWith('hhr');
   });
 
-  it('uses the default catalog without remote subscription or seeding when Firestore is disabled', async () => {
+  it('delegates local fallback to the catalog subscription service when Firestore is disabled', async () => {
     vi.mocked(isFirestoreEnabled).mockReturnValue(false);
 
     const { result } = renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: true,
         canEdit: true,
       })
     );
 
     await waitFor(() => {
-      expect(result.current.indicationsCatalog.version).toBe(defaultCatalog.version);
+      expect(result.current.indicationsCatalog.tabs).toEqual([
+        { id: 'general', label: 'General', items: [] },
+      ]);
     });
-    expect(subscribeToClinicalDocumentIndicationsCatalog).not.toHaveBeenCalled();
-    expect(ensureClinicalDocumentIndicationsCatalog).not.toHaveBeenCalled();
+    expect(subscribeToClinicalDocumentIndicationsCatalog).toHaveBeenCalledWith(
+      expect.any(Function),
+      user
+    );
   });
 
-  it('cleans up the subscription and skips seeding for read-only access', async () => {
+  it('cleans up the personal subscription for read-only access', async () => {
     const { unmount } = renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: true,
         canEdit: false,
       })
@@ -120,31 +136,71 @@ describe('useClinicalDocumentIndicationsCatalog', () => {
     await waitFor(() => {
       expect(subscribeToClinicalDocumentIndicationsCatalog).toHaveBeenCalled();
     });
-    expect(ensureClinicalDocumentIndicationsCatalog).not.toHaveBeenCalled();
 
     unmount();
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('runs add, update, delete and import mutations successfully', async () => {
+  it('runs tab and indication mutations without specialty ids', async () => {
     const addedCatalog = {
       ...defaultCatalog,
-      updatedAt: '2026-04-20T00:00:00.000Z',
+      activeTabId: 'general',
+      tabs: [
+        {
+          id: 'general',
+          label: 'General',
+          items: [{ id: 'item-1', text: 'Nueva', source: 'custom' as const }],
+        },
+      ],
+      items: [{ id: 'item-1', text: 'Nueva', source: 'custom' as const }],
+      updatedAt: '2026-05-07T12:00:00.000Z',
     };
     const updatedCatalog = {
       ...addedCatalog,
-      updatedAt: '2026-04-20T00:10:00.000Z',
+      tabs: [
+        {
+          id: 'general',
+          label: 'General',
+          items: [{ id: 'item-1', text: 'Actualizada', source: 'custom' as const }],
+        },
+      ],
+      items: [{ id: 'item-1', text: 'Actualizada', source: 'custom' as const }],
+      updatedAt: '2026-05-07T12:10:00.000Z',
     };
     const deletedCatalog = {
       ...updatedCatalog,
-      updatedAt: '2026-04-20T00:20:00.000Z',
+      tabs: [{ id: 'general', label: 'General', items: [] }],
+      items: [],
+      updatedAt: '2026-05-07T12:20:00.000Z',
     };
     const importedCatalog = {
       ...deletedCatalog,
-      updatedAt: '2026-04-20T00:30:00.000Z',
+      tabs: [
+        {
+          id: 'general',
+          label: 'General',
+          items: [{ id: 'item-2', text: 'Importada', source: 'custom' as const }],
+        },
+      ],
+      items: [{ id: 'item-2', text: 'Importada', source: 'custom' as const }],
+      updatedAt: '2026-05-07T12:30:00.000Z',
+    };
+    const createdTabCatalog = {
+      ...defaultCatalog,
+      activeTabId: 'postop',
+      tabs: [
+        { id: 'general', label: 'General', items: [] },
+        { id: 'postop', label: 'Post operatorio', items: [] },
+      ],
     };
 
+    vi.mocked(createClinicalDocumentIndicationsCatalogTab).mockResolvedValueOnce(createdTabCatalog);
+    vi.mocked(renameClinicalDocumentIndicationsCatalogTab).mockResolvedValueOnce(createdTabCatalog);
+    vi.mocked(reorderClinicalDocumentIndicationsCatalogTab).mockResolvedValueOnce(
+      createdTabCatalog
+    );
+    vi.mocked(deleteClinicalDocumentIndicationsCatalogTab).mockResolvedValueOnce(defaultCatalog);
     vi.mocked(addClinicalDocumentIndicationCatalogItem).mockResolvedValueOnce(addedCatalog);
     vi.mocked(updateClinicalDocumentIndicationCatalogItem).mockResolvedValueOnce(updatedCatalog);
     vi.mocked(deleteClinicalDocumentIndicationCatalogItem).mockResolvedValueOnce(deletedCatalog);
@@ -152,59 +208,81 @@ describe('useClinicalDocumentIndicationsCatalog', () => {
 
     const { result } = renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: true,
         canEdit: true,
       })
     );
 
     await act(async () => {
-      await expect(result.current.addCustomIndication('tmt', 'Nueva')).resolves.toBe(true);
-      await expect(result.current.updateIndication('tmt', 'item-1', 'Actualizada')).resolves.toBe(
-        true
-      );
-      await expect(result.current.deleteIndication('tmt', 'item-1')).resolves.toBe(true);
-      await expect(result.current.importCatalog({ specialties: {} })).resolves.toBe(true);
+      await expect(result.current.createTab('Post operatorio')).resolves.toBe(true);
+      await expect(result.current.renameTab('postop', 'Post alta')).resolves.toBe(true);
+      await expect(result.current.reorderTab('postop', 'left')).resolves.toBe(true);
+      await expect(result.current.deleteTab('postop')).resolves.toBe(true);
+      await expect(result.current.addCustomIndication('general', 'Nueva')).resolves.toBe(true);
+      await expect(
+        result.current.updateIndication('general', 'item-1', 'Actualizada')
+      ).resolves.toBe(true);
+      await expect(result.current.deleteIndication('general', 'item-1')).resolves.toBe(true);
+      await expect(result.current.importCatalog({ tabs: [] })).resolves.toBe(true);
     });
 
+    expect(createClinicalDocumentIndicationsCatalogTab).toHaveBeenCalledWith({
+      ...user,
+      label: 'Post operatorio',
+    });
+    expect(renameClinicalDocumentIndicationsCatalogTab).toHaveBeenCalledWith({
+      ...user,
+      tabId: 'postop',
+      label: 'Post alta',
+    });
+    expect(reorderClinicalDocumentIndicationsCatalogTab).toHaveBeenCalledWith({
+      ...user,
+      tabId: 'postop',
+      direction: 'left',
+    });
+    expect(deleteClinicalDocumentIndicationsCatalogTab).toHaveBeenCalledWith({
+      ...user,
+      tabId: 'postop',
+    });
     expect(addClinicalDocumentIndicationCatalogItem).toHaveBeenCalledWith({
-      hospitalId: 'hhr',
-      specialtyId: 'tmt',
+      ...user,
+      tabId: 'general',
       text: 'Nueva',
     });
     expect(updateClinicalDocumentIndicationCatalogItem).toHaveBeenCalledWith({
-      hospitalId: 'hhr',
-      specialtyId: 'tmt',
+      ...user,
+      tabId: 'general',
       itemId: 'item-1',
       text: 'Actualizada',
     });
     expect(deleteClinicalDocumentIndicationCatalogItem).toHaveBeenCalledWith({
-      hospitalId: 'hhr',
-      specialtyId: 'tmt',
+      ...user,
+      tabId: 'general',
       itemId: 'item-1',
     });
     expect(replaceClinicalDocumentIndicationsCatalog).toHaveBeenCalledWith({
-      hospitalId: 'hhr',
-      catalog: { specialties: {} },
+      ...user,
+      catalog: { tabs: [] },
     });
     expect(result.current.indicationsCatalog).toEqual(importedCatalog);
     expect(result.current.isSavingCustomIndication).toBe(false);
     expect(result.current.customIndicationError).toBeNull();
   });
 
-  it('surfaces a user-safe error when a mutation fails', async () => {
+  it('surfaces a user-safe error when a personal mutation fails', async () => {
     vi.mocked(addClinicalDocumentIndicationCatalogItem).mockRejectedValueOnce(new Error('boom'));
 
     const { result } = renderHook(() =>
       useClinicalDocumentIndicationsCatalog({
-        hospitalId: 'hhr',
+        user,
         isActive: true,
         canEdit: true,
       })
     );
 
     await act(async () => {
-      await expect(result.current.addCustomIndication('tmt', 'Nueva')).resolves.toBe(false);
+      await expect(result.current.addCustomIndication('general', 'Nueva')).resolves.toBe(false);
     });
 
     expect(result.current.isSavingCustomIndication).toBe(false);

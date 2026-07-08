@@ -52,8 +52,20 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
     Record<string, PendingMedicalEntryDraft>
   >({});
 
+  // Track outstanding prune timers so they are cleared on unmount (they call
+  // setState, which would otherwise fire on a gone component).
+  const pruneTimersRef = React.useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  React.useEffect(
+    () => () => {
+      pruneTimersRef.current.forEach(timerId => clearTimeout(timerId));
+      pruneTimersRef.current.clear();
+    },
+    []
+  );
+
   const prunePendingEntryDraft = React.useCallback((entryId: string, expiresAt: number) => {
-    window.setTimeout(() => {
+    const timerId = setTimeout(() => {
+      pruneTimersRef.current.delete(timerId);
       setPendingEntryDrafts(current => {
         const pendingDraft = current[entryId];
         if (!pendingDraft || pendingDraft.expiresAt !== expiresAt) {
@@ -65,6 +77,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
         return next;
       });
     }, MEDICAL_DRAFT_CONTINUITY_MS);
+    pruneTimersRef.current.add(timerId);
   }, []);
 
   const registerPendingEntryDraft = React.useCallback(

@@ -1,0 +1,153 @@
+{
+  "generatedAt": "2026-07-05T06:17:55.749Z",
+  "version": 1,
+  "areaCount": 11,
+  "areas": [
+    {
+      "id": "auth",
+      "owner": "auth",
+      "primaryMetric": "loginVisibleMs, authFeedbackMs",
+      "gates": [
+        "check:critical-coverage",
+        "test:release-confidence"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md",
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md"
+      ]
+    },
+    {
+      "id": "sync",
+      "owner": "storage",
+      "primaryMetric": "offline_to_online smoke, sync queue budgets",
+      "gates": [
+        "test:smoke:critical-runtime",
+        "test:emulator:sync:ci",
+        "check:flow-performance-budget"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_SYNC_RESILIENCE.md",
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md"
+      ]
+    },
+    {
+      "id": "repositories",
+      "owner": "repositories",
+      "primaryMetric": "critical repository coverage and emulator sync",
+      "gates": [
+        "check:quality",
+        "test:emulator:sync:ci"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_SYNC_RESILIENCE.md"
+      ]
+    },
+    {
+      "id": "clinical-documents",
+      "owner": "clinical-documents",
+      "primaryMetric": "clinicalDocumentsVisibleMs",
+      "gates": [
+        "check:critical-coverage",
+        "test:smoke:critical-runtime",
+        "test:e2e:critical:ci"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md"
+      ]
+    },
+    {
+      "id": "census",
+      "owner": "census",
+      "primaryMetric": "censoVisibleMs, censoRecordReadyMs",
+      "gates": [
+        "check:critical-coverage",
+        "check:flow-performance-budget",
+        "test:e2e:critical:ci"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
+        "docs/RUNBOOK_SUPPORT_OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "handoff",
+      "owner": "handoff",
+      "primaryMetric": "critical handoff coverage",
+      "gates": [
+        "check:critical-coverage",
+        "test:ci:unit"
+      ],
+      "runbooks": [
+        "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"
+      ]
+    },
+    {
+      "id": "backup",
+      "owner": "backup",
+      "primaryMetric": "backupFilesVisibleMs",
+      "gates": [
+        "check:critical-coverage",
+        "check:flow-performance-budget",
+        "test:e2e:critical:ci"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
+        "docs/RUNBOOK_SUPPORT_OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "transfers",
+      "owner": "transfers",
+      "primaryMetric": "critical transfer coverage and finalized transfer flow",
+      "gates": [
+        "check:critical-coverage",
+        "test:unit:critical"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_SUPPORT_OPERATIONS.md",
+        "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"
+      ]
+    },
+    {
+      "id": "reminders-admin",
+      "owner": "admin",
+      "primaryMetric": "administrative reminder critical coverage",
+      "gates": [
+        "check:critical-coverage",
+        "test:risk:admin-health"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_SUPPORT_OPERATIONS.md",
+        "docs/CI_GATES_AND_FAILURE_RUNBOOKS.md"
+      ]
+    },
+    {
+      "id": "serverless",
+      "owner": "platform",
+      "primaryMetric": "serverless deploy smoke y bundling de Netlify Functions",
+      "gates": [
+        "check:serverless-runtime-governance",
+        "check:netlify-functions-bundle",
+        "test:serverless-deploy-smoke"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md",
+        "docs/SERVERLESS_SENSITIVE_CONTRACTS.md"
+      ]
+    },
+    {
+      "id": "ai",
+      "owner": "ai",
+      "primaryMetric": "respuestas AI configuradas y auth serverless consistente",
+      "gates": [
+        "test:risk:platform",
+        "check:serverless-runtime-governance",
+        "test:serverless-deploy-smoke"
+      ],
+      "runbooks": [
+        "docs/RUNBOOK_AI_PROVIDER_OPERATIONS.md",
+        "docs/SERVERLESS_SENSITIVE_CONTRACTS.md"
+      ]
+    }
+  ]
+}

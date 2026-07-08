@@ -1,15 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildClinicalEpisodeKey,
   buildPatientPresenceSnapshot,
   classifyPatientMovementForRecord,
   resolveClinicalEpisode,
   resolveClinicalEpisodeAdmissionDate,
+  resolveClinicalEpisodeIdentifier,
 } from '@/application/patient-flow/clinicalEpisode';
 
 describe('clinicalEpisode application model', () => {
   it('builds a canonical episode key', () => {
     expect(buildClinicalEpisodeKey('12.345.678-9', '2026-03-05')).toBe('12.345.678-9__2026-03-05');
+  });
+
+  it('separates same-day readmissions with different admission times', () => {
+    expect(buildClinicalEpisodeKey('12.345.678-9', '2026-03-05', '08:00')).toBe(
+      '12.345.678-9__2026-03-05__08:00'
+    );
+    expect(buildClinicalEpisodeKey('12.345.678-9', '2026-03-05', '18:30')).toBe(
+      '12.345.678-9__2026-03-05__18:30'
+    );
   });
 
   it('resolves a shared episode context from patient data', () => {
@@ -36,6 +46,48 @@ describe('clinicalEpisode application model', () => {
     });
   });
 
+  it('prefers a persisted clinicalEpisodeId over the derived legacy tuple', () => {
+    const patient = {
+      clinicalEpisodeId: 'episode_2026_03_05_afternoon',
+      patientName: 'Paciente',
+      rut: '11.111.111-1',
+      admissionDate: '2026-03-05',
+      firstSeenDate: '2026-03-04',
+      admissionTime: '18:30',
+    };
+
+    expect(resolveClinicalEpisodeIdentifier(patient)).toBe('episode_2026_03_05_afternoon');
+    expect(resolveClinicalEpisode(patient).episodeKey).toBe('episode_2026_03_05_afternoon');
+    expect(buildPatientPresenceSnapshot(patient, 'R1')?.episodeKey).toBe(
+      'episode_2026_03_05_afternoon'
+    );
+  });
+
+  it('records a fallback event when a patient has no persisted clinicalEpisodeId', () => {
+    const recordFallback = vi.fn();
+    const patient = {
+      patientName: 'Paciente Legacy',
+      rut: '11.111.111-1',
+      firstSeenDate: '2026-03-05',
+      admissionDate: '2026-03-05',
+      admissionTime: '08:30',
+    };
+
+    expect(
+      resolveClinicalEpisodeIdentifier(patient, {
+        source: 'clinical_document',
+        onFallback: recordFallback,
+      })
+    ).toBe('11.111.111-1__2026-03-05__08:30');
+    expect(recordFallback).toHaveBeenCalledWith({
+      source: 'clinical_document',
+      reason: 'missing_clinical_episode_id',
+      fallbackEpisodeKey: '11.111.111-1__2026-03-05__08:30',
+      hasRut: true,
+      hasAdmissionTime: true,
+    });
+  });
+
   it('builds presence snapshots and movement classification with shared rules', () => {
     const patient = {
       rut: '11.111.111-1',
@@ -47,7 +99,7 @@ describe('clinicalEpisode application model', () => {
 
     expect(buildPatientPresenceSnapshot(patient, 'R1')).toMatchObject({
       bedId: 'R1',
-      episodeKey: '11.111.111-1__2026-03-05',
+      episodeKey: '11.111.111-1__2026-03-05__02:00',
     });
     expect(classifyPatientMovementForRecord('2026-03-05', patient).isNewAdmission).toBe(true);
     expect(classifyPatientMovementForRecord('2026-03-06', patient).isNewAdmission).toBe(false);

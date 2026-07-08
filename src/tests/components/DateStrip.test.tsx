@@ -40,28 +40,30 @@ describe('DateStrip', () => {
     vi.clearAllMocks();
   });
 
-  it('renders date selection components', () => {
+  it('renders date selection components', async () => {
     render(<DateStrip {...defaultProps} />);
-    expect(screen.getByText('Febrero')).toBeInTheDocument();
-    expect(screen.getByText('2024')).toBeInTheDocument();
+    expect(await screen.findByText('Febrero')).toBeInTheDocument();
+    expect(await screen.findByText('2024')).toBeInTheDocument();
     // Check days strip
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument(); // 9 is the compact desktop visible end day
   });
 
-  it('renders clinical action buttons for admin in CENSUS module', () => {
+  it('renders clinical action buttons for admin in CENSUS module', async () => {
     render(<DateStrip {...defaultProps} />);
 
-    expect(screen.getByTitle('Descargar PDF (rápido)')).toBeInTheDocument();
-    expect(screen.getByTitle('Opciones de guardado')).toBeInTheDocument();
+    expect(await screen.findByTitle('Descargar PDF (rápido)')).toBeInTheDocument();
+    expect(await screen.findByTitle('Opciones de guardado')).toBeInTheDocument();
     expect(screen.queryByText('Guardar')).not.toBeInTheDocument();
-    expect(screen.getByTitle('Bloqueo de camas')).toBeInTheDocument();
-    expect(screen.getByTitle('Enviar censo')).toBeInTheDocument();
+    expect(await screen.findByTitle('Bloqueo de camas')).toBeInTheDocument();
+    expect(await screen.findByTitle('Enviar censo')).toBeInTheDocument();
   });
 
-  it('keeps daily census save immediately before send census in the action order', () => {
+  it('keeps daily census save immediately before send census in the action order', async () => {
     render(<DateStrip {...defaultProps} />);
 
+    await screen.findByTitle('Enviar censo');
+    await screen.findByTitle('Opciones de guardado');
     const buttons = screen.getAllByRole('button');
     const sendIndex = buttons.indexOf(screen.getByTitle('Enviar censo'));
     const saveIndex = buttons.indexOf(screen.getByTitle('Opciones de guardado'));
@@ -81,63 +83,65 @@ describe('DateStrip', () => {
     expect(screen.queryByTitle(/Lab/)).not.toBeInTheDocument();
   });
 
-  it('shows email status indicators', () => {
+  it('shows email status indicators', async () => {
     // Correct text for status indicators in EmailDropdown
     const { rerender } = render(<DateStrip {...defaultProps} emailStatus="loading" />);
-    expect(screen.getByText('Enviando...')).toBeInTheDocument();
-    expect(screen.getByTitle('Enviar censo')).toHaveAttribute('data-email-status', 'loading');
-
-    rerender(<DateStrip {...defaultProps} emailStatus="success" />);
-    expect(screen.getByText('Enviado')).toBeInTheDocument();
-    expect(screen.getByTitle('Enviar censo')).toHaveAttribute('data-email-status', 'success');
-  });
-
-  it('shows sync status indicators in SaveDropdown', () => {
-    // Sync status is actually reflected in SaveDropdown 'isArchived' and 'isBackingUp' props
-    const { rerender } = render(<DateStrip {...defaultProps} isBackingUp={true} />);
-    expect(screen.getByRole('button', { name: 'Guardando...' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Guardando...' })).toHaveAttribute(
-      'data-save-status',
+    expect(await screen.findByText('Enviando...')).toBeInTheDocument();
+    expect(await screen.findByTitle('Enviar censo')).toHaveAttribute(
+      'data-email-status',
       'loading'
     );
 
-    rerender(<DateStrip {...defaultProps} isArchived={true} />);
-    expect(screen.getByRole('button', { name: 'Sincronizado' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sincronizado' })).toHaveAttribute(
-      'data-save-status',
-      'archived'
+    rerender(<DateStrip {...defaultProps} emailStatus="success" />);
+    expect(await screen.findByText('Enviado')).toBeInTheDocument();
+    expect(await screen.findByTitle('Enviar censo')).toHaveAttribute(
+      'data-email-status',
+      'success'
     );
   });
 
-  it('hides firebase backup option in census save menu', () => {
+  it('shows sync status indicators in SaveDropdown', async () => {
+    // Sync status is actually reflected in SaveDropdown 'isArchived' and 'isBackingUp' props
+    const { rerender } = render(<DateStrip {...defaultProps} isBackingUp={true} />);
+    const savingButton = await screen.findByTitle('Opciones de guardado');
+    expect(savingButton).toHaveAttribute('aria-label', 'Guardando...');
+    expect(savingButton).toHaveAttribute('data-save-status', 'loading');
+
+    rerender(<DateStrip {...defaultProps} isArchived={true} />);
+    const archivedButton = await screen.findByTitle('Opciones de guardado');
+    expect(archivedButton).toHaveAttribute('aria-label', 'Sincronizado');
+    expect(archivedButton).toHaveAttribute('data-save-status', 'archived');
+  });
+
+  it('hides firebase backup option in census save menu', async () => {
     render(<DateStrip {...defaultProps} currentModule="CENSUS" />);
 
-    fireEvent.click(screen.getByTitle('Opciones de guardado'));
+    fireEvent.click(await screen.findByTitle('Opciones de guardado'));
 
     expect(screen.getByText('Descargar Excel')).toBeInTheDocument();
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
   });
 
-  it('hides firebase backup option in nursing handoff save menu', () => {
+  it('hides firebase backup option in nursing handoff save menu', async () => {
     render(<DateStrip {...defaultProps} currentModule="NURSING_HANDOFF" />);
 
-    fireEvent.click(screen.getByTitle('Opciones de guardado (PDF/Nube)'));
+    fireEvent.click(await screen.findByTitle('Opciones de guardado (PDF/Nube)'));
 
     expect(screen.getByText('Descargar PDF')).toBeInTheDocument();
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
   });
 
-  it('triggers actions when buttons are clicked', () => {
+  it('triggers actions when buttons are clicked', async () => {
     render(<DateStrip {...defaultProps} />);
 
-    fireEvent.click(screen.getByTitle('Descargar PDF (rápido)'));
+    fireEvent.click(await screen.findByTitle('Descargar PDF (rápido)'));
     expect(defaultProps.onExportPDF).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByTitle('Bloqueo de camas'));
+    fireEvent.click(await screen.findByTitle('Bloqueo de camas'));
     expect(defaultProps.onOpenBedManager).toHaveBeenCalled();
 
     // Initial showBookmarks is true, so title is "Ocultar Marcadores"
-    fireEvent.click(screen.getByTitle('Ocultar Marcadores'));
+    fireEvent.click(await screen.findByTitle('Ocultar Marcadores'));
     expect(defaultProps.onToggleBookmarks).toHaveBeenCalled();
   });
 
@@ -146,9 +150,9 @@ describe('DateStrip', () => {
     expect(screen.queryByTitle(/Marcadores/)).not.toBeInTheDocument();
   });
 
-  it('disables send email button when loading', () => {
+  it('disables send email button when loading', async () => {
     render(<DateStrip {...defaultProps} emailStatus="loading" />);
-    const sendBtn = screen.getByTitle('Enviar censo');
+    const sendBtn = await screen.findByTitle('Enviar censo');
     expect(sendBtn).toBeDisabled();
   });
 

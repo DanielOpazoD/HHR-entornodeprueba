@@ -84,7 +84,7 @@ const generateStructuredClinicalDocumentPdfBlob = async (
   const renderAnnexHeader = () => {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('Anexos clínicos', marginX, cursorY);
+    pdf.text('Anexo del documento', marginX, cursorY);
     cursorY += 7;
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10.5);

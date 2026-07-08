@@ -117,7 +117,7 @@ describe('clinicalDocumentPdfService', () => {
 
     await generateClinicalDocumentPdfBlob(record, { annexMode: 'annex_only' });
 
-    expect(pdfTextCalls).toContain('Anexos clínicos');
+    expect(pdfTextCalls).toContain('Anexo del documento');
     expect(pdfTextCalls.some(text => text.includes('Paciente: Paciente Test'))).toBe(true);
     expect(pdfTextCalls.some(text => text.includes('Anexo de evolución'))).toBe(true);
     expect(pdfTextCalls).not.toContain(record.title);
@@ -130,7 +130,7 @@ describe('clinicalDocumentPdfService', () => {
 
     await generateClinicalDocumentPdfBlob(record, { annexMode: 'exclude' });
 
-    expect(pdfTextCalls).not.toContain('Anexos clínicos');
+    expect(pdfTextCalls).not.toContain('Anexo del documento');
     expect(pdfTextCalls.some(text => text.includes('Anexo omitido'))).toBe(false);
   });
 });

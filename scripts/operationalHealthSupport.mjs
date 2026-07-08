@@ -70,7 +70,7 @@ export const summarizeFrontendStartupHealth = ({
 }) => {
   const blockingAssets = criticalAssets.filter(asset => asset.status === 'blocking');
   const degradedAssets = criticalAssets.filter(asset =>
-    ['target-miss', 'near-limit', 'unknown'].includes(asset.status)
+    ['target-miss', 'unknown'].includes(asset.status)
   );
 
   const issues = [];

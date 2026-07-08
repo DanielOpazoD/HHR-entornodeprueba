@@ -4,6 +4,7 @@ import { LoginPageCard } from './LoginPageCard';
 import { LoginPageFooter } from './LoginPageFooter';
 import { LoginPageHeader } from './LoginPageHeader';
 import { useLoginPageController } from './useLoginPageController';
+import { resolveLoginBackgroundImage } from '@/shared/ui/loginBackgroundModeController';
 
 export interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -22,10 +23,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
     isDayGradient,
     canRetryGoogleSignIn,
     handleGoogleSignIn,
+    handleLocalResetStart,
     toggleBackgroundMode,
   } = useLoginPageController(onLoginSuccess, initialAuthError);
   const BackgroundModeIcon = isDayGradient ? SunMedium : MoonStar;
   const backgroundModeLabel = isDayGradient ? 'Día' : 'Noche';
+  const backgroundImage = resolveLoginBackgroundImage(isDayGradient ? 'day' : 'night');
 
   return (
     <div
@@ -33,21 +36,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
       data-auth-state={isGoogleLoading ? 'google-loading' : 'idle'}
       className="relative min-h-screen overflow-hidden bg-slate-950"
     >
-      {/* Both background images stay mounted and crossfade via opacity so the
-          day ↔ night toggle feels continuous instead of a hard cut. Preloads
-          both images on first paint (minor cost, big perceptual win). */}
       <div
-        className={`absolute inset-0 bg-contain bg-center bg-no-repeat transition-opacity duration-700 ease-out ${
-          isDayGradient ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ backgroundImage: `url('/images/login/hhr-login-day.png')` }}
-        aria-hidden="true"
-      />
-      <div
-        className={`absolute inset-0 bg-contain bg-center bg-no-repeat transition-opacity duration-700 ease-out ${
-          isDayGradient ? 'opacity-0' : 'opacity-100'
-        }`}
-        style={{ backgroundImage: `url('/images/login/hhr-login-night.png')` }}
+        data-testid="login-background-image"
+        className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+        style={{ backgroundImage: `url('${backgroundImage}')` }}
         aria-hidden="true"
       />
       <div
@@ -83,6 +75,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
             errorCode={errorCode}
             canRetryGoogleSignIn={canRetryGoogleSignIn}
             onGoogleSignIn={handleGoogleSignIn}
+            onLocalResetStart={handleLocalResetStart}
           />
           <LoginPageFooter isDayGradient={isDayGradient} />
         </div>

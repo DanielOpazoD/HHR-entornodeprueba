@@ -21,15 +21,25 @@ import {
 } from '@/services/firebase-runtime/firebaseLazyServices';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { validateClientEnv } from '@/config/envValidator';
+import { mountFirebaseConfigWarning } from '@/services/auth/firebaseStartupWarningRenderer';
+import { getMissingEnvWarningCopy } from '@/services/auth/firebaseStartupUiPolicy';
 
 const FIREBASE_READY_TIMEOUT_MS = 10000;
 const firebaseConfigLogger = createScopedLogger('FirebaseConfig');
 
-// Validate environment variables early — fail fast on misconfiguration
+// Validate environment variables early — fail fast on misconfiguration.
+// In DEV the throw runs at module-evaluation time (ESM hoists imports), so
+// it crashes the bootstrap chain before any UI is mounted. Without the
+// overlay below the user sees a blank wallpaper instead of the actionable
+// list of missing variables.
 const envValidation = validateClientEnv();
 if (!envValidation.success) {
   firebaseConfigLogger.error('Environment validation failed', { issues: envValidation.issues });
   if (import.meta.env.DEV) {
+    mountFirebaseConfigWarning(
+      'Variables de entorno faltantes para iniciar el servidor de desarrollo.',
+      getMissingEnvWarningCopy(envValidation.issues)
+    );
     throw new Error(`Missing required environment variables:\n${envValidation.issues.join('\n')}`);
   }
 }

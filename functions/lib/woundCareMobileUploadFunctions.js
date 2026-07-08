@@ -4,6 +4,30 @@ const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 
 const SESSION_SCOPE = 'wound_care_upload_only';
 const MAX_BASE64_BYTES = 8 * 1024 * 1024;
+// Backstop cap when a session predates the explicit `maxUploads`
+// field. Matches the default the application layer now writes
+// (see src/application/wound-care/woundCareMobileUploadSessionUseCases.ts).
+const FALLBACK_MAX_UPLOADS_PER_SESSION = 50;
+// App Check enforcement is gated behind an environment flag rather
+// than always-on so the rollout can be staged: deploy the code first
+// (with the flag OFF, current behaviour preserved) and flip the flag
+// once App Check tokens are confirmed to be flowing from the mobile
+// browser. Set `ENFORCE_WOUND_CARE_APP_CHECK=1` in the function's
+// runtime config to require a valid App Check token on every call.
+// The env var is read on every call (not cached at load time) so it
+// can be flipped in production without redeploying and so tests can
+// toggle it between cases.
+const isAppCheckEnforced = () => process.env.ENFORCE_WOUND_CARE_APP_CHECK === '1';
+
+const requireAppCheckToken = (context, operation) => {
+  if (!isAppCheckEnforced()) return;
+  if (!context || !context.app) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      `App Check token required for ${operation}.`
+    );
+  }
+};
 
 const assertStringField = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -114,10 +138,64 @@ const createAuditEntry = ({ session, photoId, requestData }) => ({
   recordDate: new Date().toISOString().slice(0, 10),
 });
 
+const createValidateSessionAuditEntry = ({ session, requestData, appCheckPresent }) => ({
+  id: generateId('audit'),
+  timestamp: new Date().toISOString(),
+  userId: 'mobile-qr-upload',
+  userDisplayName: 'Carga móvil por QR',
+  userUid: null,
+  ipAddress: null,
+  action: 'WOUND_CARE_MOBILE_SESSION_VALIDATED',
+  entityType: 'woundCareMobileUploadSession',
+  entityId: session.sessionId,
+  summary: `QR móvil validado para ${session.patientName}`,
+  details: {
+    patientName: session.patientName,
+    patientRut: session.patientRut,
+    episodeKey: session.episodeKey,
+    sessionId: session.sessionId,
+    source: 'wound_care_mobile_qr',
+    userAgent: optionalStringField(requestData?.userAgent, 512),
+    appCheckPresent,
+    appCheckEnforced: isAppCheckEnforced(),
+  },
+  recordDate: new Date().toISOString().slice(0, 10),
+});
+
+const assertUploadCapacity = session => {
+  const max =
+    typeof session.maxUploads === 'number' && session.maxUploads > 0
+      ? session.maxUploads
+      : FALLBACK_MAX_UPLOADS_PER_SESSION;
+  const used = typeof session.uploadCount === 'number' ? session.uploadCount : 0;
+  if (used >= max) {
+    throw new functions.https.HttpsError(
+      'resource-exhausted',
+      `Upload session has reached its limit (${used}/${max}).`
+    );
+  }
+  return { max, used };
+};
+
 const createWoundCareMobileUploadFunctions = ({ admin }) => ({
-  validateWoundCareMobileUploadSession: functions.https.onCall(async data => {
+  validateWoundCareMobileUploadSession: functions.https.onCall(async (data, context) => {
+    requireAppCheckToken(context, 'validateWoundCareMobileUploadSession');
     const sessionId = assertStringField(data?.sessionId, 'sessionId');
     const session = await loadValidSession(admin, sessionId);
+
+    // Observability: every successful validate is auditable, not just
+    // the upload itself. Lets ops detect QR scanning patterns or
+    // brute-force probing without depending on storage writes.
+    try {
+      const auditEntry = createValidateSessionAuditEntry({
+        session,
+        requestData: data,
+        appCheckPresent: Boolean(context && context.app),
+      });
+      await getAuditLogsRef(admin).doc(auditEntry.id).set(auditEntry);
+    } catch (auditError) {
+      console.warn('[wound-care] validateSession audit emit failed', auditError);
+    }
 
     return {
       sessionId: session.sessionId,
@@ -125,12 +203,19 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
       patientRut: session.patientRut,
       patientName: session.patientName,
       expiresAt: session.expiresAt,
+      maxUploads:
+        typeof session.maxUploads === 'number' && session.maxUploads > 0
+          ? session.maxUploads
+          : FALLBACK_MAX_UPLOADS_PER_SESSION,
+      uploadCount: typeof session.uploadCount === 'number' ? session.uploadCount : 0,
     };
   }),
 
-  uploadWoundCareMobilePhoto: functions.https.onCall(async data => {
+  uploadWoundCareMobilePhoto: functions.https.onCall(async (data, context) => {
+    requireAppCheckToken(context, 'uploadWoundCareMobilePhoto');
     const sessionId = assertStringField(data?.sessionId, 'sessionId');
     const session = await loadValidSession(admin, sessionId);
+    assertUploadCapacity(session);
     const imageBuffer = decodeBase64(data?.imageBase64, 'imageBase64');
     const thumbnailBuffer = decodeBase64(data?.thumbnailBase64, 'thumbnailBase64');
 
@@ -208,6 +293,20 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
     await getPhotosRef(admin).doc(photoId).set(photo);
     const auditEntry = createAuditEntry({ session, photoId, requestData: data });
     await getAuditLogsRef(admin).doc(auditEntry.id).set(auditEntry);
+
+    // Increment the per-session upload counter so the next call hits
+    // the cap. Best-effort: a failure to update the counter is logged
+    // but does not roll back the photo write — losing one increment is
+    // strictly safer than failing an already-persisted upload.
+    try {
+      const FieldValue = (admin.firestore && admin.firestore.FieldValue) || null;
+      const updatePayload = FieldValue
+        ? { uploadCount: FieldValue.increment(1) }
+        : { uploadCount: (typeof session.uploadCount === 'number' ? session.uploadCount : 0) + 1 };
+      await getSessionsRef(admin).doc(sessionId).update(updatePayload);
+    } catch (counterError) {
+      console.warn('[wound-care] uploadCount increment failed', counterError);
+    }
 
     return { photoId, uploadedAt };
   }),

@@ -1,4 +1,4 @@
-import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
+import type { DeviceDetails, DeviceInfo, DeviceInstance } from '@/types/domain/devices';
 import { buildRetireNote } from '@/components/device-selector/deviceSelectorController';
 
 interface BuildRetireDeviceMutationParams {
@@ -17,6 +17,7 @@ export interface DeviceRetireMutationResult {
 interface BuildDeviceConfigMutationParams {
   pendingAddition: string | null;
   editingDevice: string | null;
+  nextDeviceName?: string | null;
   normalizedDevices: string[];
   deviceDetails: DeviceDetails;
   info: DeviceInfo;
@@ -24,8 +25,23 @@ interface BuildDeviceConfigMutationParams {
 
 export interface DeviceConfigMutationResult {
   operatedDevice: string | null;
+  renamedDevice?: { from: string; to: string } | null;
   nextDevices: string[] | null;
   nextDetails: DeviceDetails | null;
+}
+
+interface RenameCustomDeviceBundleParams {
+  previousDevice: string;
+  nextDevice: string;
+  normalizedDevices: string[];
+  deviceDetails: DeviceDetails;
+  history: DeviceInstance[];
+}
+
+export interface RenameCustomDeviceBundleResult {
+  nextDevices: string[];
+  nextDetails: DeviceDetails;
+  nextHistory: DeviceInstance[];
 }
 
 export const buildRetireDeviceMutation = ({
@@ -53,6 +69,7 @@ export const buildRetireDeviceMutation = ({
 export const buildDeviceConfigMutation = ({
   pendingAddition,
   editingDevice,
+  nextDeviceName,
   normalizedDevices,
   deviceDetails,
   info,
@@ -68,14 +85,79 @@ export const buildDeviceConfigMutation = ({
 
   const sanitizedInfo = { ...info };
   delete sanitizedInfo.removalDate;
+  const resolvedDeviceName = (nextDeviceName || operatedDevice).trim();
+  const collidesWithAnotherDevice = normalizedDevices.some(
+    device => device !== operatedDevice && device === resolvedDeviceName
+  );
+  if (pendingAddition && (!resolvedDeviceName || collidesWithAnotherDevice)) {
+    return {
+      operatedDevice,
+      renamedDevice: null,
+      nextDevices: null,
+      nextDetails: null,
+    };
+  }
+
+  const isRename = Boolean(
+    editingDevice &&
+    resolvedDeviceName &&
+    resolvedDeviceName !== operatedDevice &&
+    !collidesWithAnotherDevice
+  );
+  const nextDetails = { ...deviceDetails };
+
+  if (isRename) {
+    delete nextDetails[operatedDevice];
+    nextDetails[resolvedDeviceName] = sanitizedInfo;
+  } else {
+    nextDetails[operatedDevice] = sanitizedInfo;
+  }
 
   return {
     operatedDevice,
-    nextDevices: pendingAddition ? [...normalizedDevices, pendingAddition] : null,
-    nextDetails: {
-      ...deviceDetails,
-      [operatedDevice]: sanitizedInfo,
-    },
+    renamedDevice: isRename ? { from: operatedDevice, to: resolvedDeviceName } : null,
+    nextDevices: pendingAddition
+      ? [...normalizedDevices, resolvedDeviceName]
+      : isRename
+        ? normalizedDevices.map(device => (device === operatedDevice ? resolvedDeviceName : device))
+        : null,
+    nextDetails,
+  };
+};
+
+export const renameCustomDeviceBundle = ({
+  previousDevice,
+  nextDevice,
+  normalizedDevices,
+  deviceDetails,
+  history,
+}: RenameCustomDeviceBundleParams): RenameCustomDeviceBundleResult => {
+  const trimmedNextDevice = nextDevice.trim();
+  const collidesWithAnotherDevice = normalizedDevices.some(
+    device => device !== previousDevice && device === trimmedNextDevice
+  );
+  if (!trimmedNextDevice || trimmedNextDevice === previousDevice || collidesWithAnotherDevice) {
+    return {
+      nextDevices: normalizedDevices,
+      nextDetails: deviceDetails,
+      nextHistory: history,
+    };
+  }
+
+  const nextDetails = { ...deviceDetails };
+  if (nextDetails[previousDevice]) {
+    nextDetails[trimmedNextDevice] = nextDetails[previousDevice];
+    delete nextDetails[previousDevice];
+  }
+
+  return {
+    nextDevices: normalizedDevices.map(device =>
+      device === previousDevice ? trimmedNextDevice : device
+    ),
+    nextDetails,
+    nextHistory: history.map(item =>
+      item.type === previousDevice ? { ...item, type: trimmedNextDevice } : item
+    ),
   };
 };
 

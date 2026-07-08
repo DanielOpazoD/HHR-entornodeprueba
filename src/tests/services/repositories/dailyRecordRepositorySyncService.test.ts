@@ -4,6 +4,14 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
+  saveRecordStrict: vi.fn(record =>
+    Promise.resolve({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    })
+  ),
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
@@ -26,7 +34,7 @@ import {
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
   getRecordForDate as getRecordFromIndexedDB,
-  saveRecord as saveToIndexedDB,
+  saveRecordStrict as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 
@@ -120,6 +128,64 @@ describe('dailyRecordRepositorySyncService', () => {
       expect.objectContaining({
         date: '2026-03-03',
         lastUpdated: '2026-03-03T12:00:00.000Z',
+      })
+    );
+  });
+
+  it('uses the newer remote canonical diagnosis when realtime emits shorter diagnosis text', async () => {
+    const localRecord = {
+      date: '2026-03-03',
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente Local',
+          pathology: 'Puérpera de cesárea.',
+          admissionDate: '2026-03-03',
+        },
+      },
+      lastUpdated: '2026-03-03T12:00:00.000Z',
+    } as unknown as DailyRecord;
+    const remoteRecord = {
+      ...localRecord,
+      beds: {
+        R1: {
+          ...localRecord.beds.R1,
+          pathology: 'Puérpera',
+        },
+      },
+      lastUpdated: '2026-03-03T12:00:02.000Z',
+    } as unknown as DailyRecord;
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
+
+    vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
+      void callback(remoteRecord, false);
+      return vi.fn();
+    });
+
+    const callback = vi.fn();
+    subscribeDetailed('2026-03-03', callback);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(callback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        record: expect.objectContaining({
+          beds: expect.objectContaining({
+            R1: expect.objectContaining({
+              pathology: 'Puérpera',
+            }),
+          }),
+        }),
+      }),
+      false
+    );
+    expect(saveToIndexedDB).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beds: expect.objectContaining({
+          R1: expect.objectContaining({
+            pathology: 'Puérpera',
+          }),
+        }),
       })
     );
   });
@@ -219,6 +285,33 @@ describe('dailyRecordRepositorySyncService', () => {
         record: localRecord,
         consistencyState: 'missing_remote',
         sourceOfTruth: 'local',
+      }),
+      false
+    );
+  });
+
+  it('does not confirm an empty day from a cache-only missing realtime snapshot', async () => {
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
+
+    vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
+      void callback(null, false, { hasPendingWrites: false, fromCache: true });
+      return vi.fn();
+    });
+
+    const callback = vi.fn();
+    subscribeDetailed('2026-03-03', callback);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(callback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        record: null,
+        outcome: 'blocked',
+        consistencyState: 'blocked',
+        sourceOfTruth: 'none',
+        retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
       }),
       false
     );

@@ -3,12 +3,15 @@ import { useEffect, useState } from 'react';
 import {
   buildArchiveStatusState,
   shouldCheckArchiveStatus,
-} from '@/hooks/controllers/exportManagerController';
-import { presentBackupLookupOutcome } from '@/hooks/controllers/backupStorageOutcomeController';
+} from '@/hooks/controllers/backupArchiveStatusController';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
 const loadBackupStorageUseCases = () =>
   import('@/application/backup-export/backupExportStorageUseCases');
+const loadBackupLookupOutcomePresenter = () =>
+  import('@/hooks/controllers/backupStorageOutcomeController').then(
+    module => module.presentBackupLookupOutcome
+  );
 
 interface UseBackupArchiveStatusParams {
   currentDateString: string;
@@ -73,6 +76,7 @@ export const useBackupArchiveStatus = ({
           key: archiveStatusKey,
           isArchived: buildArchiveStatusState(outcome.data.lookup),
         });
+        const presentBackupLookupOutcome = await loadBackupLookupOutcomePresenter();
         const notice = presentBackupLookupOutcome(outcome);
         // Background archive verification is opportunistic. Timeouts should stay silent and rely on
         // telemetry instead of interrupting the user when the main data flow is already healthy.

@@ -79,6 +79,42 @@ export type ClinicalDocumentAiImportResponse = z.infer<
   typeof ClinicalDocumentAiImportResponseSchema
 >;
 
+export const ClinicalAttachmentNameSuggestionRequestSchema = z.object({
+  attachment: z.object({
+    originalFileName: z.string(),
+    displayName: z.string(),
+    fileKind: z.string(),
+    contentType: z.string().optional(),
+    documentType: z.string().optional(),
+    admissionDate: z.string().optional(),
+    sourceDailyRecordDate: z.string().optional(),
+  }),
+  document: z
+    .object({
+      id: z.string().optional(),
+      documentType: z.string().optional(),
+      admissionDate: z.string().optional(),
+      sourceDailyRecordDate: z.string().optional(),
+    })
+    .optional(),
+});
+
+export type ClinicalAttachmentNameSuggestionRequest = z.infer<
+  typeof ClinicalAttachmentNameSuggestionRequestSchema
+>;
+
+export const ClinicalAttachmentNameSuggestionResponseSchema = z.object({
+  available: z.boolean(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  suggestedName: z.string().optional(),
+  message: z.string().optional(),
+});
+
+export type ClinicalAttachmentNameSuggestionResponse = z.infer<
+  typeof ClinicalAttachmentNameSuggestionResponseSchema
+>;
+
 export const FhirIssueSchema = z.object({
   severity: z.string(),
   code: z.string(),

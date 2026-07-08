@@ -42,8 +42,8 @@ describe('dailyRecordSyncNotificationController', () => {
       )
     ).toEqual({
       channel: 'warning',
-      title: 'Conflicto resuelto automáticamente',
-      message: 'Se detectó un conflicto remoto y el sistema aplicó una fusión automática.',
+      title: 'Censo actualizado',
+      message: 'El sistema integró los cambios recientes automáticamente.',
       state: 'degraded',
       actionRequired: false,
     });
@@ -60,12 +60,40 @@ describe('dailyRecordSyncNotificationController', () => {
           queuedForRetry: false,
           autoMerged: false,
           patchedFields: 1,
+          consistencyState: 'unrecoverable',
+          userSafeMessage: 'No se encontró un registro local válido para aplicar el cambio.',
         })
       )
     ).toEqual({
       channel: 'error',
       title: 'Actualización bloqueada',
       message: 'No se encontró un registro local válido para aplicar el cambio.',
+      state: 'blocked',
+      actionRequired: true,
+    });
+  });
+
+  it('surfaces the specific blocked patch reason before falling back to missing-base copy', () => {
+    expect(
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'blocked',
+          savedLocally: false,
+          updatedRemotely: false,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: 1,
+          consistencyState: 'blocked_regression',
+          blockingReason: 'regression',
+          userSafeMessage:
+            'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
+        })
+      )
+    ).toEqual({
+      channel: 'error',
+      title: 'Protección de Datos',
+      message: 'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
       state: 'blocked',
       actionRequired: true,
     });
@@ -92,5 +120,48 @@ describe('dailyRecordSyncNotificationController', () => {
       state: 'degraded',
       actionRequired: false,
     });
+  });
+
+  it('keeps default census sync feedback free of technical remote wording', () => {
+    const defaultFeedback = [
+      resolveSaveOutcomeFeedback(
+        createSaveDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'auto_merged',
+          savedLocally: true,
+          savedRemotely: false,
+          queuedForRetry: false,
+          autoMerged: true,
+        })
+      ),
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'auto_merged',
+          savedLocally: true,
+          updatedRemotely: false,
+          queuedForRetry: false,
+          autoMerged: true,
+          patchedFields: 1,
+        })
+      ),
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'clean',
+          savedLocally: true,
+          updatedRemotely: false,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: 1,
+          consistencyState: 'unrecoverable',
+        })
+      ),
+    ];
+    const forbiddenTechnicalWording = /firebase|remot[oa]|stale|cache|concurr/i;
+
+    for (const feedback of defaultFeedback) {
+      expect(`${feedback?.title} ${feedback?.message}`).not.toMatch(forbiddenTechnicalWording);
+    }
   });
 });

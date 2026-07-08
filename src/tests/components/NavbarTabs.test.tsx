@@ -55,6 +55,14 @@ describe('NavbarTabs', () => {
     expect(screen.getByText('Estadísticas')).toBeInTheDocument();
   });
 
+  it('renders utility dropdown outside the scrollable tabs container so it is not clipped', () => {
+    render(<NavbarTabs {...defaultProps} />);
+
+    fireEvent.click(screen.getByTitle('Más módulos'));
+
+    expect(screen.getByText('Archivos').closest('.overflow-x-auto')).toBeNull();
+  });
+
   it('does not render hidden tabs', () => {
     render(<NavbarTabs {...defaultProps} visibleModules={['CENSUS']} />);
 

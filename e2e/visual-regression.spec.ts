@@ -210,4 +210,42 @@ test.describe('Visual Regression Testing', () => {
       maxDiffPixelRatio: 0.05,
     });
   });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // VRT coverage gaps (PDF audit, P1-2). The specs below are codified TODOs
+  // for the next VRT pass: they exercise destructive confirm dialogs and
+  // medical handoff surfaces — both flagged by the audit as needing visual
+  // evidence under pressure. They use test.fixme so:
+  //   - the contract is visible in code (not in a backlog ticket),
+  //   - typecheck and CI stay green without baselines,
+  //   - whoever runs the next baseline pass discovers them via Playwright's
+  //     "fixme" report instead of having to re-derive scope from docs.
+  // See docs/testing/VRT.md for the regeneration flow.
+  // ────────────────────────────────────────────────────────────────────────
+
+  test.fixme('Destructive confirm dialog (warning variant)', async ({ page }) => {
+    // Target: useConfirmDialog rendering for variant 'warning' (e.g. the
+    // Optimizar Base de Datos confirm in ConsolidationManager).
+    // Asserts that the warning palette, the confirm/cancel button labels
+    // and the destructive icon stay stable. Pending baseline generation
+    // and a deterministic admin-route fixture without Firebase access.
+    await page.goto('/');
+  });
+
+  test.fixme('Destructive confirm dialog (danger variant)', async ({ page }) => {
+    // Target: useConfirmDialog rendering for variant 'danger' (e.g. the
+    // Limpiar Registro confirm in ErrorDashboard, plus the cancel-transfer
+    // modal). Asserts the irreversible-action copy, the danger palette and
+    // the disabled-while-empty submit button.
+    await page.goto('/');
+  });
+
+  test.fixme('Medical handoff signed view baseline', async ({ page }) => {
+    // Target: the medical handoff after a signature, including the audit
+    // banner ('firmado por …') and the read-only patient strip. The audit
+    // (PDF P1-2) calls this surface out as critical UX evidence under
+    // pressure: the clinician relying on it must see signature + actor
+    // + lock affordance unambiguously.
+    await page.goto('/');
+  });
 });

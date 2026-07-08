@@ -136,6 +136,42 @@ describe('MoveCopyModal', () => {
     });
   });
 
+  it('updates bed list immediately when switching destination date to avoid stale options', async () => {
+    mockedGetForDate.mockImplementation(async (date: string) => {
+      if (date === '2026-02-14') {
+        return {
+          date,
+          activeExtraBeds: [],
+          beds: {},
+        };
+      }
+      return null;
+    });
+
+    render(
+      <MoveCopyModal
+        isOpen={true}
+        type="copy"
+        sourceBedId="R1"
+        targetBedId={null}
+        onClose={vi.fn()}
+        onSetTarget={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    // Same-day copy hides source bed option.
+    expect(screen.queryByRole('button', { name: /\bR1\b/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Mañana/i }));
+
+    await waitFor(() => {
+      expect(mockedGetForDate).toHaveBeenCalledWith('2026-02-14');
+      // Cross-date copy should include source bed without requiring remount.
+      expect(screen.getByRole('button', { name: /\bR1\b/i })).toBeInTheDocument();
+    });
+  });
+
   it('confirms move without sending target date payload', async () => {
     const onConfirm = vi.fn();
 

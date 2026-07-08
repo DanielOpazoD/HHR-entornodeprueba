@@ -15,6 +15,7 @@ export const SpecialtySelect: React.FC<SpecialtySelectProps> = ({
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
+  readOnlyReason,
   onChange,
 }) => {
   const isOther =
@@ -32,7 +33,10 @@ export const SpecialtySelect: React.FC<SpecialtySelectProps> = ({
   }
 
   return (
-    <td className="py-0.5 px-1 border-r border-slate-200 w-28 relative group/spec">
+    <td
+      className="py-0.5 px-1 border-r border-slate-200 w-28 relative group/spec"
+      title={readOnlyReason}
+    >
       {isOther || data.specialty === 'Otro' ? (
         <div className="relative">
           <DebouncedInput
@@ -46,6 +50,7 @@ export const SpecialtySelect: React.FC<SpecialtySelectProps> = ({
             placeholder="Especifique..."
             autoFocus
             disabled={readOnly}
+            title={readOnlyReason}
           />
           {!readOnly && (
             <button
@@ -65,6 +70,7 @@ export const SpecialtySelect: React.FC<SpecialtySelectProps> = ({
           value={data.specialty || ''}
           onChange={onChange('specialty')}
           disabled={readOnly}
+          title={readOnlyReason}
         >
           <option value="">-- Esp --</option>
           {SPECIALTY_OPTIONS.map(opt => (

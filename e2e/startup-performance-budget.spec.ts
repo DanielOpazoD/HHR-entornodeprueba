@@ -65,7 +65,7 @@ const BUDGETS = {
     targetMs: 2500,
   }),
   censoVisibleMs: resolveBudget('censoVisibleMs', 'E2E_BUDGET_CENSO_VISIBLE_MS', {
-    enforcedMaxMs: 2500,
+    enforcedMaxMs: 2000,
     targetMs: 1500,
   }),
   censoRecordReadyMs: resolveBudget('censoRecordReadyMs', 'E2E_BUDGET_CENSO_RECORD_READY_MS', {
@@ -109,7 +109,7 @@ const getEnforcedBudget = (browserName: string, key: keyof typeof BUDGETS): numb
 const CURRENT_DATE = '2026-02-20';
 const usePreviewMode = process.env.PLAYWRIGHT_USE_PREVIEW === '1';
 const flowMetrics: Record<string, number> = {};
-const censoBreakdown: Record<string, number> = {};
+const censoBreakdown: Record<string, number | string> = {};
 const clinicalDocumentsBreakdown: Record<string, number> = {};
 
 const bootstrapRecordAndUser = async (
@@ -193,6 +193,44 @@ const waitForCensoReady = async (page: Parameters<typeof ensureRecordExists>[0])
       { timeout: 5000 }
     )
     .toBe(true);
+};
+
+const readCensoOperationalPhase = async (
+  page: Parameters<typeof ensureRecordExists>[0]
+): Promise<string> => {
+  const operationalBanner = page.getByTestId('census-operational-state-banner').first();
+  if (!(await operationalBanner.isVisible({ timeout: 250 }).catch(() => false))) {
+    return 'remote_confirmed_or_no_banner';
+  }
+  return (await operationalBanner.getAttribute('data-phase')) || 'unknown_visible_banner';
+};
+
+const expectCensoOperationalTransition = async (
+  page: Parameters<typeof ensureRecordExists>[0],
+  initialPhase: string
+) => {
+  if (initialPhase !== 'remote_confirmed_or_no_banner') {
+    expect(
+      initialPhase,
+      `initial census operational phase should be pending, received ${initialPhase}`
+    ).toMatch(/^(loading_remote|sync_pending|reconciling_remote|using_local_cache)$/);
+  }
+
+  const seededPatientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
+  const seededPatientName = seededPatientRow.locator('input[name="patientName"]').first();
+
+  await expect(page.getByTestId('census-table')).toBeVisible();
+  await expect(seededPatientRow).toBeVisible();
+  await expect(seededPatientName).toHaveValue('PERF TEST');
+
+  const operationalBanner = page.getByTestId('census-operational-state-banner').first();
+  if (await operationalBanner.isVisible({ timeout: 250 }).catch(() => false)) {
+    const currentPhase = (await operationalBanner.getAttribute('data-phase')) || 'unknown';
+    expect(
+      currentPhase,
+      `visible census operational phase should be non-blocking after the record is usable, received ${currentPhase}`
+    ).toMatch(/^(loading_remote|sync_pending|reconciling_remote|using_local_cache)$/);
+  }
 };
 
 const dismissBlockingOperationalBanner = async (page: Parameters<typeof ensureRecordExists>[0]) => {
@@ -282,15 +320,18 @@ test.describe('Startup performance budget', () => {
     await bootstrapRecordAndUser(page, CURRENT_DATE);
 
     const startCenso = performance.now();
-    await page.goto(`/censo?date=${CURRENT_DATE}`);
+    await page.goto(`/censo?date=${CURRENT_DATE}`, { waitUntil: 'domcontentloaded' });
     censoBreakdown.navigationMs = Number((performance.now() - startCenso).toFixed(2));
     const startCensoReady = performance.now();
     await waitForCensoReady(page);
     const censoVisibleMs = performance.now() - startCenso;
     censoBreakdown.readyStateMs = Number((performance.now() - startCensoReady).toFixed(2));
     flowMetrics.censoVisibleMs = Number(censoVisibleMs.toFixed(2));
+    const initialCensoOperationalPhase = await readCensoOperationalPhase(page);
+    censoBreakdown.operationalPhase = initialCensoOperationalPhase;
     const startEnsureRecord = performance.now();
     await ensureRecordExists(page);
+    await expectCensoOperationalTransition(page, initialCensoOperationalPhase);
     const censoRecordReadyMs = performance.now() - startEnsureRecord;
     censoBreakdown.ensureRecordMs = Number((performance.now() - startEnsureRecord).toFixed(2));
     flowMetrics.censoRecordReadyMs = Number(censoRecordReadyMs.toFixed(2));

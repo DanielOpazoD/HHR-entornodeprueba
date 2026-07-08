@@ -28,6 +28,12 @@ describe('labComparisonTableController', () => {
     ]);
   });
 
+  it('groups Hb glicosilada as metabolic variable', () => {
+    const groups = buildComparisonGroups(['Hb glicosilada'], ['Hb glicosilada'], new Set());
+
+    expect(groups).toEqual([{ label: 'Metabólico', rows: ['Hb glicosilada'] }]);
+  });
+
   it('filters variable names case-insensitively', () => {
     const filtered = filterComparisonVariableNames(
       ['Hemoglobina', 'Creatinina', 'Proteina C Reactiva'],

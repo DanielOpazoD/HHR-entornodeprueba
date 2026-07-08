@@ -10,6 +10,13 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { clearAllRecords, getRecordForDate, saveRecord } from '@/services/storage/indexedDBService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
+import {
+  getDailyRecordFreshnessStatus,
+  markDailyRecordTabHidden,
+  markDailyRecordTabVisible,
+  resetDailyRecordFreshnessGateForTests,
+} from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
 
 const runEmulatorUiTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -140,6 +147,8 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     vi.clearAllMocks();
     await testEnv.clearFirestore();
     await clearAllRecords();
+    resetDailyRecordFreshnessGateForTests();
+    clearPendingDailyRecordPatchesForTests();
     setFirestoreEnabled(true);
 
     activeDb = testEnv
@@ -155,13 +164,14 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
   });
 
   afterEach(async () => {
-    while (unmounts.length > 0) {
-      const unmount = unmounts.pop();
-      unmount?.();
-    }
     await act(async () => {
+      while (unmounts.length > 0) {
+        const unmount = unmounts.pop();
+        unmount?.();
+      }
       await Promise.resolve();
     });
+    clearPendingDailyRecordPatchesForTests();
   });
 
   it('loads record from emulator and reflects remote updates via subscription', async () => {
@@ -274,6 +284,175 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
 
     const local = await getRecordForDate(date);
     expect(local?.beds?.R1?.pathology).toBe('Diag UI Patch');
+  });
+
+  it('hydrates a newer Firebase record before accepting a stale local client patch', async () => {
+    const date = TODAY_ISO;
+    const staleClientRecord = buildRecord(date, 'Paciente Cliente B', 'Diag Cliente B stale');
+    const remoteBaseline = buildRecord(date, 'Paciente Cliente B', 'Diag Base Firebase');
+    const remoteUpdatedByOtherClient = {
+      ...remoteBaseline,
+      beds: {
+        ...remoteBaseline.beds,
+        R1: {
+          ...remoteBaseline.beds.R1,
+          pathology: 'Diag Firebase actualizado por A',
+        },
+      },
+      lastUpdated: `${date}T10:30:00.000Z`,
+    };
+
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(`hospitals/hanga_roa/dailyRecords/${date}`).set(remoteBaseline);
+    });
+    await saveRecord(staleClientRecord);
+
+    const { wrapper } = createQueryClientTestWrapper();
+    let safeResult: { current: unknown } | null = null;
+    let safeUnmount: (() => void) | null = null;
+    await act(async () => {
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'local_only'), {
+        wrapper,
+      });
+      safeResult = hook.result;
+      safeUnmount = hook.unmount;
+    });
+    if (!safeResult || !safeUnmount) {
+      throw new Error('Failed to initialize stale client patch harness');
+    }
+    const resultRef = safeResult as {
+      current: {
+        record: DailyRecord | null;
+        patchRecord: (patch: Record<string, unknown>) => Promise<void>;
+      };
+    };
+    unmounts.push(safeUnmount);
+
+    await waitFor(() => {
+      expect(resultRef.current.record?.beds?.R1?.pathology).toBe('Diag Cliente B stale');
+    });
+
+    markDailyRecordTabHidden(0);
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await context
+        .firestore()
+        .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
+        .set(remoteUpdatedByOtherClient);
+    });
+    markDailyRecordTabVisible(6 * 60 * 1000);
+
+    await act(async () => {
+      await resultRef.current.patchRecord({
+        'beds.R1.status': 'Grave',
+      });
+    });
+
+    await waitFor(() => {
+      expect(resultRef.current.record?.beds?.R1?.pathology).toBe('Diag Firebase actualizado por A');
+      expect(resultRef.current.record?.beds?.R1?.status).toBe('Grave');
+    });
+    expect(mockNotifyWarning).not.toHaveBeenCalledWith(
+      'Censo en actualización',
+      expect.stringContaining('Revise los datos antes de editar')
+    );
+
+    let remoteSnap: { data: () => Record<string, unknown> | undefined } | undefined;
+    await testEnv.withSecurityRulesDisabled(async context => {
+      remoteSnap = await context.firestore().doc(`hospitals/hanga_roa/dailyRecords/${date}`).get();
+    });
+    const remoteData = remoteSnap?.data() as {
+      beds?: Record<string, { pathology?: string; status?: string }>;
+    };
+    expect(remoteData?.beds?.R1?.pathology).toBe('Diag Firebase actualizado por A');
+    expect(remoteData?.beds?.R1?.status).toBe('Grave');
+
+    const local = await getRecordForDate(date);
+    expect(local?.beds?.R1?.pathology).toBe('Diag Firebase actualizado por A');
+    expect(local?.beds?.R1?.status).toBe('Grave');
+  });
+
+  it('lets a stale resumed client edit only after the realtime snapshot from another client confirms Firebase', async () => {
+    const date = TODAY_ISO;
+    const seed = buildRecord(date, 'Paciente Dos Clientes', 'Diag Inicial');
+    const updatedByClientA = {
+      ...seed,
+      beds: {
+        ...seed.beds,
+        R1: {
+          ...seed.beds.R1,
+          pathology: 'Diag confirmado por cliente A',
+        },
+      },
+      lastUpdated: `${date}T10:45:00.000Z`,
+    };
+
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(`hospitals/hanga_roa/dailyRecords/${date}`).set(seed);
+    });
+    await saveRecord(seed);
+
+    const { wrapper } = createQueryClientTestWrapper();
+    let safeResult: { current: unknown } | null = null;
+    let safeUnmount: (() => void) | null = null;
+    await act(async () => {
+      const hook = renderHook(() => useDailyRecordSyncQuery(date, false, 'ready'), { wrapper });
+      safeResult = hook.result;
+      safeUnmount = hook.unmount;
+    });
+    if (!safeResult || !safeUnmount) {
+      throw new Error('Failed to initialize two-client freshness harness');
+    }
+    const resultRef = safeResult as {
+      current: {
+        record: DailyRecord | null;
+        patchRecord: (patch: Record<string, unknown>) => Promise<void>;
+      };
+    };
+    unmounts.push(safeUnmount);
+
+    await waitFor(() => {
+      expect(resultRef.current.record?.beds?.R1?.pathology).toBe('Diag Inicial');
+    });
+
+    await act(async () => {
+      markDailyRecordTabHidden(0);
+      markDailyRecordTabVisible(6 * 60 * 1000);
+    });
+    expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
+
+    await act(async () => {
+      await testEnv.withSecurityRulesDisabled(async context => {
+        await context
+          .firestore()
+          .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
+          .set(updatedByClientA);
+      });
+    });
+
+    await waitFor(() => {
+      expect(resultRef.current.record?.beds?.R1?.pathology).toBe('Diag confirmado por cliente A');
+      expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed');
+    });
+
+    await act(async () => {
+      await resultRef.current.patchRecord({
+        'beds.R1.status': 'Grave',
+      });
+    });
+
+    await waitFor(() => {
+      expect(resultRef.current.record?.beds?.R1?.status).toBe('Grave');
+    });
+
+    let remoteSnap: { data: () => Record<string, unknown> | undefined } | undefined;
+    await testEnv.withSecurityRulesDisabled(async context => {
+      remoteSnap = await context.firestore().doc(`hospitals/hanga_roa/dailyRecords/${date}`).get();
+    });
+    const remoteData = remoteSnap?.data() as {
+      beds?: Record<string, { pathology?: string; status?: string }>;
+    };
+    expect(remoteData?.beds?.R1?.pathology).toBe('Diag confirmado por cliente A');
+    expect(remoteData?.beds?.R1?.status).toBe('Grave');
   });
 
   it('keeps the current day record visible when Firestore emits a missing document after it was loaded', async () => {

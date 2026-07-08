@@ -2,12 +2,12 @@ import React from 'react';
 import { createReminderUseCases } from '@/application/reminders/reminderUseCases';
 import { useAuth } from '@/context/AuthContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
-import {
-  buildReminderFromDraft,
-  validateReminderDraft,
-  type ReminderDraftInput,
-} from '@/domain/reminders/reminderValidation';
+import { type ReminderDraftInput } from '@/domain/reminders/reminderValidation';
 import { resolveReminderAdminErrorMessage } from '@/services/reminders/reminderErrorPolicy';
+import {
+  executeReminderAdminSave,
+  type ReminderImageOutcome,
+} from '@/features/reminders/controllers/reminderAdminSaveController';
 import type { Reminder, ReminderReadReceipt } from '@/types/reminders';
 
 const buildReminderId = (): string => {
@@ -23,10 +23,7 @@ export interface ReminderAdminSubmission {
   removeImage: boolean;
 }
 
-type ReminderSaveResult =
-  | 'saved_without_image'
-  | 'saved_with_image'
-  | 'permission_denied_image_upload';
+type ReminderSaveResult = ReminderImageOutcome;
 
 export const useReminderAdmin = () => {
   const reminderUseCases = React.useMemo(() => createReminderUseCases(), []);
@@ -83,97 +80,34 @@ export const useReminderAdmin = () => {
   }, [processing]);
 
   const saveReminder = React.useCallback(
-    async ({ draft, imageFile, removeImage }: ReminderAdminSubmission) => {
-      const issues = validateReminderDraft(draft);
-      if (issues.length > 0) {
-        notifyError('Avisos al personal', issues[0].message);
-        return false;
-      }
-
+    async (submission: ReminderAdminSubmission) => {
       const reminderId = formReminder?.id ?? buildReminderId();
       const now = new Date().toISOString();
-      const previousImagePath = formReminder?.imagePath;
-      const nextImageWasRemoved = removeImage && Boolean(previousImagePath);
 
       setProcessing(true);
       try {
-        const reminder = buildReminderFromDraft(
+        const outcome = await executeReminderAdminSave(submission, {
           reminderId,
-          {
-            ...draft,
-            imageUrl: removeImage ? undefined : formReminder?.imageUrl,
-          },
-          {
-            createdBy: currentUser?.uid ?? 'system',
-            createdByName:
-              currentUser?.displayName?.trim() || currentUser?.email?.trim() || 'Jefatura',
-            createdAt: now,
-            updatedAt: now,
-          },
-          formReminder
-        );
-
-        const createResult = await reminderUseCases.createReminder({
-          ...reminder,
-          imageUrl: removeImage ? undefined : reminder.imageUrl,
-          imagePath: removeImage ? undefined : formReminder?.imagePath,
+          formReminder,
+          currentUser,
+          useCases: reminderUseCases,
+          now,
         });
 
-        if (createResult.status !== 'success') {
-          throw new Error(createResult.userSafeMessage || 'No se pudo crear el aviso.');
+        if (outcome.kind === 'invalid') {
+          notifyError('Avisos al personal', outcome.message);
+          return false;
         }
 
-        let saveResult: ReminderSaveResult = 'saved_without_image';
-
-        if (nextImageWasRemoved && previousImagePath) {
-          const deleteImageResult = await reminderUseCases.deleteReminderImage(previousImagePath);
-          if (deleteImageResult.status !== 'success') {
-            notifyError(
-              'Avisos al personal',
-              deleteImageResult.userSafeMessage || 'No se pudo eliminar la imagen del aviso.'
-            );
-          }
+        if (outcome.kind === 'failed_with_message') {
+          notifyError('Avisos al personal', outcome.message);
+          return false;
         }
 
-        if (imageFile) {
-          const uploadResult = await reminderUseCases.uploadReminderImage({
-            reminderId,
-            file: imageFile,
-          });
-          if (uploadResult.status === 'success' && uploadResult.data) {
-            const updateResult = await reminderUseCases.updateReminder(reminderId, {
-              imageUrl: uploadResult.data.imageUrl,
-              imagePath: uploadResult.data.imagePath,
-              updatedAt: new Date().toISOString(),
-            });
-
-            if (updateResult.status !== 'success') {
-              throw new Error(updateResult.userSafeMessage || 'No se pudo actualizar el aviso.');
-            }
-
-            if (previousImagePath && previousImagePath !== uploadResult.data.imagePath) {
-              const previousDeleteResult =
-                await reminderUseCases.deleteReminderImage(previousImagePath);
-              if (previousDeleteResult.status !== 'success') {
-                notifyError(
-                  'Avisos al personal',
-                  previousDeleteResult.userSafeMessage ||
-                    'No se pudo eliminar la imagen anterior del aviso.'
-                );
-              }
-            }
-
-            saveResult = 'saved_with_image';
-          } else {
-            saveResult = 'permission_denied_image_upload';
-            notifyError(
-              'Avisos al personal',
-              uploadResult.userSafeMessage || 'No se pudo subir la imagen del aviso.'
-            );
-          }
+        for (const warning of outcome.warnings) {
+          notifyError('Avisos al personal', warning);
         }
-
-        success('Avisos al personal', resolveSaveResultMessage(formReminder, saveResult));
+        success('Avisos al personal', resolveSaveResultMessage(formReminder, outcome.imageOutcome));
         setIsFormOpen(false);
         setFormReminder(null);
         return true;
@@ -187,15 +121,7 @@ export const useReminderAdmin = () => {
         setProcessing(false);
       }
     },
-    [
-      currentUser?.displayName,
-      currentUser?.email,
-      currentUser?.uid,
-      formReminder,
-      notifyError,
-      reminderUseCases,
-      success,
-    ]
+    [currentUser, formReminder, notifyError, reminderUseCases, success]
   );
 
   const deleteReminder = React.useCallback(

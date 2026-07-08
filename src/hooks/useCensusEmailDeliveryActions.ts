@@ -1,10 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
-import {
-  buildSendCensusConfirmationMessage,
-  executeSendCensusEmail,
-} from '@/application/census-email/sendCensusEmailUseCases';
 import { canRunCensusEmailAction } from '@/hooks/controllers/censusEmailActionController';
 import { resolveCensusEmailSendOutcomePresentation } from '@/hooks/controllers/censusEmailOutcomeController';
 
@@ -31,6 +27,14 @@ interface UseCensusEmailDeliveryActionsParams {
   alert: (message: string, title?: string) => Promise<void>;
 }
 
+const loadSendCensusEmailUseCases = () =>
+  import('@/application/census-email/sendCensusEmailUseCases');
+
+const resolveLazyEmailModuleError = (error: unknown): string =>
+  error instanceof Error
+    ? `No se pudo cargar el envío de censo: ${error.message}`
+    : 'No se pudo cargar el envío de censo.';
+
 export const useCensusEmailDeliveryActions = ({
   record,
   currentDateString,
@@ -53,6 +57,15 @@ export const useCensusEmailDeliveryActions = ({
 }: UseCensusEmailDeliveryActionsParams) => {
   const sendEmail = useCallback(async () => {
     if (!canRunCensusEmailAction(status)) return;
+    let useCases: Awaited<ReturnType<typeof loadSendCensusEmailUseCases>>;
+    try {
+      useCases = await loadSendCensusEmailUseCases();
+    } catch (loadError) {
+      setError(resolveLazyEmailModuleError(loadError));
+      setStatus('error');
+      return;
+    }
+    const { buildSendCensusConfirmationMessage, executeSendCensusEmail } = useCases;
     const confirmed = await confirm({
       title: 'Confirmar Envío de Censo',
       message: buildSendCensusConfirmationMessage({

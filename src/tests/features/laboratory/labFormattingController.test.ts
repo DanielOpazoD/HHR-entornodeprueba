@@ -97,6 +97,8 @@ describe('normalizeAnalysisName', () => {
 
   it('normalizes "Vol. Corp. Medio VCM" to "VCM"', () => {
     expect(normalizeAnalysisName('Vol. Corp. Medio VCM')).toBe('VCM');
+    expect(normalizeAnalysisName('Hemoglobina Glicosilada')).toBe('Hb glicosilada');
+    expect(normalizeAnalysisName('Triglic#ridos')).toBe('Trigliceridos');
   });
 
   it('passes through unmatched names', () => {
@@ -119,6 +121,9 @@ describe('normalizeAnalysisName', () => {
     expect(normalizeAnalysisName('Relacion Albumina/Creatininuri', 'QUIMICA/ORINA')).toBe('RAC');
     expect(normalizeAnalysisName('Relación Albumina / Creatininuria', 'QUIMICA/ORINA')).toBe('RAC');
     expect(normalizeAnalysisName('RELAC. ALBUMINA/CREATINURIA', 'GENERAL')).toBe('RAC');
+    expect(normalizeAnalysisName('Creatininuria', 'RELAC. ALBUMINA/CREATINURIA')).toBe(
+      'Creatininuria'
+    );
   });
 
   it('infers RPC and RAC from section/name combinations used by Syslab reports', () => {

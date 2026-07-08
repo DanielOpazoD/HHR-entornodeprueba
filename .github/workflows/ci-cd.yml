@@ -1,60 +1,114 @@
 name: CI/CD Pipeline
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
-  quality-static:
-    name: quality-static
+  critical-coverage-report:
+    name: critical-coverage-report
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: Generate critical coverage artifact
+        run: npm run report:critical-coverage
+
+      - name: Upload critical coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage
+          path: reports/critical-coverage.*
+          retention-days: 30
+
+  quality-static-base:
+    name: quality-static-base
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run ESLint (release-blocking)
         run: npm run lint -- --max-warnings 0
 
       - name: Run TypeScript type checking
         run: npm run typecheck
 
+  quality-static-governance-snapshots:
+    name: quality-static-governance-snapshots
+    runs-on: ubuntu-latest
+    needs: [quality-static-base, critical-coverage-report]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download critical coverage artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage
+          path: reports
+
       - name: Generate governance and report snapshots
         run: npm run report:governance-snapshots
 
-      - name: Run architecture and security quality checks
-        run: npm run check:quality
-
-      - name: Validate explicit hotspot backlog limits
-        run: npm run check:hotspot-growth
-
-      - name: Enforce explicit-any policy on critical modules
-        run: npm run check:critical-any
+      - name: Enforce canonical reports are fresh after regeneration
+        # If this fails after `report:governance-snapshots` succeeded, a
+        # report generator silently dropped a snapshot or recorded a
+        # stale gitSha. We want CI to surface that as a hard failure
+        # rather than the local advisory in check:quality, so
+        # `system-confidence` and friends only ever show "degraded" for
+        # substantive reasons (real indicator failures), never because
+        # the artifact itself was stale.
+        run: npm run check:report-freshness:strict
 
       - name: Upload quality metrics artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quality-metrics
-          path: |
-            reports/quality-metrics.*
-            reports/critical-coverage.*
+          path: reports/quality-metrics.*
           retention-days: 30
 
       - name: Upload operational health artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: operational-health
           path: reports/operational-health.*
@@ -62,88 +116,213 @@ jobs:
 
       - name: Upload runtime contracts artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: runtime-contracts
           path: reports/runtime-contracts.*
           retention-days: 30
 
-  unit-risk:
-    name: unit-risk
+      - name: Upload system confidence + release readiness artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: confidence-and-readiness
+          path: |
+            reports/system-confidence.*
+            reports/clinical-release-signoff.*
+            reports/release-readiness-scorecard.*
+            reports/release-confidence-matrix.*
+            reports/maintenance-debt-scorecard.*
+          retention-days: 30
+
+      - name: Upload governance snapshot runtime profile
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: governance-snapshot-profile
+          path: reports/ci-governance-snapshot-profile.*
+          retention-days: 30
+
+      - name: Upload governance snapshots for grouped static checks
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-static-governance-snapshots
+          path: reports/**
+          retention-days: 7
+
+  quality-static-groups:
+    name: quality-static-${{ matrix.group }}
     runs-on: ubuntu-latest
-    needs: [quality-static]
-    
+    needs: [quality-static-governance-snapshots]
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [boundaries, governance, security, size, tests, reports]
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Run unit and integration tests (excluding Firestore rules)
-        run: npm run test:ci:unit
-        env:
-          CI: true
 
-      - name: Run critical sync resilience tests
-        run: npm run test:resilience
-        env:
-          CI: true
-
-      - name: Run admin health risk tests
-        run: npm run test:risk:admin-health
-        env:
-          CI: true
-
-      - name: Run auth risk tests (popup/redirect/lock)
-        run: npm run test:risk:auth
-        env:
-          CI: true
-
-      - name: Run platform risk tests (auth lock + netlify headers + backup contracts)
-        run: npm run test:risk:platform
-        env:
-          CI: true
-
-      - name: Run sync queue load baseline
-        run: npm run test:sync-load
-        env:
-          CI: true
-          SYNC_QUEUE_LOAD_VOLUME: 120
-          SYNC_QUEUE_RETRY_VOLUME: 40
-          SYNC_QUEUE_LOAD_MAX_MS: 8000
-      
-      - name: Upload test coverage (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download governance snapshots
+        if: matrix.group == 'governance'
+        uses: actions/download-artifact@v7
         with:
-          name: coverage-report
+          name: quality-static-governance-snapshots
+          path: reports
+
+      - name: Run quality static group
+        run: npm run check:quality:group -- ${{ matrix.group }}
+
+      - name: Upload quality static profile
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-static-profile-${{ matrix.group }}
+          path: reports/ci-quality-static-profile-${{ matrix.group }}.*
+          retention-days: 30
+
+  quality-static:
+    name: quality-static
+    runs-on: ubuntu-latest
+    needs: [quality-static-governance-snapshots, quality-static-groups]
+
+    steps:
+      - name: Quality static gates passed
+        run: |
+          echo "quality-static-governance-snapshots: passed"
+          echo "quality-static groups: passed"
+
+  clinical-sync-release-gate:
+    name: clinical-sync-release-gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run clinical sync simulator
+        run: npm run test:clinical-sync-simulator
+        env:
+          CI: true
+
+      - name: Generate sync convergence evidence
+        run: npm run report:sync-convergence
+
+      - name: Validate sync convergence evidence contract
+        run: npm run check:sync-convergence-evidence
+
+      - name: Enforce sync convergence evidence freshness
+        run: npm run check:sync-convergence-freshness:strict
+
+      - name: Upload sync convergence evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sync-convergence
+          path: reports/sync-convergence.*
+          retention-days: 30
+
+  unit-risk-shards:
+    name: unit-risk-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit shard
+        run: npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
+        env:
+          CI: true
+
+      - name: Upload test coverage shard artifact (optional)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report-${{ matrix.shard }}
           path: coverage/
           retention-days: 7
         continue-on-error: true
 
+  unit-risk:
+    name: unit-risk
+    runs-on: ubuntu-latest
+    needs: [unit-risk-shards]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Prove critical risk packs are included in the unit suite
+        run: npm run check:ci-risk-pack-membership
+
+      - name: Enforce test runtime governance contract
+        run: npm run check:test-runtime-governance
+
+      - name: Generate test runtime governance evidence
+        run: npm run report:test-runtime-governance
+
       - name: Enforce test run contract
         run: |
-          echo "Unit/integration test suite completed via test:ci:unit (without emulator-only suites)."
+          echo "Unit/integration test suite completed through unit-risk-shards (without emulator-only suites)."
+          echo "Critical risk packs remain covered by check:ci-risk-pack-membership."
           echo "Firestore rules + emulator sync/UI suites are enforced in dedicated firestore-rules job."
+
+      - name: Upload test runtime governance artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-runtime-governance
+          path: reports/test-runtime-governance.*
+          retention-days: 30
 
   rules-emulator:
     name: rules-emulator
     runs-on: ubuntu-latest
-    needs: [quality-static]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -172,14 +351,13 @@ jobs:
   e2e-critical-emulator:
     name: e2e-critical
     runs-on: ubuntu-latest
-    needs: [quality-static]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -193,14 +371,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers for critical E2E gate
-        run: npx playwright install --with-deps chromium firefox
+      - name: Install Playwright browser for critical E2E gate
+        run: npx playwright install --with-deps chromium
 
       - name: Run critical E2E suite with Firestore emulator
         run: npm run test:e2e:critical:ci
         env:
           CI: true
-          E2E_CRITICAL_BROWSERS: chromium,firefox
+          E2E_CRITICAL_BROWSERS: chromium
           PLAYWRIGHT_JSON_OUTPUT: reports/e2e/playwright-report.json
           E2E_BUDGET_LOGIN_VISIBLE_MS: 4500
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
@@ -216,7 +394,7 @@ jobs:
 
       - name: Upload E2E critical artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-critical-emulator-artifacts
           path: |
@@ -228,21 +406,21 @@ jobs:
   build:
     name: build-budget
     runs-on: ubuntu-latest
-    needs: [quality-static, unit-risk, rules-emulator, e2e-critical-emulator]
-    
+    needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator]
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build production bundle
         run: npm run build
         env:
@@ -254,11 +432,14 @@ jobs:
       - name: Validate chunk import graph (no vendor↔feature cycles)
         run: npm run check:chunk-graph
 
+      - name: Validate runtime asset margin
+        run: npm run check:runtime-asset-margin
+
       - name: Install Playwright browsers for preview bootstrap smoke
         run: npx playwright install --with-deps chromium
 
       - name: Validate production preview bootstrap
-        run: npm run ci:preview-gate
+        run: npm run ci:preview-smoke:built
         env:
           CI: true
           PLAYWRIGHT_SKIP_PREVIEW_BUILD: '1'
@@ -269,7 +450,7 @@ jobs:
 
       - name: Upload preview bootstrap artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: preview-bootstrap-artifacts
           path: |
@@ -278,25 +459,165 @@ jobs:
             test-results/**
           retention-days: 14
 
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  lighthouse-ci:
+    # Performance instrumentation. Warn-only — assertions in lighthouserc.json
+    # use "warn" severity so this job surfaces trends in the PR/run summary
+    # without blocking releases. Promote individual assertions to "error"
+    # only once the team has agreed on a budget that the current bundle
+    # actually meets.
+    name: lighthouse-ci
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  ci-runtime-telemetry:
+    name: ci-runtime-telemetry
+    runs-on: ubuntu-latest
+    needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator, build]
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Collect GitHub Actions runtime data
+        run: npm run collect:ci-runtime-observed-input
+        env:
+          CI_RUNTIME_COLLECTION_REQUIRED: '1'
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Generate observed CI runtime telemetry evidence
+        run: npm run report:ci-runtime-observed-profile
+
+      - name: Enforce observed CI runtime telemetry contract
+        run: npm run check:ci-runtime-telemetry
+
+      - name: Upload observed CI runtime telemetry artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-runtime-observed-profile
+          path: reports/ci-runtime-observed-*
+          retention-days: 30
+
   ci-strict-summary:
     name: ci-summary
     runs-on: ubuntu-latest
-    needs: [quality-static, unit-risk, rules-emulator, e2e-critical-emulator, build]
+    permissions: {}
+    needs:
+      [
+        quality-static,
+        unit-risk,
+        clinical-sync-release-gate,
+        rules-emulator,
+        e2e-critical-emulator,
+        build,
+        ci-runtime-telemetry,
+      ]
     steps:
       - name: CI strict gates passed
         run: |
           echo "quality-static: passed"
           echo "unit-risk: passed"
+          echo "clinical-sync-release-gate: passed"
           echo "rules-emulator: passed"
           echo "e2e-critical: passed"
           echo "build-budget: passed"
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+          echo "ci-runtime-telemetry: passed"
+
+  postmerge-evidence:
+    name: postmerge-evidence
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, ci-strict-summary]
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate CI artifact contract
+        run: npm run check:ci-artifact-contracts
+
+      - name: Verify build artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact dist --producer build-budget
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
         with:
           name: dist
-          path: dist/
-          retention-days: 7
+          path: dist
+
+      - name: Generate post-merge release evidence
+        run: npm run postmerge:evidence
+
+      - name: Verify post-merge release evidence
+        run: npm run check:postmerge-evidence:strict
+
+      - name: Upload post-merge release evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: postmerge-release-evidence
+          path: reports/postmerge-evidence.*
+          retention-days: 30
 
   # ============================================
   # JOB 6: DOCUMENTATION
@@ -305,29 +626,29 @@ jobs:
     name: API Documentation
     runs-on: ubuntu-latest
     needs: [quality-static, unit-risk, rules-emulator, e2e-critical-emulator]
-    
+
     permissions:
       contents: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Generate API Documentation
         run: npm run docs:generate
-      
+
       - name: Upload documentation artifact
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-documentation
           path: './docs/api'

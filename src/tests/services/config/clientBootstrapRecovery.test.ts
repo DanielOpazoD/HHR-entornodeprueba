@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetLocalStorageItem = vi.fn();
-const mockSetLocalStorageItem = vi.fn();
-const mockReload = vi.fn();
-
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    getLocalStorageItem: (...args: unknown[]) => mockGetLocalStorageItem(...args),
-    setLocalStorageItem: (...args: unknown[]) => mockSetLocalStorageItem(...args),
-    reload: (...args: unknown[]) => mockReload(...args),
-  },
+const { mockGetLocalStorageItem, mockSetLocalStorageItem, mockReload } = vi.hoisted(() => ({
+  mockGetLocalStorageItem: vi.fn(),
+  mockSetLocalStorageItem: vi.fn(),
+  mockReload: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      getLocalStorageItem: mockGetLocalStorageItem,
+      setLocalStorageItem: mockSetLocalStorageItem,
+      reload: mockReload,
+    }),
+  };
+});
 
 import {
   getClientBootstrapRecoveryConstants,
@@ -145,7 +151,8 @@ describe('prepareClientBootstrap', () => {
   it('reloads once when the deployed version changes', async () => {
     mockGetLocalStorageItem.mockReturnValue('deploy-001');
 
-    const { firebaseConfigCacheKey, bootstrapRecoveryKey } = getClientBootstrapRecoveryConstants();
+    const { firebaseConfigCacheKey, bootstrapRecoveryKey, postDeployRecentRecordRefreshKey } =
+      getClientBootstrapRecoveryConstants();
     localStorage.setItem(firebaseConfigCacheKey, JSON.stringify({ apiKey: 'stale' }));
 
     const result = await prepareClientBootstrap();
@@ -155,6 +162,13 @@ describe('prepareClientBootstrap', () => {
     expect(mockCachesDelete).toHaveBeenCalledWith('static-v1');
     expect(localStorage.getItem(firebaseConfigCacheKey)).toBeNull();
     expect(sessionStorage.getItem(bootstrapRecoveryKey)).toBe('version-change');
+    expect(
+      JSON.parse(localStorage.getItem(postDeployRecentRecordRefreshKey) || '{}')
+    ).toMatchObject({
+      reason: 'version-change',
+      fromVersion: 'deploy-001',
+      toVersion: 'deploy-002',
+    });
     expect(mockReload).toHaveBeenCalledTimes(1);
   });
 });

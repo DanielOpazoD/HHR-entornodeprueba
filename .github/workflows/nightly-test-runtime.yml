@@ -1,0 +1,71 @@
+name: Nightly Test Runtime Governance
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 8 * * *'
+
+jobs:
+  nightly-runtime-governance:
+    name: nightly-runtime-governance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser for nightly clinical flows
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate runtime governance contract
+        run: npm run check:test-runtime-governance
+
+      - name: Run sync load budget
+        run: npm run test:sync-load
+        env:
+          CI: true
+
+      - name: Run full release confidence pack
+        run: npm run test:release-confidence:full
+        env:
+          CI: true
+
+      - name: Run clinical stability E2E suite
+        run: npm run test:e2e:clinical-stability:ci
+        env:
+          CI: true
+          E2E_CRITICAL_BROWSERS: chromium
+
+      - name: Generate test runtime governance report
+        if: always()
+        run: npm run report:test-runtime-governance
+
+      - name: Upload test runtime governance artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-runtime-governance
+          path: |
+            reports/test-runtime-governance.*
+            reports/e2e/**
+            test-results/**
+            playwright-report/**
+          retention-days: 30

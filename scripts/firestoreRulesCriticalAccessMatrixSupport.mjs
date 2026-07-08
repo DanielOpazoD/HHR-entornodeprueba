@@ -56,11 +56,27 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     delete: 'isAdmin()',
   },
   {
+    path: 'prescriptions',
+    matchPath: '/prescriptions/{prescriptionId}',
+    read: 'canReadClinicalData()',
+    create: 'false',
+    update: 'canEdit()',
+    delete: 'canEdit()',
+  },
+  {
     path: 'systemHealthUsers',
     matchPath: '/stats/system_health/users/{userId}',
     read: 'canReportSystemHealth()',
     create: 'isValidSystemHealthWrite(userId)',
     update: 'isValidSystemHealthWrite(userId)',
+    delete: 'canManageSystemHealthOperations()',
+  },
+  {
+    path: 'systemHealthResolutions',
+    matchPath: '/stats/system_health/resolutions/{resolutionId}',
+    read: 'canReportSystemHealth()',
+    create: 'isValidSystemHealthResolutionWrite()',
+    update: 'isValidSystemHealthResolutionWrite()',
     delete: 'false',
   },
   {
@@ -70,6 +86,14 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     create: 'isAdmin()',
     update: 'isAdmin()',
     delete: 'isAdmin()',
+  },
+  {
+    path: 'configPrescriptionsAccess',
+    matchPath: '/config/prescriptionsAccess',
+    read: 'isAdmin()',
+    create: 'false',
+    update: 'false',
+    delete: 'false',
   },
 ];
 
@@ -157,9 +181,7 @@ export function buildFirestoreRulesCriticalAccessMatrix(rules) {
       update: access.update ?? null,
       delete: access.delete ?? null,
     };
-  }).filter(entry =>
-    OPERATIONS.some(operation => entry[operation] !== null)
-  );
+  }).filter(entry => OPERATIONS.some(operation => entry[operation] !== null));
 }
 
 export function findCriticalAccessMatrixDrift(rules) {

@@ -216,9 +216,10 @@ export const useClinicalDocumentSheetState = (selectedDocument: ClinicalDocument
   /** Inserts raw HTML at the cursor of the active (or last-active) editor. */
   const insertHtml = useCallback((html: string) => {
     const targetApi = activeEditorApiRef.current || lastActiveEditorApiRef.current;
-    if (!targetApi?.element) return;
+    if (!targetApi?.element) return false;
     targetApi.element.focus();
     targetApi.insertHtml(html);
+    return true;
   }, []);
 
   const sectionDragHandlers = useMemo(

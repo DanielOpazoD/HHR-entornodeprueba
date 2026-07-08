@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFunctionsTelemetryData } from '@/hooks/useFunctionsTelemetryData';
 import { canAccessFunctionsTelemetryView } from '@/services/admin/functionsTelemetryAccessPolicy';
 import { AccessRestricted } from './internal/AccessRestricted';
+import { DailyRecordAuthorityRolloutCard } from './internal/functionsTelemetry/DailyRecordAuthorityRolloutCard';
 import { FunctionsTelemetrySummaryCards } from './internal/functionsTelemetry/FunctionsTelemetrySummaryCards';
 import { FunctionsTelemetryFilters } from './internal/functionsTelemetry/FunctionsTelemetryFilters';
 import { FunctionsTelemetryTable } from './internal/functionsTelemetry/FunctionsTelemetryTable';
@@ -13,6 +14,7 @@ export const FunctionsTelemetryView: React.FC = () => {
   const {
     filteredEntries,
     summaries,
+    authorityRolloutSummary,
     availableServices,
     loading,
     error,
@@ -45,6 +47,8 @@ export const FunctionsTelemetryView: React.FC = () => {
           {error}
         </div>
       )}
+
+      <DailyRecordAuthorityRolloutCard summary={authorityRolloutSummary} />
 
       <FunctionsTelemetrySummaryCards summaries={summaries} />
 

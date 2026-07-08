@@ -1,215 +1,363 @@
-import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 
 import {
   addClinicalDocumentIndicationCatalogItem,
-  ensureClinicalDocumentIndicationsCatalog,
+  createClinicalDocumentIndicationsCatalogService,
+  createClinicalDocumentIndicationsCatalogTab,
   deleteClinicalDocumentIndicationCatalogItem,
+  deleteClinicalDocumentIndicationsCatalogTab,
   getDefaultClinicalDocumentIndicationsCatalog,
   normalizeClinicalDocumentIndicationsCatalog,
+  renameClinicalDocumentIndicationsCatalogTab,
+  reorderClinicalDocumentIndicationsCatalogTab,
+  replaceClinicalDocumentIndicationsCatalog,
   subscribeToClinicalDocumentIndicationsCatalog,
   updateClinicalDocumentIndicationCatalogItem,
 } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
-vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
-  return {
-    ...actual,
-    doc: vi.fn(() => ({ id: 'mock-doc' })),
-    getDoc: vi.fn(),
-    onSnapshot: vi.fn(),
-    setDoc: vi.fn(),
-  };
-});
+vi.mock('@/services/repositories/repositoryConfig', () => ({
+  isFirestoreEnabled: vi.fn(() => true),
+}));
+
+const repository = {
+  getDoc: vi.fn(),
+  setDoc: vi.fn(),
+  subscribeDoc: vi.fn(),
+};
 
 describe('clinicalDocumentIndicationsCatalogService', () => {
-  type FirestoreDocResult = Awaited<ReturnType<typeof getDoc>>;
-
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
   });
 
-  it('builds the seeded default catalog with TMT first and Cir without defaults', () => {
-    const catalog = getDefaultClinicalDocumentIndicationsCatalog('2026-03-09T10:00:00.000Z');
+  it('starts every specialist with a General personal indications tab', () => {
+    const catalog = getDefaultClinicalDocumentIndicationsCatalog('2026-05-07T12:00:00.000Z');
 
-    expect(catalog.updatedAt).toBe('2026-03-09T10:00:00.000Z');
-    expect(Object.keys(catalog.specialties)).toEqual([
-      'tmt',
-      'cirugia',
-      'medicina_interna',
-      'psiquiatria',
-      'ginecobstetricia',
-      'pediatria',
-    ]);
-    expect(catalog.specialties.tmt.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Reposo Absoluto', source: 'default' }),
-        expect.objectContaining({ text: 'Uso de Cabestrillo', source: 'default' }),
-      ])
+    expect(catalog.updatedAt).toBe('2026-05-07T12:00:00.000Z');
+    expect(catalog.activeTabId).toBe('general');
+    expect(catalog.tabs).toEqual([{ id: 'general', label: 'General', items: [] }]);
+    expect(catalog.items).toEqual([]);
+  });
+
+  it('migrates a legacy flat personal list into the General tab', () => {
+    const catalog = normalizeClinicalDocumentIndicationsCatalog(
+      {
+        uid: 'specialist-uid',
+        email: 'especialista@hospital.cl',
+        updatedAt: '2026-05-07T12:00:00.000Z',
+        items: [
+          { id: 'a', text: '  Control con equipo tratante  ', source: 'default' },
+          { id: 'b', text: 'Control con equipo tratante', source: 'custom' },
+          'Reposo relativo',
+        ],
+      },
+      { uid: 'specialist-uid', email: 'especialista@hospital.cl' }
     );
-    expect(catalog.specialties.cirugia.items).toEqual([]);
-    expect(catalog.specialties.medicina_interna.items).toEqual([]);
+
+    expect(catalog.activeTabId).toBe('general');
+    expect(catalog.tabs).toEqual([
+      {
+        id: 'general',
+        label: 'General',
+        items: [
+          expect.objectContaining({ id: 'a', text: 'Control con equipo tratante' }),
+          expect.objectContaining({ text: 'Reposo relativo' }),
+        ],
+      },
+    ]);
+    expect(catalog.items).toEqual(catalog.tabs[0].items);
   });
 
-  it('keeps remote specialty items editable without re-injecting removed defaults', () => {
-    const catalog = normalizeClinicalDocumentIndicationsCatalog({
-      version: 3,
-      specialties: {
-        cirugia: {
-          id: 'cirugia',
-          label: 'Cirugía',
-          items: [{ id: 'custom-1', text: 'Control en policlínico', source: 'custom' }],
-        },
+  it('normalizes named personal tabs and keeps active tab valid', () => {
+    const catalog = normalizeClinicalDocumentIndicationsCatalog(
+      {
+        activeTabId: 'postop',
+        tabs: [
+          {
+            id: 'postop',
+            label: '  Post operatorio  ',
+            items: [{ id: 'a', text: 'Control herida', source: 'custom' }],
+          },
+          {
+            id: 'farmacos',
+            label: 'Fármacos',
+            items: ['Paracetamol según dolor'],
+          },
+        ],
+      },
+      { uid: 'specialist-uid', email: 'especialista@hospital.cl' }
+    );
+
+    expect(catalog.activeTabId).toBe('postop');
+    expect(catalog.tabs.map(tab => tab.label)).toEqual(['Post operatorio', 'Fármacos']);
+    expect(catalog.items).toEqual([expect.objectContaining({ text: 'Control herida' })]);
+  });
+
+  it('persists a personal indication under the selected tab', async () => {
+    repository.getDoc.mockResolvedValueOnce({
+      clinicalDocumentIndicationsProfile: {
+        uid: 'specialist-uid',
+        email: 'especialista@hospital.cl',
+        activeTabId: 'postop',
+        tabs: [{ id: 'postop', label: 'Post operatorio', items: [] }],
       },
     });
+    const service = createClinicalDocumentIndicationsCatalogService(repository);
 
-    expect(catalog.version).toBe(3);
-    expect(catalog.specialties.cirugia.items).toEqual([
+    const catalog = await service.addItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'postop',
+      text: 'Control en policlínico',
+    });
+
+    expect(repository.setDoc).toHaveBeenCalledWith(
+      'userSettings',
+      'specialist-uid',
+      {
+        clinicalDocumentIndicationsProfile: expect.objectContaining({
+          uid: 'specialist-uid',
+          email: 'especialista@hospital.cl',
+          activeTabId: 'postop',
+          tabs: [
+            expect.objectContaining({
+              id: 'postop',
+              items: [
+                expect.objectContaining({ text: 'Control en policlínico', source: 'custom' }),
+              ],
+            }),
+          ],
+        }),
+      },
+      { merge: true }
+    );
+    expect(catalog.tabs[0].items).toEqual([
       expect.objectContaining({ text: 'Control en policlínico', source: 'custom' }),
     ]);
   });
 
-  it('removes inherited default phrases from Cir even if they still exist in Firebase', () => {
-    const catalog = normalizeClinicalDocumentIndicationsCatalog({
-      version: 3,
-      specialties: {
-        cirugia: {
-          id: 'cirugia',
-          label: 'Cir',
-          items: [
-            { id: 'cirugia-reposo-absoluto', text: 'Reposo Absoluto', source: 'default' },
-            { id: 'custom-2', text: 'Control en policlínico de cirugía', source: 'custom' },
+  it('does not persist no-op catalog mutations', async () => {
+    repository.getDoc.mockResolvedValue({
+      clinicalDocumentIndicationsProfile: {
+        uid: 'specialist-uid',
+        email: 'especialista@hospital.cl',
+        activeTabId: 'postop',
+        tabs: [
+          {
+            id: 'postop',
+            label: 'Post operatorio',
+            items: [{ id: 'item-a', text: 'Control en policlínico', source: 'custom' }],
+          },
+        ],
+      },
+    });
+    const service = createClinicalDocumentIndicationsCatalogService(repository);
+
+    await service.createTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      label: '   ',
+    });
+    await service.addItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'postop',
+      text: 'Control   en policlínico',
+    });
+
+    expect(repository.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('creates, renames, deletes and reorders personal tabs', async () => {
+    repository.getDoc.mockResolvedValue({
+      clinicalDocumentIndicationsProfile: {
+        uid: 'specialist-uid',
+        email: 'especialista@hospital.cl',
+        activeTabId: 'general',
+        tabs: [
+          { id: 'general', label: 'General', items: [] },
+          { id: 'farmacos', label: 'Fármacos', items: [] },
+        ],
+      },
+    });
+    const service = createClinicalDocumentIndicationsCatalogService(repository);
+
+    const created = await service.createTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      label: 'Post operatorio',
+    });
+    expect(created.tabs.map(tab => tab.label)).toContain('Post operatorio');
+
+    const renamed = await service.renameTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'farmacos',
+      label: 'Medicamentos',
+    });
+    expect(renamed.tabs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'farmacos', label: 'Medicamentos' })])
+    );
+
+    const reordered = await service.reorderTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'farmacos',
+      direction: 'left',
+    });
+    expect(reordered.tabs.map(tab => tab.id)).toEqual(['farmacos', 'general']);
+
+    const deleted = await service.deleteTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'farmacos',
+    });
+    expect(deleted.tabs.map(tab => tab.id)).toEqual(['general']);
+  });
+
+  it('updates and deletes personal indications within a tab', async () => {
+    repository.getDoc.mockResolvedValue({
+      clinicalDocumentIndicationsProfile: {
+        uid: 'specialist-uid',
+        email: 'especialista@hospital.cl',
+        activeTabId: 'postop',
+        tabs: [
+          {
+            id: 'postop',
+            label: 'Post operatorio',
+            items: [
+              { id: 'item-a', text: 'Control original', source: 'custom' },
+              { id: 'item-b', text: 'Curación diaria', source: 'custom' },
+            ],
+          },
+        ],
+      },
+    });
+    const service = createClinicalDocumentIndicationsCatalogService(repository);
+
+    const updated = await service.updateItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'postop',
+      itemId: 'item-a',
+      text: 'Control actualizado',
+    });
+    expect(updated.tabs[0].items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'item-a', text: 'Control actualizado' }),
+      ])
+    );
+
+    const deleted = await service.deleteItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'postop',
+      itemId: 'item-b',
+    });
+    expect(deleted.tabs[0].items.some(item => item.id === 'item-b')).toBe(false);
+  });
+
+  it('subscribes only to the current user settings document', () => {
+    const unsubscribe = vi.fn();
+    const callback = vi.fn();
+    repository.subscribeDoc.mockImplementationOnce((_collection, _id, onData) => {
+      onData({
+        clinicalDocumentIndicationsProfile: {
+          uid: 'specialist-uid',
+          email: 'especialista@hospital.cl',
+          tabs: [
+            {
+              id: 'general',
+              label: 'General',
+              items: [{ id: 'item-a', text: 'Alta con analgesia', source: 'custom' }],
+            },
           ],
         },
-      },
-    });
-
-    expect(catalog.specialties.cirugia.items).toEqual([
-      expect.objectContaining({ text: 'Control en policlínico de cirugía', source: 'custom' }),
-    ]);
-  });
-
-  it('migrates legacy Cirugía & TMT entries into both separated specialties', () => {
-    const legacyCatalog: Parameters<typeof normalizeClinicalDocumentIndicationsCatalog>[0] = {
-      version: 1,
-      specialties: {
-        cirugia_tmt: {
-          id: 'cirugia_tmt' as never,
-          label: 'Cirugía & TMT',
-          items: [{ id: 'legacy-1', text: 'Control con traumatología', source: 'custom' }],
-        },
-      },
-    } as never;
-
-    const catalog = normalizeClinicalDocumentIndicationsCatalog(legacyCatalog);
-
-    expect(catalog.specialties.cirugia.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Control con traumatología', source: 'custom' }),
-      ])
-    );
-    expect(catalog.specialties.tmt.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Control con traumatología', source: 'custom' }),
-      ])
-    );
-  });
-
-  it('persists a custom indication into the selected specialty', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        version: 1,
-        updatedAt: '2026-03-09T09:00:00.000Z',
-        specialties: {},
-      }),
-    } as unknown as FirestoreDocResult);
-
-    const catalog = await addClinicalDocumentIndicationCatalogItem({
-      hospitalId: 'hhr',
-      specialtyId: 'psiquiatria',
-      text: 'Control con equipo tratante',
-    });
-
-    expect(setDoc).toHaveBeenCalled();
-    expect(catalog.specialties.psiquiatria.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Control con equipo tratante', source: 'custom' }),
-      ])
-    );
-  });
-
-  it('updates and deletes an existing indication', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => true,
-      data: () => getDefaultClinicalDocumentIndicationsCatalog('2026-03-09T09:00:00.000Z'),
-    } as unknown as FirestoreDocResult);
-
-    const updated = await updateClinicalDocumentIndicationCatalogItem({
-      hospitalId: 'hhr',
-      specialtyId: 'tmt',
-      itemId: 'tmt-reposo-absoluto',
-      text: 'Reposo en domicilio',
-    });
-
-    expect(updated.specialties.tmt.items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ text: 'Reposo en domicilio' })])
-    );
-
-    const deleted = await deleteClinicalDocumentIndicationCatalogItem({
-      hospitalId: 'hhr',
-      specialtyId: 'tmt',
-      itemId: 'tmt-reposo-relativo',
-    });
-
-    expect(deleted.specialties.tmt.items.some(item => item.id === 'tmt-reposo-relativo')).toBe(
-      false
-    );
-  });
-
-  it('seeds the default catalog when ensure finds no remote document', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => false,
-      data: () => undefined,
-    } as unknown as FirestoreDocResult);
-
-    const catalog = await ensureClinicalDocumentIndicationsCatalog('hhr');
-
-    expect(setDoc).toHaveBeenCalled();
-    expect(catalog.specialties.tmt.items.length).toBeGreaterThan(0);
-  });
-
-  it('falls back to default catalog when subscription receives empty or error states', async () => {
-    const callback = vi.fn();
-
-    vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1] as (snapshot: unknown) => void;
-      onNext({
-        exists: () => false,
-        data: () => undefined,
       });
-      return vi.fn();
+      return unsubscribe;
+    });
+    const service = createClinicalDocumentIndicationsCatalogService(repository);
+
+    const returnedUnsubscribe = service.subscribe(callback, {
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
     });
 
-    subscribeToClinicalDocumentIndicationsCatalog(callback, 'hhr');
-    await waitFor(() => {
-      expect(callback).toHaveBeenCalledWith(
-        expect.objectContaining({
-          specialties: expect.any(Object),
-        })
-      );
+    expect(repository.subscribeDoc).toHaveBeenCalledWith(
+      'userSettings',
+      'specialist-uid',
+      expect.any(Function)
+    );
+    expect(callback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: 'specialist-uid',
+        tabs: [
+          expect.objectContaining({
+            items: [expect.objectContaining({ text: 'Alta con analgesia' })],
+          }),
+        ],
+      })
+    );
+    returnedUnsubscribe();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the public helpers scoped by uid instead of hospital specialty', async () => {
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+
+    await createClinicalDocumentIndicationsCatalogTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      label: 'Post operatorio',
+    });
+    await renameClinicalDocumentIndicationsCatalogTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+      label: 'General actualizado',
+    });
+    await reorderClinicalDocumentIndicationsCatalogTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+      direction: 'right',
+    });
+    await deleteClinicalDocumentIndicationsCatalogTab({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+    });
+    await addClinicalDocumentIndicationCatalogItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+      text: 'Control por medicina interna',
+    });
+    await updateClinicalDocumentIndicationCatalogItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+      itemId: 'item-a',
+      text: 'Control actualizado',
+    });
+    await deleteClinicalDocumentIndicationCatalogItem({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      tabId: 'general',
+      itemId: 'item-a',
+    });
+    await replaceClinicalDocumentIndicationsCatalog({
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
+      catalog: { tabs: [{ id: 'general', label: 'General', items: [] }] },
     });
 
-    vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onError = args[2] as (error: unknown) => void;
-      onError(new Error('subscription failed'));
-      return vi.fn();
+    const unsubscribe = subscribeToClinicalDocumentIndicationsCatalog(vi.fn(), {
+      uid: 'specialist-uid',
+      email: 'especialista@hospital.cl',
     });
-
-    subscribeToClinicalDocumentIndicationsCatalog(callback, 'hhr');
-    await waitFor(() => {
-      expect(callback).toHaveBeenCalledTimes(2);
-    });
+    unsubscribe();
   });
 });

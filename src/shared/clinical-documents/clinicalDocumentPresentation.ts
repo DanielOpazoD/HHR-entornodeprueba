@@ -1,4 +1,4 @@
-import type { ClinicalDocumentStatus } from '@/features/clinical-documents/internal';
+type ClinicalDocumentStatus = 'draft' | 'ready_for_signature' | 'signed' | 'archived';
 
 export const formatClinicalDocumentDateTime = (isoString?: string): string => {
   if (!isoString) return '—';

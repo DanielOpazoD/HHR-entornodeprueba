@@ -12,6 +12,18 @@ const getPatientNameInput = (page: Page) =>
     .locator('input[name="patientName"]')
     .first();
 
+const readNavigatorOnline = async (page: Page): Promise<boolean | null> => {
+  try {
+    return await page.evaluate(() => navigator.onLine);
+  } catch (error) {
+    const message = String((error as Error)?.message || error);
+    if (message.includes('Execution context was destroyed')) {
+      return null;
+    }
+    throw error;
+  }
+};
+
 const bootstrapCensusSession = async (
   page: Page,
   role: 'admin' | 'viewer',
@@ -46,11 +58,11 @@ test.describe('Critical Census Flows (Firestore emulator-backed runtime)', () =>
     await expect(page.getByTestId('census-table')).toBeVisible();
 
     await context.setOffline(true);
-    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+    await expect.poll(() => readNavigatorOnline(page)).toBe(false);
     await expect(page.getByTestId('census-table')).toBeVisible();
 
     await context.setOffline(false);
-    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+    await expect.poll(() => readNavigatorOnline(page)).toBe(true);
     await page.waitForTimeout(500);
 
     await expect(page.getByTestId('census-table')).toBeVisible();

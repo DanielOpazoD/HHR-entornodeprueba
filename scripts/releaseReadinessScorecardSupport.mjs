@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { classifyBuildAssetBudget } from './bundleBudgetSupport.mjs';
 
 const readJson = filePath => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
@@ -30,67 +31,28 @@ const readBuildAssetsFromDist = root => {
   }
 
   const bundleBudget = readBundleBudgetConfig(root);
-  const chunkMaxBytes = Number(bundleBudget?.chunkMaxBytes || 0);
-  const startupBudgets = Array.isArray(bundleBudget?.startupChunkBudgets)
-    ? bundleBudget.startupChunkBudgets
-    : [];
-  const chunkPatternBudgets = Array.isArray(bundleBudget?.chunkPatternBudgets)
-    ? bundleBudget.chunkPatternBudgets
-    : [];
-
-  const resolveAssetBudget = assetName => {
-    const matchBudget = budgets =>
-      budgets.find(budget => {
-        const pattern = typeof budget?.pattern === 'string' ? budget.pattern : '';
-        if (!pattern) return false;
-
-        try {
-          return new RegExp(pattern).test(assetName);
-        } catch {
-          return false;
-        }
-      });
-
-    const startupBudget = matchBudget(startupBudgets);
-    if (startupBudget) {
-      return {
-        maxBytes: Number(startupBudget.maxBytes || 0),
-        severity: startupBudget.severity === 'warn' ? 'warn' : 'error',
-      };
-    }
-
-    const patternBudget = matchBudget(chunkPatternBudgets);
-    if (patternBudget) {
-      return {
-        maxBytes: Number(patternBudget.maxBytes || 0),
-        severity: 'error',
-      };
-    }
-
-    return {
-      maxBytes: chunkMaxBytes || null,
-      severity: 'error',
-    };
-  };
-
   return fs
     .readdirSync(assetsDir, { withFileTypes: true })
     .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
     .map(entry => {
       const filePath = path.join(assetsDir, entry.name);
-      const budget = resolveAssetBudget(entry.name);
-      const maxBytes = Number(budget.maxBytes || 0) || null;
-      const status =
-        maxBytes && fs.statSync(filePath).size > maxBytes
-          ? budget.severity === 'warn'
-            ? 'warn'
-            : 'error'
-          : 'ok';
-      return {
+      const classified = classifyBuildAssetBudget({
         file: path.join('dist', 'assets', entry.name),
         sizeBytes: fs.statSync(filePath).size,
-        maxBytes,
-        status,
+        budgetConfig: bundleBudget,
+      });
+      return {
+        ...classified,
+        status:
+          classified.status === 'blocking'
+            ? classified.severity === 'warn'
+              ? 'warn'
+              : 'error'
+            : classified.status === 'target-miss'
+              ? 'warn'
+              : classified.status === 'unknown'
+                ? 'ok'
+                : classified.status,
       };
     })
     .sort((a, b) => b.sizeBytes - a.sizeBytes);
@@ -102,6 +64,11 @@ const statusFrom = (condition, okSummary, degradedSummary) => ({
 });
 
 const toKb = bytes => `${(bytes / 1024).toFixed(1)} KB`;
+
+const advisoryBuildAssetStatuses = new Set(['ok', 'near-limit']);
+
+const isProblematicBuildAsset = asset =>
+  !advisoryBuildAssetStatuses.has(String(asset?.status || 'unknown'));
 
 const formatBuildAssetHotspot = asset => {
   if (!asset) return null;
@@ -124,7 +91,7 @@ const buildReleaseHotspots = operationalHealth => {
     ? operationalHealth.buildAssets.largestAssets
     : [];
   const topAssets = buildAssets.slice(0, 5);
-  const hasProblematicAsset = topAssets.some(asset => asset?.status && asset.status !== 'ok');
+  const hasProblematicAsset = topAssets.some(isProblematicBuildAsset);
 
   return {
     status: hasProblematicAsset ? 'degraded' : 'ok',
@@ -139,12 +106,14 @@ const buildReleaseHotspots = operationalHealth => {
 export const buildReleaseReadinessScorecard = root => {
   const sourceFiles = {
     qualityMetrics: 'reports/quality-metrics.json',
+    bundleRiskLedger: 'reports/bundle-risk-ledger.json',
     systemConfidence: 'reports/system-confidence.json',
     operationalHealth: 'reports/operational-health.json',
     releaseConfidenceMatrix: 'reports/release-confidence-matrix.json',
     technicalOwnershipMap: 'reports/technical-ownership-map.json',
     guardrailGovernance: 'reports/guardrail-governance.json',
     compatibilityImportGovernance: 'reports/compatibility-import-governance.json',
+    legacyRetirementDebt: 'reports/legacy-retirement-debt.json',
   };
 
   const sources = Object.fromEntries(
@@ -198,7 +167,7 @@ export const buildReleaseReadinessScorecard = root => {
         : [];
   let releaseHotspots = null;
   if (operationalHealth) {
-    const bundleOk = currentBuildAssets.every(asset => asset?.status === 'ok');
+    const bundleOk = currentBuildAssets.every(asset => !isProblematicBuildAsset(asset));
     const flowOk = operationalHealth.flowPerformance?.status === 'passing';
     const frontendStartupOk = operationalHealth.frontendStartup?.status === 'ok';
     indicators.push({
@@ -225,6 +194,19 @@ export const buildReleaseReadinessScorecard = root => {
       name: 'release_hotspots',
       status: releaseHotspots.status,
       summary: releaseHotspots.summary,
+    });
+  }
+
+  const bundleRiskLedger = sources.bundleRiskLedger;
+  if (bundleRiskLedger) {
+    const bundleRiskLedgerOk = bundleRiskLedger.status === 'ok';
+    indicators.push({
+      name: 'bundle_risk_ledger',
+      ...statusFrom(
+        bundleRiskLedgerOk,
+        `surfaces=${bundleRiskLedger.surfaces?.length ?? 'n/a'}, issues=${bundleRiskLedger.issues?.length ?? 'n/a'}`,
+        `surfaces=${bundleRiskLedger.surfaces?.length ?? 'n/a'}, issues=${bundleRiskLedger.issues?.length ?? 'n/a'}`
+      ),
     });
   }
 
@@ -278,6 +260,19 @@ export const buildReleaseReadinessScorecard = root => {
         compatibilityOk,
         `restrictedEntries=${compatibilityImportGovernance.checkedEntries ?? 'n/a'}, unauthorizedImports=${compatibilityImportGovernance.issues?.length ?? 'n/a'}`,
         `restrictedEntries=${compatibilityImportGovernance.checkedEntries ?? 'n/a'}, unauthorizedImports=${compatibilityImportGovernance.issues?.length ?? 'n/a'}`
+      ),
+    });
+  }
+
+  const legacyRetirementDebt = sources.legacyRetirementDebt;
+  if (legacyRetirementDebt) {
+    const legacyRetirementDebtOk = legacyRetirementDebt.status === 'ok';
+    indicators.push({
+      name: 'legacy_retirement_debt',
+      ...statusFrom(
+        legacyRetirementDebtOk,
+        `openSurfaces=${legacyRetirementDebt.openSurfaceCount ?? 'n/a'}/${legacyRetirementDebt.maxOpenSurfaces ?? 'n/a'}, issues=${legacyRetirementDebt.issues?.length ?? 'n/a'}`,
+        `openSurfaces=${legacyRetirementDebt.openSurfaceCount ?? 'n/a'}/${legacyRetirementDebt.maxOpenSurfaces ?? 'n/a'}, issues=${legacyRetirementDebt.issues?.length ?? 'n/a'}`
       ),
     });
   }

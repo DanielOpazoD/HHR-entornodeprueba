@@ -158,12 +158,12 @@ const expectSeededPatientVisible = async (page: Page) => {
 };
 
 const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRuntimeFailure[]) => {
-  const diagnostics = await collectPreviewDiagnostics(page, PREVIEW_BOOTSTRAP_DATE);
   await expect(page.getByTestId('view-loader')).toBeHidden({ timeout: 5000 });
   await page.waitForFunction(() => {
     const rootElement = document.getElementById('root');
     return Boolean(rootElement && rootElement.childElementCount > 0);
   });
+  const diagnostics = await collectPreviewDiagnostics(page, PREVIEW_BOOTSTRAP_DATE);
 
   if (runtimeFailures.length > 0) {
     test.info().attach('preview-runtime-failures', {

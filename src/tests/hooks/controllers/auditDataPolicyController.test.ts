@@ -16,6 +16,59 @@ describe('auditDataPolicyController', () => {
     expect(sectionActions.SESSIONS).toEqual(AUDIT_SECTIONS.SESSIONS.actions);
   });
 
+  it('keeps daily census clinical actions classified under the census section', () => {
+    expect(AUDIT_SECTIONS.CENSUS.actions).toEqual(
+      expect.arrayContaining([
+        'PATIENT_BED_CHANGED',
+        'PATIENT_DIAGNOSIS_CHANGED',
+        'PATIENT_DISCHARGE_DIAGNOSIS_CHANGED',
+        'PATIENT_NOTE_UPDATED',
+        'PATIENT_SPECIALTY_CHANGED',
+        'CLINICAL_EVENT_ADDED',
+        'CLINICAL_EVENT_UPDATED',
+        'CLINICAL_EVENT_DELETED',
+        'PREVIOUS_DAY_EDIT_CONFIRMED',
+        'CONFLICT_AUTO_MERGED',
+        'CONFLICT_VERSION_RESTORED',
+      ])
+    );
+  });
+
+  it('separates clinical edits from visualization-only audit actions', () => {
+    expect(AUDIT_SECTIONS.CLINICAL_EDITS.actions).toEqual(
+      expect.arrayContaining([
+        'PATIENT_MODIFIED',
+        'PATIENT_DIAGNOSIS_CHANGED',
+        'PATIENT_BED_CHANGED',
+        'PATIENT_DISCHARGED',
+        'MEDICAL_HANDOFF_MODIFIED',
+      ])
+    );
+    expect(AUDIT_SECTIONS.CLINICAL_EDITS.actions).not.toContain('VIEW_PATIENT');
+
+    expect(AUDIT_SECTIONS.VIEW_ACTIVITY.actions).toEqual(
+      expect.arrayContaining(['VIEW_PATIENT', 'VIEW_CUDYR', 'VIEW_NURSING_HANDOFF'])
+    );
+    expect(AUDIT_SECTIONS.VIEW_ACTIVITY.actions).not.toContain('PATIENT_MODIFIED');
+  });
+
+  it('adds dedicated categories for documents and medication workflows', () => {
+    expect(AUDIT_SECTIONS.CLINICAL_DOCUMENTS.actions).toEqual(
+      expect.arrayContaining([
+        'CLINICAL_DOCUMENT_CREATED',
+        'CLINICAL_DOCUMENT_EDITED',
+        'CLINICAL_DOCUMENT_PRINTED',
+      ])
+    );
+    expect(AUDIT_SECTIONS.MEDICATIONS.actions).toEqual(
+      expect.arrayContaining([
+        'PRESCRIPTION_MANUAL_DELETED',
+        'MEDICAL_INDICATION_RECORD_CREATED',
+        'MEDICAL_INDICATION_TEMPLATE_USED',
+      ])
+    );
+  });
+
   it('builds stable worker filter params', () => {
     expect(
       buildAuditWorkerFilterParams({

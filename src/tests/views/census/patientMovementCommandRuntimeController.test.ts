@@ -20,6 +20,7 @@ describe('patientMovementCommandRuntimeController', () => {
           type: undefined,
           typeOther: undefined,
           time: '12:00',
+          diagnosis: 'Neumonía basal derecha',
         },
       },
       actions
@@ -32,7 +33,9 @@ describe('patientMovementCommandRuntimeController', () => {
       undefined,
       undefined,
       '12:00',
-      undefined
+      undefined,
+      undefined,
+      'Neumonía basal derecha'
     );
   });
 
@@ -88,6 +91,7 @@ describe('patientMovementCommandRuntimeController', () => {
           receivingCenterOther: '',
           transferEscort: 'TENS',
           time: '14:10',
+          diagnosis: 'Neumonía basal derecha',
         },
       },
       actions
@@ -101,6 +105,7 @@ describe('patientMovementCommandRuntimeController', () => {
       transferEscort: 'TENS',
       time: '14:10',
       movementDate: undefined,
+      diagnosis: 'Neumonía basal derecha',
     });
   });
 

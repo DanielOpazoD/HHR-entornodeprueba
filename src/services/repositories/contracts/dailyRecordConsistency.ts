@@ -44,6 +44,7 @@ export type DailyRecordConflictKind =
   | 'remote_missing'
   | 'remote_unavailable'
   | 'remote_stale'
+  | 'local_persistence_failed'
   | 'concurrency'
   | 'regression_blocked'
   | 'version_mismatch'

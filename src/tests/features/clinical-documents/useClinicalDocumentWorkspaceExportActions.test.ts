@@ -9,6 +9,7 @@ import * as pdfExportUseCase from '@/application/clinical-documents/clinicalDocu
 import * as printOpenUseCase from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
 
 const recordCriticalClinicalAction = vi.hoisted(() => vi.fn());
+const logEvent = vi.hoisted(() => vi.fn());
 
 vi.mock('@/application/clinical-documents/clinicalDocumentPdfExportUseCase', async () => {
   const actual = await vi.importActual<
@@ -37,6 +38,10 @@ vi.mock('@/services/observability/operationalTelemetryService', () => ({
 
 vi.mock('@/services/observability/criticalClinicalActionRecorder', () => ({
   recordCriticalClinicalAction,
+}));
+
+vi.mock('@/context/AuditContext', () => ({
+  useAuditContext: () => ({ logEvent }),
 }));
 
 const buildRecord = (): ClinicalDocumentRecord =>
@@ -129,6 +134,18 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         documentType: 'epicrisis',
         exportType: 'pdf',
       })
+    );
+    expect(logEvent).toHaveBeenCalledWith(
+      'CLINICAL_DOCUMENT_EXPORTED',
+      'clinicalDocument',
+      expect.any(String),
+      expect.objectContaining({
+        templateId: 'epicrisis',
+        patientName: 'Paciente Test',
+        exportType: 'pdf',
+      }),
+      '11.111.111-1',
+      '2026-03-06'
     );
   });
 
@@ -259,6 +276,19 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         exportType: 'print',
       })
     );
+    expect(logEvent).toHaveBeenCalledWith(
+      'CLINICAL_DOCUMENT_PRINTED',
+      'clinicalDocument',
+      document.id,
+      expect.objectContaining({
+        templateId: 'epicrisis',
+        patientName: 'Paciente Test',
+        exportType: 'print',
+        annexMode: 'include',
+      }),
+      '11.111.111-1',
+      '2026-03-06'
+    );
     expect(notify.success).not.toHaveBeenCalled();
   });
 
@@ -310,7 +340,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     expect(printOpenUseCase.executeOpenClinicalDocumentPrint).toHaveBeenCalledWith(
       expect.objectContaining({
         id: document.id,
-        title: expect.stringContaining('Anexo clínico'),
+        title: expect.stringContaining('Anexo del documento'),
       }),
       { annexMode: 'annex_only' }
     );

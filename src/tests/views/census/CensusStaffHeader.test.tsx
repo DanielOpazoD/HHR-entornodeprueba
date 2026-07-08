@@ -70,6 +70,12 @@ vi.mock('@/components/layout/SummaryCard', () => ({
   ),
 }));
 
+// Admin-only affordance with its own Auth/UI provider dependencies; this header test is
+// focused on the staff read-model wiring, so the control is stubbed like the other children.
+vi.mock('@/features/census/components/ConflictVersionsAdminControl', () => ({
+  ConflictVersionsAdminControl: () => null,
+}));
+
 describe('CensusStaffHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();

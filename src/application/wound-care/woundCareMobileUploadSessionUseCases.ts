@@ -10,10 +10,36 @@ import {
 import type { WoundCareAuditActor, WoundCareMobileUploadSession } from '@/types/domain/woundCare';
 import type { EpisodeContext } from './woundCareUseCaseHelpers';
 
-const SESSION_TTL_MS = 60 * 60 * 1000;
+// QR mobile uploader access window. Reduced from 60min → 30min to
+// shrink the time-to-revoke after a clinician walks away from the
+// generated QR. Closes the product slice of the
+// `wound-care-mobile-qr` activo.
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const SESSION_ID_BYTES = 16;
+// Cap on photos a single QR session can upload before the backend
+// rejects further attempts. Documented in the `WoundCareMobileUploadSession`
+// type. Generous enough to cover a normal cura sequence without
+// re-issuing the QR; the limit exists so a leaked link cannot be used
+// to flood the patient's storage indefinitely.
+const DEFAULT_MAX_UPLOADS_PER_SESSION = 50;
 
-const defaultGenerateSessionId = (): string =>
-  `wcu_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+
+// The session id is the only secret that grants the mobile uploader access to
+// a patient's photo path until expiry, so it must come from a CSPRNG. The
+// previous Math.random() implementation gave ~52 bits of effective entropy.
+const defaultGenerateSessionId = (): string => {
+  const bytes = new Uint8Array(SESSION_ID_BYTES);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return `wcu_${toHex(bytes)}`;
+};
 
 export interface WoundCareMobileUploadSessionDeps {
   sessionPort?: WoundCareMobileUploadSessionPort;
@@ -41,6 +67,8 @@ export const executeCreateWoundCareMobileUploadSession = async (
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
     scope: 'wound_care_upload_only',
+    maxUploads: DEFAULT_MAX_UPLOADS_PER_SESSION,
+    uploadCount: 0,
   };
 
   try {

@@ -1,0 +1,107 @@
+{
+  "policyVersion": "2026-06-v1",
+  "maxOpenSurfaces": 4,
+  "surfaces": [
+    {
+      "id": "legacy-read-bridge",
+      "label": "Legacy read bridge",
+      "owner": "storage/repositories",
+      "phase": "restrict",
+      "maxAuthorizedEntrypoints": 2,
+      "maxAuthorizedImporters": 1,
+      "guardrails": [
+        "check:legacy-read-gating",
+        "check:legacy-bridge-boundary",
+        "report:legacy-bridge"
+      ],
+      "evidenceReports": [
+        "reports/legacy-bridge-governance.md",
+        "reports/legacy-retirement-debt.md"
+      ],
+      "retirementCriteria": "VITE_LEGACY_COMPATIBILITY_MODE=disabled survives one release window and legacy bridge telemetry shows no required daily-record bridge usage.",
+      "nextAction": "Keep the bridge import surface flat, then remove legacyRecordBridgeService from the daily-record read path after a clean disabled-mode release."
+    },
+    {
+      "id": "role-aliases",
+      "label": "Role aliases",
+      "owner": "auth/security",
+      "phase": "observe",
+      "maxGovernedEntries": 4,
+      "guardrails": [
+        "src/tests/security/legacyRoleAliasStatic.test.ts",
+        "report:compatibility-governance"
+      ],
+      "evidenceReports": [
+        "reports/compatibility-governance.md",
+        "reports/legacy-retirement-debt.md"
+      ],
+      "retirementCriteria": "Two consecutive release snapshots show zero legacy viewer role aliases in production claims and config/roles, then write-back canonicalization can be removed.",
+      "nextAction": "Audit production role sources before deleting legacy viewer role compatibility from helpers, Firestore rules and Storage rules."
+    },
+    {
+      "id": "legacy-clinical-document-hydration",
+      "label": "Legacy clinical document hydration",
+      "owner": "clinical-documents",
+      "phase": "restrict",
+      "maxAuthorizedConsumers": 3,
+      "approvedConsumers": [
+        "src/application/ports/clinicalDocumentCompatibilityPort.ts",
+        "src/domain/clinical-documents/compatibility.ts",
+        "src/features/clinical-documents/controllers/clinicalDocumentCompatibilityController.ts"
+      ],
+      "consumerDetection": {
+        "sourceRoots": ["src"],
+        "markers": ["hydrateLegacyClinicalDocument"],
+        "includePathPatterns": ["^src/(application|domain|features|services)/"],
+        "excludePathPatterns": [
+          "\\.test\\.",
+          "^src/features/clinical-documents/(public|internal)\\.ts$"
+        ]
+      },
+      "guardrails": [
+        "test:clinical-documents",
+        "check:clinical-documents-feature-boundary",
+        "check:runtime-contracts"
+      ],
+      "evidenceReports": ["reports/runtime-contracts.md", "reports/legacy-retirement-debt.md"],
+      "retirementCriteria": "ClinicalDocumentRepository reads only current schema records for one release window and the compatibility port no longer sees legacy audit actor defaults in production telemetry.",
+      "nextAction": "Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window."
+    },
+    {
+      "id": "legacy-episode-hydration",
+      "label": "Legacy episode hydration",
+      "owner": "census/clinical-documents",
+      "phase": "restrict",
+      "maxAuthorizedConsumers": 1,
+      "approvedConsumers": ["src/application/patient-flow/clinicalEpisode.ts"],
+      "consumerDetection": {
+        "sourceRoots": ["src"],
+        "markers": [
+          "buildClinicalDocumentEpisodeKeyCandidates",
+          "buildClinicalEpisodeKeyCandidates",
+          "resolveClinicalEpisodeIdentifier",
+          "isLegacyEpisodeKey",
+          "alternateEpisodeKeys"
+        ],
+        "includePathPatterns": [
+          "^src/application/patient-flow/clinicalEpisode\\.ts$",
+          "^src/features/census/components/global-search/",
+          "^src/features/census/controllers/clinicalDocumentPresenceController\\.ts$",
+          "^src/features/clinical-documents/"
+        ],
+        "excludePathPatterns": [
+          "\\.test\\.",
+          "^src/features/clinical-documents/domain/clinicalDocumentEpisodeTypes\\.ts$"
+        ]
+      },
+      "guardrails": [
+        "src/tests/security/clinicalEpisodeKeyGovernanceStatic.test.ts",
+        "test:clinical-documents",
+        "check:runtime-contracts"
+      ],
+      "evidenceReports": ["reports/runtime-contracts.md", "reports/legacy-retirement-debt.md"],
+      "retirementCriteria": "All active patients carry canonical clinicalEpisodeId and document lookup no longer needs RUT/admission-date fallback keys.",
+      "nextAction": "Keep legacy episode-key parsing confined to patient-flow; migrate callers to lookup-key helpers and block UI-level ad hoc parsing."
+    }
+  ]
+}

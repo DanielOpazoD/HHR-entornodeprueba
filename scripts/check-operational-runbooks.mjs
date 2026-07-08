@@ -10,7 +10,26 @@ const fail = message => {
   process.exit(1);
 };
 
-const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePath), 'utf8');
+const read = relativePath => {
+  const absolutePath = path.join(workspaceRoot, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    fail(
+      `Required artifact missing: ${relativePath}. ` +
+        `Regenerate operational artifacts with "npm run report:operational-health" ` +
+        `(and the matching report:* commands listed in package.json) before running this check.`
+    );
+  }
+  return fs.readFileSync(absolutePath, 'utf8');
+};
+
+const readJson = relativePath => {
+  const raw = read(relativePath);
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    fail(`Cannot parse JSON at ${relativePath}: ${error.message}`);
+  }
+};
 
 const requiredDocs = [
   {
@@ -51,7 +70,13 @@ const requiredDocs = [
   },
   {
     file: 'docs/RUNBOOK_AI_PROVIDER_OPERATIONS.md',
-    patterns: ['AI_PROVIDER', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
+    patterns: [
+      'AI_PROVIDER',
+      'GEMINI_API_KEY',
+      'OPENAI_API_KEY',
+      'ANTHROPIC_API_KEY',
+      'DEEPSEEK_API_KEY',
+    ],
   },
   {
     file: 'docs/SERVERLESS_SENSITIVE_CONTRACTS.md',
@@ -67,7 +92,7 @@ for (const doc of requiredDocs) {
   }
 }
 
-const report = JSON.parse(read('reports/operational-health.json'));
+const report = readJson('reports/operational-health.json');
 const requiredKeys = [
   'systemHealth',
   'syncQueue',

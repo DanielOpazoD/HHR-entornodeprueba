@@ -13,11 +13,19 @@ export const resolveRetryOrigin = (
 
 export const buildRecoveryTaskMeta = (
   changedPaths: string[],
-  origin: 'full_save_retry' | 'partial_update_retry' | 'conflict_auto_merge'
-) => ({
-  contexts: classifyConflictChangedContexts(resolveEffectiveChangedPaths(changedPaths)),
-  origin,
-});
+  origin: 'full_save_retry' | 'partial_update_retry' | 'conflict_auto_merge',
+  expectedVersion?: string
+) => {
+  const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
+  return {
+    contexts: classifyConflictChangedContexts(effectiveChangedPaths),
+    origin,
+    syncContract: {
+      ...(expectedVersion ? { expectedVersion } : {}),
+      changedPaths: effectiveChangedPaths,
+    },
+  };
+};
 
 export const buildDailyRecordConflictSummary = (
   localTimestamp: string | undefined,

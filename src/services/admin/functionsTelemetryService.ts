@@ -7,6 +7,8 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import type {
+  DailyRecordAuthorityRolloutRecommendation,
+  DailyRecordAuthorityRolloutSummary,
   FunctionsTelemetryEntry,
   FunctionsTelemetryServiceSummary,
 } from '@/types/functionsTelemetry';
@@ -14,6 +16,11 @@ import type {
 const COLLECTION_PATH = () => `hospitals/${getActiveHospitalId()}/functionsTelemetry`;
 
 const DEFAULT_LIMIT = 500;
+const DAILY_RECORD_AUTHORITY_SERVICE = 'dailyRecordWriteAuthority';
+const DAILY_RECORD_AUTHORITY_OPERATIONS = new Set([
+  'saveDailyRecordWithClinicalAuthority',
+  'patchDailyRecordWithClinicalAuthority',
+]);
 
 interface RawTelemetryRecord {
   id?: string;
@@ -95,4 +102,91 @@ export const buildServiceSummaries = (
   }
 
   return summaries.sort((a, b) => b.errorRate - a.errorRate || b.total - a.total);
+};
+
+const readNumberContext = (context: FunctionsTelemetryEntry['context'], key: string): number => {
+  const value = context?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+};
+
+const readStringContext = (context: FunctionsTelemetryEntry['context'], key: string): string => {
+  const value = context?.[key];
+  return typeof value === 'string' ? value : '';
+};
+
+const isDailyRecordAuthorityEntry = (entry: FunctionsTelemetryEntry): boolean =>
+  entry.service === DAILY_RECORD_AUTHORITY_SERVICE &&
+  DAILY_RECORD_AUTHORITY_OPERATIONS.has(entry.operation);
+
+const resolveAuthorityRolloutRecommendation = (
+  summary: Omit<DailyRecordAuthorityRolloutSummary, 'recommendation'>
+): DailyRecordAuthorityRolloutRecommendation => {
+  if (summary.total === 0) {
+    return 'insufficient_data';
+  }
+
+  if (
+    summary.failureCount > 0 ||
+    summary.blockedCount > 0 ||
+    summary.permissionDeniedCount > 0 ||
+    summary.degenerateFallbackEpisodeKeys > 0
+  ) {
+    return 'investigate';
+  }
+
+  if (summary.enforcedWrites > 0) {
+    return 'monitor_enforced';
+  }
+
+  return 'ready_for_enforced';
+};
+
+export const buildDailyRecordAuthorityRolloutSummary = (
+  entries: FunctionsTelemetryEntry[]
+): DailyRecordAuthorityRolloutSummary => {
+  const authorityEntries = entries.filter(isDailyRecordAuthorityEntry);
+  const base = authorityEntries.reduce(
+    (summary, entry) => {
+      const mode = readStringContext(entry.context, 'mode');
+      const authorityStatus = readStringContext(entry.context, 'authorityStatus');
+      return {
+        total: summary.total + 1,
+        shadowRuns: summary.shadowRuns + (mode === 'shadow' ? 1 : 0),
+        enforcedWrites: summary.enforcedWrites + (mode === 'enforced' ? 1 : 0),
+        successCount: summary.successCount + (entry.status === 'success' ? 1 : 0),
+        failureCount: summary.failureCount + (entry.status === 'failure' ? 1 : 0),
+        blockedCount:
+          summary.blockedCount +
+          (authorityStatus === 'blocked' || entry.errorCode === 'failed-precondition' ? 1 : 0),
+        permissionDeniedCount:
+          summary.permissionDeniedCount + (entry.errorCode === 'permission-denied' ? 1 : 0),
+        fallbackEpisodeKeys:
+          summary.fallbackEpisodeKeys + readNumberContext(entry.context, 'fallbackEpisodeKeys'),
+        degenerateFallbackEpisodeKeys:
+          summary.degenerateFallbackEpisodeKeys +
+          readNumberContext(entry.context, 'degenerateFallbackEpisodeKeys'),
+        lastEntryAt:
+          !summary.lastEntryAt || entry.timestamp > summary.lastEntryAt
+            ? entry.timestamp
+            : summary.lastEntryAt,
+      };
+    },
+    {
+      total: 0,
+      shadowRuns: 0,
+      enforcedWrites: 0,
+      successCount: 0,
+      failureCount: 0,
+      blockedCount: 0,
+      permissionDeniedCount: 0,
+      fallbackEpisodeKeys: 0,
+      degenerateFallbackEpisodeKeys: 0,
+      lastEntryAt: undefined as string | undefined,
+    }
+  );
+
+  return {
+    ...base,
+    recommendation: resolveAuthorityRolloutRecommendation(base),
+  };
 };

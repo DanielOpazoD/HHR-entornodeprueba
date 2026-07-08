@@ -237,7 +237,7 @@ describe('TransferManagementView inline notes', () => {
       );
     });
 
-    fireEvent.click(screen.getByTitle('Eliminar nota'));
+    fireEvent.click(await screen.findByTitle('Eliminar nota'));
 
     await waitFor(() => {
       expect(mockUpdateTransfer).toHaveBeenCalledWith('tr-requested', {

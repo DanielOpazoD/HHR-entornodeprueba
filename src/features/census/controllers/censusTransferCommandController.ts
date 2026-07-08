@@ -38,6 +38,10 @@ export const resolveTransferCommand = ({
   const evacuationMethodOther = normalizeOptionalText(transferState.evacuationMethodOther) || '';
   const receivingCenterOther = normalizeOptionalText(transferState.receivingCenterOther) || '';
   const transferEscort = normalizeOptionalText(transferState.transferEscort) || '';
+  const diagnosis =
+    data?.diagnosis !== undefined
+      ? normalizeOptionalText(data.diagnosis)
+      : normalizeOptionalText(transferState.diagnosis);
 
   const transferValidationErrors = validateTransferExecutionInput({
     evacuationMethod: transferState.evacuationMethod,
@@ -59,6 +63,7 @@ export const resolveTransferCommand = ({
     transferEscort,
     time,
     movementDate,
+    diagnosis,
   };
 
   if (transferState.recordId) {

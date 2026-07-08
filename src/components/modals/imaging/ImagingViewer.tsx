@@ -3,6 +3,7 @@ import { DocumentOption, ActiveTextMark } from './types';
 import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
 import type { PatientData } from '@/types/domain/patient';
 import { buildImagingViewerDocumentModel } from '../controllers/imagingViewerController';
+import { useManagedTimeout } from '@/hooks/useManagedTimeout';
 
 interface ImagingViewerProps {
   selectedDoc: DocumentOption;
@@ -26,6 +27,7 @@ export const ImagingViewer: React.FC<ImagingViewerProps> = ({
   setActiveText,
 }) => {
   const viewerModel = buildImagingViewerDocumentModel(selectedDoc, patient, debouncedPhysician);
+  const setManagedTimeout = useManagedTimeout();
 
   return (
     <div className="flex-1 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex flex-col">
@@ -77,7 +79,7 @@ export const ImagingViewer: React.FC<ImagingViewerProps> = ({
                     ]);
                   }
                   // Wait slightly so any consecutive click can register properly
-                  setTimeout(() => setActiveText(null), 100);
+                  setManagedTimeout(() => setActiveText(null), 100);
                 }}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {

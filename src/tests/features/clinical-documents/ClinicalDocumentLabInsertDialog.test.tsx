@@ -126,6 +126,52 @@ describe('ClinicalDocumentLabInsertDialog', () => {
     );
   });
 
+  it('merges cached and live Syslab exams without dropping live-only dates', async () => {
+    getLabResults.mockResolvedValue({
+      exams: {
+        cached: {
+          date: '29/04/2026',
+          time: '08:00:00',
+          findings: [{ examName: 'PCR', value: '5' }],
+        },
+      },
+    });
+    searchSyslabExams.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: '43092427',
+          date: '30/04/2026',
+          time: '15:28:51',
+          link: 'https://syslab.test/43092427',
+        },
+        {
+          id: '43092446',
+          date: '02/05/2026',
+          time: '06:09:55',
+          link: 'https://syslab.test/43092446',
+        },
+      ],
+    });
+
+    render(
+      <ClinicalDocumentLabInsertDialog
+        patientRut="10.096.004-4"
+        onInsert={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText('02/05/2026 06:09')).toBeInTheDocument();
+    expect(await screen.findByText('30/04/2026 15:28')).toBeInTheDocument();
+    expect(await screen.findByText('29/04/2026 08:00')).toBeInTheDocument();
+
+    const allExamIds = screen.getAllByRole('button').map(button => button.textContent || '');
+    expect(allExamIds.join(' ')).toContain('#43092446');
+    expect(allExamIds.join(' ')).toContain('#43092427');
+    expect(allExamIds.join(' ')).toContain('#cached');
+  });
+
   it('shows the empty state when there are no available exams', async () => {
     render(
       <ClinicalDocumentLabInsertDialog

@@ -42,6 +42,7 @@ export const TransferRowView: React.FC<TransferRowViewProps> = ({
         movementDate={viewModel.movementDate}
         movementTime={viewModel.movementTime}
         actions={viewModel.actions}
+        actionsPresentation="menu"
       >
         {transferItem?.originalData && (
           <button

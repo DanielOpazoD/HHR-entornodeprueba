@@ -19,6 +19,18 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({
+    notify: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+  }),
+}));
+
 vi.mock('@/hooks/useExportManager', () => ({
   useExportManager: vi.fn(),
 }));
@@ -48,6 +60,15 @@ describe('useAppContentRuntime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     syncStatusValue = 'synced';
+    // Default to a successful outcome so existing specs do not need to set
+    // it explicitly. The new handler reads result.outcome before deciding
+    // whether to notify; without this default the mock would return
+    // undefined and crash the handler.
+    mockGenerateCensusMasterExcel.mockResolvedValue({
+      outcome: 'success',
+      filename: 'census-master.xlsx',
+      byteLength: 1024,
+    });
 
     vi.mocked(useCensusContext).mockImplementation(
       () =>

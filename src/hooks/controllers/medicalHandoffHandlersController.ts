@@ -78,3 +78,90 @@ export const resolveRefreshableMedicalEntry = (
 
   return entry;
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Audit payload builders for MEDICAL_HANDOFF_MODIFIED.
+//
+// Centralised here so the handler hook does not duplicate large inline
+// objects across each handler and so the payload shape is reviewed in one
+// place. Each builder returns the `details` object expected by
+// useAudit().logDebouncedEvent('MEDICAL_HANDOFF_MODIFIED', 'patient', ...).
+// ─────────────────────────────────────────────────────────────────────────
+
+const resolvePatientNameForAudit = (
+  patient: PatientData | null | undefined,
+  isNested: boolean
+): string => patient?.patientName || (isNested ? 'Cuna' : 'ANONYMOUS');
+
+export const buildPrimaryNoteChangeAuditPayload = ({
+  patient,
+  isNested,
+  value,
+  previousNote,
+}: {
+  patient: PatientData | null | undefined;
+  isNested: boolean;
+  value: string;
+  previousNote: string;
+}): Record<string, unknown> => ({
+  patientName: resolvePatientNameForAudit(patient, isNested),
+  note: value,
+  changes: {
+    medicalHandoffNote: { old: previousNote, new: value },
+  },
+});
+
+export const buildEntryNoteChangeAuditPayload = ({
+  patient,
+  specialty,
+  value,
+  previousNote,
+}: {
+  patient: PatientData | null | undefined;
+  specialty: string | undefined;
+  value: string;
+  previousNote: string;
+}): Record<string, unknown> => ({
+  patientName: patient?.patientName || '',
+  specialty,
+  note: value,
+  changes: {
+    medicalHandoffNote: { old: previousNote, new: value },
+  },
+});
+
+export const buildEntryDeleteAuditPayload = ({
+  patient,
+  specialty,
+  previousNote,
+}: {
+  patient: PatientData | null | undefined;
+  specialty: string | undefined;
+  previousNote: string;
+}): Record<string, unknown> => ({
+  patientName: patient?.patientName || '',
+  specialty,
+  operation: 'delete_medical_handoff_entry',
+  changes: {
+    medicalHandoffNote: { old: previousNote, new: '' },
+  },
+});
+
+export const buildEntryRefreshAuditPayload = ({
+  patient,
+  specialty,
+  previousUpdatedAt,
+  newUpdatedAt,
+}: {
+  patient: PatientData | null | undefined;
+  specialty: string | undefined;
+  previousUpdatedAt: string;
+  newUpdatedAt: string;
+}): Record<string, unknown> => ({
+  patientName: patient?.patientName || '',
+  specialty,
+  operation: 'refresh_medical_entry_as_current',
+  changes: {
+    medicalHandoffNoteTimestamp: { old: previousUpdatedAt, new: newUpdatedAt },
+  },
+});

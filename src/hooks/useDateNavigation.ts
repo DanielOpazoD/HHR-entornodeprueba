@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
+
 /**
  * Return type for useDateNavigation hook.
  * Provides date selection state and derived values for navigation.
@@ -60,7 +62,11 @@ export const useDateNavigation = (): UseDateNavigationReturn => {
         if (!isNaN(dObj.getTime())) return dObj;
       }
     }
-    return new Date();
+    // Default landing = the clinical "today" (08:00 business / 09:00 weekend shift
+    // rollover), so the night shift lands on the day they are still working rather
+    // than the calendar date. An explicit ?date= deep-link above still wins.
+    const [cy, cm, cd] = resolveCurrentClinicalDay().split('-').map(Number);
+    return new Date(cy, cm - 1, cd);
   });
 
   // Date Selection State

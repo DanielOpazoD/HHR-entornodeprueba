@@ -216,6 +216,111 @@ describe('ClinicalDocumentRepository.listByEpisodeKeys', () => {
     expect(result.map(document => document.id)).toEqual(['d-1']);
   });
 
+  it('lists legacy documents with incomplete audit actors after read hydration', async () => {
+    const legacyActor = {
+      uid: 'legacy-user',
+      email: 'legacy@hospital.cl',
+    };
+    const legacyDocument = {
+      ...buildDoc('legacy-audit', 'rut-1__2026-03-01', '2026-03-05T10:00:00.000Z'),
+      audit: {
+        createdAt: '2026-03-05T10:00:00.000Z',
+        createdBy: legacyActor,
+        updatedAt: '2026-03-05T11:00:00.000Z',
+        updatedBy: legacyActor,
+        signedAt: '2026-03-05T12:00:00.000Z',
+        signedBy: legacyActor,
+        unsignedAt: '2026-03-05T13:00:00.000Z',
+        unsignedBy: legacyActor,
+        archivedAt: '2026-03-05T14:00:00.000Z',
+        archivedBy: legacyActor,
+        signatureRevocations: [
+          {
+            revokedAt: '2026-03-05T13:00:00.000Z',
+            revokedBy: legacyActor,
+            previousSignedAt: '2026-03-05T12:00:00.000Z',
+            reason: 'Corrección de firma legacy',
+          },
+        ],
+      },
+      versionHistory: [
+        {
+          version: 1,
+          savedAt: '2026-03-05T10:30:00.000Z',
+          savedBy: legacyActor,
+          reason: 'manual',
+        },
+      ],
+    } as unknown as ClinicalDocumentRecord;
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([legacyDocument]);
+
+    const result = await ClinicalDocumentRepository.listByEpisodeKeys(['rut-1__2026-03-01'], 'hhr');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: 'legacy-audit',
+      audit: {
+        createdBy: {
+          uid: 'legacy-user',
+          email: 'legacy@hospital.cl',
+          displayName: 'Usuario legado',
+          role: 'legacy_unknown',
+        },
+        updatedBy: {
+          displayName: 'Usuario legado',
+          role: 'legacy_unknown',
+        },
+        signedBy: {
+          displayName: 'Usuario legado',
+          role: 'legacy_unknown',
+        },
+        unsignedBy: {
+          displayName: 'Usuario legado',
+          role: 'legacy_unknown',
+        },
+        archivedBy: {
+          displayName: 'Usuario legado',
+          role: 'legacy_unknown',
+        },
+        signatureRevocations: [
+          {
+            revokedBy: {
+              displayName: 'Usuario legado',
+              role: 'legacy_unknown',
+            },
+          },
+        ],
+      },
+      versionHistory: [
+        {
+          savedBy: {
+            displayName: 'Usuario legado',
+            role: 'legacy_unknown',
+          },
+        },
+      ],
+    });
+  });
+
+  it('still rejects structurally broken clinical documents after legacy hydration', async () => {
+    const structurallyBroken = {
+      ...buildDoc('broken-structure', 'rut-1__2026-03-01', '2026-03-05T10:00:00.000Z'),
+      patientFields: [
+        {
+          id: 'nombre',
+          label: 'Nombre',
+          value: 123,
+          type: 'text',
+        },
+      ],
+    } as unknown as ClinicalDocumentRecord;
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([structurallyBroken]);
+
+    const result = await ClinicalDocumentRepository.listByEpisodeKeys(['rut-1__2026-03-01'], 'hhr');
+
+    expect(result).toEqual([]);
+  });
+
   it('normalizes legacy signed documents back to editable drafts on read', async () => {
     vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
       {
@@ -279,5 +384,96 @@ describe('ClinicalDocumentRepository.listByEpisodeKeys', () => {
         content: 'Contenido inicial.',
       }),
     ]);
+  });
+});
+
+describe('ClinicalDocumentRepository.lockDocumentsByEpisodeKey', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
+  });
+
+  it('locks every unlocked document of the episode and reports their ids', async () => {
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
+      buildDoc('doc-a', 'rut-1__2026-04-01', '2026-04-02T08:00:00.000Z'),
+      buildDoc('doc-b', 'rut-1__2026-04-01', '2026-04-02T09:00:00.000Z'),
+    ]);
+
+    const newlyLocked = await ClinicalDocumentRepository.lockDocumentsByEpisodeKey(
+      'rut-1__2026-04-01',
+      'hhr',
+      { lockedAt: '2026-05-04T13:00:00.000Z' }
+    );
+
+    // listByEpisode sorts by audit.updatedAt DESC, so doc-b (newer) is locked first.
+    expect(newlyLocked.sort()).toEqual(['doc-a', 'doc-b']);
+    expect(firestoreDb.updateDoc).toHaveBeenCalledTimes(2);
+    expect(firestoreDb.updateDoc).toHaveBeenCalledWith('hospitals/hhr/clinicalDocuments', 'doc-a', {
+      isLocked: true,
+      lockedReason: 'episode_closed',
+      lockedAt: '2026-05-04T13:00:00.000Z',
+    });
+    expect(firestoreDb.updateDoc).toHaveBeenCalledWith('hospitals/hhr/clinicalDocuments', 'doc-b', {
+      isLocked: true,
+      lockedReason: 'episode_closed',
+      lockedAt: '2026-05-04T13:00:00.000Z',
+    });
+  });
+
+  it('skips documents that are already locked (idempotent)', async () => {
+    const alreadyLocked = {
+      ...buildDoc('doc-a', 'rut-1__2026-04-01', '2026-04-02T08:00:00.000Z'),
+      isLocked: true,
+      lockedReason: 'episode_closed' as const,
+      lockedAt: '2026-04-15T10:00:00.000Z',
+    } as ClinicalDocumentRecord;
+    const fresh = buildDoc('doc-b', 'rut-1__2026-04-01', '2026-04-02T09:00:00.000Z');
+
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([alreadyLocked, fresh]);
+
+    const newlyLocked = await ClinicalDocumentRepository.lockDocumentsByEpisodeKey(
+      'rut-1__2026-04-01',
+      'hhr'
+    );
+
+    expect(newlyLocked).toEqual(['doc-b']);
+    expect(firestoreDb.updateDoc).toHaveBeenCalledTimes(1);
+    expect(firestoreDb.updateDoc).toHaveBeenCalledWith(
+      'hospitals/hhr/clinicalDocuments',
+      'doc-b',
+      expect.objectContaining({ isLocked: true, lockedReason: 'episode_closed' })
+    );
+  });
+
+  it('returns an empty list when the episode has no documents', async () => {
+    vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([]);
+
+    const newlyLocked = await ClinicalDocumentRepository.lockDocumentsByEpisodeKey(
+      'rut-empty__2026-04-01',
+      'hhr'
+    );
+
+    expect(newlyLocked).toEqual([]);
+    expect(firestoreDb.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('locks via local store when Firestore is disabled', async () => {
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+
+    const document = buildDoc('doc-local', 'rut-2__2026-04-10', '2026-04-12T08:00:00.000Z');
+    await ClinicalDocumentRepository.createDraft(document, 'hhr');
+
+    const newlyLocked = await ClinicalDocumentRepository.lockDocumentsByEpisodeKey(
+      'rut-2__2026-04-10',
+      'hhr',
+      { lockedAt: '2026-05-04T13:00:00.000Z' }
+    );
+
+    expect(newlyLocked).toEqual(['doc-local']);
+    const after = await ClinicalDocumentRepository.get('doc-local', 'hhr');
+    expect(after?.isLocked).toBe(true);
+    expect(after?.lockedReason).toBe('episode_closed');
+    expect(after?.lockedAt).toBe('2026-05-04T13:00:00.000Z');
   });
 });

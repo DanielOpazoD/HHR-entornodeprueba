@@ -6,6 +6,8 @@ import {
   parseAuditTimestamp,
 } from '@/services/admin/auditWorkerLogic';
 import { AuditLogEntry, WorkerFilterParams } from '@/types/auditLogTypes';
+import { AUDIT_SECTIONS } from '@/services/admin/auditViewConfig';
+import { buildAuditSectionActionsMap } from '@/hooks/controllers/auditDataPolicyController';
 
 describe('AuditWorkerLogic', () => {
   const mockLogs: AuditLogEntry[] = [
@@ -51,6 +53,137 @@ describe('AuditWorkerLogic', () => {
     };
     const filtered = filterLogs(mockLogs, params);
     expect(filtered.length).toBe(2);
+  });
+
+  it('filters logs by legal traceability fields and clinical presentation text', () => {
+    const traceLog: AuditLogEntry = {
+      id: 'trace-1',
+      timestamp: '2026-05-28T12:00:00Z',
+      userId: 'doctor@test.com',
+      userDisplayName: 'Doctor Test',
+      userUid: 'uid-legal-123',
+      ipAddress: '190.10.10.10',
+      action: 'PATIENT_MODIFIED',
+      entityType: 'patient',
+      entityId: 'Cama 4',
+      summary: 'Movimiento de cama',
+      details: {
+        patientName: 'Ana Vera',
+        rut: '11222333-4',
+        movementKind: 'move',
+        sourceBed: '4',
+        targetBed: '6',
+      },
+    };
+
+    const baseParams: WorkerFilterParams = {
+      searchTerm: '',
+      filterAction: 'ALL',
+      startDate: '',
+      endDate: '',
+      activeSection: 'ALL',
+      sectionActions: { ALL: undefined },
+      groupedView: false,
+    };
+
+    const search = (searchTerm: string) => filterLogs([traceLog], { ...baseParams, searchTerm });
+
+    expect(search('190.10.10.10')).toHaveLength(1);
+    expect(search('uid-legal-123')).toHaveLength(1);
+    expect(search('trasladado')).toHaveLength(1);
+    expect(search('Cama 4')).toHaveLength(1);
+  });
+
+  it('keeps the clinical timeline searchable without restricting by audit action buckets', () => {
+    const traceLog: AuditLogEntry = {
+      id: 'timeline-1',
+      timestamp: '2026-05-28T12:00:00Z',
+      userId: 'doctor@test.com',
+      userDisplayName: 'Doctor Test',
+      ipAddress: '190.10.10.10',
+      action: 'PATIENT_MODIFIED',
+      entityType: 'patient',
+      entityId: 'Cama 4',
+      details: {
+        patientName: 'Ana Vera',
+        rut: '11222333-4',
+        movementKind: 'move',
+        sourceBed: '4',
+        targetBed: '6',
+      },
+    };
+
+    const params: WorkerFilterParams = {
+      searchTerm: 'trasladado',
+      filterAction: 'ALL',
+      startDate: '',
+      endDate: '',
+      activeSection: 'TIMELINE',
+      sectionActions: { TIMELINE: [] },
+      groupedView: false,
+    };
+
+    const filtered = filterLogs([traceLog], params);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('timeline-1');
+  });
+
+  it('keeps fine-grained daily census events visible in the census section', () => {
+    const censusLogs: AuditLogEntry[] = [
+      {
+        id: 'diagnosis-1',
+        timestamp: '2026-07-01T12:00:00Z',
+        userId: 'doctor@test.com',
+        action: 'PATIENT_DIAGNOSIS_CHANGED',
+        entityType: 'patient',
+        entityId: 'H4C1',
+        details: { patientName: 'Ana Vera', changes: { diagnosis: { old: '', new: 'ICC' } } },
+      },
+      {
+        id: 'bed-1',
+        timestamp: '2026-07-01T12:01:00Z',
+        userId: 'doctor@test.com',
+        action: 'PATIENT_BED_CHANGED',
+        entityType: 'patient',
+        entityId: 'H4C2',
+        details: {
+          patientName: 'Ana Vera',
+          movementKind: 'move',
+          sourceBed: 'H4C1',
+          targetBed: 'H4C2',
+        },
+      },
+      {
+        id: 'conflict-1',
+        timestamp: '2026-07-01T12:02:00Z',
+        userId: 'doctor@test.com',
+        action: 'CONFLICT_AUTO_MERGED',
+        entityType: 'dailyRecord',
+        entityId: '2026-07-01',
+        details: { patientName: 'Ana Vera', changedPaths: ['beds.H4C2', 'discharges'] },
+      },
+      {
+        id: 'login-1',
+        timestamp: '2026-07-01T12:03:00Z',
+        userId: 'doctor@test.com',
+        action: 'USER_LOGIN',
+        entityType: 'user',
+        entityId: 'doctor@test.com',
+        details: {},
+      },
+    ];
+
+    const filtered = filterLogs(censusLogs, {
+      searchTerm: '',
+      filterAction: 'ALL',
+      startDate: '',
+      endDate: '',
+      activeSection: 'CENSUS',
+      sectionActions: buildAuditSectionActionsMap(AUDIT_SECTIONS),
+      groupedView: false,
+    });
+
+    expect(filtered.map(log => log.id)).toEqual(['diagnosis-1', 'bed-1', 'conflict-1']);
   });
 
   it('should filter logs by action', () => {

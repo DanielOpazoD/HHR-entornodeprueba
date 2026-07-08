@@ -31,6 +31,11 @@ export interface FirestoreSingleRecordReadResult {
   error?: unknown;
 }
 
+export interface FirestoreRecordSnapshotMetadata {
+  hasPendingWrites: boolean;
+  fromCache: boolean;
+}
+
 export const getRecordFromFirestoreDetailed = async (
   date: string
 ): Promise<FirestoreSingleRecordReadResult> => {
@@ -124,7 +129,11 @@ export const getMonthRecordsFromFirestore = async (
 
 export const subscribeToRecord = (
   date: string,
-  callback: (record: DailyRecord | null, hasPendingWrites: boolean) => void
+  callback: (
+    record: DailyRecord | null,
+    hasPendingWrites: boolean,
+    metadata?: FirestoreRecordSnapshotMetadata
+  ) => void
 ): (() => void) => {
   const docRef = getRecordDocRef(date);
 
@@ -132,11 +141,14 @@ export const subscribeToRecord = (
     docRef,
     { includeMetadataChanges: true },
     docSnap => {
-      const hasPendingWrites = docSnap.metadata.hasPendingWrites;
+      const metadata = {
+        hasPendingWrites: docSnap.metadata.hasPendingWrites,
+        fromCache: docSnap.metadata.fromCache,
+      };
       if (docSnap.exists()) {
-        callback(docToRecord(docSnap.data(), date), hasPendingWrites);
+        callback(docToRecord(docSnap.data(), date), metadata.hasPendingWrites, metadata);
       } else {
-        callback(null, hasPendingWrites);
+        callback(null, metadata.hasPendingWrites, metadata);
       }
     },
     error => {

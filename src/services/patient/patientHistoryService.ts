@@ -17,6 +17,10 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { BEDS } from '@/constants/beds';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 // ============================================================================
 // Types
@@ -278,7 +282,7 @@ export async function getPatientMovementHistory(
     }
 
     // 2. Check discharges/transfers (these end a session)
-    for (const discharge of record.discharges || []) {
+    for (const discharge of getActiveDischarges(record.discharges)) {
       if (normalizeRut(discharge.rut) === normalizedRut) {
         lastSeenDate = date;
         movements.push({
@@ -295,7 +299,7 @@ export async function getPatientMovementHistory(
       }
     }
 
-    for (const transfer of record.transfers || []) {
+    for (const transfer of getActiveTransfers(record.transfers)) {
       if (normalizeRut(transfer.rut) === normalizedRut) {
         lastSeenDate = date;
         movements.push({

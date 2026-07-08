@@ -4,11 +4,12 @@
  */
 
 import React from 'react';
-import { ChevronDown, LucideIcon } from 'lucide-react';
+import { ChevronDown, FileImage, LucideIcon, QrCode } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+import { useAuth } from '@/context/AuthContext';
 import { resolveNavbarMenuAction } from '@/components/layout/navbar/navbarMenuController';
 
 interface MenuItemProps {
@@ -27,6 +28,24 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon: Icon, label, onClick }) => (
   </button>
 );
 
+interface MenuLinkProps {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  onNavigate: () => void;
+}
+
+const MenuLink: React.FC<MenuLinkProps> = ({ icon: Icon, label, href, onNavigate }) => (
+  <a
+    href={href}
+    onClick={onNavigate}
+    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+  >
+    <Icon size={16} className="text-slate-500" />
+    {label}
+  </a>
+);
+
 interface NavbarMenuProps {
   // Module actions
   currentModule: ModuleType;
@@ -42,6 +61,11 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
   visibleModules,
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
+  const auth = useAuth();
+  const isAdmin = auth.role === 'admin';
+  const canSeePrescriptionsVisor =
+    isAdmin || auth.role === 'nurse_hospital' || auth.role === 'doctor_urgency' || auth.isEditor;
+  const canSeePrescriptionsConfig = isAdmin || auth.role === 'nurse_hospital';
 
   const { systemItems } = useNavbarNavigation(currentModule, visibleModules, censusViewMode);
 
@@ -84,7 +108,7 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
           <div className="fixed inset-0 z-40" onClick={close} />
 
           {/* Menu */}
-          <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 ring-1 ring-black/[0.04] z-50 overflow-hidden">
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 ring-1 ring-black/[0.04] z-50 overflow-hidden">
             <div className="py-1">
               {systemItems.length > 0 && <div className="h-px bg-slate-200 my-1" />}
               {systemItems.map(item => (
@@ -95,6 +119,27 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
                   onClick={() => handleItemClick(item)}
                 />
               ))}
+              {(canSeePrescriptionsVisor || canSeePrescriptionsConfig) && (
+                <>
+                  <div className="h-px bg-slate-200 my-1" />
+                  {canSeePrescriptionsVisor && (
+                    <MenuLink
+                      icon={FileImage}
+                      label="Recetas — Visor"
+                      href="/recetas/visor"
+                      onNavigate={close}
+                    />
+                  )}
+                  {canSeePrescriptionsConfig && (
+                    <MenuLink
+                      icon={QrCode}
+                      label="Recetas — Configuración (QR/PIN)"
+                      href="/admin/recetas-config"
+                      onNavigate={close}
+                    />
+                  )}
+                </>
+              )}
             </div>
           </div>
         </>

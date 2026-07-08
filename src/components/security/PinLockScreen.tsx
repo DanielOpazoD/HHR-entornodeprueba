@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Lock, AlertCircle } from 'lucide-react';
 import { useSecurity } from '@/context/SecurityContext';
+import { useManagedTimeout } from '@/hooks/useManagedTimeout';
 
 export const PinLockScreen: React.FC = () => {
   const { isLocked, unlock, config } = useSecurity();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const setManagedTimeout = useManagedTimeout();
 
   const verifyPin = React.useCallback(
     (enteredPin: string) => {
@@ -16,14 +18,14 @@ export const PinLockScreen: React.FC = () => {
       } else {
         setError(true);
         setShake(true);
-        setTimeout(() => {
+        setManagedTimeout(() => {
           setPin('');
           setError(false);
           setShake(false);
         }, 500);
       }
     },
-    [unlock]
+    [unlock, setManagedTimeout]
   );
 
   const handleNumberClick = React.useCallback(

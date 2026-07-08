@@ -4,6 +4,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
 import { seedPersistedBedFields, waitForPersistedBedFields } from './fixtures/censusPersistence';
 
 const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
@@ -76,10 +77,32 @@ const buildCurrentRecordSnapshot = async (page: Page) =>
     return records[date] || null;
   }, MULTIUSER_DATE);
 
+const buildRemoteSnapshotWithBedFields = async (
+  page: Page,
+  bedId: string,
+  fields: Record<string, string>
+) => {
+  const current = (await buildCurrentRecordSnapshot(page)) as Record<string, unknown> | null;
+  const currentBeds = (current?.beds || {}) as Record<string, Record<string, unknown>>;
+
+  return {
+    ...(current || {}),
+    date: MULTIUSER_DATE,
+    lastUpdated: `${MULTIUSER_DATE}T09:00:00.000Z`,
+    beds: {
+      ...currentBeds,
+      [bedId]: {
+        ...(currentBeds[bedId] || {}),
+        ...fields,
+      },
+    },
+  };
+};
+
 const injectRemoteSnapshotForNextLoad = async (page: Page, snapshot: Record<string, unknown>) => {
   await page.evaluate(
     ({ date, record }) => {
-      localStorage.setItem('hhr_e2e_multiuser_remote_shadow', JSON.stringify({ date, record }));
+      localStorage.setItem('hhr_e2e_remote_override_shadow', JSON.stringify({ date, record }));
     },
     {
       date: MULTIUSER_DATE,
@@ -88,18 +111,27 @@ const injectRemoteSnapshotForNextLoad = async (page: Page, snapshot: Record<stri
   );
 
   await page.addInitScript(() => {
-    const remoteShadow = localStorage.getItem('hhr_e2e_multiuser_remote_shadow');
+    const remoteShadow = localStorage.getItem('hhr_e2e_remote_override_shadow');
     if (!remoteShadow) return;
 
     const parsed = JSON.parse(remoteShadow) as { date: string; record: unknown };
     const runtimeWindow = window as Window & {
       __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
     };
+    const lockedRemoteRecord = parsed.record;
 
-    runtimeWindow.__HHR_E2E_OVERRIDE__ = {
-      ...(runtimeWindow.__HHR_E2E_OVERRIDE__ || {}),
-      [parsed.date]: parsed.record,
-    };
+    runtimeWindow.__HHR_E2E_OVERRIDE__ = new Proxy(
+      {
+        ...(runtimeWindow.__HHR_E2E_OVERRIDE__ || {}),
+        [parsed.date]: lockedRemoteRecord,
+      },
+      {
+        set(target, property, value) {
+          target[property as string] = property === parsed.date ? lockedRemoteRecord : value;
+          return true;
+        },
+      }
+    );
   });
 };
 
@@ -108,9 +140,7 @@ const closeAll = async (contexts: BrowserContext[]) => {
 };
 
 test.describe('Multi-user offline conflict smoke', () => {
-  test('preserves user A offline edits when user B exposes an older remote snapshot', async ({
-    browser,
-  }) => {
+  test('accepts Firebase canonical census fields on reconnect', async ({ browser }) => {
     test.setTimeout(90_000);
     const userAContext = await browser.newContext();
     const userBContext = await browser.newContext();
@@ -123,18 +153,16 @@ test.describe('Multi-user offline conflict smoke', () => {
       await openSeededCensus(userBPage);
 
       const userARow = getRow(userAPage, 'R1');
-      const userADiagnosisInput = userARow.locator('input[placeholder*="Diagnóstico"]').first();
 
       await expect(userARow.locator('input[name="patientName"]').first()).toHaveValue(
         'MULTIUSER BASELINE'
       );
-      await expect(userADiagnosisInput).toHaveValue('BASE DX');
+      await expectClinicalDiagnosis(userARow, 'BASE DX');
 
       await userAContext.setOffline(true);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
-      await userADiagnosisInput.fill('USER A OFFLINE DX');
-      await userADiagnosisInput.blur();
+      await updateClinicalDiagnosis(userAPage, userARow, 'R1', 'USER A OFFLINE DX');
       await seedPersistedBedFields({
         page: userAPage,
         date: MULTIUSER_DATE,
@@ -163,15 +191,15 @@ test.describe('Multi-user offline conflict smoke', () => {
 
       await expect(userAPage.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
       await expect(userARow.locator('input[name="patientName"]').first()).toHaveValue(
-        'MULTIUSER BASELINE'
+        'REMOTE USER B'
       );
-      await expect(userADiagnosisInput).toHaveValue('USER A OFFLINE DX');
+      await expectClinicalDiagnosis(userARow, 'REMOTE USER B DX');
     } finally {
       await closeAll([userAContext, userBContext]);
     }
   });
 
-  test('keeps user A offline edit and accepts user B non-conflicting bed update after reconnect', async ({
+  test('accepts remote canonical fields and user B non-conflicting bed update after reconnect', async ({
     browser,
   }) => {
     test.setTimeout(90_000);
@@ -186,13 +214,11 @@ test.describe('Multi-user offline conflict smoke', () => {
       await openSeededCensus(userBPage);
 
       const userAR1 = getRow(userAPage, 'R1');
-      const userAR1DiagnosisInput = userAR1.locator('input[placeholder*="Diagnóstico"]').first();
 
       await userAContext.setOffline(true);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
-      await userAR1DiagnosisInput.fill('USER A LOCAL DX');
-      await userAR1DiagnosisInput.blur();
+      await updateClinicalDiagnosis(userAPage, userAR1, 'R1', 'USER A LOCAL DX');
       await seedPersistedBedFields({
         page: userAPage,
         date: MULTIUSER_DATE,
@@ -233,12 +259,13 @@ test.describe('Multi-user offline conflict smoke', () => {
         },
       });
 
-      const userBRemoteSnapshot = await buildCurrentRecordSnapshot(userBPage);
-      expect(userBRemoteSnapshot).not.toBeNull();
-      await injectRemoteSnapshotForNextLoad(
-        userAPage,
-        userBRemoteSnapshot as Record<string, unknown>
-      );
+      const userBRemoteSnapshot = await buildRemoteSnapshotWithBedFields(userBPage, 'R2', {
+        patientName: 'USER B NEW PATIENT',
+        pathology: 'USER B NON CONFLICT DX',
+        status: 'Estable',
+        admissionDate: MULTIUSER_DATE,
+      });
+      await injectRemoteSnapshotForNextLoad(userAPage, userBRemoteSnapshot);
 
       await userAContext.setOffline(false);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(true);
@@ -248,15 +275,13 @@ test.describe('Multi-user offline conflict smoke', () => {
       await expect(userAR1.locator('input[name="patientName"]').first()).toHaveValue(
         'MULTIUSER BASELINE'
       );
-      await expect(userAR1DiagnosisInput).toHaveValue('USER A LOCAL DX');
+      await expectClinicalDiagnosis(userAR1, 'BASE DX');
 
       const userAR2 = getRow(userAPage, 'R2');
       await expect(userAR2.locator('input[name="patientName"]').first()).toHaveValue(
         'USER B NEW PATIENT'
       );
-      await expect(userAR2.locator('input[placeholder*="Diagnóstico"]').first()).toHaveValue(
-        'USER B NON CONFLICT DX'
-      );
+      await expectClinicalDiagnosis(userAR2, 'USER B NON CONFLICT DX');
     } finally {
       await closeAll([userAContext, userBContext]);
     }

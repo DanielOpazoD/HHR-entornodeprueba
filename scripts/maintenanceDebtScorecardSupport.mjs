@@ -40,3 +40,24 @@ export const buildMaintenanceDebtWatchlistRows = ({
       };
     })
     .sort((a, b) => b.lines - a.lines);
+
+export const buildLegacyRetirementDebtRows = legacyRetirementDebt => {
+  const rows = Array.isArray(legacyRetirementDebt?.surfaces)
+    ? legacyRetirementDebt.surfaces.map(surface => ({
+        id: surface.id,
+        label: surface.label,
+        owner: surface.owner,
+        phase: surface.phase,
+        status: surface.status,
+        signal: surface.signal,
+        nextAction: surface.nextAction,
+      }))
+    : [];
+
+  return {
+    status: legacyRetirementDebt?.status ?? 'missing',
+    openSurfaceCount: legacyRetirementDebt?.openSurfaceCount ?? null,
+    maxOpenSurfaces: legacyRetirementDebt?.maxOpenSurfaces ?? null,
+    rows,
+  };
+};

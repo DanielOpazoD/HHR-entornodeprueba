@@ -41,7 +41,7 @@ export const resolveWoundCarePatients = (record: DailyRecord): WoundCarePatientE
     const admissionDate = (patient.admissionDate || '').trim();
     if (!patientRut || !admissionDate) continue;
 
-    const episodeKey = buildClinicalEpisodeKey(patientRut, admissionDate);
+    const episodeKey = buildClinicalEpisodeKey(patientRut, admissionDate, patient.admissionTime);
 
     entries.push({
       bedId,

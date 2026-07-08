@@ -101,6 +101,7 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
         executeResetMedicalHandoffState({
           record,
           saveRecord: saveAndUpdate,
+          patchRecord,
         }),
       {
         fallbackMessage: 'No se pudo restaurar la entrega médica.',
@@ -119,7 +120,7 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
         );
       }
     );
-  }, [logEvent, runMutation, saveAndUpdate]);
+  }, [logEvent, patchRecord, runMutation, saveAndUpdate]);
 
   return {
     updateHandoffChecklist,

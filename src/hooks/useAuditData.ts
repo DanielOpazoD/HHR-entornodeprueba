@@ -26,6 +26,13 @@ import {
   toggleAuditRowState,
 } from '@/hooks/controllers/auditDataPolicyController';
 import {
+  buildAuditPatientPackagePipelineBase,
+  queryAuditPatientPackagePipeline,
+} from '@/hooks/controllers/auditPatientPackagePipelineController';
+import {
+  AUDIT_DEFAULT_FETCH_LIMIT,
+  AUDIT_FETCH_LIMIT_STEP,
+  AUDIT_MAX_FETCH_LIMIT,
   AUDIT_ITEMS_PER_PAGE,
   AUDIT_SECTIONS,
   type AuditSectionConfig,
@@ -35,6 +42,15 @@ import {
   type AuditDateRangePreset,
 } from '@/services/admin/auditDateRangePresets';
 import { auditDataLogger } from '@/hooks/hookLoggers';
+import { type ClinicalAuditPatientPackage } from '@/services/admin/clinicalAuditPatientPackages';
+import {
+  DEFAULT_PATIENT_PACKAGE_INTENT,
+  type ClinicalAuditPatientPackageFilterId,
+  type ClinicalAuditPatientPackageFilterOption,
+  type ClinicalAuditPatientPackageIntentId,
+  type ClinicalAuditPatientPackageIntentOption,
+} from '@/services/admin/clinicalAuditPatientPackageFilters';
+import { filterLogs as filterAuditLogs } from '@/services/admin/auditWorkerLogic';
 
 export { AUDIT_SECTIONS } from '@/services/admin/auditViewConfig';
 
@@ -48,6 +64,8 @@ export interface AuditFiltersState {
   activeSection: AuditSection;
   compactView: boolean;
   groupedView: boolean;
+  activePatientPackageFilter: ClinicalAuditPatientPackageFilterId;
+  activePatientPackageIntent: ClinicalAuditPatientPackageIntentId;
 }
 
 export interface UseAuditDataReturn {
@@ -56,11 +74,17 @@ export interface UseAuditDataReturn {
   filteredLogs: AuditLogEntry[];
   displayLogs: (AuditLogEntry | GroupedAuditLogEntry)[];
   paginatedLogs: (AuditLogEntry | GroupedAuditLogEntry)[];
+  patientPackages: ClinicalAuditPatientPackage[];
+  paginatedPatientPackages: ClinicalAuditPatientPackage[];
+  patientPackageFilterOptions: ClinicalAuditPatientPackageFilterOption[];
+  patientPackageIntentOptions: ClinicalAuditPatientPackageIntentOption[];
   stats: AuditStats;
 
   // Loading state
   loading: boolean;
   isProcessing: boolean;
+  fetchLimit: number;
+  canLoadMoreLogs: boolean;
 
   // Filters
   filters: AuditFiltersState;
@@ -72,6 +96,8 @@ export interface UseAuditDataReturn {
   setActiveSection: (value: AuditSection) => void;
   setCompactView: (value: boolean) => void;
   setGroupedView: (value: boolean) => void;
+  setActivePatientPackageFilter: (value: ClinicalAuditPatientPackageFilterId) => void;
+  setActivePatientPackageIntent: (value: ClinicalAuditPatientPackageIntentId) => void;
 
   // Pagination
   currentPage: number;
@@ -86,6 +112,7 @@ export interface UseAuditDataReturn {
 
   // Actions
   fetchLogs: () => Promise<void>;
+  loadMoreLogs: () => void;
 
   // Constants
   sections: Record<AuditSection, SectionConfig>;
@@ -98,6 +125,7 @@ export function useAuditData(): UseAuditDataReturn {
   // Core data state
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchLimit, setFetchLimit] = useState(AUDIT_DEFAULT_FETCH_LIMIT);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,6 +135,10 @@ export function useAuditData(): UseAuditDataReturn {
   const [activeSection, setActiveSection] = useState<AuditSection>('ALL');
   const [compactView, setCompactView] = useState(false);
   const [groupedView, setGroupedView] = useState(true);
+  const [activePatientPackageFilter, setActivePatientPackageFilter] =
+    useState<ClinicalAuditPatientPackageFilterId>('ALL');
+  const [activePatientPackageIntent, setActivePatientPackageIntentState] =
+    useState<ClinicalAuditPatientPackageIntentId>(DEFAULT_PATIENT_PACKAGE_INTENT);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,7 +154,7 @@ export function useAuditData(): UseAuditDataReturn {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await executeFetchAuditLogs({});
+      const result = await executeFetchAuditLogs({ limit: fetchLimit });
       setLogs(resolveAuditLogsFallback(result.data));
       if (result.status === 'failed') {
         auditDataLogger.error('Failed to fetch audit logs', result.issues[0]?.message);
@@ -133,6 +165,12 @@ export function useAuditData(): UseAuditDataReturn {
     } finally {
       setLoading(false);
     }
+  }, [fetchLimit]);
+
+  const loadMoreLogs = useCallback(() => {
+    setFetchLimit(currentLimit =>
+      Math.min(currentLimit + AUDIT_FETCH_LIMIT_STEP, AUDIT_MAX_FETCH_LIMIT)
+    );
   }, []);
 
   // Initial fetch
@@ -170,14 +208,73 @@ export function useAuditData(): UseAuditDataReturn {
     setEndDate(range.endDate);
   }, []);
 
+  const setActivePatientPackageIntent = useCallback(
+    (value: ClinicalAuditPatientPackageIntentId) => {
+      setActivePatientPackageIntentState(value);
+      setActivePatientPackageFilter('ALL');
+    },
+    []
+  );
+
   const { filteredLogs, displayLogs, stats: workerStats } = results;
 
+  const patientPackageSourceLogs = useMemo(() => {
+    const params: WorkerFilterParams = buildAuditWorkerFilterParams({
+      searchTerm: '',
+      filterAction,
+      startDate,
+      endDate,
+      activeSection,
+      sectionActions: buildAuditSectionActionsMap(AUDIT_SECTIONS),
+      groupedView,
+    });
+
+    return filterAuditLogs(logs, params);
+  }, [logs, filterAction, activeSection, startDate, endDate, groupedView]);
+
+  const patientPackagePipelineBase = useMemo(
+    () => buildAuditPatientPackagePipelineBase({ sourceLogs: patientPackageSourceLogs }),
+    [patientPackageSourceLogs]
+  );
+
+  const patientPackagePipeline = useMemo(
+    () =>
+      queryAuditPatientPackagePipeline({
+        base: patientPackagePipelineBase,
+        searchTerm,
+        activeFilter: activePatientPackageFilter,
+        activeIntent: activePatientPackageIntent,
+        currentPage,
+        itemsPerPage: ITEMS_PER_PAGE,
+      }),
+    [
+      patientPackagePipelineBase,
+      searchTerm,
+      activePatientPackageFilter,
+      activePatientPackageIntent,
+      currentPage,
+      ITEMS_PER_PAGE,
+    ]
+  );
+
+  const {
+    patientPackages,
+    paginatedPatientPackages,
+    patientPackageFilterOptions,
+    patientPackageIntentOptions,
+  } = patientPackagePipeline;
+
   // Pagination
-  const totalPages = Math.ceil(displayLogs.length / ITEMS_PER_PAGE);
+  const activeDisplayCount = groupedView
+    ? patientPackagePipeline.activeDisplayCount
+    : displayLogs.length;
+  const totalPages = Math.ceil(activeDisplayCount / ITEMS_PER_PAGE);
 
   const paginatedLogs = useMemo(() => {
     return paginateAuditDisplayLogs(displayLogs, currentPage, ITEMS_PER_PAGE);
   }, [displayLogs, currentPage, ITEMS_PER_PAGE]);
+
+  const canLoadMoreLogs = logs.length >= fetchLimit && fetchLimit < AUDIT_MAX_FETCH_LIMIT;
 
   // Reset page when filters change
   useEffect(() => {
@@ -189,11 +286,22 @@ export function useAuditData(): UseAuditDataReturn {
         startDate,
         endDate,
         groupedView,
+        activePatientPackageFilter,
+        activePatientPackageIntent,
       })
     ) {
       setCurrentPage(1);
     }
-  }, [searchTerm, filterAction, activeSection, startDate, endDate, groupedView]);
+  }, [
+    searchTerm,
+    filterAction,
+    activeSection,
+    startDate,
+    endDate,
+    groupedView,
+    activePatientPackageFilter,
+    activePatientPackageIntent,
+  ]);
 
   // Use stats from worker
   const stats = (workerStats || buildDefaultAuditStats()) as AuditStats;
@@ -207,6 +315,8 @@ export function useAuditData(): UseAuditDataReturn {
     activeSection,
     compactView,
     groupedView,
+    activePatientPackageFilter,
+    activePatientPackageIntent,
   };
 
   return {
@@ -215,11 +325,17 @@ export function useAuditData(): UseAuditDataReturn {
     filteredLogs,
     displayLogs,
     paginatedLogs,
+    patientPackages,
+    paginatedPatientPackages,
+    patientPackageFilterOptions,
+    patientPackageIntentOptions,
     stats,
 
     // Loading
     loading,
     isProcessing,
+    fetchLimit,
+    canLoadMoreLogs,
 
     // Filters
     filters,
@@ -231,6 +347,8 @@ export function useAuditData(): UseAuditDataReturn {
     setActiveSection,
     setCompactView,
     setGroupedView,
+    setActivePatientPackageFilter,
+    setActivePatientPackageIntent,
 
     // Pagination
     currentPage,
@@ -245,6 +363,7 @@ export function useAuditData(): UseAuditDataReturn {
 
     // Actions
     fetchLogs,
+    loadMoreLogs,
 
     // Constants
     sections: AUDIT_SECTIONS,

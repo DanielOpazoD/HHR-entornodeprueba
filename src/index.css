@@ -43,8 +43,8 @@
   --color-accent-800: var(--accent-800);
   --color-accent-900: var(--accent-900);
 
-  --font-sans: 'Inter', 'system-ui', 'sans-serif';
-  --font-display: 'Outfit', 'sans-serif';
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', sans-serif;
 
   --shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
@@ -148,6 +148,7 @@
     scroll-behavior: smooth;
     overscroll-behavior: none;
     scrollbar-gutter: stable;
+    overflow-y: scroll;
   }
 
   body {
@@ -161,7 +162,7 @@
 
   /* Premium Aesthetics Modifiers */
   :root.aesthetic-typography {
-    --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   }
 
   :root.aesthetic-glass body {

@@ -89,4 +89,29 @@ describe('moveCopyModalController', () => {
       statusLabel: 'Libre',
     });
   });
+
+  it('allows selecting source bed only when copying to a different date', () => {
+    const currentRecord = DataFactory.createMockDailyRecord('2026-02-13');
+
+    const sameDayOptions = resolveMoveCopyBedOptions({
+      allBeds: BEDS,
+      currentRecord,
+      targetRecord: currentRecord,
+      selectedDate: '2026-02-13',
+      sourceBedId: 'R1',
+      targetBedId: null,
+    });
+    expect(sameDayOptions.some(option => option.id === 'R1')).toBe(false);
+
+    const futureOptions = resolveMoveCopyBedOptions({
+      allBeds: BEDS,
+      currentRecord,
+      targetRecord: DataFactory.createMockDailyRecord('2026-02-14'),
+      selectedDate: '2026-02-14',
+      sourceBedId: 'R1',
+      targetBedId: null,
+    });
+    expect(futureOptions.some(option => option.id === 'R1')).toBe(true);
+    expect(futureOptions.find(option => option.id === 'R1')?.isDisabled).toBe(false);
+  });
 });

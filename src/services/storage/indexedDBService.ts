@@ -17,11 +17,16 @@ export {
   getRecordsRange,
   getRecordForDate,
   saveRecord,
+  saveRecordStrict,
   saveRecords,
+  saveRecordsStrict,
   deleteRecord,
+  deleteRecordStrict,
   getAllDates,
   getPreviousDayRecord,
   clearAllRecords,
+  type LocalRecordWriteResult,
+  type LocalRecordWriteStore,
 } from './indexeddb/indexedDbRecordService';
 
 export { buildMonthRecordPrefix } from './storageDateSupport';

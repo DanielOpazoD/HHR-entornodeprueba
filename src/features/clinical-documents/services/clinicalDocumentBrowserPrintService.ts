@@ -3,7 +3,7 @@ import type {
   ClinicalDocumentType,
 } from '@/features/clinical-documents/domain/entities';
 import { getClinicalDocumentDefinition } from '@/features/clinical-documents/domain/definitions';
-import { escapeHtml } from '@/features/clinical-documents/controllers/clinicalDocumentHtmlSanitizer';
+import { escapeHtml } from '@/utils/htmlEscape';
 import {
   applyClinicalDocumentAnnexPrintMode,
   CLINICAL_DOCUMENT_INLINE_PRINT_ROOT_ID,

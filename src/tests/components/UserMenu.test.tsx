@@ -13,6 +13,7 @@ describe('UserMenu', () => {
     role: 'editor' as const,
     isFirebaseConnected: true,
     onLogout: vi.fn(),
+    onOpenAvatarSettings: vi.fn(),
   };
 
   beforeEach(() => {
@@ -85,6 +86,44 @@ describe('UserMenu', () => {
 
     const button = screen.getByRole('button');
     expect(button.textContent).toBe('A');
+  });
+
+  it('keeps a stable user mark under the saved avatar while the image loads', () => {
+    render(<UserMenu {...defaultProps} avatarUrl="https://storage.test/avatar.png" />);
+
+    expect(screen.getByAltText('Foto de perfil de doctor@hospital.cl')).toHaveAttribute(
+      'src',
+      'https://storage.test/avatar.png'
+    );
+    expect(screen.getByTestId('user-avatar-initial-fallback')).toHaveTextContent('d');
+  });
+
+  it('renders the expanded profile menu from the avatar with preview, status and actions', () => {
+    render(<UserMenu {...defaultProps} avatarUrl="https://storage.test/avatar.png" />);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByTestId('user-profile-menu-panel')).toHaveClass('origin-top-right');
+    expect(screen.getByTestId('user-profile-menu-preview')).toHaveClass('h-16', 'w-16');
+    expect(
+      screen.getByTestId('user-profile-menu-preview').querySelector('.absolute.right-1.top-1')
+    ).toBeNull();
+    expect(screen.getAllByAltText('Foto de perfil de doctor@hospital.cl')).toHaveLength(2);
+    expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
+    expect(screen.getByText('Invitado')).toBeInTheDocument();
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar foto de perfil' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+  });
+
+  it('opens avatar settings from the user dropdown', () => {
+    render(<UserMenu {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar foto de perfil' }));
+
+    expect(defaultProps.onOpenAvatarSettings).toHaveBeenCalled();
+    expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
   });
 
   it('shows offline state in dropdown when not connected', () => {

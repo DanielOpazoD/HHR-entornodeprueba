@@ -2,13 +2,14 @@ import React from 'react';
 import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider } from '@/context/CensusContext';
-import { type AuthContextType } from '@/context';
+import type { AuthContextType } from '@/context/AuthContext';
 import { type AppAuthenticatedDateNavigation } from '@/app-shell/bootstrap/useAppBootstrapState';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
+import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 
 const LaboratoryQuickAction = lazyWithRetry(() =>
   import('@/features/laboratory').then(module => ({
@@ -22,10 +23,10 @@ const LaboratoryQuickActionFallback = () => (
     disabled
     aria-disabled="true"
     tabIndex={-1}
-    className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 opacity-50"
+    className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-emerald-200 bg-emerald-50 text-emerald-700 opacity-50`}
     title="Laboratorio / Exámenes Syslab (cargando...)"
   >
-    <FlaskConical size={14} />
+    <FlaskConical size={13} />
     <span className="hidden sm:inline">Lab</span>
   </button>
 );

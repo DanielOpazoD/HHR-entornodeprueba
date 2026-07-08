@@ -20,13 +20,23 @@ describe('useDateNavigation', () => {
   });
 
   describe('Initial State', () => {
-    it('should initialize with current date', () => {
-      const { result } = renderHook(() => useDateNavigation());
-      const today = new Date();
+    it('lands on the previous calendar day before the shift rollover (night shift)', () => {
+      // Local 07:59 on 2026-02-20, before the 08:00/09:00 day-shift start: the clinical
+      // "today" is still 2026-02-19, so the landing day must be the previous calendar day.
+      vi.setSystemTime(new Date(2026, 1, 20, 7, 59, 0));
 
-      expect(result.current.selectedYear).toBe(today.getFullYear());
-      expect(result.current.selectedMonth).toBe(today.getMonth());
-      expect(result.current.selectedDay).toBe(today.getDate());
+      const { result } = renderHook(() => useDateNavigation());
+
+      expect(result.current.currentDateString).toBe('2026-02-19');
+    });
+
+    it('lands on the current calendar day after the shift rollover (day shift)', () => {
+      // Local 09:30 on 2026-02-20, after the rollover: clinical "today" is 2026-02-20.
+      vi.setSystemTime(new Date(2026, 1, 20, 9, 30, 0));
+
+      const { result } = renderHook(() => useDateNavigation());
+
+      expect(result.current.currentDateString).toBe('2026-02-20');
     });
 
     it('should initialize from the date query string when present', () => {

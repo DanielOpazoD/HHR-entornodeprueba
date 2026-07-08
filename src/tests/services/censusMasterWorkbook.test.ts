@@ -142,6 +142,18 @@ describe('census master workbook builder', () => {
     ]);
   });
 
+  it('applies stable column widths to the daily census sheet', async () => {
+    const records = [buildRecord('2024-05-03', 'Paciente Tres')];
+
+    const workbook = await buildCensusMasterWorkbook(records);
+    const sheet = getVisibleDaySheets(workbook)[0];
+
+    expect(sheet?.getColumn(1).width).toBe(4);
+    expect(sheet?.getColumn(4).width).toBe(24);
+    expect(sheet?.getColumn(7).width).toBe(28);
+    expect(sheet?.getColumn(15).width).toBe(18);
+  });
+
   it('supports duplicated day sheets via recordLookupIndex descriptors', async () => {
     const records = [
       buildRecord('2024-05-03', 'Paciente Corte'),

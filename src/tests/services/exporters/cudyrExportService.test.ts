@@ -71,6 +71,7 @@ describe('cudyrExportService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.mocked(createWorkbook).mockResolvedValue(
       mockWorkbook as unknown as Awaited<ReturnType<typeof createWorkbook>>
     );
@@ -126,6 +127,14 @@ describe('cudyrExportService', () => {
     expect(mockWorkbook.xlsx.writeBuffer).toHaveBeenCalled();
   });
 
+  it('rejects an invalid CUDYR blob before it can be uploaded as backup', async () => {
+    mockWorkbook.xlsx.writeBuffer.mockResolvedValueOnce(Buffer.from([1, 2, 3]));
+
+    await expect(generateCudyrMonthlyExcelBlob(2025, 1)).rejects.toThrow(
+      /archivo Excel CUDYR invalido/i
+    );
+  });
+
   it('hydrates the current/end date from Firestore before building the summary', async () => {
     const localRecord = {
       date: '2025-01-05',
@@ -153,6 +162,30 @@ describe('cudyrExportService', () => {
       expect.any(Function),
       expect.objectContaining({ lastUpdated: '2025-01-05T10:00:00.000Z' })
     );
+  });
+
+  it('uses E2E override records for monthly fetches without waiting on Firestore', async () => {
+    const overrideRecord = {
+      date: '2025-01-01',
+      beds: {},
+      activeExtraBeds: [],
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '2025-01-01T10:00:00.000Z',
+    };
+    window.__HHR_E2E_OVERRIDE__ = {
+      '2025-01-01': overrideRecord as never,
+    };
+
+    await generateCudyrMonthlyExcelBlob(2025, 1, '2025-01-02');
+
+    const fetchRecord = vi.mocked(getCudyrMonthlyTotals).mock.calls[0]?.[3];
+    await expect(fetchRecord?.('2025-01-01')).resolves.toMatchObject({
+      lastUpdated: '2025-01-01T10:00:00.000Z',
+    });
+    await expect(fetchRecord?.('2025-01-02')).resolves.toBeNull();
+    expect(getRecordFromFirestore).not.toHaveBeenCalled();
   });
 
   it('should handle period with no data', async () => {

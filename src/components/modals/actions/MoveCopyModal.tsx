@@ -66,11 +66,12 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
             allBeds: BEDS,
             currentRecord,
             targetRecord: resolvedTargetRecord,
+            selectedDate,
             sourceBedId,
             targetBedId,
           })
         : [],
-    [currentRecord, sourceBedId, targetBedId, resolvedTargetRecord]
+    [currentRecord, selectedDate, sourceBedId, targetBedId, resolvedTargetRecord]
   );
   const canConfirm = canConfirmSelection && !isTargetLoading;
   const handleConfirmAction = () => {

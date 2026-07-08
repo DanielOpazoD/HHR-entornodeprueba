@@ -5,17 +5,12 @@
  */
 import type { PDFDocument } from 'pdf-lib';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 
 const RESERVED_WINDOW_PRINT_DELAY_MS = 450;
 const IFRAME_PRINT_DELAY_MS = 250;
 const IFRAME_FALLBACK_TIMEOUT_MS = 4000;
 const PDF_OBJECT_URL_TTL_MS = 60000;
-let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
-
-const loadPdfLib = () => {
-  pdfLibPromise ??= import('pdf-lib');
-  return pdfLibPromise;
-};
 
 const revokeObjectUrlLater = (url: string): void => {
   window.setTimeout(() => URL.revokeObjectURL(url), PDF_OBJECT_URL_TTL_MS);
@@ -55,7 +50,7 @@ const createHiddenPrintFrame = (): HTMLIFrameElement => {
  * Injects a JavaScript auto-print action into the PDF catalog.
  */
 export const injectPrintScript = async (pdfDoc: PDFDocument): Promise<void> => {
-  const { PDFName } = await loadPdfLib();
+  const { PDFName } = await loadPdfLibGenerationRuntime();
 
   pdfDoc.catalog.set(
     PDFName.of('OpenAction'),
@@ -75,7 +70,7 @@ export const saveAndDownloadPdf = async (
   pdfSource: PDFDocument | Uint8Array,
   suggestedName: string
 ): Promise<void> => {
-  const { PDFDocument } = await loadPdfLib();
+  const { PDFDocument } = await loadPdfLibGenerationRuntime();
   const pdfBytes: Uint8Array =
     pdfSource instanceof PDFDocument ? await pdfSource.save() : pdfSource;
 
@@ -124,7 +119,7 @@ export const openPdfPrintDialog = async (
   fallbackName: string,
   reservedPrintWindow?: Window | null
 ): Promise<void> => {
-  const { PDFDocument } = await loadPdfLib();
+  const { PDFDocument } = await loadPdfLibGenerationRuntime();
   const pdfBytes: Uint8Array =
     pdfSource instanceof PDFDocument ? await pdfSource.save() : pdfSource;
   const printDoc = await PDFDocument.load(pdfBytes);

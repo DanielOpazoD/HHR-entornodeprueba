@@ -15,6 +15,10 @@ describe('transferPresentation', () => {
     expect(formatTransferVerboseDateTime('2026-03-15T10:30:00.000Z')).toContain('2026');
   });
 
+  it('mantiene la fecha de solicitud clinica sin retroceder por zona horaria', () => {
+    expect(formatTransferDate('2026-06-05')).toMatch(/05-06-2026|05\/06\/2026/);
+  });
+
   it('centraliza label y tonos de estado', () => {
     expect(getTransferStatusLabel('REJECTED')).toBe('Rechazado');
     expect(getTransferStatusPresentation('SIGNED' as never).label).toBe('Desconocido');

@@ -194,6 +194,7 @@ export const addMonthlySummarySheet = (
   const summarySheet = workbook.addWorksheet('Resumen CUDYR Mensual', {
     properties: { tabColor: { argb: 'FF4CAF50' } },
   });
+  summarySheet.views = [{ state: 'frozen', ySplit: 2 }];
   summarySheet.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 10 }];
 
   summarySheet.getCell('A1').value =

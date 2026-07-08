@@ -15,7 +15,7 @@ git status --short
 npm run check:report-freshness
 ```
 
-Si el árbol está sucio o `check:report-freshness` falla, esos artefactos deben tratarse como contexto histórico y no como fotografía fiel del checkout en revisión.
+Si el árbol está sucio o `check:report-freshness` muestra drift, esos artefactos deben tratarse como contexto histórico y no como fotografía fiel del checkout en revisión. Para un veredicto de release, usa `npm run check:report-freshness:strict` o `npm run check:release-evidence`.
 
 ### 1. Marco Legal y Normativo
 

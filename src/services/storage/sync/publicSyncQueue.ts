@@ -1,15 +1,16 @@
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import {
-  createSyncQueueEngine,
-  type SyncQueueDomainMetrics,
-  type SyncQueueEnqueueResult,
-  type SyncQueueOperationSnapshot,
-  type SyncQueueTelemetry,
-} from '@/services/storage/sync/syncQueueEngine';
+import { createDailyRecordSyncQueueActions } from '@/services/storage/sync/publicDailyRecordSyncQueueActions';
+import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
+import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
+import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
+import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import type { SyncQueueDomainMetrics } from '@/services/storage/sync/syncDomainPolicy';
+import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import { createDomainObservability } from '@/services/observability/domainObservability';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -58,9 +59,11 @@ const buildUnavailableSyncQueueTelemetry = (error: unknown): SyncQueueTelemetry 
   retrying: 0,
   orphanedTasks: 0,
   oldestPendingAgeMs: 0,
+  oldestDirectQueueAgeMs: 0,
   batchSize: SYNC_QUEUE_BATCH_SIZE,
   pendingBudgetState: 'ok',
   oldestPendingBudgetState: 'ok',
+  directQueueBudgetState: 'ok',
   retryingBudgetState: 'ok',
   runtimeState: 'blocked',
   readState: 'unavailable',
@@ -77,6 +80,17 @@ const syncQueueEngine = createSyncQueueEngine({
   maxRetries: MAX_RETRIES,
   baseRetryDelayMs: BASE_RETRY_DELAY_MS,
   maxRetryDelayMs: MAX_RETRY_DELAY_MS,
+});
+
+export const {
+  ackDailyRecordSyncTask,
+  releaseDailyRecordPreOutboxHold,
+  renewDailyRecordPreOutboxHold,
+} = createDailyRecordSyncQueueActions({
+  ensureReady: ensureDbReady,
+  store: syncQueueStore,
+  getOwnerKey: getSyncOwnerKey,
+  logger: syncObservability.logger,
 });
 
 export const recordSyncQueueOwnershipTelemetry = (
@@ -193,11 +207,12 @@ export const getSyncQueueDomainMetrics = async (): Promise<SyncQueueDomainMetric
 export const queueSyncTask = async (
   type: SyncTask['type'],
   payload: unknown,
-  meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy'>
+  meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
+  options?: SyncQueueEnqueueOptions
 ): Promise<SyncQueueEnqueueResult> => {
   try {
     await ensureDbReady();
-    const result = await syncQueueEngine.queueTask(type, payload, meta);
+    const result = await syncQueueEngine.queueTask(type, payload, meta, options);
     if (!result.accepted && result.mode === 'rejected_backpressure') {
       recordOperationalTelemetry({
         category: 'sync',
@@ -228,6 +243,64 @@ export const queueSyncTask = async (
       issues: [toSyncIssueMessage(error, 'La cola de sincronizacion no pudo recibir la tarea.')],
       context: {
         type,
+        contexts: meta?.contexts,
+        origin: meta?.origin,
+        recoveryPolicy: meta?.recoveryPolicy,
+      },
+    });
+    return {
+      accepted: false,
+      mode: 'enqueue_failed',
+      pendingTasks: 0,
+      maxPendingTasks: SYNC_QUEUE_MAX_PENDING_TASKS,
+    };
+  }
+};
+
+export const queueDailyRecordSyncTaskWithLocalRecord = async (
+  record: DailyRecord,
+  meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
+  options?: SyncQueueEnqueueOptions
+): Promise<SyncQueueEnqueueResult> => {
+  try {
+    await ensureDbReady();
+    const result = await syncQueueEngine.queueDailyRecordTaskWithLocalRecord(record, meta, options);
+    if (!result.accepted && result.mode === 'rejected_backpressure') {
+      recordOperationalTelemetry({
+        category: 'sync',
+        operation: 'sync_queue_backpressure_rejected',
+        status: 'failed',
+        runtimeState: 'blocked',
+        issues: [
+          'La cola de sincronizacion alcanzo su limite operativo y no acepto una nueva tarea.',
+        ],
+        context: {
+          type: 'UPDATE_DAILY_RECORD',
+          contexts: meta?.contexts,
+          origin: meta?.origin,
+          recoveryPolicy: meta?.recoveryPolicy,
+          pendingTasks: result.pendingTasks,
+          maxPendingTasks: result.maxPendingTasks,
+        },
+      });
+    }
+    return result;
+  } catch (error) {
+    syncObservability.logger.error('Failed to queue task with local record', error);
+    recordOperationalTelemetry({
+      category: 'sync',
+      operation: 'sync_queue_transactional_enqueue_failure',
+      status: 'failed',
+      runtimeState: 'blocked',
+      issues: [
+        toSyncIssueMessage(
+          error,
+          'La cola de sincronizacion no pudo guardar el registro y la tarea.'
+        ),
+      ],
+      context: {
+        type: 'UPDATE_DAILY_RECORD',
+        date: record.date,
         contexts: meta?.contexts,
         origin: meta?.origin,
         recoveryPolicy: meta?.recoveryPolicy,

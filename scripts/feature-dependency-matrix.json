@@ -9,6 +9,7 @@
     "cudyr": [],
     "handoff": ["cudyr", "wound-care"],
     "laboratory": [],
+    "prescriptions": [],
     "reminders": [],
     "transfers": [],
     "whatsapp": [],

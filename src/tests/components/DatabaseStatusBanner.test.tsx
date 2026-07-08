@@ -6,18 +6,24 @@ import {
   getStoragePersistentFallbackCountKey,
 } from '@/services/storage/storageFallbackUiPolicy';
 
-const mockReload = vi.fn();
+const { mockReload } = vi.hoisted(() => ({
+  mockReload: vi.fn(),
+}));
 
 vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
   isDatabaseInFallbackMode: vi.fn(),
   registerDatabaseRecreatedHandler: vi.fn(),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    reload: () => mockReload(),
-  },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      reload: mockReload,
+    }),
+  };
+});
 
 import { isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
 import { DatabaseStatusBanner } from '@/components/ui/DatabaseStatusBanner';

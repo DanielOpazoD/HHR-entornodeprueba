@@ -15,6 +15,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/tests/emulator/**/*.test.ts'],
+    setupFiles: ['./src/tests/emulator/setup.ts'],
     exclude: ['stories/**/*', 'node_modules/**/*'],
     testTimeout: 30000,
     hookTimeout: 30000,

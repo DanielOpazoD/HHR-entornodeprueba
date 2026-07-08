@@ -7,6 +7,11 @@ import type {
   SyncStatus,
 } from '@/context/dailyRecordContextContracts';
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -76,9 +81,9 @@ export const useDailyRecordFragmentedValues = (
   const movementsValue = useMemo(() => {
     if (!record) return null;
     return {
-      discharges: record.discharges || [],
-      transfers: record.transfers || [],
-      cma: record.cma || [],
+      discharges: getActiveDischarges(record.discharges),
+      transfers: getActiveTransfers(record.transfers),
+      cma: getActiveCma(record.cma),
     };
   }, [record]);
 
@@ -139,6 +144,7 @@ export const useDailyRecordFragmentedValues = (
         updateClinicalCribCudyrMultiple: value?.updateClinicalCribCudyrMultiple,
         updateCudyr: value?.updateCudyr,
         updateCudyrMultiple: value?.updateCudyrMultiple,
+        updateCudyrBatch: value?.updateCudyrBatch,
         clearPatient: value?.clearPatient,
         clearAllBeds: value?.clearAllBeds,
         moveOrCopyPatient: value?.moveOrCopyPatient,
@@ -153,6 +159,7 @@ export const useDailyRecordFragmentedValues = (
         updateDischarge: value?.updateDischarge,
         deleteDischarge: value?.deleteDischarge,
         undoDischarge: value?.undoDischarge,
+        convertDischargeToCma: value?.convertDischargeToCma,
         addTransfer: value?.addTransfer,
         updateTransfer: value?.updateTransfer,
         deleteTransfer: value?.deleteTransfer,
@@ -160,6 +167,8 @@ export const useDailyRecordFragmentedValues = (
         addCMA: value?.addCMA,
         deleteCMA: value?.deleteCMA,
         updateCMA: value?.updateCMA,
+        undoCMA: value?.undoCMA,
+        convertCmaToHomeDischarge: value?.convertCmaToHomeDischarge,
         updateHandoffChecklist: value?.updateHandoffChecklist,
         updateHandoffNovedades: value?.updateHandoffNovedades,
         updateMedicalSpecialtyNote: value?.updateMedicalSpecialtyNote,
@@ -188,6 +197,7 @@ export const useDailyRecordFragmentedValues = (
       value?.updateClinicalCribCudyrMultiple,
       value?.updateCudyr,
       value?.updateCudyrMultiple,
+      value?.updateCudyrBatch,
       value?.clearPatient,
       value?.clearAllBeds,
       value?.moveOrCopyPatient,
@@ -202,6 +212,7 @@ export const useDailyRecordFragmentedValues = (
       value?.updateDischarge,
       value?.deleteDischarge,
       value?.undoDischarge,
+      value?.convertDischargeToCma,
       value?.addTransfer,
       value?.updateTransfer,
       value?.deleteTransfer,
@@ -209,6 +220,8 @@ export const useDailyRecordFragmentedValues = (
       value?.addCMA,
       value?.deleteCMA,
       value?.updateCMA,
+      value?.undoCMA,
+      value?.convertCmaToHomeDischarge,
       value?.updateHandoffChecklist,
       value?.updateHandoffNovedades,
       value?.updateMedicalSpecialtyNote,

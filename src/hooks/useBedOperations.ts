@@ -2,14 +2,30 @@
  * useBedOperations Hook
  * Handles bed-level operations: block, extra beds, move/copy, clear.
  * Extracted from useBedManagement for better separation of concerns.
+ *
+ * Five mutations (`clearPatient`, `toggleBlockBed`, `updateBlockedReason`,
+ * `toggleExtraBed`, `toggleBedType`) now return a typed
+ * `ApplicationOutcome<BedOperationResultPayload>` instead of `void`. The
+ * payload's `outcome` field discriminates `applied` vs `noop`, with an
+ * optional `warning` carried for noops (e.g., empty source for a move,
+ * unknown bed). Existing callers that ignore the return value are
+ * unchanged; new callers can react to the outcome the same way the
+ * canonical commands do.
  */
 
 import { useCallback } from 'react';
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
+  DailyRecordPatch,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { useAuditContext } from '@/context/AuditContext';
+import { bedOperationsLogger } from '@/hooks/hookLoggers';
+import {
+  createApplicationFailed,
+  createApplicationSuccess,
+} from '@/shared/contracts/applicationOutcomeFactories';
+import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { buildClearAllBedsPatch, buildClearPatientPatch } from './useBedOperationsController';
 import {
   resolveBlockedReasonUpdate,
@@ -21,41 +37,63 @@ import {
   type BedOperationResolution,
 } from '@/hooks/controllers/bedOperationsAuditController';
 
+export interface BedOperationResultPayload {
+  outcome: 'applied' | 'noop';
+  warning?: string;
+}
+
+export type BedOperationOutcome = ApplicationOutcome<BedOperationResultPayload>;
+
+const NO_RECORD_OUTCOME: BedOperationOutcome = createApplicationFailed(
+  { outcome: 'noop' as const, warning: 'no_record_available' },
+  [{ kind: 'not_found', message: 'No hay registro diario activo para esta operación.' }]
+);
+
+const APPLIED_OUTCOME: BedOperationOutcome = createApplicationSuccess({
+  outcome: 'applied',
+});
+
+const buildNoopOutcome = (warning: string): BedOperationOutcome =>
+  createApplicationSuccess({ outcome: 'noop', warning });
+
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface BedOperationsActions {
   /**
-   * Clear patient data from a bed (reset to empty)
+   * Clear patient data from a bed (reset to empty). Returns a typed
+   * outcome so callers can react to noops (e.g., bed unknown / no
+   * patient to clear).
    */
-  clearPatient: (bedId: string) => void;
+  clearPatient: (bedId: string) => BedOperationOutcome;
 
   /**
-   * Clear all beds in the record
+   * Clear all beds in the record. Returns void because there is no
+   * meaningful per-bed outcome to surface.
    */
   clearAllBeds: () => void;
 
   /**
-   * Move or copy a patient from one bed to another
+   * Move or copy a patient from one bed to another.
    */
   moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
 
   /**
-   * Toggle bed blocked status
+   * Toggle bed blocked status.
    */
-  toggleBlockBed: (bedId: string, reason?: string) => void;
-  updateBlockedReason: (bedId: string, reason: string) => void;
+  toggleBlockBed: (bedId: string, reason?: string) => BedOperationOutcome;
+  updateBlockedReason: (bedId: string, reason: string) => BedOperationOutcome;
 
   /**
-   * Toggle extra bed activation
+   * Toggle extra bed activation.
    */
-  toggleExtraBed: (bedId: string) => void;
+  toggleExtraBed: (bedId: string) => BedOperationOutcome;
 
   /**
-   * Toggle bed type (UTI/UCI)
+   * Toggle bed type (UTI/UCI).
    */
-  toggleBedType: (bedId: string) => void;
+  toggleBedType: (bedId: string) => BedOperationOutcome;
 }
 
 // ============================================================================
@@ -68,15 +106,30 @@ export const useBedOperations = (
 ): BedOperationsActions => {
   const { logEvent, logPatientCleared } = useAuditContext();
 
-  const applyResolvedOperation = useCallback(
-    (resolvedOperation: BedOperationResolution): void => {
-      if (resolvedOperation.kind === 'noop') {
-        return;
-      }
-      patchRecord(resolvedOperation.patch);
-      logEvent(...toBedOperationAuditArgs(resolvedOperation));
+  const persistBedOperationPatch = useCallback(
+    (patch: DailyRecordPatch, onSuccess?: () => void): void => {
+      void patchRecord(patch)
+        .then(() => {
+          onSuccess?.();
+        })
+        .catch(error => {
+          bedOperationsLogger.warn('Bed operation patch failed', error);
+        });
     },
-    [logEvent, patchRecord]
+    [patchRecord]
+  );
+
+  const applyResolvedOperation = useCallback(
+    (resolvedOperation: BedOperationResolution): BedOperationOutcome => {
+      if (resolvedOperation.kind === 'noop') {
+        return buildNoopOutcome(resolvedOperation.warning);
+      }
+      persistBedOperationPatch(resolvedOperation.patch, () => {
+        logEvent(...toBedOperationAuditArgs(resolvedOperation));
+      });
+      return APPLIED_OUTCOME;
+    },
+    [logEvent, persistBedOperationPatch]
   );
 
   // ========================================================================
@@ -84,26 +137,29 @@ export const useBedOperations = (
   // ========================================================================
 
   const clearPatient = useCallback(
-    (bedId: string) => {
-      if (!record) return;
+    (bedId: string): BedOperationOutcome => {
+      if (!record) return NO_RECORD_OUTCOME;
+
+      const bed = record.beds[bedId];
+      if (!bed) return buildNoopOutcome(`unknown_bed:${bedId}`);
 
       const { patch } = buildClearPatientPatch(record, bedId);
 
-      // Audit Log
-      const patientName = record.beds[bedId].patientName;
-      if (patientName) {
-        logPatientCleared(bedId, patientName, record.beds[bedId].rut, record.date);
-      }
-
-      patchRecord(patch);
+      const patientName = bed.patientName;
+      persistBedOperationPatch(patch, () => {
+        if (patientName) {
+          logPatientCleared(bedId, patientName, bed.rut, record.date);
+        }
+      });
+      return APPLIED_OUTCOME;
     },
-    [record, patchRecord, logPatientCleared]
+    [record, persistBedOperationPatch, logPatientCleared]
   );
 
   const clearAllBeds = useCallback(() => {
     if (!record) return;
-    patchRecord(buildClearAllBedsPatch(record));
-  }, [record, patchRecord]);
+    persistBedOperationPatch(buildClearAllBedsPatch(record));
+  }, [record, persistBedOperationPatch]);
 
   // ========================================================================
   // Move/Copy Operations
@@ -123,10 +179,9 @@ export const useBedOperations = (
   // ========================================
 
   const toggleBlockBed = useCallback(
-    (bedId: string, reason?: string) => {
-      if (!record) return;
-      const resolvedOperation = resolveToggleBlockedOperation(record, bedId, reason);
-      applyResolvedOperation(resolvedOperation);
+    (bedId: string, reason?: string): BedOperationOutcome => {
+      if (!record) return NO_RECORD_OUTCOME;
+      return applyResolvedOperation(resolveToggleBlockedOperation(record, bedId, reason));
     },
     [applyResolvedOperation, record]
   );
@@ -135,28 +190,25 @@ export const useBedOperations = (
    * Update the blocked reason for an already blocked bed without toggling the block state.
    */
   const updateBlockedReason = useCallback(
-    (bedId: string, reason: string) => {
-      if (!record) return;
-      const resolvedOperation = resolveBlockedReasonUpdate(record, bedId, reason);
-      applyResolvedOperation(resolvedOperation);
+    (bedId: string, reason: string): BedOperationOutcome => {
+      if (!record) return NO_RECORD_OUTCOME;
+      return applyResolvedOperation(resolveBlockedReasonUpdate(record, bedId, reason));
     },
     [applyResolvedOperation, record]
   );
 
   const toggleExtraBed = useCallback(
-    (bedId: string) => {
-      if (!record) return;
-      const resolvedOperation = resolveToggleExtraBedOperation(record, bedId);
-      applyResolvedOperation(resolvedOperation);
+    (bedId: string): BedOperationOutcome => {
+      if (!record) return NO_RECORD_OUTCOME;
+      return applyResolvedOperation(resolveToggleExtraBedOperation(record, bedId));
     },
     [applyResolvedOperation, record]
   );
 
   const toggleBedType = useCallback(
-    (bedId: string) => {
-      if (!record) return;
-      const resolvedOperation = resolveToggleBedTypeOperation(record, bedId);
-      applyResolvedOperation(resolvedOperation);
+    (bedId: string): BedOperationOutcome => {
+      if (!record) return NO_RECORD_OUTCOME;
+      return applyResolvedOperation(resolveToggleBedTypeOperation(record, bedId));
     },
     [applyResolvedOperation, record]
   );

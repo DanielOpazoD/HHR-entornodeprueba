@@ -42,7 +42,9 @@ const { legacyFirebaseMock, indexedDbFacadeMock, firestoreMock, logErrorMock } =
     getRecordForDate: vi.fn().mockResolvedValue(null),
     getPreviousDayRecord: vi.fn().mockResolvedValue(null),
     saveRecord: vi.fn(),
+    saveRecordStrict: vi.fn(),
     deleteRecord: vi.fn(),
+    deleteRecordStrict: vi.fn(),
     getAllRecords: vi.fn().mockResolvedValue([]),
     getAllDates: vi.fn().mockResolvedValue([]),
     getRecordsRange: vi.fn().mockResolvedValue([]),
@@ -95,7 +97,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: indexedDbFacadeMock.getRecordForDate,
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
+  saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,
   deleteRecord: indexedDbFacadeMock.deleteRecord,
+  deleteRecordStrict: indexedDbFacadeMock.deleteRecordStrict,
   getAllRecords: indexedDbFacadeMock.getAllRecords,
   getAllDates: indexedDbFacadeMock.getAllDates,
   getRecordsRange: indexedDbFacadeMock.getRecordsRange,
@@ -121,6 +125,27 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
   moveRecordToTrash: firestoreMock.moveRecordToTrash,
 }));
 vi.mock('@/services/storage/firestore', () => firestoreMock);
+vi.mock('@/services/storage/sync', () => ({
+  ackDailyRecordSyncTask: vi.fn().mockResolvedValue(true),
+  isRetryableSyncError: vi.fn(() => false),
+  queueSyncTask: vi.fn().mockResolvedValue({
+    accepted: true,
+    mode: 'created',
+    pendingTasks: 1,
+    maxPendingTasks: 1000,
+  }),
+  queueDailyRecordSyncTaskWithLocalRecord: vi.fn(async (record: DailyRecord) => {
+    await indexedDbFacadeMock.saveRecordStrict(record);
+    return {
+      accepted: true,
+      mode: 'created',
+      pendingTasks: 1,
+      maxPendingTasks: 1000,
+    };
+  }),
+  releaseDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
+  renewDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
+}));
 
 export const Repository = {
   bridgeLegacyRecord: bridgeLegacyRecordForDate,
@@ -208,12 +233,32 @@ export const resetDailyRecordRepositoryLifecycleState = () => {
   vi.mocked(idbService.getRecordForDate).mockReset();
   vi.mocked(idbService.getPreviousDayRecord).mockReset();
   vi.mocked(idbService.saveRecord).mockReset();
+  vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockReset();
+  vi.mocked(indexedDbFacadeMock.deleteRecordStrict).mockReset();
   vi.mocked(firestoreService.getRecordFromFirestore).mockReset();
   vi.mocked(firestoreService.saveRecordToFirestore).mockReset();
   vi.mocked(firestoreService.updateRecordPartial).mockReset();
 
   Repository.setFirestoreEnabled(true);
   vi.mocked(idbService.getRecordForDate).mockResolvedValue(null);
+  vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockImplementation(async record => {
+    await indexedDbFacadeMock.saveRecord(record);
+    return {
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    };
+  });
+  vi.mocked(indexedDbFacadeMock.deleteRecordStrict).mockImplementation(async date => {
+    await indexedDbFacadeMock.deleteRecord(date);
+    return {
+      ok: true,
+      operation: 'delete',
+      store: 'indexeddb',
+      dates: [date],
+    };
+  });
   vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValue(null);
   vi.mocked(firestoreService.getRecordFromFirestoreDetailed).mockImplementation(
     async (date: string) => {

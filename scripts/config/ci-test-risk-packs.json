@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "unitSuiteScript": "test:ci:unit:shard",
+  "criticalFiles": [
+    "src/tests/integration/sync-resilience.test.ts",
+    "src/tests/integration/sync-ui-resilience.test.tsx",
+    "src/tests/integration/offline-persistence.test.ts",
+    "src/tests/services/admin/healthService.test.ts",
+    "src/tests/features/admin/systemHealthStatusPolicy.test.ts",
+    "src/tests/services/auth/authErrorPolicy.test.ts",
+    "src/tests/services/auth/authRequestHeaders.test.ts",
+    "src/tests/services/auth/googleLoginLock.test.ts",
+    "src/tests/services/authService.test.ts",
+    "src/tests/services/admin/roleService.test.ts",
+    "src/tests/security/netlifyHeadersStatic.test.ts",
+    "src/tests/security/netlifyRuntimeIsolationStatic.test.ts",
+    "src/tests/security/legacyRoleAliasStatic.test.ts",
+    "src/tests/netlify/firebaseAuth.test.ts",
+    "src/tests/netlify/sendCensusEmailFunction.test.ts",
+    "src/tests/netlify/fhirApi.test.ts",
+    "src/tests/netlify/cie10AiSearch.test.ts",
+    "src/tests/netlify/aiProvider.test.ts",
+    "src/tests/netlify/clinicalAiSummary.test.ts",
+    "src/tests/services/backup/storageContracts.test.ts",
+    "src/tests/services/backup/storageAvailability.test.ts",
+    "src/tests/services/backup/censusStorageService.test.ts",
+    "src/tests/services/backup/cudyrStorageService.test.ts",
+    "src/tests/services/backup/pdfStorageRuntime.test.ts",
+    "src/tests/services/storage/syncQueueLoad.test.ts"
+  ],
+  "excludedFromUnitSuite": [
+    "src/tests/security/firestore-rules.test.ts",
+    "src/tests/emulator/**",
+    "src/tests/emulator-ui/**"
+  ]
+}

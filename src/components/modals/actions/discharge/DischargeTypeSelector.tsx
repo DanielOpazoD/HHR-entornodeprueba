@@ -18,10 +18,10 @@ export const DischargeTypeSelector: React.FC<DischargeTypeSelectorProps> = ({
   onTypeChange,
   onOtherDetailsChange,
 }) => (
-  <div className="space-y-2.5 pt-2 border-l-2 border-emerald-50 pl-4 animate-fade-in">
-    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+  <fieldset className="space-y-2.5 pt-2 border-l-2 border-emerald-50 pl-4 animate-fade-in">
+    <legend className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
       Tipo de Alta
-    </label>
+    </legend>
     <div className="space-y-2">
       {DISCHARGE_TYPES.map(item => (
         <label key={item} className="flex items-center gap-2 cursor-pointer group">
@@ -66,5 +66,5 @@ export const DischargeTypeSelector: React.FC<DischargeTypeSelectorProps> = ({
         )}
       </div>
     )}
-  </div>
+  </fieldset>
 );

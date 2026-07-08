@@ -50,6 +50,9 @@ const makeProps = (
     type: 'rich',
     isMandatory: false,
     isLocked: false,
+    // The default plan layout is 'unified' (single editor); this test file
+    // explicitly exercises the structured/split layout, so opt in here.
+    layout: 'structured',
     ...sectionOverrides,
   } as unknown as Parameters<typeof ClinicalDocumentPlanSection>[0]['section'];
 

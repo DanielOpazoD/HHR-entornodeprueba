@@ -10,9 +10,9 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Paperclip, Printer, Trash2, X } from 'lucide-react';
+import { FileText, Printer, Trash2, X } from 'lucide-react';
 import { ClinicalDocumentRichTextEditor } from '@/features/clinical-documents/components/ClinicalDocumentRichTextEditor';
-import type { ClinicalDocumentRichTextEditorActivationApi } from '@/features/clinical-documents/hooks/useClinicalDocumentRichTextEditorController';
+import type { ClinicalDocumentRichTextEditorActivationApi } from '@/features/clinical-documents/hooks/clinicalDocumentRichTextEditorTypes';
 import { formatDateForDisplay } from '@/utils/dateDisplayUtils';
 
 interface ClinicalDocumentAnnexPageProps {
@@ -32,6 +32,12 @@ interface ClinicalDocumentAnnexPageProps {
     editor: ClinicalDocumentRichTextEditorActivationApi
   ) => void;
   onEditorDeactivate?: (sectionId: string) => void;
+  onUploadPastedImage?: (file: File) => Promise<{
+    attachmentId: string;
+    imageUrl: string;
+    storagePath: string;
+  } | null>;
+  onImagePasteRejected?: (message: string) => void;
 }
 
 export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps> = ({
@@ -48,6 +54,8 @@ export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps>
   onClear,
   onEditorActivate,
   onEditorDeactivate,
+  onUploadPastedImage,
+  onImagePasteRejected,
 }) => {
   const [showDelete, setShowDelete] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -95,9 +103,9 @@ export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps>
           title={canEdit && !isLocked ? 'Doble clic para opciones' : undefined}
         >
           <div className="clinical-document-annex-title-row">
-            <Paperclip size={16} className="text-slate-500 print:hidden" />
-            <h2 className="clinical-document-annex-title">Anexos clínicos</h2>
-            <span className="clinical-document-annex-badge">Adjunto</span>
+            <FileText size={16} className="text-slate-500 print:hidden" />
+            <h2 className="clinical-document-annex-title">Anexo del documento</h2>
+            <span className="clinical-document-annex-badge">Pertenece solo a este documento</span>
           </div>
           <div className="clinical-document-annex-meta">
             <span className="clinical-document-annex-meta-item">
@@ -141,7 +149,7 @@ export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps>
                   type="button"
                   onClick={handleDeleteClick}
                   className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                  title="Eliminar sección de anexos"
+                  title="Eliminar anexo del documento"
                 >
                   <Trash2 size={12} />
                   Eliminar
@@ -157,7 +165,7 @@ export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps>
               </>
             ) : (
               <div className="flex items-center gap-1.5 rounded-md border border-red-300 bg-red-50 px-2 py-1">
-                <span className="text-xs text-red-700">¿Eliminar anexos?</span>
+                <span className="text-xs text-red-700">¿Eliminar anexo del documento?</span>
                 <button
                   type="button"
                   onClick={handleConfirmDelete}
@@ -181,12 +189,14 @@ export const ClinicalDocumentAnnexPage: React.FC<ClinicalDocumentAnnexPageProps>
       <div className="clinical-document-annex-editor-shell">
         <ClinicalDocumentRichTextEditor
           sectionId="annexes"
-          sectionTitle="Anexos"
+          sectionTitle="Anexo del documento"
           value={content}
           disabled={!canEdit || isLocked}
           onChange={onChange}
           onActivate={onEditorActivate}
           onDeactivate={onEditorDeactivate}
+          onUploadPastedImage={onUploadPastedImage}
+          onImagePasteRejected={onImagePasteRejected}
         />
       </div>
     </div>

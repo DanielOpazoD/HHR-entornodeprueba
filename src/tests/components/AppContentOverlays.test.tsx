@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeAll } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest';
 
 type LazyBypassProps = Record<string, unknown>;
 
@@ -33,6 +33,7 @@ vi.mock('@/utils/lazyWithRetry', () => {
 });
 
 import { AppContentOverlays } from '@/components/layout/app-content/AppContentOverlays';
+import { useReminderCenter } from '@/hooks/useReminders';
 
 vi.mock('@/components/reminders/ReminderModal', () => ({
   ReminderModal: () => <div data-testid="reminder-modal">ReminderModal</div>,
@@ -52,6 +53,10 @@ vi.mock('@/components/security/PinLockScreen', () => ({
 
 vi.mock('@/components/layout/StorageStatusBadge', () => ({
   default: () => <div data-testid="storage-badge">StorageStatusBadge</div>,
+}));
+
+vi.mock('@/hooks/useReminders', () => ({
+  useReminderCenter: vi.fn(),
 }));
 
 vi.mock('@/views/LazyViews', () => ({
@@ -106,16 +111,45 @@ describe('AppContentOverlays', () => {
     record: { date: '2026-03-27' },
   } as const;
 
-  it('mounts shell overlays and global status components', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useReminderCenter).mockReturnValue({ isOpen: false } as never);
+  });
+
+  it('mounts active shell overlays and global status components', () => {
     render(<AppContentOverlays ui={ui as never} runtime={runtime as never} />);
 
-    expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.queryByTestId('patient-search-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('sync-watcher')).toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.getByTestId('email-modal')).toBeInTheDocument();
+  });
+
+  it('loads the reminder modal only when the reminder center is open', () => {
+    vi.mocked(useReminderCenter).mockReturnValue({ isOpen: true } as never);
+
+    render(<AppContentOverlays ui={ui as never} runtime={runtime as never} />);
+
+    expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
+  });
+
+  it('loads the test agent only while it is running', () => {
+    render(
+      <AppContentOverlays
+        ui={
+          {
+            ...ui,
+            isTestAgentRunning: false,
+          } as never
+        }
+        runtime={runtime as never}
+      />
+    );
+
+    expect(screen.queryByTestId('test-agent')).not.toBeInTheDocument();
   });
 
   it('mounts patient search only when the modal is open', () => {

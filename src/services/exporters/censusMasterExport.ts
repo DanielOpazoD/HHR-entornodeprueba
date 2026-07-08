@@ -18,6 +18,19 @@ import { censusMasterExportLogger } from '@/services/exporters/exporterLoggers';
 import { isE2ERuntimeEnabled, recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 
 /**
+ * Outcome of the Census Master export. Services do not render UI: failure
+ * variants carry a userSafeMessage the caller presents via useNotification.
+ *  - success:  workbook validated and download triggered
+ *  - no_data:  nothing to export for the requested range
+ *  - failed:   validation rejected the generated workbook OR the data
+ *              fetch / generation pipeline threw
+ */
+export type CensusMasterExportOutcome =
+  | { outcome: 'success'; filename: string; byteLength: number }
+  | { outcome: 'no_data'; userSafeMessage: string }
+  | { outcome: 'failed'; userSafeMessage: string; reason: string };
+
+/**
  * Generate and download the Census Master Excel file for a given month.
  * Fetches data from Firestore if available, otherwise falls back to localStorage.
  * Creates one worksheet per day that has data, from the first day up to the selected day.
@@ -27,13 +40,12 @@ import { isE2ERuntimeEnabled, recordE2EDownloadArtifact } from '@/shared/runtime
  * @param year - Year (e.g., 2025)
  * @param month - Month (0-indexed, e.g., 11 for December)
  * @param selectedDay - Day of the month to use as the limit (e.g., 10 means include days 1-10)
- * @throws Error if the generated Excel file is invalid
  */
 export const generateCensusMasterExcel = async (
   year: number,
   month: number,
   selectedDay: number
-): Promise<void> => {
+): Promise<CensusMasterExportOutcome> => {
   const limitDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
 
   let allMonthRecords: CensusExportRecord[] = [];
@@ -71,10 +83,10 @@ export const generateCensusMasterExcel = async (
 
     if (monthRecords.length === 0) {
       censusMasterExportLogger.warn(`No census records found for ${MONTH_NAMES[month]} ${year}`);
-      alert(
-        `No hay datos registrados para las fechas seleccionadas en ${MONTH_NAMES[month]} ${year}`
-      );
-      return;
+      return {
+        outcome: 'no_data',
+        userSafeMessage: `No hay datos registrados para las fechas seleccionadas en ${MONTH_NAMES[month]} ${year}.`,
+      };
     }
 
     censusMasterExportLogger.info(`Found ${monthRecords.length} census days to export`);
@@ -85,10 +97,12 @@ export const generateCensusMasterExcel = async (
 
     if (!validation.valid) {
       censusMasterExportLogger.error(`Excel validation failed for ${filename}`, validation.error);
-      alert(
-        `Error al generar el archivo Excel:\n${validation.error}\n\nPor favor, recarga la página e intenta de nuevo.`
-      );
-      return;
+      return {
+        outcome: 'failed',
+        userSafeMessage:
+          'No se pudo generar el archivo Excel. Por favor, recarga la página e intenta de nuevo.',
+        reason: validation.error ?? 'unknown_validation_error',
+      };
     }
 
     const blob = new Blob([binary], { type: XLSX_MIME_TYPE });
@@ -102,12 +116,15 @@ export const generateCensusMasterExcel = async (
     censusMasterExportLogger.info(
       `📥 Archivo descargado: ${filename} (${binary.byteLength} bytes)`
     );
+    return { outcome: 'success', filename, byteLength: binary.byteLength };
   } catch (error) {
     censusMasterExportLogger.error('Failed to generate census master Excel', error);
-    const message = error instanceof Error ? error.message : 'Error desconocido';
-    alert(
-      `Error al generar el archivo Excel:\n${message}\n\nPor favor, recarga la página e intenta de nuevo.`
-    );
-    throw error;
+    const reason = error instanceof Error ? error.message : 'Error desconocido';
+    return {
+      outcome: 'failed',
+      userSafeMessage:
+        'No se pudo generar el archivo Excel. Por favor, recarga la página e intenta de nuevo.',
+      reason,
+    };
   }
 };

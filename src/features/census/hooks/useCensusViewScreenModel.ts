@@ -5,7 +5,11 @@ import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
 import type { CensusAccessProfile } from '../types/censusAccessProfile';
-import { resolveCensusEmptyStatePolicy } from '@/hooks/controllers/dailyRecordBootstrapController';
+import {
+  resolveCensusEmptyStateDiagnostic,
+  resolveCensusEmptyStatePolicy,
+} from '@/hooks/controllers/dailyRecordBootstrapController';
+import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
 
 interface UseCensusViewScreenModelParams {
   selectedDay: number;
@@ -30,6 +34,7 @@ export const useCensusViewScreenModel = ({
 }: UseCensusViewScreenModelParams) => {
   const auth = useAuth();
   const { bootstrapPhase } = useDailyRecordData();
+  const [hasPostDeployRefreshMarker, setHasPostDeployRefreshMarker] = useState(false);
   const routeModel = useCensusViewRouteModel({
     selectedDay,
     selectedMonth,
@@ -50,8 +55,22 @@ export const useCensusViewScreenModel = ({
       bootstrapPhase:
         auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase,
     });
+  const emptyStateDiagnostic = resolveCensusEmptyStateDiagnostic({
+    branch: routeModel.branch,
+    currentDateString,
+    todayDateString: getTodayISO(),
+    isAuthenticated: auth.isAuthenticated,
+    bootstrapPhase:
+      auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase,
+    hasPostDeployRefreshMarker,
+  });
 
   useCensusMigrationBootstrap(true);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage marker is a browser-side deploy signal, not derivable during SSR-safe render
+    setHasPostDeployRefreshMarker(Boolean(readPostDeployRecentRecordRefreshMarker()));
+  }, [currentDateString]);
 
   useEffect(() => {
     if (!shouldDeferTodayEmptyState) {
@@ -67,6 +86,12 @@ export const useCensusViewScreenModel = ({
 
   return {
     ...routeModel,
+    emptyDayPromptProps: routeModel.emptyDayPromptProps
+      ? {
+          ...routeModel.emptyDayPromptProps,
+          emptyStateDiagnostic,
+        }
+      : null,
     shouldDeferTodayEmptyState,
     resolvedTodayEmptyDate,
   };

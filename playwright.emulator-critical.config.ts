@@ -21,6 +21,30 @@ const previewCommand = skipPreviewBuild
 const webServerCommand = usePreviewMode
   ? previewCommand
   : `npm run dev -- --host ${webServerHost} --port ${webServerPort} --strictPort`;
+const jsonReporterOutput = process.env.PLAYWRIGHT_JSON_OUTPUT;
+const reporter = jsonReporterOutput
+  ? [
+      ...(process.env.CI ? ([['github']] as const) : []),
+      ['html', { open: 'never' }],
+      [
+        'json',
+        {
+          outputFile: jsonReporterOutput,
+        },
+      ],
+    ]
+  : process.env.CI
+    ? [
+        ['github'],
+        ['html', { open: 'never' }],
+        [
+          'json',
+          {
+            outputFile: 'reports/e2e/playwright-report.json',
+          },
+        ],
+      ]
+    : 'html';
 
 const baseEnv = {
   VITE_E2E_MODE: 'true',
@@ -42,18 +66,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI
-    ? [
-        ['github'],
-        ['html', { open: 'never' }],
-        [
-          'json',
-          {
-            outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT || 'reports/e2e/playwright-report.json',
-          },
-        ],
-      ]
-    : 'html',
+  reporter,
   timeout: 45_000,
 
   use: {

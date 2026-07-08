@@ -1,0 +1,94 @@
+name: Deploy Firebase Functions
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Deploys the Firebase Cloud Functions in `functions/` to the
+# `hhr-serviciohospitalizados` project on every push to `main` that touches
+# function-relevant code. Manual `workflow_dispatch` is also available for
+# emergency redeploys without a code change.
+#
+# ----------------------------------------------------------------------------
+# Required GitHub repo secret
+# ----------------------------------------------------------------------------
+# `FIREBASE_SERVICE_ACCOUNT_HHR` — full JSON of a Google Cloud service account
+# with at least these IAM roles on `hhr-serviciohospitalizados`:
+#   - Cloud Functions Developer (roles/cloudfunctions.developer)
+#   - Service Account User      (roles/iam.serviceAccountUser)
+#   - Firebase Admin SDK Administrator Service Agent
+#     (roles/firebase.sdkAdminServiceAgent)  — only if the function reads/writes
+#     Firestore via firebase-admin under a privileged path; otherwise omit.
+#
+# Generate the key in GCP Console → IAM & Admin → Service Accounts → Keys → Add
+# key (JSON). Paste the entire JSON file contents (including the surrounding
+# braces) into the secret value.
+#
+# This workflow intentionally deploys the currently exported function targets
+# instead of sweeping all Functions. That avoids requiring Cloud Scheduler delete
+# permissions just to keep removed legacy scheduled functions out of new deploys.
+# ----------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+# Avoid overlapping deploys; the latest push always wins.
+concurrency:
+  group: deploy-functions-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-firebase-functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js (functions runtime)
+        uses: actions/setup-node@v6
+        with:
+          # Matches `functions/package.json` engines.node — keep these in sync.
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci --no-audit --no-fund
+
+      - name: Write service account credentials to disk
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing GitHub secret FIREBASE_SERVICE_ACCOUNT_HHR. See the workflow header for setup instructions."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/firebase"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase/service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase/service-account.json"
+
+      - name: Deploy functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+        run: |
+          FUNCTION_TARGETS="$(node scripts/list-firebase-function-targets.mjs)"
+          echo "Deploying Firebase function targets: ${FUNCTION_TARGETS}"
+          npx --yes firebase-tools@latest deploy \
+            --only "${FUNCTION_TARGETS}" \
+            --project hhr-serviciohospitalizados \
+            --non-interactive \
+            --force
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase/service-account.json"

@@ -16,7 +16,11 @@
  */
 
 import type { LabResultRow } from '@/types/domain/labExamTypes';
-import { normalizeAnalysisName, parseScientificValue } from './labFormattingController';
+import {
+  formatLabResult,
+  normalizeAnalysisName,
+  parseScientificValue,
+} from './labFormattingController';
 
 /* ------------------------------------------------------------------ */
 /*  Clinical abbreviation map                                          */
@@ -124,6 +128,24 @@ const formatSummaryValue = (finding: LabResultRow, config: AbbreviationConfig): 
   return display;
 };
 
+const formatFallbackFinding = (finding: LabResultRow): string | null => {
+  const analysis = normalizeAnalysisName(finding.analysis, finding.section);
+  const result = String(finding.result || '').trim();
+  if (!analysis || !result) {
+    return null;
+  }
+
+  const formatted = formatLabResult(result, finding.unit || '');
+  const unit = formatted.displayUnit ? ` ${formatted.displayUnit}` : '';
+  return `${analysis} ${formatted.display}${unit}`;
+};
+
+const buildFallbackSummaryParts = (findings: LabResultRow[]): string[] =>
+  findings
+    .map(formatFallbackFinding)
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 12);
+
 /**
  * Build a compact one-line lab summary from parsed findings.
  *
@@ -165,8 +187,10 @@ export const buildLabSummaryText = (
     }
   }
 
-  if (parts.length === 0) return '';
-
   const timeShort = time.substring(0, 5); // HH:MM
-  return `Laboratorio (${date} ${timeShort}): ${parts.join(' ')}`;
+  const summaryParts = parts.length > 0 ? parts : buildFallbackSummaryParts(findings);
+
+  if (summaryParts.length === 0) return '';
+
+  return `Laboratorio (${date} ${timeShort}): ${summaryParts.join(' ')}`;
 };

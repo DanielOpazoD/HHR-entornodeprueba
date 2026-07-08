@@ -26,6 +26,10 @@ describe('censusViewController', () => {
       onCreateDay,
       readOnly: false,
       allowAdminCopyOverride: true,
+      emptyStateDiagnostic: {
+        source: 'remote_missing',
+        message: 'Firebase y la copia local no tienen registro para esta fecha.',
+      },
     });
 
     expect(result).toEqual({
@@ -38,6 +42,10 @@ describe('censusViewController', () => {
       onCreateDay,
       readOnly: false,
       allowAdminCopyOverride: true,
+      emptyStateDiagnostic: {
+        source: 'remote_missing',
+        message: 'Firebase y la copia local no tienen registro para esta fecha.',
+      },
     });
   });
 

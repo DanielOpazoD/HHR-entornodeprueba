@@ -56,6 +56,7 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
           movementDate={viewModel.movementDate}
           movementTime={viewModel.movementTime}
           actions={viewModel.actions}
+          actionsPresentation="menu"
         >
           {/* IEEH PDF Button aligned with actions */}
           {isFugaDischarge && dischargeItem && (

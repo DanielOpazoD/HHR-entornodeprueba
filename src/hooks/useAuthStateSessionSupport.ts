@@ -15,6 +15,7 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
+import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';
 
 export const getE2EBootstrapUser = (): AuthUser | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
@@ -82,6 +83,7 @@ export const createHandleLogout =
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
     clearQueryCache();
+    clearCachedUserAvatarProfiles();
 
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem('hhr_logged_this_session');

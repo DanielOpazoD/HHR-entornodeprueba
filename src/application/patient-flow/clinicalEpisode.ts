@@ -9,6 +9,7 @@ export interface ClinicalEpisode {
   patientRut: string;
   patientName: string;
   admissionDate?: string;
+  admissionTime?: string;
   sourceDailyRecordDate?: string;
   sourceBedId?: string;
   specialty?: string;
@@ -28,8 +29,67 @@ export interface PatientMovementClassification {
   isNewAdmission: boolean;
 }
 
-export const buildClinicalEpisodeKey = (patientRut: string, admissionDate?: string): string =>
-  `${patientRut || 'sin-rut'}__${admissionDate || 'sin-ingreso'}`;
+export interface ClinicalEpisodeFallbackEvent {
+  source?: string;
+  reason: 'missing_clinical_episode_id';
+  fallbackEpisodeKey: string;
+  hasRut: boolean;
+  hasAdmissionTime: boolean;
+}
+
+export interface ClinicalEpisodeResolutionOptions {
+  source?: string;
+  onFallback?: (event: ClinicalEpisodeFallbackEvent) => void;
+}
+
+export interface LegacyClinicalEpisodeKeyParts {
+  rut: string;
+  admissionDate: string;
+  admissionTime?: string;
+}
+
+export const normalizeClinicalEpisodeTime = (admissionTime?: string): string =>
+  String(admissionTime || '').trim();
+
+export const buildClinicalEpisodeKey = (
+  patientRut: string,
+  admissionDate?: string,
+  admissionTime?: string
+): string => {
+  const baseKey = `${patientRut || 'sin-rut'}__${admissionDate || 'sin-ingreso'}`;
+  const normalizedAdmissionTime = normalizeClinicalEpisodeTime(admissionTime);
+  return normalizedAdmissionTime ? `${baseKey}__${normalizedAdmissionTime}` : baseKey;
+};
+
+export const normalizeClinicalEpisodeId = (clinicalEpisodeId?: string): string =>
+  String(clinicalEpisodeId || '').trim();
+
+export const isCanonicalClinicalEpisodeId = (clinicalEpisodeId?: string): boolean =>
+  normalizeClinicalEpisodeId(clinicalEpisodeId).startsWith('ep_');
+
+export const isLegacyClinicalEpisodeKey = (episodeKey: string): boolean =>
+  episodeKey.includes('__');
+
+export const parseLegacyClinicalEpisodeKey = (
+  episodeKey: string
+): LegacyClinicalEpisodeKeyParts | null => {
+  const [rut, admissionDate, admissionTime] = episodeKey.split('__');
+  if (!rut || !admissionDate) {
+    return null;
+  }
+  return { rut, admissionDate, admissionTime };
+};
+
+const ISO_DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const resolveAdmissionDateFromClinicalEpisodeKey = (
+  episodeKey: string
+): string | undefined => {
+  const parsed = parseLegacyClinicalEpisodeKey(episodeKey);
+  return parsed && ISO_DATE_ONLY_PATTERN.test(parsed.admissionDate)
+    ? parsed.admissionDate
+    : undefined;
+};
 
 /**
  * Clinical documents and episode snapshots should anchor to the first observed
@@ -39,23 +99,124 @@ export const resolveClinicalEpisodeAdmissionDate = (
   patient: PatientEpisodeContract
 ): string | undefined => patient.firstSeenDate || patient.admissionDate;
 
+const stripRutDots = (rut: string): string => rut.replace(/\./g, '');
+
+const uniqueNonEmpty = (values: Array<string | undefined | null>): string[] =>
+  Array.from(
+    new Set(values.map(value => String(value || '').trim()).filter(value => value.length > 0))
+  );
+
+export const buildClinicalEpisodeKeyCandidates = (
+  patient: PatientEpisodeContract,
+  primaryEpisodeKey?: string
+): string[] => {
+  const persistedEpisodeId = normalizeClinicalEpisodeId(patient.clinicalEpisodeId);
+  const normalizedPrimaryEpisodeKey = normalizeClinicalEpisodeId(primaryEpisodeKey);
+  if (
+    isCanonicalClinicalEpisodeId(normalizedPrimaryEpisodeKey) ||
+    isCanonicalClinicalEpisodeId(persistedEpisodeId)
+  ) {
+    return uniqueNonEmpty([primaryEpisodeKey, persistedEpisodeId]);
+  }
+
+  const rut = String(patient.rut || '').trim();
+  const rutWithoutDots = stripRutDots(rut);
+  const admissionDate = resolveClinicalEpisodeAdmissionDate(patient);
+  const admissionTime = patient.admissionTime;
+
+  return uniqueNonEmpty([
+    primaryEpisodeKey,
+    patient.clinicalEpisodeId,
+    rut ? buildClinicalEpisodeKey(rut, admissionDate, admissionTime) : undefined,
+    rutWithoutDots && rutWithoutDots !== rut
+      ? buildClinicalEpisodeKey(rutWithoutDots, admissionDate, admissionTime)
+      : undefined,
+    rut ? buildClinicalEpisodeKey(rut, admissionDate) : undefined,
+    rutWithoutDots && rutWithoutDots !== rut
+      ? buildClinicalEpisodeKey(rutWithoutDots, admissionDate)
+      : undefined,
+  ]);
+};
+
+export const buildClinicalEpisodeLookupKeys = (
+  patient: PatientEpisodeContract,
+  primaryEpisodeKey?: string
+): string[] => buildClinicalEpisodeKeyCandidates(patient, primaryEpisodeKey);
+
+const shiftIsoDate = (isoDate: string, deltaDays: number): string | null => {
+  if (!ISO_DATE_ONLY_PATTERN.test(isoDate)) return null;
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return date.toISOString().slice(0, 10);
+};
+
+export const buildLegacyClinicalDocumentEpisodeLookupKeys = ({
+  rut,
+  admissionDate,
+  admissionTime,
+}: LegacyClinicalEpisodeKeyParts): string[] => {
+  const rutWithoutDots = stripRutDots(rut);
+  const admissionDates = [
+    admissionDate,
+    shiftIsoDate(admissionDate, 1),
+    shiftIsoDate(admissionDate, -1),
+  ].filter((date): date is string => Boolean(date));
+
+  return uniqueNonEmpty(
+    admissionDates.flatMap(date => [
+      buildClinicalEpisodeKey(rut, date, admissionTime),
+      rutWithoutDots && rutWithoutDots !== rut
+        ? buildClinicalEpisodeKey(rutWithoutDots, date, admissionTime)
+        : undefined,
+      buildClinicalEpisodeKey(rut, date),
+      rutWithoutDots && rutWithoutDots !== rut
+        ? buildClinicalEpisodeKey(rutWithoutDots, date)
+        : undefined,
+    ])
+  );
+};
+
+export const resolveClinicalEpisodeIdentifier = (
+  patient: PatientEpisodeContract,
+  options: ClinicalEpisodeResolutionOptions = {}
+): string => {
+  const persistedEpisodeId = normalizeClinicalEpisodeId(patient.clinicalEpisodeId);
+  if (persistedEpisodeId) {
+    return persistedEpisodeId;
+  }
+
+  const fallbackEpisodeKey = buildClinicalEpisodeKey(
+    patient.rut || '',
+    resolveClinicalEpisodeAdmissionDate(patient),
+    patient.admissionTime
+  );
+  options.onFallback?.({
+    source: options.source,
+    reason: 'missing_clinical_episode_id',
+    fallbackEpisodeKey,
+    hasRut: Boolean(patient.rut?.trim()),
+    hasAdmissionTime: Boolean(normalizeClinicalEpisodeTime(patient.admissionTime)),
+  });
+  return fallbackEpisodeKey;
+};
+
 export const resolveClinicalEpisode = (
   patient: PatientEpisodeContract,
   context?: {
     sourceDailyRecordDate?: string;
     sourceBedId?: string;
-  }
+  },
+  options: ClinicalEpisodeResolutionOptions = {}
 ): ClinicalEpisode => ({
   patientRut: patient.rut || '',
   patientName: patient.patientName || '',
   admissionDate: resolveClinicalEpisodeAdmissionDate(patient),
+  admissionTime: patient.admissionTime,
   sourceDailyRecordDate: context?.sourceDailyRecordDate,
   sourceBedId: context?.sourceBedId,
   specialty: patient.specialty,
-  episodeKey: buildClinicalEpisodeKey(
-    patient.rut || '',
-    resolveClinicalEpisodeAdmissionDate(patient)
-  ),
+  episodeKey: resolveClinicalEpisodeIdentifier(patient, options),
 });
 
 export const buildPatientPresenceSnapshot = (
@@ -74,7 +235,7 @@ export const buildPatientPresenceSnapshot = (
     patientName: patient.patientName || '',
     admissionDate,
     admissionTime: patient.admissionTime,
-    episodeKey: buildClinicalEpisodeKey(patientRut, admissionDate),
+    episodeKey: resolveClinicalEpisodeIdentifier(patient),
   };
 };
 

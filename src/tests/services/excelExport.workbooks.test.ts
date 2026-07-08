@@ -82,6 +82,38 @@ describe('censusRawWorkbook', () => {
 
       expect(worksheet?.getRow(1).getCell(1).value).toBe(header[0]);
     });
+
+    it('exports the Censo Diario worksheet with a frozen, styled header and stable widths', async () => {
+      const { buildCensusDailyRawWorkbook } =
+        await import('@/services/exporters/censusRawWorkbook');
+
+      const mockRecord = {
+        date: '2025-12-25',
+        beds: {},
+        createdAt: FIXED_ISO_TIMESTAMP,
+        updatedAt: FIXED_ISO_TIMESTAMP,
+      } as unknown as DailyRecord;
+
+      const workbook = await buildCensusDailyRawWorkbook(mockRecord);
+      const worksheet = workbook.getWorksheet('Censo Diario');
+      const headerRow = worksheet?.getRow(1);
+
+      expect(worksheet?.views[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
+      expect(headerRow?.font).toMatchObject({ bold: true, color: { argb: 'FFFFFFFF' } });
+      expect(headerRow?.fill).toMatchObject({
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF0F4C81' },
+      });
+      expect(headerRow?.alignment).toMatchObject({
+        vertical: 'middle',
+        horizontal: 'center',
+        wrapText: true,
+      });
+      expect(headerRow?.height).toBe(22);
+      expect(worksheet?.getColumn(1).width).toBeGreaterThanOrEqual(12);
+      expect(worksheet?.getColumn(1).width).toBeLessThanOrEqual(36);
+    });
   });
 
   describe('extractRowsFromRecord', () => {

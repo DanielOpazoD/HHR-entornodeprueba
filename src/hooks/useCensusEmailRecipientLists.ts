@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
 import {
   applyRecipientListSelection,
+  buildRecipientDeferredSyncHandlers,
   runRecipientRuntimeMutation as runRecipientRuntimeMutationController,
   type UseCensusEmailRecipientListsParams,
   type UseCensusEmailRecipientListsReturn,
@@ -12,7 +13,6 @@ import { useCensusEmailRecipientMutationActions } from '@/hooks/useCensusEmailRe
 import { useCensusEmailRecipientPersistenceEffect } from '@/hooks/useCensusEmailRecipientPersistenceEffect';
 import { useCensusEmailRecipientRuntimeState } from '@/hooks/useCensusEmailRecipientRuntimeState';
 
-export { resolveStoredRecipientSelection } from '@/hooks/controllers/censusEmailRecipientSelectionController';
 export type {
   UseCensusEmailRecipientListsParams,
   UseCensusEmailRecipientListsReturn,
@@ -69,6 +69,16 @@ export const useCensusEmailRecipientLists = ({
     [applyRecipientRuntimeState, setIsRecipientsSyncing, setRecipientsSyncError]
   );
 
+  const deferredSyncHandlers = useMemo(
+    () =>
+      buildRecipientDeferredSyncHandlers({
+        applyRecipientSyncState,
+        setIsRecipientsSyncing,
+        setRecipientsSyncError,
+      }),
+    [applyRecipientSyncState, setIsRecipientsSyncing, setRecipientsSyncError]
+  );
+
   useCensusEmailRecipientBootstrapEffect({
     canManageGlobalRecipientLists,
     browserRuntime,
@@ -93,14 +103,7 @@ export const useCensusEmailRecipientLists = ({
     recipientLists,
     activeRecipientListId: runtimeMetadata.activeRecipientListId,
     user,
-    onSyncStart: () => {
-      setIsRecipientsSyncing(true);
-      setRecipientsSyncError(null);
-    },
-    onSyncState: applyRecipientSyncState,
-    onSyncComplete: () => {
-      setIsRecipientsSyncing(false);
-    },
+    ...deferredSyncHandlers,
   });
 
   const { createRecipientList, renameActiveRecipientList, deleteRecipientList } =

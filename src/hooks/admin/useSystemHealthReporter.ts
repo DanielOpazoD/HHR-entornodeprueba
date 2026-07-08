@@ -5,12 +5,16 @@ import { useIsMutating } from '@tanstack/react-query';
 import { fetchErrorLogs } from '@/services/errorLogService';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import { getLocalPersistenceRuntimeSnapshot } from '@/services/storage/indexeddb/indexedDbCore';
-import { getSyncQueueTelemetry } from '@/services/storage/sync';
+import { getSyncQueueTelemetry, listRecentSyncQueueOperations } from '@/services/storage/sync';
 import { getRepositoryPerformanceSummary } from '@/services/repositories/repositoryPerformance';
-import { getOperationalTelemetrySummary } from '@/services/observability/operationalTelemetryRecorder';
+import {
+  getOperationalTelemetryEvents,
+  getOperationalTelemetrySummary,
+} from '@/services/observability/operationalTelemetryRecorder';
 import { buildClientOperationalRuntimeSnapshot } from '@/services/observability/clientOperationalRuntimeSnapshot';
 import { buildAuthRuntimeSnapshot } from '@/services/auth/authRuntimeSnapshot';
 import {
+  buildRecentUserHealthEvents,
   buildUserHealthStatus,
   canReportSystemHealthForRuntime,
 } from '@/hooks/controllers/systemHealthReporterController';
@@ -46,7 +50,10 @@ export const useSystemHealthReporter = (enabled = true) => {
         // Get error count from IndexedDB
         const logs = await fetchErrorLogs(100);
         const localErrorCount = logs.length;
-        const syncTelemetry = await getSyncQueueTelemetry();
+        const [syncTelemetry, recentSyncOperations] = await Promise.all([
+          getSyncQueueTelemetry(),
+          listRecentSyncQueueOperations(8),
+        ]);
         const pendingSyncTasks = syncTelemetry.pending;
         const failedSyncTasks = syncTelemetry.failed;
         const conflictSyncTasks = syncTelemetry.conflict;
@@ -54,6 +61,7 @@ export const useSystemHealthReporter = (enabled = true) => {
         const oldestPendingAgeMs = syncTelemetry.oldestPendingAgeMs;
         const syncBatchSize = syncTelemetry.batchSize;
         const repositoryPerformance = getRepositoryPerformanceSummary();
+        const operationalEvents = getOperationalTelemetryEvents();
         const operationalTelemetry = getOperationalTelemetrySummary();
         const localPersistence = getLocalPersistenceRuntimeSnapshot();
         const authRuntime =
@@ -98,6 +106,11 @@ export const useSystemHealthReporter = (enabled = true) => {
           },
           repositoryPerformance,
           operationalTelemetry,
+          recentEvents: buildRecentUserHealthEvents({
+            localErrors: logs,
+            operationalEvents,
+            recentSyncOperations,
+          }),
         });
 
         const { reportUserHealth } = await loadHealthService();

@@ -2,13 +2,18 @@ import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { createReminderUseCases } from '@/application/reminders/reminderUseCases';
 import {
+  ReminderCenterContext,
+  type ReminderCenterContextValue,
+  useReminderCenter as useReminderCenterContract,
+} from './reminderCenterContextContract';
+import {
   filterVisibleReminders,
   getReminderUnreadCount,
   hasUrgentVisibleReminders,
   sortRemindersByPriority,
 } from '@/shared/reminders/reminderVisibility';
 import { getCurrentShift } from '@/services/admin/attributionService';
-import type { Reminder, ReminderShift } from '@/types/reminders';
+import type { Reminder } from '@/types/reminders';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 const formatLocalDate = (date: Date): string => {
@@ -21,24 +26,6 @@ const formatLocalDate = (date: Date): string => {
 const buildUserName = (displayName?: string | null, email?: string | null): string =>
   displayName?.trim() || email?.trim() || 'Usuario del sistema';
 
-interface ReminderCenterContextValue {
-  reminders: Reminder[];
-  unreadReminders: Reminder[];
-  unreadCount: number;
-  hasUrgentUnread: boolean;
-  currentShift: ReminderShift;
-  currentDate: string;
-  isOpen: boolean;
-  loading: boolean;
-  isAvailable: boolean;
-  openCenter: () => void;
-  closeCenter: () => void;
-  markReminderAsRead: (reminderId: string) => Promise<void>;
-}
-
-const ReminderCenterContext = React.createContext<ReminderCenterContextValue | undefined>(
-  undefined
-);
 const reminderUseCases = createReminderUseCases();
 
 export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -239,10 +226,4 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
   return <ReminderCenterContext.Provider value={value}>{children}</ReminderCenterContext.Provider>;
 };
 
-export const useReminderCenter = (): ReminderCenterContextValue => {
-  const context = React.useContext(ReminderCenterContext);
-  if (!context) {
-    throw new Error('useReminderCenter must be used within a ReminderCenterProvider');
-  }
-  return context;
-};
+export const useReminderCenter = useReminderCenterContract;

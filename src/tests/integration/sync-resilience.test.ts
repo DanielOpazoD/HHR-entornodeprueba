@@ -4,6 +4,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
+const { mockSaveDailyRecordWithClinicalAuthorityCallable } = vi.hoisted(() => ({
+  mockSaveDailyRecordWithClinicalAuthorityCallable: vi.fn(),
+}));
+
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
@@ -44,6 +48,11 @@ vi.mock('@/services/storage/firestore', async importOriginal => {
 
 vi.mock('@/services/repositories/ports/repositoryAuditPort', () => ({
   logRepositoryConflictAutoMerged: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () => ({
+  saveDailyRecordWithClinicalAuthorityCallable: (...args: unknown[]) =>
+    mockSaveDailyRecordWithClinicalAuthorityCallable(...args),
 }));
 
 import { setDoc } from 'firebase/firestore';
@@ -98,10 +107,28 @@ const buildRecord = (date: string): DailyRecord => ({
 describe('Sync resilience integration', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockSaveDailyRecordWithClinicalAuthorityCallable.mockResolvedValue({ success: true });
     await clearAllRecords();
     await hospitalDB.syncQueue.clear();
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
+
+  const isAuthorityCallableMode = () =>
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE ===
+      'enforced' ||
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_CALLABLE ===
+      'true';
+
+  const expectOnePublishAttempt = () => {
+    if (isAuthorityCallableMode()) {
+      expect(mockSaveDailyRecordWithClinicalAuthorityCallable).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(setDoc)).not.toHaveBeenCalled();
+      return;
+    }
+
+    expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(1);
+    expect(mockSaveDailyRecordWithClinicalAuthorityCallable).not.toHaveBeenCalled();
+  };
 
   it('queues while offline and flushes successfully when back online', async () => {
     const record = buildRecord('2026-02-19');
@@ -117,13 +144,17 @@ describe('Sync resilience integration', () => {
     await processSyncQueue();
 
     telemetry = await getSyncQueueTelemetry();
-    expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(1);
+    expectOnePublishAttempt();
     expect(telemetry.pending).toBe(0);
     expect(telemetry.failed).toBe(0);
   });
 
   it('marks permission-denied as FAILED without retry loop', async () => {
     vi.mocked(setDoc).mockRejectedValue({
+      code: 'permission-denied',
+      message: 'Missing or insufficient permissions',
+    });
+    mockSaveDailyRecordWithClinicalAuthorityCallable.mockRejectedValue({
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
     });
@@ -136,10 +167,10 @@ describe('Sync resilience integration', () => {
     expect(tasks).toHaveLength(1);
     expect(tasks[0].status).toBe('FAILED');
     expect(tasks[0].retryCount).toBe(0);
-    expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(1);
+    expectOnePublishAttempt();
   });
 
-  it('auto-merges on concurrency conflict and preserves clinical local fields', async () => {
+  it('auto-merges same-episode explicit clinical patches while preserving remote bed state', async () => {
     const date = '2026-02-17';
 
     const local = buildRecord(date);
@@ -172,7 +203,14 @@ describe('Sync resilience integration', () => {
     const mergedPayload = tasks[0].payload as DailyRecord;
     expect(mergedPayload.beds.R1.pathology).toBe('Diagnostico local');
     expect(mergedPayload.beds.R1.bedMode).toBe('Cama');
-    expect(tasks[0].contexts).toEqual(['clinical', 'metadata']);
+    expect(tasks[0].contexts).toEqual(['clinical']);
     expect(tasks[0].origin).toBe('conflict_auto_merge');
+    expect(tasks[0].syncContract).toEqual(
+      expect.objectContaining({
+        expectedVersion: remote.lastUpdated,
+        recordRevision: mergedPayload.lastUpdated,
+        changedPaths: expect.arrayContaining(['beds.R1.pathology']),
+      })
+    );
   });
 });

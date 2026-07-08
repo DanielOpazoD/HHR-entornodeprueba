@@ -21,8 +21,11 @@ import {
   resolveTransferDestinationHospital,
   syncCensusTransferRequest,
 } from '@/features/census/controllers/censusTransferSyncController';
+import { dispatchCanonicalTransfer } from '@/features/census/controllers/transferCanonicalAdoptionController';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
+import { resolveAuditActor } from '@/context/AuditContext';
 
 const censusTransferCommandLogger = createScopedLogger('CensusTransferCommand');
 
@@ -76,27 +79,77 @@ export const useCensusTransferCommand = ({
       });
     };
 
-    const result = executeTransferController({
-      transferState,
-      data,
-      stabilityRules: stabilityRulesRef.current,
-      nowTime: getCurrentTime(),
-      actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
-    });
-
-    if (!result.ok) {
-      recordTransferCriticalAction('census_transfer_created', 'failed', [result.error.message], {
-        errorCode: result.error.code,
+    const runLegacyTransfer = (): boolean => {
+      const result = executeTransferController({
+        transferState,
+        data,
+        stabilityRules: stabilityRulesRef.current,
+        nowTime: getCurrentTime(),
+        actions: buildTransferRuntimeActions(addTransferRef.current, updateTransferRef.current),
       });
-      notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
-      return;
+
+      if (!result.ok) {
+        recordTransferCriticalAction('census_transfer_created', 'failed', [result.error.message], {
+          errorCode: result.error.code,
+        });
+        notifyError(buildTransferErrorNotification(result.error.code, result.error.message));
+        return false;
+      }
+
+      recordTransferCriticalAction('census_transfer_created', 'success', undefined, {
+        destinationHospital,
+        linkedTransferRequestId: transferState.recordId,
+      });
+      setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
+      return true;
+    };
+
+    let legacyOk = false;
+    if (
+      isFeatureEnabled('USE_TRANSFER_PATIENT_COMMAND') &&
+      bedId &&
+      patient &&
+      destinationHospital &&
+      record?.date
+    ) {
+      const actor = resolveAuditActor(currentUser);
+      const canonicalOutcome = await dispatchCanonicalTransfer({
+        actor,
+        recordDate: record.date,
+        entry: {
+          bedId,
+          patientName: patient.patientName ?? '',
+          rut: patient.rut ?? '',
+          destination: destinationHospital,
+        },
+        performLegacyPersist: () => {
+          legacyOk = runLegacyTransfer();
+          if (!legacyOk) {
+            throw new Error('Transfer persistence rejected by legacy pipeline.');
+          }
+        },
+      });
+
+      if (
+        canonicalOutcome.status.status !== 'ready' &&
+        canonicalOutcome.status.status !== 'degraded' &&
+        legacyOk
+      ) {
+        notifyError({
+          title: 'Traslado auditoría',
+          message:
+            canonicalOutcome.applicationOutcome.userSafeMessage ||
+            canonicalOutcome.applicationOutcome.issues[0]?.message ||
+            'No se pudo registrar el evento canónico de auditoría.',
+        });
+      }
+    } else {
+      legacyOk = runLegacyTransfer();
     }
 
-    recordTransferCriticalAction('census_transfer_created', 'success', undefined, {
-      destinationHospital,
-      linkedTransferRequestId: transferState.recordId,
-    });
-    setTransferState(prev => applyTransferPatch(prev, result.value.closeModalPatch));
+    if (!legacyOk) {
+      return;
+    }
 
     if (!transferState.recordId && bedId && patient && destinationHospital) {
       try {

@@ -4,10 +4,13 @@ export type ConflictResolutionStrategy =
   | 'scalar_policy'
   | 'merge_array_by_id'
   | 'merge_unique_primitive_array'
+  | 'merge_fixed_staffing_slots'
   | 'merge_object'
   | 'merge_patient'
   | 'merge_beds'
-  | 'copy_local_value';
+  | 'copy_preferred_active_devices'
+  | 'copy_local_value'
+  | 'copy_remote_value';
 
 export interface ConflictResolutionTraceEntry {
   path: string;

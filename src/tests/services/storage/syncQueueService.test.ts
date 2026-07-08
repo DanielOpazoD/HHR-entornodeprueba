@@ -30,7 +30,7 @@ vi.mock('@/services/utils/errorService', async importOriginal => {
   };
 });
 
-import { setDoc } from 'firebase/firestore';
+import { getDoc, setDoc } from 'firebase/firestore';
 import {
   getSyncQueueDomainMetrics,
   queueSyncTask,
@@ -39,6 +39,7 @@ import {
   getSyncQueueTelemetry,
   listRecentSyncQueueOperations,
 } from '@/services/storage/sync';
+import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('storage/sync public entrypoint', () => {
@@ -57,7 +58,13 @@ describe('storage/sync public entrypoint', () => {
 
   beforeEach(async () => {
     await hospitalDB.syncQueue.clear();
+    resetSyncMutationIdentityForTests();
     vi.clearAllMocks();
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => false,
+      data: () => undefined,
+    } as Awaited<ReturnType<typeof getDoc>>);
+    vi.mocked(setDoc).mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
 
@@ -69,6 +76,60 @@ describe('storage/sync public entrypoint', () => {
     expect(tasks).toHaveLength(1);
     const payload = tasks[0].payload as DailyRecord;
     expect(payload.lastUpdated).toBe('v2');
+  });
+
+  it('stores an extensible sync contract for daily record tasks', async () => {
+    const record = makeRecord('2025-01-12', '2025-01-12T10:00:00.000Z');
+    record.beds.R1 = {
+      bedId: 'R1',
+      patientName: 'Paciente Sync',
+      rut: '11.111.111-1',
+      admissionDate: '2025-01-10',
+      admissionTime: '14:30',
+      isBlocked: false,
+    } as DailyRecord['beds'][string];
+
+    await queueSyncTask('UPDATE_DAILY_RECORD', record, {
+      contexts: ['clinical'],
+      origin: 'partial_update_retry',
+      syncContract: {
+        expectedVersion: '2025-01-12T09:00:00.000Z',
+        changedPaths: ['beds.R1.pathology'],
+      },
+    });
+
+    const [task] = await hospitalDB.syncQueue.toArray();
+
+    expect(task.syncContract).toEqual(
+      expect.objectContaining({
+        expectedVersion: '2025-01-12T09:00:00.000Z',
+        recordRevision: '2025-01-12T10:00:00.000Z',
+        changedPaths: ['beds.R1.pathology'],
+        clinicalEpisodeKeys: ['11.111.111-1__2025-01-10__14:30'],
+        mutationId: expect.stringMatching(/^mutation_/),
+        clientId: expect.stringMatching(/^client_/),
+        tabId: expect.stringMatching(/^tab_/),
+      })
+    );
+  });
+
+  it('prefers persisted clinicalEpisodeId in sync contract episode keys', async () => {
+    const record = makeRecord('2025-01-12', '2025-01-12T10:00:00.000Z');
+    record.beds.R1 = {
+      bedId: 'R1',
+      clinicalEpisodeId: 'episode-r1-canonical',
+      patientName: 'Paciente Sync',
+      rut: '11.111.111-1',
+      admissionDate: '2025-01-10',
+      admissionTime: '14:30',
+      isBlocked: false,
+    } as DailyRecord['beds'][string];
+
+    await queueSyncTask('UPDATE_DAILY_RECORD', record);
+
+    const [task] = await hospitalDB.syncQueue.toArray();
+
+    expect(task.syncContract?.clinicalEpisodeKeys).toEqual(['episode-r1-canonical']);
   });
 
   it('backs off and retries when sync fails', async () => {
@@ -162,6 +223,15 @@ describe('storage/sync public entrypoint', () => {
     expect(tasks[0].retryCount).toBe(0);
     expect(tasks[0].lastErrorCode).toBe('permission-denied');
     expect(tasks[0].lastErrorCategory).toBe('authorization');
+
+    const [operation] = await listRecentSyncQueueOperations(1);
+    expect(operation).toMatchObject({
+      status: 'FAILED',
+      lastErrorCode: 'permission-denied',
+      lastErrorCategory: 'authorization',
+      lastErrorAction: 'Revisar permisos/reglas y sesión del usuario.',
+    });
+    expect(operation.lastErrorAt).toEqual(expect.any(Number));
   });
 
   it('marks task as conflict when remote concurrency conflict occurs', async () => {
@@ -180,6 +250,160 @@ describe('storage/sync public entrypoint', () => {
     expect(tasks[0].status).toBe('CONFLICT');
     expect(tasks[0].lastErrorCategory).toBe('conflict');
     expect(tasks[0].lastErrorAction).toContain('handoff');
+  });
+
+  it('revalidates stale daily record tasks against Firebase before writing', async () => {
+    const local = makeRecord('2025-01-13', '2025-01-13T10:10:00.000Z');
+    local.beds.R1 = {
+      bedId: 'R1',
+      patientName: 'Paciente Sync',
+      rut: '11.111.111-1',
+      age: '40a',
+      pathology: 'Diagnostico local stale',
+      specialty: 'Medicina',
+      status: 'Estable',
+      admissionDate: '2025-01-13',
+      isBlocked: false,
+      bedMode: 'Cuna',
+      hasCompanionCrib: false,
+      hasWristband: true,
+      devices: [],
+      surgicalComplication: false,
+      isUPC: false,
+    } as DailyRecord['beds'][string];
+
+    const remote = makeRecord('2025-01-13', '2025-01-13T10:20:00.000Z');
+    remote.beds.R1 = {
+      ...local.beds.R1,
+      pathology: 'Diagnostico Firebase vigente',
+      bedMode: 'Cama',
+    };
+
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => remote as unknown as Record<string, unknown>,
+    } as Awaited<ReturnType<typeof getDoc>>);
+
+    await queueSyncTask('UPDATE_DAILY_RECORD', local, {
+      contexts: ['clinical'],
+      origin: 'partial_update_retry',
+      syncContract: {
+        expectedVersion: '2025-01-13T10:00:00.000Z',
+        changedPaths: ['beds.R1.pathology'],
+      },
+    });
+
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await processSyncQueue();
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    const writtenRecord = vi.mocked(setDoc).mock.calls[0][1] as DailyRecord;
+    expect(writtenRecord.beds.R1.pathology).toBe('Diagnostico local stale');
+    expect(writtenRecord.beds.R1.bedMode).toBe('Cama');
+    expect(writtenRecord.lastUpdated).toBe('2025-01-13T10:20:00.000Z');
+    await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
+  });
+
+  it('writes non-stale daily record tasks without remote remerge', async () => {
+    const local = makeRecord('2025-01-14', '2025-01-14T10:10:00.000Z');
+    local.beds.R1 = {
+      bedId: 'R1',
+      patientName: 'Paciente Local Vigente',
+      rut: '22.222.222-2',
+      age: '50a',
+      pathology: 'Diagnostico local vigente',
+      specialty: 'Medicina',
+      status: 'Estable',
+      admissionDate: '2025-01-14',
+      isBlocked: false,
+      bedMode: 'Cuna',
+      hasCompanionCrib: false,
+      hasWristband: true,
+      devices: [],
+      surgicalComplication: false,
+      isUPC: false,
+    } as DailyRecord['beds'][string];
+
+    const remote = makeRecord('2025-01-14', '2025-01-14T10:00:00.000Z');
+    remote.beds.R1 = {
+      ...local.beds.R1,
+      pathology: 'Diagnostico remoto anterior',
+      bedMode: 'Cama',
+    };
+
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => remote as unknown as Record<string, unknown>,
+    } as Awaited<ReturnType<typeof getDoc>>);
+
+    await queueSyncTask('UPDATE_DAILY_RECORD', local, {
+      contexts: ['clinical'],
+      origin: 'partial_update_retry',
+      syncContract: {
+        expectedVersion: remote.lastUpdated,
+        changedPaths: ['beds.R1.pathology'],
+      },
+    });
+
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await processSyncQueue();
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    const writtenRecord = vi.mocked(setDoc).mock.calls[0][1] as DailyRecord;
+    expect(writtenRecord.beds.R1.pathology).toBe('Diagnostico local vigente');
+    expect(writtenRecord.beds.R1.bedMode).toBe('Cuna');
+    expect(writtenRecord.lastUpdated).toBe(local.lastUpdated);
+    await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
+  });
+
+  it('keeps stale revalidated tasks in conflict when clinical consistency is blocked', async () => {
+    const local = makeRecord('2025-01-15', '2025-01-15T10:10:00.000Z');
+    const duplicatedPatient = {
+      bedId: 'R1',
+      patientName: 'Paciente Duplicado',
+      rut: '33.333.333-3',
+      age: '60a',
+      pathology: 'Diagnostico local',
+      specialty: 'Medicina',
+      status: 'Estable',
+      admissionDate: '2025-01-15',
+      isBlocked: false,
+      bedMode: 'Cama',
+      hasCompanionCrib: false,
+      hasWristband: true,
+      devices: [],
+      surgicalComplication: false,
+      isUPC: false,
+    } as DailyRecord['beds'][string];
+    local.beds.R1 = duplicatedPatient;
+    local.beds.R2 = { ...duplicatedPatient, bedId: 'R2' };
+
+    const remote = makeRecord('2025-01-15', '2025-01-15T10:20:00.000Z');
+    remote.beds.R1 = { ...duplicatedPatient, patientName: '' };
+    remote.beds.R2 = { ...duplicatedPatient, patientName: '' };
+
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => remote as unknown as Record<string, unknown>,
+    } as Awaited<ReturnType<typeof getDoc>>);
+
+    await queueSyncTask('UPDATE_DAILY_RECORD', local, {
+      contexts: ['clinical'],
+      origin: 'partial_update_retry',
+      syncContract: {
+        expectedVersion: '2025-01-15T10:00:00.000Z',
+        changedPaths: ['beds.R1', 'beds.R2'],
+      },
+    });
+
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await processSyncQueue();
+
+    expect(setDoc).not.toHaveBeenCalled();
+    const [task] = await hospitalDB.syncQueue.toArray();
+    expect(task.status).toBe('CONFLICT');
+    expect(task.lastErrorCategory).toBe('conflict');
+    expect(task.syncContract?.changedPaths).toEqual(['beds.R1', 'beds.R2']);
   });
 
   it('does not process tasks scheduled for a future retry window', async () => {

@@ -124,6 +124,7 @@ export interface AiProviderConfig {
   geminiKey?: string;
   openaiKey?: string;
   anthropicKey?: string;
+  deepseekKey?: string;
 }
 
 export const validateAiProviderEnv = (): EnvValidationResult<AiProviderConfig> => {
@@ -131,20 +132,21 @@ export const validateAiProviderEnv = (): EnvValidationResult<AiProviderConfig> =
   const geminiKey = env('GEMINI_API_KEY') || env('API_KEY');
   const openaiKey = env('OPENAI_API_KEY');
   const anthropicKey = env('ANTHROPIC_API_KEY');
+  const deepseekKey = env('DEEPSEEK_API_KEY');
 
   // At least one API key must be present
-  if (!geminiKey && !openaiKey && !anthropicKey) {
+  if (!geminiKey && !openaiKey && !anthropicKey && !deepseekKey) {
     return {
       valid: false,
       missing: [
-        'Se requiere al menos una API key de AI: GEMINI_API_KEY, OPENAI_API_KEY, o ANTHROPIC_API_KEY',
+        'Se requiere al menos una API key de AI: GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY o DEEPSEEK_API_KEY',
       ],
     };
   }
 
   return {
     valid: true,
-    config: { provider, geminiKey, openaiKey, anthropicKey },
+    config: { provider, geminiKey, openaiKey, anthropicKey, deepseekKey },
   };
 };
 

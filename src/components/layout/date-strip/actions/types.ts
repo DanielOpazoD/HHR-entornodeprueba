@@ -23,6 +23,7 @@ export interface SaveDropdownProps {
 
 export interface HandoffSaveDropdownProps {
   onExportPDF?: () => void;
+  onPrintWithBrowserOptions?: () => void;
   onBackupPDF?: (skipConfirmation?: boolean) => Promise<void>;
   isArchived?: boolean;
   isBackingUp: boolean;

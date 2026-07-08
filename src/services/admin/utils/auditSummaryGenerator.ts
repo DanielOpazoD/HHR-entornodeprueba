@@ -53,6 +53,8 @@ export const generateSummary = (
       const cFields = details.changes ? Object.keys(details.changes as object).join(', ') : '';
       return `Editó CUDYR: ${patientName}${cFields ? ` (${cFields})` : ''}`;
     }
+    case 'CUDYR_BATCH_SAVED':
+      return `Guardó CUDYR: ${details.fieldCount || 0} cambios en ${details.patientCount || 0} paciente(s)`;
     case 'NURSE_HANDOFF_MODIFIED':
       return `Editó Nota Enfermería: ${patientName} (${(details.shift as string) === 'day' ? 'Largo' : 'Noche'})`;
     case 'MEDICAL_HANDOFF_MODIFIED':

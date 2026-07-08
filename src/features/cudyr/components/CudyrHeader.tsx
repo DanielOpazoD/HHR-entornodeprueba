@@ -12,8 +12,9 @@ import clsx from 'clsx';
 import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
 import { formatTimeHHMM } from '@/utils/dateDisplayUtils';
 import { cudyrExportLogger } from '@/services/cudyr/cudyrLoggers';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useNotification } from '@/context/UIContext';
 import type { CategoryCounts, CudyrCategory } from '@/services/cudyr/cudyrSummary';
+import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,6 +55,7 @@ interface CudyrHeaderProps {
   updatedAt?: string;
   /** Category counts by bed type (UTI + Media combined for display). */
   categoryCounts?: CategoryCounts;
+  currentRecord?: DailyRecordCudyrExportState | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +79,9 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
   currentDate,
   updatedAt,
   categoryCounts,
+  currentRecord,
 }) => {
+  const { error: notifyError } = useNotification();
   const [isExporting, setIsExporting] = useState(false);
   const [isInstrumentOpen, setIsInstrumentOpen] = useState(false);
 
@@ -90,11 +94,16 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
     try {
       const [year, month] = currentDate.split('-').map(Number);
       const { generateCudyrMonthlyExcel } = await import('@/services/cudyr/cudyrExportService');
-      await generateCudyrMonthlyExcel(year, month, currentDate);
+      const result = await generateCudyrMonthlyExcel(year, month, currentDate, currentRecord);
+      if (result.outcome === 'failed') {
+        cudyrExportLogger.error(`Monthly CUDYR Excel rejected by validation: ${result.reason}`);
+        notifyError('No se pudo generar el Excel CUDYR', result.userSafeMessage);
+      }
     } catch (error) {
       cudyrExportLogger.error('Error exporting monthly CUDYR Excel', error);
-      defaultBrowserWindowRuntime.alert(
-        'Error al exportar el resumen mensual CUDYR. Por favor intente nuevamente.'
+      notifyError(
+        'Error al exportar CUDYR',
+        'No fue posible exportar el resumen mensual. Por favor intenta nuevamente.'
       );
     } finally {
       setIsExporting(false);
@@ -125,8 +134,11 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
       {/* ================================================================= */}
       {/* Row 1 — Title + Back button                                       */}
       {/* ================================================================= */}
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-bold text-slate-800">
+      <div
+        className="mb-3 flex flex-wrap items-center justify-between gap-3"
+        data-testid="cudyr-title-row"
+      >
+        <h2 className="min-w-0 text-lg font-bold text-slate-800">
           Instrumento CUDYR
           {currentDate && (
             <span className="ml-2 text-slate-500 font-semibold">
@@ -135,111 +147,121 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
           )}
         </h2>
 
-        <button
-          onClick={handleBackToNightShift}
-          className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
-          title="Volver a Entrega de Turno Noche"
-        >
-          <ArrowLeft size={14} />
-          Volver a Turno Noche
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setIsInstrumentOpen(true)}
+            className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            title="Ver Instrumento CUDYR (PDF)"
+          >
+            <FileText size={12} />
+            Ver Instrumento
+          </button>
+
+          {currentDate && (
+            <button
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              className={clsx(
+                'flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold transition-colors',
+                isExporting
+                  ? 'bg-slate-100 text-slate-400 cursor-wait'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              )}
+              title="Exportar resumen mensual CUDYR"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet size={12} />
+                  Excel mensual
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            onClick={handleBackToNightShift}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+            title="Volver a Entrega de Turno Noche"
+          >
+            <ArrowLeft size={14} />
+            Volver a Turno Noche
+          </button>
+        </div>
       </div>
 
       {/* ================================================================= */}
-      {/* Row 2 — Stats + Categories + Actions (compact single bar)         */}
+      {/* Row 2 — Stats + Categories + Actions                              */}
       {/* ================================================================= */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
-        {/* Metrics */}
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-600">
-            Ocupadas <b className="text-sm text-slate-800">{occupiedCount}</b>
-          </span>
-          <span className="text-slate-300">|</span>
-          <span className="text-slate-600">
-            Categorizadas <b className="text-sm text-slate-800">{categorizedCount}</b>
-          </span>
-          <span className="text-slate-300">|</span>
-          <span className="text-slate-600">
-            Índice{' '}
-            <b
-              className={clsx(
-                'text-sm',
-                categorizationIndex === 100 ? 'text-emerald-600' : 'text-slate-800'
-              )}
-            >
-              {categorizationIndex}%
-            </b>
-          </span>
-        </div>
-
-        {/* Category pills (non-zero only) */}
-        {nonZeroCategories.length > 0 && mergedCategoryCounts && (
-          <>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1">
-              {nonZeroCategories.map(cat => (
-                <span
-                  key={cat}
-                  className={clsx(
-                    'inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[10px] font-bold',
-                    CATEGORY_COLORS[cat[0]]
-                  )}
-                >
-                  {cat}
-                  <span className="opacity-80">{mergedCategoryCounts[cat]}</span>
-                </span>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Last modified */}
-        {updatedAt && (
-          <span className="text-[10px] text-slate-400" title={`Última modificación CUDYR`}>
-            Últ. mod. {formatTimeHHMM(updatedAt)}
-          </span>
-        )}
-
-        {/* View instrument button */}
-        <button
-          type="button"
-          onClick={() => setIsInstrumentOpen(true)}
-          className="flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 transition-colors hover:bg-sky-100"
-          title="Ver Instrumento CUDYR (PDF)"
-        >
-          <FileText size={13} />
-          Ver Instrumento
-        </button>
-
-        {/* Excel export */}
-        {currentDate && (
-          <button
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            className={clsx(
-              'flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all',
-              isExporting
-                ? 'bg-slate-100 text-slate-400 cursor-wait'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
-            )}
-            title="Exportar resumen mensual CUDYR"
+      <div
+        className="mb-4 flex flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2"
+        data-testid="cudyr-stats-actions-bar"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Metrics */}
+          <div
+            className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+            data-testid="cudyr-metrics"
           >
-            {isExporting ? (
-              <>
-                <Loader2 size={13} className="animate-spin" />
-                Exportando...
-              </>
-            ) : (
-              <>
-                <FileSpreadsheet size={13} />
-                Excel mensual
-              </>
+            <span className="text-slate-600">
+              Ocupadas <b className="text-sm text-slate-800">{occupiedCount}</b>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-600">
+              Categorizadas <b className="text-sm text-slate-800">{categorizedCount}</b>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-600">
+              Índice{' '}
+              <b
+                className={clsx(
+                  'text-sm',
+                  categorizationIndex === 100 ? 'text-emerald-600' : 'text-slate-800'
+                )}
+              >
+                {categorizationIndex}%
+              </b>
+            </span>
+          </div>
+
+          {/* Category pills (non-zero only) */}
+          {nonZeroCategories.length > 0 && mergedCategoryCounts && (
+            <>
+              <span className="text-slate-300">|</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                {nonZeroCategories.map(cat => (
+                  <span
+                    key={cat}
+                    className={clsx(
+                      'inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[10px] font-bold',
+                      CATEGORY_COLORS[cat[0]]
+                    )}
+                  >
+                    {cat}
+                    <span className="opacity-80">{mergedCategoryCounts[cat]}</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div
+            className="flex flex-1 flex-wrap items-center justify-end gap-2"
+            data-testid="cudyr-actions"
+          >
+            {/* Last modified */}
+            {updatedAt && (
+              <span className="text-[10px] text-slate-400" title={`Última modificación CUDYR`}>
+                Últ. mod. {formatTimeHHMM(updatedAt)}
+              </span>
             )}
-          </button>
-        )}
+          </div>
+        </div>
       </div>
 
       {/* PDF viewer modal */}

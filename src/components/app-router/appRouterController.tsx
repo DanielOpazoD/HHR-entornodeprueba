@@ -12,7 +12,6 @@ import {
   CudyrView,
   DataMaintenanceView,
   DataView,
-  ErrorDashboard,
   FunctionsTelemetryView,
   HandoffView,
   MedicalSignatureView,
@@ -151,12 +150,6 @@ export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefiniti
     sectionName: 'Avisos al Personal',
     requiresAccessCheck: true,
     render: () => <ReminderAdminView />,
-  },
-  {
-    module: 'ERRORS',
-    sectionName: 'Panel de Errores',
-    requiresAccessCheck: true,
-    render: () => <ErrorDashboard />,
   },
 ];
 

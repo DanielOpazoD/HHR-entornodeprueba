@@ -8,6 +8,7 @@ import {
   TableConfig,
   TableColumnConfig,
   getDefaultConfig,
+  getInitialTableConfig,
   DEFAULT_COLUMN_WIDTHS,
   saveTableConfig,
   setFirestoreEnabled as setTableConfigFirestoreEnabled,
@@ -40,15 +41,24 @@ interface TableConfigContextType {
 
 const TableConfigContext = createContext<TableConfigContextType | undefined>(undefined);
 
+const isE2ETableConfigRemoteDisabled = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    (window as Window & { __HHR_E2E_OVERRIDE__?: unknown }).__HHR_E2E_OVERRIDE__ ||
+    window.localStorage?.getItem('hhr_e2e_bootstrap_user')
+  );
+};
+
 // ============================================================================
 // Provider
 // ============================================================================
 
 export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { remoteSyncStatus } = useAuth();
-  const [config, setConfig] = useState<TableConfig>(getDefaultConfig);
+  const [config, setConfig] = useState<TableConfig>(getInitialTableConfig);
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasRemoteConfigSnapshot, setHasRemoteConfigSnapshot] = useState(false);
+  const remoteTableConfigDisabled = isE2ETableConfigRemoteDisabled();
 
   // Debounce timer for saves
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,9 +66,9 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Load initial config and subscribe
   useEffect(() => {
-    setTableConfigFirestoreEnabled(remoteSyncStatus === 'ready');
+    setTableConfigFirestoreEnabled(remoteSyncStatus === 'ready' && !remoteTableConfigDisabled);
 
-    if (remoteSyncStatus !== 'ready') {
+    if (remoteSyncStatus !== 'ready' || remoteTableConfigDisabled) {
       return;
     }
 
@@ -73,7 +83,7 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
 
     return () => unsubscribe();
-  }, [remoteSyncStatus]);
+  }, [remoteSyncStatus, remoteTableConfigDisabled]);
 
   // Debounced save to Firebase
   const debouncedSave = useCallback((newConfig: TableConfig) => {
@@ -164,10 +174,14 @@ export const TableConfigProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsEditMode(enabled);
   }, []);
 
-  const visibleConfig = remoteSyncStatus === 'ready' ? config : getDefaultConfig();
+  const visibleConfig =
+    remoteSyncStatus === 'ready' || remoteSyncStatus === 'bootstrapping'
+      ? config
+      : getDefaultConfig();
   const isLoading =
-    remoteSyncStatus === 'bootstrapping' ||
-    (remoteSyncStatus === 'ready' && !hasRemoteConfigSnapshot);
+    !remoteTableConfigDisabled &&
+    (remoteSyncStatus === 'bootstrapping' ||
+      (remoteSyncStatus === 'ready' && !hasRemoteConfigSnapshot));
 
   return (
     <TableConfigContext.Provider

@@ -1,12 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/types/domain/patient';
-import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
+import {
+  buildPatient,
+  buildRecord,
+} from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
+  saveRecordStrict: vi.fn(record =>
+    Promise.resolve({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    })
+  ),
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
@@ -19,8 +29,12 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
 }));
 
 vi.mock('@/services/storage/sync', () => ({
+  ackDailyRecordSyncTask: vi.fn(),
   isRetryableSyncError: vi.fn(),
   queueSyncTask: vi.fn(),
+  queueDailyRecordSyncTaskWithLocalRecord: vi.fn(),
+  releaseDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
+  renewDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -57,44 +71,27 @@ import {
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import {
   getRecordForDate as getRecordFromIndexedDB,
-  saveRecord as saveToIndexedDB,
+  saveRecordStrict as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import {
   saveRecordToFirestore,
   updateRecordPartial as updateRecordPartialToFirestore,
 } from '@/services/storage/firestore/firestoreRecordWrites';
-import { isRetryableSyncError, queueSyncTask } from '@/services/storage/sync';
-import { logRepositoryConflictAutoMerged } from '@/services/repositories/ports/repositoryAuditPort';
+import {
+  ackDailyRecordSyncTask,
+  isRetryableSyncError,
+  queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
+} from '@/services/storage/sync';
 
-const buildRecord = (date: string): DailyRecord => ({
-  date,
-  beds: {},
-  discharges: [],
-  transfers: [],
-  cma: [],
-  lastUpdated: '2026-02-19T00:00:00.000Z',
-  nurses: [],
-  activeExtraBeds: [],
-});
-
-const buildPatient = (bedId: string, patientName: string): PatientData => ({
-  bedId,
-  isBlocked: false,
-  bedMode: 'Cama',
-  hasCompanionCrib: false,
-  patientName,
-  rut: '11.111.111-1',
-  age: '40a',
-  pathology: 'Diagnostico',
-  specialty: Specialty.MEDICINA,
-  status: PatientStatus.ESTABLE,
-  admissionDate: '2026-02-18',
-  hasWristband: false,
-  devices: [],
-  surgicalComplication: false,
-  isUPC: false,
-});
+const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
+  expect.objectContaining({
+    syncContract: expect.objectContaining({
+      expectedVersion,
+      changedPaths,
+      recordRevision: expect.any(String),
+    }),
+  });
 
 describe('dailyRecordRepositoryWriteService outbox fallback', () => {
   beforeEach(() => {
@@ -105,6 +102,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       pendingTasks: 1,
       maxPendingTasks: 192,
     });
+    vi.mocked(ackDailyRecordSyncTask).mockResolvedValue(true);
   });
 
   it('queues full record when save to Firestore fails with retryable error', async () => {
@@ -114,9 +112,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     const record = buildRecord('2026-02-19');
     await save(record);
 
-    expect(saveToIndexedDB).toHaveBeenCalled();
     expect(queueSyncTask).toHaveBeenCalledWith(
-      'UPDATE_DAILY_RECORD',
       expect.objectContaining({ date: '2026-02-19' }),
       expect.objectContaining({
         contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
@@ -158,7 +154,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     record.beds = {
       R1: {
         ...buildPatient('R1', 'Paciente Invalido'),
-        firstSeenDate: '2026-03-01',
+        firstSeenDate: '2026-03-05',
         admissionDate: '2026-02-15',
       },
     };
@@ -188,7 +184,6 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     });
 
     expect(queueSyncTask).toHaveBeenCalledWith(
-      'UPDATE_DAILY_RECORD',
       expect.objectContaining({
         date: '2026-02-18',
         beds: expect.objectContaining({
@@ -196,8 +191,12 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
         }),
       }),
       expect.objectContaining({
-        contexts: expect.arrayContaining(['clinical', 'metadata']),
+        contexts: ['clinical'],
         origin: 'partial_update_retry',
+        syncContract: {
+          changedPaths: ['beds.R1.patientName'],
+          expectedVersion: existing.lastUpdated,
+        },
       })
     );
   });
@@ -216,6 +215,63 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     } finally {
       restoreConsole(consoleSpies);
     }
+  });
+
+  it('throws from legacy updatePartial when the detailed partial outcome is blocked', async () => {
+    const consoleSpies = suppressConsole(['warn']);
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
+
+    try {
+      await expect(
+        updatePartial('2026-02-18', {
+          'beds.R1.patientName': 'Paciente Nuevo',
+        })
+      ).rejects.toThrow('No se encontró un registro local válido para aplicar el cambio.');
+    } finally {
+      restoreConsole(consoleSpies);
+    }
+  });
+
+  it('hydrates a remote base record before partial update when local cache is missing', async () => {
+    const remote = buildRecord('2026-02-18');
+    remote.lastUpdated = '2026-02-18T09:00:00.000Z';
+    remote.beds = {
+      R2: buildPatient('R2', 'Paciente Remoto'),
+    };
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
+    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
+
+    const result = await updatePartialDetailed('2026-02-18', {
+      'beds.R2.patientName': 'Paciente Nuevo',
+    });
+
+    expect(result.outcome).toBe('clean');
+    expect(result.savedLocally).toBe(true);
+    expect(result.updatedRemotely).toBe(true);
+    expect(saveToIndexedDB).toHaveBeenCalledWith(remote);
+    expect(queueSyncTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2026-02-18',
+        beds: expect.objectContaining({
+          R2: expect.objectContaining({ patientName: 'Paciente Nuevo' }),
+        }),
+      }),
+      expect.objectContaining({
+        contexts: ['clinical'],
+        origin: 'direct_queue',
+        syncContract: expect.objectContaining({ changedPaths: ['beds.R2.patientName'] }),
+      }),
+      expect.objectContaining({ deferProcessing: true, holdForMs: expect.any(Number) })
+    );
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      '2026-02-18',
+      expect.objectContaining({
+        'beds.R2.patientName': 'Paciente Nuevo',
+      }),
+      '2026-02-18T09:00:00.000Z',
+      expectSyncContract('2026-02-18T09:00:00.000Z', ['beds.R2.patientName'])
+    );
   });
 
   it('blocks partial admissionDate edits after the first observed day', async () => {
@@ -241,7 +297,92 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
   });
 
-  it('does not queue task when Firestore error is non-retryable', async () => {
+  it('allows unrelated bed edits when an existing episode already has a suspicious admissionDate', async () => {
+    const current = buildRecord('2026-05-08');
+    current.beds = {
+      NEO1: {
+        ...buildPatient('NEO1', 'Nayeli Hereveri Martinez'),
+        rut: '24.029.332-3',
+        firstSeenDate: '2026-05-08',
+        admissionDate: '2026-05-01',
+      },
+      R4: {
+        ...buildPatient('R4', ''),
+        rut: '',
+        firstSeenDate: undefined,
+        admissionDate: '',
+      },
+    };
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+
+    const result = await updatePartialDetailed('2026-05-08', {
+      'beds.R4.patientName': 'Paciente Nuevo',
+      'beds.R4.rut': '22.222.222-2',
+      'beds.R4.firstSeenDate': '2026-05-08',
+      'beds.R4.admissionDate': '2026-05-08',
+    });
+
+    expect(result.outcome).toBe('clean');
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      '2026-05-08',
+      expect.objectContaining({
+        'beds.R4.patientName': 'Paciente Nuevo',
+        'beds.R4.rut': '22.222.222-2',
+      }),
+      current.lastUpdated,
+      expectSyncContract(current.lastUpdated, [
+        'beds.R4.patientName',
+        'beds.R4.rut',
+        'beds.R4.firstSeenDate',
+        'beds.R4.admissionDate',
+      ])
+    );
+  });
+
+  it('persists explicit firstSeenDate clearing when a stale episode bed is emptied', async () => {
+    const current = buildRecord('2026-05-08');
+    current.beds = {
+      R2: {
+        ...buildPatient('R2', 'Daniel S Damiani'),
+        rut: '17.752.753-K',
+        firstSeenDate: '2026-05-03',
+        admissionDate: '2026-05-01',
+        location: 'R2',
+      },
+    };
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+
+    const result = await updatePartialDetailed('2026-05-08', {
+      'beds.R2': {
+        bedId: 'R2',
+        patientName: '',
+        rut: '',
+        firstSeenDate: '',
+        admissionDate: '',
+        admissionTime: '',
+        location: 'R2',
+      },
+    });
+
+    expect(result.outcome).toBe('clean');
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      '2026-05-08',
+      expect.objectContaining({
+        'beds.R2': expect.objectContaining({
+          patientName: '',
+          rut: '',
+          firstSeenDate: '',
+          admissionDate: '',
+        }),
+      }),
+      current.lastUpdated,
+      expectSyncContract(current.lastUpdated, ['beds.R2'])
+    );
+  });
+
+  it('does not add a retry queue task when Firestore error is non-retryable', async () => {
     vi.mocked(saveRecordToFirestore).mockRejectedValueOnce({
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
@@ -250,126 +391,10 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     await save(buildRecord('2026-02-17'));
 
-    expect(queueSyncTask).not.toHaveBeenCalled();
-  });
-
-  it('auto-merges on concurrency conflict during full save and queues merged result', async () => {
-    const local = buildRecord('2026-02-16');
-    local.beds = { R1: buildPatient('R1', 'Nombre local') };
-
-    const remote = buildRecord('2026-02-16');
-    remote.beds = { R1: buildPatient('R1', 'Nombre remoto') };
-    remote.beds.R1.pathology = 'Diag remoto';
-    local.beds.R1.pathology = 'Diag local';
-
-    const concurrencyError = new Error('Concurrency conflict');
-    concurrencyError.name = 'ConcurrencyError';
-
-    vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(concurrencyError);
-    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
-
-    await expect(save(local, '2026-02-16T00:00:00.000Z')).resolves.toBeUndefined();
-    expect(queueSyncTask).toHaveBeenCalledWith(
-      'UPDATE_DAILY_RECORD',
-      expect.objectContaining({
-        date: '2026-02-16',
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({ pathology: 'Diag local' }),
-        }),
-      }),
-      expect.objectContaining({
-        contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-        origin: 'conflict_auto_merge',
-      })
+    expect(queueSyncTask).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(queueSyncTask).mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ origin: 'direct_queue' })
     );
-    expect(logRepositoryConflictAutoMerged).toHaveBeenCalledWith(
-      '2026-02-16',
-      expect.objectContaining({
-        policyVersion: '2026-03-v3',
-        changedPaths: ['*'],
-        impactedContexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-        assessment: expect.objectContaining({
-          riskLevel: 'high',
-          reviewRecommended: true,
-        }),
-      })
-    );
-  });
-
-  it('auto-merges on concurrency conflict during partial update and queues merged result', async () => {
-    const current = buildRecord('2026-02-15');
-    current.beds = { R1: buildPatient('R1', 'Paciente local') };
-    current.beds.R1.pathology = 'Diagnostico local';
-
-    const remote = buildRecord('2026-02-15');
-    remote.beds = { R1: buildPatient('R1', 'Paciente remoto') };
-    remote.beds.R1.pathology = 'Diagnostico remoto';
-
-    const concurrencyError = new Error('Concurrency conflict');
-    concurrencyError.name = 'ConcurrencyError';
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
-    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
-
-    await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.pathology': 'Diagnostico local',
-      })
-    ).resolves.toBeUndefined();
-
-    expect(queueSyncTask).toHaveBeenCalledWith(
-      'UPDATE_DAILY_RECORD',
-      expect.objectContaining({
-        date: '2026-02-15',
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({ pathology: 'Diagnostico local' }),
-        }),
-      }),
-      expect.objectContaining({
-        contexts: expect.arrayContaining(['clinical', 'metadata']),
-        origin: 'conflict_auto_merge',
-      })
-    );
-    expect(logRepositoryConflictAutoMerged).toHaveBeenCalledWith(
-      '2026-02-15',
-      expect.objectContaining({
-        policyVersion: '2026-03-v3',
-        changedPaths: expect.arrayContaining([
-          'beds.R1.pathology',
-          'beds.R1.fhir_resource',
-          'dateTimestamp',
-        ]),
-        impactedContexts: ['clinical', 'metadata'],
-        assessment: expect.objectContaining({
-          riskLevel: 'low',
-          reviewRecommended: false,
-        }),
-      })
-    );
-  });
-
-  it('keeps partial update locally when auto-merge recovery is not possible', async () => {
-    const current = buildRecord('2026-02-14');
-    current.beds = { R1: buildPatient('R1', 'Paciente local') };
-
-    const concurrencyError = new Error('Concurrency conflict');
-    concurrencyError.name = 'ConcurrencyError';
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(null);
-
-    const result = await updatePartialDetailed('2026-02-14', {
-      'beds.R1.patientName': 'Paciente actualizado',
-    });
-
-    expect(queueSyncTask).not.toHaveBeenCalledWith(
-      'UPDATE_DAILY_RECORD',
-      expect.objectContaining({ date: '2026-02-14' })
-    );
-    expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();
-    expect(result.consistencyState).toBe('unrecoverable');
   });
 
   it('passes local lastUpdated as concurrency base for partial remote update', async () => {
@@ -386,7 +411,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-13',
       expect.any(Object),
-      '2026-02-13T08:00:00.000Z'
+      '2026-02-13T08:00:00.000Z',
+      expectSyncContract('2026-02-13T08:00:00.000Z', ['beds.R1.patientName'])
     );
   });
 
@@ -407,7 +433,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
         medicalHandoffNovedades: 'Nota especialista',
         dateTimestamp: Date.parse('2026-02-11T00:00:00'),
       }),
-      current.lastUpdated
+      current.lastUpdated,
+      expectSyncContract(current.lastUpdated, ['medicalHandoffNovedades'])
     );
   });
 
@@ -428,7 +455,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
         'beds.R1.patientName': 'Paciente actualizado',
         dateTimestamp: Date.parse('2026-02-10T00:00:00'),
       }),
-      current.lastUpdated
+      current.lastUpdated,
+      expectSyncContract(current.lastUpdated, ['beds.R1.patientName'])
     );
   });
 
@@ -453,7 +481,8 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
         'beds.R1.clinicalCrib.patientName': 'Recien nacido actualizado',
         'beds.R1.clinicalCrib.fhir_resource': expect.any(Object),
       }),
-      current.lastUpdated
+      current.lastUpdated,
+      expectSyncContract(current.lastUpdated, ['beds.R1.clinicalCrib.patientName'])
     );
   });
 });

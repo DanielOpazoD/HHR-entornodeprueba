@@ -6,6 +6,11 @@ import {
   buildCopyUnlockDescription,
   resolveCreateDayCopyAvailability,
 } from '@/features/census/controllers/censusCreateDayAvailabilityController';
+import {
+  shouldRecordCensusEmptyStateDiagnostic,
+  type CensusEmptyStateDiagnostic,
+} from '@/hooks/controllers/dailyRecordBootstrapController';
+import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 
 interface EmptyDayPromptProps {
   selectedDay: number;
@@ -21,6 +26,7 @@ interface EmptyDayPromptProps {
   ) => void;
   readOnly?: boolean;
   allowAdminCopyOverride?: boolean;
+  emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
 }
 
 export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
@@ -33,11 +39,14 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   onCreateDay,
   readOnly = false,
   allowAdminCopyOverride = false,
+  emptyStateDiagnostic,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isConfirmingBlank, setIsConfirmingBlank] = useState(false);
   const [blankConfirmationText, setBlankConfirmationText] = useState('');
   const [now, setNow] = useState(() => new Date());
+  const diagnosticSource = emptyStateDiagnostic?.source;
+  const diagnosticMessage = emptyStateDiagnostic?.message;
 
   const copyAvailability = useMemo(
     () => resolveCreateDayCopyAvailability(currentDateString, now),
@@ -56,9 +65,39 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
     return () => window.clearInterval(intervalId);
   }, [copyAvailability.isCopyLocked]);
 
+  useEffect(() => {
+    if (
+      !diagnosticSource ||
+      !diagnosticMessage ||
+      !shouldRecordCensusEmptyStateDiagnostic({
+        branch: 'empty',
+        source: diagnosticSource,
+        isVisible: true,
+      })
+    ) {
+      return;
+    }
+
+    dailyRecordObservability.recordEvent('census_empty_state_visible', 'degraded', {
+      date: currentDateString,
+      runtimeState: 'retryable',
+      issues: [diagnosticMessage],
+      context: {
+        source: diagnosticSource,
+      },
+    });
+  }, [currentDateString, diagnosticMessage, diagnosticSource]);
+
   const isDatePickerVisible = showDatePicker && !copyAvailability.isCopyLocked;
   const canForceCopyPrevious =
     allowAdminCopyOverride && previousRecordAvailable && !!previousRecordDate;
+  const diagnosticLabelBySource: Record<CensusEmptyStateDiagnostic['source'], string> = {
+    remote_missing: 'Firebase/local confirmado',
+    local_cache_empty: 'Solo copia local',
+    sync_pending: 'Sincronizacion pendiente',
+    post_deploy_refresh: 'Actualizacion reciente',
+    date_mismatch: 'Fecha seleccionada',
+  };
 
   // Format date for display (DD de Mes)
   const formatDate = (dateStr: string) => {
@@ -82,9 +121,25 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
       <h2 className="text-2xl font-bold text-slate-800 mb-2">
         {selectedDay} de {MONTH_NAMES[selectedMonth]}
       </h2>
-      <p className="text-slate-500 mb-8 text-center max-w-md">
-        No existe registro para esta fecha.
-      </p>
+      <div className="mb-8 max-w-md text-center">
+        <p
+          aria-live="polite"
+          className="text-slate-500"
+          data-testid="empty-day-diagnostic-message"
+          role="status"
+        >
+          {emptyStateDiagnostic?.message || 'No existe registro para esta fecha.'}
+        </p>
+        {emptyStateDiagnostic && (
+          <span
+            className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+            data-testid="empty-day-diagnostic-source"
+            data-source={emptyStateDiagnostic.source}
+          >
+            {diagnosticLabelBySource[emptyStateDiagnostic.source]}
+          </span>
+        )}
+      </div>
 
       {!readOnly ? (
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap justify-center items-start">

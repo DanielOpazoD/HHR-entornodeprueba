@@ -99,8 +99,8 @@ dejar el runtime por defecto solo como composición. El repositorio no debe depe
   `DailyRecord`; internamente entra por `storage/migration/legacyRecordReadBridge`.
 - `CatalogRepository.ts` mantiene el fallback legacy de catálogos únicamente a través de
   `storage/migration/legacyCatalogReadBridge`.
-- `storage/migration/legacyFirestoreBridge.ts` queda como shim deprecated de compatibilidad y no
-  debe recibir consumidores productivos nuevos.
+- El shim amplio de compatibilidad Firestore legacy fue retirado; los consumidores deben usar los
+  bridges angostos anteriores.
 - El bridge legacy ya no sale por el barrel general de `repositories`; cualquier uso nuevo debe
   importar el módulo explícito o pasar por `DailyRecordRepository.bridgeLegacyRecord`.
 - `legacyBridgeAudit.ts` mantiene un ledger liviano de uso del bridge (`single`/`range`,

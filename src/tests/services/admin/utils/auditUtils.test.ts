@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { User } from 'firebase/auth';
 import {
   formatAuditTimestamp,
@@ -39,6 +39,10 @@ describe('auditUtils', () => {
     sessionStorage.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   describe('getCurrentUserEmail', () => {
     it('should return user email when available', () => {
       setCurrentUser({ email: 'test@example.com' });
@@ -64,6 +68,14 @@ describe('auditUtils', () => {
       setCurrentUser({ email: null, displayName: 'Test User' });
 
       expect(getCurrentUserEmail()).toBe('Test User');
+    });
+
+    it('should resolve browser-independent identity when localStorage is unavailable', () => {
+      vi.stubGlobal('localStorage', undefined);
+      setCurrentUser({ email: null, displayName: 'Conflict Worker', uid: 'worker-uid' });
+
+      expect(getCurrentUserEmail()).toBe('Conflict Worker');
+      expect(loggerMocks.warn).not.toHaveBeenCalled();
     });
 
     it('should return uid as last resort', () => {

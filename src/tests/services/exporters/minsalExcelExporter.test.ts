@@ -56,6 +56,25 @@ describe('minsalExcelExporter', () => {
           promedioDiasEstadaMaxima: 10,
         },
       ],
+      cma: {
+        total: 3,
+        cirugiaMayorAmbulatoria: 2,
+        procedimientoMedicoAmbulatorio: 1,
+        porEspecialidad: [
+          {
+            specialty: 'Traumatología',
+            total: 2,
+            cirugiaMayorAmbulatoria: 2,
+            procedimientoMedicoAmbulatorio: 0,
+          },
+          {
+            specialty: 'Med Interna',
+            total: 1,
+            cirugiaMayorAmbulatoria: 0,
+            procedimientoMedicoAmbulatorio: 1,
+          },
+        ],
+      },
     };
 
     const trendData: DailyStatsSnapshot[] = [
@@ -108,5 +127,19 @@ describe('minsalExcelExporter', () => {
       '5.60',
       '2.0 - 10.0 días',
     ]);
+
+    const cmaSheet = workbook.getWorksheet('CMA');
+    expect(cmaSheet).toBeDefined();
+    const cmaHeaderValues = (cmaSheet?.getRow(1).values ?? []) as unknown[];
+    const cmaFirstRowValues = (cmaSheet?.getRow(2).values ?? []) as unknown[];
+    const cmaTotalRowValues = (cmaSheet?.getRow(4).values ?? []) as unknown[];
+    expect(cmaHeaderValues.slice(1)).toEqual([
+      'Especialidad',
+      'Total CMA/PMA',
+      'Cirugía Mayor Ambulatoria',
+      'Procedimiento Médico Ambulatorio',
+    ]);
+    expect(cmaFirstRowValues.slice(1)).toEqual(['Traumatología', 2, 2, 0]);
+    expect(cmaTotalRowValues.slice(1)).toEqual(['Total', 3, 2, 1]);
   });
 });

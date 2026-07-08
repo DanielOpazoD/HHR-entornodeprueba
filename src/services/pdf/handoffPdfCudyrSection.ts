@@ -11,6 +11,11 @@ import {
   isCudyrPatientEligible,
   resolveCudyrNightApplicationDate,
 } from '@/domain/cudyr/cudyrEligibility';
+import {
+  HANDOFF_PDF_PAGE_LAYOUT,
+  getHandoffPdfTableMargin,
+  type HandoffPdfPageMargin,
+} from './handoffPdfPageLayout';
 
 const renderPdfCudyrScore = (value?: number) =>
   value === undefined || value === null ? '-' : value;
@@ -19,10 +24,11 @@ export const addCudyrTable = (
   doc: jsPDF,
   record: HandoffPdfRecord,
   margin: number,
-  autoTable: AutoTableFunction
+  autoTable: AutoTableFunction,
+  pageMargin: HandoffPdfPageMargin = HANDOFF_PDF_PAGE_LAYOUT.margin
 ) => {
   doc.addPage();
-  let currentY = margin;
+  let currentY = pageMargin.top;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
@@ -175,6 +181,7 @@ export const addCudyrTable = (
       18: { cellWidth: 9, fontStyle: 'bold', fillColor: [254, 242, 242] },
       19: { cellWidth: 9, fontStyle: 'bold' },
     },
+    margin: getHandoffPdfTableMargin(pageMargin),
     didParseCell: (hookData: CellHookData) => {
       if (hookData.section !== 'body' || hookData.column.index !== 19) return;
       const value = hookData.cell.raw as string;

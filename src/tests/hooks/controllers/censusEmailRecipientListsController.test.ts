@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
 import {
   applyRecipientListSelection,
+  buildRecipientDeferredSyncHandlers,
   runRecipientRuntimeMutation,
 } from '@/hooks/controllers/censusEmailRecipientListsController';
 import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
@@ -93,6 +94,32 @@ describe('censusEmailRecipientListsController', () => {
       recipientsSyncError: null,
       lastRemoteRecipients: remoteList.recipients,
     });
+    expect(setIsRecipientsSyncing).toHaveBeenLastCalledWith(false);
+  });
+
+  it('builds stable deferred sync handlers for recipient list runtime state', () => {
+    const applyRecipientSyncState = vi.fn();
+    const setIsRecipientsSyncing = vi.fn();
+    const setRecipientsSyncError = vi.fn();
+
+    const handlers = buildRecipientDeferredSyncHandlers({
+      applyRecipientSyncState,
+      setIsRecipientsSyncing,
+      setRecipientsSyncError,
+    });
+    const nextSyncState = {
+      recipientsSource: 'firebase' as const,
+      recipientsSyncError: null,
+      lastRemoteRecipients: ['uno@example.com'],
+    };
+
+    handlers.onSyncStart();
+    handlers.onSyncState(nextSyncState);
+    handlers.onSyncComplete();
+
+    expect(setIsRecipientsSyncing).toHaveBeenNthCalledWith(1, true);
+    expect(setRecipientsSyncError).toHaveBeenCalledWith(null);
+    expect(applyRecipientSyncState).toHaveBeenCalledWith(nextSyncState);
     expect(setIsRecipientsSyncing).toHaveBeenLastCalledWith(false);
   });
 });

@@ -30,6 +30,18 @@ const patients: MedicalIndicationsPatientOption[] = [
 ];
 
 describe('LaboratoryQuickAction', () => {
+  it('uses the stable DateStrip quick-action slot dimensions from the first render', () => {
+    vi.mocked(checkSyslabConnection).mockReturnValue(new Promise(() => {}) as never);
+
+    render(<LaboratoryQuickAction patients={patients} />);
+
+    const button = screen.getByRole('button', { name: /lab/i });
+    expect(button).toHaveClass('h-[30px]');
+    expect(button).toHaveClass('min-w-[76px]');
+    expect(button).toHaveClass('py-0');
+    expect(button).toHaveClass('text-[10px]');
+  });
+
   it('keeps the Syslab button disabled when the health check is unavailable', async () => {
     vi.mocked(checkSyslabConnection).mockResolvedValue({
       available: false,

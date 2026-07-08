@@ -1,0 +1,547 @@
+{
+  "generatedAt": "2026-07-05T06:20:04.606Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "126d4b82",
+    "gitDirty": false,
+    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "reportId": "operational-health",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "654d42a98b0316db11dffc4aeb4c6f7b3a1fe6f0b52048fad8a6b0944441b260",
+      "files": [
+        "reports/critical-coverage.json",
+        "reports/critical-coverage.md",
+        "reports/e2e/preview-bootstrap/report.json",
+        "scripts/config/critical-coverage-thresholds.json",
+        "scripts/criticalCoverageSupport.mjs",
+        "scripts/report-critical-coverage.mjs",
+        "scripts/run-critical-coverage.mjs",
+        "vitest.critical-coverage.config.ts"
+      ],
+      "missingFiles": []
+    }
+  },
+  "schema": {
+    "current": 1,
+    "legacy": 0
+  },
+  "syncQueue": {
+    "batchSize": 25,
+    "maxRetries": 5,
+    "baseRetryDelayMs": 1,
+    "maxRetryDelayMs": 30,
+    "runtimeThresholds": {
+      "warningPendingTasks": 128,
+      "warningOldestPendingAgeMs": 300,
+      "criticalOldestPendingAgeMs": 900,
+      "warningRetryingSyncTasks": 1,
+      "criticalRetryingSyncTasks": 3
+    }
+  },
+  "systemHealth": {
+    "warningPendingMutations": 1,
+    "criticalPendingMutations": 8,
+    "warningLocalErrorCount": 1,
+    "criticalLocalErrorCount": 15,
+    "warningRepositoryWarningCount": 1,
+    "criticalRepositoryWarningCount": 5,
+    "warningSlowRepositoryOperationMs": 350,
+    "criticalSlowRepositoryOperationMs": 800,
+    "warningPendingTasks": 128,
+    "warningOldestPendingAgeMs": 300,
+    "criticalOldestPendingAgeMs": 900,
+    "warningRetryingSyncTasks": 1,
+    "criticalRetryingSyncTasks": 3,
+    "prolongedOfflineUserAgeMs": 900000
+  },
+  "syncDomainProfiles": [
+    {
+      "id": "metadata_remote_priority",
+      "retryBudget": 3,
+      "delayMultiplier": 1.8,
+      "conflictAction": "Revisar metadata remota antes de reintentar o reabrir el registro."
+    },
+    {
+      "id": "movements_priority",
+      "retryBudget": 4,
+      "delayMultiplier": 1.2,
+      "conflictAction": "Revisar movimientos y altas/traslados antes de reconciliar el conflicto."
+    },
+    {
+      "id": "staffing_handoff_priority",
+      "retryBudget": 4,
+      "delayMultiplier": 1.35,
+      "conflictAction": "Revisar staffing/handoff local antes de confirmar la resolución del conflicto."
+    },
+    {
+      "id": "default_domain_retry",
+      "retryBudget": 4,
+      "delayMultiplier": 1.5,
+      "conflictAction": "Revisar contexto del conflicto antes de reintentar manualmente."
+    }
+  ],
+  "conflictContexts": {
+    "clinical": "Validar que el merge preserve camas y pacientes antes de reintentar.",
+    "staffing": "Confirmar staffing y turnos antes de aplicar la resolución sugerida.",
+    "movements": "Corroborar altas, traslados y CMA contra el registro remoto.",
+    "handoff": "Revisar notas de entrega y responsables del turno antes de confirmar.",
+    "metadata": "Alinear timestamps, schemaVersion y campos de control antes de reabrir.",
+    "unknown": "Inspeccionar paths afectados y escalar si el contexto no se puede clasificar."
+  },
+  "legacyBridge": {
+    "generatedAt": "stable:legacy-bridge-governance",
+    "policyVersion": "2026-03-v2",
+    "allowedModes": [
+      "explicit_bridge",
+      "disabled"
+    ],
+    "hotPathPolicy": "disabled",
+    "allowedEntrypoints": [
+      "DailyRecordRepository.bridgeLegacyRecord",
+      "legacyRecordBridgeService.bridgeLegacyRecordsRange"
+    ],
+    "allowedImporters": [
+      "src/services/repositories/dailyRecordRepositoryReadService.ts"
+    ],
+    "retirementPhaseRules": {
+      "observe": "Use only while hot path isolation or governance prerequisites are incomplete.",
+      "restrict": "Default stage once bridge is explicit-only and auditable.",
+      "retire_ready": "Allowed only when runtime mode is disabled and a release window passed without dependency."
+    },
+    "retirementGates": [
+      {
+        "id": "hot-path-isolation",
+        "label": "Hot path isolated",
+        "rationale": "Legacy compatibility must stay outside read/write/sync hot paths."
+      },
+      {
+        "id": "explicit-usage-observed",
+        "label": "Explicit usage observed and auditable",
+        "rationale": "Any remaining bridge usage must be measurable before restricting or retiring it."
+      },
+      {
+        "id": "migration-rules-governed",
+        "label": "Migration rules governed",
+        "rationale": "Legacy imports must keep using the governed migration pipeline and schema checks."
+      },
+      {
+        "id": "release-window-clear",
+        "label": "Release window without bridge dependency",
+        "rationale": "The bridge can retire only after at least one release window with no required usage."
+      }
+    ],
+    "candidatePathTemplates": [
+      "hospitals/hanga_roa/dailyRecords/:date",
+      "hospitals/hhr/dailyRecords/:date",
+      "hospitals/hospital-hanga-roa/dailyRecords/:date",
+      "dailyRecords/:date",
+      "records/:date",
+      "hospitals/hanga_roa/dailyRecords",
+      "hospitals/hhr/dailyRecords",
+      "dailyRecords",
+      "hospitals/hospital-hanga-roa/dailyRecords"
+    ]
+  },
+  "compatibilityGovernance": {
+    "policyVersion": "2026-04-v1",
+    "trackedEntries": 4,
+    "missingEntries": [],
+    "restrictedEntries": 0,
+    "unauthorizedImportCount": 0
+  },
+  "localPersistence": {
+    "openTimeoutMs": 12,
+    "deleteTimeoutMs": 5,
+    "maxBackgroundRecoveryAttempts": 6,
+    "recoveryRetryDelaysMs": [
+      500
+    ]
+  },
+  "authAccess": {
+    "generalLoginRoles": [
+      "admin",
+      "nurse_hospital",
+      "doctor_urgency",
+      "doctor_specialist",
+      "viewer",
+      "editor"
+    ],
+    "managedAssignableRoles": [
+      "admin",
+      "nurse_hospital",
+      "doctor_urgency",
+      "doctor_specialist",
+      "viewer",
+      "unauthorized"
+    ],
+    "roleNormalizationBridges": [],
+    "canonicalModelDoc": "docs/AUTH_ACCESS_MODEL.md",
+    "authIncidentRunbook": "docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md"
+  },
+  "authBootstrap": {
+    "pendingTtlMs": 90,
+    "timeoutsMs": {
+      "recentManualLogout": 1,
+      "offline": 5,
+      "default": 15,
+      "redirectPending": 45
+    }
+  },
+  "operationalRuntimeStates": {
+    "contract": "src/services/observability/operationalRuntimeState.ts",
+    "states": [
+      "retryable",
+      "recoverable",
+      "degraded",
+      "blocked",
+      "unauthorized"
+    ]
+  },
+  "flowPerformance": {
+    "status": "passing",
+    "blockingCount": 0,
+    "targetMissCount": 0,
+    "nearLimitCount": 0,
+    "flows": [
+      {
+        "flow": "loginVisibleMs",
+        "actualMs": 164.6,
+        "targetMs": 4000,
+        "enforcedMaxMs": 4000,
+        "status": "ok"
+      },
+      {
+        "flow": "authFeedbackMs",
+        "actualMs": 110.6,
+        "targetMs": 2500,
+        "enforcedMaxMs": 2500,
+        "status": "ok"
+      },
+      {
+        "flow": "censoVisibleMs",
+        "actualMs": 1280.3,
+        "targetMs": 1500,
+        "enforcedMaxMs": 2000,
+        "status": "ok"
+      },
+      {
+        "flow": "censoRecordReadyMs",
+        "actualMs": 51.7,
+        "targetMs": 2500,
+        "enforcedMaxMs": 5000,
+        "status": "ok"
+      },
+      {
+        "flow": "clinicalDocumentsVisibleMs",
+        "actualMs": 388.7,
+        "targetMs": 4500,
+        "enforcedMaxMs": 6000,
+        "status": "ok"
+      },
+      {
+        "flow": "backupFilesVisibleMs",
+        "actualMs": 478.1,
+        "targetMs": 4500,
+        "enforcedMaxMs": 4500,
+        "status": "ok"
+      }
+    ]
+  },
+  "criticalCoverage": {
+    "status": "passing",
+    "mode": "dual-gated",
+    "zones": [
+      {
+        "root": "src/features/census/controllers",
+        "status": "PASS",
+        "lines": 96.1,
+        "functions": 99.1,
+        "branches": 87.9
+      },
+      {
+        "root": "src/features/clinical-documents",
+        "status": "PASS",
+        "lines": 85.8,
+        "functions": 84.8,
+        "branches": 74.5
+      },
+      {
+        "root": "src/services/transfers",
+        "status": "PASS",
+        "lines": 85.5,
+        "functions": 84,
+        "branches": 74.9
+      },
+      {
+        "root": "src/services/storage/firestore",
+        "status": "PASS",
+        "lines": 89.7,
+        "functions": 94.5,
+        "branches": 81.8
+      },
+      {
+        "root": "src/services/auth",
+        "status": "PASS",
+        "lines": 84.9,
+        "functions": 86.3,
+        "branches": 71.1
+      },
+      {
+        "root": "src/services/auth/bootstrap",
+        "status": "PASS",
+        "lines": 91.9,
+        "functions": 100,
+        "branches": 81.7
+      },
+      {
+        "root": "src/services/backup",
+        "status": "PASS",
+        "lines": 81.1,
+        "functions": 82,
+        "branches": 64.9
+      },
+      {
+        "root": "src/features/reminders/admin",
+        "status": "PASS",
+        "lines": 98.3,
+        "functions": 97.6,
+        "branches": 91.2
+      },
+      {
+        "root": "src/app-shell",
+        "status": "PASS",
+        "lines": 92.6,
+        "functions": 93.3,
+        "branches": 81.3
+      },
+      {
+        "root": "src/services/patient-history",
+        "status": "PASS",
+        "lines": 96,
+        "functions": 100,
+        "branches": 78.4
+      },
+      {
+        "root": "src/services/export-manager",
+        "status": "PASS",
+        "lines": 96,
+        "functions": 96.6,
+        "branches": 92.5
+      },
+      {
+        "root": "src/shared/census/upc-critical",
+        "status": "PASS",
+        "lines": 98.3,
+        "functions": 97.9,
+        "branches": 84.7
+      },
+      {
+        "root": "src/services/storage/sync-critical",
+        "status": "PASS",
+        "lines": 99,
+        "functions": 96.3,
+        "branches": 100
+      },
+      {
+        "root": "src/services/storage/indexeddb-recovery",
+        "status": "PASS",
+        "lines": 100,
+        "functions": 100,
+        "branches": 86.7
+      },
+      {
+        "root": "src/features/handoff",
+        "status": "PASS",
+        "lines": 85.6,
+        "functions": 78.2,
+        "branches": 79.3
+      }
+    ]
+  },
+  "buildAssets": {
+    "entryMaxBytes": 700000,
+    "chunkMaxBytes": 1250000,
+    "entryAssets": [
+      {
+        "file": "dist/assets/index-zjqg-fR6.js",
+        "sizeBytes": 19469,
+        "maxBytes": 700000,
+        "status": "ok"
+      }
+    ],
+    "largestAssets": [
+      {
+        "file": "dist/assets/vendor-heic2any-ClJ2fQYX.js",
+        "sizeBytes": 1352091,
+        "maxBytes": 1450000,
+        "budgetLabel": "vendor-heic2any",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 93.2,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
+        "sizeBytes": 537942,
+        "maxBytes": 600000,
+        "budgetLabel": "app-authenticated-shell",
+        "budgetSource": "startupChunkBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 89.7,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-pdfjs-C4G2Lk1-.js",
+        "sizeBytes": 465976,
+        "maxBytes": 520000,
+        "budgetLabel": "vendor-pdfjs",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 89.6,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-firebase-firestore-CSGvoZjH.js",
+        "sizeBytes": 393147,
+        "maxBytes": 500000,
+        "budgetLabel": "vendor-firebase-firestore",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 78.6,
+        "status": "ok"
+      },
+      {
+        "file": "dist/assets/vendor-pdf-lib-BrVFzLGn.js",
+        "sizeBytes": 390824,
+        "maxBytes": 430000,
+        "budgetLabel": "vendor-pdf",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 90.9,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-pdf-core-U3n4h3fn.js",
+        "sizeBytes": 364662,
+        "maxBytes": 430000,
+        "budgetLabel": "vendor-pdf",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 84.8,
+        "status": "ok"
+      },
+      {
+        "file": "dist/assets/documentFallbacks-BpNioYEc.js",
+        "sizeBytes": 344643,
+        "maxBytes": 1250000,
+        "budgetLabel": "chunkMaxBytes",
+        "budgetSource": "chunkMaxBytes",
+        "severity": "error",
+        "budgetUtilizationPct": 27.6,
+        "status": "ok"
+      },
+      {
+        "file": "dist/assets/LineChart-tAm3U9fu.js",
+        "sizeBytes": 331288,
+        "maxBytes": 1250000,
+        "budgetLabel": "chunkMaxBytes",
+        "budgetSource": "chunkMaxBytes",
+        "severity": "error",
+        "budgetUtilizationPct": 26.5,
+        "status": "ok"
+      }
+    ]
+  },
+  "frontendStartup": {
+    "status": "ok",
+    "issues": [],
+    "previewGate": {
+      "status": "ok",
+      "total": 3,
+      "expected": 3,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "interrupted": 0,
+      "durationMs": 7994.147
+    },
+    "criticalAssets": [
+      {
+        "file": "dist/assets/index-zjqg-fR6.js",
+        "sizeBytes": 19469,
+        "maxBytes": 700000,
+        "status": "ok"
+      },
+      {
+        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
+        "sizeBytes": 537942,
+        "maxBytes": 600000,
+        "budgetLabel": "app-authenticated-shell",
+        "budgetSource": "startupChunkBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 89.7,
+        "status": "near-limit"
+      }
+    ],
+    "bootstrapTelemetrySignals": [
+      "bootstrap_recovery_reload",
+      "bootstrap_chunk_load_failed",
+      "bootstrap_runtime_failed",
+      "bootstrap_window_error",
+      "bootstrap_unhandled_rejection"
+    ]
+  },
+  "repositoryPerformance": {
+    "monitoredOperations": 7,
+    "maxThresholdMs": 400,
+    "minThresholdMs": 120,
+    "thresholds": [
+      {
+        "file": "src/services/repositories/dailyRecordRepositoryReadService.ts",
+        "thresholdMs": 120,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/dailyRecordRepositoryInitializationService.ts",
+        "thresholdMs": 180,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/dailyRecordRepositorySyncService.ts",
+        "thresholdMs": 200,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/monthIntegrity.ts",
+        "thresholdMs": 250,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/legacyRecordBridgeService.ts",
+        "thresholdMs": 220,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/legacyRecordBridgeService.ts",
+        "thresholdMs": 400,
+        "context": null
+      },
+      {
+        "file": "src/services/repositories/dailyRecordRemoteLoader.ts",
+        "thresholdMs": 220,
+        "context": null
+      }
+    ]
+  },
+  "runbooks": [
+    "docs/RUNBOOK_SYNC_RESILIENCE.md",
+    "docs/RUNBOOK_SUPPORT_OPERATIONS.md",
+    "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
+    "docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md",
+    "docs/RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md",
+    "docs/RUNBOOK_AI_PROVIDER_OPERATIONS.md",
+    "docs/SERVERLESS_SENSITIVE_CONTRACTS.md"
+  ]
+}

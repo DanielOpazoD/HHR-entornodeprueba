@@ -34,6 +34,7 @@ interface NotificationHelpers {
 interface BuildSidebarPropsParams {
   canEdit: boolean;
   canDelete: boolean;
+  canDeleteDocument: ClinicalDocumentsSidebarProps['canDeleteDocument'];
   readOnlyMessage: string | null;
   patientName?: string;
   patientRut?: string;
@@ -68,8 +69,21 @@ interface BuildSheetPropsParams {
   isSaving: boolean;
   lastSavedAt?: string;
   hasLocalDraftChanges: boolean;
+  flushPendingAutosave: ClinicalDocumentsWorkspaceSheetModelProps['flushPendingAutosave'];
   isUploadingPdf: boolean;
   validationIssues: ClinicalDocumentsWorkspaceSheetModelProps['validationIssues'];
+  attachments: ClinicalDocumentsWorkspaceSheetModelProps['attachments'];
+  patientAttachments: ClinicalDocumentsWorkspaceSheetModelProps['patientAttachments'];
+  isLoadingAttachments: boolean;
+  isLoadingPatientAttachments: boolean;
+  isUploadingAttachment: boolean;
+  uploadStatusMessage: string | null;
+  uploadAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onUploadAttachment'];
+  deleteAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onDeleteAttachment'];
+  renameAttachment: ClinicalDocumentsWorkspaceSheetModelProps['onRenameAttachment'];
+  regenerateAttachmentAccess: ClinicalDocumentsWorkspaceSheetModelProps['onRegenerateAttachmentAccess'];
+  suggestAttachmentName: ClinicalDocumentsWorkspaceSheetModelProps['onSuggestAttachmentName'];
+  uploadPastedImage: ClinicalDocumentsWorkspaceSheetModelProps['onUploadPastedImage'];
   handlePrint: () => Promise<void>;
   handleUploadPdf: () => Promise<void>;
   draft: ClinicalDocumentsWorkspaceSheetModelProps['selectedDocument'];
@@ -89,9 +103,16 @@ interface BuildSheetPropsParams {
   addSection: ClinicalDocumentsWorkspaceSheetModelProps['addSection'];
   patchFooterLabel: ClinicalDocumentsWorkspaceSheetModelProps['patchFooterLabel'];
   patchDocumentMeta: ClinicalDocumentsWorkspaceSheetModelProps['patchDocumentMeta'];
+  signatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['signatureProfile'];
+  onSaveSignatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['onSaveSignatureProfile'];
+  onApplySignatureProfile: ClinicalDocumentsWorkspaceSheetModelProps['onApplySignatureProfile'];
   indicationsCatalog: ClinicalDocumentsWorkspaceSheetModelProps['indicationsCatalog'];
   isSavingCustomIndication: boolean;
   customIndicationError: string | null;
+  createIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['createIndicationsTab'];
+  renameIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['renameIndicationsTab'];
+  deleteIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['deleteIndicationsTab'];
+  reorderIndicationsTab: ClinicalDocumentsWorkspaceSheetModelProps['reorderIndicationsTab'];
   addCustomIndication: ClinicalDocumentsWorkspaceSheetModelProps['addCustomIndication'];
   updateIndication: ClinicalDocumentsWorkspaceSheetModelProps['updateIndication'];
   deleteIndication: ClinicalDocumentsWorkspaceSheetModelProps['deleteIndication'];
@@ -117,6 +138,7 @@ export const scrollToClinicalDocumentAnnex = () => {
 export const buildClinicalDocumentsWorkspaceSidebarProps = ({
   canEdit,
   canDelete,
+  canDeleteDocument,
   readOnlyMessage,
   patientName,
   patientRut,
@@ -142,6 +164,7 @@ export const buildClinicalDocumentsWorkspaceSidebarProps = ({
 }: BuildSidebarPropsParams): ClinicalDocumentsSidebarProps => ({
   canEdit,
   canDelete,
+  canDeleteDocument,
   readOnlyMessage,
   patientName,
   patientRut,
@@ -188,8 +211,21 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   isSaving,
   lastSavedAt,
   hasLocalDraftChanges,
+  flushPendingAutosave,
   isUploadingPdf,
   validationIssues,
+  attachments,
+  patientAttachments,
+  isLoadingAttachments,
+  isLoadingPatientAttachments,
+  isUploadingAttachment,
+  uploadStatusMessage,
+  uploadAttachment,
+  deleteAttachment,
+  renameAttachment,
+  regenerateAttachmentAccess,
+  suggestAttachmentName,
+  uploadPastedImage,
   handlePrint,
   handleUploadPdf,
   draft,
@@ -209,9 +245,16 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   addSection,
   patchFooterLabel,
   patchDocumentMeta,
+  signatureProfile,
+  onSaveSignatureProfile,
+  onApplySignatureProfile,
   indicationsCatalog,
   isSavingCustomIndication,
   customIndicationError,
+  createIndicationsTab,
+  renameIndicationsTab,
+  deleteIndicationsTab,
+  reorderIndicationsTab,
   addCustomIndication,
   updateIndication,
   deleteIndication,
@@ -232,8 +275,22 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   isSaving,
   lastSavedAt,
   hasLocalDraftChanges,
+  flushPendingAutosave,
   isUploadingPdf,
   validationIssues,
+  attachments,
+  currentDocumentId: selectedDocument?.id ?? null,
+  patientAttachments,
+  isLoadingAttachments,
+  isLoadingPatientAttachments,
+  isUploadingAttachment,
+  uploadStatusMessage,
+  onUploadAttachment: uploadAttachment,
+  onDeleteAttachment: deleteAttachment,
+  onRenameAttachment: renameAttachment,
+  onRegenerateAttachmentAccess: regenerateAttachmentAccess,
+  onSuggestAttachmentName: suggestAttachmentName,
+  onUploadPastedImage: uploadPastedImage,
   onPrint: handlePrint,
   onUploadPdf: () => void handleUploadPdf(),
   onRestoreTemplate: () =>
@@ -244,6 +301,7 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
       restoreTemplateContent,
       info: notifications.info,
     }),
+  onImagePasteRejected: message => notifications.info('Imagen no insertada', message),
   patchDocumentTitle,
   patchPatientInfoTitle,
   patchPatientField,
@@ -258,9 +316,16 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   addSection,
   patchFooterLabel,
   patchDocumentMeta,
+  signatureProfile,
+  onSaveSignatureProfile,
+  onApplySignatureProfile,
   indicationsCatalog,
   isSavingCustomIndication,
   customIndicationError,
+  createIndicationsTab,
+  renameIndicationsTab,
+  deleteIndicationsTab,
+  reorderIndicationsTab,
   addCustomIndication,
   updateIndication,
   deleteIndication,

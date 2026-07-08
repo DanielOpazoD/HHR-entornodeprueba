@@ -5,6 +5,7 @@ import { executeRecipientRuntimeMutationSpec } from '@/hooks/controllers/censusE
 import {
   resolveRecipientSelectionRuntimeState,
   type RecipientRuntimeState,
+  type resolveRecipientSyncState,
 } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
 
 export interface UseCensusEmailRecipientListsParams {
@@ -63,6 +64,27 @@ interface RecipientRuntimeMutationInput {
   setIsRecipientsSyncing: (isSyncing: boolean) => void;
   setRecipientsSyncError: (message: string | null) => void;
 }
+
+interface RecipientDeferredSyncHandlersInput {
+  applyRecipientSyncState: (state: ReturnType<typeof resolveRecipientSyncState>) => void;
+  setIsRecipientsSyncing: (isSyncing: boolean) => void;
+  setRecipientsSyncError: (message: string | null) => void;
+}
+
+export const buildRecipientDeferredSyncHandlers = ({
+  applyRecipientSyncState,
+  setIsRecipientsSyncing,
+  setRecipientsSyncError,
+}: RecipientDeferredSyncHandlersInput) => ({
+  onSyncStart: () => {
+    setIsRecipientsSyncing(true);
+    setRecipientsSyncError(null);
+  },
+  onSyncState: applyRecipientSyncState,
+  onSyncComplete: () => {
+    setIsRecipientsSyncing(false);
+  },
+});
 
 export const runRecipientRuntimeMutation = async <T>(
   spec: RecipientRuntimeMutationSpec<T>,

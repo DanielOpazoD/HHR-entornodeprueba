@@ -1,0 +1,4 @@
+{
+  "$schema_note": "Native dialog occurrences predating the check:native-dialogs guardrail. New entries must NOT be added; instead, refactor the service to return a typed outcome and let the caller render the message via useNotification.",
+  "violations": []
+}

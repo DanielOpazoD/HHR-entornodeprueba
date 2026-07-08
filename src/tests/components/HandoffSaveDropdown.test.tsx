@@ -30,6 +30,30 @@ describe('HandoffSaveDropdown', () => {
     );
   });
 
+  it('runs browser print without triggering the generated PDF backup path', async () => {
+    const onExportPDF = vi.fn();
+    const onPrintWithBrowserOptions = vi.fn();
+    const onBackupPDF = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <HandoffSaveDropdown
+        onExportPDF={onExportPDF}
+        onPrintWithBrowserOptions={onPrintWithBrowserOptions}
+        onBackupPDF={onBackupPDF}
+        isArchived={false}
+        isBackingUp={false}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Opciones de guardado (PDF/Nube)'));
+    expect(screen.queryByText('Imprimir con opciones')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Imprimir con opciones de Chrome'));
+
+    expect(onPrintWithBrowserOptions).toHaveBeenCalledTimes(1);
+    expect(onExportPDF).not.toHaveBeenCalled();
+    expect(onBackupPDF).not.toHaveBeenCalled();
+  });
+
   it('runs only firebase backup when clicking "Respaldo en Firebase"', async () => {
     const onExportPDF = vi.fn();
     const onBackupPDF = vi.fn().mockResolvedValue(undefined);
@@ -65,6 +89,7 @@ describe('HandoffSaveDropdown', () => {
     fireEvent.click(screen.getByTitle('Opciones de guardado (PDF/Nube)'));
 
     expect(screen.getByText('Descargar PDF')).toBeInTheDocument();
+    expect(screen.getByText('Exportacion local')).toBeInTheDocument();
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
   });
 });

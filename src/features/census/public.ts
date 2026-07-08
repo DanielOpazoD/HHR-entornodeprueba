@@ -13,6 +13,8 @@ export const preloadCensusRegisterContentChunk = (
   loadCensusRegisterContent: LoadCensusChunk = () => import('./components/CensusRegisterContent')
 ): Promise<unknown> => loadCensusRegisterContent();
 
+export { CensusOperationalStateBanner } from './components/CensusOperationalStateBanner';
+export { resolveCensusOperationalState } from './controllers/censusOperationalStateController';
 export { useGlobalPatientSearch } from './components/global-search/useGlobalPatientSearch';
 export type { CensusAccessProfile } from './types/censusAccessProfile';
 export { isSpecialistCensusAccessProfile } from './types/censusAccessProfile';

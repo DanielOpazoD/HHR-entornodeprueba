@@ -10,7 +10,6 @@ const ADMIN_MAINTENANCE_MODULES = new Set<ModuleType>([
   'DIAGNOSTICS',
   'PATIENT_MASTER_INDEX',
   'REMINDERS',
-  'ERRORS',
 ]);
 
 export const resolvePassiveBackupEditableModule = (

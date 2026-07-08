@@ -27,7 +27,7 @@ describe('ClinicalDocumentIndicationsPanelHeader', () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText('Importar o exportar catálogo'));
+    fireEvent.click(screen.getByLabelText('Importar o exportar mis indicaciones'));
     expect(onToggleTransferMenu).toHaveBeenCalledTimes(1);
 
     rerender(

@@ -216,6 +216,30 @@ describe('minsalStatsCalculator ranges and snapshots', () => {
       expect(snapshot.bloqueadas).toBe(0);
       expect(snapshot.tasaOcupacion).toBe(94.4);
     });
+
+    it('should not count tombstoned discharges or transfers in MINSAL daily movement totals', () => {
+      const record = createMockRecord('2026-01-01', 5, 0);
+      record.discharges = [
+        { id: 'd-active', status: 'Vivo' } as DailyRecord['discharges'][number],
+        {
+          id: 'd-deleted',
+          status: 'Fallecido',
+          deletedAt: '2026-01-01T12:00:00.000Z',
+        } as DailyRecord['discharges'][number],
+      ];
+      record.transfers = [
+        { id: 't-active' } as DailyRecord['transfers'][number],
+        {
+          id: 't-deleted',
+          deletedAt: '2026-01-01T12:00:00.000Z',
+        } as DailyRecord['transfers'][number],
+      ];
+
+      const snapshot = calculateDailySnapshot(record);
+
+      expect(snapshot.egresos).toBe(2);
+      expect(snapshot.fallecidos).toBe(0);
+    });
   });
 
   describe('generateDailyTrend', () => {

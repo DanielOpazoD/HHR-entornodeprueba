@@ -19,6 +19,7 @@ export const resolvePatientActionMenuBinding = ({
   align = 'top',
   isBlocked,
   readOnly,
+  clinicalEditingDisabled,
   accessProfile,
   showCmaAction = true,
   hasPatientIdentity,
@@ -38,6 +39,7 @@ export const resolvePatientActionMenuBinding = ({
   availability: resolvePatientActionMenuViewState({
     isBlocked,
     readOnly,
+    clinicalEditingDisabled,
     accessProfile,
     hasPatientIdentity,
     hasHistoryAction,

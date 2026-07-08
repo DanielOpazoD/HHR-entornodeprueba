@@ -27,3 +27,16 @@ export const selectTransferUndoMovement = (
   movementId: string
 ): UndoMovementDescriptor | undefined =>
   findMovementById<TransferData>(record.transfers, movementId);
+
+export interface MovementUndoAuditMetadata {
+  patientName: string;
+  rut: string | undefined;
+}
+
+export const selectMovementUndoAuditMetadata = (
+  movement: UndoMovementDescriptor,
+  updatedBed: PatientData
+): MovementUndoAuditMetadata => ({
+  patientName: updatedBed.patientName || movement.patientName,
+  rut: updatedBed.rut || movement.originalData?.rut,
+});

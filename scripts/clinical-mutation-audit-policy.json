@@ -1,0 +1,217 @@
+{
+  "_doc": [
+    "Declared audit posture for every AuditAction (src/types/auditActionTypes.ts).",
+    "check:clinical-mutation-audit-policy fails if any AuditAction is not classified here,",
+    "or if a best-effort entry lacks a justification. This makes 'how is this mutation audited'",
+    "an explicit, reviewed decision instead of an accident. See",
+    "docs/CLINICAL_MUTATION_AUDIT_POLICY.md.",
+    "",
+    "Buckets:",
+    "- failClosed: the mutation MUST abort if its audit cannot be written (anonymous actor or",
+    "  audit error). Each entry is { action, test } and the gate requires the linked",
+    "  src/tests/**/*.test.ts to exist — a fail-closed claim must point to a proving test (the",
+    "  emitter audits-first and a failed audit aborts the mutation, verified by that test).",
+    "- bestEffortObservable: the mutation proceeds even if the audit fails, but the failure is",
+    "  surfaced (degraded ApplicationOutcome, telemetry, or local-first audit self-observed in",
+    "  auditCore). Reserved for urgent clinical-flow actions where aborting would impede care.",
+    "- exemptNonMutation: views, auth, output/export and system events that do not mutate",
+    "  clinical state, so no fail-closed audit is required.",
+    "- serverSideEnforced: { action, emitter } — emitted/enforced server-side in a Cloud Function;",
+    "  the gate requires the linked functions/ emitter file to exist (there is no client test to link)."
+  ],
+  "failClosed": [
+    {
+      "action": "CONFLICT_VERSION_RESTORED",
+      "test": "src/tests/services/repositories/dailyRecordVersionRestoreController.test.ts"
+    },
+    {
+      "action": "PRESCRIPTION_MANUAL_DELETED",
+      "test": "src/tests/application/prescriptions/prescriptionUseCases.test.ts"
+    },
+    {
+      "action": "MEDICAL_INDICATION_TEMPLATE_CREATED",
+      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
+    },
+    {
+      "action": "MEDICAL_INDICATION_TEMPLATE_UPDATED",
+      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
+    },
+    {
+      "action": "MEDICAL_INDICATION_TEMPLATE_ARCHIVED",
+      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
+    },
+    {
+      "action": "MEDICAL_INDICATION_TEMPLATE_USED",
+      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
+    },
+    {
+      "action": "MEDICAL_INDICATION_RECORD_CREATED",
+      "test": "src/tests/application/medical-indications/medicalIndicationsUseCases.test.ts"
+    },
+    {
+      "action": "CLINICAL_DOCUMENT_DELETED",
+      "test": "src/tests/application/clinical-documents/clinicalDocumentDeleteUseCase.test.ts"
+    },
+    {
+      "action": "DAILY_RECORD_DELETED",
+      "test": "src/tests/application/daily-record/deleteDailyRecordCommand.test.ts"
+    }
+  ],
+  "bestEffortObservable": [
+    {
+      "action": "PREVIOUS_DAY_EDIT_CONFIRMED",
+      "justification": "Observational UI event: the user explicitly confirmed editing a previous clinical day. Emitted fire-and-forget via useAudit.logEvent from the stale-day edit guard; it records the override for traceability (Ley 20.584) but does not gate the edit, so an audit-write failure must not block clinical care."
+    },
+    {
+      "action": "PATIENT_CLEARED",
+      "justification": "Reclassified after verifying the emitter: audited via the hook fire-and-forget logger (useAudit.logEvent); the outcome is reported via telemetry (reportAuditOutcome) but the mutation is not gated. True fail-closed would require re-plumbing to a use-case (Scope C)."
+    },
+    {
+      "action": "CLINICAL_EVENT_DELETED",
+      "justification": "Reclassified: emitted by logDebouncedEvent (debounced hook logger, fire-and-forget); outcome reported, mutation not gated."
+    },
+    {
+      "action": "MEDICAL_HANDOFF_RESTORED",
+      "justification": "Reclassified: emitted by the handoff hook logger (fire-and-forget); outcome reported, mutation not gated."
+    },
+    {
+      "action": "PRESCRIPTION_RETENTION_DELETED",
+      "justification": "Deleted by a server-side retention job (TTL/Cloud Function); no client emitter for this gate to enforce."
+    },
+    {
+      "action": "CONFLICT_AUTO_MERGED",
+      "justification": "Automatic conflict-resolution recovery path; blocking the merge on an audit failure is worse than proceeding. The caller telemeters the failure (dailyRecordConflictAutoMergeController)."
+    },
+    {
+      "action": "PATIENT_HARMONIZED",
+      "justification": "Local-first audit (recorded locally, remote sync best-effort and self-observed in auditCore); audited before the identity mutation. True fail-closed would require routing this batch through executeWriteAuditEvent (follow-up)."
+    },
+    {
+      "action": "DATA_ADMISSION_DATES_BACKFILLED",
+      "justification": "Admin batch data-maintenance via the local-first audit path; the audit precedes/accompanies the backfill and is self-observed."
+    },
+    {
+      "action": "DATA_IMPORTED",
+      "justification": "Bulk admin restore from backup; aborting a restore on an audit hiccup is worse than an observable best-effort audit."
+    },
+    {
+      "action": "PATIENT_ADMITTED",
+      "justification": "Urgent clinical-flow action; aborting an admission on an audit failure would impede care. Audit failure is surfaced as a degraded ApplicationOutcome."
+    },
+    {
+      "action": "PATIENT_DISCHARGED",
+      "justification": "Urgent clinical-flow action; aborting a discharge on an audit failure would impede care. Audit failure surfaced as a degraded outcome."
+    },
+    {
+      "action": "PATIENT_TRANSFERRED",
+      "justification": "Urgent clinical-flow action; aborting a transfer on an audit failure would impede care. Audit failure surfaced as a degraded outcome."
+    },
+    {
+      "action": "PATIENT_MODIFIED",
+      "justification": "High-frequency census edit via the local-first audit path; aborting charting on an audit hiccup is worse than an observable best-effort audit."
+    },
+    {
+      "action": "PATIENT_BED_CHANGED",
+      "justification": "Census bed-management edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "PATIENT_DIAGNOSIS_CHANGED",
+      "justification": "Census clinical edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "PATIENT_DISCHARGE_DIAGNOSIS_CHANGED",
+      "justification": "Census clinical edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "PATIENT_NOTE_UPDATED",
+      "justification": "Census note edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "PATIENT_SPECIALTY_CHANGED",
+      "justification": "Census clinical edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "CLINICAL_EVENT_ADDED",
+      "justification": "Clinical timeline edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "CLINICAL_EVENT_UPDATED",
+      "justification": "Clinical timeline edit (local-first audit); abort would block charting."
+    },
+    {
+      "action": "DAILY_RECORD_CREATED",
+      "justification": "Day bootstrap on first edit; aborting would block all charting for the day."
+    },
+    {
+      "action": "NURSE_HANDOFF_MODIFIED",
+      "justification": "Shift-handoff edit (local-first audit); abort would block handoff at shift change."
+    },
+    {
+      "action": "MEDICAL_HANDOFF_MODIFIED",
+      "justification": "Shift-handoff edit (local-first audit); abort would block handoff at shift change."
+    },
+    {
+      "action": "HANDOFF_NOVEDADES_MODIFIED",
+      "justification": "Shift-handoff edit (local-first audit); abort would block handoff at shift change."
+    },
+    {
+      "action": "MEDICAL_HANDOFF_SIGNED",
+      "justification": "Handoff signature at shift change; surfaced via server functions, abort would block sign-off."
+    },
+    {
+      "action": "CUDYR_MODIFIED",
+      "justification": "CUDYR classification edit (local-first audit); abort would block scoring."
+    },
+    {
+      "action": "CUDYR_BATCH_SAVED",
+      "justification": "CUDYR batch save (local-first audit); abort would block scoring."
+    },
+    {
+      "action": "BED_BLOCKED",
+      "justification": "Bed-management toggle (local-first audit); abort would block capacity management."
+    },
+    {
+      "action": "BED_UNBLOCKED",
+      "justification": "Bed-management toggle (local-first audit); abort would block capacity management."
+    },
+    {
+      "action": "EXTRA_BED_TOGGLED",
+      "justification": "Bed-management toggle (local-first audit); abort would block capacity management."
+    },
+    {
+      "action": "CLINICAL_DOCUMENT_CREATED",
+      "justification": "Clinical-document authoring (local-first audit); abort would block documentation."
+    },
+    {
+      "action": "CLINICAL_DOCUMENT_EDITED",
+      "justification": "Clinical-document authoring (local-first audit); abort would block documentation."
+    },
+    {
+      "action": "CLINICAL_DOCUMENT_LOCKED",
+      "justification": "Episode lock accompanying discharge; abort would block the discharge flow."
+    },
+    {
+      "action": "WOUND_CARE_PHOTO_UPLOADED",
+      "justification": "Wound-care evidence upload (local-first audit); abort would block clinical documentation."
+    }
+  ],
+  "exemptNonMutation": [
+    "PATIENT_VIEWED",
+    "VIEW_PATIENT",
+    "VIEW_CUDYR",
+    "VIEW_NURSING_HANDOFF",
+    "VIEW_MEDICAL_HANDOFF",
+    "USER_LOGIN",
+    "USER_LOGOUT",
+    "DATA_EXPORTED",
+    "CLINICAL_DOCUMENT_EXPORTED",
+    "CLINICAL_DOCUMENT_PRINTED",
+    "SYSTEM_ERROR"
+  ],
+  "serverSideEnforced": [
+    {
+      "action": "STATISTICAL_SPECIALTY_RECLASSIFIED",
+      "emitter": "functions/lib/minsal/minsalReclassifications.js"
+    }
+  ]
+}

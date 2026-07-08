@@ -38,6 +38,8 @@ export const createEmptyIeehDraft = (): ClinicalDocumentIeehDraft => ({
   condicionEgreso: '1',
   intervencionQuirurgica: '2',
   procedimiento: '2',
+  tratanteNombreCompleto: '',
+  tratanteEspecialidad: '',
   tratanteRut: '',
 });
 
@@ -71,7 +73,7 @@ export const resolveClinicalDocumentIeehPanelState = ({
   isPrinting: boolean;
 }): ClinicalDocumentIeehPanelState => {
   const hasSelectedDiagnosis = isIeehDraftFilled(draft);
-  const canPrintIeeh = !isPrinting && hasSelectedDiagnosis;
+  const canPrintIeeh = !isPrinting;
 
   return {
     hasSelectedDiagnosis,
@@ -80,8 +82,6 @@ export const resolveClinicalDocumentIeehPanelState = ({
     shouldShowInterventionSelector: draft.intervencionQuirurgica === '1',
     shouldShowProcedureSelector: draft.procedimiento === '1',
     canPrintIeeh,
-    printButtonTitle: hasSelectedDiagnosis
-      ? 'Imprimir IEEH'
-      : 'Seleccione un diagnóstico CIE-10 primero',
+    printButtonTitle: 'Imprimir IEEH',
   };
 };

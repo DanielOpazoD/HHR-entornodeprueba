@@ -61,6 +61,28 @@ describe('zod daily record schemas', () => {
       expect(record.beds['uti_01'].patientName).toBe('Test Patient');
     });
 
+    it('should preserve CMA records with custom free-text specialty', () => {
+      const record = DailyRecordSchema.parse({
+        date: '2026-01-15',
+        beds: {},
+        cma: [
+          {
+            id: 'cma-1',
+            bedName: 'R1',
+            patientName: 'Paciente CMA',
+            rut: '11111111-1',
+            age: '45',
+            diagnosis: 'Colelitiasis',
+            specialty: 'Urología',
+            interventionType: 'Cirugía Mayor Ambulatoria',
+          },
+        ],
+      });
+
+      expect(record.cma).toHaveLength(1);
+      expect(record.cma[0]?.specialty).toBe('Urología');
+    });
+
     it('should parse handoff checklists', () => {
       const record = DailyRecordSchema.parse({
         date: '2026-01-15',

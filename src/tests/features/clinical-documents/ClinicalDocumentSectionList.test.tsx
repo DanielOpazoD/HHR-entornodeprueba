@@ -130,11 +130,17 @@ describe('ClinicalDocumentSectionList', () => {
         onAddSection={onAddSection}
         onEditorActivate={vi.fn()}
         onEditorDeactivate={vi.fn()}
+        onUploadPastedImage={vi.fn(async () => null)}
+        onImagePasteRejected={vi.fn()}
         onPatchIeehDraft={vi.fn()}
         onClearIeehDraft={vi.fn()}
         onSetActivePlanSubsectionId={vi.fn()}
         onSetActiveIndicationsSpecialtyId={vi.fn()}
         onToggleIndicationsPanel={onToggleIndicationsPanel}
+        onCreateIndicationsTab={vi.fn()}
+        onRenameIndicationsTab={vi.fn()}
+        onDeleteIndicationsTab={vi.fn()}
+        onReorderIndicationsTab={vi.fn()}
         onAddCustomIndication={vi.fn()}
         onUpdateIndication={vi.fn()}
         onDeleteIndication={vi.fn()}

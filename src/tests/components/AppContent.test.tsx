@@ -84,6 +84,32 @@ vi.mock('@/components/AppProviders', () => ({
   ),
 }));
 
+vi.mock('@/context/ReminderCenterContext', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  return {
+    ReminderCenterProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'reminder-provider' }, children),
+  };
+});
+
+vi.mock('@/components/layout/app-content/reminderCenterProviderLoader', () => {
+  return {
+    loadReminderCenterProvider: () => new Promise(() => {}),
+  };
+});
+
+vi.mock('@/hooks/useReminders', () => ({
+  useReminderCenter: () => ({
+    isOpen: false,
+    unreadCount: 0,
+    hasUrgentUnread: false,
+    loading: false,
+    openCenter: vi.fn(),
+    closeCenter: vi.fn(),
+  }),
+}));
+
 vi.mock('@/views/LazyViews', () => ({
   CensusEmailConfigModal: () => <div data-testid="email-modal">EmailModal</div>,
 }));
@@ -104,6 +130,18 @@ vi.mock('@/context/CensusContext', () => ({
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({
+    notify: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useExportManager', () => ({
@@ -208,7 +246,7 @@ describe('AppContent', () => {
     expect(screen.getByTestId('bookmark-bar')).toBeInTheDocument();
     expect(screen.getByTestId('app-router')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
-    expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
   });
 
   it('hides Navbar and DateStrip in signature mode', () => {
@@ -367,22 +405,33 @@ describe('AppContent', () => {
     );
   });
 
-  it('shows and hides global modals/panels based on UI state', () => {
+  it('shows and hides global modals/panels based on UI state', async () => {
     const uiWithModals = {
       ...mockUI,
       isTestAgentRunning: true,
     };
 
-    render(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
+    const { rerender } = render(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
+    await act(async () => {
+      await Promise.all(_lazyPending);
+    });
+    rerender(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
+    await act(async () => {
+      await Promise.all(_lazyPending);
+    });
+    rerender(<AppContent ui={uiWithModals as unknown as AppContentUi} />);
 
-    expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
   });
 
-  it('keeps SyncWatcher mounted in the main application shell', () => {
+  it('keeps SyncWatcher mounted in the main application shell', async () => {
     render(<AppContent ui={mockUI} />);
+    await act(async () => {
+      await Promise.all(_lazyPending);
+    });
 
     expect(screen.getByTestId('sync-watcher')).toBeInTheDocument();
   });

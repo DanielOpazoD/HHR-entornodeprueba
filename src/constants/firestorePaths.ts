@@ -67,6 +67,12 @@ export const HOSPITAL_COLLECTIONS = {
   WOUND_CARE_PHOTOS: 'woundCarePhotos',
   /** Transient wound care mobile upload QR sessions */
   WOUND_CARE_MOBILE_UPLOAD_SESSIONS: 'woundCareMobileUploadSessions',
+  /** Personal reusable medical indications, grouped by user id */
+  MEDICAL_INDICATION_TEMPLATES: 'medicalIndicationTemplates',
+  /** Shared generated medical indication records by patient episode and day */
+  MEDICAL_INDICATION_RECORDS: 'medicalIndicationRecords',
+  /** Server-owned statistical specialty reclassifications for analytics reporting */
+  ANALYTICS_SPECIALTY_RECLASSIFICATIONS: 'analyticsSpecialtyReclassifications',
 } as const;
 
 // ============================================================================
@@ -86,6 +92,14 @@ export const SETTINGS_DOCS = {
   /** Default discharge indications catalog for clinical documents */
   CLINICAL_DOCUMENT_INDICATIONS: 'clinicalDocumentIndications',
 } as const;
+
+/**
+ * Subcollection (under a `dailyRecords/{date}` document) holding recoverable conflict version
+ * snapshots. Each doc carries an `expireAt` field governed by a Firestore TTL policy (~48h) so the
+ * recoverable blobs self-expire while the audit trail persists.
+ * See docs/ADR_CONFLICT_VERSION_RECOVERY.md.
+ */
+export const DAILY_RECORD_CONFLICT_SNAPSHOTS = 'conflictSnapshots';
 
 // ============================================================================
 // Path Builders
@@ -143,6 +157,22 @@ export const getWoundCarePhotosPath = (hospitalId: string = getActiveHospitalId(
 
 export const getWoundCareMobileUploadSessionsPath = (hospitalId: string = getActiveHospitalId()) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.WOUND_CARE_MOBILE_UPLOAD_SESSIONS}` as const;
+
+export const getMedicalIndicationTemplatesRootPath = (hospitalId: string = getActiveHospitalId()) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.MEDICAL_INDICATION_TEMPLATES}` as const;
+
+export const getMedicalIndicationTemplateItemsPath = (
+  userId: string,
+  hospitalId: string = getActiveHospitalId()
+) => `${getMedicalIndicationTemplatesRootPath(hospitalId)}/${userId}/items` as const;
+
+export const getMedicalIndicationRecordsPath = (hospitalId: string = getActiveHospitalId()) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.MEDICAL_INDICATION_RECORDS}` as const;
+
+export const getAnalyticsSpecialtyReclassificationsPath = (
+  hospitalId: string = getActiveHospitalId()
+) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.ANALYTICS_SPECIALTY_RECLASSIFICATIONS}` as const;
 
 // ============================================================================
 // Type Exports

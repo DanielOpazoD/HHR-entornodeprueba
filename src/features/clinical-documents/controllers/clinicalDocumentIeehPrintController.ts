@@ -4,13 +4,15 @@
  * Builds the data needed to print the IEEH (Informe Estadístico de
  * Egreso Hospitalario) from an epicrisis document.
  *
- * Discharge date is the epicrisis creation date (sourceDailyRecordDate).
+ * Discharge date follows the epicrisis "Fecha de alta" field (finf),
+ * falling back to the epicrisis source date (sourceDailyRecordDate).
  * Discharge time is intentionally left blank — the nurse fills it
  * when physically discharging the patient from the census.
  */
 
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
 import type { DischargeFormData } from '@/services/pdf/ieehPdfContracts';
+import { normalizeCalendarDate } from '@/utils/clinicalDateUtils';
 
 // ---------------------------------------------------------------------------
 // Doctor name parsing
@@ -48,6 +50,33 @@ export const parseDoctorName = (fullName: string): ParsedDoctorName => {
     apellido2: parts[1],
     nombre: parts.slice(2).join(' '),
   };
+};
+
+const parseNameFirstDoctorName = (fullName: string): ParsedDoctorName => {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return { apellido1: '', apellido2: '', nombre: '' };
+  }
+  if (parts.length === 1) {
+    return { apellido1: '', apellido2: '', nombre: parts[0] };
+  }
+  if (parts.length === 2) {
+    return { apellido1: parts[1], apellido2: '', nombre: parts[0] };
+  }
+
+  return {
+    apellido1: parts.at(-2) ?? '',
+    apellido2: parts.at(-1) ?? '',
+    nombre: parts.slice(0, -2).join(' '),
+  };
+};
+
+const resolveIeehDoctorName = (doc: ClinicalDocumentRecord): ParsedDoctorName => {
+  if (typeof doc.ieehDraft?.tratanteNombreCompleto === 'string') {
+    return parseNameFirstDoctorName(doc.ieehDraft.tratanteNombreCompleto);
+  }
+
+  return parseDoctorName(doc.medico);
 };
 
 // ---------------------------------------------------------------------------
@@ -93,22 +122,39 @@ export const buildIeehPatientFromEpicrisis = (
   workspacePatient?: { birthDate?: string }
 ): IeehPatientSnapshot => {
   const fieldValue = (id: string): string => doc.patientFields.find(f => f.id === id)?.value ?? '';
+  const firstFieldValue = (...ids: string[]): string => {
+    for (const id of ids) {
+      const value = fieldValue(id).trim();
+      if (value) return value;
+    }
+    return '';
+  };
 
   const isRapanuiRaw = fieldValue('isRapanui');
 
   return {
-    patientName: doc.patientName,
-    rut: doc.patientRut,
+    patientName: firstFieldValue('nombre', 'patientName') || doc.patientName,
+    rut: firstFieldValue('rut', 'patientRut') || doc.patientRut,
     documentType: fieldValue('documentType') || 'RUT',
-    admissionDate: doc.admissionDate ?? fieldValue('admissionDate'),
+    admissionDate: firstFieldValue('fing', 'admissionDate') || doc.admissionDate,
     admissionTime: fieldValue('admissionTime'),
-    birthDate: workspacePatient?.birthDate ?? fieldValue('birthDate'),
+    birthDate: firstFieldValue('fecnac', 'birthDate') || workspacePatient?.birthDate,
     biologicalSex: fieldValue('sex') || fieldValue('biologicalSex'),
     insurance: fieldValue('insurance'),
     isRapanui: isRapanuiRaw === 'true' || isRapanuiRaw === 'Sí',
     admissionOrigin: fieldValue('admissionOrigin'),
-    specialty: doc.especialidad,
+    specialty:
+      typeof doc.ieehDraft?.tratanteEspecialidad === 'string'
+        ? doc.ieehDraft.tratanteEspecialidad.trim()
+        : doc.especialidad,
   };
+};
+
+const resolveIeehDischargeDateFromEpicrisis = (doc: ClinicalDocumentRecord): string | undefined => {
+  const fieldValue = (id: string): string => doc.patientFields.find(f => f.id === id)?.value ?? '';
+  return (
+    normalizeCalendarDate(fieldValue('finf')) || normalizeCalendarDate(doc.sourceDailyRecordDate)
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -118,8 +164,8 @@ export const buildIeehPatientFromEpicrisis = (
 /**
  * Builds the discharge form data from the epicrisis IEEH draft.
  *
- * - Discharge **date** = the epicrisis source date (the day the doctor
- *   writes the document, typically the last day of hospitalisation).
+ * - Discharge **date** = the visible "Fecha de alta" field, falling back
+ *   to the epicrisis source date.
  * - Discharge **time** = blank (to be filled by hand).
  * - Days of stay are calculated automatically by the PDF service from
  *   admissionDate and dischargeDate.
@@ -131,7 +177,7 @@ export const buildIeehDischargeFromEpicrisis = (doc: ClinicalDocumentRecord): Di
   const draft = doc.ieehDraft;
   if (!draft) return {};
 
-  const doctorName = parseDoctorName(doc.medico);
+  const doctorName = resolveIeehDoctorName(doc);
 
   return {
     diagnosticoPrincipal: draft.diagnosticoPrincipal,
@@ -147,8 +193,8 @@ export const buildIeehDischargeFromEpicrisis = (doc: ClinicalDocumentRecord): Di
     tratanteApellido2: doctorName.apellido2,
     tratanteNombre: doctorName.nombre,
     tratanteRut: draft.tratanteRut,
-    // Discharge date = epicrisis source date (day the doctor writes it)
-    dischargeDate: doc.sourceDailyRecordDate,
+    // Discharge date follows the visible "Fecha de alta" field when it was configured.
+    dischargeDate: resolveIeehDischargeDateFromEpicrisis(doc),
     // Discharge time left blank — nurse fills it at physical discharge
     // dischargeTime: undefined,
   };

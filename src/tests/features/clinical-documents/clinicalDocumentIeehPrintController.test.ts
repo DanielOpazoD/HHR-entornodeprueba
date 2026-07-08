@@ -66,6 +66,19 @@ describe('buildIeehPatientFromEpicrisis', () => {
     expect(patient.specialty).toBe('Medicina');
   });
 
+  it('uses IEEH doctor specialty override without changing the epicrisis specialty', () => {
+    const doc = {
+      ...baseDoc,
+      especialidad: 'Medicina',
+      ieehDraft: buildDraft({ tratanteEspecialidad: 'Cirugía Adulto' }),
+    };
+
+    const patient = buildIeehPatientFromEpicrisis(doc);
+
+    expect(patient.specialty).toBe('Cirugía Adulto');
+    expect(doc.especialidad).toBe('Medicina');
+  });
+
   it('uses workspace patient birthDate when available', () => {
     const patient = buildIeehPatientFromEpicrisis(baseDoc, { birthDate: '1990-05-15' });
 
@@ -90,6 +103,30 @@ describe('buildIeehPatientFromEpicrisis', () => {
     const patient = buildIeehPatientFromEpicrisis(baseDoc);
 
     expect(patient.documentType).toBe('RUT');
+  });
+
+  it('prefers visible edited patient fields over immutable document metadata', () => {
+    const editedDoc = {
+      ...baseDoc,
+      patientName: 'Paciente anterior',
+      patientRut: '11.111.111-1',
+      admissionDate: '2026-04-01',
+      patientFields: baseDoc.patientFields.map(field => {
+        if (field.id === 'nombre') return { ...field, value: 'Paciente corregido' };
+        if (field.id === 'rut') return { ...field, value: '22.222.222-2' };
+        if (field.id === 'fecnac') return { ...field, value: '1980-02-03' };
+        if (field.id === 'edad') return { ...field, value: '46' };
+        if (field.id === 'fing') return { ...field, value: '2026-04-02' };
+        return field;
+      }),
+    };
+
+    const patient = buildIeehPatientFromEpicrisis(editedDoc, { birthDate: '1970-01-01' });
+
+    expect(patient.patientName).toBe('Paciente corregido');
+    expect(patient.rut).toBe('22.222.222-2');
+    expect(patient.birthDate).toBe('1980-02-03');
+    expect(patient.admissionDate).toBe('2026-04-02');
   });
 });
 
@@ -121,10 +158,33 @@ describe('buildIeehDischargeFromEpicrisis', () => {
     expect(discharge.condicionEgreso).toBe('1');
   });
 
-  it('uses sourceDailyRecordDate as discharge date', () => {
+  it('uses the visible Fecha de alta field as discharge date before sourceDailyRecordDate', () => {
     const doc = {
       ...baseDoc,
       sourceDailyRecordDate: '2026-04-10',
+      patientFields: baseDoc.patientFields.map(field =>
+        field.id === 'finf' ? { ...field, value: '2026-04-11' } : field
+      ),
+      ieehDraft: buildDraft({
+        cie10Code: 'J18.9',
+        cie10Description: 'Neumonía',
+        diagnosticoPrincipal: 'Neumonía',
+      }),
+    };
+
+    const discharge = buildIeehDischargeFromEpicrisis(doc);
+
+    expect(discharge.dischargeDate).toBe('2026-04-11');
+    expect(discharge.dischargeTime).toBeUndefined(); // blank for hand-fill
+  });
+
+  it('falls back to sourceDailyRecordDate when Fecha de alta is empty', () => {
+    const doc = {
+      ...baseDoc,
+      sourceDailyRecordDate: '2026-04-10',
+      patientFields: baseDoc.patientFields.map(field =>
+        field.id === 'finf' ? { ...field, value: '' } : field
+      ),
       ieehDraft: buildDraft({
         cie10Code: 'J18.9',
         cie10Description: 'Neumonía',
@@ -150,6 +210,35 @@ describe('buildIeehDischargeFromEpicrisis', () => {
     expect(discharge.tratanteApellido1).toBe('Opazo');
     expect(discharge.tratanteApellido2).toBe('Damiani');
     expect(discharge.tratanteNombre).toBe('Daniel');
+  });
+
+  it('uses IEEH doctor name override in Nombre Apellido1 Apellido2 order', () => {
+    const doc = {
+      ...baseDoc,
+      medico: 'Opazo Damiani Daniel',
+      ieehDraft: buildDraft({ tratanteNombreCompleto: 'Ana María Pérez Soto' }),
+    };
+
+    const discharge = buildIeehDischargeFromEpicrisis(doc);
+
+    expect(discharge.tratanteApellido1).toBe('Pérez');
+    expect(discharge.tratanteApellido2).toBe('Soto');
+    expect(discharge.tratanteNombre).toBe('Ana María');
+    expect(doc.medico).toBe('Opazo Damiani Daniel');
+  });
+
+  it('keeps IEEH doctor name blank when the override is explicitly blank', () => {
+    const doc = {
+      ...baseDoc,
+      medico: 'Opazo Damiani Daniel',
+      ieehDraft: buildDraft({ tratanteNombreCompleto: '' }),
+    };
+
+    const discharge = buildIeehDischargeFromEpicrisis(doc);
+
+    expect(discharge.tratanteApellido1).toBe('');
+    expect(discharge.tratanteApellido2).toBe('');
+    expect(discharge.tratanteNombre).toBe('');
   });
 
   it('maps tratanteRut from draft', () => {

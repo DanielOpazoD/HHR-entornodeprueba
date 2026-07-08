@@ -80,6 +80,7 @@ Salida esperada:
 Artefactos esperados cuando falla en CI:
 
 - `reports/e2e/preview-bootstrap/`
+- `reports/e2e/clinical-visual-release-report.json`
 - `playwright-report/`
 - `test-results/`
 
@@ -90,8 +91,11 @@ Usar antes de release o para validar cambios con impacto en Firestore, emuladore
 Incluye:
 
 - `npm run ci:merge-gate`
+- `npm run report:release-evidence`
 - `npm run check:release-evidence`
 - `npm run test:firestore:release:ci`
+
+`check:release-evidence` bloquea evidencia formal generada desde un worktree sucio, reportes stale, signoff clínico incompleto, smoke visual clínico faltante y `quality-metrics` con `flakeRiskFiles > 0`. Si falla por flake-risk, corregir o aislar el test afectado antes de regenerar `report:release-evidence`.
 
 ### `test:release-confidence`
 
@@ -112,6 +116,14 @@ El ownership técnico por subsistema crítico vive en `scripts/config/technical-
 El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.md` y se regenera con `npm run report:release-readiness-scorecard`.
 La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
 La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
+La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
+El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`.
+El artifact `reports/test-runtime-governance.md` muestra budgets, PR vs nightly y señales de fixtures duplicadas para reducir tiempo con datos sin perder cobertura clínica crítica.
+El balance de los 4 `unit-risk-shards` vive en `scripts/config/unit-shard-balance.json`, se valida con `npm run check:unit-shard-balance` y se evidencia en `reports/unit-shard-runtime-profile.md`.
+Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, revisar los archivos lentos del reporte y ajustar `perFileOverheadMs`, `durationHints`, `affinityGroups` o `lockedAssignments`; no mover tests clínicos PR-critical a nightly para maquillar runtime.
+El runtime observado de GitHub Actions se evidencia en `reports/ci-runtime-observed-profile.md` y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra `reports/unit-shard-runtime-profile.json`.
+Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
+Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
 El reporte de release readiness ya regenera también `guardrail-governance`; no debe depender de un artefacto previo manual.
 CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
@@ -217,19 +229,31 @@ Salida esperada:
    - ambos workspaces
 3. distinguir si la categoría es:
    - `high_or_critical_vulnerabilities`
+   - `certificate_untrusted`
+   - `registry_policy_blocked`
    - `network_unavailable`
    - `invalid_output`
    - `missing_inputs`
 4. si hay vulnerabilidades reales:
    - priorizar upgrade de dependencias productivas
    - documentar excepciones solo si el upgrade rompe compatibilidad y existe mitigación temporal explícita
-5. si el fallo es de red o registry:
+5. si el fallo es `certificate_untrusted`:
+   - revisar si el reporte indica `Retried with system CA: yes`
+   - correr `NODE_OPTIONS=--use-system-ca npm run check:dependency-vulnerabilities`
+   - revisar `npm config get cafile`
+   - confirmar conectividad de audit con `npm ping --registry=https://registry.npmjs.org`
+   - revisar la sección `Reproducibility` del reporte y comparar contra el último workflow de GitHub Actions para el mismo commit
+   - si la red usa CA corporativa, configurar un `cafile` confiable en npm o en el entorno local
+   - no usar `npm config set strict-ssl false`
+6. si el fallo es de red o registry:
    - reintentar el workflow
    - no marcar la app como segura por ausencia de reporte
-6. si `functions` queda con `low` únicamente y todos dependen del árbol `firebase-admin` / `firebase-functions`:
+7. si root app o `functions` quedan con hallazgos `low`/`moderate` pero sin `high` ni `critical`:
    - revisar [docs/FUNCTIONS_DEPENDENCY_ACCEPTANCE.md](./FUNCTIONS_DEPENDENCY_ACCEPTANCE.md)
-   - confirmar que no aparecieron `high`, `critical` ni nuevos `low` directos fuera de ese árbol
+   - confirmar que no aparecieron `high`, `critical` ni nuevos hallazgos directos fuera del árbol aceptado
    - tratar el estado como deuda aceptada temporalmente, no como bloqueo inmediato ni como limpieza automática vía overrides inseguros
+
+El reporte `reports/security/dependency-audit.md` debe conservar comandos de reproducción local, evidencia CI esperada y acciones prohibidas. Si el audit falla por TLS/red local, eso bloquea la afirmación de seguridad local hasta tener evidencia CI equivalente para el mismo commit.
 
 ## Qué hacer cuando falla
 

@@ -5,7 +5,7 @@ const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-const EXPORT_ALLOWED_ROLES = new Set(['admin', 'doctor_urgency']);
+const EXPORT_ALLOWED_ROLES = new Set(['admin', 'doctor_urgency', 'doctor_specialist']);
 const SPANISH_MONTH_NAMES = [
   'Enero',
   'Febrero',
@@ -110,6 +110,39 @@ const buildDriveMonthFolderName = date => {
 const buildDriveClient = () => {
   const auth = new google.auth.GoogleAuth({ scopes: [DRIVE_SCOPE] });
   return google.drive({ version: 'v3', auth });
+};
+
+const resolveGoogleApiStatus = error => Number(error?.response?.status || error?.code || 0);
+
+const resolveGoogleApiMessage = error =>
+  String(error?.response?.data?.error?.message || error?.message || '').trim();
+
+const mapDriveExportError = error => {
+  if (error?.code && typeof error.code === 'string') {
+    return error;
+  }
+
+  const status = resolveGoogleApiStatus(error);
+  const message = resolveGoogleApiMessage(error);
+
+  if (status === 404 || /file not found/i.test(message)) {
+    return new functions.https.HttpsError(
+      'failed-precondition',
+      'No se pudo acceder a la carpeta raiz de Drive configurada para documentos clinicos. Verifica CLINICAL_DRIVE_ROOT_FOLDER_ID y que la cuenta de servicio tenga acceso a esa carpeta.'
+    );
+  }
+
+  if (status === 403) {
+    return new functions.https.HttpsError(
+      'permission-denied',
+      'La cuenta de servicio no tiene permisos suficientes para exportar documentos clinicos a Drive.'
+    );
+  }
+
+  return new functions.https.HttpsError(
+    'unavailable',
+    'Drive no pudo completar la exportacion del documento clinico. Reintenta y revisa los logs si el problema persiste.'
+  );
 };
 
 const findFolderByName = async (drive, folderName, parentId) => {
@@ -281,12 +314,18 @@ const createClinicalDocumentExportFunctions = ({
 
       const drive = buildDriveClientOverride ? buildDriveClientOverride() : buildDriveClient();
 
-      // Navegación jerárquica: Root -> Tipo -> Año -> Mes Año
-      const typeFolderId = await getOrCreateFolder(drive, typeFolderName, rootFolderId);
-      const yearFolderId = await getOrCreateFolder(drive, year, typeFolderId);
-      const monthFolderId = await getOrCreateFolder(drive, monthFolderName, yearFolderId);
+      let upload;
+      try {
+        // Navegacion jerarquica: Root -> Tipo -> Ano -> Mes Ano
+        const typeFolderId = await getOrCreateFolder(drive, typeFolderName, rootFolderId);
+        const yearFolderId = await getOrCreateFolder(drive, year, typeFolderId);
+        const monthFolderId = await getOrCreateFolder(drive, monthFolderName, yearFolderId);
 
-      const upload = await upsertPdfFile(drive, monthFolderId, fileName, mimeType, content);
+        upload = await upsertPdfFile(drive, monthFolderId, fileName, mimeType, content);
+      } catch (error) {
+        throw mapDriveExportError(error);
+      }
+
       await writeAuditEntry({
         admin,
         documentId: typeof data?.documentId === 'string' ? data.documentId : null,

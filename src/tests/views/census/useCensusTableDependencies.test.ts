@@ -116,6 +116,7 @@ describe('useCensusTableDependencies', () => {
           version: 1,
           lastUpdated: '2026-02-20T00:00:00.000Z',
         },
+        isLoading: false,
         isEditMode: false,
         updateColumnWidth: vi.fn(),
       })
@@ -132,6 +133,7 @@ describe('useCensusTableDependencies', () => {
     expect(result.current.role).toBe('admin');
     expect(result.current.staff?.activeExtraBeds).toEqual(['E1']);
     expect(result.current.config.columns.bed).toBe(80);
+    expect(result.current.tableConfigLoading).toBe(false);
     expect(result.current.diagnosisMode).toBe('free');
     expect(typeof result.current.handleRowAction).toBe('function');
     expect(typeof result.current.confirm).toBe('function');

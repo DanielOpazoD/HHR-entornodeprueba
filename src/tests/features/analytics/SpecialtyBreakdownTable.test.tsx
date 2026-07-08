@@ -123,6 +123,56 @@ describe('SpecialtyBreakdownTable', () => {
     expect(screen.getByText('100.0%')).toBeInTheDocument();
   });
 
+  it('shows original and reporting specialty when traceability rows were grouped or reclassified', () => {
+    render(
+      <SpecialtyBreakdownTable
+        data={[
+          {
+            specialty: 'Otro',
+            pacientesActuales: 0,
+            egresos: 1,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 0,
+            contribucionRelativa: 0,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 0,
+            promedioDiasEstadaMinima: 0,
+            promedioDiasEstadaMaxima: 0,
+            diasOcupadosList: [],
+            egresosList: [
+              {
+                name: 'Paciente Agrupado',
+                rut: '44.444.444-4',
+                diagnosis: 'Diagnóstico',
+                date: '2026-03-01',
+                bedName: 'Cama 1',
+                originalSpecialty: 'Cardiología',
+                reportingSpecialty: 'Otro',
+                reportingSpecialtySource: 'grouped',
+              },
+            ],
+            trasladosList: [],
+            aerocardalList: [],
+            fachList: [],
+            fallecidosList: [],
+          },
+        ]}
+        records={[]}
+        summary={summary}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '1' }));
+
+    expect(screen.getByText('Especialidad original')).toBeInTheDocument();
+    expect(screen.getByText('Especialidad estadística')).toBeInTheDocument();
+    expect(screen.getByText('Cardiología')).toBeInTheDocument();
+    expect(screen.getAllByText('Otro').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('opens the stay range modal with admission and discharge dates', () => {
     const onOpenCensusDate = vi.fn();
 
@@ -225,5 +275,62 @@ describe('SpecialtyBreakdownTable', () => {
     );
 
     expect(screen.getAllByText('4.00 días')).toHaveLength(2);
+  });
+
+  it('sorts columns and can filter to rows with period events only', () => {
+    render(
+      <SpecialtyBreakdownTable
+        data={[
+          {
+            specialty: 'Medicina',
+            pacientesActuales: 0,
+            egresos: 0,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 0,
+            contribucionRelativa: 0,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 0,
+            diasOcupadosList: [],
+            egresosList: [],
+            trasladosList: [],
+            aerocardalList: [],
+            fachList: [],
+            fallecidosList: [],
+          },
+          {
+            specialty: 'Cirugía',
+            pacientesActuales: 1,
+            egresos: 3,
+            fallecidos: 0,
+            traslados: 1,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 9,
+            contribucionRelativa: 100,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 2,
+            diasOcupadosList: [],
+            egresosList: [],
+            trasladosList: [],
+            aerocardalList: [],
+            fachList: [],
+            fallecidosList: [],
+          },
+        ]}
+        records={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Solo filas con eventos' }));
+
+    expect(screen.queryByText('Medicina')).not.toBeInTheDocument();
+    expect(screen.getByText('Cirugía')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ordenar por egresos/i }));
+
+    expect(screen.getByText('Cirugía')).toBeInTheDocument();
   });
 });

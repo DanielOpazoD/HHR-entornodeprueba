@@ -93,19 +93,29 @@ const collapseClinicalToken = (value: string): string =>
     .toUpperCase();
 
 const normalizeUrineRatioName = (name: string, section?: string): string | null => {
-  const clinicalToken = collapseClinicalToken(`${section || ''} ${name}`);
+  const nameToken = collapseClinicalToken(name);
+  const sectionToken = collapseClinicalToken(section || '');
   const hasCreatinineRatioToken =
-    clinicalToken.includes('CREATININURIA') ||
-    clinicalToken.includes('CREATININURI') ||
-    clinicalToken.includes('CREATINURIA');
+    nameToken.includes('CREATININURIA') ||
+    nameToken.includes('CREATININURI') ||
+    nameToken.includes('CREATINURIA');
+  const canInferRatioFromSection =
+    nameToken.length === 0 || nameToken.includes('RELAC') || nameToken.includes('RELACION');
 
-  if (clinicalToken.includes('PROTEINURIA') && hasCreatinineRatioToken) {
+  if (
+    ((nameToken.includes('PROTEINURIA') && hasCreatinineRatioToken) ||
+      (canInferRatioFromSection && sectionToken.includes('PROTEINURIA'))) &&
+    (hasCreatinineRatioToken || canInferRatioFromSection)
+  ) {
     return 'RPC';
   }
 
   if (
-    (clinicalToken.includes('ALBUMINA') || clinicalToken.includes('ALBUMINURIA')) &&
-    hasCreatinineRatioToken
+    (((nameToken.includes('ALBUMINA') || nameToken.includes('ALBUMINURIA')) &&
+      hasCreatinineRatioToken) ||
+      (canInferRatioFromSection &&
+        (sectionToken.includes('ALBUMINA') || sectionToken.includes('ALBUMINURIA')))) &&
+    (hasCreatinineRatioToken || canInferRatioFromSection)
   ) {
     return 'RAC';
   }

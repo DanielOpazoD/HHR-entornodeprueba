@@ -66,11 +66,16 @@ export const ConfirmDialogRenderer: React.FC<ConfirmDialogRendererProps> = ({
     >
       <div
         className={`bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 overflow-hidden border ${styles.border} animate-scale-in`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
         onClick={e => e.stopPropagation()}
       >
         <div className={`px-4 py-2 ${styles.bg} border-b ${styles.border} flex items-center gap-2`}>
           <AlertTriangle className={styles.icon} size={16} />
-          <h3 className="font-semibold text-sm text-slate-800">{dialog.title}</h3>
+          <h3 id="confirm-dialog-title" className="font-semibold text-sm text-slate-800">
+            {dialog.title}
+          </h3>
           {!dialog.isAlert && (
             <button
               onClick={onCancel}

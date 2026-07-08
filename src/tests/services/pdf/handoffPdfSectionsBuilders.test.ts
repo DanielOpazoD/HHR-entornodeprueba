@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { buildPatientTableBody } from '@/services/pdf/handoffPdfPatientTableSection';
+import {
+  addPatientTable,
+  buildPatientTableBody,
+} from '@/services/pdf/handoffPdfPatientTableSection';
 import { buildMovementsSummaryTables } from '@/services/pdf/handoffPdfMovementsSummarySection';
 import { resolveStatusTextStyles } from '@/services/pdf/handoffPdfTableFormattingController';
+import { HANDOFF_PDF_PAGE_LAYOUT } from '@/services/pdf/handoffPdfPageLayout';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const baseRecord: DailyRecord = {
@@ -96,7 +100,46 @@ describe('handoffPdf section builders', () => {
     expect(rows[0][1]).toMatchObject({ content: expect.stringContaining('Juan Perez') });
     expect(rows[0][4]).toBe('VVP (3d)');
     expect(rows[0][5]).toBe('Observacion dia');
-    expect(rows[0]._daysStr).toBe('6d');
+    expect(rows[0]._daysStr).toBe('5d');
+  });
+
+  it('renderiza la tabla de pacientes dentro del margen seguro A4', () => {
+    const doc = {
+      setFontSize: vi.fn(),
+      setFont: vi.fn(),
+      setTextColor: vi.fn(),
+      text: vi.fn(),
+      lastAutoTable: { finalY: 72 },
+    };
+    const autoTable = vi.fn();
+
+    addPatientTable(doc as never, baseRecord, false, 'day', 42, autoTable as never);
+
+    expect(autoTable).toHaveBeenCalledWith(
+      doc,
+      expect.objectContaining({
+        margin: HANDOFF_PDF_PAGE_LAYOUT.margin,
+      })
+    );
+  });
+
+  it('mantiene 0d en pacientes ingresados el mismo dia para coincidir con censo', () => {
+    const rows = buildPatientTableBody(
+      {
+        ...baseRecord,
+        beds: {
+          ...baseRecord.beds,
+          H1C1: {
+            ...baseRecord.beds.H1C1,
+            admissionDate: baseRecord.date,
+          },
+        },
+      },
+      false,
+      'day'
+    );
+
+    expect(rows[0]._daysStr).toBe('0d');
   });
 
   it('resuelve estilos por estado clinico', () => {
@@ -111,5 +154,45 @@ describe('handoffPdf section builders', () => {
     expect(tables[0].rows[0][0]).toBe('A1');
     expect(tables[1].rows[0][3]).toBe('HDS');
     expect(tables[2].rows[0][0]).toBe('Ana Diaz');
+  });
+
+  it('excluye movimientos con tombstone del resumen PDF de entrega', () => {
+    const tables = buildMovementsSummaryTables({
+      ...baseRecord,
+      discharges: [
+        ...baseRecord.discharges,
+        {
+          ...baseRecord.discharges[0],
+          id: 'd-deleted',
+          patientName: 'Alta eliminada',
+          deletedAt: '2026-03-10T13:00:00Z',
+        },
+      ],
+      transfers: [
+        ...baseRecord.transfers,
+        {
+          ...baseRecord.transfers[0],
+          id: 't-deleted',
+          patientName: 'Traslado eliminado',
+          deletedAt: '2026-03-10T13:00:00Z',
+        },
+      ],
+      cma: [
+        ...baseRecord.cma,
+        {
+          ...baseRecord.cma[0],
+          id: 'c-deleted',
+          patientName: 'CMA eliminada',
+          deletedAt: '2026-03-10T13:00:00Z',
+        },
+      ],
+    });
+
+    expect(tables[0].rows).toHaveLength(1);
+    expect(tables[0].rows.flat()).not.toContain('Alta eliminada');
+    expect(tables[1].rows).toHaveLength(1);
+    expect(tables[1].rows.flat()).not.toContain('Traslado eliminado');
+    expect(tables[2].rows).toHaveLength(1);
+    expect(tables[2].rows.flat()).not.toContain('CMA eliminada');
   });
 });

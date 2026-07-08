@@ -2,6 +2,10 @@ import { PatientData } from '@/services/contracts/patientServiceContracts';
 import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
 import { DailyStatsSnapshot } from '@/types/minsalTypes';
 import type { MinsalDailyRecord } from './minsalRecordContracts';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 export function countOccupiedBeds(beds: Record<string, PatientData>): number {
   let count = 0;
@@ -30,8 +34,10 @@ export function calculateDailySnapshot(record: MinsalDailyRecord): DailyStatsSna
   const bloqueadas = countBlockedBeds(record.beds);
   const disponibles = HOSPITAL_CAPACITY - bloqueadas;
 
-  const fallecidos = record.discharges?.filter(d => d.status === 'Fallecido').length || 0;
-  const egresos = (record.discharges?.length || 0) + (record.transfers?.length || 0);
+  const discharges = getActiveDischarges(record.discharges);
+  const transfers = getActiveTransfers(record.transfers);
+  const fallecidos = discharges.filter(d => d.status === 'Fallecido').length;
+  const egresos = discharges.length + transfers.length;
 
   const tasaOcupacion = disponibles > 0 ? (ocupadas / disponibles) * 100 : 0;
 

@@ -72,10 +72,6 @@ service cloud.firestore {
       return isAdmin() || hasEffectiveRole(role);
     }
 
-    function isNurse() {
-      return hasAdminOrEffectiveRole('nurse_hospital');
-    }
-
     function isDoctor() {
       return hasAdminOrEffectiveRole('doctor_urgency');
     }
@@ -91,6 +87,14 @@ service cloud.firestore {
 
     function canReportSystemHealth() {
       return canEdit();
+    }
+
+    function canManageSystemHealthOperations() {
+      return isAdmin();
+    }
+
+    function canManageClinicalConflictSnapshots() {
+      return hasAnyEffectiveRole(['admin', 'nurse_hospital']);
     }
 
     function isEditorRole() {

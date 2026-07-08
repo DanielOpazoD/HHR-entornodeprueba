@@ -109,4 +109,76 @@ describe('clinicalDocumentCompatibilityController', () => {
 
     expect(hydrated.includePatientSignature).toBe(true);
   });
+
+  it('preserves episode-close locks while clearing retired bare locks', () => {
+    const closedEpisodeDocument = {
+      ...buildDocument(),
+      isLocked: true,
+      lockedReason: 'episode_closed' as const,
+      lockedAt: '2026-03-06T12:00:00.000Z',
+    };
+    const retiredSignatureLockDocument = {
+      ...buildDocument(),
+      isLocked: true,
+    };
+
+    expect(hydrateLegacyClinicalDocument(closedEpisodeDocument)).toMatchObject({
+      isLocked: true,
+      lockedReason: 'episode_closed',
+      lockedAt: '2026-03-06T12:00:00.000Z',
+    });
+    expect(hydrateLegacyClinicalDocument(retiredSignatureLockDocument).isLocked).toBe(false);
+  });
+
+  it('hydrates incomplete legacy audit actors for workspace compatibility', () => {
+    const legacyActor = {
+      uid: 'legacy-user',
+      email: 'legacy@hospital.cl',
+    };
+    const document = {
+      ...buildDocument(),
+      audit: {
+        createdAt: '2026-03-06T10:00:00.000Z',
+        createdBy: legacyActor,
+        updatedAt: '2026-03-06T11:00:00.000Z',
+        updatedBy: legacyActor,
+        signatureRevocations: [
+          {
+            revokedAt: '2026-03-06T12:00:00.000Z',
+            revokedBy: legacyActor,
+            reason: 'Corrección legacy',
+          },
+        ],
+      },
+      versionHistory: [
+        {
+          version: 1,
+          savedAt: '2026-03-06T10:30:00.000Z',
+          savedBy: legacyActor,
+          reason: 'manual' as const,
+        },
+      ],
+    } as unknown as ReturnType<typeof buildDocument>;
+
+    const hydrated = hydrateLegacyClinicalDocument(document);
+
+    expect(hydrated.audit.createdBy).toMatchObject({
+      uid: 'legacy-user',
+      email: 'legacy@hospital.cl',
+      displayName: 'Usuario legado',
+      role: 'legacy_unknown',
+    });
+    expect(hydrated.audit.updatedBy).toMatchObject({
+      displayName: 'Usuario legado',
+      role: 'legacy_unknown',
+    });
+    expect(hydrated.audit.signatureRevocations?.[0]?.revokedBy).toMatchObject({
+      displayName: 'Usuario legado',
+      role: 'legacy_unknown',
+    });
+    expect(hydrated.versionHistory[0]?.savedBy).toMatchObject({
+      displayName: 'Usuario legado',
+      role: 'legacy_unknown',
+    });
+  });
 });

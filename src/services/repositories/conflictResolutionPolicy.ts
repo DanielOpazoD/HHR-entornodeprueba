@@ -1,4 +1,5 @@
 import { resolveConflictDomainContextForPath } from '@/services/repositories/conflictResolutionDomainPolicy';
+import { hasPatientFieldSyncOwnership } from '@/services/repositories/dailyRecordSyncOwnershipPolicy';
 
 const ROOT_LOCAL_PRIORITY_FIELDS = new Set([
   'handoffNovedadesDayShift',
@@ -16,6 +17,7 @@ export interface ScalarPolicyDecision {
     | 'remote_undefined_fallback'
     | 'root_local_priority'
     | 'root_remote_priority'
+    | 'clinical_census_remote_priority'
     | 'clinical_local_priority'
     | 'clinical_remote_non_empty_fallback'
     | 'admin_remote_priority'
@@ -28,55 +30,20 @@ export interface ScalarPolicyDecision {
 
 const ROOT_REMOTE_PRIORITY_FIELDS = new Set(['dateTimestamp', 'schemaVersion']);
 
-const CLINICAL_PATIENT_FIELDS = new Set([
-  'patientName',
-  'rut',
-  'documentType',
-  'age',
-  'birthDate',
-  'biologicalSex',
-  'insurance',
-  'pathology',
-  'snomedCode',
-  'cie10Code',
-  'cie10Description',
-  'diagnosisComments',
-  'specialty',
-  'ginecobstetriciaType',
-  'secondarySpecialty',
-  'status',
-  'medicalHandoffNote',
-  'medicalHandoffAudit',
-  'medicalHandoffEntries',
-  'handoffNote',
-  'handoffNoteDayShift',
-  'handoffNoteNightShift',
-  'clinicalCrib',
-  'deliveryRoute',
-  'deliveryDate',
-  'deliveryCesareanLabor',
-]);
+export const isClinicalCensusRemotePriorityField = (field: string): boolean =>
+  hasPatientFieldSyncOwnership(field, 'remoteCanonical');
+
+export const isLocalNarrativePatientField = (field: string): boolean =>
+  hasPatientFieldSyncOwnership(field, 'localNarrative');
+
+export const isAdminRemotePatientField = (field: string): boolean =>
+  hasPatientFieldSyncOwnership(field, 'adminRemote');
 
 const isEmptyClinicalValue = (value: unknown): boolean =>
   value === '' ||
   value === null ||
   value === undefined ||
   (Array.isArray(value) && value.length === 0);
-
-const ADMIN_PATIENT_FIELDS = new Set([
-  'bedId',
-  'bedName',
-  'isBlocked',
-  'blockedReason',
-  'bedMode',
-  'hasCompanionCrib',
-  'location',
-  'admissionDate',
-  'admissionTime',
-  'admissionOrigin',
-  'admissionOriginDetails',
-  'origin',
-]);
 
 export const RECORD_STRUCTURAL_FIELDS = new Set([
   'date',
@@ -143,7 +110,21 @@ export const decideScalarByPolicy = (
   const parts = path.split('.');
   if (parts[0] === 'beds' && parts.length >= 3) {
     const patientField = parts[2];
-    if (CLINICAL_PATIENT_FIELDS.has(patientField)) {
+    if (isClinicalCensusRemotePriorityField(patientField)) {
+      if (isEmptyClinicalValue(local) && !isEmptyClinicalValue(remote)) {
+        return {
+          value: remote,
+          winner: 'remote',
+          reason: 'clinical_remote_non_empty_fallback',
+        };
+      }
+      return {
+        value: remote,
+        winner: 'remote',
+        reason: 'clinical_census_remote_priority',
+      };
+    }
+    if (isLocalNarrativePatientField(patientField)) {
       if (isEmptyClinicalValue(local) && !isEmptyClinicalValue(remote)) {
         return {
           value: remote,
@@ -153,7 +134,7 @@ export const decideScalarByPolicy = (
       }
       return { value: local, winner: 'local', reason: 'clinical_local_priority' };
     }
-    if (ADMIN_PATIENT_FIELDS.has(patientField)) {
+    if (isAdminRemotePatientField(patientField)) {
       return { value: remote, winner: 'remote', reason: 'admin_remote_priority' };
     }
   }

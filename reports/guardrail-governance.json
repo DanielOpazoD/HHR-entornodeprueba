@@ -1,0 +1,448 @@
+{
+  "generatedAt": "2026-07-06T05:44:53.924Z",
+  "version": 1,
+  "blockingTierCount": 5,
+  "reportOnlyCount": 18,
+  "qualityCheckCount": 64,
+  "releaseConfidence": {
+    "script": "test:release-confidence",
+    "requiredScripts": [
+      "test:smoke:critical-runtime",
+      "test:rules:ci",
+      "test:emulator:sync:ci",
+      "check:critical-coverage",
+      "check:flow-performance-budget",
+      "test:e2e:critical:ci"
+    ],
+    "purpose": "Pack blocking compacto para release confidence sin duplicar toda la suite unitaria."
+  },
+  "blockingTiers": [
+    {
+      "id": "inner_loop",
+      "label": "Inner Loop",
+      "script": "ci:inner-loop",
+      "level": "inner-loop",
+      "requiredScripts": [
+        "typecheck",
+        "lint",
+        "check:quality",
+        "test:unit:critical"
+      ],
+      "purpose": "Feedback local rapido sobre tipado, lint, boundaries y riesgos unitarios criticos."
+    },
+    {
+      "id": "merge_gate",
+      "label": "Pre Merge",
+      "script": "ci:pre-merge",
+      "level": "merge-gate",
+      "requiredScripts": [
+        "typecheck",
+        "lint",
+        "check:quality",
+        "test:ci:unit"
+      ],
+      "purpose": "Verificacion compacta obligatoria antes de merge para tipado, lint, guardrails y suite unitaria/integracion."
+    },
+    {
+      "id": "merge_gate_extended",
+      "label": "Merge Gate",
+      "script": "ci:merge-gate",
+      "level": "merge-gate",
+      "requiredScripts": [
+        "ci:pre-merge",
+        "lint:strict:core",
+        "check:critical-coverage",
+        "check:netlify-functions-bundle",
+        "build",
+        "ci:preview-gate"
+      ],
+      "purpose": "Proteccion blocking previa a merge para codigo clinico, auth, storage y bundle, incluyendo chunk graph y smoke de preview del bundle real."
+    },
+    {
+      "id": "preview_gate",
+      "label": "Preview Gate",
+      "script": "ci:preview-gate",
+      "level": "merge-gate",
+      "requiredScripts": [
+        "check:bundle-budget",
+        "check:chunk-graph",
+        "check:runtime-asset-margin",
+        "test:e2e:preview:census-bootstrap:built"
+      ],
+      "purpose": "Valida budgets, chunk graph aciclico y que el bundle productivo monte correctamente en preview local."
+    },
+    {
+      "id": "release_gate",
+      "label": "Release Gate",
+      "script": "ci:release-gate",
+      "level": "release-gate",
+      "requiredScripts": [
+        "ci:merge-gate",
+        "check:daily-record-authority-release-gate",
+        "check:release-evidence",
+        "test:firestore:release:ci"
+      ],
+      "purpose": "Validacion final con emuladores, reglas Firestore y E2E criticos."
+    }
+  ],
+  "reportOnly": [
+    {
+      "id": "quality_metrics",
+      "script": "report:quality-metrics",
+      "artifact": "reports/quality-metrics.md"
+    },
+    {
+      "id": "operational_health",
+      "script": "report:operational-health",
+      "artifact": "reports/operational-health.md"
+    },
+    {
+      "id": "bundle_risk_ledger",
+      "script": "report:bundle-risk-ledger",
+      "artifact": "reports/bundle-risk-ledger.md"
+    },
+    {
+      "id": "system_confidence",
+      "script": "report:system-confidence",
+      "artifact": "reports/system-confidence.md"
+    },
+    {
+      "id": "compatibility_governance",
+      "script": "report:compatibility-governance",
+      "artifact": "reports/compatibility-governance.md"
+    },
+    {
+      "id": "legacy_retirement_debt",
+      "script": "report:legacy-retirement-debt",
+      "artifact": "reports/legacy-retirement-debt.md"
+    },
+    {
+      "id": "serverless_sensitive_coverage",
+      "script": "report:serverless-sensitive-coverage",
+      "artifact": "reports/serverless-sensitive-coverage.md"
+    },
+    {
+      "id": "compatibility_import_governance",
+      "script": "report:compatibility-import-governance",
+      "artifact": "reports/compatibility-import-governance.md"
+    },
+    {
+      "id": "release_readiness",
+      "script": "report:release-readiness-scorecard",
+      "artifact": "reports/release-readiness-scorecard.md"
+    },
+    {
+      "id": "release_confidence_matrix",
+      "script": "report:release-confidence-matrix",
+      "artifact": "reports/release-confidence-matrix.md"
+    },
+    {
+      "id": "runtime_contracts",
+      "script": "report:runtime-contracts",
+      "artifact": "reports/runtime-contracts.md"
+    },
+    {
+      "id": "serverless_runtime_governance",
+      "script": "report:serverless-runtime-governance",
+      "artifact": "reports/serverless-runtime-governance.md"
+    },
+    {
+      "id": "guardrail_governance",
+      "script": "report:guardrail-governance",
+      "artifact": "reports/guardrail-governance.md"
+    },
+    {
+      "id": "technical_ownership",
+      "script": "report:technical-ownership-map",
+      "artifact": "reports/technical-ownership-map.md"
+    },
+    {
+      "id": "sustainable_change_policy",
+      "script": "report:sustainable-change-policy",
+      "artifact": "reports/sustainable-change-policy.md"
+    },
+    {
+      "id": "test_runtime_governance",
+      "script": "report:test-runtime-governance",
+      "artifact": "reports/test-runtime-governance.md"
+    },
+    {
+      "id": "unit_shard_runtime_profile",
+      "script": "report:unit-shard-runtime-profile",
+      "artifact": "reports/unit-shard-runtime-profile.md"
+    },
+    {
+      "id": "ci_runtime_observed_profile",
+      "script": "report:ci-runtime-observed-profile",
+      "artifact": "reports/ci-runtime-observed-profile.md"
+    }
+  ],
+  "qualityAggregate": {
+    "script": "check:quality",
+    "checks": [
+      {
+        "id": "check:architecture",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:application-port-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:legacy-staff-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:core-test-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:core-trivial-tests",
+        "group": "tests"
+      },
+      {
+        "id": "check:core-console-usage",
+        "group": "hygiene"
+      },
+      {
+        "id": "check:census-feature-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:census-export-contract-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:clinical-documents-feature-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:handoff-pdf-contract-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:feature-public-api-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:lazy-views-feature-entrypoints",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:feature-dependencies",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:shared-layer-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:barrel-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:handoff-context-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:storage-context-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:core-type-facade-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:root-domain-barrels",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:persistence-hub-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:legacy-localstorage-imports",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:legacy-bridge-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:legacy-read-gating",
+        "group": "boundaries"
+      },
+      {
+        "id": "report:legacy-bridge",
+        "group": "governance-inputs"
+      },
+      {
+        "id": "report:compatibility-governance",
+        "group": "governance-inputs"
+      },
+      {
+        "id": "check:legacy-retirement-debt",
+        "group": "governance"
+      },
+      {
+        "id": "check:compatibility-import-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:schema-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:runtime-contracts",
+        "group": "governance"
+      },
+      {
+        "id": "check:sync-invariants",
+        "group": "governance"
+      },
+      {
+        "id": "check:serverless-runtime-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:serverless-sensitive-coverage",
+        "group": "governance"
+      },
+      {
+        "id": "check:docs-drift",
+        "group": "governance"
+      },
+      {
+        "id": "check:operational-runbooks",
+        "group": "governance"
+      },
+      {
+        "id": "check:folder-dependencies",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:module-dependencies",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:module-size",
+        "group": "size"
+      },
+      {
+        "id": "check:handoff-module-size",
+        "group": "size"
+      },
+      {
+        "id": "check:census-module-size",
+        "group": "size"
+      },
+      {
+        "id": "check:transfers-module-size",
+        "group": "size"
+      },
+      {
+        "id": "check:hook-hotspots",
+        "group": "size"
+      },
+      {
+        "id": "check:hotspot-growth",
+        "group": "size"
+      },
+      {
+        "id": "check:census-runtime-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:runtime-adapter-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:native-dialogs",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:firestore-runtime-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:firestore-emulator-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:ci-artifact-contracts",
+        "group": "governance"
+      },
+      {
+        "id": "check:domain-hotspot-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:legacy-permissions-boundary",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:test-governance",
+        "group": "tests"
+      },
+      {
+        "id": "check:unit-shard-balance",
+        "group": "tests"
+      },
+      {
+        "id": "check:ci-runtime-telemetry",
+        "group": "tests"
+      },
+      {
+        "id": "check:test-runtime-governance",
+        "group": "tests"
+      },
+      {
+        "id": "check:test-failure-catalog",
+        "group": "tests"
+      },
+      {
+        "id": "check:flaky-quarantine",
+        "group": "tests"
+      },
+      {
+        "id": "check:guardrail-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:report-freshness",
+        "group": "reports",
+        "reportOnly": true,
+        "rationale": "Surfaces stale report artifacts as advisory in the inner loop; ci:release-gate already regenerates and enforces them blocking. Avoids forcing a 30s+ regeneration on every check:quality run."
+      },
+      {
+        "id": "check:critical-any",
+        "group": "type-safety"
+      },
+      {
+        "id": "check:source-any",
+        "group": "type-safety"
+      },
+      {
+        "id": "check:repo-hygiene",
+        "group": "hygiene"
+      },
+      {
+        "id": "check:clinical-mutation-audit-policy",
+        "group": "security"
+      },
+      {
+        "id": "check:security",
+        "group": "security"
+      },
+      {
+        "id": "check:bundle-risk-ledger",
+        "group": "size"
+      }
+    ]
+  },
+  "guardrailPolicy": {
+    "creationRule": "Todo guardrail nuevo nace como report-only salvo que proteja un riesgo ya materializado.",
+    "promotionRule": "Un guardrail se vuelve blocking solo si existe owner, baseline y runbook de falla.",
+    "retirementRule": "Un guardrail puede retirarse solo si otro gate cubre explicitamente el mismo riesgo."
+  }
+}

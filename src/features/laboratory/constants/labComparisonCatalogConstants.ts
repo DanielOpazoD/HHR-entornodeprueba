@@ -35,6 +35,14 @@ export const COMPARISON_EXCLUDE: string[] = [
   'Numero de ingreso',
   'MIDAS',
   'Tipo de muestra',
+  'Resultado',
+  'PCR SARS',
+  'SARS-CoV',
+  'SARS COV',
+  'COVID',
+  'Recuento de Colonia',
+  'Recuento de Colonias',
+  'Gentamicina',
 ];
 
 export const COMPARISON_ORDER: string[] = [
@@ -95,7 +103,7 @@ export const COMPARISON_ORDER: string[] = [
   'T4 Libre',
   'Acido Urico',
   'Glicemia',
-  'Hemoglobina Glicosilada',
+  'Hb glicosilada',
   'Colesterol Total',
   'LDL',
   'HDL',

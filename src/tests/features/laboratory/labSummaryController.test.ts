@@ -97,11 +97,27 @@ describe('buildLabSummaryText', () => {
     expect(result).not.toContain('NEGATIVO');
   });
 
-  it('returns empty string when no findings match abbreviations', () => {
+  it('falls back to explicit result text when no findings match abbreviations', () => {
     const findings: LabResultRow[] = [makeFinding('Unknown Variable', '42', 'units')];
 
     const result = buildLabSummaryText(findings, '08/04/2026', '10:00:00');
-    expect(result).toBe('');
+    expect(result).toBe('Laboratorio (08/04/2026 10:00): Unknown Variable 42 units');
+  });
+
+  it('falls back to qualitative-only exam text instead of returning empty', () => {
+    const findings: LabResultRow[] = [
+      {
+        section: 'MICROBIOLOGIA',
+        analysis: 'Cultivo corriente',
+        result: 'SIN DESARROLLO',
+        unit: '',
+        refValue: '',
+        qualitative: true,
+      },
+    ];
+
+    const result = buildLabSummaryText(findings, '08/04/2026', '10:00:00');
+    expect(result).toBe('Laboratorio (08/04/2026 10:00): Cultivo corriente SIN DESARROLLO');
   });
 
   it('truncates time to HH:MM', () => {

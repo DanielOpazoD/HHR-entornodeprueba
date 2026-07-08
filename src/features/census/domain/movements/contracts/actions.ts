@@ -1,5 +1,6 @@
 import type {
   DischargeData,
+  IeehData,
   TransferData,
 } from '@/features/census/contracts/censusMovementContracts';
 import type { DischargeTarget } from './primitives';
@@ -23,7 +24,9 @@ export type UpdateDischargeAction = (
   dischargeType?: string,
   dischargeTypeOther?: string,
   time?: string,
-  movementDate?: string
+  movementDate?: string,
+  ieehData?: IeehData,
+  diagnosis?: string
 ) => void;
 
 export type DeleteDischargeAction = (id: string) => void;

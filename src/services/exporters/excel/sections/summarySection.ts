@@ -1,6 +1,11 @@
 import type { Worksheet } from 'exceljs';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import { CensusStatistics } from '../../../calculations/statsCalculator';
+import {
+  getActiveCma,
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 export function addSummarySection(
   sheet: Worksheet,
@@ -9,9 +14,9 @@ export function addSummarySection(
   startRow: number
 ): number {
   // Calculate movement counts
-  const discharges = record.discharges || [];
-  const transfers = record.transfers || [];
-  const cma = record.cma || [];
+  const discharges = getActiveDischarges(record.discharges);
+  const transfers = getActiveTransfers(record.transfers);
+  const cma = getActiveCma(record.cma);
   const deceased = discharges.filter(d => d.status === 'Fallecido').length;
   const altas = discharges.filter(d => d.status === 'Vivo').length;
 

@@ -7,6 +7,10 @@ import { shouldAttemptTodayEmptyRecovery } from '@/hooks/controllers/dailyRecord
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import {
+  executePostDeployRecentRecordRefresh,
+  readPostDeployRecentRecordRefreshMarker,
+} from '@/services/config/postDeployRecentRecordRefresh';
 
 const REMOTE_HYDRATION_IDLE_TIMEOUT_MS = 1_200;
 const REMOTE_HYDRATION_FALLBACK_DELAY_MS = 150;
@@ -173,4 +177,52 @@ export const useTodayEmptyDailyRecordRecovery = ({
       cancelled = true;
     };
   }, [bootstrapPhase, currentDateString, record, refetch, runRemoteSync]);
+};
+
+interface UsePostDeployRecentRecordRefreshParams {
+  remoteSyncStatus: RemoteSyncRuntimeStatus;
+  refetch: () => Promise<unknown>;
+  runRemoteSync: (date: string) => Promise<OperationalOutcomeLike>;
+}
+
+export const usePostDeployRecentRecordRefresh = ({
+  remoteSyncStatus,
+  refetch,
+  runRemoteSync,
+}: UsePostDeployRecentRecordRefreshParams) => {
+  const attemptedMarkerSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (remoteSyncStatus !== 'ready') {
+      return;
+    }
+
+    const marker = readPostDeployRecentRecordRefreshMarker();
+    if (!marker) {
+      return;
+    }
+
+    const markerSignature = `${marker.fromVersion}->${marker.toVersion}:${marker.createdAt}`;
+    if (attemptedMarkerSignatureRef.current === markerSignature) {
+      return;
+    }
+
+    attemptedMarkerSignatureRef.current = markerSignature;
+    let cancelled = false;
+
+    void executePostDeployRecentRecordRefresh({
+      readMarker: () => marker,
+      syncRemoteRecord: runRemoteSync,
+    }).then(result => {
+      if (cancelled || result.status !== 'completed') {
+        return;
+      }
+
+      void refetch();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refetch, remoteSyncStatus, runRemoteSync]);
 };

@@ -16,7 +16,6 @@ export { ConfigurationView } from './components/ConfigurationView';
 export { DataView } from './components/DataView';
 export { FunctionsTelemetryView } from './components/FunctionsTelemetryView';
 export { MedicalSignatureView } from './components/MedicalSignatureView';
-export { ErrorDashboard } from './components/ErrorDashboard';
 export { SystemDiagnosticsView } from './components/SystemDiagnosticsView';
 export { PatientMasterView } from './components/PatientMasterView';
 export { DataMaintenanceView } from './components/DataMaintenanceView';
@@ -40,22 +39,3 @@ export type {
   SystemHealthState,
   SystemHealthThresholds,
 } from './components/systemHealthStatusPolicy';
-
-export {
-  filterSystemHealthStats,
-  formatLatestOperationalSummary,
-  buildSystemHealthMetricCards,
-} from './components/systemHealthDashboardUtils';
-export type { SystemHealthMetricCard } from './components/systemHealthDashboardUtils';
-
-export {
-  buildOperationalAlerts,
-  applyOperationalAlertsSnapshot,
-  EMPTY_OPERATIONAL_ALERT_SNAPSHOT,
-} from './components/systemHealthOperationalAlerts';
-export type {
-  OperationalAlertSeverity,
-  OperationalAlert,
-  OperationalAlertHistoryEvent,
-  OperationalAlertSnapshotState,
-} from './components/systemHealthOperationalAlerts';

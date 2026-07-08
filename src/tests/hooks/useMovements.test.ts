@@ -6,6 +6,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { TransferData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+  isMovementDeleted,
+} from '@/application/census/movementTombstonePolicy';
 
 describe('useMovements', () => {
   type BedPatient = DailyRecord['beds'][string];
@@ -173,11 +178,16 @@ describe('useMovements', () => {
         result.current.deleteDischarge('d1');
       });
 
-      expect(saveAndUpdate).toHaveBeenCalledWith(
+      const updatedRecord = saveAndUpdate.mock.calls[0][0];
+      expect(getActiveDischarges(updatedRecord.discharges)).toHaveLength(0);
+      expect(updatedRecord.discharges[0]).toEqual(
         expect.objectContaining({
-          discharges: [],
+          id: 'd1',
+          deletedAt: expect.any(String),
+          deletedReason: 'manual_delete',
         })
       );
+      expect(isMovementDeleted(updatedRecord.discharges[0])).toBe(true);
     });
   });
 
@@ -202,7 +212,10 @@ describe('useMovements', () => {
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
       expect(updatedRecord.beds[bedId].patientName).toBe('Jane Doe');
-      expect(updatedRecord.discharges).toHaveLength(0);
+      expect(getActiveDischarges(updatedRecord.discharges)).toHaveLength(0);
+      expect(updatedRecord.discharges[0]).toEqual(
+        expect.objectContaining({ id: 'd1', deletedAt: expect.any(String) })
+      );
     });
 
     it('should undo baby (nested) discharge', () => {
@@ -225,7 +238,10 @@ describe('useMovements', () => {
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
       expect(updatedRecord.beds[bedId].clinicalCrib?.patientName).toBe('Baby Doe');
-      expect(updatedRecord.discharges).toHaveLength(0);
+      expect(getActiveDischarges(updatedRecord.discharges)).toHaveLength(0);
+      expect(updatedRecord.discharges[0]).toEqual(
+        expect.objectContaining({ id: 'd-baby', deletedAt: expect.any(String) })
+      );
     });
 
     it('should prevent undo if bed is occupied', () => {
@@ -321,11 +337,16 @@ describe('useMovements', () => {
         result.current.deleteTransfer(transferId);
       });
 
-      expect(saveAndUpdate).toHaveBeenLastCalledWith(
+      const deletedRecord = saveAndUpdate.mock.calls.at(-1)?.[0];
+      expect(getActiveTransfers(deletedRecord.transfers)).toHaveLength(0);
+      expect(deletedRecord.transfers[0]).toEqual(
         expect.objectContaining({
-          transfers: [],
+          id: transferId,
+          deletedAt: expect.any(String),
+          deletedReason: 'manual_delete',
         })
       );
+      expect(isMovementDeleted(deletedRecord.transfers[0])).toBe(true);
     });
 
     it('should undo transfer', () => {
@@ -346,7 +367,10 @@ describe('useMovements', () => {
 
       const updatedRecord = saveAndUpdate.mock.calls[0][0];
       expect(updatedRecord.beds[bedId].patientName).toBe('Transferred Patient');
-      expect(updatedRecord.transfers).toHaveLength(0);
+      expect(getActiveTransfers(updatedRecord.transfers)).toHaveLength(0);
+      expect(updatedRecord.transfers[0]).toEqual(
+        expect.objectContaining({ id: 't-undo', deletedAt: expect.any(String) })
+      );
     });
   });
 

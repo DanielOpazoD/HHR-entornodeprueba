@@ -19,6 +19,18 @@ export const calculateHospitalizedDays = (
   }
 };
 
+export const calculateOperationalHospitalizedDays = (
+  admissionDate?: string,
+  currentDate?: string
+): number | null => {
+  const calendarDiff = diffCalendarDays(admissionDate, currentDate);
+  if (calendarDiff === null) {
+    return null;
+  }
+
+  return calendarDiff >= 0 ? calendarDiff : 0;
+};
+
 /**
  * DEIS/MINSAL discharge stay rule:
  * - difference between discharge date and admission date

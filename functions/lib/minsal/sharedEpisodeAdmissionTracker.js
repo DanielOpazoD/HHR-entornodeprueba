@@ -10,6 +10,28 @@ const normalizeRutKey = rut =>
     .trim()
     .toUpperCase();
 
+const normalizeEpisodeId = value => (typeof value === 'string' ? value.trim() : '');
+
+const isObservedPatient = value => value && typeof value === 'object';
+
+const resolveRutFromSubject = subject => (isObservedPatient(subject) ? subject.rut : subject);
+
+const resolveFallbackAdmissionDate = (subject, fallbackAdmissionDate) =>
+  normalizeDateOnly(fallbackAdmissionDate) ||
+  normalizeDateOnly(isObservedPatient(subject) ? subject.admissionDate : undefined);
+
+const resolveEpisodeStateKey = subject => {
+  if (isObservedPatient(subject)) {
+    const episodeId = normalizeEpisodeId(subject.clinicalEpisodeId);
+    if (episodeId) return `episode:${episodeId}`;
+  }
+
+  const rutKey = normalizeRutKey(resolveRutFromSubject(subject));
+  return rutKey ? `rut:${rutKey}` : '';
+};
+
+const matchesRut = (state, rutKey) => state.rutKey === rutKey;
+
 const hasPatientIdentity = patient =>
   Boolean(
     patient &&
@@ -34,19 +56,21 @@ const resolveEpisodeAnchorDate = (recordDate, admissionDate) =>
  *   the episode, but not the episode boundary itself.
  */
 const createEpisodeAdmissionTracker = () => {
-  const statesByRut = new Map();
+  const statesByKey = new Map();
 
   const observePatient = (patient, recordDate) => {
     if (!hasPatientIdentity(patient)) return;
 
     const rutKey = normalizeRutKey(patient.rut);
-    if (!rutKey) return;
+    const stateKey = resolveEpisodeStateKey(patient);
+    if (!rutKey || !stateKey) return;
 
     const nextAdmissionDate = resolveEpisodeAnchorDate(recordDate, patient.admissionDate);
-    const currentState = statesByRut.get(rutKey);
+    const currentState = statesByKey.get(stateKey);
 
     if (!currentState || !currentState.open) {
-      statesByRut.set(rutKey, {
+      statesByKey.set(stateKey, {
+        rutKey,
         firstSeenDate: nextAdmissionDate,
         admissionDate: nextAdmissionDate,
         open: true,
@@ -60,33 +84,40 @@ const createEpisodeAdmissionTracker = () => {
     observePatient(bed.clinicalCrib, recordDate);
   };
 
-  const resolveAdmissionDate = (rut, fallbackAdmissionDate) => {
-    const rutKey = normalizeRutKey(rut);
-    if (rutKey) {
-      const admissionDate = statesByRut.get(rutKey)?.admissionDate;
+  const resolveAdmissionDate = (subject, fallbackAdmissionDate) => {
+    const stateKey = resolveEpisodeStateKey(subject);
+    if (stateKey) {
+      const admissionDate = statesByKey.get(stateKey)?.admissionDate;
       if (admissionDate) return admissionDate;
     }
 
-    return normalizeDateOnly(fallbackAdmissionDate);
+    return resolveFallbackAdmissionDate(subject, fallbackAdmissionDate);
   };
 
-  const resolveEpisodeStartDate = (rut, fallbackAdmissionDate) => {
-    const rutKey = normalizeRutKey(rut);
-    if (rutKey) {
-      const admissionDate = statesByRut.get(rutKey)?.firstSeenDate;
+  const resolveEpisodeStartDate = (subject, fallbackAdmissionDate) => {
+    const stateKey = resolveEpisodeStateKey(subject);
+    if (stateKey) {
+      const admissionDate = statesByKey.get(stateKey)?.firstSeenDate;
       if (admissionDate) return admissionDate;
     }
 
-    return normalizeDateOnly(fallbackAdmissionDate);
+    return resolveFallbackAdmissionDate(subject, fallbackAdmissionDate);
   };
 
-  const closeEpisode = rut => {
-    const rutKey = normalizeRutKey(rut);
+  const closeEpisode = subject => {
+    const stateKey = resolveEpisodeStateKey(subject);
+    if (stateKey && statesByKey.has(stateKey)) {
+      statesByKey.get(stateKey).open = false;
+      return;
+    }
+
+    const rutKey = normalizeRutKey(resolveRutFromSubject(subject));
     if (!rutKey) return;
 
-    const currentState = statesByRut.get(rutKey);
-    if (currentState) {
-      currentState.open = false;
+    for (const state of statesByKey.values()) {
+      if (matchesRut(state, rutKey)) {
+        state.open = false;
+      }
     }
   };
 

@@ -4,6 +4,7 @@ import {
   canEditAnyAppModule,
   canOpenTransferDocuments,
   canManageGlobalCensusEmailRecipients,
+  canManageClinicalConflictCenter,
   canEditMedicalHandoffForDate,
   canForceCreateDayCopyOverride,
   canOpenClinicalDocumentsFromCensus,
@@ -25,6 +26,15 @@ describe('operationalAccessPolicy', () => {
     expect(canForceCreateDayCopyOverride('admin')).toBe(true);
     expect(canForceCreateDayCopyOverride('doctor_specialist')).toBe(false);
     expect(canForceCreateDayCopyOverride('nurse_hospital')).toBe(false);
+  });
+
+  it('limits clinical conflict center access to admin users', () => {
+    expect(canManageClinicalConflictCenter('admin')).toBe(true);
+    expect(canManageClinicalConflictCenter('nurse_hospital')).toBe(false);
+    expect(canManageClinicalConflictCenter('editor')).toBe(false);
+    expect(canManageClinicalConflictCenter('doctor_specialist')).toBe(false);
+    expect(canManageClinicalConflictCenter('viewer')).toBe(false);
+    expect(canManageClinicalConflictCenter(undefined)).toBe(false);
   });
 
   it('allows archive verification only for editable census and nursing handoff modules', () => {

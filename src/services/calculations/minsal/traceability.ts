@@ -5,6 +5,10 @@ import { normalizeSpecialty, isFachEvacuationMethod } from './normalization';
 import { createEpisodeAdmissionTracker } from './episodeTracker';
 import type { MinsalDailyRecord } from './minsalRecordContracts';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
+import {
+  getActiveDischarges,
+  getActiveTransfers,
+} from '@/application/census/movementTombstonePolicy';
 
 const resolveTraceabilityDiagnosis = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -17,11 +21,12 @@ const resolveMovementSpecialty = (movement: { specialty?: string }): string =>
 
 const resolveMovementAdmissionDate = (
   movement: {
+    clinicalEpisodeId?: string;
     rut?: string;
     admissionDate?: string;
   },
   episodeTracker: ReturnType<typeof createEpisodeAdmissionTracker>
-): string | undefined => episodeTracker.resolveAdmissionDate(movement.rut, movement.admissionDate);
+): string | undefined => episodeTracker.resolveAdmissionDate(movement, movement.admissionDate);
 
 const resolveMovementDiagnosis = (movement: { diagnosis?: string }): string | undefined =>
   resolveTraceabilityDiagnosis(movement.diagnosis);
@@ -49,7 +54,11 @@ export function buildSpecialtyTraceability(
   const traceability: PatientTraceability[] = [];
 
   orderedRecords.forEach(record => {
-    const closedRuts = new Set<string>();
+    const closedEpisodes: Array<{
+      clinicalEpisodeId?: string;
+      rut?: string;
+      admissionDate?: string;
+    }> = [];
 
     if (type === 'dias-cama') {
       BEDS.forEach(bed => {
@@ -66,14 +75,14 @@ export function buildSpecialtyTraceability(
             diagnosis: resolveTraceabilityDiagnosis(patient.pathology),
             date: record.date,
             bedName: patient.bedName,
-            admissionDate: episodeTracker.resolveAdmissionDate(patient.rut, patient.admissionDate),
+            admissionDate: episodeTracker.resolveAdmissionDate(patient, patient.admissionDate),
           });
         }
       });
     }
 
     if (type === 'egresos' || type === 'fallecidos') {
-      record.discharges?.forEach(discharge => {
+      getActiveDischarges(record.discharges).forEach(discharge => {
         const normalizedDischarge = normalizeMovementReportingSnapshot(discharge);
         if (resolveMovementSpecialty(normalizedDischarge) !== normalizedSpecialty) return;
         if (type === 'fallecidos' && discharge.status !== 'Fallecido') return;
@@ -90,12 +99,12 @@ export function buildSpecialtyTraceability(
           dischargeDate: record.date,
         });
         if (discharge.rut) {
-          closedRuts.add(discharge.rut);
+          closedEpisodes.push(discharge);
         }
       });
     }
 
-    record.transfers?.forEach(transfer => {
+    getActiveTransfers(record.transfers).forEach(transfer => {
       const normalizedTransfer = normalizeMovementReportingSnapshot(transfer);
       if (resolveMovementSpecialty(normalizedTransfer) !== normalizedSpecialty) return;
       if (type === 'aerocardal' && transfer.evacuationMethod !== EVACUATION_METHOD_AEROCARDAL)
@@ -114,11 +123,11 @@ export function buildSpecialtyTraceability(
         dischargeDate: record.date,
       });
       if (transfer.rut) {
-        closedRuts.add(transfer.rut);
+        closedEpisodes.push(transfer);
       }
     });
 
-    closedRuts.forEach(rut => episodeTracker.closeEpisode(rut));
+    closedEpisodes.forEach(episode => episodeTracker.closeEpisode(episode));
   });
 
   return traceability;

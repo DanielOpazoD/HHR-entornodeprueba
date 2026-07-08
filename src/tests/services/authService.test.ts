@@ -240,6 +240,19 @@ describe('auth public entrypoints', () => {
       expect(firebaseAuth.signInWithRedirect).toHaveBeenCalled();
     });
 
+    it('should not start redirect fallback when the popup request is cancelled', async () => {
+      vi.mocked(firebaseAuth.signInWithPopup).mockRejectedValue({
+        code: 'auth/cancelled-popup-request',
+        message: 'cancelled-popup-request',
+      });
+
+      await expect(signInWithGoogle()).rejects.toMatchObject({
+        code: 'auth/cancelled-popup-request',
+      });
+
+      expect(firebaseAuth.signInWithRedirect).not.toHaveBeenCalled();
+    });
+
     it('should keep the popup flow pending when Google selection takes a long time', async () => {
       vi.useFakeTimers();
       vi.mocked(firebaseAuth.signInWithPopup).mockImplementation(
@@ -258,6 +271,25 @@ describe('auth public entrypoints', () => {
 
       await vi.advanceTimersByTimeAsync(12000);
       expect(settled).toBe(false);
+    });
+
+    it('should fail cleanly when the Google popup never settles', async () => {
+      vi.useFakeTimers();
+      vi.mocked(firebaseAuth.signInWithPopup).mockImplementation(
+        () => new Promise(() => {}) as Promise<firebaseAuth.UserCredential>
+      );
+
+      let rejectedError: unknown = null;
+      void signInWithGoogle().catch(error => {
+        rejectedError = error;
+      });
+
+      await vi.waitFor(() => expect(firebaseAuth.signInWithPopup).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(31000);
+      await Promise.resolve();
+
+      expect(rejectedError).toMatchObject({ code: 'auth/popup-timeout' });
+      expect(localStorage.getItem(GOOGLE_LOGIN_LOCK_KEY)).toBeNull();
     });
   });
 

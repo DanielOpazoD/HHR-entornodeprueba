@@ -87,6 +87,12 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     });
     vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockResolvedValue(undefined);
     vi.mocked(IndexedDBService.saveRecord).mockResolvedValue(undefined);
+    vi.mocked(IndexedDBService.saveRecordStrict).mockImplementation(async record => ({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    }));
 
     // Execute initialization
     const newRecord = await initializeDay(nextDate, prevDate);
@@ -171,6 +177,12 @@ describe('CIE-10 Copy Bug Reproduction', () => {
       record: null,
     });
     vi.mocked(FirestoreRecordWrites.saveRecordToFirestore).mockResolvedValue(undefined);
+    vi.mocked(IndexedDBService.saveRecordStrict).mockImplementation(async record => ({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: [record.date],
+    }));
 
     // Execute initialization
     const newRecord = await initializeDay(nextDate, prevDate);

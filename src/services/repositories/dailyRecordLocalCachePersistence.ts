@@ -1,6 +1,14 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { saveRecord as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  saveRecordStrict as saveToIndexedDB,
+  type LocalRecordWriteResult,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
+
+const toLocalPersistenceError = (result: LocalRecordWriteResult): Error =>
+  result.error instanceof Error
+    ? result.error
+    : new Error(result.userSafeMessage || 'No fue posible guardar el registro local hidratado.');
 
 /**
  * Local cache hydration must respect the same record invariants and admission
@@ -13,6 +21,9 @@ export const persistHydratedRecordToLocalCache = async (
   previousRecord?: DailyRecord | null
 ): Promise<DailyRecord> => {
   const validatedRecord = prepareDailyRecordForPersistence(record, date, previousRecord);
-  await saveToIndexedDB(validatedRecord);
+  const result = await saveToIndexedDB(validatedRecord);
+  if (!result.ok) {
+    throw toLocalPersistenceError(result);
+  }
   return validatedRecord;
 };

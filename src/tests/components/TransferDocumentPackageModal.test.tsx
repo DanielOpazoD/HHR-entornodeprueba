@@ -3,19 +3,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TransferDocumentPackageModal } from '@/features/transfers/components/internal/TransferDocumentPackageModal';
 
-const mockAlert = vi.fn();
-const mockOpen = vi.fn();
-const mockConfirm = vi.fn();
-const mockSuccess = vi.fn();
-const mockInfo = vi.fn();
-const mockWarning = vi.fn();
-
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: {
-    alert: (...args: unknown[]) => mockAlert(...args),
-    open: (...args: unknown[]) => mockOpen(...args),
-  },
+const { mockAlert, mockOpen, mockConfirm, mockSuccess, mockInfo, mockWarning } = vi.hoisted(() => ({
+  mockAlert: vi.fn(),
+  mockOpen: vi.fn(),
+  mockConfirm: vi.fn(),
+  mockSuccess: vi.fn(),
+  mockInfo: vi.fn(),
+  mockWarning: vi.fn(),
 }));
+
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      alert: mockAlert,
+      open: mockOpen,
+    }),
+  };
+});
 
 vi.mock('@/context/UIContext', () => ({
   useConfirmDialog: () => ({
@@ -109,7 +115,7 @@ describe('TransferDocumentPackageModal', () => {
     });
   });
 
-  it('shows runtime alert with configured-message fallback when upload fails by missing setup', async () => {
+  it('notifies with configured-message fallback when upload fails by missing setup', async () => {
     uploadToTransferFolder.mockRejectedValue(new Error('Drive client is not configured'));
 
     render(<TransferDocumentPackageModal {...baseProps} />);
@@ -117,10 +123,12 @@ describe('TransferDocumentPackageModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /editar cloud/i }));
 
     await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith(
-        'La edición online no está configurada aún (falta Client ID). Por favor, descarga el archivo para editarlo localmente.'
+      expect(mockWarning).toHaveBeenCalledWith(
+        'Edición online no configurada',
+        'Falta el Client ID de Google. Descarga el archivo para editarlo localmente.'
       );
     });
+    expect(mockAlert).not.toHaveBeenCalled();
   });
 
   it('disables cloud editing when Google Drive is not configured', () => {

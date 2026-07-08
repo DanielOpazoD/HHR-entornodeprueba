@@ -8,7 +8,7 @@ import { XCircle } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { TransferRequest } from '@/types/transferRequestTypes';
 import { TRANSFER_STATUS_CONFIG } from '@/types/transferStatusTypes';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { useNotification } from '@/context/UIContext';
 
 interface CancelTransferModalProps {
   transfer: TransferRequest;
@@ -21,14 +21,17 @@ export const CancelTransferModal: React.FC<CancelTransferModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { notify } = useNotification();
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
     if (!reason.trim()) {
-      defaultBrowserWindowRuntime.alert(
-        'Debe ingresar una justificación para cancelar el traslado'
-      );
+      notify({
+        type: 'warning',
+        title: 'Justificación requerida',
+        message: 'Debe ingresar una justificación para cancelar el traslado.',
+      });
       return;
     }
 

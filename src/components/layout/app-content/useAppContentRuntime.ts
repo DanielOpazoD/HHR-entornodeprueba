@@ -3,7 +3,9 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
 import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/UIContext';
 import { useExportManager, type UseExportManagerReturn } from '@/hooks/useExportManager';
+import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
   resolveSpecialistCapabilities,
@@ -14,6 +16,8 @@ import {
   canTriggerCensusExports,
   canVerifyPassiveBackupForRole,
 } from '@/shared/access/operationalAccessPolicy';
+
+const censusMasterExportFlowLogger = createScopedLogger('CensusMasterExportFlow');
 
 const loadCensusMasterExcelExporter = async () =>
   import('@/services/exporters/censusMasterExport').then(
@@ -91,6 +95,7 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     nurseSignature,
   } = useCensusContext();
   const auth = useAuth();
+  const { error: notifyError, info: notifyInfo } = useNotification();
   const { record, syncStatus, lastSyncTime } = dailyRecordHook;
   const syncStatusRef = React.useRef(syncStatus);
   const recordRef = React.useRef(record);
@@ -154,9 +159,24 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
   const handleExportExcel = React.useCallback(async () => {
     await flushBeforeExport();
     const generateCensusMasterExcel = await loadCensusMasterExcelExporter();
-    await generateCensusMasterExcel(...resolveExcelExportDateArgs(dateNav));
+    const result = await generateCensusMasterExcel(...resolveExcelExportDateArgs(dateNav));
+    if (result.outcome === 'no_data') {
+      notifyInfo('Sin datos para exportar', result.userSafeMessage);
+      return;
+    }
+    if (result.outcome === 'failed') {
+      censusMasterExportFlowLogger.error(`Census master export failed: ${result.reason}`);
+      notifyError('No se pudo exportar el censo', result.userSafeMessage);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dateNav is an unstable context object; tracking only its date parts keeps the callback stable
-  }, [dateNav.selectedDay, dateNav.selectedMonth, dateNav.selectedYear, flushBeforeExport]);
+  }, [
+    dateNav.selectedDay,
+    dateNav.selectedMonth,
+    dateNav.selectedYear,
+    flushBeforeExport,
+    notifyError,
+    notifyInfo,
+  ]);
 
   return React.useMemo(
     () => ({

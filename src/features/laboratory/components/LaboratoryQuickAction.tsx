@@ -3,6 +3,7 @@ import { FlaskConical } from 'lucide-react';
 import { LabResultsViewerModal } from './LabResultsViewerModal';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 
 interface LaboratoryQuickActionProps {
   patients: MedicalIndicationsPatientOption[];
@@ -72,11 +73,11 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
         }}
         data-testid="lab-quick-action"
         disabled={isDisabled}
-        className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-default disabled:opacity-50"
+        className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-default disabled:opacity-50`}
         title={connectionMessage}
         aria-disabled={isDisabled}
       >
-        <FlaskConical size={14} />
+        <FlaskConical size={13} />
         <span className="hidden sm:inline">Lab</span>
       </button>
       {labPatients.length > 0 && (

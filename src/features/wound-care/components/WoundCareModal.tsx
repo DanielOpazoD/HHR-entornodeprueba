@@ -18,6 +18,7 @@ import { PhotoGallery } from './PhotoGallery';
 import { WoundCareErrorBoundary } from './WoundCareErrorBoundary';
 import { formatSessionDate } from '../controllers/photoGalleryController';
 import { WoundCareMobileQrPanel } from './WoundCareMobileQrPanel';
+import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 
 // ============================================================================
 // Episode Section (collapsible per hospitalization)
@@ -50,7 +51,7 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(group.isCurrent);
 
-  const admissionDate = group.episodeKey.split('__')[1] || '';
+  const admissionDate = resolveAdmissionDateFromClinicalEpisodeKey(group.episodeKey) || '';
   const label = group.isCurrent
     ? `Hospitalización actual (${formatSessionDate(admissionDate)})`
     : `Hospitalización ${formatSessionDate(admissionDate)}`;
@@ -202,7 +203,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
   const currentConsent = episodes.find(e => e.isCurrent)?.consent ?? null;
 
   const handlePrintConsent = async () => {
-    const admissionDate = episodeContext.episodeKey.split('__')[1];
+    const admissionDate = resolveAdmissionDateFromClinicalEpisodeKey(episodeContext.episodeKey);
     const blobUrl = await generateConsentPdf({ patientName, patientRut, admissionDate });
     defaultBrowserWindowRuntime.open(blobUrl);
   };

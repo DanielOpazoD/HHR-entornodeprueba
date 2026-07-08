@@ -3,6 +3,7 @@ import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
 import type { CSSProperties } from 'react';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusEmptyStateDiagnostic } from '@/hooks/controllers/dailyRecordBootstrapController';
 
 export type CensusViewBranch = 'empty' | 'register';
 
@@ -24,6 +25,7 @@ export interface BuildEmptyDayPromptPropsParams {
   ) => void | Promise<void>;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
+  emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
 }
 
 export interface BuildRegisterContentPropsParams {
@@ -52,6 +54,7 @@ export const buildEmptyDayPromptProps = ({
   onCreateDay,
   readOnly,
   allowAdminCopyOverride,
+  emptyStateDiagnostic,
 }: BuildEmptyDayPromptPropsParams) => ({
   selectedDay,
   selectedMonth,
@@ -62,6 +65,7 @@ export const buildEmptyDayPromptProps = ({
   onCreateDay,
   readOnly,
   allowAdminCopyOverride,
+  ...(emptyStateDiagnostic ? { emptyStateDiagnostic } : {}),
 });
 
 export const buildRegisterContentProps = ({

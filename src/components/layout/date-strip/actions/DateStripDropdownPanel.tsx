@@ -5,12 +5,14 @@ interface DateStripDropdownPanelProps {
   title: string;
   widthClassName: string;
   children: React.ReactNode;
+  headerAction?: React.ReactNode;
 }
 
 export const DateStripDropdownPanel: React.FC<DateStripDropdownPanelProps> = ({
   title,
   widthClassName,
   children,
+  headerAction,
 }) => (
   <div
     className={clsx(
@@ -18,8 +20,9 @@ export const DateStripDropdownPanel: React.FC<DateStripDropdownPanelProps> = ({
       widthClassName
     )}
   >
-    <div className="px-3 py-2 border-b border-slate-100 mb-1">
+    <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-100 mb-1">
       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</p>
+      {headerAction}
     </div>
     {children}
   </div>

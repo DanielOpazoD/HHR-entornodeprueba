@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "budgets": {
+    "prCriticalPathMinutes": 35,
+    "unitShardMaxMinutes": 13,
+    "e2eCriticalMaxMinutes": 8,
+    "rulesEmulatorMaxMinutes": 4,
+    "nightlyMaxMinutes": 45
+  },
+  "prBlockingSuites": [
+    {
+      "id": "unit-risk-shards",
+      "label": "Unit risk shards",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "unit-risk-shards",
+      "script": "test:ci:unit:shard",
+      "shards": 4,
+      "maxMinutes": 13,
+      "artifact": "coverage-report-${shard}",
+      "reason": "Broad unit/integration coverage remains PR-blocking but horizontally sharded."
+    },
+    {
+      "id": "clinical-sync-release-gate",
+      "label": "Clinical sync simulator release gate",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "clinical-sync-release-gate",
+      "script": "test:clinical-sync-simulator",
+      "maxMinutes": 2,
+      "artifact": "sync-convergence",
+      "reason": "Distributed clinical sync regressions must stay visible in PR CI."
+    },
+    {
+      "id": "rules-emulator",
+      "label": "Firestore rules and sync emulator",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "rules-emulator",
+      "scripts": ["test:rules:ci", "test:emulator:sync:ci"],
+      "maxMinutes": 4,
+      "reason": "Security rules and sync emulator behavior protect production writes."
+    },
+    {
+      "id": "e2e-critical",
+      "label": "Critical browser flows",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "e2e-critical-emulator",
+      "script": "test:e2e:critical:ci",
+      "maxMinutes": 8,
+      "artifact": "e2e-critical-emulator-artifacts",
+      "reason": "Critical user-visible clinical flows remain PR-blocking."
+    }
+  ],
+  "nightlySuites": [
+    {
+      "id": "sync-load",
+      "label": "Sync queue load budget",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:sync-load",
+      "maxMinutes": 5,
+      "reason": "Load behavior is valuable trend evidence but should not lengthen every PR."
+    },
+    {
+      "id": "release-confidence-full",
+      "label": "Full release confidence pack",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:release-confidence:full",
+      "maxMinutes": 20,
+      "reason": "Full pack catches cross-surface drift on schedule/manual runs."
+    },
+    {
+      "id": "clinical-stability",
+      "label": "Clinical stability E2E",
+      "workflow": ".github/workflows/nightly-test-runtime.yml",
+      "script": "test:e2e:clinical-stability:ci",
+      "maxMinutes": 20,
+      "reason": "Long browser scenario suite belongs in nightly coverage, not the PR critical path."
+    }
+  ],
+  "fixtureGovernance": {
+    "maxInlineDailyRecordFixtureLines": 80,
+    "preferredSharedFixtureRoots": [
+      "src/tests/support",
+      "src/tests/utils",
+      "src/tests/integration/setup.tsx"
+    ],
+    "duplicationWatchlist": [
+      {
+        "pattern": "large-inline-daily-record",
+        "preferred": "shared builders under src/tests/support or src/tests/utils",
+        "reason": "DailyRecord fixtures are expensive to maintain when copied across clinical tests."
+      },
+      {
+        "pattern": "browser-runtime-mock",
+        "preferred": "src/tests/utils/browserWindowRuntimeMock.ts",
+        "reason": "Runtime adapter mocks should stay centralized to avoid subtle UI/runtime drift."
+      },
+      {
+        "pattern": "sync-client-scenario",
+        "preferred": "src/tests/support/clinicalSyncSimulator",
+        "reason": "Multi-PC/replay cases should reuse the simulator harness rather than bespoke stale-client fixtures."
+      }
+    ]
+  }
+}

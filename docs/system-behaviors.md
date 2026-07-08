@@ -17,6 +17,7 @@ El sistema detecta automáticamente cuando hay una nueva versión desplegada y a
    - Se eliminan los Service Workers legacy o desalineados
    - Se limpian los cachés del Service Worker
    - Se invalida la caché local de configuración Firebase
+   - Se deja una marca persistente para refrescar solo los registros diarios recientes (hoy y ayer) después de que Firebase esté listo
    - En el siguiente arranque, auth intenta rehidratar una sesión Firebase ya existente antes de depender del observer continuo
    - La página se recarga automáticamente
 3. Durante sesiones largas, la app vuelve a verificar el runtime desplegado:
@@ -29,10 +30,12 @@ El sistema detecta automáticamente cuando hay una nueva versión desplegada y a
    - la UI marca al cliente como desactualizado;
    - y se exige recarga/actualización para evitar corrupción.
 6. El usuario ve la nueva versión sin necesidad de "borrar datos del sitio"
+7. Tras la recarga por deploy, la limpieza selectiva de registros diarios locales ocurre solo si la cola de sincronización está legible y sin trabajo pendiente, fallido, en conflicto o reintentando. Si hay trabajo local no resuelto, no se borran registros locales.
 
 ### Archivos Relacionados
 
 - `src/services/config/clientBootstrapRecovery.ts` - Reconciliación temprana de deploy y cleanup de SW legacy
+- `src/services/config/postDeployRecentRecordRefresh.ts` - Refresco selectivo post-deploy de registros diarios recientes
 - `src/hooks/useVersionCheck.ts` - Revisión secundaria, polling y re-check por foco/visibilidad
 - `src/context/VersionContext.tsx` - Validación de schema y contrato runtime
 - `src/services/config/runtimeContractClient.ts` - Lectura del contrato runtime publicado
