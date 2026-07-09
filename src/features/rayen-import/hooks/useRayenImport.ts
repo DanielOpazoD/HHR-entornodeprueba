@@ -7,7 +7,7 @@
  * it falls back to the preview so a human resolves them.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useSaveDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -20,6 +20,9 @@ import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
 const makeId = (): string => crypto.randomUUID();
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 interface RayenImportState {
   diff: CensusImportDiff | null;
@@ -40,18 +43,26 @@ const INITIAL_STATE: RayenImportState = {
 export const useRayenImport = () => {
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  const saveMutation = useSaveDailyRecordMutation();
+  // Destructure the stable `mutateAsync` reference: depending on the whole mutation
+  // object would change identity each render, recreating applyDiff/previewSnapshot and
+  // needlessly re-running the bridge subscription effect below on every render.
+  const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const [state, setState] = useState<RayenImportState>(INITIAL_STATE);
+  // Guards the experimental auto-apply path. The bridge can deliver snapshots
+  // back-to-back; without this, a second auto-apply would start from the same base
+  // record as the first (which has not finished saving) and silently clobber it.
+  // `isBusy` is async React state, so it cannot close this window on its own.
+  const autoApplyingRef = useRef(false);
 
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
 
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const result = applyCensusImportDiff(record, diff, { idFactory: makeId });
-      await saveMutation.mutateAsync(result.record);
+      await saveDailyRecord(result.record);
       return result;
     },
-    [saveMutation]
+    [saveDailyRecord]
   );
 
   const previewSnapshot = useCallback(
@@ -65,10 +76,18 @@ export const useRayenImport = () => {
       const canAutoApply = mode === 'auto' && !needsReview;
 
       if (canAutoApply) {
+        if (autoApplyingRef.current) return;
+        autoApplyingRef.current = true;
         setState({ diff, isPreviewOpen: false, isBusy: true, result: null, error: null });
         applyDiff(currentRecord, diff)
-          .then(result => setState(prev => ({ ...prev, isBusy: false, result })))
-          .catch(error => setState(prev => ({ ...prev, isBusy: false, error: String(error) })));
+          .then(result => {
+            autoApplyingRef.current = false;
+            setState(prev => ({ ...prev, isBusy: false, result }));
+          })
+          .catch(error => {
+            autoApplyingRef.current = false;
+            setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
+          });
         return;
       }
 
@@ -95,7 +114,7 @@ export const useRayenImport = () => {
       const result = await applyDiff(currentRecord, state.diff);
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
     } catch (error) {
-      setState(prev => ({ ...prev, isBusy: false, error: String(error) }));
+      setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
     }
   }, [currentRecord, state.diff, applyDiff]);
 

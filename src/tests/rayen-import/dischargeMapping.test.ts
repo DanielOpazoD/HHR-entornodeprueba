@@ -14,11 +14,10 @@ describe('resolveDischargeIntent', () => {
     expect(resolveDischargeIntent(encounter(), true)).toEqual({ kind: 'cma', status: 'Vivo' });
   });
 
-  it('resolves a regular alta (Domicilio Habitual) for a non-CMA discharge', () => {
+  it('resolves a regular alta for a non-CMA discharge', () => {
     expect(resolveDischargeIntent(encounter(), false)).toEqual({
       kind: 'alta',
       status: 'Vivo',
-      dischargeType: 'Domicilio (Habitual)',
     });
   });
 

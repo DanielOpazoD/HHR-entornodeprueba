@@ -67,6 +67,12 @@ export const subscribeToRayenSnapshots = (handler: SnapshotHandler): (() => void
   }
   return () => {
     handlers.delete(handler);
+    // Tear down the shared window listener once the last subscriber leaves, so the
+    // bridge keeps no global listener while the import feature is unmounted.
+    if (handlers.size === 0 && windowListenerAttached && typeof window !== 'undefined') {
+      window.removeEventListener('message', onWindowMessage);
+      windowListenerAttached = false;
+    }
   };
 };
 

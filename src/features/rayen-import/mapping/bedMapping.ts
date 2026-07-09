@@ -26,8 +26,18 @@ export interface BedMappingResult {
   matchedBy: BedMatchKind;
 }
 
-/** Uppercase, strip everything but A–Z/0–9 (so "Recuperacion 1" → "RECUPERACION1"). */
-const normalize = (value?: string): string => (value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+/**
+ * Fold accents, uppercase, then strip everything but A–Z/0–9. Rayen sends accented
+ * Spanish labels ("Área quirúrgica indiferenciada", "Habitación 3", "Recuperación 1"),
+ * so we must decompose (NFD) and drop the combining marks BEFORE removing non-ASCII —
+ * otherwise "QUIRÚRGICA" → "QUIRRGICA" and would never match "QUIRURGICA".
+ */
+const normalize = (value?: string): string =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 
 /** True when the service name is the virtual CMA area (and not the real médico-quirúrgica one). */
 const isCmaService = (serviceNorm: string): boolean =>

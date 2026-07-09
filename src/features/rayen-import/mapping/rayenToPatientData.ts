@@ -39,7 +39,7 @@ export const mapBiologicalSex = (
   gender?: string
 ): PatientData['biologicalSex'] => {
   const value = `${administrativeSex ?? ''} ${gender ?? ''}`.toLowerCase();
-  if (/(mujer|femenin|femenin[ao])/.test(value)) return 'Femenino';
+  if (/(mujer|femenin)/.test(value)) return 'Femenino';
   if (/(hombre|masculin)/.test(value)) return 'Masculino';
   return 'Indeterminado';
 };

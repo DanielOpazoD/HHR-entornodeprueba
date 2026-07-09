@@ -65,6 +65,23 @@ describe('mapRayenBed', () => {
     expect(result.bedId).toBe('H1C2');
   });
 
+  it('detects CMA from the accented service name alone, without a CMA-prefixed bed', () => {
+    // Real flow: a CMA patient occupies a physical bed (no "CMA" prefix on room/bed);
+    // only the virtual service name marks the discharge as CMA. This regressed silently
+    // when normalize() dropped the accents in "quirúrgica" (QUIRÚRGICA → QUIRRGICA).
+    const result = mapRayenBed({
+      room: 'R2',
+      service: 'Área quirúrgica indiferenciada',
+    });
+    expect(result.isCma).toBe(true);
+    expect(result.bedId).toBe('R2');
+  });
+
+  it('matches accented room long-forms (Habitación / Recuperación)', () => {
+    expect(mapRayenBed({ room: 'Habitación 3', bed: 'C2' }).bedId).toBe('H3C2');
+    expect(mapRayenBed({ room: 'Recuperación 4' }).bedId).toBe('R4');
+  });
+
   it('returns null bedId for unmappable locations', () => {
     expect(mapRayenBed({ room: 'X', bed: 'Y' })).toEqual({
       bedId: null,
