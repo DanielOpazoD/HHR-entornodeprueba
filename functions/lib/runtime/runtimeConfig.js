@@ -1,6 +1,6 @@
 const DEFAULT_HOSPITAL_ID = 'hanga_roa';
 const DEFAULT_HOSPITAL_CAPACITY = 38;
-const DEFAULT_FIREBASE_PROJECT_ID = 'hhr-serviciohospitalizados';
+const DEFAULT_FIREBASE_PROJECT_ID = 'hhr-pruebas';
 
 const toPositiveInteger = (value, fallback) => {
   const parsed = Number(value);

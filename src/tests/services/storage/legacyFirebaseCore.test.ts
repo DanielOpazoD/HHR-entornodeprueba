@@ -42,4 +42,16 @@ describe('legacyFirebaseCore config resolution', () => {
       'VITE_LEGACY_FIREBASE_APP_ID',
     ]);
   });
+
+  it('rejects production hospital-hanga-roa as a legacy source for this testing repo', () => {
+    expect(
+      resolveLegacyFirebaseConfig(
+        buildLegacyEnv({
+          VITE_LEGACY_FIREBASE_AUTH_DOMAIN: 'hospital-hanga-roa.firebaseapp.com',
+          VITE_LEGACY_FIREBASE_PROJECT_ID: 'hospital-hanga-roa',
+          VITE_LEGACY_FIREBASE_STORAGE_BUCKET: 'hospital-hanga-roa.firebasestorage.app',
+        })
+      )
+    ).toBeNull();
+  });
 });

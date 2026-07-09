@@ -9,7 +9,11 @@ const normalizeLegacyMode = (value: string | undefined): LegacyCompatibilityMode
     return 'disabled';
   }
 
-  return 'explicit_bridge';
+  if (normalized === 'explicit_bridge') {
+    return 'explicit_bridge';
+  }
+
+  return 'disabled';
 };
 
 export const getLegacyCompatibilityMode = (): LegacyCompatibilityMode =>

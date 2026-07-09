@@ -70,11 +70,10 @@ describe('secretLeakChecks', () => {
     );
   });
 
-  it('does not flag env-based mirror configuration guidance', () => {
+  it('does not flag env-based configuration guidance', () => {
     const failures = findSecretLeakFailuresForFile({
-      file: 'functions/lib/mirror/README.md',
-      content:
-        'Configure BETA_SERVICE_ACCOUNT_JSON or BETA_SERVICE_ACCOUNT_JSON_B64 via environment secrets.',
+      file: 'docs/RUNBOOK_SECRET_ROTATION.md',
+      content: 'Configure service account credentials via environment secrets.',
     });
 
     expect(failures).toEqual([]);

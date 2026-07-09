@@ -45,7 +45,7 @@ npm run dev -- --port 3005
 
 - `VITE_FIREBASE_*`: configuración cliente de Firebase para desarrollo local.
 - `VITE_FIREBASE_API_KEY_B64`: alternativa opcional a la API key plana.
-- `VITE_LEGACY_FIREBASE_*`: configuración opcional de solo lectura para imports/control de compatibilidad desde el proyecto legacy.
+- `VITE_LEGACY_COMPATIBILITY_MODE=disabled`: mantiene apagadas las lecturas legacy desde este repo de pruebas.
 - `VITE_FUNCTIONS_EMULATOR_HOST`, `VITE_AUTH_EMULATOR_HOST`, `VITE_FIRESTORE_EMULATOR_HOST`: solo para emuladores locales.
 - `VITE_LOCAL_GEMINI_API_KEY`: solo fallback local de CIE-10 en `localhost`.
 - `GEMINI_API_KEY`, `API_KEY`, `GMAIL_*`: uso server-side en Netlify Functions, nunca como `VITE_*`.

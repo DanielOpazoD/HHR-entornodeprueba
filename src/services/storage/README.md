@@ -79,7 +79,6 @@ Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 - Paths legacy todavía soportados para `DailyRecord`:
   - `hospitals/hanga_roa/dailyRecords/{date}`
   - `hospitals/hhr/dailyRecords/{date}`
-  - `hospitals/hospital-hanga-roa/dailyRecords/{date}`
   - `dailyRecords/{date}`
   - `records/{date}`
 

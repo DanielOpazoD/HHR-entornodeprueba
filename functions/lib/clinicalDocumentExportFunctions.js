@@ -20,7 +20,7 @@ const SPANISH_MONTH_NAMES = [
   'Noviembre',
   'Diciembre',
 ];
-const DEFAULT_PROJECT_ID = 'hhr-serviciohospitalizados';
+const DEFAULT_PROJECT_ID = 'hhr-pruebas';
 
 const resolveConfiguredProjectId = () => {
   const explicitProjectId = String(process.env.GCLOUD_PROJECT || '').trim();

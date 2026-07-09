@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/features/prescriptions/services/prescriptionStorageImageService', () => ({
   resolvePrescriptionImageDownloadUrl: vi.fn(
     async (path: string) =>
-      `https://firebasestorage.googleapis.com/v0/b/hhr-serviciohospitalizados.firebasestorage.app/o/${encodeURIComponent(path)}?alt=media&token=stub`
+      `https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/${encodeURIComponent(path)}?alt=media&token=stub`
   ),
 }));
 
@@ -116,7 +116,7 @@ describe('prescriptionMonthlyPdfService', () => {
     expect(printSpy).toHaveBeenCalled();
     expect(image).toHaveAttribute(
       'src',
-      'https://firebasestorage.googleapis.com/v0/b/hhr-serviciohospitalizados.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub'
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub'
     );
     expect(document.querySelector('.prescription-monthly-meta')?.textContent).toContain(
       '01-05-2026 a 01-05-2026'
@@ -287,7 +287,7 @@ describe('prescriptionMonthlyPdfService', () => {
     expect(result.optimizationFallbackCount).toBe(1);
     expect(image).toHaveAttribute(
       'src',
-      'https://firebasestorage.googleapis.com/v0/b/hhr-serviciohospitalizados.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-timeout%2Ffull.jpg?alt=media&token=stub'
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-timeout%2Ffull.jpg?alt=media&token=stub'
     );
     vi.useRealTimers();
   });

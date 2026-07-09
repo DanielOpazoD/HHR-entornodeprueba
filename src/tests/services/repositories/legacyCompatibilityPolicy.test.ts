@@ -10,11 +10,11 @@ describe('legacyCompatibilityPolicy', () => {
     vi.unstubAllEnvs();
   });
 
-  it('defaults to explicit bridge mode to preserve legacy Firebase reads', () => {
+  it('defaults to disabled so the testing repo does not read production Firebase', () => {
     vi.stubEnv('VITE_LEGACY_COMPATIBILITY_MODE', '');
 
-    expect(getLegacyCompatibilityMode()).toBe('explicit_bridge');
-    expect(isLegacyBridgeEnabled()).toBe(true);
+    expect(getLegacyCompatibilityMode()).toBe('disabled');
+    expect(isLegacyBridgeEnabled()).toBe(false);
     expect(shouldUseLegacyCompatibilityInHotPath()).toBe(false);
   });
 

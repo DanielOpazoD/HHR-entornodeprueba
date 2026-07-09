@@ -16,6 +16,7 @@ type LegacyFirebaseEnvKey = (typeof LEGACY_FIREBASE_ENV_KEYS)[number];
 type LegacyFirebaseEnvSource = Partial<Record<LegacyFirebaseEnvKey, string | undefined>>;
 
 const LEGACY_FIREBASE_APP_NAME = 'legacy-production';
+const BLOCKED_LEGACY_PROJECT_IDS = new Set(['hospital-hanga-roa']);
 
 const readLegacyFirebaseEnv = (): LegacyFirebaseEnvSource =>
   import.meta.env as LegacyFirebaseEnvSource;
@@ -37,10 +38,15 @@ export const resolveLegacyFirebaseConfig = (
     return null;
   }
 
+  const projectId = readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_PROJECT_ID');
+  if (BLOCKED_LEGACY_PROJECT_IDS.has(projectId)) {
+    return null;
+  }
+
   return {
     apiKey: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_API_KEY'),
     authDomain: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_AUTH_DOMAIN'),
-    projectId: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_PROJECT_ID'),
+    projectId,
     storageBucket: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_STORAGE_BUCKET'),
     messagingSenderId: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID'),
     appId: readLegacyFirebaseEnvValue(env, 'VITE_LEGACY_FIREBASE_APP_ID'),

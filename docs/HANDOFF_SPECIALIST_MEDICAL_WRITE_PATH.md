@@ -193,10 +193,10 @@ Leccion:
 Diagnostico minimo:
 
 ```bash
-npx firebase-tools functions:list --project hhr-serviciohospitalizados --non-interactive
+npx firebase-tools functions:list --project hhr-pruebas --non-interactive
 
 curl -i -X OPTIONS \
-  'https://us-central1-hhr-serviciohospitalizados.cloudfunctions.net/updateSpecialistMedicalHandoff' \
+  'https://us-central1-hhr-pruebas.cloudfunctions.net/updateSpecialistMedicalHandoff' \
   -H 'Origin: http://localhost:3020' \
   -H 'Access-Control-Request-Method: POST' \
   -H 'Access-Control-Request-Headers: authorization,content-type'
@@ -214,7 +214,7 @@ Despliegue minimo cuando falta solo esta callable:
 ```bash
 npx firebase-tools deploy \
   --only functions:updateSpecialistMedicalHandoff \
-  --project hhr-serviciohospitalizados \
+  --project hhr-pruebas \
   --non-interactive
 ```
 

@@ -38,7 +38,7 @@ describe('prescription-image-proxy', () => {
   it('resizes a signed Firebase Storage prescription image with explicit width and quality', async () => {
     const handler = await loadHandler();
     const sourceUrl =
-      'https://firebasestorage.googleapis.com/v0/b/hhr-serviciohospitalizados.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub';
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub';
 
     const response = (await handler({
       httpMethod: 'GET',
@@ -92,7 +92,7 @@ describe('prescription-image-proxy', () => {
     transformImageMock.mockRejectedValueOnce(new Error('sharp native runtime unavailable'));
     const handler = await loadHandler();
     const sourceUrl =
-      'https://firebasestorage.googleapis.com/v0/b/hhr-serviciohospitalizados.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub';
+      'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fhhr%2Frx-1%2Ffull.jpg?alt=media&token=stub';
 
     const response = (await handler({
       httpMethod: 'GET',

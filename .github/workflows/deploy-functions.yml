@@ -4,7 +4,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # Deploys the Firebase Cloud Functions in `functions/` to the
-# `hhr-serviciohospitalizados` project on every push to `main` that touches
+# `hhr-pruebas` project on every push to `main` that touches
 # function-relevant code. Manual `workflow_dispatch` is also available for
 # emergency redeploys without a code change.
 #
@@ -12,7 +12,7 @@ env:
 # Required GitHub repo secret
 # ----------------------------------------------------------------------------
 # `FIREBASE_SERVICE_ACCOUNT_HHR` — full JSON of a Google Cloud service account
-# with at least these IAM roles on `hhr-serviciohospitalizados`:
+# with at least these IAM roles on `hhr-pruebas`:
 #   - Cloud Functions Developer (roles/cloudfunctions.developer)
 #   - Service Account User      (roles/iam.serviceAccountUser)
 #   - Firebase Admin SDK Administrator Service Agent
@@ -77,6 +77,39 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase/service-account.json"
           chmod 600 "$RUNNER_TEMP/firebase/service-account.json"
 
+      - name: Delete retired mirror functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+        run: |
+          set -euo pipefail
+          RETIRED_FUNCTIONS=(
+            mirrorDailyRecords
+            mirrorAuditLogs
+            mirrorSettings
+            mirrorTransferRequests
+            mirrorClinicalDocuments
+          )
+
+          for function_name in "${RETIRED_FUNCTIONS[@]}"; do
+            echo "Deleting retired Firebase function if present: ${function_name}"
+            set +e
+            output="$(npx --yes firebase-tools@latest functions:delete "${function_name}" \
+              --project hhr-pruebas \
+              --non-interactive \
+              --force 2>&1)"
+            status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              if echo "$output" | grep -Eiq 'not found|does not exist|no function'; then
+                echo "Retired Firebase function was already absent: ${function_name}"
+              else
+                echo "$output"
+                exit "$status"
+              fi
+            fi
+          done
+
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
@@ -85,7 +118,7 @@ jobs:
           echo "Deploying Firebase function targets: ${FUNCTION_TARGETS}"
           npx --yes firebase-tools@latest deploy \
             --only "${FUNCTION_TARGETS}" \
-            --project hhr-serviciohospitalizados \
+            --project hhr-pruebas \
             --non-interactive \
             --force
 

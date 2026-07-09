@@ -1,5 +1,4 @@
-const { admin, dbBeta, HOSPITAL_CAPACITY } = require('./lib/appContext');
-const { createMirrorFunctions } = require('./lib/mirrorFunctions');
+const { admin, HOSPITAL_CAPACITY } = require('./lib/appContext');
 const { createAuthHelpers, createAuthFunctions } = require('./lib/authFunctions');
 const { createMinsalFunctions } = require('./lib/minsalFunctions');
 const { createHandoffSignatureFunctions } = require('./lib/handoffSignatureFunctions');
@@ -19,7 +18,6 @@ const { createPrescriptionAccessFunctions } = require('./lib/prescriptionAccessF
 const authHelpers = createAuthHelpers(admin);
 
 module.exports = {
-  ...createMirrorFunctions({ dbBeta, admin }),
   ...createMinsalFunctions({
     admin,
     hospitalCapacity: HOSPITAL_CAPACITY,

@@ -66,7 +66,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
     delete process.env.GCLOUD_PROJECT;
     process.env.FIREBASE_CONFIG = '{invalid-json';
 
-    expect(resolveConfiguredProjectId()).toBe('hhr-serviciohospitalizados');
+    expect(resolveConfiguredProjectId()).toBe('hhr-pruebas');
   });
 
   it('rejects unauthenticated calls', async () => {

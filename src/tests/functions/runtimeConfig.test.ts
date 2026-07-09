@@ -33,13 +33,13 @@ describe('functions runtimeConfig', () => {
     restoreEnv('STORAGE_BUCKET', originalStorageBucket);
   });
 
-  it('falls back to the official Firebase project when runtime project env is absent', () => {
+  it('falls back to the testing Firebase project when runtime project env is absent', () => {
     delete process.env.GCLOUD_PROJECT;
     delete process.env.GOOGLE_CLOUD_PROJECT;
     delete process.env.GCP_PROJECT;
     delete process.env.FIREBASE_CONFIG;
 
-    expect(resolveFirebaseProjectId()).toBe('hhr-serviciohospitalizados');
+    expect(resolveFirebaseProjectId()).toBe('hhr-pruebas');
   });
 
   it('sets GCLOUD_PROJECT and FIREBASE_CONFIG for Firebase Functions v1 triggers', () => {
@@ -48,11 +48,11 @@ describe('functions runtimeConfig', () => {
     delete process.env.GCP_PROJECT;
     delete process.env.FIREBASE_CONFIG;
 
-    expect(ensureFirebaseProjectRuntimeEnv()).toBe('hhr-serviciohospitalizados');
-    expect(process.env.GCLOUD_PROJECT).toBe('hhr-serviciohospitalizados');
+    expect(ensureFirebaseProjectRuntimeEnv()).toBe('hhr-pruebas');
+    expect(process.env.GCLOUD_PROJECT).toBe('hhr-pruebas');
     expect(JSON.parse(process.env.FIREBASE_CONFIG || '{}')).toMatchObject({
-      projectId: 'hhr-serviciohospitalizados',
-      storageBucket: 'hhr-serviciohospitalizados.firebasestorage.app',
+      projectId: 'hhr-pruebas',
+      storageBucket: 'hhr-pruebas.firebasestorage.app',
     });
   });
 
