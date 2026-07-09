@@ -38,8 +38,10 @@ describe('legacyFirebaseRecordService missing-date cache', () => {
     await getLegacyRecord('2026-02-20');
     await getLegacyRecord('2026-02-20');
 
-    // First call explores known fallback paths, second call should be served by cache.
-    expect(getDocMock).toHaveBeenCalledTimes(5);
+    // First call explores the known fallback paths (LEGACY_RECORD_DOC_PATHS, 4 entries
+    // after the isolation commit dropped the hospital-hanga-roa path); the second call is
+    // served entirely by the missing-date cache and issues no further getDoc probes.
+    expect(getDocMock).toHaveBeenCalledTimes(4);
   });
 
   it('blocks subsequent legacy reads after permission denied on first probe', async () => {

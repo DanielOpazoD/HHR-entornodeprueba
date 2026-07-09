@@ -4,7 +4,7 @@ vi.unmock('@/services/repositories/dailyRecordRepositoryInitializationService');
 vi.unmock('@/services/repositories/dailyRecordRepositorySyncService');
 vi.unmock('@/services/repositories/CatalogRepository');
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import {
   bridgeLegacyRecordForDate,
@@ -218,6 +218,12 @@ describe('DailyRecordRepository reads', () => {
     );
   });
 
+  afterEach(() => {
+    // Some tests opt into legacy-bridge mode via stubEnv; keep the disabled default
+    // (post Firebase-isolation) intact for every other test in this file.
+    vi.unstubAllEnvs();
+  });
+
   it('returns from IndexedDB if available', async () => {
     vi.mocked(idbService.getRecordForDate).mockResolvedValue(mockRecord);
     const result = await Repository.getForDate(mockDate);
@@ -322,6 +328,9 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('bridges legacy data only through the explicit bridge API', async () => {
+    // The legacy bridge defaults to disabled so the testing repo never reads production
+    // Firebase implicitly; this test explicitly opts into the bridge to exercise it.
+    vi.stubEnv('VITE_LEGACY_COMPATIBILITY_MODE', 'explicit_bridge');
     vi.mocked(legacyRecordBridge.getLegacyRecord).mockResolvedValueOnce(mockRecord);
 
     const result = await Repository.bridgeLegacyRecord(mockDate);
