@@ -10,8 +10,7 @@
 
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS } from '@/constants/beds';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/types/domain/patient';
+import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 

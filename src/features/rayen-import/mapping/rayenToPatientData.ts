@@ -7,7 +7,7 @@
 
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { UTI_BEDS } from '@/constants/beds';
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 

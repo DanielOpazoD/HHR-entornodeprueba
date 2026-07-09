@@ -7,8 +7,7 @@
  * PLAN-SINCRONIZACION.md §4 for the reconciliation rules.
  */
 
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/types/domain/patient';
+import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff, DischargeEntry, FieldChange } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';

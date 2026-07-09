@@ -11,7 +11,8 @@
         "src/application/shared/dailyRecordCoreContracts.ts",
         "src/features/admin/contracts/publicMedicalSignatureContracts.ts",
         "src/features/analytics/contracts/analyticsDailyRecordContracts.ts",
-        "src/features/census/contracts/censusRecordContracts.ts"
+        "src/features/census/contracts/censusRecordContracts.ts",
+        "src/features/rayen-import/contracts/rayenDomainContracts.ts"
       ]
     },
     {
@@ -21,6 +22,7 @@
         "src/features/census/contracts/censusObstetricContracts.ts",
         "src/features/census/contracts/censusPatientContracts.ts",
         "src/features/cudyr/contracts/cudyrPatientContracts.ts",
+        "src/features/rayen-import/contracts/rayenDomainContracts.ts",
         "src/shared/contracts/patientDomainContracts.ts",
         "src/shared/census/patientContracts.ts"
       ]

@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useSaveDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';

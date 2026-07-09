@@ -6,7 +6,7 @@
  * it does not persist anything.
  */
 
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientData } from './rayenDomainContracts';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
 

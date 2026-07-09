@@ -6,7 +6,7 @@
  * DailyRecord repository + CensusManager) is Phase 2.
  */
 
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot } from './contracts/rayenSnapshot';
 import type { CensusImportDiff } from './contracts/censusImportDiff';
 import { reconcileCensus } from './domain/reconcileCensus';
