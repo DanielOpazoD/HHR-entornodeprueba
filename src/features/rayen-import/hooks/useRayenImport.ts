@@ -13,6 +13,7 @@ import { useSaveDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
+import { requiresReview } from '../domain/reconcileCensus';
 import { subscribeToRayenSnapshots } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -60,7 +61,8 @@ export const useRayenImport = () => {
         return;
       }
       const { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
-      const canAutoApply = mode === 'auto' && diff.conflicts.length === 0;
+      const needsReview = requiresReview(diff);
+      const canAutoApply = mode === 'auto' && !needsReview;
 
       if (canAutoApply) {
         setState({ diff, isPreviewOpen: false, isBusy: true, result: null, error: null });
@@ -76,8 +78,8 @@ export const useRayenImport = () => {
         isBusy: false,
         result: null,
         error:
-          mode === 'auto' && diff.conflicts.length > 0
-            ? 'Hay conflictos: el modo automático requiere revisión manual.'
+          mode === 'auto' && needsReview
+            ? 'El modo automático requiere revisión: hay conflictos o egresos inferidos por ausencia en Rayen.'
             : null,
       });
     },

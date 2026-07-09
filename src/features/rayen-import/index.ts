@@ -34,7 +34,7 @@ export {
 } from './mapping/rayenToPatientData';
 
 export type { ReconcileOptions } from './domain/reconcileCensus';
-export { reconcileCensus } from './domain/reconcileCensus';
+export { reconcileCensus, requiresReview } from './domain/reconcileCensus';
 
 export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusImportDiff';
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';

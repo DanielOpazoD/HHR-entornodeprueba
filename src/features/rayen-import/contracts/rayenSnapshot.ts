@@ -50,7 +50,7 @@ export interface RayenEncounter {
   isGes?: boolean;
 }
 
-/** A full census snapshot captured from Rayen at a point in time. */
+/** A census snapshot captured from Rayen at a point in time. */
 export interface RayenCensusSnapshot {
   /** ISO timestamp when the snapshot was captured by the extension. */
   capturedAt: string;
@@ -58,4 +58,12 @@ export interface RayenCensusSnapshot {
   facilityId: number;
   /** All admitted encounters (real service + CMA virtual service). */
   encounters: RayenEncounter[];
+  /**
+   * True ONLY when this snapshot is the FULL active census (every service/ward).
+   * A patient present in the HHR census but absent here can be inferred as discharged
+   * only when this is `true`. Omitted / `false` is treated conservatively (partial):
+   * absent patients are left untouched, never auto-discharged. The extension MUST set
+   * this to `true` only after assembling the complete census.
+   */
+  isComplete?: boolean;
 }

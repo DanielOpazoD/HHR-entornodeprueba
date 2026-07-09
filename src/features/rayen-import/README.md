@@ -11,8 +11,18 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 ## Modos de sincronización
 
 - **`preview` (default, SIEMPRE seguro):** muestra el diff en un modal y requiere confirmación.
-- **`auto` (EXPERIMENTAL):** aplica el diff sin confirmación; si hay **conflictos**, cae al preview
-  para revisión manual. El admin elige el modo en Configuración → Integraciones (localStorage).
+- **`auto` (EXPERIMENTAL):** aplica el diff sin confirmación, **pero cae al preview** si hay algo que
+  requiere revisión — conflictos o **egresos inferidos** (`missing-in-rayen`). Gate: `requiresReview(diff)`.
+  El admin elige el modo en Configuración → Integraciones (localStorage).
+
+## Seguridad clínica
+
+- **Egresos inferidos solo con censo completo:** un paciente ausente del snapshot se marca como egreso
+  (`missing-in-rayen`) **únicamente** si `snapshot.isComplete === true`. Un snapshot parcial nunca implica
+  altas por ausencia — la extensión debe fijar `isComplete` solo tras armar el censo completo.
+- **El modo automático nunca aplica un egreso inferido sin revisión** (ver `requiresReview`).
+- **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test
+  `producedRecordValidity.test.ts`), así el `save` no es rechazado por validación ni por reglas Firestore.
 
 ## Estructura
 
@@ -58,8 +68,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 ## Tests
 
-- `src/tests/rayen-import/*.test.ts` (Vitest, 38): mapeo de camas, mapeo de paciente, egreso,
-  reconciliación, **apply**, setting de modo y validación del puente.
+- `src/tests/rayen-import/*.test.ts` (Vitest, 44): mapeo de camas, mapeo de paciente, egreso,
+  reconciliación, `requiresReview`, **apply**, validación del registro producido (Zod del HHR),
+  setting de modo y validación del puente.
 
 ## Pendiente
 

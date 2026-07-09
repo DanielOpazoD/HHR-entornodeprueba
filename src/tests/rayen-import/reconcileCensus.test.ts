@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   reconcileCensus,
+  requiresReview,
   rayenToPatientData,
   type RayenCensusSnapshot,
   type RayenEncounter,
@@ -35,10 +36,11 @@ const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter 
   ...overrides,
 });
 
-const snapshotOf = (encounters: RayenEncounter[]): RayenCensusSnapshot => ({
+const snapshotOf = (encounters: RayenEncounter[], isComplete = false): RayenCensusSnapshot => ({
   capturedAt: '2026-07-08T20:00:00-06:00',
   facilityId: 1342,
   encounters,
+  isComplete,
 });
 
 /** Seed a current bed from the same mapping the reconciler uses (so it starts "unchanged"). */
@@ -119,13 +121,21 @@ describe('reconcileCensus', () => {
     expect(diff.discharges[0]).toMatchObject({ kind: 'cma', bedId: 'R1' });
   });
 
-  it('flags a census patient absent from the snapshot as missing-in-rayen', () => {
+  it('flags a census patient absent from a COMPLETE snapshot as missing-in-rayen', () => {
     const [bedId, patient] = seedBed(makeEncounter());
-    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([]), {
+    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
       reference: REFERENCE,
     });
     expect(diff.discharges).toHaveLength(1);
     expect(diff.discharges[0].reason).toBe('missing-in-rayen');
+  });
+
+  it('NEVER infers a discharge from a partial snapshot (isComplete omitted/false)', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([]), {
+      reference: REFERENCE,
+    });
+    expect(diff.discharges).toHaveLength(0);
   });
 
   it('reports a conflict when a new Rayen patient targets an occupied bed', () => {
@@ -153,5 +163,48 @@ describe('reconcileCensus', () => {
     );
     expect(diff.conflicts).toHaveLength(1);
     expect(diff.conflicts[0].bedId).toBeNull();
+  });
+});
+
+describe('requiresReview (auto-mode safety gate)', () => {
+  it('is false for a clean diff (only admissions)', () => {
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([makeEncounter()]), {
+      reference: REFERENCE,
+    });
+    expect(requiresReview(diff)).toBe(false);
+  });
+
+  it('is true when there are conflicts', () => {
+    const occupant: PatientData = {
+      ...EMPTY_PATIENT,
+      bedId: 'H1C2',
+      patientName: 'Otro',
+      rut: '9.999.999-9',
+      clinicalEpisodeId: 'OTHER',
+    };
+    const diff = reconcileCensus(
+      makeRecord({ H1C2: occupant }),
+      snapshotOf([makeEncounter({ encounterId: 'NEW', run: '111111111' })]),
+      { reference: REFERENCE }
+    );
+    expect(requiresReview(diff)).toBe(true);
+  });
+
+  it('is true when there are inferred (missing-in-rayen) discharges', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
+      reference: REFERENCE,
+    });
+    expect(requiresReview(diff)).toBe(true);
+  });
+
+  it('is false for a Rayen-confirmed discharge (no inference needed)', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = reconcileCensus(
+      makeRecord({ [bedId]: patient }),
+      snapshotOf([makeEncounter({ hasMedicalDischarge: true })], true),
+      { reference: REFERENCE }
+    );
+    expect(requiresReview(diff)).toBe(false);
   });
 });

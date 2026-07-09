@@ -196,19 +196,23 @@ export const reconcileCensus = (
   }
 
   // ---- Current patients absent from the snapshot → discharge candidates (review) ----
-  for (const bedId of occupiedBedIds) {
-    if (consumedBedIds.has(bedId)) continue;
-    const patient = current.beds[bedId];
-    if (!isOccupied(patient)) continue;
-    const entry: DischargeEntry = {
-      bedId,
-      rut: patient.rut,
-      patientName: patient.patientName,
-      kind: 'alta',
-      status: 'Vivo',
-      reason: 'missing-in-rayen',
-    };
-    diff.discharges.push(entry);
+  // Only inferred when the snapshot is the FULL census; a partial snapshot must never
+  // imply that an unseen patient was discharged (clinical safety).
+  if (snapshot.isComplete === true) {
+    for (const bedId of occupiedBedIds) {
+      if (consumedBedIds.has(bedId)) continue;
+      const patient = current.beds[bedId];
+      if (!isOccupied(patient)) continue;
+      const entry: DischargeEntry = {
+        bedId,
+        rut: patient.rut,
+        patientName: patient.patientName,
+        kind: 'alta',
+        status: 'Vivo',
+        reason: 'missing-in-rayen',
+      };
+      diff.discharges.push(entry);
+    }
   }
 
   diff.summary = {
@@ -222,3 +226,13 @@ export const reconcileCensus = (
 
   return diff;
 };
+
+/**
+ * True when a diff contains items a human must resolve before it is safe to apply
+ * without review: conflicts, or discharges *inferred* from a patient's absence
+ * (`missing-in-rayen`) rather than confirmed by Rayen. The experimental auto mode
+ * must fall back to preview when this returns true.
+ */
+export const requiresReview = (diff: CensusImportDiff): boolean =>
+  diff.conflicts.length > 0 ||
+  diff.discharges.some(discharge => discharge.reason === 'missing-in-rayen');
