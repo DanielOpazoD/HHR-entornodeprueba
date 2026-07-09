@@ -20,6 +20,10 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/census/controllers/patientMovementSelectionController.ts',
   'src/features/census/controllers/patientMovementUndoController.ts',
   'src/features/census/controllers/censusCmaController.ts',
+  // Rayen census import builds discharge/transfer movements that carry the pre-movement
+  // patient snapshot in originalData for the undo/audit machinery, same as the movement
+  // controllers above.
+  'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
   'src/types/virtual-minsal-shared.d.ts',
