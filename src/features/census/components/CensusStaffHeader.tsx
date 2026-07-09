@@ -16,6 +16,7 @@ import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
+import { RayenImportButton } from '@/features/rayen-import';
 
 interface CensusStaffHeaderProps {
   readOnly?: boolean;
@@ -90,6 +91,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           newAdmissions={readModel.movementSummaryState.admissionsCount}
         />
       )}
+
+      {!readOnly && !readModel.specialistAccess && <RayenImportButton />}
 
       <ConflictVersionsAdminControl
         date={dailyRecordData.record?.date}
