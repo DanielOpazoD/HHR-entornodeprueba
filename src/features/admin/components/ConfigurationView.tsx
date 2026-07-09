@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useRef, useState } from 'react';
 import {
   Bot,
   FileText,
+  RefreshCw,
   Settings2,
   Shield,
   ShieldCheck,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
+import { RayenImportModeSetting } from '@/features/rayen-import';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
@@ -34,7 +36,8 @@ type ConfigurationTab =
   | 'SECURITY'
   | 'ROLES'
   | 'CLINICAL_TEMPLATES'
-  | 'AI_PROVIDERS';
+  | 'AI_PROVIDERS'
+  | 'INTEGRATIONS';
 
 // Configuration view — admin-only page grouping BOTH user preferences (formerly
 // "Preferencias" modal: visual, table, security) AND system administration
@@ -120,6 +123,12 @@ export const ConfigurationView: React.FC = () => {
       icon: FileText,
       color: 'text-emerald-400',
     },
+    {
+      id: 'INTEGRATIONS',
+      label: 'Integraciones',
+      icon: RefreshCw,
+      color: 'text-teal-400',
+    },
   ];
 
   return (
@@ -176,6 +185,11 @@ export const ConfigurationView: React.FC = () => {
         {activeTab === 'SECURITY' && <SettingsSecurityTab />}
         {activeTab === 'ROLES' && <RoleManagementView />}
         {activeTab === 'AI_PROVIDERS' && <ClinicalAIProviderRoutingPanel />}
+        {activeTab === 'INTEGRATIONS' && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <RayenImportModeSetting />
+          </div>
+        )}
         {activeTab === 'CLINICAL_TEMPLATES' && (
           <Suspense
             fallback={

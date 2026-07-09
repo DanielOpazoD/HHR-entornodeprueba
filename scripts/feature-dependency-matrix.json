@@ -1,15 +1,16 @@
 {
   "features": {
-    "admin": ["backup", "clinical-documents", "handoff", "reminders", "whatsapp"],
+    "admin": ["backup", "clinical-documents", "handoff", "rayen-import", "reminders", "whatsapp"],
     "analytics": [],
     "auth": [],
     "backup": [],
-    "census": ["analytics", "clinical-documents", "wound-care"],
+    "census": ["analytics", "clinical-documents", "rayen-import", "wound-care"],
     "clinical-documents": ["laboratory"],
     "cudyr": [],
     "handoff": ["cudyr", "wound-care"],
     "laboratory": [],
     "prescriptions": [],
+    "rayen-import": [],
     "reminders": [],
     "transfers": [],
     "whatsapp": [],
