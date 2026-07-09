@@ -21,7 +21,7 @@ const dischargeKindLabel: Record<string, string> = {
 interface ChipProps {
   label: string;
   value: number;
-  tone: 'green' | 'blue' | 'amber' | 'gray' | 'red' | 'teal';
+  tone: 'green' | 'blue' | 'amber' | 'gray' | 'red' | 'teal' | 'indigo';
 }
 
 const TONES: Record<ChipProps['tone'], string> = {
@@ -31,6 +31,7 @@ const TONES: Record<ChipProps['tone'], string> = {
   gray: 'bg-gray-100 text-gray-700',
   red: 'bg-red-100 text-red-800',
   teal: 'bg-teal-100 text-teal-800',
+  indigo: 'bg-indigo-100 text-indigo-800',
 };
 
 const Chip: React.FC<ChipProps> = ({ label, value, tone }) => (
@@ -93,6 +94,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               <Chip label="Actualizaciones" value={diff.summary.updates} tone="blue" />
               <Chip label="Movimientos de cama" value={diff.summary.moves} tone="teal" />
               <Chip label="Egresos" value={diff.summary.discharges} tone="amber" />
+              <Chip
+                label="Pend. alta enfermería"
+                value={diff.summary.pendingNursingDischarges}
+                tone="indigo"
+              />
               <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
               {diff.summary.conflicts > 0 && (
                 <Chip label="Conflictos" value={diff.summary.conflicts} tone="red" />
@@ -138,6 +144,26 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   )}
                   {entry.reason === 'missing-in-rayen' && (
                     <span className="ml-1 text-amber-600">(ausente en Rayen — revisar)</span>
+                  )}
+                </li>
+              ))}
+            </Section>
+
+            <Section
+              title="Pendientes de alta de enfermería (se mantienen en cama)"
+              count={diff.pendingNursingDischarges.length}
+            >
+              {diff.pendingNursingDischarges.map(entry => (
+                <li key={`pnd-${entry.bedId}-${entry.rut}`}>
+                  <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
+                  <span className="text-gray-500">alta médica</span>
+                  {entry.kind !== 'alta' && (
+                    <span className="ml-1 text-teal-600">
+                      ({dischargeKindLabel[entry.kind] ?? entry.kind})
+                    </span>
+                  )}
+                  {entry.status === 'Fallecido' && (
+                    <span className="ml-1 text-red-600">(Fallecido)</span>
                   )}
                 </li>
               ))}

@@ -60,6 +60,26 @@ const planAndApply = (current: DailyRecord, snapshot: RayenCensusSnapshot) => {
   return applyCensusImportDiff(current, diff, makeCtx());
 };
 
+const makeDiff = (over: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
+  admissions: [],
+  updates: [],
+  moves: [],
+  discharges: [],
+  pendingNursingDischarges: [],
+  conflicts: [],
+  unchangedCount: 0,
+  summary: {
+    admissions: 0,
+    updates: 0,
+    moves: 0,
+    discharges: 0,
+    pendingNursingDischarges: 0,
+    conflicts: 0,
+    unchanged: 0,
+  },
+  ...over,
+});
+
 describe('applyCensusImportDiff', () => {
   it('applies an admission into a free bed', () => {
     const result = planAndApply(makeRecord({}), snapshotOf([makeEncounter()]));
@@ -91,12 +111,33 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds.H2C1).toBeUndefined();
   });
 
-  it('applies a regular discharge to discharges[]', () => {
+  it('keeps a medically-discharged patient in the bed until nursing discharge', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const result = planAndApply(
       makeRecord({ [bedId]: patient }),
       snapshotOf([makeEncounter({ hasMedicalDischarge: true })])
     );
+    // Alta médica does not vacate the bed; the nurse finalizes the discharge in HHR.
+    expect(result.record.beds[bedId]?.patientName).toBe('Ana Perez');
+    expect(result.record.discharges).toHaveLength(0);
+    expect(result.record.cma).toHaveLength(0);
+  });
+
+  it('applies a discharge entry to discharges[] and vacates the bed', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = makeDiff({
+      discharges: [
+        {
+          bedId,
+          rut: patient.rut,
+          patientName: patient.patientName,
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'missing-in-rayen',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({ [bedId]: patient }), diff, makeCtx());
     expect(result.record.beds[bedId]).toBeUndefined();
     expect(result.record.discharges).toHaveLength(1);
     expect(result.record.discharges[0]).toMatchObject({
@@ -108,7 +149,7 @@ describe('applyCensusImportDiff', () => {
     });
   });
 
-  it('applies a CMA discharge to cma[]', () => {
+  it('applies a CMA discharge entry to cma[]', () => {
     const cmaEncounter = makeEncounter({
       encounterId: 'ECMA',
       service: 'Área quirúrgica indiferenciada',
@@ -116,10 +157,20 @@ describe('applyCensusImportDiff', () => {
       bed: 'CMAR1',
     });
     const [bedId, patient] = seedBed(cmaEncounter);
-    const result = planAndApply(
-      makeRecord({ [bedId]: patient }),
-      snapshotOf([{ ...cmaEncounter, hasMedicalDischarge: true }])
-    );
+    const diff = makeDiff({
+      discharges: [
+        {
+          bedId,
+          rut: patient.rut,
+          patientName: patient.patientName,
+          kind: 'cma',
+          status: 'Vivo',
+          reason: 'rayen-discharge',
+          source: cmaEncounter,
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({ [bedId]: patient }), diff, makeCtx());
     expect(result.record.beds[bedId]).toBeUndefined();
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.cma).toHaveLength(1);
@@ -137,7 +188,7 @@ describe('applyCensusImportDiff', () => {
       patientName: 'Ocupante',
       rut: '9.999.999-9',
     };
-    const diff: CensusImportDiff = {
+    const diff = makeDiff({
       admissions: [
         {
           bedId: 'H1C2',
@@ -146,13 +197,16 @@ describe('applyCensusImportDiff', () => {
           source: makeEncounter({ encounterId: 'NEW' }),
         },
       ],
-      updates: [],
-      moves: [],
-      discharges: [],
-      conflicts: [],
-      unchangedCount: 0,
-      summary: { admissions: 1, updates: 0, moves: 0, discharges: 0, conflicts: 0, unchanged: 0 },
-    };
+      summary: {
+        admissions: 1,
+        updates: 0,
+        moves: 0,
+        discharges: 0,
+        pendingNursingDischarges: 0,
+        conflicts: 0,
+        unchanged: 0,
+      },
+    });
     const result = applyCensusImportDiff(makeRecord({ H1C2: occupant }), diff, makeCtx());
     expect(result.applied.admissions).toBe(0);
     expect(result.skipped).toEqual([{ kind: 'admission', bedId: 'H1C2', reason: 'Cama ocupada.' }]);

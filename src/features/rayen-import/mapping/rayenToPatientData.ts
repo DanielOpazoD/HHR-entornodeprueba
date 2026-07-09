@@ -51,6 +51,18 @@ export const cleanDiagnosis = (diagnosis?: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/**
+ * Normalize a person name to "primera letra mayúscula, resto minúscula" per word
+ * ("JUAN PÉREZ" or "juan pérez" → "Juan Pérez"). Rayen commonly returns names in
+ * uppercase. Capitalizes the first letter after a space, hyphen or apostrophe, and is
+ * accent-aware (á → Á).
+ */
+export const toTitleCaseName = (value?: string): string =>
+  (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/(^|[\s'’-])(\p{L})/gu, (_match, sep: string, ch: string) => sep + ch.toUpperCase());
+
 /** Extract "HH:MM" from an ISO datetime, if present. */
 export const extractTime = (isoDatetime?: string): string => {
   if (!isoDatetime) return '';
@@ -78,14 +90,12 @@ export const rayenToPatientData = (
     service: encounter.service,
   });
 
-  const givenNames = [encounter.firstGivenName, encounter.nextGivenNames]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-  const fullName = [givenNames, encounter.firstFamilyName, encounter.secondFamilyName]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
+  const givenNames = toTitleCaseName(
+    [encounter.firstGivenName, encounter.nextGivenNames].filter(Boolean).join(' ')
+  );
+  const firstFamily = toTitleCaseName(encounter.firstFamilyName);
+  const secondFamily = toTitleCaseName(encounter.secondFamilyName);
+  const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();
 
   const patient: PatientData = {
     ...EMPTY_PATIENT,
@@ -94,8 +104,8 @@ export const rayenToPatientData = (
     rut: formatRun(encounter.run),
     patientName: fullName,
     firstName: givenNames,
-    lastName: encounter.firstFamilyName ?? '',
-    secondLastName: encounter.secondFamilyName ?? '',
+    lastName: firstFamily,
+    secondLastName: secondFamily,
     birthDate: toIsoDate(encounter.birthDate),
     age: ageFromBirthDate(encounter.birthDate, reference),
     biologicalSex: mapBiologicalSex(encounter.administrativeSex, encounter.gender),

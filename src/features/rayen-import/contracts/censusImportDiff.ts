@@ -59,6 +59,22 @@ export interface DischargeEntry {
   source?: RayenEncounter;
 }
 
+/**
+ * A patient with a Rayen medical discharge (alta médica) who is KEPT in their HHR bed.
+ * The nurse's discharge in HHR (alta de enfermería) is the sole event that finalizes a
+ * departure, so the sync never vacates the bed for a medical discharge — it only reports
+ * the pending state so the nurse knows to complete the discharge in HHR.
+ */
+export interface PendingNursingDischargeEntry {
+  bedId: string;
+  rut: string;
+  patientName: string;
+  /** How the eventual HHR discharge would be classified (alta | traslado | cma). */
+  kind: DischargeKind;
+  status: 'Vivo' | 'Fallecido';
+  source: RayenEncounter;
+}
+
 /** Something that cannot be applied automatically and needs human resolution. */
 export interface ConflictEntry {
   bedId: string | null;
@@ -73,6 +89,7 @@ export interface CensusImportSummary {
   updates: number;
   moves: number;
   discharges: number;
+  pendingNursingDischarges: number;
   conflicts: number;
   unchanged: number;
 }
@@ -82,6 +99,8 @@ export interface CensusImportDiff {
   updates: UpdateEntry[];
   moves: MoveEntry[];
   discharges: DischargeEntry[];
+  /** Medical discharges kept in the bed until the nurse completes the discharge in HHR. */
+  pendingNursingDischarges: PendingNursingDischargeEntry[];
   conflicts: ConflictEntry[];
   unchangedCount: number;
   summary: CensusImportSummary;

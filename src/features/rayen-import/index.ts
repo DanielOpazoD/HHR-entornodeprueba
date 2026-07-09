@@ -13,6 +13,7 @@ export type {
   UpdateEntry,
   MoveEntry,
   DischargeEntry,
+  PendingNursingDischargeEntry,
   ConflictEntry,
   CensusImportSummary,
   CensusImportDiff,
@@ -31,6 +32,7 @@ export {
   ageFromBirthDate,
   mapBiologicalSex,
   cleanDiagnosis,
+  toTitleCaseName,
 } from './mapping/rayenToPatientData';
 
 export type { ReconcileOptions } from './domain/reconcileCensus';

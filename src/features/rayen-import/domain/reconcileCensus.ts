@@ -88,9 +88,18 @@ export const reconcileCensus = (
     updates: [],
     moves: [],
     discharges: [],
+    pendingNursingDischarges: [],
     conflicts: [],
     unchangedCount: 0,
-    summary: { admissions: 0, updates: 0, moves: 0, discharges: 0, conflicts: 0, unchanged: 0 },
+    summary: {
+      admissions: 0,
+      updates: 0,
+      moves: 0,
+      discharges: 0,
+      pendingNursingDischarges: 0,
+      conflicts: 0,
+      unchanged: 0,
+    },
   };
 
   // Current beds consumed by a matched Rayen encounter (so they are not later treated as
@@ -177,20 +186,23 @@ export const reconcileCensus = (
     diff.admissions.push({ bedId, patient, isCma, source: encounter });
   }
 
-  // ---- Discharged encounters → discharge entries for matched patients ----
+  // ---- Medically-discharged encounters → KEEP the patient in the bed ----
+  // A Rayen medical discharge (alta médica) does NOT vacate the HHR bed: the nurse's
+  // discharge in HHR (alta de enfermería) is the sole event that finalizes the departure.
+  // We surface the pending state and consume the bed so it is not later mistaken for a
+  // patient "missing in Rayen".
   for (const encounter of discharged) {
     const match = findCurrent(encounter);
     if (!match || consumedBedIds.has(match.bedId)) continue;
     consumedBedIds.add(match.bedId);
     const { isCma } = rayenToPatientData(encounter, reference);
     const intent = resolveDischargeIntent(encounter, isCma);
-    diff.discharges.push({
+    diff.pendingNursingDischarges.push({
       bedId: match.bedId,
       rut: match.patient.rut,
       patientName: match.patient.patientName,
       kind: intent.kind,
       status: intent.status,
-      reason: 'rayen-discharge',
       source: encounter,
     });
   }
@@ -220,6 +232,7 @@ export const reconcileCensus = (
     updates: diff.updates.length,
     moves: diff.moves.length,
     discharges: diff.discharges.length,
+    pendingNursingDischarges: diff.pendingNursingDischarges.length,
     conflicts: diff.conflicts.length,
     unchanged: diff.unchangedCount,
   };

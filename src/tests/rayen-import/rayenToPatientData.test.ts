@@ -5,6 +5,7 @@ import {
   mapBiologicalSex,
   cleanDiagnosis,
   rayenToPatientData,
+  toTitleCaseName,
   type RayenEncounter,
 } from '@/features/rayen-import';
 
@@ -51,6 +52,12 @@ describe('helpers', () => {
       'Pielonefritis Aguda'
     );
   });
+
+  it('toTitleCaseName capitalizes each word regardless of input casing', () => {
+    expect(toTitleCaseName('JUAN PÉREZ')).toBe('Juan Pérez');
+    expect(toTitleCaseName('maría-josé del pino')).toBe('María-José Del Pino');
+    expect(toTitleCaseName(undefined)).toBe('');
+  });
 });
 
 describe('rayenToPatientData', () => {
@@ -72,6 +79,21 @@ describe('rayenToPatientData', () => {
     expect(patient.admissionTime).toBe('14:19');
     expect(patient.pathology).toBe('Problemas relacionados con otras circunstancias legales');
     expect(patient.isUPC).toBe(false);
+  });
+
+  it('normalizes names to Title Case regardless of the casing Rayen returns', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        firstGivenName: 'JUAN CARLOS',
+        firstFamilyName: 'DE LA FUENTE',
+        secondFamilyName: ' ÑIREHUAO',
+      }),
+      REFERENCE
+    );
+    expect(patient.firstName).toBe('Juan Carlos');
+    expect(patient.lastName).toBe('De La Fuente');
+    expect(patient.secondLastName).toBe('Ñirehuao');
+    expect(patient.patientName).toBe('Juan Carlos De La Fuente Ñirehuao');
   });
 
   it('flags CMA and marks UTI beds as UPC', () => {

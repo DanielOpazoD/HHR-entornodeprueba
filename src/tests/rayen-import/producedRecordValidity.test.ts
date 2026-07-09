@@ -67,7 +67,9 @@ describe('produced DailyRecord validity (fix #2)', () => {
     const [bedB, patB] = seedBed(encB);
     const current = makeRecord({ [bedA]: patA, [bedB]: patB });
 
-    // Snapshot (complete): new admission C, A discharged (alta), B discharged (CMA).
+    // Snapshot (complete): new admission C; B has a medical discharge (kept in bed,
+    // pending nursing discharge); A is absent from the complete census → inferred
+    // missing-in-rayen discharge that DOES vacate the bed.
     const snapshot: RayenCensusSnapshot = {
       capturedAt: '2020-06-01T20:00:00-06:00',
       facilityId: 1342,
@@ -81,7 +83,6 @@ describe('produced DailyRecord validity (fix #2)', () => {
           room: 'H2',
           bed: 'C1',
         }),
-        { ...encA, hasMedicalDischarge: true },
         { ...encB, hasMedicalDischarge: true },
       ],
     };
@@ -89,11 +90,12 @@ describe('produced DailyRecord validity (fix #2)', () => {
     const { diff } = planRayenCensusImport({ current, snapshot, reference: REFERENCE });
     const { record, applied } = applyCensusImportDiff(current, diff, makeCtx());
 
-    // Sanity on the scenario we built.
+    // Sanity on the scenario: C admitted, A discharged (missing-in-rayen), B kept in bed.
     expect(applied.admissions).toBe(1);
-    expect(applied.discharges).toBe(2);
-    expect(record.cma).toHaveLength(1);
+    expect(applied.discharges).toBe(1);
+    expect(diff.summary.pendingNursingDischarges).toBe(1);
     expect(record.discharges).toHaveLength(1);
+    expect(record.beds[bedB]?.patientName).toBe(patB.patientName);
 
     // The real gate: the produced record must satisfy the HHR's own Zod schema.
     const result = validateDailyRecord(record);
