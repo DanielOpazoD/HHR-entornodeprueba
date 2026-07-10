@@ -181,6 +181,20 @@ export const useRayenImport = () => {
         return;
       }
 
+      // When the census has nothing to apply (all "sin cambios"), the Confirmar button is
+      // disabled — but devices still need refreshing. Fill them on the current record in the
+      // background so the disabled confirm doesn't block the device sync entirely.
+      const hasApplicableChanges =
+        diff.admissions.length +
+          diff.updates.length +
+          diff.moves.length +
+          diff.discharges.length +
+          (diff.reportEgresos?.length ?? 0) >
+        0;
+      if (!hasApplicableChanges) {
+        void fillDevicesInBackground(currentRecord);
+      }
+
       setState({
         diff,
         isPreviewOpen: true,
