@@ -172,6 +172,16 @@ describe('reconcileCensus', () => {
     expect(requiresReview(diff)).toBe(false); // confirmed by Rayen, no human review needed
   });
 
+  it('does NOT restore an absent patient who is deceased', () => {
+    // Fallecido ausente de la cama HHR, sin alta de enfermería ni registro HHR: jamás debe
+    // re-ingresarse por la ruta de restauración.
+    const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', isDead: true });
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+  });
+
   it('does NOT restore an absent patient whose nurse discharge is done in Rayen', () => {
     // Alta de enfermería finalizada en Rayen pero ausente de la cama HHR y sin registro en
     // HHR → egresó de verdad; no re-ingresar.

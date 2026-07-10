@@ -252,10 +252,11 @@ export const reconcileCensus = (
       continue;
     }
     // Not in any HHR bed. If the patient's discharge is already finalized — the nurse did
-    // it in Rayen (alta de enfermería) or it is recorded in HHR — honor it (they correctly
-    // left). Otherwise a medical discharge alone does not finalize it, so a patient absent
-    // from the bed should be restored (e.g. after an accidental deletion in HHR).
-    if (encounter.hasNurseDischarge || wasDischargedInHhr(encounter)) continue;
+    // it in Rayen (alta de enfermería), the patient is deceased, or it is recorded in HHR —
+    // honor it (they correctly left). Otherwise a medical discharge alone does not finalize
+    // it, so a patient absent from the bed should be restored (e.g. after an accidental
+    // deletion in HHR).
+    if (encounter.hasNurseDischarge || encounter.isDead || wasDischargedInHhr(encounter)) continue;
     const { patient, isCma, bedId } = rayenToPatientData(encounter, reference);
     if (bedId) tryAdmit(encounter, patient, isCma, bedId);
   }

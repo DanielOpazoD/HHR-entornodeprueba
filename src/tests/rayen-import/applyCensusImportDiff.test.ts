@@ -251,6 +251,30 @@ describe('applyCensusImportDiff', () => {
     expect(result.applied.discharges).toBe(1);
   });
 
+  it('routes a report egreso CMA into cma[]', () => {
+    const diff = makeDiff({
+      reportEgresos: [
+        {
+          run: '5-1',
+          patientName: 'Paciente Cma',
+          bedLabel: 'R1',
+          destino: 'Cirugía Mayor Ambulatoria',
+          fechaEgreso: '09-07-2026  12:30',
+          kind: 'cma',
+          status: 'Vivo',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({}), diff, makeCtx());
+    expect(result.record.cma).toHaveLength(1);
+    expect(result.record.cma[0]).toMatchObject({
+      patientName: 'Paciente Cma',
+      dischargeTime: '12:30', // report time, not "now"
+    });
+    expect(result.record.discharges).toHaveLength(0);
+    expect(result.record.transfers).toHaveLength(0);
+  });
+
   it('routes a report egreso traslado into transfers[]', () => {
     const diff = makeDiff({
       reportEgresos: [
