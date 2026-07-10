@@ -34,6 +34,16 @@ export { mapDestinoDeAlta } from './mapping/mapDestinoDeAlta';
 
 export type { DeviceTextItem, InvasiveDeviceRow } from './mapping/parseInvasiveDevices';
 export { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
+export type {
+  EvaluationScaleCode,
+  EvaluationScaleItem,
+  EvaluationScale,
+} from './mapping/parseEvaluationScales';
+export {
+  parseEvaluationScales,
+  latestEvaluationScales,
+  evaluationScalesForCensusDay,
+} from './mapping/parseEvaluationScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';
 export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
