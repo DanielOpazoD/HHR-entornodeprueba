@@ -103,6 +103,7 @@ export {
   requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
+  requestScalesReport,
 } from './bridge/rayenImportBridge';
 
 // Hooks

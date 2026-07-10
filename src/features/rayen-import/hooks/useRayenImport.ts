@@ -17,14 +17,17 @@ import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
 import { mergeReportDevices } from '../domain/mergeReportDevices';
+import { mergeReportScales } from '../domain/mergeReportScales';
 import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';
 import { mapInvasiveDevices } from '../mapping/mapDeviceToInstance';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
+import { parseEvaluationScales } from '../mapping/parseEvaluationScales';
 import {
   subscribeToRayenSnapshots,
   requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
+  requestScalesReport,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -96,12 +99,13 @@ export const useRayenImport = () => {
     [saveDailyRecord]
   );
 
-  // Background device fill (Fase D): once the census is applied, fetch each synced patient's Ficha
-  // Médico daily-summary PDF, parse its invasive-devices table (pdfjs) and merge the devices into
-  // the patient — WITHOUT blocking the census. Best-effort per patient; saves once at the end so
-  // the devices appear shortly after the beds. The gestión de camas / Ficha Médico tab must be open.
-  // Patients are fetched in small concurrent batches (each PDF request can take seconds) and the
-  // merges are folded back afterwards — every bed is independent of the others, so there is no race.
+  // Background clinical fill (Fase D devices + Fase E scales): once the census is applied, fetch
+  // each synced patient's Ficha Médico daily-summary PDF (invasive-devices table, parsed with
+  // pdfjs) AND their evaluation-scale forms (Braden/Downton), merging both into the patient —
+  // WITHOUT blocking the census. Each source is best-effort per patient (one failing never blocks
+  // the other); saves once at the end so the data appears shortly after the beds. The Ficha Médico
+  // tab must be open. Patients are fetched in small concurrent batches (each request can take
+  // seconds) and the merges are folded back afterwards — every bed is independent, so no race.
   const fillDevicesInBackground = useCallback(
     async (record: DailyRecord): Promise<void> => {
       const fecha = toIsoReportDate(record);
@@ -116,19 +120,20 @@ export const useRayenImport = () => {
         const results = await Promise.all(
           batch.map(async ([bedId, patient]) => {
             if (!patient?.clinicalEpisodeId) return null;
+            let merged = patient;
+
             try {
               const { base64 } = await requestDeviceReport(patient.clinicalEpisodeId, fecha);
-              if (!base64) return null;
-              const items = await extractDeviceTextItems(base64);
-              const devices = mapInvasiveDevices(parseInvasiveDevices(items));
-              if (devices.length === 0) return null;
-              return {
-                bedId,
-                patient: mergeReportDevices(patient, devices, {
-                  now: new Date(),
-                  createId: makeId,
-                }),
-              };
+              if (base64) {
+                const items = await extractDeviceTextItems(base64);
+                const devices = mapInvasiveDevices(parseInvasiveDevices(items));
+                if (devices.length > 0) {
+                  merged = mergeReportDevices(merged, devices, {
+                    now: new Date(),
+                    createId: makeId,
+                  });
+                }
+              }
             } catch (error) {
               // Best-effort: skip this patient's devices on any failure (PDF/tab/parse), but log so a
               // silently-closed extension tab or a parse regression is diagnosable in production.
@@ -136,8 +141,22 @@ export const useRayenImport = () => {
                 `[rayen-import] Relleno de dispositivos falló en cama ${bedId} (${patient.patientName}):`,
                 error
               );
-              return null;
             }
+
+            try {
+              const { forms } = await requestScalesReport(patient.clinicalEpisodeId);
+              const scales = parseEvaluationScales(forms);
+              if (scales.length > 0) {
+                merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
+              }
+            } catch (error) {
+              console.warn(
+                `[rayen-import] Relleno de escalas falló en cama ${bedId} (${patient.patientName}):`,
+                error
+              );
+            }
+
+            return merged !== patient ? { bedId, patient: merged } : null;
           })
         );
         for (const result of results) if (result) merges.push(result);
@@ -151,7 +170,7 @@ export const useRayenImport = () => {
       try {
         await saveDailyRecord(updated);
       } catch {
-        // Devices are best-effort; the census is already saved.
+        // Devices/scales are best-effort; the census is already saved.
       }
     },
     [saveDailyRecord]

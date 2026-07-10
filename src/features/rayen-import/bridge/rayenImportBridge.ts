@@ -20,6 +20,8 @@ export const RAYEN_EGRESO_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_REPORT_REQUEST
 export const RAYEN_EGRESO_REPORT_RESULT_TYPE = 'HHR_RAYEN_EGRESO_REPORT_RESULT';
 export const RAYEN_DEVICE_REPORT_REQUEST_TYPE = 'HHR_RAYEN_DEVICE_REPORT_REQUEST';
 export const RAYEN_DEVICE_REPORT_RESULT_TYPE = 'HHR_RAYEN_DEVICE_REPORT_RESULT';
+export const RAYEN_SCALES_REPORT_REQUEST_TYPE = 'HHR_RAYEN_SCALES_REPORT_REQUEST';
+export const RAYEN_SCALES_REPORT_RESULT_TYPE = 'HHR_RAYEN_SCALES_REPORT_RESULT';
 
 interface RayenImportMessage {
   type: typeof RAYEN_IMPORT_MESSAGE_TYPE;
@@ -226,5 +228,51 @@ export const requestDeviceReport = (
     setTimeout(() => {
       cleanup();
       resolve({ base64: '', error: 'Tiempo de espera agotado bajando el PDF de dispositivos.' });
+    }, timeoutMs);
+  });
+
+/**
+ * Ask the extension for one patient's evaluation-scale instruments (Braden/Downton) as the raw
+ * JSON forms of Ficha Médico's encounter-form-entry endpoint (full history; HHR parses them with
+ * `parseEvaluationScales`). Resolves to `{ forms: [] }` if the extension / Ficha Médico tab is
+ * unavailable or times out, so the caller degrades gracefully (no scales synced for that patient).
+ */
+export const requestScalesReport = (
+  encId: string,
+  timeoutMs = 30000
+): Promise<{ forms: unknown[]; error?: string }> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined' || !encId) {
+      resolve({ forms: [] });
+      return;
+    }
+    const reqId = `scales-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_SCALES_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
+      cleanup();
+      resolve({
+        forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_SCALES_REPORT_REQUEST_TYPE, reqId, encId },
+      window.location.origin
+    );
+    setTimeout(() => {
+      cleanup();
+      resolve({ forms: [], error: 'Tiempo de espera agotado bajando las escalas de evaluación.' });
     }, timeoutMs);
   });
