@@ -15,7 +15,7 @@ import type {
   EvaluationScoreEntry,
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 
 export interface BradenCellModel {
   entry: EvaluationScoreEntry;
