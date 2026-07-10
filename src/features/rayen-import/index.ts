@@ -32,6 +32,12 @@ export { mapEgresoToDischarge } from './mapping/egresoDischargeMapping';
 export type { DestinoDischarge } from './mapping/mapDestinoDeAlta';
 export { mapDestinoDeAlta } from './mapping/mapDestinoDeAlta';
 
+export type { DeviceTextItem, InvasiveDeviceRow } from './mapping/parseInvasiveDevices';
+export { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
+export type { MappedDevice } from './mapping/mapDeviceToInstance';
+export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
+export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
+
 export type { BedMappingResult, BedMatchKind, RayenBedLocation } from './mapping/bedMapping';
 export { mapRayenBed } from './mapping/bedMapping';
 
