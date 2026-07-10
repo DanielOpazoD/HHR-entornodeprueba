@@ -252,3 +252,14 @@ export const evaluationScalesForCensusDay = (
   scales: EvaluationScale[],
   censusIsoDay: string
 ): EvaluationScale[] => pickLatestPerCode(scales.filter(s => s.recordedDate === censusIsoDay));
+
+/**
+ * The current value of each scale AS OF `censusIsoDay`: the latest one recorded on or before that day
+ * (by `encounterEventId`). Unlike `evaluationScalesForCensusDay`, this keeps showing the last known
+ * score on days with no new assessment — which is what drives the reapplication-overdue reminder —
+ * while a late sync of a PAST census still never picks up a score taken after that day.
+ */
+export const evaluationScalesAsOf = (
+  scales: EvaluationScale[],
+  censusIsoDay: string
+): EvaluationScale[] => pickLatestPerCode(scales.filter(s => s.recordedDate <= censusIsoDay));

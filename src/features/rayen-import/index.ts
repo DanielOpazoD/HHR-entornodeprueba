@@ -43,7 +43,10 @@ export {
   parseEvaluationScales,
   latestEvaluationScales,
   evaluationScalesForCensusDay,
+  evaluationScalesAsOf,
 } from './mapping/parseEvaluationScales';
+export type { MergeScalesContext } from './domain/mergeReportScales';
+export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';
 export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';

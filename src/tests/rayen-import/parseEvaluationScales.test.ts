@@ -3,6 +3,7 @@ import {
   parseEvaluationScales,
   latestEvaluationScales,
   evaluationScalesForCensusDay,
+  evaluationScalesAsOf,
   type EvaluationScale,
 } from '@/features/rayen-import';
 
@@ -229,6 +230,22 @@ describe('evaluationScalesForCensusDay', () => {
 
   it('a day with no scales returns nothing (never an older value)', () => {
     expect(evaluationScalesForCensusDay(parseEvaluationScales(PAYLOAD), '2026-07-01')).toEqual([]);
+  });
+});
+
+describe('evaluationScalesAsOf', () => {
+  it('keeps the last known score on a day with no new assessment (drives the overdue reminder)', () => {
+    // No scale exists on 2026-07-12; as-of that day still returns the day-10 Downton (event 8655768).
+    const asOf = evaluationScalesAsOf(parseEvaluationScales(PAYLOAD), '2026-07-12');
+    expect(byCode(asOf, 'DOWNTON').encounterEventId).toBe(8655768);
+    expect(byCode(asOf, 'BRADEN').total).toBe(17);
+  });
+
+  it('a late sync of a past census never picks up a later score', () => {
+    // As of 2026-07-09, the day-10 Downton records must not leak in — only the day-09 one (score 3).
+    const asOf = evaluationScalesAsOf(parseEvaluationScales(PAYLOAD), '2026-07-09');
+    expect(byCode(asOf, 'DOWNTON').total).toBe(3);
+    expect(asOf.some(s => s.code === 'BRADEN')).toBe(false); // Braden not recorded until the 10th
   });
 });
 

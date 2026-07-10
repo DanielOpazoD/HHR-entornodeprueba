@@ -3,6 +3,7 @@ import type { Specialty, PatientStatus } from './patientClassification';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
 import type { DeviceInstance, DeviceDetails } from './devices';
+import type { PatientEvaluationScores } from './evaluationScores';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 
@@ -121,6 +122,13 @@ export interface PatientData {
    * Allows tracking multiple same-type devices (e.g., 2+ VVPs) with separate timelines.
    */
   deviceInstanceHistory?: DeviceInstance[];
+
+  /**
+   * Nursing evaluation scales (Braden UPP + Downton falls) synced from Ficha Médico.
+   * Risk level / planned care / reapplication due-date are derived at display time from the total
+   * and the patient's age (see `@/domain/evaluationScales/bradenRisk`).
+   */
+  evaluationScores?: PatientEvaluationScores;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;
