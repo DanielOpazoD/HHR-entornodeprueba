@@ -61,6 +61,9 @@ export { applyEgresoLookups, runsNeedingEgresoLookup } from './domain/applyEgres
 
 export { applyEgresoReport, collectKnownRuns } from './domain/applyEgresoReport';
 
+export type { MergeDevicesContext } from './domain/mergeReportDevices';
+export { mergeReportDevices } from './domain/mergeReportDevices';
+
 export type {
   PlanRayenCensusImportInput,
   PlanRayenCensusImportResult,
@@ -86,6 +89,7 @@ export {
   requestRayenSnapshot,
   requestEgresoLookup,
   requestEgresoReport,
+  requestDeviceReport,
 } from './bridge/rayenImportBridge';
 
 // Hooks
