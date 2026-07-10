@@ -18,6 +18,8 @@ export const RAYEN_EGRESO_LOOKUP_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST
 export const RAYEN_EGRESO_LOOKUP_RESULT_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_RESULT';
 export const RAYEN_EGRESO_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_REPORT_REQUEST';
 export const RAYEN_EGRESO_REPORT_RESULT_TYPE = 'HHR_RAYEN_EGRESO_REPORT_RESULT';
+export const RAYEN_DEVICE_REPORT_REQUEST_TYPE = 'HHR_RAYEN_DEVICE_REPORT_REQUEST';
+export const RAYEN_DEVICE_REPORT_RESULT_TYPE = 'HHR_RAYEN_DEVICE_REPORT_RESULT';
 
 interface RayenImportMessage {
   type: typeof RAYEN_IMPORT_MESSAGE_TYPE;
@@ -177,5 +179,52 @@ export const requestEgresoReport = (
     setTimeout(() => {
       cleanup();
       resolve([]);
+    }, timeoutMs);
+  });
+
+/**
+ * Ask the extension to download one patient's "Resumen diario paciente" PDF (which carries the
+ * invasive-devices table) for a date (ISO), returning it base64-encoded for HHR to parse with
+ * pdfjs. Resolves to `{ base64: '' }` if the extension / Ficha Médico tab is unavailable or times
+ * out, so the caller degrades gracefully (no devices synced for that patient).
+ */
+export const requestDeviceReport = (
+  encId: string,
+  fecha: string,
+  timeoutMs = 30000
+): Promise<{ base64: string; error?: string }> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined' || !encId || !fecha) {
+      resolve({ base64: '' });
+      return;
+    }
+    const reqId = `device-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_DEVICE_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
+      cleanup();
+      resolve({
+        base64: typeof data.base64 === 'string' ? data.base64 : '',
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha },
+      window.location.origin
+    );
+    setTimeout(() => {
+      cleanup();
+      resolve({ base64: '', error: 'Tiempo de espera agotado bajando el PDF de dispositivos.' });
     }, timeoutMs);
   });

@@ -6,6 +6,7 @@
  */
 
 import { EMPTY_PATIENT } from '@/constants/patient';
+import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
@@ -109,6 +110,9 @@ export const rayenToPatientData = (
     pathology: cleanDiagnosis(encounter.diagnosis),
     admissionDate: toIsoDate(encounter.admissionDatetime),
     admissionTime: extractTime(encounter.admissionDatetime),
+    // A synced patient defaults to "Estable"; `status` is not in SYNCABLE_FIELDS, so a re-sync
+    // never overwrites the nurse's manual classification (Grave / De cuidado).
+    status: PatientStatus.ESTABLE,
     // Sync never auto-classifies a patient as UPC (UCI/UTI): the bed being physically critical
     // does not make the patient a critical-care case — the nurse categorizes that in HHR. Default
     // to non-UPC and let it be set manually.

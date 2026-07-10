@@ -16,10 +16,15 @@ import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusIm
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
+import { mergeReportDevices } from '../domain/mergeReportDevices';
+import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';
+import { mapInvasiveDevices } from '../mapping/mapDeviceToInstance';
+import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import {
   subscribeToRayenSnapshots,
   requestEgresoLookup,
   requestEgresoReport,
+  requestDeviceReport,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -32,17 +37,22 @@ const errorMessage = (error: unknown): string =>
 
 /** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
 const toIsoReportDate = (record: DailyRecord): string => {
-  const raw = record.date ?? '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const match = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
-  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
-  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5, even
-  // further behind than continental Chile) would ask the report for the wrong day from
-  // ~18:00 local onward.
-  const ts = record.dateTimestamp;
-  const date = typeof ts === 'number' ? new Date(ts) : new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5) would ask
+  // the report for the wrong day from ~18:00 local onward.
+  const fromDate = (d: Date): string =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  // Canonical source: the record's OWN day (its local-midnight timestamp), never "today". This
+  // is what makes a late sync of a PAST census still ask the report for that census day.
+  if (typeof record.dateTimestamp === 'number' && !Number.isNaN(record.dateTimestamp)) {
+    return fromDate(new Date(record.dateTimestamp));
+  }
+  const raw = (record.date ?? '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) return `${dmy[3]}-${pad(Number(dmy[2]))}-${pad(Number(dmy[1]))}`;
+  return fromDate(new Date());
 };
 
 interface RayenImportState {
@@ -86,6 +96,67 @@ export const useRayenImport = () => {
     [saveDailyRecord]
   );
 
+  // Background device fill (Fase D): once the census is applied, fetch each synced patient's Ficha
+  // Médico daily-summary PDF, parse its invasive-devices table (pdfjs) and merge the devices into
+  // the patient — WITHOUT blocking the census. Best-effort per patient; saves once at the end so
+  // the devices appear shortly after the beds. The gestión de camas / Ficha Médico tab must be open.
+  // Patients are fetched in small concurrent batches (each PDF request can take seconds) and the
+  // merges are folded back afterwards — every bed is independent of the others, so there is no race.
+  const fillDevicesInBackground = useCallback(
+    async (record: DailyRecord): Promise<void> => {
+      const fecha = toIsoReportDate(record);
+      const eligible = Object.entries(record.beds).filter(
+        ([, patient]) => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
+      );
+
+      const CONCURRENCY = 4;
+      const merges: Array<{ bedId: string; patient: DailyRecord['beds'][string] }> = [];
+      for (let start = 0; start < eligible.length; start += CONCURRENCY) {
+        const batch = eligible.slice(start, start + CONCURRENCY);
+        const results = await Promise.all(
+          batch.map(async ([bedId, patient]) => {
+            if (!patient?.clinicalEpisodeId) return null;
+            try {
+              const { base64 } = await requestDeviceReport(patient.clinicalEpisodeId, fecha);
+              if (!base64) return null;
+              const items = await extractDeviceTextItems(base64);
+              const devices = mapInvasiveDevices(parseInvasiveDevices(items));
+              if (devices.length === 0) return null;
+              return {
+                bedId,
+                patient: mergeReportDevices(patient, devices, {
+                  now: new Date(),
+                  createId: makeId,
+                }),
+              };
+            } catch (error) {
+              // Best-effort: skip this patient's devices on any failure (PDF/tab/parse), but log so a
+              // silently-closed extension tab or a parse regression is diagnosable in production.
+              console.warn(
+                `[rayen-import] Relleno de dispositivos falló en cama ${bedId} (${patient.patientName}):`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+        for (const result of results) if (result) merges.push(result);
+      }
+
+      if (merges.length === 0) return;
+      let updated = record;
+      for (const { bedId, patient } of merges) {
+        updated = { ...updated, beds: { ...updated.beds, [bedId]: patient } };
+      }
+      try {
+        await saveDailyRecord(updated);
+      } catch {
+        // Devices are best-effort; the census is already saved.
+      }
+    },
+    [saveDailyRecord]
+  );
+
   const previewSnapshot = useCallback(
     async (snapshot: RayenCensusSnapshot) => {
       if (!currentRecord) {
@@ -122,12 +193,27 @@ export const useRayenImport = () => {
           .then(result => {
             autoApplyingRef.current = false;
             setState(prev => ({ ...prev, isBusy: false, result }));
+            void fillDevicesInBackground(result.record);
           })
           .catch(error => {
             autoApplyingRef.current = false;
             setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
           });
         return;
+      }
+
+      // When the census has nothing to apply (all "sin cambios"), the Confirmar button is
+      // disabled — but devices still need refreshing. Fill them on the current record in the
+      // background so the disabled confirm doesn't block the device sync entirely.
+      const hasApplicableChanges =
+        diff.admissions.length +
+          diff.updates.length +
+          diff.moves.length +
+          diff.discharges.length +
+          (diff.reportEgresos?.length ?? 0) >
+        0;
+      if (!hasApplicableChanges) {
+        void fillDevicesInBackground(currentRecord);
       }
 
       setState({
@@ -141,7 +227,7 @@ export const useRayenImport = () => {
             : null,
       });
     },
-    [currentRecord, mode, applyDiff]
+    [currentRecord, mode, applyDiff, fillDevicesInBackground]
   );
 
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
@@ -152,10 +238,11 @@ export const useRayenImport = () => {
     try {
       const result = await applyDiff(currentRecord, state.diff);
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
+      void fillDevicesInBackground(result.record);
     } catch (error) {
       setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
     }
-  }, [currentRecord, state.diff, applyDiff]);
+  }, [currentRecord, state.diff, applyDiff, fillDevicesInBackground]);
 
   const cancel = useCallback(() => {
     setState(prev => ({ ...prev, isPreviewOpen: false }));
