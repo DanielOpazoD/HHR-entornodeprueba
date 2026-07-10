@@ -33,9 +33,12 @@ const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
-/** A patient leaving Rayen: discharged flag, an explicit discharge datetime, or deceased. */
+/** A patient leaving Rayen: medical/nurse discharge, an explicit discharge datetime, or deceased. */
 const isDischarged = (encounter: RayenEncounter): boolean =>
-  !!encounter.hasMedicalDischarge || !!encounter.dischargeDatetime || !!encounter.isDead;
+  !!encounter.hasMedicalDischarge ||
+  !!encounter.hasNurseDischarge ||
+  !!encounter.dischargeDatetime ||
+  !!encounter.isDead;
 
 interface CurrentPatientRef {
   bedId: string;
@@ -213,32 +216,46 @@ export const reconcileCensus = (
     tryAdmit(encounter, patient, isCma, bedId);
   }
 
-  // ---- Medically-discharged encounters ----
-  // A Rayen medical discharge (alta médica) does NOT vacate the HHR bed: the nurse's
-  // discharge in HHR (alta de enfermería) is the sole event that finalizes the departure.
+  // ---- Discharged encounters (alta médica / alta de enfermería) ----
+  // A Rayen medical discharge (alta médica) alone does NOT vacate the HHR bed; the nurse's
+  // discharge (alta de enfermería, `hasNurseDischarge`) is what finalizes the departure.
+  // So: nurse discharge → record the egreso and vacate; medical discharge only → keep the
+  // patient in the bed (pending). The precise alta subtype (domicilio/traslado) is refined
+  // later from gestión de camas; here we resolve alta | cma | (status Fallecido).
   for (const encounter of discharged) {
     const match = findCurrent(encounter);
     if (match) {
       if (consumedBedIds.has(match.bedId)) continue;
       consumedBedIds.add(match.bedId);
-      // Still in the bed → surface the pending state and keep the patient in place.
       const { isCma } = rayenToPatientData(encounter, reference);
       const intent = resolveDischargeIntent(encounter, isCma);
-      diff.pendingNursingDischarges.push({
-        bedId: match.bedId,
-        rut: match.patient.rut,
-        patientName: match.patient.patientName,
-        kind: intent.kind,
-        status: intent.status,
-        source: encounter,
-      });
+      if (encounter.hasNurseDischarge) {
+        diff.discharges.push({
+          bedId: match.bedId,
+          rut: match.patient.rut,
+          patientName: match.patient.patientName,
+          kind: intent.kind,
+          status: intent.status,
+          reason: 'rayen-discharge',
+          source: encounter,
+        });
+      } else {
+        diff.pendingNursingDischarges.push({
+          bedId: match.bedId,
+          rut: match.patient.rut,
+          patientName: match.patient.patientName,
+          kind: intent.kind,
+          status: intent.status,
+          source: encounter,
+        });
+      }
       continue;
     }
-    // Not in any HHR bed. If the nurse already discharged this episode in HHR, honor it
-    // (the patient correctly left). Otherwise a medical discharge alone does not finalize
-    // the departure, so the patient should still be occupying the bed → offer to restore
-    // it (e.g. after an accidental deletion in HHR).
-    if (wasDischargedInHhr(encounter)) continue;
+    // Not in any HHR bed. If the patient's discharge is already finalized — the nurse did
+    // it in Rayen (alta de enfermería) or it is recorded in HHR — honor it (they correctly
+    // left). Otherwise a medical discharge alone does not finalize it, so a patient absent
+    // from the bed should be restored (e.g. after an accidental deletion in HHR).
+    if (encounter.hasNurseDischarge || wasDischargedInHhr(encounter)) continue;
     const { patient, isCma, bedId } = rayenToPatientData(encounter, reference);
     if (bedId) tryAdmit(encounter, patient, isCma, bedId);
   }

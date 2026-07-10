@@ -158,6 +158,35 @@ describe('reconcileCensus', () => {
     expect(diff.discharges).toHaveLength(0);
   });
 
+  it('records the egreso (not pending) once the nurse discharge is confirmed', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = reconcileCensus(
+      makeRecord({ [bedId]: patient }),
+      snapshotOf([makeEncounter({ hasMedicalDischarge: true, hasNurseDischarge: true })]),
+      { reference: REFERENCE }
+    );
+    // Alta médica + alta de enfermería → egreso real que vacía la cama, no pendiente.
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(1);
+    expect(diff.discharges[0]).toMatchObject({ bedId, kind: 'alta', reason: 'rayen-discharge' });
+    expect(requiresReview(diff)).toBe(false); // confirmed by Rayen, no human review needed
+  });
+
+  it('does NOT restore an absent patient whose nurse discharge is done in Rayen', () => {
+    // Alta de enfermería finalizada en Rayen pero ausente de la cama HHR y sin registro en
+    // HHR → egresó de verdad; no re-ingresar.
+    const enc = makeEncounter({
+      room: 'Recuperacion 2',
+      bed: 'R2',
+      hasMedicalDischarge: true,
+      hasNurseDischarge: true,
+    });
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+  });
+
   it('flags a census patient absent from a COMPLETE snapshot as missing-in-rayen', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
