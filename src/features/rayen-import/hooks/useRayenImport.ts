@@ -32,17 +32,22 @@ const errorMessage = (error: unknown): string =>
 
 /** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
 const toIsoReportDate = (record: DailyRecord): string => {
-  const raw = record.date ?? '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const match = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
-  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
-  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5, even
-  // further behind than continental Chile) would ask the report for the wrong day from
-  // ~18:00 local onward.
-  const ts = record.dateTimestamp;
-  const date = typeof ts === 'number' ? new Date(ts) : new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5) would ask
+  // the report for the wrong day from ~18:00 local onward.
+  const fromDate = (d: Date): string =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  // Canonical source: the record's OWN day (its local-midnight timestamp), never "today". This
+  // is what makes a late sync of a PAST census still ask the report for that census day.
+  if (typeof record.dateTimestamp === 'number' && !Number.isNaN(record.dateTimestamp)) {
+    return fromDate(new Date(record.dateTimestamp));
+  }
+  const raw = (record.date ?? '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) return `${dmy[3]}-${pad(Number(dmy[2]))}-${pad(Number(dmy[1]))}`;
+  return fromDate(new Date());
 };
 
 interface RayenImportState {
