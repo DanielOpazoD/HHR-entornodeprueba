@@ -36,8 +36,9 @@ const toIsoReportDate = (record: DailyRecord): string => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const match = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
   if (match) return `${match[3]}-${match[2]}-${match[1]}`;
-  // Format in LOCAL time: toISOString() shifts to UTC, which in Chile (UTC-3/-4) would ask
-  // the report for the wrong day during the evening.
+  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5, even
+  // further behind than continental Chile) would ask the report for the wrong day from
+  // ~18:00 local onward.
   const ts = record.dateTimestamp;
   const date = typeof ts === 'number' ? new Date(ts) : new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
