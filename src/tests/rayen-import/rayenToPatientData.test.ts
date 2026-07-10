@@ -96,6 +96,11 @@ describe('rayenToPatientData', () => {
     expect(patient.patientName).toBe('Juan Carlos De La Fuente Ñirehuao');
   });
 
+  it('defaults a synced patient to status "Estable"', () => {
+    const { patient } = rayenToPatientData(baseEncounter(), REFERENCE);
+    expect(patient.status).toBe('Estable');
+  });
+
   it('flags CMA but never auto-classifies a synced patient as UPC (defaults to non-UPC)', () => {
     const { patient, isCma, bedId } = rayenToPatientData(
       baseEncounter({ room: 'CMA R1', bed: 'CMAR1', service: 'Área quirúrgica indiferenciada' }),
