@@ -100,37 +100,58 @@ export const useRayenImport = () => {
   // Médico daily-summary PDF, parse its invasive-devices table (pdfjs) and merge the devices into
   // the patient — WITHOUT blocking the census. Best-effort per patient; saves once at the end so
   // the devices appear shortly after the beds. The gestión de camas / Ficha Médico tab must be open.
+  // Patients are fetched in small concurrent batches (each PDF request can take seconds) and the
+  // merges are folded back afterwards — every bed is independent of the others, so there is no race.
   const fillDevicesInBackground = useCallback(
     async (record: DailyRecord): Promise<void> => {
       const fecha = toIsoReportDate(record);
-      let updated = record;
-      let changed = false;
-      for (const [bedId, patient] of Object.entries(record.beds)) {
-        if (!patient?.clinicalEpisodeId || !patient.patientName?.trim()) continue;
-        try {
-          const { base64 } = await requestDeviceReport(patient.clinicalEpisodeId, fecha);
-          if (!base64) continue;
-          const items = await extractDeviceTextItems(base64);
-          const devices = mapInvasiveDevices(parseInvasiveDevices(items));
-          if (devices.length === 0) continue;
-          updated = {
-            ...updated,
-            beds: {
-              ...updated.beds,
-              [bedId]: mergeReportDevices(patient, devices, { now: new Date(), createId: makeId }),
-            },
-          };
-          changed = true;
-        } catch {
-          // Best-effort: skip this patient's devices on any failure (PDF/tab/parse).
-        }
+      const eligible = Object.entries(record.beds).filter(
+        ([, patient]) => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
+      );
+
+      const CONCURRENCY = 4;
+      const merges: Array<{ bedId: string; patient: DailyRecord['beds'][string] }> = [];
+      for (let start = 0; start < eligible.length; start += CONCURRENCY) {
+        const batch = eligible.slice(start, start + CONCURRENCY);
+        const results = await Promise.all(
+          batch.map(async ([bedId, patient]) => {
+            if (!patient?.clinicalEpisodeId) return null;
+            try {
+              const { base64 } = await requestDeviceReport(patient.clinicalEpisodeId, fecha);
+              if (!base64) return null;
+              const items = await extractDeviceTextItems(base64);
+              const devices = mapInvasiveDevices(parseInvasiveDevices(items));
+              if (devices.length === 0) return null;
+              return {
+                bedId,
+                patient: mergeReportDevices(patient, devices, {
+                  now: new Date(),
+                  createId: makeId,
+                }),
+              };
+            } catch (error) {
+              // Best-effort: skip this patient's devices on any failure (PDF/tab/parse), but log so a
+              // silently-closed extension tab or a parse regression is diagnosable in production.
+              console.warn(
+                `[rayen-import] Relleno de dispositivos falló en cama ${bedId} (${patient.patientName}):`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+        for (const result of results) if (result) merges.push(result);
       }
-      if (changed) {
-        try {
-          await saveDailyRecord(updated);
-        } catch {
-          // Devices are best-effort; the census is already saved.
-        }
+
+      if (merges.length === 0) return;
+      let updated = record;
+      for (const { bedId, patient } of merges) {
+        updated = { ...updated, beds: { ...updated.beds, [bedId]: patient } };
+      }
+      try {
+        await saveDailyRecord(updated);
+      } catch {
+        // Devices are best-effort; the census is already saved.
       }
     },
     [saveDailyRecord]

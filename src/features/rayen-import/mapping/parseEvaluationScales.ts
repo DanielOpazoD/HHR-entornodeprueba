@@ -189,8 +189,10 @@ export const parseEvaluationScales = (raw: unknown): EvaluationScale[] => {
       const id = str(campo.id);
       const idUpper = id.toUpperCase();
       if (idUpper.endsWith('_PUNTAJE')) {
-        const n = Number(str(campo.value));
-        total = Number.isFinite(n) ? n : null;
+        // An in-progress scale can have an empty Puntaje — keep it null, don't let Number('') → 0.
+        const rawValue = str(campo.value);
+        const n = Number(rawValue);
+        total = rawValue !== '' && Number.isFinite(n) ? n : null;
       } else if (idUpper.endsWith('_RESULTADOSCORE') || idUpper.endsWith('_RESULTADO')) {
         severity = str(campo.valueName) || null;
       } else if (Number(campo.sectionId) === 0) {

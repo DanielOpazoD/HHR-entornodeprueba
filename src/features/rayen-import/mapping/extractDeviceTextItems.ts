@@ -20,22 +20,27 @@ export const extractDeviceTextItems = async (base64: string): Promise<DeviceText
     isEvalSupported: false,
   }).promise;
 
-  const items: DeviceTextItem[] = [];
-  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
-    const page = await document.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    for (const item of textContent.items) {
-      if (
-        typeof item === 'object' &&
-        item !== null &&
-        'str' in item &&
-        'transform' in item &&
-        typeof item.str === 'string'
-      ) {
-        const transform = item.transform as number[] | Float32Array;
-        items.push({ x: Number(transform[4] ?? 0), y: Number(transform[5] ?? 0), str: item.str });
+  try {
+    const items: DeviceTextItem[] = [];
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
+      const page = await document.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      for (const item of textContent.items) {
+        if (
+          typeof item === 'object' &&
+          item !== null &&
+          'str' in item &&
+          'transform' in item &&
+          typeof item.str === 'string'
+        ) {
+          const transform = item.transform as number[] | Float32Array;
+          items.push({ x: Number(transform[4] ?? 0), y: Number(transform[5] ?? 0), str: item.str });
+        }
       }
     }
+    return items;
+  } finally {
+    // Release the PDFDocumentProxy (data + caches); fillDevicesInBackground calls this per patient.
+    await document.destroy();
   }
-  return items;
 };

@@ -184,6 +184,29 @@ describe('parseEvaluationScales', () => {
     expect(parseEvaluationScales({})).toEqual([]);
     expect(parseEvaluationScales([])).toEqual([]);
   });
+
+  it('an in-progress scale with an empty Puntaje yields total null, not 0', () => {
+    const inProgress = [
+      {
+        formCodigo: 'INSTRUMENTO',
+        formTypeId: 16,
+        nameForm: 'Escala de riesgo UPP (Braden)',
+        encounterEventId: 7,
+        startDateTime: '10-07-2026 09:00:00',
+        metaCampList: [
+          item(
+            'BRAD_Percepcion',
+            'Percepción sensorial',
+            '8019',
+            'No Limitado',
+            '10-07-2026 09:00:00 -06:00'
+          ),
+          puntaje('BRAD_Puntaje', '', '10-07-2026 09:00:00 -06:00'),
+        ],
+      },
+    ];
+    expect(parseEvaluationScales(inProgress)[0].total).toBeNull();
+  });
 });
 
 describe('evaluationScalesForCensusDay', () => {
