@@ -7,6 +7,7 @@ import { SpecialtyCell } from './SpecialtyCell';
 import { StatusSelect } from './StatusSelect';
 import { AdmissionInput } from './AdmissionInput';
 import { DevicesCell } from './DevicesCell';
+import { ScoresCell } from './ScoresCell';
 import { CheckboxCell } from './CheckboxCell';
 import { UpcChecklistPopover } from './UpcChecklistPopover';
 import { ClinicalInitialBlockCells } from './ClinicalInitialBlockCells';
@@ -180,17 +181,26 @@ export const PatientInputFlowSection: React.FC<
       onMultipleUpdate={onChange.multiple}
     />
     {!isSpecialistCensusAccessProfile(accessProfile) && (
-      <DevicesCell
-        data={shared.data}
-        isSubRow={shared.isSubRow}
-        isEmpty={shared.isEmpty}
-        readOnly={shared.isLocked}
-        currentDateString={shared.currentDateString}
-        onDevicesChange={onChange.devices}
-        onDeviceDetailsChange={onChange.deviceDetails}
-        onDeviceHistoryChange={onChange.deviceHistory}
-        onDeviceBundleChange={onChange.multiple}
-      />
+      <>
+        <DevicesCell
+          data={shared.data}
+          isSubRow={shared.isSubRow}
+          isEmpty={shared.isEmpty}
+          readOnly={shared.isLocked}
+          currentDateString={shared.currentDateString}
+          onDevicesChange={onChange.devices}
+          onDeviceDetailsChange={onChange.deviceDetails}
+          onDeviceHistoryChange={onChange.deviceHistory}
+          onDeviceBundleChange={onChange.multiple}
+        />
+        <ScoresCell
+          data={shared.data}
+          isSubRow={shared.isSubRow}
+          isEmpty={shared.isEmpty}
+          readOnly={shared.isLocked}
+          currentDateString={shared.currentDateString}
+        />
+      </>
     )}
   </>
 );

@@ -5,6 +5,7 @@ import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusA
 export const SPECIALIST_HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig)[] = [
   'status',
   'dmi',
+  'scores',
   'cqx',
   'upc',
 ] as const;
@@ -66,6 +67,7 @@ export const resolveVisibleCensusColumns = (
     ),
     status: 0,
     dmi: 0,
+    scores: 0,
     cqx: 0,
     upc: 0,
   };
