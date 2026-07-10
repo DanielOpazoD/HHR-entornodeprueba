@@ -96,14 +96,15 @@ describe('rayenToPatientData', () => {
     expect(patient.patientName).toBe('Juan Carlos De La Fuente Ñirehuao');
   });
 
-  it('flags CMA and marks UTI beds as UPC', () => {
+  it('flags CMA but never auto-classifies a synced patient as UPC (defaults to non-UPC)', () => {
     const { patient, isCma, bedId } = rayenToPatientData(
       baseEncounter({ room: 'CMA R1', bed: 'CMAR1', service: 'Área quirúrgica indiferenciada' }),
       REFERENCE
     );
     expect(isCma).toBe(true);
     expect(bedId).toBe('R1');
-    expect(patient.isUPC).toBe(true);
+    // The bed is UTI, but sync must not mark the patient UPC — the nurse categorizes that in HHR.
+    expect(patient.isUPC).toBe(false);
   });
 
   it('leaves bedId empty when the location is unmappable', () => {

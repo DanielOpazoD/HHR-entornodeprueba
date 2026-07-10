@@ -301,4 +301,5 @@ export const reconcileCensus = (
  */
 export const requiresReview = (diff: CensusImportDiff): boolean =>
   diff.conflicts.length > 0 ||
-  diff.discharges.some(discharge => discharge.reason === 'missing-in-rayen');
+  diff.discharges.some(discharge => discharge.reason === 'missing-in-rayen') ||
+  (diff.reportEgresos?.length ?? 0) > 0;

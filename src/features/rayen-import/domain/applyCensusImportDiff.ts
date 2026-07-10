@@ -13,6 +13,7 @@ import { BEDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
+import type { ReportEgreso } from '../contracts/egresoReport';
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -110,6 +111,32 @@ const buildCma = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
+/** "09-07-2026 19:42" → "19:42" (the actual egreso time from the report). */
+const reportEgresoTime = (fechaEgreso: string): string => {
+  const match = fechaEgreso.match(/(\d{1,2}:\d{2})/);
+  return match ? match[1] : '';
+};
+
+// A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
+// builders read, so the day's altas census can log it from the report's data.
+const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
+  ({
+    patientName: egreso.patientName,
+    rut: egreso.run,
+    pathology: egreso.diagnostico ?? '',
+    specialty: egreso.servicio ?? '',
+    age: egreso.edad ?? undefined,
+  }) as unknown as PatientData;
+
+const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
+  bedId: egreso.bedLabel,
+  rut: egreso.run,
+  patientName: egreso.patientName,
+  kind: egreso.kind,
+  status: egreso.status,
+  reason: 'rayen-discharge',
+});
+
 export const applyCensusImportDiff = (
   current: DailyRecord,
   diff: CensusImportDiff,
@@ -135,6 +162,23 @@ export const applyCensusImportDiff = (
     if (entry.kind === 'cma') cma.push(buildCma(subject, entry, ctx));
     else if (entry.kind === 'traslado') transfers.push(buildTransfer(subject, entry, current, ctx));
     else discharges.push(buildDischarge(subject, entry, current, ctx));
+    applied.discharges += 1;
+  }
+
+  // 1b) Report egresos HHR never synced (unknown RUN): there is no bed to vacate — just append
+  //     the movement record so the day's altas census logs them (already reviewed in the
+  //     preview). The patient is synthesized from the report row; time comes from the report.
+  for (const egreso of diff.reportEgresos ?? []) {
+    const patient = reportEgresoPatient(egreso);
+    const entry = reportEgresoEntry(egreso);
+    const time = reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);
+    if (egreso.kind === 'traslado') {
+      transfers.push({ ...buildTransfer(patient, entry, current, ctx), time });
+    } else if (egreso.kind === 'cma') {
+      cma.push({ ...buildCma(patient, entry, ctx), dischargeTime: time });
+    } else {
+      discharges.push({ ...buildDischarge(patient, entry, current, ctx), time });
+    }
     applied.discharges += 1;
   }
 

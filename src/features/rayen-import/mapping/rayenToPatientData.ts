@@ -6,12 +6,9 @@
  */
 
 import { EMPTY_PATIENT } from '@/constants/patient';
-import { UTI_BEDS } from '@/constants/beds';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
-
-const UTI_BED_IDS = new Set(UTI_BEDS.map(bed => bed.id));
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
@@ -112,7 +109,10 @@ export const rayenToPatientData = (
     pathology: cleanDiagnosis(encounter.diagnosis),
     admissionDate: toIsoDate(encounter.admissionDatetime),
     admissionTime: extractTime(encounter.admissionDatetime),
-    isUPC: bedId ? UTI_BED_IDS.has(bedId) : false,
+    // Sync never auto-classifies a patient as UPC (UCI/UTI): the bed being physically critical
+    // does not make the patient a critical-care case — the nurse categorizes that in HHR. Default
+    // to non-UPC and let it be set manually.
+    isUPC: false,
     location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
   };
 

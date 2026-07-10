@@ -15,7 +15,12 @@ import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
-import { subscribeToRayenSnapshots, requestEgresoLookup } from '../bridge/rayenImportBridge';
+import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
+import {
+  subscribeToRayenSnapshots,
+  requestEgresoLookup,
+  requestEgresoReport,
+} from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -24,6 +29,16 @@ const makeId = (): string => crypto.randomUUID();
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
+const toIsoReportDate = (record: DailyRecord): string => {
+  const raw = record.date ?? '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const match = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  const ts = record.dateTimestamp;
+  return (typeof ts === 'number' ? new Date(ts) : new Date()).toISOString().slice(0, 10);
+};
 
 interface RayenImportState {
   diff: CensusImportDiff | null;
@@ -80,6 +95,15 @@ export const useRayenImport = () => {
       const runs = runsNeedingEgresoLookup(diff);
       if (runs.length > 0) {
         diff = applyEgresoLookups(diff, await requestEgresoLookup(runs));
+      }
+
+      // Bulk egreso report (Fase C): enumerate the day's egresos in gestión de camas. Confirms
+      // the destination (domicilio/traslado) of known discharges AND surfaces egresos HHR never
+      // synced (unknown RUN) for review. Degrades to [] if the report/tab is unavailable.
+      const reportDate = toIsoReportDate(currentRecord);
+      const reportRows = await requestEgresoReport(reportDate, reportDate);
+      if (reportRows.length > 0) {
+        diff = applyEgresoReport(diff, reportRows, collectKnownRuns(currentRecord, snapshot));
       }
 
       const needsReview = requiresReview(diff);

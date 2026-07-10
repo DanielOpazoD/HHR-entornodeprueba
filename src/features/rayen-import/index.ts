@@ -21,11 +21,16 @@ export type {
 
 export type { EgresoRecord, EgresoLookupResult } from './contracts/egresoLookup';
 
+export type { EgresoReportRow, ReportEgreso } from './contracts/egresoReport';
+
 export type { DischargeKind, DischargeIntent } from './mapping/dischargeMapping';
 export { resolveDischargeIntent } from './mapping/dischargeMapping';
 
 export type { EgresoDischarge } from './mapping/egresoDischargeMapping';
 export { mapEgresoToDischarge } from './mapping/egresoDischargeMapping';
+
+export type { DestinoDischarge } from './mapping/mapDestinoDeAlta';
+export { mapDestinoDeAlta } from './mapping/mapDestinoDeAlta';
 
 export type { BedMappingResult, BedMatchKind, RayenBedLocation } from './mapping/bedMapping';
 export { mapRayenBed } from './mapping/bedMapping';
@@ -47,6 +52,8 @@ export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusI
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';
 
 export { applyEgresoLookups, runsNeedingEgresoLookup } from './domain/applyEgresoLookups';
+
+export { applyEgresoReport, collectKnownRuns } from './domain/applyEgresoReport';
 
 export type {
   PlanRayenCensusImportInput,
@@ -72,6 +79,7 @@ export {
   pushRayenSnapshot,
   requestRayenSnapshot,
   requestEgresoLookup,
+  requestEgresoReport,
 } from './bridge/rayenImportBridge';
 
 // Hooks

@@ -9,6 +9,7 @@
 import type { PatientData } from './rayenDomainContracts';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
+import type { ReportEgreso } from './egresoReport';
 
 /** A single field that differs between the current census patient and the Rayen data. */
 export interface FieldChange {
@@ -102,6 +103,13 @@ export interface CensusImportDiff {
   /** Medical discharges kept in the bed until the nurse completes the discharge in HHR. */
   pendingNursingDischarges: PendingNursingDischargeEntry[];
   conflicts: ConflictEntry[];
+  /**
+   * Egresos from the bulk "Alta Administrativa" report whose RUN is unknown to HHR (patients
+   * admitted and discharged between two syncs, so they never occupied an HHR bed). Informational
+   * — surfaced in the preview for the nurse to review, never auto-applied. Optional: only present
+   * once the report has been consulted (see `applyEgresoReport`).
+   */
+  reportEgresos?: ReportEgreso[];
   unchangedCount: number;
   summary: CensusImportSummary;
 }
