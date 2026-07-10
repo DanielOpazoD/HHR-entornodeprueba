@@ -19,8 +19,13 @@ export type {
   CensusImportDiff,
 } from './contracts/censusImportDiff';
 
+export type { EgresoRecord, EgresoLookupResult } from './contracts/egresoLookup';
+
 export type { DischargeKind, DischargeIntent } from './mapping/dischargeMapping';
 export { resolveDischargeIntent } from './mapping/dischargeMapping';
+
+export type { EgresoDischarge } from './mapping/egresoDischargeMapping';
+export { mapEgresoToDischarge } from './mapping/egresoDischargeMapping';
 
 export type { BedMappingResult, BedMatchKind, RayenBedLocation } from './mapping/bedMapping';
 export { mapRayenBed } from './mapping/bedMapping';
@@ -40,6 +45,8 @@ export { reconcileCensus, requiresReview } from './domain/reconcileCensus';
 
 export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusImportDiff';
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';
+
+export { applyEgresoLookups, runsNeedingEgresoLookup } from './domain/applyEgresoLookups';
 
 export type {
   PlanRayenCensusImportInput,
@@ -64,6 +71,7 @@ export {
   subscribeToRayenSnapshots,
   pushRayenSnapshot,
   requestRayenSnapshot,
+  requestEgresoLookup,
 } from './bridge/rayenImportBridge';
 
 // Hooks

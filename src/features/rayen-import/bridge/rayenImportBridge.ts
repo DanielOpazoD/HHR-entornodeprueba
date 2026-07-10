@@ -9,9 +9,12 @@
  */
 
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
+import type { EgresoLookupResult } from '../contracts/egresoLookup';
 
 export const RAYEN_IMPORT_MESSAGE_TYPE = 'HHR_RAYEN_CENSUS_SNAPSHOT';
 export const RAYEN_REQUEST_MESSAGE_TYPE = 'HHR_RAYEN_REQUEST_SNAPSHOT';
+export const RAYEN_EGRESO_LOOKUP_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST';
+export const RAYEN_EGRESO_LOOKUP_RESULT_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_RESULT';
 
 interface RayenImportMessage {
   type: typeof RAYEN_IMPORT_MESSAGE_TYPE;
@@ -86,3 +89,46 @@ export const requestRayenSnapshot = (): void => {
   if (typeof window === 'undefined') return;
   window.postMessage({ type: RAYEN_REQUEST_MESSAGE_TYPE }, window.location.origin);
 };
+
+/**
+ * Ask the extension to look up the egresos of the given RUNs in gestión de camas — used to
+ * recover definitive discharges for patients absent from Ficha Médico (late sync). Resolves
+ * to `[]` if the extension / gestión de camas tab is unavailable or times out, so the caller
+ * degrades gracefully (keeps the inferred discharges).
+ */
+export const requestEgresoLookup = (
+  runs: string[],
+  timeoutMs = 30000
+): Promise<EgresoLookupResult[]> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined' || !Array.isArray(runs) || runs.length === 0) {
+      resolve([]);
+      return;
+    }
+    const reqId = `egreso-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_EGRESO_LOOKUP_RESULT_TYPE || data.reqId !== reqId) return;
+      cleanup();
+      resolve(Array.isArray(data.results) ? (data.results as EgresoLookupResult[]) : []);
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_EGRESO_LOOKUP_REQUEST_TYPE, reqId, runs },
+      window.location.origin
+    );
+    setTimeout(() => {
+      cleanup();
+      resolve([]);
+    }, timeoutMs);
+  });

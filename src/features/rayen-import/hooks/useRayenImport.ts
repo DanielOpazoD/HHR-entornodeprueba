@@ -14,7 +14,8 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
-import { subscribeToRayenSnapshots } from '../bridge/rayenImportBridge';
+import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
+import { subscribeToRayenSnapshots, requestEgresoLookup } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -66,12 +67,21 @@ export const useRayenImport = () => {
   );
 
   const previewSnapshot = useCallback(
-    (snapshot: RayenCensusSnapshot) => {
+    async (snapshot: RayenCensusSnapshot) => {
       if (!currentRecord) {
         setState(prev => ({ ...prev, error: 'No hay censo cargado para hoy.' }));
         return;
       }
-      const { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
+      let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
+
+      // Late-sync gap: patients absent from Ficha Médico are inferred discharges. Ask gestión
+      // de camas (by RUN) for their real egreso and upgrade them to confirmed discharges with
+      // the right kind (alta/traslado). Degrades gracefully to [] if that tab isn't available.
+      const runs = runsNeedingEgresoLookup(diff);
+      if (runs.length > 0) {
+        diff = applyEgresoLookups(diff, await requestEgresoLookup(runs));
+      }
+
       const needsReview = requiresReview(diff);
       const canAutoApply = mode === 'auto' && !needsReview;
 
