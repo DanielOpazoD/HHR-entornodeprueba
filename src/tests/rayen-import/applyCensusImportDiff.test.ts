@@ -212,4 +212,89 @@ describe('applyCensusImportDiff', () => {
     expect(result.skipped).toEqual([{ kind: 'admission', bedId: 'H1C2', reason: 'Cama ocupada.' }]);
     expect(result.record.beds.H1C2.patientName).toBe('Ocupante');
   });
+
+  it('logs a never-synced report egreso into discharges[] without touching any bed', () => {
+    const occupant: PatientData = {
+      ...EMPTY_PATIENT,
+      bedId: 'R2',
+      patientName: 'Otro Paciente',
+      rut: '9.999.999-9',
+    };
+    const diff = makeDiff({
+      reportEgresos: [
+        {
+          run: '11.044.046-4',
+          patientName: 'Lorena Lopez Alvarado',
+          bedLabel: 'R2',
+          destino: 'Domicilio',
+          fechaEgreso: '09-07-2026  19:11',
+          kind: 'alta',
+          status: 'Vivo',
+          edad: '60 año(s)',
+          servicio: 'Área Médico Quirúrgica Indiferenciada',
+          diagnostico: 'Herida de la pierna',
+        },
+      ],
+    });
+    // R2 currently holds a DIFFERENT patient in HHR — it must be left untouched.
+    const result = applyCensusImportDiff(makeRecord({ R2: occupant }), diff, makeCtx());
+    expect(result.record.beds.R2.patientName).toBe('Otro Paciente');
+    expect(result.record.discharges).toHaveLength(1);
+    expect(result.record.discharges[0]).toMatchObject({
+      patientName: 'Lorena Lopez Alvarado',
+      rut: '11.044.046-4',
+      diagnosis: 'Herida de la pierna',
+      dischargeType: 'Domicilio (Habitual)',
+      time: '19:11', // taken from the report, not "now"
+      status: 'Vivo',
+    });
+    expect(result.applied.discharges).toBe(1);
+  });
+
+  it('routes a report egreso CMA into cma[]', () => {
+    const diff = makeDiff({
+      reportEgresos: [
+        {
+          run: '5-1',
+          patientName: 'Paciente Cma',
+          bedLabel: 'R1',
+          destino: 'Cirugía Mayor Ambulatoria',
+          fechaEgreso: '09-07-2026  12:30',
+          kind: 'cma',
+          status: 'Vivo',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({}), diff, makeCtx());
+    expect(result.record.cma).toHaveLength(1);
+    expect(result.record.cma[0]).toMatchObject({
+      patientName: 'Paciente Cma',
+      dischargeTime: '12:30', // report time, not "now"
+    });
+    expect(result.record.discharges).toHaveLength(0);
+    expect(result.record.transfers).toHaveLength(0);
+  });
+
+  it('routes a report egreso traslado into transfers[]', () => {
+    const diff = makeDiff({
+      reportEgresos: [
+        {
+          run: '2-7',
+          patientName: 'Paciente Traslado',
+          bedLabel: 'Cama 2',
+          destino: 'Traslado a otro hospital',
+          fechaEgreso: '09-07-2026  10:00',
+          kind: 'traslado',
+          status: 'Vivo',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({}), diff, makeCtx());
+    expect(result.record.transfers).toHaveLength(1);
+    expect(result.record.transfers[0]).toMatchObject({
+      patientName: 'Paciente Traslado',
+      time: '10:00',
+    });
+    expect(result.record.discharges).toHaveLength(0);
+  });
 });

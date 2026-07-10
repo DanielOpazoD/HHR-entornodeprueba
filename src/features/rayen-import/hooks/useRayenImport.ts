@@ -14,7 +14,13 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
-import { subscribeToRayenSnapshots } from '../bridge/rayenImportBridge';
+import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
+import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
+import {
+  subscribeToRayenSnapshots,
+  requestEgresoLookup,
+  requestEgresoReport,
+} from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -23,6 +29,21 @@ const makeId = (): string => crypto.randomUUID();
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
+const toIsoReportDate = (record: DailyRecord): string => {
+  const raw = record.date ?? '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const match = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5, even
+  // further behind than continental Chile) would ask the report for the wrong day from
+  // ~18:00 local onward.
+  const ts = record.dateTimestamp;
+  const date = typeof ts === 'number' ? new Date(ts) : new Date();
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 
 interface RayenImportState {
   diff: CensusImportDiff | null;
@@ -66,12 +87,30 @@ export const useRayenImport = () => {
   );
 
   const previewSnapshot = useCallback(
-    (snapshot: RayenCensusSnapshot) => {
+    async (snapshot: RayenCensusSnapshot) => {
       if (!currentRecord) {
         setState(prev => ({ ...prev, error: 'No hay censo cargado para hoy.' }));
         return;
       }
-      const { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
+      let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
+
+      // Late-sync gap: patients absent from Ficha Médico are inferred discharges. Ask gestión
+      // de camas (by RUN) for their real egreso and upgrade them to confirmed discharges with
+      // the right kind (alta/traslado). Degrades gracefully to [] if that tab isn't available.
+      const runs = runsNeedingEgresoLookup(diff);
+      if (runs.length > 0) {
+        diff = applyEgresoLookups(diff, await requestEgresoLookup(runs));
+      }
+
+      // Bulk egreso report (Fase C): enumerate the day's egresos in gestión de camas. Confirms
+      // the destination (domicilio/traslado) of known discharges AND surfaces egresos HHR never
+      // synced (unknown RUN) for review. Degrades to [] if the report/tab is unavailable.
+      const reportDate = toIsoReportDate(currentRecord);
+      const reportRows = await requestEgresoReport(reportDate, reportDate);
+      if (reportRows.length > 0) {
+        diff = applyEgresoReport(diff, reportRows, collectKnownRuns(currentRecord, snapshot));
+      }
+
       const needsReview = requiresReview(diff);
       const canAutoApply = mode === 'auto' && !needsReview;
 

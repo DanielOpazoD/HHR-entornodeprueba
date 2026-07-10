@@ -69,7 +69,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
 }) => {
   const hasChanges =
     !!diff &&
-    diff.summary.admissions + diff.summary.updates + diff.summary.moves + diff.summary.discharges >
+    diff.summary.admissions +
+      diff.summary.updates +
+      diff.summary.moves +
+      diff.summary.discharges +
+      (diff.reportEgresos?.length ?? 0) >
       0;
 
   return (
@@ -102,6 +106,13 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
               {diff.summary.conflicts > 0 && (
                 <Chip label="Conflictos" value={diff.summary.conflicts} tone="red" />
+              )}
+              {(diff.reportEgresos?.length ?? 0) > 0 && (
+                <Chip
+                  label="Egresos no sincronizados"
+                  value={diff.reportEgresos?.length ?? 0}
+                  tone="amber"
+                />
               )}
             </div>
 
@@ -174,6 +185,26 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 <li key={`con-${index}`} className="text-red-700">
                   {entry.bedId ? `${entry.bedId}: ` : ''}
                   {entry.reason}
+                </li>
+              ))}
+            </Section>
+
+            <Section
+              title="Egresos del día no registrados en HHR (se agregarán a altas)"
+              count={diff.reportEgresos?.length ?? 0}
+            >
+              {(diff.reportEgresos ?? []).map((entry, index) => (
+                <li key={`rep-${entry.run}-${index}`}>
+                  <span className="font-semibold">{entry.bedLabel || '—'}</span> —{' '}
+                  {entry.patientName} <span className="text-gray-400">({entry.run})</span>:{' '}
+                  {dischargeKindLabel[entry.kind] ?? entry.kind}
+                  {entry.destino && <span className="text-gray-500"> · {entry.destino}</span>}
+                  {entry.fechaEgreso && (
+                    <span className="text-gray-400"> · {entry.fechaEgreso}</span>
+                  )}
+                  {entry.status === 'Fallecido' && (
+                    <span className="ml-1 text-red-600">(Fallecido)</span>
+                  )}
                 </li>
               ))}
             </Section>

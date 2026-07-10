@@ -12,15 +12,22 @@ import type { PatientData } from '@/types/domain/patient';
 
 const REFERENCE = new Date(2026, 6, 8);
 
-const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({
+const makeRecord = (
+  beds: Record<string, PatientData>,
+  extras: Partial<Pick<DailyRecord, 'discharges' | 'cma' | 'transfers'>> = {}
+): DailyRecord => ({
   date: '2026-07-08',
   beds,
-  discharges: [],
-  transfers: [],
-  cma: [],
+  discharges: extras.discharges ?? [],
+  transfers: extras.transfers ?? [],
+  cma: extras.cma ?? [],
   lastUpdated: '',
   activeExtraBeds: [],
 });
+
+/** Minimal HHR discharge record (only the fields reconcile reads for identity). */
+const hhrDischarge = (rut: string, episodeId: string): DailyRecord['discharges'][number] =>
+  ({ rut, clinicalEpisodeId: episodeId }) as unknown as DailyRecord['discharges'][number];
 
 const makeEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'E1',
@@ -122,6 +129,72 @@ describe('reconcileCensus', () => {
     expect(diff.discharges).toHaveLength(0);
     expect(diff.pendingNursingDischarges).toHaveLength(1);
     expect(diff.pendingNursingDischarges[0]).toMatchObject({ kind: 'cma', bedId: 'R1' });
+  });
+
+  it('restores a medically-discharged patient that was deleted from the HHR bed', () => {
+    // Patient has alta médica in Rayen but its HHR bed is empty and it is NOT in HHR's
+    // discharge records → it was deleted, not nurse-discharged → offer to re-admit.
+    const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', hasMedicalDischarge: true });
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), {
+      reference: REFERENCE,
+    });
+    expect(diff.admissions).toHaveLength(1);
+    expect(diff.admissions[0].bedId).toBe('R2');
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+  });
+
+  it('does NOT restore a patient already discharged in HHR (alta de enfermería)', () => {
+    // Same alta médica, but the nurse already completed the discharge in HHR (the patient
+    // is in discharge records) → their absence from the bed is correct, do not re-admit.
+    const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', hasMedicalDischarge: true });
+    const diff = reconcileCensus(
+      makeRecord({}, { discharges: [hhrDischarge(enc.run, enc.encounterId)] }),
+      snapshotOf([enc], true),
+      { reference: REFERENCE }
+    );
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(0);
+  });
+
+  it('records the egreso (not pending) once the nurse discharge is confirmed', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = reconcileCensus(
+      makeRecord({ [bedId]: patient }),
+      snapshotOf([makeEncounter({ hasMedicalDischarge: true, hasNurseDischarge: true })]),
+      { reference: REFERENCE }
+    );
+    // Alta médica + alta de enfermería → egreso real que vacía la cama, no pendiente.
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(1);
+    expect(diff.discharges[0]).toMatchObject({ bedId, kind: 'alta', reason: 'rayen-discharge' });
+    expect(requiresReview(diff)).toBe(false); // confirmed by Rayen, no human review needed
+  });
+
+  it('does NOT restore an absent patient who is deceased', () => {
+    // Fallecido ausente de la cama HHR, sin alta de enfermería ni registro HHR: jamás debe
+    // re-ingresarse por la ruta de restauración.
+    const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', isDead: true });
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
+  });
+
+  it('does NOT restore an absent patient whose nurse discharge is done in Rayen', () => {
+    // Alta de enfermería finalizada en Rayen pero ausente de la cama HHR y sin registro en
+    // HHR → egresó de verdad; no re-ingresar.
+    const enc = makeEncounter({
+      room: 'Recuperacion 2',
+      bed: 'R2',
+      hasMedicalDischarge: true,
+      hasNurseDischarge: true,
+    });
+    const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingNursingDischarges).toHaveLength(0);
   });
 
   it('flags a census patient absent from a COMPLETE snapshot as missing-in-rayen', () => {
