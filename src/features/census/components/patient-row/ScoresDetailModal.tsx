@@ -7,10 +7,11 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Activity, AlarmClock, CalendarClock, ClipboardList, History } from 'lucide-react';
+import { Activity, AlarmClock, CalendarClock, ClipboardList, History, Info } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   BradenCellModel,
+  CudyrCellModel,
   DowntonCellModel,
   ScoresCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
@@ -110,6 +111,27 @@ const DowntonSection: React.FC<{ downton: DowntonCellModel }> = ({ downton }) =>
   </section>
 );
 
+const CudyrSection: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => (
+  <section className="rounded-lg border border-slate-200 p-3 space-y-2">
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold text-slate-700">
+        CUDYR — Categorización de riesgo y dependencia
+      </h3>
+      <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">
+        {cudyr.category}
+      </span>
+    </div>
+    <div className="flex items-start gap-2 rounded-md bg-indigo-50/70 px-2.5 py-1.5 text-[11px] text-indigo-700">
+      <Info size={13} className="mt-px shrink-0" />
+      <span>
+        Resultado importado desde <strong>{cudyr.entry.source}</strong>. Eloísa entrega solo la
+        categoría compuesta, por eso no se muestra el valor de cada variable. Categorizado el{' '}
+        {formatIsoDay(cudyr.entry.recordedDate)}.
+      </span>
+    </div>
+  </section>
+);
+
 const HistorySection: React.FC<{ history: EvaluationScoreEntry[] }> = ({ history }) => (
   <section className="rounded-lg border border-slate-200 p-3">
     <h3 className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
@@ -160,7 +182,8 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
     <div className="space-y-3">
       {model.braden && <BradenSection braden={model.braden} />}
       {model.downton && <DowntonSection downton={model.downton} />}
-      {!model.braden && !model.downton && (
+      {model.cudyr && <CudyrSection cudyr={model.cudyr} />}
+      {!model.braden && !model.downton && !model.cudyr && (
         <p className="text-sm text-slate-500">Sin escalas sincronizadas para este día.</p>
       )}
       {model.history.length > 0 && <HistorySection history={model.history} />}

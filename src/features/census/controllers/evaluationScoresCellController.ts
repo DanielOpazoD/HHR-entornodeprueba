@@ -13,6 +13,7 @@ import {
 import type {
   BradenRiskLevel,
   EvaluationScoreEntry,
+  ImportedCudyr,
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
@@ -35,10 +36,19 @@ export interface DowntonCellModel {
   severityLabel: string;
 }
 
+/** CUDYR (CRD) composite result imported from Ficha Médico — only the category, no breakdown. */
+export interface CudyrCellModel {
+  entry: ImportedCudyr;
+  category: string;
+  /** First letter of the category (A/B/C/D) — drives the chip color. Null if not A–D. */
+  band: 'A' | 'B' | 'C' | 'D' | null;
+}
+
 export interface ScoresCellModel {
   hasAny: boolean;
   braden: BradenCellModel | null;
   downton: DowntonCellModel | null;
+  cudyr: CudyrCellModel | null;
   /** Highest urgency across scales — drives the cell-level visual alert. */
   alertUrgency: ReapplicationUrgency;
   /** Unified stay history (most-recent-first) for the detail modal's risk timeline. */
@@ -121,11 +131,22 @@ export const buildScoresCellModel = (
     };
   }
 
+  let cudyr: CudyrCellModel | null = null;
+  if (scores.cudyr && scores.cudyr.category) {
+    const first = scores.cudyr.category.trim().charAt(0).toUpperCase();
+    cudyr = {
+      entry: scores.cudyr,
+      category: scores.cudyr.category.trim(),
+      band: first === 'A' || first === 'B' || first === 'C' || first === 'D' ? first : null,
+    };
+  }
+
   return {
-    hasAny: braden != null || downton != null,
+    hasAny: braden != null || downton != null || cudyr != null,
     braden,
     downton,
-    // Downton has no reapplication cadence yet, so the cell alert follows Braden alone.
+    cudyr,
+    // Downton/CUDYR have no reapplication cadence, so the cell alert follows Braden alone.
     alertUrgency: braden ? braden.assessment.reapplication.urgency : 'ok',
     history: scores.history ?? [],
   };

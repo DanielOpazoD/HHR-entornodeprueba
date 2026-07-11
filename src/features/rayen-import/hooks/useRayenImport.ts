@@ -22,12 +22,15 @@ import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';
 import { mapInvasiveDevices } from '../mapping/mapDeviceToInstance';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import { parseEvaluationScales } from '../mapping/parseEvaluationScales';
+import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import {
   subscribeToRayenSnapshots,
   requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
   requestScalesReport,
+  requestCudyrCategories,
+  type RayenCudyrCategory,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -108,10 +111,19 @@ export const useRayenImport = () => {
   // seconds) and the merges are folded back afterwards — every bed is independent, so no race.
   const fillDevicesInBackground = useCallback(
     async (record: DailyRecord): Promise<void> => {
+      // `fecha` is the CENSUS day (record's own day, never "today"), so a late sync of a past census
+      // still asks Ficha Médico for that day's devices/scales/CUDYR — see toIsoReportDate.
       const fecha = toIsoReportDate(record);
       const eligible = Object.entries(record.beds).filter(
         ([, patient]) => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
       );
+
+      // Kick off the CUDYR bulk read in parallel — it MUST NOT block devices/scales. If the extension
+      // is an older version without the CUDYR relay, this simply times out; meanwhile devices/scales
+      // are fetched, merged and saved below, then CUDYR is folded in afterwards (second, later save).
+      const cudyrPromise = requestCudyrCategories().catch((): { items: RayenCudyrCategory[] } => ({
+        items: [],
+      }));
 
       const CONCURRENCY = 4;
       const merges: Array<{ bedId: string; patient: DailyRecord['beds'][string] }> = [];
@@ -162,15 +174,47 @@ export const useRayenImport = () => {
         for (const result of results) if (result) merges.push(result);
       }
 
-      if (merges.length === 0) return;
+      // Save devices + scales first so they appear promptly, regardless of the CUDYR read.
       let updated = record;
-      for (const { bedId, patient } of merges) {
-        updated = { ...updated, beds: { ...updated.beds, [bedId]: patient } };
+      if (merges.length > 0) {
+        for (const { bedId, patient } of merges) {
+          updated = { ...updated, beds: { ...updated.beds, [bedId]: patient } };
+        }
+        try {
+          await saveDailyRecord(updated);
+        } catch {
+          // Devices/scales are best-effort; the census is already saved.
+        }
       }
+
+      // Then fold in the CUDYR composite result for the census day (separate, later save so a slow or
+      // absent CUDYR read never delays devices/scales). Rayen exposes only the aggregate (e.g. "D3").
       try {
-        await saveDailyRecord(updated);
-      } catch {
-        // Devices/scales are best-effort; the census is already saved.
+        const { items } = await cudyrPromise;
+        const cudyrByEnc = new Map(items.map(item => [item.encId, item]));
+        let withCudyr = updated;
+        let cudyrChanged = false;
+        for (const [bedId, patient] of eligible) {
+          if (!patient?.clinicalEpisodeId) continue;
+          const row = cudyrByEnc.get(patient.clinicalEpisodeId);
+          const importedCudyr = row ? buildImportedCudyr(row, fecha) : null;
+          if (!importedCudyr) continue;
+          const current = withCudyr.beds[bedId];
+          withCudyr = {
+            ...withCudyr,
+            beds: {
+              ...withCudyr.beds,
+              [bedId]: {
+                ...current,
+                evaluationScores: { ...current.evaluationScores, cudyr: importedCudyr },
+              },
+            },
+          };
+          cudyrChanged = true;
+        }
+        if (cudyrChanged) await saveDailyRecord(withCudyr);
+      } catch (error) {
+        console.warn('[rayen-import] Relleno de CUDYR falló:', error);
       }
     },
     [saveDailyRecord]

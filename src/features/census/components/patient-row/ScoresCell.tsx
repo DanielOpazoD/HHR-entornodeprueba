@@ -26,6 +26,14 @@ const LEVEL_CHIP_CLASSES: Record<BradenRiskLevel, string> = {
 
 const NEUTRAL_CHIP_CLASSES = 'bg-slate-50 text-slate-500 border-slate-200';
 
+// CUDYR category band colors, matching the CUDYR night-handoff view (A highest acuity → D lowest).
+const CUDYR_BAND_CLASSES: Record<'A' | 'B' | 'C' | 'D', string> = {
+  A: 'bg-rose-50 text-rose-700 border-rose-200',
+  B: 'bg-amber-50 text-amber-700 border-amber-300',
+  C: 'bg-sky-50 text-sky-700 border-sky-200',
+  D: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
 export const ScoresCell: React.FC<ScoresCellProps> = ({
   data,
   isSubRow = false,
@@ -84,6 +92,17 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               title={`Downton ${model.downton.total} · ${model.downton.severityLabel}`}
             >
               <span>D {model.downton.total}</span>
+            </span>
+          )}
+          {model.cudyr && (
+            <span
+              className={clsx(
+                'flex items-center justify-between gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
+                model.cudyr.band ? CUDYR_BAND_CLASSES[model.cudyr.band] : NEUTRAL_CHIP_CLASSES
+              )}
+              title={`CUDYR ${model.cudyr.category} · importado desde ${model.cudyr.entry.source} (sin desglose)`}
+            >
+              <span>CUDYR {model.cudyr.category}</span>
             </span>
           )}
         </button>

@@ -41,11 +41,28 @@ export interface EvaluationScoreEntry {
 }
 
 /**
+ * Imported CUDYR (CRD — Categorización de Riesgo y Dependencia) from Ficha Médico. Rayen does NOT
+ * expose the 14 individual variables, only the composite result category (e.g. "D3"), so that is the
+ * only thing synced — the per-variable breakdown is intentionally absent and HHR must make clear it
+ * was imported from Eloísa (Rayen).
+ */
+export interface ImportedCudyr {
+  /** Composite CUDYR category computed by Ficha Médico, e.g. "D3". */
+  category: string;
+  /** ISO local day (Rapa Nui) the categorization was recorded — YYYY-MM-DD. */
+  recordedDate: string;
+  /** Provenance shown in the UI, e.g. "Eloísa (Rayen)". */
+  source: string;
+}
+
+/**
  * A patient's evaluation scales: the current value per scale plus the stay history (most-recent-first)
  * that feeds the unified risk view. The history is a compact snapshot (usually without `items`).
+ * `cudyr` carries the imported CUDYR result (composite category only).
  */
 export interface PatientEvaluationScores {
   braden?: EvaluationScoreEntry;
   downton?: EvaluationScoreEntry;
+  cudyr?: ImportedCudyr;
   history?: EvaluationScoreEntry[];
 }

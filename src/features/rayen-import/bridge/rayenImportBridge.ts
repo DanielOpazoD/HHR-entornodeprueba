@@ -22,6 +22,15 @@ export const RAYEN_DEVICE_REPORT_REQUEST_TYPE = 'HHR_RAYEN_DEVICE_REPORT_REQUEST
 export const RAYEN_DEVICE_REPORT_RESULT_TYPE = 'HHR_RAYEN_DEVICE_REPORT_RESULT';
 export const RAYEN_SCALES_REPORT_REQUEST_TYPE = 'HHR_RAYEN_SCALES_REPORT_REQUEST';
 export const RAYEN_SCALES_REPORT_RESULT_TYPE = 'HHR_RAYEN_SCALES_REPORT_RESULT';
+export const RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST';
+export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT';
+
+/** One patient's CUDYR (CRD) composite result from a Ficha Médico nurse worklist. */
+export interface RayenCudyrCategory {
+  encId: string;
+  crdValue: string;
+  crdDateTime: string;
+}
 
 interface RayenImportMessage {
   type: typeof RAYEN_IMPORT_MESSAGE_TYPE;
@@ -274,5 +283,49 @@ export const requestScalesReport = (
     setTimeout(() => {
       cleanup();
       resolve({ forms: [], error: 'Tiempo de espera agotado bajando las escalas de evaluación.' });
+    }, timeoutMs);
+  });
+
+/**
+ * Ask the extension for the CUDYR (CRD) composite result of every patient across Ficha Médico's nurse
+ * worklists. Rayen exposes only the aggregate category (e.g. "D3") + datetime per encounter, not the
+ * 14 variables. Resolves to `[]` if the extension / Ficha Médico tab is unavailable or times out.
+ */
+export const requestCudyrCategories = (
+  timeoutMs = 30000
+): Promise<{ items: RayenCudyrCategory[]; error?: string }> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined') {
+      resolve({ items: [] });
+      return;
+    }
+    const reqId = `cudyr-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_CUDYR_CATEGORIES_RESULT_TYPE || data.reqId !== reqId) return;
+      cleanup();
+      resolve({
+        items: Array.isArray(data.items) ? (data.items as RayenCudyrCategory[]) : [],
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE, reqId },
+      window.location.origin
+    );
+    setTimeout(() => {
+      cleanup();
+      resolve({ items: [], error: 'Tiempo de espera agotado leyendo CUDYR.' });
     }, timeoutMs);
   });

@@ -85,6 +85,21 @@ describe('buildScoresCellModel — Downton and history', () => {
     expect(model.braden).toBeNull();
   });
 
+  it('maps an imported CUDYR to a band and marks the cell as having content', () => {
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
+        },
+      }),
+      '2026-07-10'
+    );
+    expect(model.cudyr?.category).toBe('D3');
+    expect(model.cudyr?.band).toBe('D');
+    expect(model.hasAny).toBe(true);
+    expect(model.braden).toBeNull();
+  });
+
   it('exposes the unified history and handles a patient without scores', () => {
     const history = [entry({ encounterEventId: 2 }), entry({ encounterEventId: 1 })];
     const withHistory = buildScoresCellModel(

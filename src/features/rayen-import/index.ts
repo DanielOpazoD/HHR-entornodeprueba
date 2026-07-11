@@ -104,7 +104,9 @@ export {
   requestEgresoReport,
   requestDeviceReport,
   requestScalesReport,
+  requestCudyrCategories,
 } from './bridge/rayenImportBridge';
+export type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 
 // Hooks
 export { useRayenImportMode } from './hooks/useRayenImportMode';
