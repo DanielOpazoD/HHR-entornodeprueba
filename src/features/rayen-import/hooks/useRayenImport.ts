@@ -25,6 +25,7 @@ import { parseEvaluationScales } from '../mapping/parseEvaluationScales';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import {
   subscribeToRayenSnapshots,
+  requestRayenSnapshot,
   requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
@@ -65,6 +66,8 @@ interface RayenImportState {
   diff: CensusImportDiff | null;
   isPreviewOpen: boolean;
   isBusy: boolean;
+  /** True from clicking Import until the whole flow settles (snapshot → plan → background fill). */
+  isSyncing: boolean;
   result: ApplyResult | null;
   error: string | null;
 }
@@ -73,6 +76,7 @@ const INITIAL_STATE: RayenImportState = {
   diff: null,
   isPreviewOpen: false,
   isBusy: false,
+  isSyncing: false,
   result: null,
   error: null,
 };
@@ -90,6 +94,16 @@ export const useRayenImport = () => {
   // record as the first (which has not finished saving) and silently clobber it.
   // `isBusy` is async React state, so it cannot close this window on its own.
   const autoApplyingRef = useRef(false);
+  // Fallback timer for the "sincronizando" indicator: if the extension never answers the snapshot
+  // request, clear the spinner and surface a hint instead of spinning forever.
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSyncTimeout = useCallback(() => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+    }
+  }, []);
+  useEffect(() => clearSyncTimeout, [clearSyncTimeout]);
 
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
 
@@ -216,14 +230,23 @@ export const useRayenImport = () => {
       } catch (error) {
         console.warn('[rayen-import] Relleno de CUDYR falló:', error);
       }
+
+      // The background fill has settled — stop the "sincronizando" indicator.
+      setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
     },
     [saveDailyRecord]
   );
 
   const previewSnapshot = useCallback(
     async (snapshot: RayenCensusSnapshot) => {
+      // The snapshot arrived — cancel the "no answer" fallback timer.
+      clearSyncTimeout();
       if (!currentRecord) {
-        setState(prev => ({ ...prev, error: 'No hay censo cargado para hoy.' }));
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          error: 'No hay censo cargado para hoy.',
+        }));
         return;
       }
       let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
@@ -251,16 +274,29 @@ export const useRayenImport = () => {
       if (canAutoApply) {
         if (autoApplyingRef.current) return;
         autoApplyingRef.current = true;
-        setState({ diff, isPreviewOpen: false, isBusy: true, result: null, error: null });
+        setState({
+          diff,
+          isPreviewOpen: false,
+          isBusy: true,
+          isSyncing: true,
+          result: null,
+          error: null,
+        });
         applyDiff(currentRecord, diff)
           .then(result => {
             autoApplyingRef.current = false;
             setState(prev => ({ ...prev, isBusy: false, result }));
+            // Keeps `isSyncing` on until the background fill settles it.
             void fillDevicesInBackground(result.record);
           })
           .catch(error => {
             autoApplyingRef.current = false;
-            setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
+            setState(prev => ({
+              ...prev,
+              isBusy: false,
+              isSyncing: false,
+              error: errorMessage(error),
+            }));
           });
         return;
       }
@@ -275,6 +311,8 @@ export const useRayenImport = () => {
           diff.discharges.length +
           (diff.reportEgresos?.length ?? 0) >
         0;
+      // With census changes to confirm, syncing "pauses" for human review; with none, the fill runs
+      // now and keeps the indicator on until it settles.
       if (!hasApplicableChanges) {
         void fillDevicesInBackground(currentRecord);
       }
@@ -283,6 +321,7 @@ export const useRayenImport = () => {
         diff,
         isPreviewOpen: true,
         isBusy: false,
+        isSyncing: !hasApplicableChanges,
         result: null,
         error:
           mode === 'auto' && needsReview
@@ -290,25 +329,47 @@ export const useRayenImport = () => {
             : null,
       });
     },
-    [currentRecord, mode, applyDiff, fillDevicesInBackground]
+    [currentRecord, mode, applyDiff, fillDevicesInBackground, clearSyncTimeout]
   );
 
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
 
+  // Trigger an import: show the spinner immediately, ask the extension for a snapshot, and guard with
+  // a fallback timer so an uninstalled/asleep extension doesn't leave it spinning forever.
+  const triggerImport = useCallback(() => {
+    clearSyncTimeout();
+    setState(prev => ({ ...prev, isSyncing: true, result: null, error: null }));
+    requestRayenSnapshot();
+    syncTimeoutRef.current = setTimeout(() => {
+      syncTimeoutRef.current = null;
+      setState(prev =>
+        prev.isSyncing
+          ? {
+              ...prev,
+              isSyncing: false,
+              error:
+                'No se recibió respuesta de la extensión Rayen. Verifica que esté instalada y con la pestaña de Ficha Médico abierta.',
+            }
+          : prev
+      );
+    }, 18000);
+  }, [clearSyncTimeout]);
+
   const confirm = useCallback(async () => {
     if (!currentRecord || !state.diff) return;
-    setState(prev => ({ ...prev, isBusy: true, error: null }));
+    setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
     try {
       const result = await applyDiff(currentRecord, state.diff);
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
+      // Keeps `isSyncing` on until the background fill settles it.
       void fillDevicesInBackground(result.record);
     } catch (error) {
-      setState(prev => ({ ...prev, isBusy: false, error: errorMessage(error) }));
+      setState(prev => ({ ...prev, isBusy: false, isSyncing: false, error: errorMessage(error) }));
     }
   }, [currentRecord, state.diff, applyDiff, fillDevicesInBackground]);
 
   const cancel = useCallback(() => {
-    setState(prev => ({ ...prev, isPreviewOpen: false }));
+    setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
   }, []);
 
   return useMemo(
@@ -317,12 +378,14 @@ export const useRayenImport = () => {
       diff: state.diff,
       isPreviewOpen: state.isPreviewOpen,
       isBusy: state.isBusy,
+      isSyncing: state.isSyncing,
       result: state.result,
       error: state.error,
+      triggerImport,
       previewSnapshot,
       confirm,
       cancel,
     }),
-    [mode, state, previewSnapshot, confirm, cancel]
+    [mode, state, triggerImport, previewSnapshot, confirm, cancel]
   );
 };
