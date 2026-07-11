@@ -109,6 +109,7 @@ export {
 export type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 
 // Hooks
+export { useRayenFillStatus } from './hooks/useRayenFillStatus';
 export { useRayenImportMode } from './hooks/useRayenImportMode';
 export type { UseRayenImportModeResult } from './hooks/useRayenImportMode';
 export { useRayenImport } from './hooks/useRayenImport';

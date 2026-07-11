@@ -12,6 +12,7 @@ import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ScoresDetailModal } from './ScoresDetailModal';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
+import { useRayenFillStatus } from '@/features/rayen-import';
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 
 interface ScoresCellProps extends BaseCellProps {
@@ -41,6 +42,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   currentDateString,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const isFilling = useRayenFillStatus();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -106,6 +108,15 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             </span>
           )}
         </button>
+      ) : isFilling ? (
+        <div
+          className="flex flex-col gap-0.5 animate-pulse"
+          title="Sincronizando escalas desde Rayen…"
+          aria-label="Cargando escalas"
+        >
+          <span className="h-2.5 rounded bg-slate-200" />
+          <span className="h-2.5 w-2/3 rounded bg-slate-200" />
+        </div>
       ) : (
         <div
           className="text-center text-slate-300 text-[9px] select-none"

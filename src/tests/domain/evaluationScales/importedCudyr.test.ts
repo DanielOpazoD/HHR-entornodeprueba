@@ -24,9 +24,21 @@ describe('buildImportedCudyr', () => {
     expect(result?.recordedDate).toBe('2026-07-10');
   });
 
-  it('returns null when the categorization is from another day', () => {
+  it('keeps showing a prior-day categorization as of a later census day (Carina: 10-jul → viewed 11-jul)', () => {
+    const result = buildImportedCudyr(
+      { crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' },
+      '2026-07-11'
+    );
+    expect(result).toEqual({
+      category: 'D3',
+      recordedDate: '2026-07-10',
+      source: CUDYR_IMPORT_SOURCE,
+    });
+  });
+
+  it('returns null when the categorization was made AFTER the census day (late sync of a past census)', () => {
     expect(
-      buildImportedCudyr({ crdValue: 'D3', crdDateTime: '2026-07-09T15:00:00+00:00' }, '2026-07-10')
+      buildImportedCudyr({ crdValue: 'D3', crdDateTime: '2026-07-11T15:00:00+00:00' }, '2026-07-10')
     ).toBeNull();
   });
 

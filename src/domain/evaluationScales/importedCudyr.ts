@@ -3,9 +3,12 @@
  * only persists the composite category (e.g. "D3"), not the 14 individual variables, so this is all
  * that can be synced. Pure and testable.
  *
- * Only the categorization of the CENSUS DAY is taken (per Daniel): `crdDateTime` is resolved to its
- * Rapa Nui calendar day (Pacific/Easter, handles -06/-05 DST) and must equal the census day. "S/C"
- * (sin categorizar) and blanks yield null.
+ * The CUDYR category is the current one AS OF the census day: Rayen keeps only the latest
+ * categorization, so its `crdDateTime` (resolved to its Rapa Nui calendar day — Pacific/Easter,
+ * handles -06/-05 DST) must be ON OR BEFORE the census day. This keeps showing the standing category
+ * on days with no new categorization (e.g. a scale done yesterday still applies today), while a late
+ * sync of a PAST census never picks up a categorization made after that day. "S/C" (sin categorizar)
+ * and blanks yield null.
  */
 
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -29,8 +32,8 @@ export interface CudyrCategoryInput {
 }
 
 /**
- * The imported CUDYR result if the patient was categorized ON `censusIsoDay` (Rapa Nui); null when
- * there is no real category or it belongs to another day.
+ * The imported CUDYR result AS OF `censusIsoDay` (Rapa Nui): the standing category when it was last
+ * set on or before that day; null when there is no real category or it was set AFTER that day.
  */
 export const buildImportedCudyr = (
   input: CudyrCategoryInput,
@@ -43,7 +46,7 @@ export const buildImportedCudyr = (
   if (Number.isNaN(epoch)) return null;
 
   const recordedDate = rapaNuiDayFormatter.format(new Date(epoch));
-  if (recordedDate !== censusIsoDay) return null;
+  if (recordedDate > censusIsoDay) return null;
 
   return { category, recordedDate, source: CUDYR_IMPORT_SOURCE };
 };

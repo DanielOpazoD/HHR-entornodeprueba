@@ -23,6 +23,7 @@ import { mapInvasiveDevices } from '../mapping/mapDeviceToInstance';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import { parseEvaluationScales } from '../mapping/parseEvaluationScales';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
+import { setRayenFilling } from './useRayenFillStatus';
 import {
   subscribeToRayenSnapshots,
   requestRayenSnapshot,
@@ -125,6 +126,8 @@ export const useRayenImport = () => {
   // seconds) and the merges are folded back afterwards — every bed is independent, so no race.
   const fillDevicesInBackground = useCallback(
     async (record: DailyRecord): Promise<void> => {
+      // Signal the DMI/Scores cells to show their loading animation while data is being fetched.
+      setRayenFilling(true);
       // `fecha` is the CENSUS day (record's own day, never "today"), so a late sync of a past census
       // still asks Ficha Médico for that day's devices/scales/CUDYR — see toIsoReportDate.
       const fecha = toIsoReportDate(record);
@@ -231,7 +234,8 @@ export const useRayenImport = () => {
         console.warn('[rayen-import] Relleno de CUDYR falló:', error);
       }
 
-      // The background fill has settled — stop the "sincronizando" indicator.
+      // The background fill has settled — stop the "sincronizando" indicator and the cell animations.
+      setRayenFilling(false);
       setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
     },
     [saveDailyRecord]
