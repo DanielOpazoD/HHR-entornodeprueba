@@ -45,6 +45,41 @@ describe('parseInvasiveDevices', () => {
   it('returns [] when there is no devices table', () => {
     expect(parseInvasiveDevices([item(20, 281, 'SIGNOS VITALES')])).toEqual([]);
   });
+
+  // Real dump (Hugo Zamora, encId 141225): the two-column PDF interleaves the medicamentos /
+  // indicaciones text with the devices table by y. Those lines land at the nombre column with
+  // "Programad"/"a" in the fecha column — they must NOT be captured as devices; only the VVP is.
+  const INTERLEAVED_LAYOUT: DeviceTextItem[] = [
+    item(22, 650, 'DISPOSITIVOS'),
+    item(91, 650, 'Nombre'),
+    item(251, 650, 'Ubicación'),
+    item(351, 650, 'Nro.'),
+    item(391, 650, 'Fecha instalación'),
+    item(491, 650, 'Fecha expiración'),
+    item(72, 641, '- 1 comprimido SOS si'),
+    item(421, 641, 'Programad'),
+    item(20, 640, 'INVASIVOS:'),
+    item(91, 638, 'Vía Venosa Periférica'),
+    item(251, 638, 'ESD'),
+    item(351, 638, '20.0'),
+    item(391, 638, '9/07/26 23:15'),
+    item(491, 638, '12/07/26 0:00'),
+    item(72, 632, 'agitacion (segundo SOS)'),
+    item(421, 632, 'a'),
+    item(20, 617, 'SIGNOS VITALES Ariki Merino - Médico'),
+  ];
+
+  it('ignores interleaved medication/indicaciones text, keeping only the real device', () => {
+    expect(parseInvasiveDevices(INTERLEAVED_LAYOUT)).toEqual([
+      {
+        nombre: 'Vía Venosa Periférica',
+        ubicacion: 'ESD',
+        nro: '20.0',
+        fechaInstalacion: '9/07/26 23:15',
+        fechaExpiracion: '12/07/26 0:00',
+      },
+    ]);
+  });
 });
 
 describe('mapInvasiveDevices', () => {

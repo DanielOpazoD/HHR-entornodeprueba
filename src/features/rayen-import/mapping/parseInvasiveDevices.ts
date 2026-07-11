@@ -34,6 +34,13 @@ const norm = (value: string): string =>
     .toLowerCase()
     .trim();
 
+// A real device row always carries a slash-date in its install/expiry column ("9/07/26 23:15"). This
+// rules out the medicamentos/indicaciones text that the two-column PDF interleaves by y next to the
+// devices table (e.g. "- 1 comprimido SOS si" lands at the nombre column with "Programad" in the
+// fecha column) \u2014 that text has no such date. Dash-dated event timestamps ("10-07-2026 03:38") don't
+// match either, on purpose.
+const looksLikeDate = (value: string): boolean => /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(value);
+
 interface Cell {
   x: number;
   s: string;
@@ -98,7 +105,11 @@ export const parseInvasiveDevices = (items: DeviceTextItem[]): InvasiveDeviceRow
       row[col] = row[col] ? `${row[col]} ${cell.s}` : cell.s;
     }
     const startsAtNombre = Math.abs((line.cells[0]?.x ?? 1e9) - nombreX) < 60;
-    if (startsAtNombre && row.nombre && (row.fechaInstalacion || row.fechaExpiracion)) {
+    if (
+      startsAtNombre &&
+      row.nombre &&
+      (looksLikeDate(row.fechaInstalacion) || looksLikeDate(row.fechaExpiracion))
+    ) {
       devices.push({
         nombre: row.nombre.trim(),
         ubicacion: row.ubicacion.trim(),

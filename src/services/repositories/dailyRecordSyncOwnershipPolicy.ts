@@ -25,6 +25,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   insurance: 'remoteCanonical',
   isRapanui: 'remoteCanonical',
   cudyr: 'remoteCanonical',
+  evaluationScores: 'remoteCanonical',
   pathology: 'remoteCanonical',
   snomedCode: 'remoteCanonical',
   cie10Code: 'remoteCanonical',

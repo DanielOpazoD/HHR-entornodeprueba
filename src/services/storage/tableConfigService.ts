@@ -31,6 +31,7 @@ export interface TableColumnConfig {
   status: number;
   admission: number;
   dmi: number;
+  scores: number;
   cqx: number;
   upc: number;
 }
@@ -68,6 +69,7 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   status: 50,
   admission: 51,
   dmi: 67,
+  scores: 56,
   cqx: 21,
   upc: 26,
 };
@@ -88,6 +90,7 @@ const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   status: 50,
   admission: 51,
   dmi: 67,
+  scores: 56,
   cqx: 21,
   upc: 22,
 };
@@ -110,6 +113,7 @@ const compactColumns = (columns: Partial<TableColumnConfig>): TableColumnConfig 
     status: Math.min(merged.status, COMPACT_COLUMN_MAX_WIDTHS.status),
     admission: Math.min(merged.admission, COMPACT_COLUMN_MAX_WIDTHS.admission),
     dmi: Math.min(merged.dmi, COMPACT_COLUMN_MAX_WIDTHS.dmi),
+    scores: Math.min(merged.scores, COMPACT_COLUMN_MAX_WIDTHS.scores),
     cqx: Math.min(merged.cqx, COMPACT_COLUMN_MAX_WIDTHS.cqx),
     upc: Math.min(merged.upc, COMPACT_COLUMN_MAX_WIDTHS.upc),
   };

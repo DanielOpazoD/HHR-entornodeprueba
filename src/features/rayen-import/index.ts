@@ -43,7 +43,10 @@ export {
   parseEvaluationScales,
   latestEvaluationScales,
   evaluationScalesForCensusDay,
+  evaluationScalesAsOf,
 } from './mapping/parseEvaluationScales';
+export type { MergeScalesContext } from './domain/mergeReportScales';
+export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';
 export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
@@ -100,9 +103,23 @@ export {
   requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
+  requestScalesReport,
+  requestCudyrCategories,
 } from './bridge/rayenImportBridge';
+export type { RayenCudyrCategory } from './bridge/rayenImportBridge';
+
+// Clinical fill runner (devices + scales + CUDYR via granular patches)
+export type {
+  ClinicalFillDeps,
+  ClinicalFillError,
+  ClinicalFillProgress,
+  ClinicalFillSummary,
+} from './clinicalFillRunner';
+export { runClinicalFill } from './clinicalFillRunner';
 
 // Hooks
+export { useRayenFillStatus, useRayenFillProgress } from './hooks/useRayenFillStatus';
+export type { RayenFillProgress } from './hooks/useRayenFillStatus';
 export { useRayenImportMode } from './hooks/useRayenImportMode';
 export type { UseRayenImportModeResult } from './hooks/useRayenImportMode';
 export { useRayenImport } from './hooks/useRayenImport';

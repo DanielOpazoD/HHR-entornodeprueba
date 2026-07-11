@@ -30,6 +30,7 @@ describe('censusTableLayoutController', () => {
         status: 100,
         admission: 100,
         dmi: 60,
+        scores: 56,
         cqx: 60,
         upc: 60,
       },
@@ -54,7 +55,7 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
     expect(bindings.bodyProps.onActivateEmptyBed).toBe(onActivateEmptyBed);
-    expect(bindings.tableStyle).toEqual({ width: '1200px', minWidth: '100%' });
+    expect(bindings.tableStyle).toEqual({ width: '1256px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {
@@ -89,6 +90,7 @@ describe('censusTableLayoutController', () => {
         status: 100,
         admission: 100,
         dmi: 60,
+        scores: 56,
         cqx: 60,
         upc: 60,
       },
@@ -132,6 +134,7 @@ describe('censusTableLayoutController', () => {
         status: 100,
         admission: 100,
         dmi: 60,
+        scores: 56,
         cqx: 60,
         upc: 60,
       },

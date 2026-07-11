@@ -64,6 +64,7 @@ describe('CensusTableHeader', () => {
     status: 100,
     admission: 100,
     dmi: 60,
+    scores: 56,
     cqx: 60,
     upc: 60,
   };

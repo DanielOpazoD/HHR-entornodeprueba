@@ -30,6 +30,7 @@ export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   { key: 'status', label: 'Estado' },
   { key: 'admission', label: 'Ingreso' },
   { key: 'dmi', label: 'DMI', title: 'Dispositivos médicos invasivos' },
+  { key: 'scores', label: 'Scores', title: 'Escalas de enfermería (Braden UPP · Downton caídas)' },
   { key: 'cqx', label: 'C.QX', title: 'Comp. Quirurgica' },
   { key: 'upc', label: 'UPC', className: 'border-r-0' },
 ] as const;

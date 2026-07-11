@@ -51,6 +51,7 @@ describe('CensusTableBody', () => {
     status: 0,
     admission: 128,
     dmi: 0,
+    scores: 56,
     cqx: 0,
     upc: 0,
   };

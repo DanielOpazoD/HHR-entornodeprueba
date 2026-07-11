@@ -112,6 +112,9 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
   }
 
   const occupiedPatient = patient!;
+  // CUDYR imported from Eloísa (Rayen): only the composite category is available (no per-variable
+  // breakdown), so make that explicit here instead of showing the derived category over empty inputs.
+  const importedCudyr = occupiedPatient.evaluationScores?.cudyr ?? null;
 
   return (
     <tr
@@ -142,6 +145,14 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         {viewModel.showBlockedLabel && (
           <span className="print:hidden block text-[9px] font-semibold uppercase tracking-wide text-amber-700">
             {viewModel.blockedLabel}
+          </span>
+        )}
+        {importedCudyr && (
+          <span
+            className="print:hidden block text-[9px] font-semibold uppercase tracking-wide text-indigo-700"
+            title={`CUDYR importado desde ${importedCudyr.source}: solo la categoría compuesta (${importedCudyr.category}); Eloísa no entrega el valor de cada variable.`}
+          >
+            Importado Eloísa
           </span>
         )}
         <span className="hidden print:inline text-[10px]">{occupiedPatient.rut || '-'}</span>
@@ -288,10 +299,15 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         <span
           className={clsx(
             'px-2 py-0.5 rounded font-bold text-xs block w-full shadow-sm print:px-1 print:text-[10px]',
-            viewModel.badgeColor
+            importedCudyr ? 'bg-indigo-100 text-indigo-800' : viewModel.badgeColor
           )}
+          title={
+            importedCudyr
+              ? `Importado desde ${importedCudyr.source} (categoría compuesta, sin desglose)`
+              : undefined
+          }
         >
-          {viewModel.finalCat}
+          {importedCudyr ? importedCudyr.category : viewModel.finalCat}
         </span>
       </td>
     </tr>
