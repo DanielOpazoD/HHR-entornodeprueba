@@ -15,7 +15,7 @@ describe('PatientInputCells', () => {
     clearDailyRecordClinicalFieldPausesForTests();
   });
 
-  it('renders flag checkboxes from section composition', () => {
+  it('renders flag cells hiding the C.QX checkbox (rediseño 2026)', () => {
     vi.mocked(useDailyRecordStability).mockReturnValue({
       canEditField: () => true,
     } as unknown as ReturnType<typeof useDailyRecordStability>);
@@ -50,7 +50,8 @@ describe('PatientInputCells', () => {
       </table>
     );
 
-    expect(screen.getByTitle('Comp. Qx')).toBeInTheDocument();
+    // La columna C.QX está oculta (campo surgicalComplication conservado para el futuro).
+    expect(screen.queryByTitle('Comp. Qx')).not.toBeInTheDocument();
     expect(screen.getByTitle(/Sin clasificación UPC/i)).toBeInTheDocument();
   });
 

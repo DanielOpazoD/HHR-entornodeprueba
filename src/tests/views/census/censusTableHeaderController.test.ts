@@ -6,14 +6,25 @@ import {
 } from '@/features/census/controllers/censusTableHeaderController';
 
 describe('censusTableHeaderController', () => {
-  it('keeps all census columns in default access profile', () => {
+  it('keeps visible census columns in default access profile', () => {
     const cells = buildCensusHeaderCellModels(undefined, 'default');
     const keys = cells.map(cell => cell.key);
 
     expect(keys).toContain('status');
     expect(keys).toContain('dmi');
-    expect(keys).toContain('cqx');
     expect(keys).toContain('upc');
+  });
+
+  it('hides rut, age and cqx columns and unifies identity under "Paciente"', () => {
+    const cells = buildCensusHeaderCellModels(undefined, 'default');
+    const keys = cells.map(cell => cell.key);
+
+    expect(keys).not.toContain('rut');
+    expect(keys).not.toContain('age');
+    expect(keys).not.toContain('cqx');
+
+    const nameCell = cells.find(cell => cell.key === 'name');
+    expect(nameCell?.label).toBe('Paciente');
   });
 
   it('hides specialist-restricted census columns', () => {

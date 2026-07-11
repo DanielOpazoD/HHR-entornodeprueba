@@ -1,14 +1,11 @@
 import React from 'react';
-import { NameInput } from './NameInput';
-import { RutPassportInput } from './RutPassportInput';
-import { AgeInput } from './AgeInput';
+import { PatientIdentityCell } from './PatientIdentityCell';
 import { DiagnosisInput } from './DiagnosisInput';
 import { SpecialtyCell } from './SpecialtyCell';
 import { StatusSelect } from './StatusSelect';
 import { AdmissionInput } from './AdmissionInput';
 import { DevicesCell } from './DevicesCell';
 import { ScoresCell } from './ScoresCell';
-import { CheckboxCell } from './CheckboxCell';
 import { UpcChecklistPopover } from './UpcChecklistPopover';
 import { ClinicalInitialBlockCells } from './ClinicalInitialBlockCells';
 import type {
@@ -51,44 +48,26 @@ const buildClinicalPause = (
   };
 };
 
+/**
+ * Rediseño censo 2026: la identidad se renderiza en una sola celda "Paciente"
+ * (nombre + edad + RUT). Los componentes NameInput / RutPassportInput / AgeInput
+ * se conservan intactos para reactivación futura de las columnas separadas.
+ */
 export const PatientInputIdentitySection: React.FC<PatientInputIdentitySectionBindings> = ({
   shared,
   hasRutError,
   handleDebouncedText,
   onDemo,
-  onChange,
 }) => (
-  <>
-    <NameInput
-      data={shared.data}
-      isSubRow={shared.isSubRow}
-      isEmpty={shared.isEmpty}
-      readOnly={shared.isLocked}
-      onChange={handleDebouncedText}
-    />
-    <RutPassportInput
-      value={shared.data.rut || ''}
-      documentType={shared.data.documentType || 'RUT'}
-      isSubRow={shared.isSubRow}
-      isClinicalCribPatient={shared.isSubRow || shared.data.bedMode === 'Cuna'}
-      isEmpty={shared.isEmpty}
-      hasName={!!shared.data.patientName && !shared.isEmpty}
-      patientName={shared.data.patientName || ''}
-      currentDateString={shared.currentDateString}
-      admissionDate={shared.data.admissionDate}
-      onChange={handleDebouncedText('rut')}
-      onToggleType={onChange.toggleDocType}
-      readOnly={true}
-      hasError={hasRutError}
-    />
-    <AgeInput
-      data={shared.data}
-      isSubRow={shared.isSubRow}
-      isEmpty={shared.isEmpty}
-      readOnly={shared.isLocked}
-      onOpenDemographics={onDemo}
-    />
-  </>
+  <PatientIdentityCell
+    data={shared.data}
+    isSubRow={shared.isSubRow}
+    isEmpty={shared.isEmpty}
+    readOnly={shared.isLocked}
+    hasRutError={hasRutError}
+    onNameChange={handleDebouncedText}
+    onOpenDemographics={onDemo}
+  />
 );
 
 export const PatientInputClinicalSection: React.FC<
@@ -212,7 +191,6 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
   const upcEligible = isUpcEligibleBedId(shared.data.bedId);
   const { currentUser } = useAuth();
   const fieldLocks = shared.clinicalFieldLocks;
-  const surgicalComplicationLocked = isRemoteLocked(fieldLocks?.surgicalComplication);
   const upcLocked = isRemoteLocked(fieldLocks?.upc);
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const upcActor = currentUser
@@ -232,22 +210,30 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
 
   return (
     <>
-      <CheckboxCell
-        data={shared.data}
-        isSubRow={shared.isSubRow}
-        isEmpty={shared.isEmpty}
-        readOnly={baseClinicalReadOnly}
-        clinicalPause={buildClinicalPause(
-          shared.currentDateString,
-          shared.data.bedId,
-          'surgicalComplication',
-          !baseClinicalReadOnly && surgicalComplicationLocked
-        )}
-        field="surgicalComplication"
-        onChange={onChange.check}
-        title="Comp. Qx"
-        colorClass="text-red-600"
-      />
+      {/*
+        Columna C.QX oculta (rediseño censo 2026). El campo surgicalComplication y el
+        componente CheckboxCell se conservan; para reactivar, restaurar el bloque:
+
+        <CheckboxCell
+          data={shared.data}
+          isSubRow={shared.isSubRow}
+          isEmpty={shared.isEmpty}
+          readOnly={baseClinicalReadOnly}
+          clinicalPause={buildClinicalPause(
+            shared.currentDateString,
+            shared.data.bedId,
+            'surgicalComplication',
+            !baseClinicalReadOnly && isRemoteLocked(fieldLocks?.surgicalComplication)
+          )}
+          field="surgicalComplication"
+          onChange={onChange.check}
+          title="Comp. Qx"
+          colorClass="text-red-600"
+        />
+
+        (reimportar CheckboxCell desde './CheckboxCell' y reponer la columna cqx en
+        censusTableHeaderController / HIDDEN_CENSUS_COLUMNS / tableConfigService).
+      */}
       <UpcChecklistPopover
         data={shared.data}
         isSubRow={shared.isSubRow}

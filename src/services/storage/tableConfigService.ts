@@ -57,43 +57,54 @@ export const setFirestoreEnabled = (enabled: boolean): void => {
 // Default Configuration
 // ============================================================================
 
+/**
+ * Rediseño censo 2026: rut/age/cqx se mantienen como claves de TableColumnConfig
+ * (compatibilidad con configuraciones guardadas y fixtures) pero con ancho 0 porque
+ * ya no se renderizan: rut y age viven dentro de la columna "Paciente" (name) y la
+ * columna C.QX queda oculta para reactivación futura.
+ */
 export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   actions: 22,
   bed: 34,
   type: 30,
-  name: 110,
-  rut: 58,
-  age: 24,
+  name: 170,
+  rut: 0,
+  age: 0,
   diagnosis: 123,
   specialty: 45,
   status: 50,
   admission: 51,
   dmi: 67,
   scores: 56,
-  cqx: 21,
+  cqx: 0,
   upc: 26,
 };
 
 export const DEFAULT_PAGE_MARGIN = 12; // px (corresponds to p-3)
-export const CURRENT_TABLE_CONFIG_VERSION = 3;
+// v4: rediseño de identidad visual del censo (columna Paciente unificada, rut/age/cqx en 0).
+export const CURRENT_TABLE_CONFIG_VERSION = 4;
 export const TABLE_CONFIG_LOCAL_CACHE_KEY = 'hhr.tableConfig.lastKnown';
 
 const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   actions: 22,
   bed: 34,
   type: 28,
-  name: 110,
-  rut: 58,
-  age: 24,
+  name: 170,
+  rut: 0,
+  age: 0,
   diagnosis: 123,
   specialty: 45,
   status: 50,
   admission: 51,
   dmi: 67,
   scores: 56,
-  cqx: 21,
+  cqx: 0,
   upc: 22,
 };
+
+// Piso para "name": la columna Paciente unificada (nombre + edad + RUT) necesita
+// espacio suficiente aunque la configuración guardada tenga el ancho antiguo (~110).
+const MINIMUM_NAME_COLUMN_WIDTH = 170;
 
 const compactColumns = (columns: Partial<TableColumnConfig>): TableColumnConfig => {
   const merged = {
@@ -105,7 +116,10 @@ const compactColumns = (columns: Partial<TableColumnConfig>): TableColumnConfig 
     actions: Math.min(merged.actions, COMPACT_COLUMN_MAX_WIDTHS.actions),
     bed: Math.min(merged.bed, COMPACT_COLUMN_MAX_WIDTHS.bed),
     type: Math.min(merged.type, COMPACT_COLUMN_MAX_WIDTHS.type),
-    name: Math.min(merged.name, COMPACT_COLUMN_MAX_WIDTHS.name),
+    name: Math.max(
+      Math.min(merged.name, COMPACT_COLUMN_MAX_WIDTHS.name),
+      MINIMUM_NAME_COLUMN_WIDTH
+    ),
     rut: Math.min(merged.rut, COMPACT_COLUMN_MAX_WIDTHS.rut),
     age: Math.min(merged.age, COMPACT_COLUMN_MAX_WIDTHS.age),
     diagnosis: Math.min(merged.diagnosis, COMPACT_COLUMN_MAX_WIDTHS.diagnosis),

@@ -8,7 +8,10 @@ export const PatientMainRowBlockedCell: React.FC<PatientMainRowBlockedCellProps>
   accessProfile = 'default',
 }) => (
   <td
-    colSpan={isSpecialistCensusAccessProfile(accessProfile) ? 6 : 10}
+    // Debe coincidir con los <td> que renderiza PatientInputCells tras las celdas
+    // fijas (acciones/cama/tipo): identidad unificada (1) + clínicas (3|2) +
+    // flujo (3|1) + flags (1|0) = 8 en perfil default, 4 en specialist.
+    colSpan={isSpecialistCensusAccessProfile(accessProfile) ? 4 : 8}
     className="p-1 bg-slate-50/50 text-center"
   >
     <div className="text-slate-400 text-sm flex items-center justify-center gap-2 italic">

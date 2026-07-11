@@ -19,19 +19,23 @@ export interface CensusHeaderCellModel {
   className?: string;
 }
 
+/**
+ * Rediseño censo 2026: las columnas RUT y Edad se integran a la columna única
+ * "Paciente" (PatientIdentityCell) y la columna C.QX queda oculta sin borrar el
+ * campo surgicalComplication. Para reactivar C.QX, restaurar la entrada:
+ *   { key: 'cqx', label: 'C.QX', title: 'Comp. Quirurgica' },
+ * y quitar 'cqx' de HIDDEN_CENSUS_COLUMNS.
+ */
 export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   { key: 'bed', label: 'Cama' },
   { key: 'type', label: 'Tipo' },
-  { key: 'name', label: 'Nombre Paciente' },
-  { key: 'rut', label: 'RUT' },
-  { key: 'age', label: 'Edad' },
+  { key: 'name', label: 'Paciente' },
   { key: 'diagnosis', label: 'Diagnóstico' },
   { key: 'specialty', label: 'Esp' },
   { key: 'status', label: 'Estado' },
   { key: 'admission', label: 'Ingreso' },
   { key: 'dmi', label: 'DMI', title: 'Dispositivos médicos invasivos' },
   { key: 'scores', label: 'Scores', title: 'Escalas de enfermería (Braden UPP · Downton caídas)' },
-  { key: 'cqx', label: 'C.QX', title: 'Comp. Quirurgica' },
   { key: 'upc', label: 'UPC', className: 'border-r-0' },
 ] as const;
 
