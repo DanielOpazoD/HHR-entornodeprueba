@@ -96,20 +96,39 @@ const BradenSection: React.FC<{ braden: BradenCellModel }> = ({ braden }) => {
   );
 };
 
-const DowntonSection: React.FC<{ downton: DowntonCellModel }> = ({ downton }) => (
-  <section className="rounded-lg border border-slate-200 p-3 space-y-2">
-    <div className="flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold text-slate-700">Escala de riesgo de caídas (Downton)</h3>
-      <LevelBadge level={downton.level} label={downton.severityLabel || 'Sin interpretación'} />
-    </div>
-    <div className="flex items-baseline gap-2">
-      <span className="text-2xl font-bold text-slate-800 tabular-nums">{downton.total}</span>
-      <span className="text-xs text-slate-500">
-        puntos · realizada el {formatIsoDay(downton.entry.recordedDate)}
-      </span>
-    </div>
-  </section>
-);
+const DowntonSection: React.FC<{ downton: DowntonCellModel }> = ({ downton }) => {
+  const needsReapply = downton.reapplication != null && downton.reapplication.urgency !== 'ok';
+  return (
+    <section className="rounded-lg border border-slate-200 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-700">
+          Escala de riesgo de caídas (Downton)
+        </h3>
+        <LevelBadge level={downton.level} label={downton.severityLabel || 'Sin interpretación'} />
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-2xl font-bold text-slate-800 tabular-nums">{downton.total}</span>
+        <span className="text-xs text-slate-500">
+          puntos · realizada el {formatIsoDay(downton.entry.recordedDate)}
+        </span>
+      </div>
+      {downton.reapplication && downton.countdownLabel && (
+        <div
+          className={clsx(
+            'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-semibold',
+            needsReapply ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+          )}
+        >
+          {needsReapply ? <AlarmClock size={14} /> : <CalendarClock size={14} />}
+          <span>{downton.countdownLabel}</span>
+          <span className="ml-auto font-normal text-[11px] opacity-80">
+            próxima: {formatIsoDay(downton.reapplication.dueDate)}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+};
 
 const CudyrSection: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => (
   <section className="rounded-lg border border-slate-200 p-3 space-y-2">

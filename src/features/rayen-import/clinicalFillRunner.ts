@@ -75,13 +75,14 @@ export const runClinicalFill = async (
   const summary: ClinicalFillSummary = { total: eligible.length, patched: 0, errors: [] };
   if (eligible.length === 0) return summary;
 
-  // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source.
-  const cudyrPromise: Promise<Map<string, RayenCudyrCategory>> = deps
+  // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
+  // marks the read as authoritative — only then may a stale stored category be removed.
+  const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = deps
     .fetchCudyrCategories()
-    .then(({ items }) => new Map(items.map(item => [item.encId, item])))
+    .then(({ items }) => ({ map: new Map(items.map(item => [item.encId, item])), ok: true }))
     .catch(error => {
       summary.errors.push({ bedId: '*', source: 'cudyr', message: message(error) });
-      return new Map<string, RayenCudyrCategory>();
+      return { map: new Map<string, RayenCudyrCategory>(), ok: false };
     });
 
   let done = 0;
@@ -122,13 +123,20 @@ export const runClinicalFill = async (
     }
 
     try {
-      const cudyrRow = (await cudyrPromise).get(encId);
+      const { map, ok } = await cudyrPromise;
+      const cudyrRow = map.get(encId);
       const importedCudyr = cudyrRow ? buildImportedCudyr(cudyrRow, fecha) : null;
+      const existingCudyr = merged.evaluationScores?.cudyr;
       if (importedCudyr) {
         merged = {
           ...merged,
           evaluationScores: { ...merged.evaluationScores, cudyr: importedCudyr },
         };
+      } else if (ok && existingCudyr && existingCudyr.recordedDate !== fecha) {
+        // CUDYR is a DAILY assessment: an authoritative read with no categorization for this census
+        // day removes a stale copy carried over from another day (e.g. the pre-fix as-of behavior).
+        const { cudyr: _removed, ...rest } = merged.evaluationScores ?? {};
+        merged = { ...merged, evaluationScores: rest };
       }
     } catch (error) {
       summary.errors.push({ bedId, source: 'cudyr', message: message(error) });

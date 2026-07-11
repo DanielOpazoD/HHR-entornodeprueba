@@ -89,11 +89,29 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             <span
               className={clsx(
                 'flex items-center justify-between gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
-                model.downton.level ? LEVEL_CHIP_CLASSES[model.downton.level] : NEUTRAL_CHIP_CLASSES
+                model.downton.level
+                  ? LEVEL_CHIP_CLASSES[model.downton.level]
+                  : NEUTRAL_CHIP_CLASSES,
+                model.downton.reapplication &&
+                  model.downton.reapplication.urgency !== 'ok' &&
+                  'ring-1 ring-red-400'
               )}
-              title={`Downton ${model.downton.total} · ${model.downton.severityLabel}`}
+              title={`Downton ${model.downton.total} · ${model.downton.severityLabel}${model.downton.countdownLabel ? ` · ${model.downton.countdownLabel}` : ''}`}
             >
               <span>D {model.downton.total}</span>
+              {model.downton.reapplication && (
+                <span
+                  className={clsx(
+                    'flex items-center gap-0.5 font-bold tabular-nums',
+                    model.downton.reapplication.urgency !== 'ok' && 'text-red-600 animate-pulse'
+                  )}
+                >
+                  {model.downton.reapplication.urgency !== 'ok' && (
+                    <AlarmClock size={9} strokeWidth={3} />
+                  )}
+                  {model.downton.chipCountdown}
+                </span>
+              )}
             </span>
           )}
           {model.cudyr && (

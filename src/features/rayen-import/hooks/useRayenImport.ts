@@ -122,8 +122,8 @@ export const useRayenImport = () => {
   // Background clinical fill (devices + scales + CUDYR), delegated to `runClinicalFill` — an
   // independent, port-injected, unit-tested runner. Results are applied as GRANULAR PER-PATIENT
   // PATCHES (beds.{bedId}.devices / evaluationScores / …) instead of full-record saves, so:
-  //  - the fill can never clobber (or be blocked by) a concurrent census confirm ("El censo se
-  //    actualizó hace un momento"), and
+  //  - the fill can never clobber (or be blocked by) a concurrent census confirmation — the
+  //    freshness guard "El censo se actualizó hace un momento" — and
   //  - each patient's data appears progressively as soon as it arrives.
   // Single-flight via beginRayenFill; progress + completion summary go to the fill-status store so
   // the button area and the DMI/Scores cells can show what is happening.

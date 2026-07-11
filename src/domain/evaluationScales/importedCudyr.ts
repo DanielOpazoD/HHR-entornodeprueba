@@ -3,12 +3,11 @@
  * only persists the composite category (e.g. "D3"), not the 14 individual variables, so this is all
  * that can be synced. Pure and testable.
  *
- * The CUDYR category is the current one AS OF the census day: Rayen keeps only the latest
- * categorization, so its `crdDateTime` (resolved to its Rapa Nui calendar day — Pacific/Easter,
- * handles -06/-05 DST) must be ON OR BEFORE the census day. This keeps showing the standing category
- * on days with no new categorization (e.g. a scale done yesterday still applies today), while a late
- * sync of a PAST census never picks up a categorization made after that day. "S/C" (sin categorizar)
- * and blanks yield null.
+ * The CUDYR categorization is a DAILY assessment (per Daniel): the one recorded on 10-07 belongs to
+ * the 10-07 census and must NOT carry over to the 11-07 census. So `crdDateTime` — resolved to its
+ * Rapa Nui calendar day (Pacific/Easter, handles -06/-05 DST) — must EQUAL the census day being
+ * synced. To fill a past day, sync while standing on that census day (the fill already asks with the
+ * census date). "S/C" (sin categorizar) and blanks yield null.
  */
 
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -32,8 +31,8 @@ export interface CudyrCategoryInput {
 }
 
 /**
- * The imported CUDYR result AS OF `censusIsoDay` (Rapa Nui): the standing category when it was last
- * set on or before that day; null when there is no real category or it was set AFTER that day.
+ * The imported CUDYR result if (and only if) the patient was categorized ON `censusIsoDay`
+ * (Rapa Nui). Daily assessment: it never carries over to other days.
  */
 export const buildImportedCudyr = (
   input: CudyrCategoryInput,
@@ -46,7 +45,7 @@ export const buildImportedCudyr = (
   if (Number.isNaN(epoch)) return null;
 
   const recordedDate = rapaNuiDayFormatter.format(new Date(epoch));
-  if (recordedDate > censusIsoDay) return null;
+  if (recordedDate !== censusIsoDay) return null;
 
   return { category, recordedDate, source: CUDYR_IMPORT_SOURCE };
 };

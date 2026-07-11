@@ -7,7 +7,9 @@
 
 import {
   assessBraden,
+  bradenReapplicationStatus,
   type BradenAssessment,
+  type ReapplicationStatus,
   type ReapplicationUrgency,
 } from '@/domain/evaluationScales/bradenRisk';
 import type {
@@ -34,6 +36,10 @@ export interface DowntonCellModel {
   /** Risk level parsed from the source severity text ("Riesgo alto" → 'alto'); null if unknown. */
   level: BradenRiskLevel | null;
   severityLabel: string;
+  /** Reapplication follows the same cadence as Braden (bajo 7d · medio 3d · alto diario). */
+  reapplication: ReapplicationStatus | null;
+  chipCountdown: string | null;
+  countdownLabel: string | null;
 }
 
 /** CUDYR (CRD) composite result imported from Ficha Médico — only the category, no breakdown. */
@@ -123,11 +129,23 @@ export const buildScoresCellModel = (
 
   let downton: DowntonCellModel | null = null;
   if (scores.downton && scores.downton.total != null) {
+    const level = parseSeverityLevel(scores.downton.severity);
+    // Downton reapplies with the SAME cadence as Braden by risk level (bajo 7d · medio 3d · alto 1d).
+    const reapplication = level
+      ? bradenReapplicationStatus(scores.downton.recordedDate, level, censusIsoDay)
+      : null;
     downton = {
       entry: scores.downton,
       total: scores.downton.total,
-      level: parseSeverityLevel(scores.downton.severity),
+      level,
       severityLabel: scores.downton.severity ?? '',
+      reapplication,
+      chipCountdown: reapplication
+        ? buildChipCountdown(reapplication.daysUntilDue, reapplication.urgency)
+        : null,
+      countdownLabel: reapplication
+        ? buildCountdownLabel(reapplication.daysUntilDue, reapplication.urgency)
+        : null,
     };
   }
 
@@ -141,13 +159,20 @@ export const buildScoresCellModel = (
     };
   }
 
+  // Cell-level alert = the worst urgency across Braden and Downton (CUDYR has no cadence).
+  const RANK: Record<ReapplicationUrgency, number> = { ok: 0, due: 1, overdue: 2 };
+  const urgencies: ReapplicationUrgency[] = [
+    braden?.assessment.reapplication.urgency ?? 'ok',
+    downton?.reapplication?.urgency ?? 'ok',
+  ];
+  const alertUrgency = urgencies.reduce((worst, u) => (RANK[u] > RANK[worst] ? u : worst), 'ok');
+
   return {
     hasAny: braden != null || downton != null || cudyr != null,
     braden,
     downton,
     cudyr,
-    // Downton/CUDYR have no reapplication cadence, so the cell alert follows Braden alone.
-    alertUrgency: braden ? braden.assessment.reapplication.urgency : 'ok',
+    alertUrgency,
     history: scores.history ?? [],
   };
 };

@@ -85,6 +85,35 @@ describe('buildScoresCellModel — Downton and history', () => {
     expect(model.braden).toBeNull();
   });
 
+  it('Downton follows the same reapplication cadence as Braden (alto → diario) and drives the alert', () => {
+    // Downton alto recorded on the 10th, viewed on the 11th → due today (cadencia diaria).
+    const downton = entry({
+      code: 'DOWNTON',
+      total: 5,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-10',
+    });
+    const model = buildScoresCellModel(patient({ evaluationScores: { downton } }), '2026-07-11');
+    expect(model.downton?.reapplication?.urgency).toBe('due');
+    expect(model.downton?.chipCountdown).toBe('hoy');
+    expect(model.downton?.countdownLabel).toBe('Reaplicar hoy');
+    expect(model.alertUrgency).toBe('due'); // worst across scales, not Braden-only
+
+    // Riesgo bajo → cada 7 días: recorded 10th, viewed 11th → 6 days left, no alert.
+    const bajo = entry({
+      code: 'DOWNTON',
+      total: 1,
+      severity: 'Riesgo bajo',
+      recordedDate: '2026-07-10',
+    });
+    const calm = buildScoresCellModel(
+      patient({ evaluationScores: { downton: bajo } }),
+      '2026-07-11'
+    );
+    expect(calm.downton?.chipCountdown).toBe('6d');
+    expect(calm.alertUrgency).toBe('ok');
+  });
+
   it('maps an imported CUDYR to a band and marks the cell as having content', () => {
     const model = buildScoresCellModel(
       patient({

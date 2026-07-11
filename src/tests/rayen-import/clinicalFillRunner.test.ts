@@ -126,6 +126,40 @@ describe('runClinicalFill', () => {
     expect(onProgress).toHaveBeenCalledWith({ done: 1, total: 1 });
   });
 
+  it('removes a stale CUDYR carried over from another day when the read is authoritative', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
+      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
+    };
+    const deps = okDeps({
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      // Authoritative read: Carina's categorization is from the 10th, census day is the 11th.
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
+      }),
+    });
+    const summary = await runClinicalFill(rec, '2026-07-11', deps);
+
+    expect(summary.patched).toBe(1);
+    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(patch['beds.H1C2.evaluationScores'].cudyr).toBeUndefined();
+  });
+
+  it('keeps a stale CUDYR when the read failed (not authoritative)', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
+      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
+    };
+    const deps = okDeps({
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockRejectedValue(new Error('timeout')),
+    });
+    const summary = await runClinicalFill(rec, '2026-07-11', deps);
+
+    expect(summary.patched).toBe(0); // nothing changed — the stale value is preserved, not wiped
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
   it('patients with nothing new produce no patch at all', async () => {
     const deps = okDeps({
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
