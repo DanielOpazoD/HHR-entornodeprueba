@@ -108,8 +108,18 @@ export {
 } from './bridge/rayenImportBridge';
 export type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 
+// Clinical fill runner (devices + scales + CUDYR via granular patches)
+export type {
+  ClinicalFillDeps,
+  ClinicalFillError,
+  ClinicalFillProgress,
+  ClinicalFillSummary,
+} from './clinicalFillRunner';
+export { runClinicalFill } from './clinicalFillRunner';
+
 // Hooks
-export { useRayenFillStatus } from './hooks/useRayenFillStatus';
+export { useRayenFillStatus, useRayenFillProgress } from './hooks/useRayenFillStatus';
+export type { RayenFillProgress } from './hooks/useRayenFillStatus';
 export { useRayenImportMode } from './hooks/useRayenImportMode';
 export type { UseRayenImportModeResult } from './hooks/useRayenImportMode';
 export { useRayenImport } from './hooks/useRayenImport';

@@ -9,21 +9,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { useSaveDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
+import {
+  useSaveDailyRecordMutation,
+  usePatchDailyRecordMutation,
+} from '@/hooks/useDailyRecordQuery';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
-import { mergeReportDevices } from '../domain/mergeReportDevices';
-import { mergeReportScales } from '../domain/mergeReportScales';
-import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';
-import { mapInvasiveDevices } from '../mapping/mapDeviceToInstance';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import { parseEvaluationScales } from '../mapping/parseEvaluationScales';
-import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
-import { setRayenFilling } from './useRayenFillStatus';
+import { runClinicalFill } from '../clinicalFillRunner';
+import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
 import {
   subscribeToRayenSnapshots,
   requestRayenSnapshot,
@@ -32,7 +30,6 @@ import {
   requestDeviceReport,
   requestScalesReport,
   requestCudyrCategories,
-  type RayenCudyrCategory,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -107,6 +104,11 @@ export const useRayenImport = () => {
   useEffect(() => clearSyncTimeout, [clearSyncTimeout]);
 
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
+  // Always-fresh reference for the stale-save retry in `confirm` (the closure record can lag).
+  const currentRecordRef = useRef(currentRecord);
+  currentRecordRef.current = currentRecord;
+  // Granular per-patient patches for the background fill — never a full-record save.
+  const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
 
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
@@ -117,128 +119,55 @@ export const useRayenImport = () => {
     [saveDailyRecord]
   );
 
-  // Background clinical fill (Fase D devices + Fase E scales): once the census is applied, fetch
-  // each synced patient's Ficha Médico daily-summary PDF (invasive-devices table, parsed with
-  // pdfjs) AND their evaluation-scale forms (Braden/Downton), merging both into the patient —
-  // WITHOUT blocking the census. Each source is best-effort per patient (one failing never blocks
-  // the other); saves once at the end so the data appears shortly after the beds. The Ficha Médico
-  // tab must be open. Patients are fetched in small concurrent batches (each request can take
-  // seconds) and the merges are folded back afterwards — every bed is independent, so no race.
+  // Background clinical fill (devices + scales + CUDYR), delegated to `runClinicalFill` — an
+  // independent, port-injected, unit-tested runner. Results are applied as GRANULAR PER-PATIENT
+  // PATCHES (beds.{bedId}.devices / evaluationScores / …) instead of full-record saves, so:
+  //  - the fill can never clobber (or be blocked by) a concurrent census confirm ("El censo se
+  //    actualizó hace un momento"), and
+  //  - each patient's data appears progressively as soon as it arrives.
+  // Single-flight via beginRayenFill; progress + completion summary go to the fill-status store so
+  // the button area and the DMI/Scores cells can show what is happening.
   const fillDevicesInBackground = useCallback(
     async (record: DailyRecord): Promise<void> => {
-      // Signal the DMI/Scores cells to show their loading animation while data is being fetched.
-      setRayenFilling(true);
       // `fecha` is the CENSUS day (record's own day, never "today"), so a late sync of a past census
       // still asks Ficha Médico for that day's devices/scales/CUDYR — see toIsoReportDate.
       const fecha = toIsoReportDate(record);
-      const eligible = Object.entries(record.beds).filter(
-        ([, patient]) => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
-      );
+      const eligibleCount = Object.values(record.beds).filter(
+        patient => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
+      ).length;
 
-      // Kick off the CUDYR bulk read in parallel — it MUST NOT block devices/scales. If the extension
-      // is an older version without the CUDYR relay, this simply times out; meanwhile devices/scales
-      // are fetched, merged and saved below, then CUDYR is folded in afterwards (second, later save).
-      const cudyrPromise = requestCudyrCategories().catch((): { items: RayenCudyrCategory[] } => ({
-        items: [],
-      }));
-
-      const CONCURRENCY = 4;
-      const merges: Array<{ bedId: string; patient: DailyRecord['beds'][string] }> = [];
-      for (let start = 0; start < eligible.length; start += CONCURRENCY) {
-        const batch = eligible.slice(start, start + CONCURRENCY);
-        const results = await Promise.all(
-          batch.map(async ([bedId, patient]) => {
-            if (!patient?.clinicalEpisodeId) return null;
-            let merged = patient;
-
-            try {
-              const { base64 } = await requestDeviceReport(patient.clinicalEpisodeId, fecha);
-              if (base64) {
-                const items = await extractDeviceTextItems(base64);
-                const devices = mapInvasiveDevices(parseInvasiveDevices(items));
-                if (devices.length > 0) {
-                  merged = mergeReportDevices(merged, devices, {
-                    now: new Date(),
-                    createId: makeId,
-                  });
-                }
-              }
-            } catch (error) {
-              // Best-effort: skip this patient's devices on any failure (PDF/tab/parse), but log so a
-              // silently-closed extension tab or a parse regression is diagnosable in production.
-              console.warn(
-                `[rayen-import] Relleno de dispositivos falló en cama ${bedId} (${patient.patientName}):`,
-                error
-              );
-            }
-
-            try {
-              const { forms } = await requestScalesReport(patient.clinicalEpisodeId);
-              const scales = parseEvaluationScales(forms);
-              if (scales.length > 0) {
-                merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
-              }
-            } catch (error) {
-              console.warn(
-                `[rayen-import] Relleno de escalas falló en cama ${bedId} (${patient.patientName}):`,
-                error
-              );
-            }
-
-            return merged !== patient ? { bedId, patient: merged } : null;
-          })
-        );
-        for (const result of results) if (result) merges.push(result);
-      }
-
-      // Save devices + scales first so they appear promptly, regardless of the CUDYR read.
-      let updated = record;
-      if (merges.length > 0) {
-        for (const { bedId, patient } of merges) {
-          updated = { ...updated, beds: { ...updated.beds, [bedId]: patient } };
-        }
-        try {
-          await saveDailyRecord(updated);
-        } catch {
-          // Devices/scales are best-effort; the census is already saved.
-        }
-      }
-
-      // Then fold in the CUDYR composite result for the census day (separate, later save so a slow or
-      // absent CUDYR read never delays devices/scales). Rayen exposes only the aggregate (e.g. "D3").
+      if (!beginRayenFill(eligibleCount)) return; // a fill is already running — single flight
       try {
-        const { items } = await cudyrPromise;
-        const cudyrByEnc = new Map(items.map(item => [item.encId, item]));
-        let withCudyr = updated;
-        let cudyrChanged = false;
-        for (const [bedId, patient] of eligible) {
-          if (!patient?.clinicalEpisodeId) continue;
-          const row = cudyrByEnc.get(patient.clinicalEpisodeId);
-          const importedCudyr = row ? buildImportedCudyr(row, fecha) : null;
-          if (!importedCudyr) continue;
-          const current = withCudyr.beds[bedId];
-          withCudyr = {
-            ...withCudyr,
-            beds: {
-              ...withCudyr.beds,
-              [bedId]: {
-                ...current,
-                evaluationScores: { ...current.evaluationScores, cudyr: importedCudyr },
-              },
+        const summary = await runClinicalFill(
+          record,
+          fecha,
+          {
+            fetchDeviceReport: requestDeviceReport,
+            extractDeviceItems: extractDeviceTextItems,
+            fetchScalesForms: requestScalesReport,
+            fetchCudyrCategories: () => requestCudyrCategories(15000),
+            applyPatch: async patch => {
+              await patchDailyRecord(patch);
             },
-          };
-          cudyrChanged = true;
+            now: () => new Date(),
+            createId: makeId,
+          },
+          ({ done, total }) => reportRayenFillProgress(done, total)
+        );
+        if (summary.errors.length > 0) {
+          console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
         }
-        if (cudyrChanged) await saveDailyRecord(withCudyr);
+        endRayenFill(new Set(summary.errors.map(item => item.bedId)).size);
       } catch (error) {
-        console.warn('[rayen-import] Relleno de CUDYR falló:', error);
+        // The runner collects per-patient errors itself; this only guards truly unexpected failures.
+        console.warn('[rayen-import] Relleno clínico falló:', error);
+        endRayenFill(0);
       }
 
-      // The background fill has settled — stop the "sincronizando" indicator and the cell animations.
-      setRayenFilling(false);
+      // The background fill has settled — stop the "sincronizando" indicator.
       setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
     },
-    [saveDailyRecord]
+    [patchDailyRecord]
   );
 
   const previewSnapshot = useCallback(
@@ -361,9 +290,22 @@ export const useRayenImport = () => {
 
   const confirm = useCallback(async () => {
     if (!currentRecord || !state.diff) return;
+    const diff = state.diff;
     setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
     try {
-      const result = await applyDiff(currentRecord, state.diff);
+      let result: ApplyResult;
+      try {
+        result = await applyDiff(currentRecord, diff);
+      } catch (error) {
+        // Freshness guard: the record changed under us (another tab, the background fill of a
+        // previous run…). The guard already refreshed the cache — retry ONCE against the fresh
+        // record instead of bouncing the error back to the user.
+        if (!/actualizó hace un momento/i.test(errorMessage(error))) throw error;
+        await new Promise(resolve => setTimeout(resolve, 900));
+        const fresh = currentRecordRef.current;
+        if (!fresh) throw error;
+        result = await applyDiff(fresh, diff);
+      }
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
       // Keeps `isSyncing` on until the background fill settles it.
       void fillDevicesInBackground(result.record);

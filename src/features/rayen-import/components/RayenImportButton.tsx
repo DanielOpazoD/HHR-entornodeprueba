@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useRayenImport } from '../hooks/useRayenImport';
+import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 
 /**
@@ -26,7 +27,18 @@ export const RayenImportButton: React.FC = () => {
     cancel,
   } = useRayenImport();
 
+  const fill = useRayenFillProgress();
   const working = isSyncing || isBusy;
+
+  // Visible, verifiable fill status: live progress while running, then a completion summary with
+  // the per-patient error count — so the user can tell whether devices/scores actually synced.
+  const fillNote = fill.running
+    ? `Datos clínicos ${fill.done}/${fill.total}…`
+    : fill.lastCompletedAt
+      ? fill.errors > 0
+        ? `Datos clínicos: ${Math.max(fill.total - fill.errors, 0)}/${fill.total} · ${fill.errors} con error`
+        : `Datos clínicos: ${fill.total}/${fill.total} ✓`
+      : null;
 
   return (
     <>
@@ -61,6 +73,21 @@ export const RayenImportButton: React.FC = () => {
         onConfirm={confirm}
         onCancel={cancel}
       />
+
+      {fillNote && (
+        <span
+          className={
+            fill.running
+              ? 'ml-2 text-xs text-teal-700 animate-pulse'
+              : fill.errors > 0
+                ? 'ml-2 text-xs text-amber-700'
+                : 'ml-2 text-xs text-emerald-700'
+          }
+          data-testid="rayen-fill-status"
+        >
+          {fillNote}
+        </span>
+      )}
 
       {error && !isPreviewOpen && (
         <span className="ml-2 text-xs text-red-600" data-testid="rayen-import-error">

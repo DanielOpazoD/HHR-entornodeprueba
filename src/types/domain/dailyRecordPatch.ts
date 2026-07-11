@@ -4,6 +4,7 @@ import type { PatientData } from './patient';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
 import type { DeviceDetails, DeviceInstance } from './devices';
+import type { PatientEvaluationScores } from './evaluationScores';
 import type { FhirResource } from './fhir';
 import type { CMAData, DischargeData, TransferData } from './movements';
 import type {
@@ -102,6 +103,7 @@ export type DailyRecordPatch = {
               | PatientData
               | CudyrScore
               | DeviceDetails
+              | PatientEvaluationScores
               | PatientStatus
               | Specialty
               | ClinicalEvent[]
