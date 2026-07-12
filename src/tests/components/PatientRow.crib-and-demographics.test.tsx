@@ -281,7 +281,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     expect(screen.getByText('CUNA', { selector: 'span' })).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Sub Patient')).toBeInTheDocument();
+    expect(screen.getByText('Sub Patient')).toBeInTheDocument();
   });
 
   it('opens sub-row demographics modal', async () => {

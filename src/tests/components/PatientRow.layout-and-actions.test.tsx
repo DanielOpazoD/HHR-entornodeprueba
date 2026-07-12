@@ -101,7 +101,7 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    expect(screen.getByDisplayValue(/Juan Pérez/)).toBeInTheDocument();
+    expect(screen.getByText(/Juan Pérez/)).toBeInTheDocument();
     expect(screen.getByText('R1')).toBeInTheDocument();
   });
 
@@ -361,9 +361,9 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    const nameInput = screen.getByDisplayValue('Juan Pérez');
-    expect(nameInput).toHaveAttribute('readonly');
-    fireEvent.change(nameInput, { target: { value: 'Juan Actualizado' } });
+    // Read-only names render as plain text (no editable input in the table).
+    expect(screen.getByText('Juan Pérez')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Juan Pérez')).not.toBeInTheDocument();
     expect(mockContext.updatePatient).not.toHaveBeenCalled();
   });
 });

@@ -67,8 +67,8 @@ describe('Patient Management Integration', () => {
       );
 
       // Patient name should be visible
-      expect(screen.getByDisplayValue('Juan Pérez')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('12.345.678-9')).toBeInTheDocument();
+      expect(screen.getByText('Juan Pérez')).toBeInTheDocument();
+      expect(screen.getByText('12.345.678-9')).toBeInTheDocument();
     });
 
     it('should render blocked bed with visual indicator', () => {
@@ -119,7 +119,7 @@ describe('Patient Management Integration', () => {
       );
 
       // Verify patient renders
-      expect(screen.getByDisplayValue('María González')).toBeInTheDocument();
+      expect(screen.getByText('María González')).toBeInTheDocument();
     });
   });
 
@@ -146,7 +146,7 @@ describe('Patient Management Integration', () => {
       );
 
       // Verify patient renders
-      expect(screen.getByDisplayValue('Pedro Soto')).toBeInTheDocument();
+      expect(screen.getByText('Pedro Soto')).toBeInTheDocument();
     });
   });
 });
