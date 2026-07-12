@@ -24,6 +24,17 @@ import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { resolveNameInputState } from './nameInputController';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
+/** Admission date as compact "DD-MM" for the line under the name (accepts ISO or DD/MM/YYYY). */
+const formatAdmissionShort = (raw?: string): string => {
+  const value = (raw ?? '').trim();
+  if (!value) return '';
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}-${iso[2]}`;
+  const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-]\d{2,4}/);
+  if (dmy) return `${dmy[1].padStart(2, '0')}-${dmy[2].padStart(2, '0')}`;
+  return '';
+};
+
 interface PatientIdentityCellProps extends BaseCellProps {
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
@@ -61,7 +72,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRutMode = documentType === 'RUT';
   const isRutValid = isRutMode && hasRutValue && isValidRut(rutValue);
   const isRutInvalid = isRutMode && hasRutValue && !isRutValid;
-  const showIdentityDetails = !isEmpty && (hasRutValue || !!data.age);
+  const admissionShort = formatAdmissionShort(data.admissionDate);
+  const showIdentityDetails = !isEmpty && (hasRutValue || !!data.age || !!admissionShort);
 
   useEffect(() => {
     if (copyFeedback !== 'copied') {
@@ -213,7 +225,16 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 {isRutInvalid && <span className="sr-only">RUT inválido</span>}
               </>
             ) : (
-              <span className="italic text-slate-300">Sin documento</span>
+              !admissionShort && <span className="italic text-slate-300">Sin documento</span>
+            )}
+            {admissionShort && (
+              <span
+                className="flex shrink-0 items-center gap-0.5 tabular-nums text-slate-400"
+                title="Fecha de ingreso"
+              >
+                {hasRutValue && <span className="text-slate-300">/</span>}
+                {admissionShort}
+              </span>
             )}
           </div>
         )}
