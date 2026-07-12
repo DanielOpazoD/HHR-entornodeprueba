@@ -79,6 +79,13 @@ describe('rayenToPatientData', () => {
     expect(patient.admissionTime).toBe('14:19');
     expect(patient.pathology).toBe('Problemas relacionados con otras circunstancias legales');
     expect(patient.isUPC).toBe(false);
+    expect(patient.isIsolated).toBe(false);
+  });
+
+  it('maps the isolation flag from the encounter', () => {
+    expect(
+      rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE).patient.isIsolated
+    ).toBe(true);
   });
 
   it('normalizes names to Title Case regardless of the casing Rayen returns', () => {

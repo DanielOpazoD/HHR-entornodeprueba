@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import * as browserClipboardRuntime from '@/shared/runtime/browserClipboardRuntime';
@@ -165,5 +165,18 @@ describe('PatientIdentityCell', () => {
     fireEvent.change(nameInput, { target: { value: 'RN de Maria Tuki' } });
     fireEvent.blur(nameInput);
     expect(handlePatientName).toHaveBeenCalledWith('RN de Maria Tuki');
+  });
+
+  it('shows an isolation badge when the patient is in isolation', () => {
+    const isolated = DataFactory.createMockPatient('R1', {
+      patientName: 'Juana',
+      isIsolated: true,
+    });
+    renderCell({ data: isolated });
+    expect(screen.getByLabelText('En aislamiento')).toBeInTheDocument();
+
+    const notIsolated = DataFactory.createMockPatient('R1', { patientName: 'Juana' });
+    const { container } = renderCell({ data: notIsolated });
+    expect(within(container).queryByLabelText('En aislamiento')).not.toBeInTheDocument();
   });
 });

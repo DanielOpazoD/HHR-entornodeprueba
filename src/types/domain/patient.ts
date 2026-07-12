@@ -94,6 +94,8 @@ export interface PatientData {
   deviceDetails?: DeviceDetails; // Dates/notas for tracked devices (CUP, CVC, VMI, VVP)
   surgicalComplication: boolean;
   isUPC: boolean;
+  /** True when the patient is under isolation precautions (synced from Ficha Médico). */
+  isIsolated?: boolean;
   /** Structured UPC checklist with UCI/UTI criteria and derived classification. */
   upcChecklist?: UpcChecklistRecord;
   location?: string;

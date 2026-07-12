@@ -26,6 +26,7 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'admissionDate',
   'admissionTime',
   'pathology',
+  'isIsolated',
 ];
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
