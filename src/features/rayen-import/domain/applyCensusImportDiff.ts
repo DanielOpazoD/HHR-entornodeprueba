@@ -14,6 +14,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
+import { continentalReportToRapaNui } from '../mapping/reportEgresoDateTime';
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -111,11 +112,12 @@ const buildCma = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
-/** "09-07-2026 19:42" → "19:42" (the actual egreso time from the report). */
-const reportEgresoTime = (fechaEgreso: string): string => {
-  const match = fechaEgreso.match(/(\d{1,2}:\d{2})/);
-  return match ? match[1] : '';
-};
+/**
+ * The egreso time as shown on the island clock. The report prints continental Chile time (−04), 2h
+ * ahead of Rapa Nui (−06), so convert before storing; '' when the stamp is unparseable.
+ */
+const reportEgresoTime = (fechaEgreso: string): string =>
+  continentalReportToRapaNui(fechaEgreso)?.hhmm ?? '';
 
 // A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
 // builders read, so the day's altas census can log it from the report's data.
