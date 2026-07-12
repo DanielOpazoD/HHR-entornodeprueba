@@ -130,6 +130,12 @@ describe('parseHistoryScales', () => {
 
   it('is defensive about malformed input', () => {
     expect(parseHistoryScales(null)).toEqual([]);
+    // A null/undefined element inside evaluationInstrumentsResume must not throw.
+    expect(
+      parseHistoryScales([
+        { publishDatetime: '2026-07-11T09:00:00', evaluationInstrumentsResume: [null, undefined] },
+      ])
+    ).toEqual([]);
     expect(parseHistoryScales([{ publishDatetime: '', evaluationInstrumentsResume: [] }])).toEqual(
       []
     );
