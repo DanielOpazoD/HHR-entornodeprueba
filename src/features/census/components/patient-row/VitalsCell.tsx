@@ -67,6 +67,7 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             WORST_ACCENT[vitals.worst]
           )}
           title={`Signos vitales (${vitals.recordedAt}) — ver detalle`}
+          aria-label="Ver signos vitales"
         >
           <Activity size={10} strokeWidth={2.5} className="shrink-0 text-slate-400" />
           <span className="grid flex-1 grid-cols-2 gap-x-1.5 text-left leading-tight">
