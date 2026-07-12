@@ -26,6 +26,8 @@ import { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
+import { parseVitalSigns } from './mapping/parseVitalSigns';
+import { mergeReportVitals } from './domain/mergeReportVitals';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 
@@ -54,7 +56,7 @@ export interface ClinicalFillDeps {
 
 export interface ClinicalFillError {
   bedId: string;
-  source: 'devices' | 'scales' | 'cudyr' | 'patch';
+  source: 'devices' | 'scales' | 'vitals' | 'cudyr' | 'patch';
   message: string;
 }
 
@@ -126,23 +128,37 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId, source: 'devices', message: message(error) });
     }
 
+    // Read the scale sources ONCE (shared by scales + vitals): the history report and the
+    // encounter-form-entry summary. `fetchScalesForms` now returns INSTRUMENTO (scales) AND VITAL_SIGNS
+    // forms in one call. Promise.allSettled never rejects, so this is safe outside a try.
+    const [historyResult, formsResult] = await Promise.allSettled([
+      deps.fetchHistoryScales(encId),
+      deps.fetchScalesForms(encId),
+    ]);
+    const forms = formsResult.status === 'fulfilled' ? formsResult.value.forms : [];
+
     try {
-      // Read BOTH scale sources (history report + summary/encounterFormEntry) in parallel and union
-      // them — neither is complete on its own. Each is best-effort: one failing still uses the other.
-      const [historyResult, formsResult] = await Promise.allSettled([
-        deps.fetchHistoryScales(encId),
-        deps.fetchScalesForms(encId),
-      ]);
+      // Union BOTH scale sources — neither is complete on its own.
       const historyScales =
         historyResult.status === 'fulfilled' ? parseHistoryScales(historyResult.value.events) : [];
-      const summaryScales =
-        formsResult.status === 'fulfilled' ? parseEvaluationScales(formsResult.value.forms) : [];
+      const summaryScales = parseEvaluationScales(forms);
       const scales = mergeScaleSources(historyScales, summaryScales);
       if (scales.length > 0) {
         merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       }
     } catch (error) {
       summary.errors.push({ bedId, source: 'scales', message: message(error) });
+    }
+
+    try {
+      // Latest vitals come from the same encounter-form-entry forms (VITAL_SIGNS). Independent of
+      // scales: a failure here never blocks them.
+      const vitals = parseVitalSigns(forms);
+      if (vitals.length > 0) {
+        merged = mergeReportVitals(merged, vitals, { censusIsoDay: fecha });
+      }
+    } catch (error) {
+      summary.errors.push({ bedId, source: 'vitals', message: message(error) });
     }
 
     try {
@@ -177,6 +193,8 @@ export const runClinicalFill = async (
       patch[`beds.${bedId}.deviceInstanceHistory`] = merged.deviceInstanceHistory;
     if (merged.evaluationScores !== patient.evaluationScores)
       patch[`beds.${bedId}.evaluationScores`] = merged.evaluationScores;
+    if (merged.vitalSigns !== patient.vitalSigns)
+      patch[`beds.${bedId}.vitalSigns`] = merged.vitalSigns;
     if (Object.keys(patch).length === 0) return;
 
     try {
