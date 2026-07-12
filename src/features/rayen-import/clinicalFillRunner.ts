@@ -195,6 +195,8 @@ export const runClinicalFill = async (
       patch[`beds.${bedId}.evaluationScores`] = merged.evaluationScores;
     if (merged.vitalSigns !== patient.vitalSigns)
       patch[`beds.${bedId}.vitalSigns`] = merged.vitalSigns;
+    if (merged.vitalSignsHistory !== patient.vitalSignsHistory)
+      patch[`beds.${bedId}.vitalSignsHistory`] = merged.vitalSignsHistory;
     if (Object.keys(patch).length === 0) return;
 
     try {

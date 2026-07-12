@@ -27,6 +27,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   cudyr: 'remoteCanonical',
   evaluationScores: 'remoteCanonical',
   vitalSigns: 'remoteCanonical',
+  vitalSignsHistory: 'remoteCanonical',
   pathology: 'remoteCanonical',
   snomedCode: 'remoteCanonical',
   cie10Code: 'remoteCanonical',

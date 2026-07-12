@@ -106,6 +106,7 @@ export type DailyRecordPatch = {
               | DeviceDetails
               | PatientEvaluationScores
               | PatientVitalSigns
+              | PatientVitalSigns[]
               | PatientStatus
               | Specialty
               | ClinicalEvent[]
