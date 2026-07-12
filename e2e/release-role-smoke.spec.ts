@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { resolveCurrentClinicalDay } from '../src/utils/clinicalDayAdmissionUtils';
 
 const BED_IDS = [
   'R1',
@@ -33,18 +34,13 @@ type SmokeUser = {
   role: 'admin' | 'nurse_hospital' | 'doctor_specialist';
 };
 
-const formatLocalIsoDate = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
-
-const resolveCurrentSmokeClinicalDay = (now: Date = new Date()): string => {
-  const clinicalDate = new Date(now);
-  if (clinicalDate.getHours() < 8) {
-    clinicalDate.setDate(clinicalDate.getDate() - 1);
-  }
-  return formatLocalIsoDate(clinicalDate);
-};
+// The specialist medical handoff is editable only when the seeded record's date equals the
+// app's clinical "today" (see canEditSpecialistTodayBoundRecord). The clinical day rolls over
+// at 08:00 on weekdays but 09:00 on weekends/holidays (resolveClinicalDayBounds), so the smoke
+// seed date MUST come from the app's own resolver. A hardcoded cutoff here drifts out of sync
+// and made this flow fail on weekend/holiday mornings (08:00–08:59), when the app still
+// considered the previous day "today" but the seed had already rolled over.
+const resolveCurrentSmokeClinicalDay = (): string => resolveCurrentClinicalDay();
 
 const buildRoleSmokeRecord = (date: string) => {
   const beds = Object.fromEntries(
