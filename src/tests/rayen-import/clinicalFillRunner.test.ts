@@ -2,28 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-/** Real-shaped scale form (Braden 17) as returned by the INSTRUMENTO endpoint. */
-const BRADEN_FORM = {
-  formCodigo: 'INSTRUMENTO',
-  nameForm: 'Escala de riesgo UPP (Braden)',
-  encounterEventId: 10,
-  startDateTime: '10-07-2026 08:00:00',
-  metaCampList: [
+/** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */
+const BRADEN_HISTORY_EVENT = {
+  publishDatetime: '2026-07-10T08:00:00',
+  evaluationInstrumentsResume: [
+    { FORM_NAME: 'Escala de riesgo UPP (Braden)', LABEL: 'Puntaje', VALUE: '17', ARCHIVED: false },
     {
-      id: 'BRAD_Puntaje',
-      label: 'Puntaje',
-      value: '17',
-      valueName: null,
-      sectionId: 1,
-      createDatetime: '10-07-2026 08:00:00 -06:00',
-    },
-    {
-      id: 'BRAD_ResultadoScore',
-      label: 'Nivel de Severidad',
-      value: '8041',
-      valueName: 'Riesgo bajo',
-      sectionId: 1,
-      createDatetime: '10-07-2026 08:00:00 -06:00',
+      FORM_NAME: 'Escala de riesgo UPP (Braden)',
+      LABEL: 'Nivel de Severidad',
+      VALUE: 'Riesgo bajo',
+      ARCHIVED: false,
     },
   ],
 };
@@ -46,7 +34,7 @@ const record = (beds: Record<string, { encId?: string; name?: string }>): DailyR
 const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),
-  fetchScalesForms: vi.fn().mockResolvedValue({ forms: [BRADEN_FORM] }),
+  fetchHistoryScales: vi.fn().mockResolvedValue({ events: [BRADEN_HISTORY_EVENT] }),
   fetchCudyrCategories: vi.fn().mockResolvedValue({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
   }),
@@ -132,7 +120,7 @@ describe('runClinicalFill', () => {
       cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
     };
     const deps = okDeps({
-      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       // Authoritative read: Carina's categorization is from the 10th, census day is the 11th.
       fetchCudyrCategories: vi.fn().mockResolvedValue({
         items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
@@ -151,7 +139,7 @@ describe('runClinicalFill', () => {
       cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
     };
     const deps = okDeps({
-      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchCudyrCategories: vi.fn().mockRejectedValue(new Error('timeout')),
     });
     const summary = await runClinicalFill(rec, '2026-07-11', deps);
@@ -162,7 +150,7 @@ describe('runClinicalFill', () => {
 
   it('patients with nothing new produce no patch at all', async () => {
     const deps = okDeps({
-      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
     });
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);

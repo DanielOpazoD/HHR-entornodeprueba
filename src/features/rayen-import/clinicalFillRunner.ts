@@ -23,14 +23,20 @@ import { mergeReportDevices } from './domain/mergeReportDevices';
 import { mergeReportScales } from './domain/mergeReportScales';
 import { parseInvasiveDevices, type DeviceTextItem } from './mapping/parseInvasiveDevices';
 import { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
-import { parseEvaluationScales } from './mapping/parseEvaluationScales';
+import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
-import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
+import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 
 export interface ClinicalFillDeps {
   fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
-  fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
+  /**
+   * Read one patient's risk scales as clinical-history events (real `publishDatetime` per event), so
+   * `parseHistoryScales` can pick the last score applied on the census day — see `parseHistoryScales`.
+   */
+  fetchHistoryScales: (
+    encId: string
+  ) => Promise<{ events: RayenHistoryScaleEvent[]; error?: string }>;
   fetchCudyrCategories: () => Promise<{ items: RayenCudyrCategory[]; error?: string }>;
   /** Apply one patient's granular patch. Throwing marks that patient as failed, nothing else. */
   applyPatch: (patch: DailyRecordPatch) => Promise<void>;
@@ -113,8 +119,8 @@ export const runClinicalFill = async (
     }
 
     try {
-      const { forms } = await deps.fetchScalesForms(encId);
-      const scales = parseEvaluationScales(forms);
+      const { events } = await deps.fetchHistoryScales(encId);
+      const scales = parseHistoryScales(events);
       if (scales.length > 0) {
         merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       }

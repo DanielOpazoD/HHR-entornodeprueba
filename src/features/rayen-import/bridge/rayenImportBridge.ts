@@ -22,6 +22,8 @@ export const RAYEN_DEVICE_REPORT_REQUEST_TYPE = 'HHR_RAYEN_DEVICE_REPORT_REQUEST
 export const RAYEN_DEVICE_REPORT_RESULT_TYPE = 'HHR_RAYEN_DEVICE_REPORT_RESULT';
 export const RAYEN_SCALES_REPORT_REQUEST_TYPE = 'HHR_RAYEN_SCALES_REPORT_REQUEST';
 export const RAYEN_SCALES_REPORT_RESULT_TYPE = 'HHR_RAYEN_SCALES_REPORT_RESULT';
+export const RAYEN_HISTORY_SCALES_REQUEST_TYPE = 'HHR_RAYEN_HISTORY_SCALES_REQUEST';
+export const RAYEN_HISTORY_SCALES_RESULT_TYPE = 'HHR_RAYEN_HISTORY_SCALES_RESULT';
 export const RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST';
 export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT';
 
@@ -30,6 +32,17 @@ export interface RayenCudyrCategory {
   encId: string;
   crdValue: string;
   crdDateTime: string;
+}
+
+/**
+ * One clinical-history event carrying an evaluation-instruments resume (Braden/Downton), slimmed by
+ * the extension from Ficha Médico's "panel de historial". `publishDatetime` is the real application
+ * timestamp (unlike encounterFormEntry's stale startDateTime) — HHR parses these with
+ * `parseHistoryScales` to pick the last score applied on the census day being synced.
+ */
+export interface RayenHistoryScaleEvent {
+  publishDatetime: string;
+  evaluationInstrumentsResume: unknown[];
 }
 
 interface RayenImportMessage {
@@ -283,6 +296,54 @@ export const requestScalesReport = (
     setTimeout(() => {
       cleanup();
       resolve({ forms: [], error: 'Tiempo de espera agotado bajando las escalas de evaluación.' });
+    }, timeoutMs);
+  });
+
+/**
+ * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
+ * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). Each event's
+ * `publishDatetime` is the real application timestamp, so HHR (`parseHistoryScales`) can select the
+ * last score applied ON the census day — including past days and same-day re-applications that
+ * encounterFormEntry misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is
+ * unavailable or times out, so the caller degrades gracefully (no scales synced for that patient).
+ */
+export const requestHistoryScales = (
+  encId: string,
+  timeoutMs = 30000
+): Promise<{ events: RayenHistoryScaleEvent[]; error?: string }> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined' || !encId) {
+      resolve({ events: [] });
+      return;
+    }
+    const reqId = `hist-scales-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_HISTORY_SCALES_RESULT_TYPE || data.reqId !== reqId) return;
+      cleanup();
+      resolve({
+        events: Array.isArray(data.events) ? (data.events as RayenHistoryScaleEvent[]) : [],
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_HISTORY_SCALES_REQUEST_TYPE, reqId, encId },
+      window.location.origin
+    );
+    setTimeout(() => {
+      cleanup();
+      resolve({ events: [], error: 'Tiempo de espera agotado bajando el historial de escalas.' });
     }, timeoutMs);
   });
 

@@ -45,6 +45,7 @@ export {
   evaluationScalesForCensusDay,
   evaluationScalesAsOf,
 } from './mapping/parseEvaluationScales';
+export { parseHistoryScales } from './mapping/parseHistoryScales';
 export type { MergeScalesContext } from './domain/mergeReportScales';
 export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';
@@ -104,9 +105,10 @@ export {
   requestEgresoReport,
   requestDeviceReport,
   requestScalesReport,
+  requestHistoryScales,
   requestCudyrCategories,
 } from './bridge/rayenImportBridge';
-export type { RayenCudyrCategory } from './bridge/rayenImportBridge';
+export type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 
 // Clinical fill runner (devices + scales + CUDYR via granular patches)
 export type {
