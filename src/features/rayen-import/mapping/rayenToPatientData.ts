@@ -117,6 +117,8 @@ export const rayenToPatientData = (
     // does not make the patient a critical-care case — the nurse categorizes that in HHR. Default
     // to non-UPC and let it be set manually.
     isUPC: false,
+    // Aislamiento (precaución de contacto/gotitas/aéreo): Ficha Médico lo marca por paciente.
+    isIsolated: !!encounter.isIsolated,
     location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
   };
 

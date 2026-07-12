@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight, Baby } from 'lucide-react';
+import { ArrowRight, Baby, Biohazard } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -174,6 +174,16 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             </div>
           )}
           {canEditInlineName && ageBadge}
+          {data.isIsolated && (
+            <span
+              className="shrink-0 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase leading-none text-amber-700 ring-1 ring-amber-300"
+              title="Paciente en aislamiento"
+              aria-label="En aislamiento"
+            >
+              <Biohazard size={10} strokeWidth={2.5} />
+              Aisl.
+            </span>
+          )}
           {isSubRow && (
             <span className="shrink-0 text-pink-400 pointer-events-none">
               <Baby size={12} />
