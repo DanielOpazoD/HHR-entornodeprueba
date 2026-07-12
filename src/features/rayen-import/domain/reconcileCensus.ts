@@ -40,6 +40,28 @@ const isDischarged = (encounter: RayenEncounter): boolean =>
   !!encounter.dischargeDatetime ||
   !!encounter.isDead;
 
+/** Extract a YYYY-MM-DD day from a record date / admission datetime (ISO or DD/MM/YYYY). '' if none. */
+const toIsoDay = (raw: string | undefined): string => {
+  const value = (raw ?? '').trim();
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return '';
+};
+
+/**
+ * True when the encounter was admitted STRICTLY AFTER the census day being synced. Such a patient only
+ * exists from their admission day onward, so a late sync of a PAST census must not add them to it (a
+ * patient who entered today should not appear in yesterday's census). Unknown/unparseable admission
+ * dates never gate — we'd rather admit than risk dropping a real patient.
+ */
+const admittedAfterCensusDay = (encounter: RayenEncounter, censusDay: string): boolean => {
+  if (!censusDay) return false;
+  const admissionDay = toIsoDay(encounter.admissionDatetime);
+  return admissionDay !== '' && admissionDay > censusDay;
+};
+
 interface CurrentPatientRef {
   bedId: string;
   patient: PatientData;
@@ -68,6 +90,8 @@ export const reconcileCensus = (
   options: ReconcileOptions = {}
 ): CensusImportDiff => {
   const reference = options.reference ?? new Date();
+  // The census day being synced — a patient admitted after it must not be added to this (past) census.
+  const censusDay = toIsoDay(current.date);
 
   // Index current occupied beds by episode id and by RUN.
   const currentByEpisode = new Map<string, CurrentPatientRef>();
@@ -212,7 +236,9 @@ export const reconcileCensus = (
       continue;
     }
 
-    // New patient not yet in the census → admit into the mapped bed if it is free.
+    // New patient not yet in the census → admit into the mapped bed if it is free, UNLESS they were
+    // admitted after the census day being synced (they don't belong in a past day's census).
+    if (admittedAfterCensusDay(encounter, censusDay)) continue;
     tryAdmit(encounter, patient, isCma, bedId);
   }
 

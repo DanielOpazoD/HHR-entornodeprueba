@@ -29,6 +29,7 @@ import {
   requestEgresoReport,
   requestDeviceReport,
   requestHistoryScales,
+  requestScalesReport,
   requestCudyrCategories,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
@@ -145,6 +146,7 @@ export const useRayenImport = () => {
             fetchDeviceReport: requestDeviceReport,
             extractDeviceItems: extractDeviceTextItems,
             fetchHistoryScales: requestHistoryScales,
+            fetchScalesForms: requestScalesReport,
             fetchCudyrCategories: () => requestCudyrCategories(15000),
             applyPatch: async patch => {
               await patchDailyRecord(patch);

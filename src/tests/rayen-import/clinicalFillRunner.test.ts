@@ -16,6 +16,32 @@ const BRADEN_HISTORY_EVENT = {
   ],
 };
 
+/** Real-shaped Braden 21 as an encounterFormEntry form (the "Instrumentos de evaluación" summary). */
+const BRADEN_SUMMARY_FORM = {
+  formCodigo: 'INSTRUMENTO',
+  nameForm: 'Escala de riesgo UPP (Braden)',
+  encounterEventId: 8652718,
+  startDateTime: '10-07-2026 08:00:00',
+  metaCampList: [
+    {
+      id: 'BRAD_Puntaje',
+      label: 'Puntaje',
+      value: '21',
+      valueName: null,
+      sectionId: 1,
+      createDatetime: '10-07-2026 08:00:00 -06:00',
+    },
+    {
+      id: 'BRAD_ResultadoScore',
+      label: 'Nivel de Severidad',
+      value: '8041',
+      valueName: 'Riesgo bajo',
+      sectionId: 1,
+      createDatetime: '10-07-2026 08:00:00 -06:00',
+    },
+  ],
+};
+
 const record = (beds: Record<string, { encId?: string; name?: string }>): DailyRecord =>
   ({
     date: '2026-07-10',
@@ -35,6 +61,7 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),
   fetchHistoryScales: vi.fn().mockResolvedValue({ events: [BRADEN_HISTORY_EVENT] }),
+  fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
   fetchCudyrCategories: vi.fn().mockResolvedValue({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
   }),
@@ -58,6 +85,20 @@ describe('runClinicalFill', () => {
       braden: { total: 17 },
       cudyr: { category: 'D3', source: 'Eloísa (Rayen)' },
     });
+  });
+
+  it('unions both scale sources — a Braden only in the summary form still syncs (Rodrigo case)', async () => {
+    // History report has no scales for this patient; the Braden lives only in encounterFormEntry.
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [BRADEN_SUMMARY_FORM] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+    const summary = await runClinicalFill(record({ H3C1: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.patched).toBe(1);
+    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(patch['beds.H3C1.evaluationScores'].braden).toMatchObject({ total: 21 });
   });
 
   it('a failing source never blocks the others (devices error → scales still patch)', async () => {

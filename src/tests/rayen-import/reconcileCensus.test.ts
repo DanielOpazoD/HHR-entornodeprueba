@@ -67,6 +67,25 @@ describe('reconcileCensus', () => {
     expect(diff.admissions[0].patient.patientName).toBe('Ana Perez');
   });
 
+  it('does not admit a patient admitted AFTER the census day being synced', () => {
+    // Syncing the 07-08 census; this patient entered 07-09 → belongs only from 07-09 onward.
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([makeEncounter({ admissionDatetime: '2026-07-09T09:00:00-06:00' })]),
+      { reference: REFERENCE }
+    );
+    expect(diff.admissions).toHaveLength(0);
+  });
+
+  it('still admits a patient admitted ON the census day', () => {
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([makeEncounter({ admissionDatetime: '2026-07-08T23:30:00-06:00' })]),
+      { reference: REFERENCE }
+    );
+    expect(diff.admissions).toHaveLength(1);
+  });
+
   it('reports no change when the census already matches Rayen', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([makeEncounter()]), {
