@@ -28,11 +28,13 @@ const vitalsForm = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('parseVitalSigns', () => {
-  it('parses a full VITAL_SIGNS form into a vitals record (Rapa Nui day)', () => {
+  it('parses a full VITAL_SIGNS form into a vitals record (Rapa Nui day + local time)', () => {
     const [v] = parseVitalSigns([vitalsForm()]);
     expect(v).toMatchObject({
       recordedDate: '2026-07-11',
-      recordedAt: '12-07-2026 05:00',
+      // global_FechaHoraSapu is a naive UTC stamp: 05:00Z on 07-12 is 23:00 the day before in Rapa
+      // Nui (−06 in winter). The census must show island time, never the raw UTC stamp (+6h).
+      recordedAt: '11-07-2026 23:00',
       systolic: 130,
       diastolic: 82,
       heartRate: 84,
@@ -43,6 +45,30 @@ describe('parseVitalSigns', () => {
       observations: 'PAM (94) DIURESIS (+)',
       authorRole: 'Paramédico',
     });
+  });
+
+  it('honors an explicit offset on the clinical-time field instead of assuming UTC', () => {
+    const [v] = parseVitalSigns([
+      vitalsForm({
+        metaCampList: [
+          campo('global_FechaHoraSapu', '11-07-2026 23:00:00 -06:00'), // already island-local
+          campo('global_Pulso', '84'),
+        ],
+      }),
+    ]);
+    expect(v.recordedAt).toBe('11-07-2026 23:00');
+    expect(v.recordedDate).toBe('2026-07-11');
+  });
+
+  it('falls back to the form instant (Rapa Nui local) when no clinical-time field is present', () => {
+    const [v] = parseVitalSigns([
+      vitalsForm({
+        createDateTime: '11-07-2026 22:49:00 -06:00',
+        metaCampList: [campo('global_Pulso', '70')], // no FechaHoraSapu
+      }),
+    ]);
+    expect(v.recordedAt).toBe('11-07-2026 22:49');
+    expect(v.recordedDate).toBe('2026-07-11');
   });
 
   it('ignores non-VITAL_SIGNS forms and archived measurements', () => {
