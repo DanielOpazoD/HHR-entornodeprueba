@@ -7,11 +7,15 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { AlarmClock } from 'lucide-react';
+import { AlarmClock, Activity } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ScoresDetailModal } from './ScoresDetailModal';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
+import {
+  buildVitalSignsView,
+  type VitalStatus,
+} from '@/features/census/controllers/vitalSignsView';
 import { useRayenFillStatus } from '@/features/rayen-import';
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 
@@ -35,6 +39,13 @@ const CUDYR_BAND_CLASSES: Record<'A' | 'B' | 'C' | 'D', string> = {
   D: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
+// Vital-signs chip colour by worst reading status (normal / warn / alert).
+const VITAL_STATUS_CLASSES: Record<VitalStatus, string> = {
+  normal: 'bg-slate-50 text-slate-600 border-slate-200',
+  warn: 'bg-amber-50 text-amber-700 border-amber-300',
+  alert: 'bg-red-50 text-red-700 border-red-300',
+};
+
 export const ScoresCell: React.FC<ScoresCellProps> = ({
   data,
   isSubRow = false,
@@ -49,12 +60,13 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   }
 
   const model = buildScoresCellModel(data, currentDateString);
+  const vitals = buildVitalSignsView(data.vitalSigns);
   const bradenUrgency = model.braden?.assessment.reapplication.urgency ?? 'ok';
   const needsReapply = bradenUrgency !== 'ok';
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
-      {model.hasAny ? (
+      {model.hasAny || vitals ? (
         <button
           type="button"
           onClick={e => {
@@ -62,7 +74,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             setIsDetailOpen(true);
           }}
           className="w-full flex flex-col items-stretch gap-0.5 cursor-pointer"
-          title="Ver detalle de escalas de enfermería"
+          title="Ver detalle de escalas y signos vitales"
         >
           {model.braden && (
             <span
@@ -125,6 +137,20 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               <span>CUDYR {model.cudyr.category}</span>
             </span>
           )}
+          {vitals && (
+            <span
+              className={clsx(
+                'flex items-center gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
+                VITAL_STATUS_CLASSES[vitals.worst]
+              )}
+              title={`Signos vitales (${vitals.recordedAt}) · ${vitals.readings
+                .map(r => `${r.label} ${r.value}${r.unit ? ` ${r.unit}` : ''}`)
+                .join(' · ')}`}
+            >
+              <Activity size={9} strokeWidth={3} className="shrink-0" />
+              <span className="truncate tabular-nums">{vitals.chip}</span>
+            </span>
+          )}
         </button>
       ) : isFilling ? (
         <div
@@ -148,6 +174,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
         <ScoresDetailModal
           patientName={data.patientName}
           model={model}
+          vitals={vitals}
           onClose={() => setIsDetailOpen(false)}
         />
       )}
