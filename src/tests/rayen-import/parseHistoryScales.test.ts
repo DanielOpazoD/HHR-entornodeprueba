@@ -120,6 +120,14 @@ describe('parseHistoryScales', () => {
     expect(scales[0].total).toBe(6);
   });
 
+  it('collapses the report duplicating the same event verbatim (one dot per assessment)', () => {
+    // The Jasper report repeated one 10:54 Downton 3× — history must keep a single entry.
+    const dup = downtonEvent('2026-07-10T10:54:16', '8', 'Riesgo alto');
+    const scales = parseHistoryScales([dup, { ...dup }, { ...dup }]);
+    expect(scales).toHaveLength(1);
+    expect(scales[0].total).toBe(8);
+  });
+
   it('is defensive about malformed input', () => {
     expect(parseHistoryScales(null)).toEqual([]);
     expect(parseHistoryScales([{ publishDatetime: '', evaluationInstrumentsResume: [] }])).toEqual(
