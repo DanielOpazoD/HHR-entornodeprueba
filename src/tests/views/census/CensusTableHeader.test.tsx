@@ -93,6 +93,11 @@ describe('CensusTableHeader', () => {
     expect(resizableSpy).toHaveBeenCalled();
     expect(screen.getByText('Cama')).toBeInTheDocument();
     expect(screen.getByText('UPC')).toBeInTheDocument();
+    expect(screen.getByText('Paciente')).toBeInTheDocument();
+    // Identidad unificada: RUT y Edad ya no tienen columnas propias; C.QX está oculta.
+    expect(screen.queryByText('RUT')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edad')).not.toBeInTheDocument();
+    expect(screen.queryByText('C.QX')).not.toBeInTheDocument();
   });
 
   it('forwards diagnosis mode to diagnosis header cell', () => {

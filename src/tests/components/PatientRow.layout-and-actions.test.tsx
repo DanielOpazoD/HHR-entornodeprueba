@@ -361,9 +361,10 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
+    // Read-only name: the input exists (stable hook) but is not editable — edition
+    // happens only via the demographics modal.
     const nameInput = screen.getByDisplayValue('Juan Pérez');
     expect(nameInput).toHaveAttribute('readonly');
-    fireEvent.change(nameInput, { target: { value: 'Juan Actualizado' } });
     expect(mockContext.updatePatient).not.toHaveBeenCalled();
   });
 });

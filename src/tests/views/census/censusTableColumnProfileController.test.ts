@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HIDDEN_CENSUS_COLUMNS,
   resolveVisibleCensusColumnCount,
   resolveVisibleCensusColumnKeys,
+  resolveVisibleCensusColumns,
 } from '@/features/census/controllers/censusTableColumnProfileController';
 
 describe('censusTableColumnProfileController', () => {
@@ -36,5 +38,28 @@ describe('censusTableColumnProfileController', () => {
     const keys = resolveVisibleCensusColumnKeys(columns, 'specialist');
 
     expect(resolveVisibleCensusColumnCount(columns, 'specialist')).toBe(keys.length);
+  });
+
+  it('hides rut, age and cqx columns in every access profile', () => {
+    expect(HIDDEN_CENSUS_COLUMNS).toEqual(['rut', 'age', 'cqx']);
+
+    for (const accessProfile of ['default', 'specialist'] as const) {
+      const keys = resolveVisibleCensusColumnKeys(columns, accessProfile);
+
+      expect(keys).not.toContain('rut');
+      expect(keys).not.toContain('age');
+      expect(keys).not.toContain('cqx');
+      expect(keys).toContain('name');
+      expect(resolveVisibleCensusColumnCount(columns, accessProfile)).toBe(keys.length);
+    }
+  });
+
+  it('zeroes hidden column widths in the projected columns', () => {
+    const projected = resolveVisibleCensusColumns(columns, 'default');
+
+    expect(projected.rut).toBe(0);
+    expect(projected.age).toBe(0);
+    expect(projected.cqx).toBe(0);
+    expect(projected.name).toBe(columns.name);
   });
 });

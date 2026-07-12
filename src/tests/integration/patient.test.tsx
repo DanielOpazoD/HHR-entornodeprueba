@@ -68,7 +68,7 @@ describe('Patient Management Integration', () => {
 
       // Patient name should be visible
       expect(screen.getByDisplayValue('Juan Pérez')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('12.345.678-9')).toBeInTheDocument();
+      expect(screen.getByText('12.345.678-9')).toBeInTheDocument();
     });
 
     it('should render blocked bed with visual indicator', () => {
