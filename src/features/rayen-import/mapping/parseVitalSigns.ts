@@ -12,7 +12,13 @@
  * 141180): a "Examen Fisico SAPU" VITAL_SIGNS form with PA 130/82, FC 84, SatO₂ 98, T° 36, FR 18, EVA 3.
  */
 
-import { effectiveWhen, str, type RawForm, type RawCampo } from './parseEvaluationScales';
+import {
+  effectiveWhen,
+  rapaNuiClock,
+  str,
+  type RawForm,
+  type RawCampo,
+} from './parseEvaluationScales';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 /** Parse a numeric reading; blank / non-numeric → null (never let Number('') become 0). */
@@ -21,6 +27,31 @@ const num = (raw: string): number | null => {
   if (value === '') return null;
   const n = Number(value.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
+};
+
+const pad2 = (value: string): string => value.padStart(2, '0');
+
+/**
+ * Absolute instant (epoch ms) of a vitals clinical-time stamp. Ficha Médico's `SIGNS_FechaHora` /
+ * `global_FechaHoraSapu` is a NAIVE stamp stored in UTC ("D-M-YYYY H:MM[:SS]"); an explicit ±HH:MM / Z
+ * offset is honored when present, otherwise UTC is assumed. Returns null when there is no parseable
+ * time — the caller then falls back to the form's own resolved instant. Rendering the raw stamp would
+ * show the census +6h off (UTC instead of Rapa Nui −06/−05); see the timezone note in the scales parser.
+ */
+const measurementEpoch = (raw: string): number | null => {
+  const m = raw
+    .trim()
+    .match(
+      /^(\d{1,2})-(\d{1,2})-(\d{4})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(Z|[+-]\d{2}:?\d{2})?/
+    );
+  if (!m) return null;
+  const [, dd, mm, yyyy, hh, mi, ss, off] = m;
+  const offset =
+    !off || off === 'Z' ? '+00:00' : off.includes(':') ? off : `${off.slice(0, 3)}:${off.slice(3)}`;
+  const epoch = Date.parse(
+    `${yyyy}-${pad2(mm)}-${pad2(dd)}T${pad2(hh)}:${mi}:${ss ?? '00'}${offset}`
+  );
+  return Number.isNaN(epoch) ? null : epoch;
 };
 
 /** Rayen field ids per reading, most-preferred first (matched case-insensitively). */
@@ -66,9 +97,15 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     const when = effectiveWhen(form, campos);
     if (!when.iso) continue;
 
+    // The clinical-time field is a naive UTC stamp; resolve it to an instant and render it in Rapa Nui
+    // local time so the census shows island time, not UTC (+6h). Fall back to the form's own instant,
+    // then to the raw stamp.
+    const clinicalStamp = get(TIME_IDS);
+    const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
+
     const record: PatientVitalSigns = {
       recordedDate: when.iso,
-      recordedAt: get(TIME_IDS) || when.raw,
+      recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
       systolic: num(get(FIELD_IDS.systolic)),
       diastolic: num(get(FIELD_IDS.diastolic)),
       heartRate: num(get(FIELD_IDS.heartRate)),

@@ -119,6 +119,27 @@ const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
 /** Calendar day (YYYY-MM-DD) of an absolute instant in Rapa Nui time. en-CA formats as ISO. */
 const rapaNuiDay = (epoch: number): string => rapaNuiDayFormatter.format(new Date(epoch));
 
+const rapaNuiClockFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: RAPA_NUI_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+/**
+ * Wall-clock "DD-MM-YYYY HH:MM" of an absolute instant in Rapa Nui time (Pacific/Easter, DST-correct).
+ * Use for the human-facing stamp of a resolved instant — the printed source offset is unreliable, so
+ * never display the raw stamp's time (a UTC-stored field would show +6h; see the timezone note above).
+ */
+export const rapaNuiClock = (epoch: number): string => {
+  const parts: Record<string, string> = {};
+  for (const part of rapaNuiClockFormatter.formatToParts(new Date(epoch)))
+    parts[part.type] = part.value;
+  return `${parts.day}-${parts.month}-${parts.year} ${parts.hour}:${parts.minute}`;
+};
+
 interface ParsedStamp {
   /** Printed local day verbatim (offset-independent), fallback when the instant is unknown. */
   printedIso: string;
@@ -144,7 +165,10 @@ const parseRayenDateTime = (raw: string): ParsedStamp | null => {
  * carry a TZ offset (resolvable to an absolute instant → correct island day even across midnight),
  * taking the latest; falls back to the latest printed date when no offset-bearing stamp exists.
  */
-export const effectiveWhen = (form: RawForm, campos: RawCampo[]): { iso: string; raw: string } => {
+export const effectiveWhen = (
+  form: RawForm,
+  campos: RawCampo[]
+): { iso: string; raw: string; epoch: number | null } => {
   const candidates = [
     ...campos.map(c => str(c.createDatetime)),
     str(form.createDateTime),
@@ -165,7 +189,9 @@ export const effectiveWhen = (form: RawForm, campos: RawCampo[]): { iso: string;
     }
   }
   const best = bestInstant ?? bestPrinted;
-  return best ? { iso: best.iso, raw: best.raw } : { iso: '', raw: str(form.startDateTime) };
+  return best
+    ? { iso: best.iso, raw: best.raw, epoch: bestInstant ? bestInstant.epoch : null }
+    : { iso: '', raw: str(form.startDateTime), epoch: null };
 };
 
 const codeOf = (form: RawForm, campos: RawCampo[]): EvaluationScaleCode | null => {
