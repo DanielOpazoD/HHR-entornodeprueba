@@ -178,7 +178,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
       {model.cudyr && <CudyrNote cudyr={model.cudyr} />}
 
       {!model.braden && !model.downton && !model.cudyr && (
-        <p className="text-sm text-slate-500">Sin escalas sincronizadas para este día.</p>
+        <p className="text-sm text-slate-500">Sin escalas de enfermería para este día.</p>
       )}
 
       <HistoryTimeline history={model.history} />

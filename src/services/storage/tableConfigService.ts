@@ -63,41 +63,44 @@ export const setFirestoreEnabled = (enabled: boolean): void => {
  * ya no se renderizan: rut y age viven dentro de la columna "Paciente" (name) y la
  * columna C.QX queda oculta para reactivación futura.
  */
+// Rediseño censo 2026 "centro de vigilancia": `status` se reduce a un punto de color (dot + popover),
+// `admission` se reutiliza como columna de Signos Vitales (PA·FC·SAT·T°, necesita más ancho) y `scores`
+// crece para los nombres completos de las escalas ("Braden 17"). La fecha de ingreso vive en Paciente.
 export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   actions: 22,
   bed: 34,
   type: 30,
-  name: 170,
+  name: 172,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 50,
-  admission: 51,
+  status: 34,
+  admission: 96,
   dmi: 67,
-  scores: 56,
+  scores: 92,
   cqx: 0,
   upc: 26,
 };
 
 export const DEFAULT_PAGE_MARGIN = 12; // px (corresponds to p-3)
-// v4: rediseño de identidad visual del censo (columna Paciente unificada, rut/age/cqx en 0).
-export const CURRENT_TABLE_CONFIG_VERSION = 4;
+// v5: rediseño "centro de vigilancia" — Estado como punto, columna Signos Vitales, Scores con nombres.
+export const CURRENT_TABLE_CONFIG_VERSION = 5;
 export const TABLE_CONFIG_LOCAL_CACHE_KEY = 'hhr.tableConfig.lastKnown';
 
 const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   actions: 22,
   bed: 34,
   type: 28,
-  name: 170,
+  name: 172,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 50,
-  admission: 51,
+  status: 34,
+  admission: 96,
   dmi: 67,
-  scores: 56,
+  scores: 92,
   cqx: 0,
   upc: 22,
 };

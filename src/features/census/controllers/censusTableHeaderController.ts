@@ -33,7 +33,9 @@ export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   { key: 'diagnosis', label: 'Diagnóstico' },
   { key: 'specialty', label: 'Esp' },
   { key: 'status', label: 'Estado' },
-  { key: 'admission', label: 'Ingreso' },
+  // La columna `admission` se reutiliza para Signos Vitales (rediseño "centro de vigilancia" 2026);
+  // la fecha de ingreso vive junto al RUT en la celda Paciente. La clave se mantiene por compatibilidad.
+  { key: 'admission', label: 'Signos', title: 'Signos vitales (PA · FC · SatO₂ · T°)' },
   { key: 'dmi', label: 'DMI', title: 'Dispositivos médicos invasivos' },
   { key: 'scores', label: 'Scores', title: 'Escalas de enfermería (Braden UPP · Downton caídas)' },
   { key: 'upc', label: 'UPC', className: 'border-r-0' },

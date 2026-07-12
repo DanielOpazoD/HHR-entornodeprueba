@@ -3,7 +3,7 @@ import { PatientIdentityCell } from './PatientIdentityCell';
 import { DiagnosisInput } from './DiagnosisInput';
 import { SpecialtyCell } from './SpecialtyCell';
 import { StatusSelect } from './StatusSelect';
-import { AdmissionInput } from './AdmissionInput';
+import { VitalsCell } from './VitalsCell';
 import { DevicesCell } from './DevicesCell';
 import { ScoresCell } from './ScoresCell';
 import { UpcChecklistPopover } from './UpcChecklistPopover';
@@ -147,18 +147,12 @@ export const PatientInputClinicalSection: React.FC<
 
 export const PatientInputFlowSection: React.FC<
   PatientInputFlowSectionBindings & { accessProfile?: CensusAccessProfile }
-> = ({ shared, handleDebouncedText, onChange, accessProfile = 'default' }) => (
+> = ({ shared, onChange, accessProfile = 'default' }) => (
   <>
-    <AdmissionInput
-      data={shared.data}
-      isSubRow={shared.isSubRow}
-      isEmpty={shared.isEmpty}
-      readOnly={shared.isLocked}
-      currentDateString={shared.currentDateString}
-      isNewAdmission={shared.isNewAdmission}
-      onChange={handleDebouncedText}
-      onMultipleUpdate={onChange.multiple}
-    />
+    {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los
+        SIGNOS VITALES (PA·FC·SAT·T°). La fecha de ingreso se muestra junto al RUT en la celda
+        "Paciente" (PatientIdentityCell). AdmissionInput se conserva para reactivación futura. */}
+    <VitalsCell data={shared.data} isSubRow={shared.isSubRow} isEmpty={shared.isEmpty} />
     {!isSpecialistCensusAccessProfile(accessProfile) && (
       <>
         <DevicesCell

@@ -147,6 +147,7 @@ describe('CensusTableHeader', () => {
     expect(screen.queryByText('DMI')).not.toBeInTheDocument();
     expect(screen.queryByText('C.QX')).not.toBeInTheDocument();
     expect(screen.queryByText('UPC')).not.toBeInTheDocument();
-    expect(screen.getByText('Ingreso')).toBeInTheDocument();
+    // The `admission` column is repurposed as Signos Vitales (still visible for specialists).
+    expect(screen.getByText('Signos')).toBeInTheDocument();
   });
 });

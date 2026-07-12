@@ -73,7 +73,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               )}
               title={`Braden ${model.braden.total} · ${model.braden.assessment.conducta.riskLabel} · ${model.braden.countdownLabel}`}
             >
-              <span>B {model.braden.total}</span>
+              <span>Braden {model.braden.total}</span>
               <span
                 className={clsx(
                   'flex items-center gap-0.5 font-bold tabular-nums',
@@ -98,7 +98,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               )}
               title={`Downton ${model.downton.total} · ${model.downton.severityLabel}${model.downton.countdownLabel ? ` · ${model.downton.countdownLabel}` : ''}`}
             >
-              <span>D {model.downton.total}</span>
+              <span>Downton {model.downton.total}</span>
               {model.downton.reapplication && (
                 <span
                   className={clsx(

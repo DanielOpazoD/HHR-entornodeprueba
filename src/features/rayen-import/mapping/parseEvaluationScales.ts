@@ -85,7 +85,7 @@ export interface EvaluationScale {
   archived?: boolean;
 }
 
-interface RawCampo {
+export interface RawCampo {
   id?: unknown;
   label?: unknown;
   value?: unknown;
@@ -94,7 +94,7 @@ interface RawCampo {
   createDatetime?: unknown;
 }
 
-interface RawForm {
+export interface RawForm {
   formCodigo?: unknown;
   nameForm?: unknown;
   encounterEventId?: unknown;
@@ -103,9 +103,11 @@ interface RawForm {
   authorHealthCarePractitionerName?: unknown;
   authorHealthCarePractitionerRoleName?: unknown;
   metaCampList?: unknown;
+  archived?: unknown;
 }
 
-const str = (value: unknown): string => (value == null ? '' : String(value)).trim();
+/** Coerce any raw value to a trimmed string ('' for null/undefined). Shared with sibling parsers. */
+export const str = (value: unknown): string => (value == null ? '' : String(value)).trim();
 const pad2 = (value: string | number): string => String(value).padStart(2, '0');
 
 const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -142,7 +144,7 @@ const parseRayenDateTime = (raw: string): ParsedStamp | null => {
  * carry a TZ offset (resolvable to an absolute instant → correct island day even across midnight),
  * taking the latest; falls back to the latest printed date when no offset-bearing stamp exists.
  */
-const effectiveWhen = (form: RawForm, campos: RawCampo[]): { iso: string; raw: string } => {
+export const effectiveWhen = (form: RawForm, campos: RawCampo[]): { iso: string; raw: string } => {
   const candidates = [
     ...campos.map(c => str(c.createDatetime)),
     str(form.createDateTime),
