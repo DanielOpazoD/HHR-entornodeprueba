@@ -26,6 +26,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   isRapanui: 'remoteCanonical',
   cudyr: 'remoteCanonical',
   evaluationScores: 'remoteCanonical',
+  vitalSigns: 'remoteCanonical',
   pathology: 'remoteCanonical',
   snomedCode: 'remoteCanonical',
   cie10Code: 'remoteCanonical',

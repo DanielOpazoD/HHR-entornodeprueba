@@ -87,6 +87,31 @@ describe('runClinicalFill', () => {
     });
   });
 
+  it('syncs the latest vitals from the same forms fetch (VITAL_SIGNS)', async () => {
+    const VITALS_FORM = {
+      formCodigo: 'VITAL_SIGNS',
+      nameForm: 'Examen Fisico SAPU',
+      encounterEventId: 8670131,
+      createDateTime: '10-07-2026 08:00:00 -06:00',
+      metaCampList: [
+        { id: 'global_PASSent', value: '130' },
+        { id: 'global_PADSent', value: '82' },
+        { id: 'global_Pulso', value: '84' },
+        { id: 'exa_Fisic_G_SaturacionO2', value: '98' },
+      ],
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [VITALS_FORM] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+    const summary = await runClinicalFill(record({ H3C1: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.patched).toBe(1);
+    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(patch['beds.H3C1.vitalSigns']).toMatchObject({ systolic: 130, heartRate: 84, spo2: 98 });
+  });
+
   it('unions both scale sources — a Braden only in the summary form still syncs (Rodrigo case)', async () => {
     // History report has no scales for this patient; the Braden lives only in encounterFormEntry.
     const deps = okDeps({

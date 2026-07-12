@@ -4,6 +4,7 @@ import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
 import type { DeviceInstance, DeviceDetails } from './devices';
 import type { PatientEvaluationScores } from './evaluationScores';
+import type { PatientVitalSigns } from './vitalSigns';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 
@@ -129,6 +130,9 @@ export interface PatientData {
    * and the patient's age (see `@/domain/evaluationScales/bradenRisk`).
    */
   evaluationScores?: PatientEvaluationScores;
+
+  /** Latest vital signs (PA, FC, SatO₂, T°, FR, EVA) synced from Ficha Médico. */
+  vitalSigns?: PatientVitalSigns;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

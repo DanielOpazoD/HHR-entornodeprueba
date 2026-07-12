@@ -47,6 +47,9 @@ export {
 } from './mapping/parseEvaluationScales';
 export { parseHistoryScales } from './mapping/parseHistoryScales';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
+export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';
+export type { MergeVitalsContext } from './domain/mergeReportVitals';
+export { mergeReportVitals } from './domain/mergeReportVitals';
 export type { MergeScalesContext } from './domain/mergeReportScales';
 export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';

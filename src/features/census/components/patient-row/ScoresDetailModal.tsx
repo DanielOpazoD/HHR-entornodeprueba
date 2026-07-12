@@ -19,14 +19,53 @@ import type {
   ScoresCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
 import type { BradenRiskLevel, EvaluationScoreEntry } from '@/types/domain/evaluationScores';
+import type { VitalSignsView, VitalStatus } from '@/features/census/controllers/vitalSignsView';
 import { BradenCard, CudyrCard, DowntonCard } from './ScoresDetailCards';
 import { LEVEL_TOKENS, formatIsoDay, severityLevel, tokensFor } from './scoresDetailTokens';
 
 interface ScoresDetailModalProps {
   patientName: string;
   model: ScoresCellModel;
+  vitals: VitalSignsView | null;
   onClose: () => void;
 }
+
+const VITAL_TOKENS: Record<VitalStatus, string> = {
+  normal: 'bg-slate-50 text-slate-700 border-slate-200',
+  warn: 'bg-amber-50 text-amber-700 border-amber-300',
+  alert: 'bg-red-50 text-red-700 border-red-300',
+};
+
+/** Latest vital signs synced from Ficha Médico — reading cards colored by out-of-range status. */
+const VitalsSection: React.FC<{ vitals: VitalSignsView }> = ({ vitals }) => (
+  <section className="rounded-lg border border-slate-200 p-3">
+    <div className="mb-2 flex items-center justify-between">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+        <Activity size={13} /> Signos vitales
+      </h3>
+      <span className="text-[11px] text-slate-400">{vitals.recordedAt}</span>
+    </div>
+    <div className="flex flex-wrap gap-2">
+      {vitals.readings.map(reading => (
+        <div
+          key={reading.key}
+          className={clsx('rounded-md border px-2 py-1 text-center', VITAL_TOKENS[reading.status])}
+        >
+          <div className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+            {reading.label}
+          </div>
+          <div className="text-sm font-bold leading-tight tabular-nums">{reading.value}</div>
+          <div className="text-[9px] opacity-60">{reading.unit}</div>
+        </div>
+      ))}
+    </div>
+    {vitals.observations && (
+      <p className="mt-2 text-[12px] text-slate-600">
+        <span className="font-medium text-slate-500">Obs:</span> {vitals.observations}
+      </p>
+    )}
+  </section>
+);
 
 /** Prominent strip when any scale needs reapplication, so it's the first thing the nurse sees. */
 const ReapplyAlert: React.FC<{ model: ScoresCellModel }> = ({ model }) => {
@@ -153,18 +192,21 @@ const HistoryTimeline: React.FC<{ history: EvaluationScoreEntry[] }> = ({ histor
 export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
   patientName,
   model,
+  vitals,
   onClose,
 }) => (
   <BaseModal
     isOpen
     onClose={onClose}
-    title={`Escalas de enfermería — ${patientName}`}
+    title={`Escalas y signos vitales — ${patientName}`}
     icon={<Activity size={18} />}
     size="lg"
     dataModule="census-scores"
   >
     <div className="space-y-3">
       <ReapplyAlert model={model} />
+
+      {vitals && <VitalsSection vitals={vitals} />}
 
       {(model.braden || model.downton || model.cudyr) && (
         <div className="flex flex-wrap gap-2">
@@ -178,7 +220,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
       {model.cudyr && <CudyrNote cudyr={model.cudyr} />}
 
       {!model.braden && !model.downton && !model.cudyr && (
-        <p className="text-sm text-slate-500">Sin escalas sincronizadas para este día.</p>
+        <p className="text-sm text-slate-500">Sin escalas de enfermería para este día.</p>
       )}
 
       <HistoryTimeline history={model.history} />
