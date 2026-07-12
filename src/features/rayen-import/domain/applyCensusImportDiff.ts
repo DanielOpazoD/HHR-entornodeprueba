@@ -46,7 +46,7 @@ export interface ApplyResult {
   skipped: SkippedOp[];
 }
 
-const buildDischarge = (
+export const buildDischarge = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
@@ -73,7 +73,7 @@ const buildDischarge = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
-const buildTransfer = (
+export const buildTransfer = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
@@ -100,7 +100,7 @@ const buildTransfer = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
-const buildCma = (
+export const buildCma = (
   patient: PatientData,
   entry: DischargeEntry,
   ctx: Required<ApplyContext>

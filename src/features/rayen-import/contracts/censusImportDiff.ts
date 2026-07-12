@@ -58,6 +58,28 @@ export interface DischargeEntry {
   status: 'Vivo' | 'Fallecido';
   reason: 'rayen-discharge' | 'missing-in-rayen';
   source?: RayenEncounter;
+  /**
+   * Rapa Nui (island) day + time of the egreso as told by the official "Alta Administrativa" report,
+   * already TZ-corrected from continental Chile (see `continentalReportToRapaNui`). When
+   * `correctedDay` is earlier than the census day being synced, the discharge belongs to that
+   * previous day's record — the movement is filed there (behind confirmation), not on the sync day.
+   */
+  correctedDay?: string;
+  correctedTime?: string;
+}
+
+/** One previous day the sync would touch (Capability A: a discharge whose real island day is earlier). */
+export interface PreviousDayEdit {
+  /** Island day (YYYY-MM-DD) whose record would be modified. */
+  day: string;
+  reason: 'discharge-day-correction';
+  patientNames: string[];
+  /** Whether a daily record already exists for that day. */
+  recordExists: boolean;
+  /** Whether a nurse may still write it (Firestore ~48h editing window); false → needs admin. */
+  withinEditingWindow: boolean;
+  /** Whether that day's record carries a medical signature (already "closed"). */
+  isSigned: boolean;
 }
 
 /**
@@ -93,6 +115,8 @@ export interface CensusImportSummary {
   pendingNursingDischarges: number;
   conflicts: number;
   unchanged: number;
+  /** How many previous days would be modified (discharge-day corrections). Optional/back-compat. */
+  previousDaysAffected?: number;
 }
 
 export interface CensusImportDiff {
@@ -110,6 +134,12 @@ export interface CensusImportDiff {
    * once the report has been consulted (see `applyEgresoReport`).
    */
   reportEgresos?: ReportEgreso[];
+  /**
+   * Previous days this sync would modify — a discharge whose official island egreso day is earlier
+   * than the census day. Surfaced in the preview behind an explicit "modify previous days" confirm;
+   * never auto-applied. Present only once the egreso report has been consulted.
+   */
+  previousDayEdits?: PreviousDayEdit[];
   unchangedCount: number;
   summary: CensusImportSummary;
 }
