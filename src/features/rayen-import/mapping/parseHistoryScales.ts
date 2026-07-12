@@ -100,8 +100,9 @@ const resolveEffectiveScales = (parsed: ParsedScale[]): EvaluationScale[] => {
   const result: EvaluationScale[] = [];
   for (const scale of byKey.values()) {
     if (scale.archived && daysWithLiveScore.has(`${scale.code} ${scale.recordedDate}`)) continue;
-    const { archived: _archived, ...clean } = scale;
-    result.push(clean);
+    // Keep the `archived` flag on the survivors: an archived-only-of-its-day record must still lose to
+    // a LIVE record of the same day found in the OTHER source — cross-source resolution needs the flag.
+    result.push(scale);
   }
   return result;
 };

@@ -76,6 +76,13 @@ export interface EvaluationScale {
   total: number | null;
   /** Severity result ("Nivel de Severidad"), e.g. "Riesgo bajo"; null when absent. */
   severity: string | null;
+  /**
+   * True when this record is ARCHIVED (superseded) in Ficha Médico's history. Only the history parser
+   * sets it; the summary/encounterFormEntry table shows live records, so those leave it undefined. A
+   * live record ALWAYS wins over an archived one on the same day (regardless of which is newer) — the
+   * cross-source resolution in `mergeScaleSources` relies on this flag surviving to the union step.
+   */
+  archived?: boolean;
 }
 
 interface RawCampo {
