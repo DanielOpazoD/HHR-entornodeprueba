@@ -111,6 +111,13 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
         <VitalsDetailModal
           patientName={data.patientName}
           vitals={vitals}
+          history={
+            data.vitalSignsHistory?.length
+              ? data.vitalSignsHistory
+              : data.vitalSigns
+                ? [data.vitalSigns]
+                : []
+          }
           onClose={() => setIsDetailOpen(false)}
         />
       )}

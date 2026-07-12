@@ -110,6 +110,7 @@ describe('runClinicalFill', () => {
     expect(summary.patched).toBe(1);
     const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(patch['beds.H3C1.vitalSigns']).toMatchObject({ systolic: 130, heartRate: 84, spo2: 98 });
+    expect(patch['beds.H3C1.vitalSignsHistory']).toHaveLength(1);
   });
 
   it('unions both scale sources — a Braden only in the summary form still syncs (Rodrigo case)', async () => {

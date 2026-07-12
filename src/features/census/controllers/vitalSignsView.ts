@@ -142,3 +142,53 @@ export const buildVitalSignsView = (
     chip,
   };
 };
+
+/** Columns of the vitals history table, in clinical reading order. */
+export const VITALS_HISTORY_COLUMNS: ReadonlyArray<{
+  key: VitalReadingView['key'];
+  label: string;
+}> = [
+  { key: 'pa', label: 'PA' },
+  { key: 'fc', label: 'FC' },
+  { key: 'spo2', label: 'SAT' },
+  { key: 'temp', label: 'T°' },
+  { key: 'fr', label: 'FR' },
+  { key: 'eva', label: 'EVA' },
+];
+
+export interface VitalsHistoryRow {
+  key: string;
+  /** ISO day (YYYY-MM-DD) — used to group rows by day. */
+  recordedDate: string;
+  /** Compact "DD-MM HH:MM" for the row. */
+  when: string;
+  observations: string | null;
+  /** Value + status per column key (absent readings omitted). */
+  cells: Partial<Record<VitalReadingView['key'], { value: string; status: VitalStatus }>>;
+}
+
+const dayLabel = (isoDay: string): string => {
+  const m = isoDay.match(/^\d{4}-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}-${m[1]}` : isoDay;
+};
+const timeLabel = (recordedAt: string): string => {
+  const m = recordedAt.match(/(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+};
+
+/** Build table rows (most-recent-first, as given) for the vitals history view. */
+export const buildVitalsHistory = (records: readonly PatientVitalSigns[]): VitalsHistoryRow[] =>
+  records.map((record, index) => {
+    const view = buildVitalSignsView(record);
+    const cells: VitalsHistoryRow['cells'] = {};
+    view?.readings.forEach(reading => {
+      cells[reading.key] = { value: reading.value, status: reading.status };
+    });
+    return {
+      key: `${record.recordedAt}-${index}`,
+      recordedDate: record.recordedDate,
+      when: `${dayLabel(record.recordedDate)} ${timeLabel(record.recordedAt)}`.trim(),
+      observations: record.observations,
+      cells,
+    };
+  });

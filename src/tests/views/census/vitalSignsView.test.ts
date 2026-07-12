@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildVitalSignsView } from '@/features/census/controllers/vitalSignsView';
+import {
+  buildVitalSignsView,
+  buildVitalsHistory,
+} from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 const vitals = (over: Partial<PatientVitalSigns> = {}): PatientVitalSigns => ({
@@ -73,5 +76,21 @@ describe('buildVitalSignsView', () => {
         })
       )
     ).toBeNull();
+  });
+});
+
+describe('buildVitalsHistory', () => {
+  it('builds one row per measurement with day + time and colored cells', () => {
+    const rows = buildVitalsHistory([
+      vitals({ recordedDate: '2026-07-11', recordedAt: '11-07-2026 20:57', spo2: 88 }),
+      vitals({ recordedDate: '2026-07-10', recordedAt: '10-07-2026 08:00', heartRate: 70 }),
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].when).toBe('11-07 20:57');
+    expect(rows[0].recordedDate).toBe('2026-07-11');
+    expect(rows[0].cells.pa?.value).toBe('120/80');
+    expect(rows[0].cells.spo2?.status).toBe('alert'); // 88% flagged
+    expect(rows[1].cells.fc?.value).toBe('70');
   });
 });

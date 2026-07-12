@@ -134,6 +134,12 @@ export interface PatientData {
   /** Latest vital signs (PA, FC, SatO₂, T°, FR, EVA) synced from Ficha Médico. */
   vitalSigns?: PatientVitalSigns;
 
+  /**
+   * Vital-signs history synced from Ficha Médico (most-recent-first, on or before the census day),
+   * so the census can show several days of measurements. Bounded to the most recent readings.
+   */
+  vitalSignsHistory?: PatientVitalSigns[];
+
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;
   deliveryDate?: string; // ISO date string
