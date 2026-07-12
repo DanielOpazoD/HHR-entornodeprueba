@@ -2,8 +2,10 @@
  * PatientIdentityCell - Celda única de identidad del paciente (rediseño censo 2026)
  *
  * Unifica las antiguas columnas Nombre / RUT / Edad en un solo <td>:
- * - Fila 1: nombre (editable solo para cuna clínica provisional, igual que NameInput)
- *   + badge de edad "(edad)" que abre datos demográficos.
+ * - Fila 1: nombre + edad inline inmediatamente después, como una sola línea
+ *   visual "Daniel Opazo (35a)"; la edad abre datos demográficos. El nombre
+ *   solo es editable (input real) para cuna clínica provisional y camas
+ *   vacías (el selector de activación necesita input[name="patientName"]).
  * - Fila 2: RUT en letra pequeña gris, solo lectura, con check de validación
  *   y copia al portapapeles (comportamiento heredado de RutPassportInput).
  *
@@ -17,6 +19,7 @@ import { ArrowRight, Baby } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
+import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { resolveNameInputState } from './nameInputController';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
@@ -83,6 +86,23 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
     setCopyFeedback('copied');
   };
 
+  const ageBadge = !isEmpty && !!data.age && (
+    <button
+      type="button"
+      onClick={onOpenDemographics}
+      className={clsx(
+        'shrink-0 text-[11px] font-medium tabular-nums transition-colors',
+        hasAgeValidationError
+          ? 'text-red-500 hover:text-red-600'
+          : 'text-slate-400 hover:text-medical-600'
+      )}
+      title="Datos demográficos"
+      aria-label="Edad del paciente, abre datos demográficos"
+    >
+      ({formatAge(data.age)})
+    </button>
+  );
+
   return (
     <td className="py-1 px-1 border-r border-slate-200 align-middle">
       <div className="relative">
@@ -92,39 +112,42 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           </div>
         )}
         <div className="flex items-center gap-1">
-          <DebouncedInput
-            type="text"
-            name="patientName"
-            className={clsx(
-              'w-full min-w-0 flex-1 p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold',
-              canEditInlineName
-                ? 'bg-white text-slate-800 focus:ring-2 focus:ring-pink-200 focus:border-pink-400'
-                : 'bg-slate-50 text-slate-700 cursor-default',
-              isSubRow ? 'border-pink-100 text-xs h-6' : 'border-slate-200',
-              hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
-            )}
-            placeholder={isSubRow ? 'Nombre RN / Niño' : isEmpty ? '' : 'Nombre Paciente'}
-            value={fullName}
-            readOnly={!canEditInlineName}
-            onChange={handlePatientNameChange}
-            debounceMs={350}
-          />
-          {!isEmpty && !!data.age && (
-            <button
-              type="button"
-              onClick={onOpenDemographics}
+          {canEditInlineName || isEmpty ? (
+            <DebouncedInput
+              type="text"
+              name="patientName"
               className={clsx(
-                'shrink-0 text-[11px] font-medium tabular-nums transition-colors',
-                hasAgeValidationError
-                  ? 'text-red-500 hover:text-red-600'
-                  : 'text-slate-400 hover:text-medical-600'
+                'w-full min-w-0 flex-1 p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold',
+                canEditInlineName
+                  ? 'bg-white text-slate-800 focus:ring-2 focus:ring-pink-200 focus:border-pink-400'
+                  : 'bg-slate-50 text-slate-700 cursor-default',
+                isSubRow ? 'border-pink-100 text-xs h-6' : 'border-slate-200',
+                hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
-              title="Datos demográficos"
-              aria-label="Edad del paciente, abre datos demográficos"
+              placeholder={isSubRow ? 'Nombre RN / Niño' : isEmpty ? '' : 'Nombre Paciente'}
+              value={fullName}
+              readOnly={!canEditInlineName}
+              onChange={handlePatientNameChange}
+              debounceMs={350}
+            />
+          ) : (
+            <div
+              className={clsx(
+                'flex w-full min-w-0 flex-1 items-center gap-1 overflow-hidden p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold bg-slate-50 text-slate-700 cursor-default',
+                isSubRow ? 'border-pink-100 text-xs h-6' : 'border-slate-200',
+                hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
+              )}
             >
-              ({data.age})
-            </button>
+              <span
+                className={clsx('truncate', !fullName && 'text-slate-400')}
+                title={fullName || undefined}
+              >
+                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
+              </span>
+              {ageBadge}
+            </div>
           )}
+          {canEditInlineName && ageBadge}
           {isSubRow && (
             <span className="shrink-0 text-pink-400 pointer-events-none">
               <Baby size={12} />

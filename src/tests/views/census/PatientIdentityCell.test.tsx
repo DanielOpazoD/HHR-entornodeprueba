@@ -30,7 +30,7 @@ describe('PatientIdentityCell', () => {
     vi.clearAllMocks();
   });
 
-  it('renders name, age badge and RUT inside a single cell', () => {
+  it('renders name with inline age badge and RUT inside a single cell', () => {
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',
       rut: '12.345.678-5',
@@ -41,13 +41,24 @@ describe('PatientIdentityCell', () => {
 
     expect(container.querySelectorAll('td')).toHaveLength(1);
 
-    const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
-    expect(nameInput.value).toBe('Juana Rapu');
-    expect(nameInput).toHaveAttribute('readonly');
+    // Read-only names render as text (no input) with the age hugging the name
+    // in the same line: "Juana Rapu (45a)".
+    expect(container.querySelector('input[name="patientName"]')).toBeNull();
+    const nameText = screen.getByText('Juana Rapu');
+    const ageBadge = screen.getByText('(45a)');
+    expect(nameText.parentElement).toBe(ageBadge.parentElement);
+    expect(nameText.nextElementSibling).toBe(ageBadge);
 
-    expect(screen.getByText('(45)')).toBeInTheDocument();
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
+  });
+
+  it('keeps unit-suffixed ages as-is in the inline badge', () => {
+    const data = DataFactory.createMockPatient('R1', { age: '10d' });
+
+    renderCell({ data });
+
+    expect(screen.getByText('(10d)')).toBeInTheDocument();
   });
 
   it('opens demographics from the age badge', () => {
@@ -111,7 +122,7 @@ describe('PatientIdentityCell', () => {
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
 
-  it('does not emit inline updates for official main-row names', () => {
+  it('does not render an editable input for official main-row names', () => {
     const handlePatientName = vi.fn();
     const onNameChange: DebouncedTextHandler = field =>
       field === 'patientName' ? handlePatientName : vi.fn();
@@ -123,11 +134,8 @@ describe('PatientIdentityCell', () => {
 
     const { container } = renderCell({ data, onNameChange });
 
-    const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
-    expect(nameInput).toHaveAttribute('readonly');
-
-    fireEvent.change(nameInput, { target: { value: 'Paciente Editado' } });
-    fireEvent.blur(nameInput);
+    expect(container.querySelector('input[name="patientName"]')).toBeNull();
+    expect(screen.getByText('Paciente Principal')).toBeInTheDocument();
     expect(handlePatientName).not.toHaveBeenCalled();
   });
 

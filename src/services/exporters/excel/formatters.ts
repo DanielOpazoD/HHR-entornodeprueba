@@ -3,14 +3,7 @@
  */
 
 export { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-
-export function formatAge(age?: string): string {
-  if (!age) return '';
-  const trimmed = age.trim();
-  if (/^\d+$/.test(trimmed)) return `${trimmed}a`;
-  if (/^\d+\s*a$/i.test(trimmed)) return trimmed.replace(/\s+/g, '');
-  return trimmed;
-}
+export { formatAge } from '@/utils/ageDisplayUtils';
 
 export function mapBedType(type: string): string {
   if (type.toLowerCase() === 'cuna') return 'MEDIA';
