@@ -41,13 +41,16 @@ describe('PatientIdentityCell', () => {
 
     expect(container.querySelectorAll('td')).toHaveLength(1);
 
-    // Read-only names render as text (no input) with the age hugging the name
-    // in the same line: "Juana Rapu (45a)".
-    expect(container.querySelector('input[name="patientName"]')).toBeNull();
-    const nameText = screen.getByText('Juana Rapu');
+    // Read-only official names render as a borderless, read-only input (keeps
+    // input[name="patientName"] as the stable hook for the census/e2e suite) with
+    // the age badge hugging it in the same line: "Juana Rapu (45a)".
+    const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
+    expect(nameInput).toBeInTheDocument();
+    expect(nameInput).toHaveValue('Juana Rapu');
+    expect(nameInput).toHaveAttribute('readonly');
     const ageBadge = screen.getByText('(45a)');
-    expect(nameText.parentElement).toBe(ageBadge.parentElement);
-    expect(nameText.nextElementSibling).toBe(ageBadge);
+    expect(nameInput.parentElement).toBe(ageBadge.parentElement);
+    expect(nameInput.nextElementSibling).toBe(ageBadge);
 
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
@@ -134,8 +137,12 @@ describe('PatientIdentityCell', () => {
 
     const { container } = renderCell({ data, onNameChange });
 
-    expect(container.querySelector('input[name="patientName"]')).toBeNull();
-    expect(screen.getByText('Paciente Principal')).toBeInTheDocument();
+    // The official main-row name is read-only: the input still exists (stable test
+    // hook) but is not editable and never fires the name-change handler.
+    const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
+    expect(nameInput).toBeInTheDocument();
+    expect(nameInput).toHaveAttribute('readonly');
+    expect(nameInput).toHaveValue('Paciente Principal');
     expect(handlePatientName).not.toHaveBeenCalled();
   });
 

@@ -138,12 +138,26 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
-              <span
-                className={clsx('truncate', !fullName && 'text-slate-400')}
+              {/*
+                Read-only display of an official patient's name. Rendered as a borderless, content-width
+                <input> (not a <span>) so the row keeps `input[name="patientName"]` — the stable hook the
+                whole census test/e2e suite reads a patient's name through — while still looking like plain
+                text. `size` sizes it to the name so the "(edad)" badge hugs right after it.
+              */}
+              <input
+                type="text"
+                name="patientName"
+                readOnly
+                tabIndex={-1}
+                value={fullName}
                 title={fullName || undefined}
-              >
-                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
-              </span>
+                size={Math.max(fullName.length, 1)}
+                placeholder={isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente'}
+                className={clsx(
+                  'min-w-0 max-w-full truncate border-0 bg-transparent p-0 cursor-default focus:outline-none',
+                  !fullName && 'text-slate-400'
+                )}
+              />
               {ageBadge}
             </div>
           )}

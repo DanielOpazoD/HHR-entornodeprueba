@@ -2,8 +2,7 @@
  * Detail modal for the census "Scores" column — a clean, at-a-glance report of the nursing risk
  * scales synced from Ficha Médico:
  *   1. an alert strip when any scale is due/overdue for reapplication,
- *   2. a grid of summary cards (Braden UPP · Downton falls · CUDYR) with the score colored by risk
- *      level and its reapplication countdown,
+ *   2. a grid of summary cards (Braden UPP · Downton falls · CUDYR) — see `ScoresDetailCards`,
  *   3. the Braden "conducta" (planned care by risk level),
  *   4. the CUDYR imported-from-Eloísa note, and
  *   5. a per-scale history timeline (colored dots over the hospitalization) with a legend.
@@ -12,253 +11,22 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import {
-  Activity,
-  AlarmClock,
-  Bandage,
-  CalendarClock,
-  ClipboardList,
-  Footprints,
-  History,
-  Info,
-  Layers3,
-} from 'lucide-react';
+import { Activity, AlarmClock, ClipboardList, History, Info } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   BradenCellModel,
   CudyrCellModel,
-  DowntonCellModel,
   ScoresCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
 import type { BradenRiskLevel, EvaluationScoreEntry } from '@/types/domain/evaluationScores';
+import { BradenCard, CudyrCard, DowntonCard } from './ScoresDetailCards';
+import { LEVEL_TOKENS, formatIsoDay, severityLevel, tokensFor } from './scoresDetailTokens';
 
 interface ScoresDetailModalProps {
   patientName: string;
   model: ScoresCellModel;
   onClose: () => void;
 }
-
-/** One risk-level's palette, reused across chips, big numbers, accents and timeline dots. */
-interface LevelTokens {
-  chip: string;
-  accent: string;
-  number: string;
-  dot: string;
-  soft: string;
-  label: string;
-}
-
-const LEVEL_TOKENS: Record<BradenRiskLevel, LevelTokens> = {
-  bajo: {
-    chip: 'bg-emerald-100 text-emerald-800',
-    accent: 'border-l-emerald-400',
-    number: 'text-emerald-700',
-    dot: 'bg-emerald-500',
-    soft: 'bg-emerald-50 text-emerald-700',
-    label: 'Riesgo bajo',
-  },
-  medio: {
-    chip: 'bg-amber-100 text-amber-800',
-    accent: 'border-l-amber-400',
-    number: 'text-amber-700',
-    dot: 'bg-amber-500',
-    soft: 'bg-amber-50 text-amber-700',
-    label: 'Riesgo medio',
-  },
-  alto: {
-    chip: 'bg-red-100 text-red-800',
-    accent: 'border-l-red-400',
-    number: 'text-red-700',
-    dot: 'bg-red-500',
-    soft: 'bg-red-50 text-red-700',
-    label: 'Riesgo alto',
-  },
-};
-
-const NEUTRAL_TOKENS: LevelTokens = {
-  chip: 'bg-slate-100 text-slate-600',
-  accent: 'border-l-slate-300',
-  number: 'text-slate-700',
-  dot: 'bg-slate-400',
-  soft: 'bg-slate-50 text-slate-600',
-  label: 'Sin interpretación',
-};
-
-// CUDYR category band → color (A highest acuity → D lowest), matching the census cell chip.
-const CUDYR_BAND: Record<'A' | 'B' | 'C' | 'D', { chip: string; accent: string; number: string }> =
-  {
-    A: { chip: 'bg-rose-100 text-rose-800', accent: 'border-l-rose-400', number: 'text-rose-700' },
-    B: {
-      chip: 'bg-amber-100 text-amber-800',
-      accent: 'border-l-amber-400',
-      number: 'text-amber-700',
-    },
-    C: { chip: 'bg-sky-100 text-sky-800', accent: 'border-l-sky-400', number: 'text-sky-700' },
-    D: {
-      chip: 'bg-emerald-100 text-emerald-800',
-      accent: 'border-l-emerald-400',
-      number: 'text-emerald-700',
-    },
-  };
-
-const tokensFor = (level: BradenRiskLevel | null): LevelTokens =>
-  level ? LEVEL_TOKENS[level] : NEUTRAL_TOKENS;
-
-const formatIsoDay = (isoDay: string): string => {
-  const [year, month, day] = isoDay.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : isoDay;
-};
-
-/** Derive a risk level from a source severity text ("Riesgo alto" → 'alto') for history coloring. */
-const severityLevel = (severity: string | null): BradenRiskLevel | null => {
-  const value = (severity ?? '').toLowerCase();
-  if (value.includes('alto')) return 'alto';
-  if (value.includes('medio') || value.includes('moderad')) return 'medio';
-  if (value.includes('bajo')) return 'bajo';
-  return null;
-};
-
-/** Small reapplication pill: green "en Nd", red "Reaplicar hoy"/"vencida". */
-const ReapplyPill: React.FC<{ label: string; urgent: boolean }> = ({ label, urgent }) => (
-  <span
-    className={clsx(
-      'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-      urgent ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
-    )}
-  >
-    {urgent ? <AlarmClock size={11} strokeWidth={2.5} /> : <CalendarClock size={11} />}
-    {label}
-  </span>
-);
-
-interface ScoreCardProps {
-  icon: React.ReactNode;
-  name: string;
-  sub: string;
-  value: string;
-  valueClass: string;
-  accentClass: string;
-  badge: React.ReactNode;
-  recordedDate: string;
-  footer?: React.ReactNode;
-}
-
-/** One summary card: colored left accent, big value, risk badge, reapplication footer. */
-const ScoreCard: React.FC<ScoreCardProps> = ({
-  icon,
-  name,
-  sub,
-  value,
-  valueClass,
-  accentClass,
-  badge,
-  recordedDate,
-  footer,
-}) => (
-  <div
-    className={clsx(
-      'flex min-w-[150px] flex-1 flex-col gap-1.5 rounded-lg border border-slate-200 border-l-4 bg-white p-3',
-      accentClass
-    )}
-  >
-    <div className="flex items-start justify-between gap-2">
-      <div className="flex items-center gap-1.5 text-slate-600">
-        {icon}
-        <div className="leading-tight">
-          <div className="text-xs font-semibold text-slate-700">{name}</div>
-          <div className="text-[10px] text-slate-400">{sub}</div>
-        </div>
-      </div>
-      {badge}
-    </div>
-    <div className="flex items-baseline gap-1.5">
-      <span className={clsx('text-3xl font-bold tabular-nums', valueClass)}>{value}</span>
-    </div>
-    <div className="text-[10px] text-slate-400">Realizada el {formatIsoDay(recordedDate)}</div>
-    {footer}
-  </div>
-);
-
-const Badge: React.FC<{ className: string; children: React.ReactNode }> = ({
-  className,
-  children,
-}) => (
-  <span
-    className={clsx(
-      'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-      className
-    )}
-  >
-    {children}
-  </span>
-);
-
-const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) => {
-  const level = braden.assessment.riskLevel;
-  const t = tokensFor(level);
-  return (
-    <ScoreCard
-      icon={<Bandage size={16} />}
-      name="Braden"
-      sub="Riesgo UPP"
-      value={String(braden.total)}
-      valueClass={t.number}
-      accentClass={t.accent}
-      badge={<Badge className={t.chip}>{braden.assessment.conducta.riskLabel}</Badge>}
-      recordedDate={braden.entry.recordedDate}
-      footer={
-        braden.countdownLabel ? (
-          <ReapplyPill
-            label={braden.countdownLabel}
-            urgent={braden.assessment.reapplication.urgency !== 'ok'}
-          />
-        ) : undefined
-      }
-    />
-  );
-};
-
-const DowntonCard: React.FC<{ downton: DowntonCellModel }> = ({ downton }) => {
-  const t = tokensFor(downton.level);
-  return (
-    <ScoreCard
-      icon={<Footprints size={16} />}
-      name="Downton"
-      sub="Riesgo de caídas"
-      value={String(downton.total)}
-      valueClass={t.number}
-      accentClass={t.accent}
-      badge={<Badge className={t.chip}>{downton.severityLabel || 'Sin interpretación'}</Badge>}
-      recordedDate={downton.entry.recordedDate}
-      footer={
-        downton.reapplication && downton.countdownLabel ? (
-          <ReapplyPill
-            label={downton.countdownLabel}
-            urgent={downton.reapplication.urgency !== 'ok'}
-          />
-        ) : undefined
-      }
-    />
-  );
-};
-
-const CudyrCard: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => {
-  const t = cudyr.band
-    ? CUDYR_BAND[cudyr.band]
-    : { chip: NEUTRAL_TOKENS.chip, accent: NEUTRAL_TOKENS.accent, number: NEUTRAL_TOKENS.number };
-  return (
-    <ScoreCard
-      icon={<Layers3 size={16} />}
-      name="CUDYR"
-      sub="Riesgo y dependencia"
-      value={cudyr.category}
-      valueClass={t.number}
-      accentClass={t.accent}
-      badge={<Badge className={t.chip}>Importado</Badge>}
-      recordedDate={cudyr.entry.recordedDate}
-    />
-  );
-};
 
 /** Prominent strip when any scale needs reapplication, so it's the first thing the nurse sees. */
 const ReapplyAlert: React.FC<{ model: ScoresCellModel }> = ({ model }) => {

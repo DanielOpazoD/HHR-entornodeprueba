@@ -101,7 +101,7 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    expect(screen.getByText(/Juan Pérez/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Juan Pérez/)).toBeInTheDocument();
     expect(screen.getByText('R1')).toBeInTheDocument();
   });
 
@@ -361,9 +361,10 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    // Read-only names render as plain text (no editable input in the table).
-    expect(screen.getByText('Juan Pérez')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Juan Pérez')).not.toBeInTheDocument();
+    // Read-only name: the input exists (stable hook) but is not editable — edition
+    // happens only via the demographics modal.
+    const nameInput = screen.getByDisplayValue('Juan Pérez');
+    expect(nameInput).toHaveAttribute('readonly');
     expect(mockContext.updatePatient).not.toHaveBeenCalled();
   });
 });
