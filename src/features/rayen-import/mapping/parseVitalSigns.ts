@@ -12,10 +12,8 @@
  * 141180): a "Examen Fisico SAPU" VITAL_SIGNS form with PA 130/82, FC 84, SatO₂ 98, T° 36, FR 18, EVA 3.
  */
 
-import { effectiveWhen, type RawForm, type RawCampo } from './parseEvaluationScales';
+import { effectiveWhen, str, type RawForm, type RawCampo } from './parseEvaluationScales';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-
-const str = (value: unknown): string => (value == null ? '' : String(value)).trim();
 
 /** Parse a numeric reading; blank / non-numeric → null (never let Number('') become 0). */
 const num = (raw: string): number | null => {

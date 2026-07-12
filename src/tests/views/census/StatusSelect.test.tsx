@@ -67,4 +67,12 @@ describe('StatusSelect (colored dot + popover)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Estado: Estable' }));
     expect(screen.queryByRole('dialog', { name: 'Estado clínico' })).not.toBeInTheDocument();
   });
+
+  it('closes the popover on Escape', () => {
+    renderStatus();
+    fireEvent.click(screen.getByRole('button', { name: 'Estado: Estable' }));
+    expect(screen.getByRole('dialog', { name: 'Estado clínico' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Estado clínico' })).not.toBeInTheDocument();
+  });
 });

@@ -5,7 +5,7 @@
  * popover that names the current status and lets the nurse change it. Still fully editable.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { AlertCircle } from 'lucide-react';
 import { STATUS_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
@@ -51,7 +51,29 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
 }) => {
   const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const isCriticalEmpty = !data.status && !!data.patientName;
+
+  const closePopover = (returnFocus = true): void => {
+    setOpen(false);
+    if (returnFocus) buttonRef.current?.focus();
+  };
+
+  // Keyboard access for the popover: focus the first option on open, close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    popoverRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        closePopover();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-9" />;
@@ -65,7 +87,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
     onChange('status')({
       target: { value },
     } as unknown as React.ChangeEvent<HTMLSelectElement>);
-    setOpen(false);
+    closePopover();
   };
 
   return (
@@ -76,8 +98,11 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
     >
       <div className="relative inline-flex">
         <button
+          ref={buttonRef}
           type="button"
           name="status"
+          aria-haspopup="dialog"
+          aria-expanded={open}
           onClick={e => {
             e.stopPropagation();
             if (!readOnly) setOpen(o => !o);
@@ -117,9 +142,10 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
               aria-hidden
               tabIndex={-1}
               className="fixed inset-0 z-10 cursor-default"
-              onClick={() => setOpen(false)}
+              onClick={() => closePopover(false)}
             />
             <div
+              ref={popoverRef}
               role="dialog"
               aria-label="Estado clínico"
               className="absolute left-1/2 top-full z-20 mt-1 w-32 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg"

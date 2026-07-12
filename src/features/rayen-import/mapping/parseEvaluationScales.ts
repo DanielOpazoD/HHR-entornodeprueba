@@ -106,7 +106,8 @@ export interface RawForm {
   archived?: unknown;
 }
 
-const str = (value: unknown): string => (value == null ? '' : String(value)).trim();
+/** Coerce any raw value to a trimmed string ('' for null/undefined). Shared with sibling parsers. */
+export const str = (value: unknown): string => (value == null ? '' : String(value)).trim();
 const pad2 = (value: string | number): string => String(value).padStart(2, '0');
 
 const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
