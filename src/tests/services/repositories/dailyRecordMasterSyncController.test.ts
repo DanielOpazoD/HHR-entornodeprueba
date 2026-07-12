@@ -34,6 +34,21 @@ describe('dailyRecordMasterSyncController', () => {
     });
   });
 
+  it('captures the Rayen encId as lastClinicalEpisodeId when present, omits it otherwise', () => {
+    expect(
+      buildPatientMasterSeed({ rut: '1-9', fullName: 'Paciente', clinicalEpisodeId: '141181' })
+    ).toMatchObject({ rut: '1-9', lastClinicalEpisodeId: '141181' });
+
+    // Absent / stub (e.g. a discharge that lost the id) → no key, so a merge write never clobbers a
+    // previously captured id.
+    expect(buildPatientMasterSeed({ rut: '1-9', fullName: 'Paciente' })).not.toHaveProperty(
+      'lastClinicalEpisodeId'
+    );
+    expect(
+      buildPatientMasterSeed({ rut: '1-9', fullName: 'Paciente', clinicalEpisodeId: null })
+    ).not.toHaveProperty('lastClinicalEpisodeId');
+  });
+
   it('builds realtime hospitalization events with fallback diagnosis', () => {
     expect(
       buildIngresoRealtimeEvent({ date: '2026-04-14', diagnosis: null, bedName: 'R1' })
