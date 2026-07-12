@@ -50,6 +50,19 @@ const downtonEvent = (publishDatetime: string, puntaje: string, severidad: strin
   ],
 });
 
+/** A Downton whose whole record is archived (superseded) in Ficha Médico. */
+const archivedDowntonEvent = (publishDatetime: string, puntaje: string, severidad: string) => ({
+  publishDatetime,
+  evaluationInstrumentsResume: [
+    campo(DOWNTON, 'Deambulación', 'Insegura con ayuda/sin ayuda', {
+      MCAM_ID: 222,
+      ARCHIVED: true,
+    }),
+    campo(DOWNTON, 'Nivel de Severidad', severidad, { ARCHIVED: true }),
+    campo(DOWNTON, 'Puntaje', puntaje, { ARCHIVED: true }),
+  ],
+});
+
 const EVENTS = [
   downtonEvent('2026-07-11T12:35:29.97', '5', 'Riesgo alto'), // last of 07-11
   downtonEvent('2026-07-11T12:29:00', '4', 'Riesgo medio'),
@@ -102,19 +115,42 @@ describe('parseHistoryScales', () => {
     expect(asOf11.find(s => s.code === 'DOWNTON')?.total).toBe(5); // still the 07-11 12:35
   });
 
-  it('drops archived (superseded) campos and ignores unknown forms', () => {
-    const events = [
+  it('prefers the non-archived score of the day, discarding the archived (superseded) one', () => {
+    // Same day: an archived Downton 5 (12:55) and a live Downton 8 (10:54) — the live one wins and
+    // the archived one drops out of the effective history entirely.
+    const scales = parseHistoryScales([
+      archivedDowntonEvent('2026-07-10T12:55:12', '5', 'Riesgo alto'),
+      downtonEvent('2026-07-10T10:54:16', '8', 'Riesgo alto'),
+    ]);
+    expect(scales.filter(s => s.code === 'DOWNTON')).toHaveLength(1);
+    expect(
+      evaluationScalesForCensusDay(scales, '2026-07-10').find(s => s.code === 'DOWNTON')?.total
+    ).toBe(8);
+  });
+
+  it('keeps an archived score when it is the only record of the day (Rodrigo H3C1 case)', () => {
+    // 10-07 had ONLY an archived Downton → the assessment WAS done, so it must still count and never
+    // read as "reaplicar hoy" for that day.
+    const scales = parseHistoryScales([
+      archivedDowntonEvent('2026-07-10T11:00:00', '3', 'Riesgo alto'),
+    ]);
+    expect(scales).toHaveLength(1);
+    expect(
+      evaluationScalesForCensusDay(scales, '2026-07-10').find(s => s.code === 'DOWNTON')?.total
+    ).toBe(3);
+  });
+
+  it('ignores forms that are not a tracked scale', () => {
+    const scales = parseHistoryScales([
       {
         publishDatetime: '2026-07-11T09:00:00',
         evaluationInstrumentsResume: [
-          campo(DOWNTON, 'Puntaje', '99', { ARCHIVED: true }), // superseded → ignored
           campo(DOWNTON, 'Puntaje', '6'),
           campo(DOWNTON, 'Nivel de Severidad', 'Riesgo alto'),
-          campo('Escala de Glasgow', 'Puntaje', '15'), // not a tracked scale → ignored
+          campo('Escala de Glasgow', 'Puntaje', '15'), // not Braden/Downton → ignored
         ],
       },
-    ];
-    const scales = parseHistoryScales(events);
+    ]);
     expect(scales).toHaveLength(1);
     expect(scales[0].code).toBe('DOWNTON');
     expect(scales[0].total).toBe(6);
