@@ -13,6 +13,9 @@ import { SpecialtyBreakdownTable } from './internal/SpecialtyBreakdownTable';
 import { OccupancyTrendChart } from './internal/OccupancyTrendChart';
 import { CmaStatsSection } from './internal/CmaStatsSection';
 import { SpecialtyReportingControls } from './internal/SpecialtyReportingControls';
+import { CudyrUpcAnalysisSection } from './internal/CudyrUpcAnalysisSection';
+import { TransferAnalyticsSection } from './internal/TransferAnalyticsSection';
+import { UpcClinicalAnalyticsSection } from './internal/UpcClinicalAnalyticsSection';
 import {
   AnalyticsComparisonPanel,
   AnalyticsTraceabilityPanel,
@@ -33,11 +36,22 @@ interface AnalyticsViewProps {
 
 const analyticsViewLogger = createScopedLogger('AnalyticsView');
 
-type AnalyticsTab = 'summary' | 'hospitalization' | 'cma' | 'specialties' | 'traceability';
+type AnalyticsTab =
+  | 'summary'
+  | 'hospitalization'
+  | 'cudyr-upc'
+  | 'upc-clinical'
+  | 'transfers'
+  | 'cma'
+  | 'specialties'
+  | 'traceability';
 
 const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string }> = [
   { id: 'summary', label: 'Resumen' },
   { id: 'hospitalization', label: 'Hospitalización' },
+  { id: 'cudyr-upc', label: 'CUDYR / UPC' },
+  { id: 'upc-clinical', label: 'UPC clínico' },
+  { id: 'transfers', label: 'Traslados' },
   { id: 'cma', label: 'CMA/PMA' },
   { id: 'specialties', label: 'Especialidades' },
   { id: 'traceability', label: 'Trazabilidad' },
@@ -289,6 +303,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
           </div>
         </section>
       )}
+
+      {activeTab === 'cudyr-upc' && <CudyrUpcAnalysisSection records={allRecords} />}
+
+      {activeTab === 'upc-clinical' && <UpcClinicalAnalyticsSection records={allRecords} />}
+
+      {activeTab === 'transfers' && <TransferAnalyticsSection records={allRecords} />}
 
       {activeTab === 'cma' && (
         <CmaStatsSection cma={stats.cma} onOpenCensusDate={onOpenCensusDate} />
