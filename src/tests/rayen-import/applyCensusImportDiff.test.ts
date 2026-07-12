@@ -245,7 +245,7 @@ describe('applyCensusImportDiff', () => {
       rut: '11.044.046-4',
       diagnosis: 'Herida de la pierna',
       dischargeType: 'Domicilio (Habitual)',
-      time: '19:11', // taken from the report, not "now"
+      time: '17:11', // report's 19:11 continental (−04) → 17:11 Rapa Nui (−06), not "now"
       status: 'Vivo',
     });
     expect(result.applied.discharges).toBe(1);
@@ -269,7 +269,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.cma).toHaveLength(1);
     expect(result.record.cma[0]).toMatchObject({
       patientName: 'Paciente Cma',
-      dischargeTime: '12:30', // report time, not "now"
+      dischargeTime: '10:30', // report's 12:30 continental (−04) → 10:30 Rapa Nui (−06)
     });
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.transfers).toHaveLength(0);
@@ -293,7 +293,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.transfers).toHaveLength(1);
     expect(result.record.transfers[0]).toMatchObject({
       patientName: 'Paciente Traslado',
-      time: '10:00',
+      time: '08:00', // report's 10:00 continental (−04) → 08:00 Rapa Nui (−06)
     });
     expect(result.record.discharges).toHaveLength(0);
   });
