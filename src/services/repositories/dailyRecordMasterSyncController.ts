@@ -4,12 +4,16 @@ export const buildPatientMasterSeed = (input: {
   birthDate?: string | null;
   forecast?: string | null;
   gender?: string | null;
+  clinicalEpisodeId?: string | null;
 }) => ({
   rut: input.rut,
   fullName: input.fullName,
   birthDate: input.birthDate ?? undefined,
   forecast: input.forecast ?? undefined,
   gender: input.gender ?? undefined,
+  // Only set when present so a later stub write (e.g. discharge, which lacks the encId) merges
+  // without clobbering a previously captured id.
+  ...(input.clinicalEpisodeId ? { lastClinicalEpisodeId: input.clinicalEpisodeId } : {}),
 });
 
 export const buildIngresoRealtimeEvent = (input: {

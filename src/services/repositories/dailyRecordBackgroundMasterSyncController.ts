@@ -79,6 +79,9 @@ const syncBedPatientsToMaster = async (patientsToSync: MasterSyncDailyRecordPati
           birthDate: patient.birthDate,
           forecast: patient.insurance,
           gender: patient.biologicalSex,
+          // Capture the Rayen encId from the active census on every save, so a late-arriving id
+          // (synced after admission) is still recorded before the patient is discharged.
+          clinicalEpisodeId: patient.clinicalEpisodeId,
         })
       )
     )
