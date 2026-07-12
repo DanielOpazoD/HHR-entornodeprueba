@@ -24,6 +24,8 @@ import { mergeReportScales } from './domain/mergeReportScales';
 import { parseInvasiveDevices, type DeviceTextItem } from './mapping/parseInvasiveDevices';
 import { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 import { parseHistoryScales } from './mapping/parseHistoryScales';
+import { parseEvaluationScales } from './mapping/parseEvaluationScales';
+import { mergeScaleSources } from './mapping/mergeScaleSources';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 
@@ -37,6 +39,12 @@ export interface ClinicalFillDeps {
   fetchHistoryScales: (
     encId: string
   ) => Promise<{ events: RayenHistoryScaleEvent[]; error?: string }>;
+  /**
+   * Read the same patient's risk scales from the "Instrumentos de evaluación" summary
+   * (`encounterFormEntry`). Neither source is complete on its own, so the runner UNIONS both — some
+   * applied scales only show here, others only in the history report — see `mergeScaleSources`.
+   */
+  fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
   fetchCudyrCategories: () => Promise<{ items: RayenCudyrCategory[]; error?: string }>;
   /** Apply one patient's granular patch. Throwing marks that patient as failed, nothing else. */
   applyPatch: (patch: DailyRecordPatch) => Promise<void>;
@@ -119,8 +127,17 @@ export const runClinicalFill = async (
     }
 
     try {
-      const { events } = await deps.fetchHistoryScales(encId);
-      const scales = parseHistoryScales(events);
+      // Read BOTH scale sources (history report + summary/encounterFormEntry) in parallel and union
+      // them — neither is complete on its own. Each is best-effort: one failing still uses the other.
+      const [historyResult, formsResult] = await Promise.allSettled([
+        deps.fetchHistoryScales(encId),
+        deps.fetchScalesForms(encId),
+      ]);
+      const historyScales =
+        historyResult.status === 'fulfilled' ? parseHistoryScales(historyResult.value.events) : [];
+      const summaryScales =
+        formsResult.status === 'fulfilled' ? parseEvaluationScales(formsResult.value.forms) : [];
+      const scales = mergeScaleSources(historyScales, summaryScales);
       if (scales.length > 0) {
         merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       }
