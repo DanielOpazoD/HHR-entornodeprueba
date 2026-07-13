@@ -15,7 +15,6 @@ import {
   usePatchDailyRecordMutation,
 } from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
-import { useAuthState } from '@/hooks/useAuthState';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
@@ -95,13 +94,13 @@ const INITIAL_STATE: RayenImportState = {
 export const useRayenImport = () => {
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  const { currentUser } = useAuthState();
+  // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
+  const { currentUser, role } = useAuthState();
   // Destructure the stable `mutateAsync` reference: depending on the whole mutation
   // object would change identity each render, recreating applyDiff/previewSnapshot and
   // needlessly re-running the bridge subscription effect below on every render.
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  const { role } = useAuthState();
   // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
   // nurse can only write a previous day within that window — older days are surfaced but skipped.
   const isAdmin = role === 'admin';
