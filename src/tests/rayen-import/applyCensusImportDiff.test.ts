@@ -279,6 +279,30 @@ describe('applyCensusImportDiff', () => {
     expect(result.applied.discharges).toBe(1);
   });
 
+  it('skips a report egreso whose corrected island day is not this census day', () => {
+    // Fetched for [D, D+1], the report also carries rows of a different island day — they must NOT be
+    // filed today (earlier → cross-day writer; later → a future sync).
+    const diff = makeDiff({
+      reportEgresos: [
+        {
+          run: '7-2',
+          patientName: 'Otro Dia',
+          bedLabel: 'R1',
+          destino: 'Domicilio',
+          fechaEgreso: '09-07-2026  08:00',
+          kind: 'alta',
+          status: 'Vivo',
+          correctedDay: '2026-07-09', // record.date is 2026-07-08 → different day → skip
+          correctedTime: '06:00',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({}), diff, makeCtx());
+    expect(result.record.discharges).toHaveLength(0);
+    expect(result.record.transfers).toHaveLength(0);
+    expect(result.record.cma).toHaveLength(0);
+  });
+
   it('routes a report egreso CMA into cma[]', () => {
     const diff = makeDiff({
       reportEgresos: [

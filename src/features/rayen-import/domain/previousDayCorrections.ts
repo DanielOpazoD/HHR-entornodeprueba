@@ -11,10 +11,15 @@
 
 import { planPreviousDayEdits } from './planPreviousDayEdits';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
+import { reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { CensusImportDiff, PreviousDayEdit } from '../contracts/censusImportDiff';
+import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type {
+  CensusImportDiff,
+  PreviousDayEdit,
+  DischargeEntry,
+} from '../contracts/censusImportDiff';
 
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
@@ -22,7 +27,7 @@ export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
   ...new Set(
-    diff.discharges
+    [...diff.discharges, ...(diff.reportEgresos ?? [])]
       .map(entry => entry.correctedDay)
       .filter((day): day is string => !!day && day < censusDay)
   ),
@@ -61,14 +66,29 @@ export const fileCrossDayCorrections = async (
   makeId: () => string
 ): Promise<void> => {
   const byDay = new Map<string, CrossDayEntry[]>();
-  for (const entry of diff.discharges) {
-    const day = entry.correctedDay;
-    if (!day || day >= censusDay || !canWritePreviousDay(day, isAdmin)) continue;
-    const patient = baseRecord.beds[entry.bedId];
-    if (!patient) continue;
+  const add = (
+    day: string | undefined,
+    entry: DischargeEntry,
+    patient: PatientData | undefined
+  ): void => {
+    if (!day || day >= censusDay || !canWritePreviousDay(day, isAdmin) || !patient) return;
     const list = byDay.get(day) ?? [];
     list.push({ entry, patient });
     byDay.set(day, list);
+  };
+  // Bed-occupying discharges: the patient snapshot comes from today's bed.
+  for (const entry of diff.discharges) add(entry.correctedDay, entry, baseRecord.beds[entry.bedId]);
+  // Report egresos (unknown RUN, never in a bed): synthesize the entry + patient from the report row.
+  for (const egreso of diff.reportEgresos ?? []) {
+    add(
+      egreso.correctedDay,
+      {
+        ...reportEgresoEntry(egreso),
+        correctedDay: egreso.correctedDay,
+        correctedTime: egreso.correctedTime,
+      },
+      reportEgresoPatient(egreso)
+    );
   }
   for (const [day, entries] of byDay) {
     const record = await port.getForDate(day);

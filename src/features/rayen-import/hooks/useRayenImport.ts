@@ -64,6 +64,14 @@ const toIsoReportDate = (record: DailyRecord): string => {
   return fromDate(new Date());
 };
 
+/** The ISO day after `iso` (YYYY-MM-DD), computed in UTC to avoid host-tz drift. */
+const nextIsoDay = (iso: string): string => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const next = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + 1));
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
+};
+
 interface RayenImportState {
   diff: CensusImportDiff | null;
   isPreviewOpen: boolean;
@@ -206,7 +214,10 @@ export const useRayenImport = () => {
       // the destination (domicilio/traslado) of known discharges AND surfaces egresos HHR never
       // synced (unknown RUN) for review. Degrades to [] if the report/tab is unavailable.
       const reportDate = toIsoReportDate(currentRecord);
-      const reportRows = await requestEgresoReport(reportDate, reportDate);
+      // Fetch the report for [D, D+1]: the source files a late island egreso on the NEXT day (its
+      // filter runs in a zone ahead of Rapa Nui), so asking only for D would miss it. The extra day's
+      // rows are routed to their real island day (or skipped) by the day-correction logic downstream.
+      const reportRows = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
       if (reportRows.length > 0) {
         diff = applyEgresoReport(diff, reportRows, collectKnownRuns(currentRecord, snapshot));
       }

@@ -130,7 +130,7 @@ const reportEgresoTime = (fechaEgreso: string): string =>
 
 // A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
 // builders read, so the day's altas census can log it from the report's data.
-const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
+export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
   ({
     patientName: egreso.patientName,
     rut: egreso.run,
@@ -139,7 +139,7 @@ const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     age: egreso.edad ?? undefined,
   }) as unknown as PatientData;
 
-const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
+export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   bedId: egreso.bedLabel,
   rut: egreso.run,
   patientName: egreso.patientName,
@@ -187,6 +187,11 @@ export const applyCensusImportDiff = (
   //     the movement record so the day's altas census logs them (already reviewed in the
   //     preview). The patient is synthesized from the report row; time comes from the report.
   for (const egreso of diff.reportEgresos ?? []) {
+    // With the report fetched for [D, D+1] (the source files late egresos a day ahead), the list also
+    // carries egresos of a DIFFERENT island day. Only log here those whose corrected island day IS
+    // this census day; earlier ones are filed on their real day by the cross-day writer, and later
+    // ones belong to a future sync.
+    if (egreso.correctedDay && egreso.correctedDay !== isoDayOf(current.date)) continue;
     const patient = reportEgresoPatient(egreso);
     const entry = reportEgresoEntry(egreso);
     const time = reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);

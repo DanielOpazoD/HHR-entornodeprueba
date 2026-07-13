@@ -22,9 +22,13 @@ export const planPreviousDayEdits = (
   censusDay: string,
   probes: PreviousDayProbes
 ): PreviousDayEdit[] => {
-  // Scope: bed-occupying discharges (reconcile/known) — the "synced late" case where a discharge was
-  // filed on the sync day. Report egresos (unknown RUN, never in a bed) keep their same-day handling.
-  const candidates: Array<{ correctedDay?: string; patientName: string }> = [...diff.discharges];
+  // Every egreso the report attributes to an EARLIER island day than the census day — both bed-
+  // occupying discharges (reconcile/known) and report egresos (unknown RUN, e.g. a late sync where
+  // the source filed the alta a day ahead) — is filed on that real day.
+  const candidates: Array<{ correctedDay?: string; patientName: string }> = [
+    ...diff.discharges,
+    ...(diff.reportEgresos ?? []),
+  ];
 
   const namesByDay = new Map<string, string[]>();
   for (const candidate of candidates) {

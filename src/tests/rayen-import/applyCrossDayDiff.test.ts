@@ -146,4 +146,29 @@ describe('planPreviousDayEdits', () => {
       isSigned: true,
     });
   });
+
+  it('also includes a report egreso (unknown RUN) attributed to an earlier island day', () => {
+    const edits = planPreviousDayEdits(
+      diff({
+        reportEgresos: [
+          {
+            run: '18.658.566-6',
+            patientName: 'Koarahi Castillo',
+            bedLabel: 'H1C1',
+            destino: 'Domicilio',
+            fechaEgreso: '11-07-2026 22:00',
+            kind: 'alta',
+            status: 'Vivo',
+            correctedDay: '2026-07-11',
+            correctedTime: '20:00',
+          },
+        ],
+      }),
+      '2026-07-12',
+      probes
+    );
+    expect(edits.find(edit => edit.day === '2026-07-11')?.patientNames).toContain(
+      'Koarahi Castillo'
+    );
+  });
 });
