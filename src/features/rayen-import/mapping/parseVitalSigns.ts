@@ -137,7 +137,8 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       record.respiratoryRate != null ||
       record.painEva != null ||
       record.hgt != null ||
-      record.insulinUnits != null;
+      record.insulinUnits != null ||
+      !!record.insulinQuadrant;
     if (!hasReading) continue;
 
     parsed.push({ key: Number(form.encounterEventId) || 0, record });

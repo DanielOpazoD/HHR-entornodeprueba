@@ -44,10 +44,13 @@ export const requestClinicalPanel = (
     }
     const reqId = `clinical-panel-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
+    // eslint-disable-next-line prefer-const -- assigned once below, but read earlier by cleanup() (forward ref)
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const cleanup = (): void => {
       if (settled) return;
       settled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       window.removeEventListener('message', onMessage);
     };
 
@@ -67,7 +70,7 @@ export const requestClinicalPanel = (
       { type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE, reqId, encId },
       window.location.origin
     );
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       cleanup();
       resolve({ events: [], error: 'Tiempo de espera agotado bajando el panel clínico.' });
     }, timeoutMs);

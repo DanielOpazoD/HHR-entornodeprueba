@@ -34,6 +34,17 @@ describe('mergeReportVitals', () => {
     expect(result.vitalSignsHistory?.map(r => r.heartRate)).toEqual([90, 80, 70]);
   });
 
+  it('the census glance skips an HGT-only newest reading and shows the last core vital (PA/FC/Sat/T°)', () => {
+    const hgtOnly: PatientVitalSigns = { ...rec('2026-07-12', 0), heartRate: null, hgt: 142 };
+    const records = [hgtOnly, rec('2026-07-11', 80)];
+    const result = mergeReportVitals(patient, records);
+
+    // Cell glance = last reading with a core vital (never left blank by the HGT-only measurement)…
+    expect(result.vitalSigns?.heartRate).toBe(80);
+    // …while the full history (HGT row included) still feeds the detail modal, newest first.
+    expect(result.vitalSignsHistory?.map(r => r.hgt)).toEqual([142, null]);
+  });
+
   it('caps the stored history length', () => {
     const many = Array.from({ length: 60 }, (_, i) => rec('2026-07-10', 60 + i));
     const result = mergeReportVitals(patient, many);

@@ -172,6 +172,20 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     expect(day.suspended[0]).toMatchObject({ title: 'CEFTRIAXONA 2 g', suspended: true });
   });
 
+  it('buckets indications with an unparseable date under a "Sin fecha" day', () => {
+    const panel = parseClinicalPanel([
+      event({
+        publishDatetime: 'no-es-fecha',
+        patientFreeIndicationResume: [
+          { AMRE_ID: 1, INDICATION: 'Kinesioterapia', PUBLISH_DATETIME: '' },
+        ],
+      }),
+    ]);
+    expect(panel.indicationDays).toHaveLength(1);
+    expect(panel.indicationDays[0]).toMatchObject({ day: '', label: 'Sin fecha' });
+    expect(panel.indicationDays[0].active[0].title).toBe('Indicación');
+  });
+
   it('dedupes diet/rest (no stable id) by text within the day', () => {
     const panel = parseClinicalPanel([
       event({

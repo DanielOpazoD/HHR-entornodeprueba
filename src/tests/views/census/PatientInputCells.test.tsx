@@ -201,7 +201,7 @@ describe('PatientInputCells', () => {
     // The status is now a colored circle (amber for "De cuidado"), not a text label in the editor.
     const statusButton = screen.getByRole('button', { name: /estado: de cuidado/i });
     expect(statusButton.querySelector('.bg-amber-400')).toBeInTheDocument();
-    expect(statusButton.closest('td')).toHaveClass('w-7');
+    expect(statusButton.closest('td')).toHaveClass('w-5');
     // And it is no longer part of the diagnosis/specialty editor.
     expect(
       screen.queryByRole('button', { name: /editar estado clínico/i })

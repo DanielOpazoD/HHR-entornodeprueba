@@ -14,11 +14,11 @@ import type {
   EvolutionProfession,
 } from '@/features/rayen-import';
 
-/** Role-chip color per profession bucket, so the author's discipline reads at a glance. */
+/** Soft role-chip color per profession bucket, so the author's discipline reads without shouting. */
 const PROFESSION_CHIP: Record<EvolutionProfession, string> = {
-  medical: 'bg-sky-50 text-sky-700 ring-sky-200',
-  nursing: 'bg-rose-50 text-rose-700 ring-rose-200',
-  other: 'bg-violet-50 text-violet-700 ring-violet-200',
+  medical: 'bg-sky-50 text-sky-600 ring-sky-100',
+  nursing: 'bg-rose-50 text-rose-500 ring-rose-100',
+  other: 'bg-violet-50 text-violet-500 ring-violet-100',
 };
 
 const pad = (n: number): string => String(n).padStart(2, '0');

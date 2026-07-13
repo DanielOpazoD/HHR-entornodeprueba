@@ -12,7 +12,7 @@
  * the Eloísa sync); degrades to an error state with retry.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Loader2, RefreshCw, X } from 'lucide-react';
 import {
@@ -60,6 +60,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const [state, setState] = useState<PanelState>({ phase: 'loading' });
   const [tab, setTab] = useState<PanelTab>('evolutions');
   const [profession, setProfession] = useState<EvolutionProfession>('medical');
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   // The initial state is already 'loading', so the mount effect only fetches (no sync setState);
   // `reload` (refresh/retry buttons) is the one that flips back to 'loading' first.
@@ -93,6 +94,11 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  // Move focus into the drawer on open so keyboard/screen-reader users land inside the modal.
+  useEffect(() => {
+    drawerRef.current?.focus();
+  }, []);
+
   const panel = state.phase === 'ready' ? state.panel : null;
   const professionCount = (key: EvolutionProfession): number =>
     panel ? panel.evolutions.filter(e => e.profession === key).length : 0;
@@ -122,10 +128,13 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         onClick={onClose}
       />
       <aside
+        ref={drawerRef}
         role="dialog"
+        aria-modal="true"
         aria-label={`Panel clínico de ${patientName}`}
+        tabIndex={-1}
         data-testid={`clinical-panel-drawer-${bedId}`}
-        className="fixed right-0 top-0 z-[1101] flex h-full w-[430px] max-w-[92vw] flex-col border-l border-slate-200 bg-slate-50 shadow-2xl"
+        className="fixed right-0 top-0 z-[1101] flex h-full w-[430px] max-w-[92vw] flex-col border-l border-slate-200 bg-slate-50 shadow-2xl focus:outline-none"
       >
         <header className="flex items-start gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
           <div className="min-w-0 flex-1">

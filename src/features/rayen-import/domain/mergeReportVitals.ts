@@ -1,12 +1,12 @@
 /**
  * Merges the vital signs parsed from Ficha Médico into a patient's HHR record: `vitalSigns` (the
- * latest measurement overall, for the census cell) and `vitalSignsHistory` (the most-recent
- * measurements, so the detail view can show several days). Self-contained like `mergeReportScales`.
- * Ficha Médico is the source of truth, so it replaces both fields.
+ * glance shown in the census cell) and `vitalSignsHistory` (the most-recent measurements, so the
+ * detail view can show several days). Self-contained like `mergeReportScales`. Ficha Médico is the
+ * source of truth, so it replaces both fields.
  *
  * Range: ALL available measurements are synced — both BEFORE and AFTER the census day being synced.
- * A late sync of a past census still picks up later readings, and the cell shows the newest one, so
- * the vitals are never artificially cut off at the census day.
+ * A late sync of a past census still picks up later readings, so the vitals are never artificially
+ * cut off at the census day.
  */
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
@@ -18,6 +18,13 @@ import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
  */
 const MAX_VITALS_HISTORY = 48;
 
+/** A "core" vital worth a census glance: PA, FC, SatO₂ or T°. HGT/insulin-only forms don't count. */
+const hasCoreVital = (record: PatientVitalSigns): boolean =>
+  record.systolic != null ||
+  record.heartRate != null ||
+  record.spo2 != null ||
+  record.temperature != null;
+
 export const mergeReportVitals = (
   patient: PatientData,
   records: PatientVitalSigns[]
@@ -25,5 +32,9 @@ export const mergeReportVitals = (
   if (records.length === 0) return patient;
   // `records` arrive most-recent-first; keep ALL of them (past AND future), capped for doc size.
   const history = records.slice(0, MAX_VITALS_HISTORY);
-  return { ...patient, vitalSigns: history[0], vitalSignsHistory: history };
+  // The census cell shows the newest reading that carries a CORE vital (PA/FC/Sat/T°), so an HGT- or
+  // insulin-only later measurement never leaves the cell blank. The full history (HGT/insulin rows
+  // included) still feeds the detail modal.
+  const glance = history.find(hasCoreVital) ?? history[0];
+  return { ...patient, vitalSigns: glance, vitalSignsHistory: history };
 };

@@ -75,7 +75,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   }, [open]);
 
   if (isEmpty && !isSubRow) {
-    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-7" />;
+    return <PatientEmptyCell tdClassName="py-0.5 px-0.5 border-r border-slate-200 w-5" />;
   }
 
   const status = data.status || '';
@@ -91,7 +91,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
 
   return (
     <td
-      className="py-0.5 px-1 border-r border-slate-200 w-7 text-center"
+      className="py-0.5 px-0.5 border-r border-slate-200 w-5 text-center"
       onMouseDownCapture={freshnessPause.acknowledge}
       onFocusCapture={freshnessPause.acknowledge}
     >
@@ -109,7 +109,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           }}
           disabled={readOnly}
           className={clsx(
-            'relative inline-flex h-5 w-5 items-center justify-center rounded-full ring-2 transition-transform',
+            'relative inline-flex h-4 w-4 items-center justify-center rounded-full ring-2 transition-transform',
             RING_CLASSES[level],
             !readOnly && 'cursor-pointer hover:scale-110',
             freshnessPause.pauseClassName
@@ -119,7 +119,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
         >
           <span
             className={clsx(
-              'h-3 w-3 rounded-full',
+              'h-2.5 w-2.5 rounded-full',
               DOT_CLASSES[level],
               isCriticalEmpty && 'animate-pulse'
             )}

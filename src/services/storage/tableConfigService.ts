@@ -70,12 +70,12 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   actions: 22,
   bed: 34,
   type: 30,
-  name: 172,
+  name: 150,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 28,
+  status: 20,
   admission: 96,
   dmi: 67,
   scores: 92,
@@ -85,19 +85,20 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
 
 export const DEFAULT_PAGE_MARGIN = 12; // px (corresponds to p-3)
 // v5: rediseño "centro de vigilancia" — Estado como punto, columna Signos Vitales, Scores con nombres.
-export const CURRENT_TABLE_CONFIG_VERSION = 5;
+// v6: Estado (punto) y Paciente más compactos (status 28→20, name 172→150).
+export const CURRENT_TABLE_CONFIG_VERSION = 6;
 export const TABLE_CONFIG_LOCAL_CACHE_KEY = 'hhr.tableConfig.lastKnown';
 
 const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   actions: 22,
   bed: 34,
   type: 28,
-  name: 172,
+  name: 150,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 28,
+  status: 20,
   admission: 96,
   dmi: 67,
   scores: 92,
