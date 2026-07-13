@@ -6,6 +6,8 @@ import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusA
  * Columnas ocultas para todos los perfiles (rediseño censo 2026):
  * - rut / age: integradas a la columna única "Paciente" (PatientIdentityCell).
  * - cqx: oculta sin borrar el campo surgicalComplication ni su CheckboxCell.
+ * - type: "Tipo de cama" oculta; su lugar lo ocupa ahora el Estado clínico (círculo). El
+ *   componente PatientMainRowBedTypeCell se conserva para reactivación futura.
  * Las claves siguen existiendo en TableColumnConfig para no romper configuraciones
  * guardadas ni fixtures; solo dejan de renderizarse y aportan ancho 0.
  */
@@ -13,6 +15,7 @@ export const HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig)[] = [
   'rut',
   'age',
   'cqx',
+  'type',
 ] as const;
 
 export const SPECIALIST_HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig)[] = [
@@ -26,7 +29,6 @@ export const SPECIALIST_HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig
 const SPECIALIST_MINIMUM_COLUMN_WIDTHS: Readonly<Partial<TableColumnConfig>> = {
   actions: 28,
   bed: 40,
-  type: 40,
   name: 170,
   diagnosis: 200,
   specialty: 80,
@@ -74,7 +76,6 @@ export const resolveVisibleCensusColumns = (
       SPECIALIST_MINIMUM_COLUMN_WIDTHS.actions ?? baseColumns.actions
     ),
     bed: Math.max(baseColumns.bed, SPECIALIST_MINIMUM_COLUMN_WIDTHS.bed ?? baseColumns.bed),
-    type: Math.max(baseColumns.type, SPECIALIST_MINIMUM_COLUMN_WIDTHS.type ?? baseColumns.type),
     name: Math.max(baseColumns.name, SPECIALIST_MINIMUM_COLUMN_WIDTHS.name ?? baseColumns.name),
     diagnosis: Math.max(
       baseColumns.diagnosis,

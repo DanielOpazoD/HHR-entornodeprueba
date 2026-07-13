@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ChevronDown, Settings2, X } from 'lucide-react';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { Settings2, X } from 'lucide-react';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { specialtyIcon } from '@/shared/census/specialtyIcons';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type {
   DebouncedTextHandler,
@@ -86,20 +86,6 @@ const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonPro
     onMultipleUpdate={onMultipleUpdate}
   />
 );
-
-const getClinicalStatusButtonClassName = (status?: string): string =>
-  clsx(
-    'inline-flex h-7 w-full cursor-pointer items-center justify-between gap-0.5 rounded-md border px-1.5 text-left text-[10px] font-bold uppercase tracking-tight shadow-sm transition-all duration-200',
-    'hover:border-medical-300 focus:outline-none focus:ring-2',
-    'disabled:cursor-default disabled:bg-slate-50 disabled:text-slate-500 disabled:hover:border-slate-200',
-    status === 'Grave'
-      ? 'text-red-700 bg-red-50 border-red-200/80 focus:ring-medical-500/20 focus:border-medical-500'
-      : status === 'De cuidado'
-        ? 'text-amber-700 bg-amber-50 border-amber-200/80 focus:ring-medical-500/20 focus:border-medical-500'
-        : status
-          ? 'text-emerald-700 bg-emerald-50/60 border-emerald-200/80 font-semibold focus:ring-medical-500/20 focus:border-medical-500'
-          : 'border-slate-200 text-slate-400 focus:ring-medical-500/20 focus:border-medical-500'
-  );
 
 interface GinecobstetriciaSubtypeControlProps {
   data: PatientData;
@@ -234,12 +220,10 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
 export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps> = ({
   data,
   readOnly = false,
-  accessProfile = 'default',
   onChange,
   onMultipleUpdate,
   onDeliveryRouteChange,
 }) => {
-  const showStatus = !isSpecialistCensusAccessProfile(accessProfile);
   const isGinecobstetricia = isGinecobstetriciaSpecialty(data.specialty);
   const canShowDeliveryRoute =
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
@@ -272,17 +256,24 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
           </div>
         )}
       </td>
-      <td className="py-0.5 px-1 border-r border-slate-200 w-28 relative">
-        <ClinicalInitialBlockCellButton
+      <td className="py-0.5 px-1 border-r border-slate-200 relative text-center">
+        {/* Especialidad como icono (rediseño 2026): el emoji la representa; el nombre queda en el
+            tooltip y en el editor. El estado clínico se muestra ahora en su propia columna (círculo). */}
+        <ClinicalInitialBlockEditor
           data={data}
-          label="especialidad"
-          value={data.specialty || ''}
-          placeholder="-- Esp --"
-          contentClassName={clsx(
-            data.specialty ? 'text-slate-800' : 'text-slate-400 italic',
+          disabled={readOnly}
+          triggerAriaLabel={`Especialidad: ${data.specialty || 'sin especificar'}`}
+          triggerTitle={data.specialty || 'Sin especialidad — editar'}
+          triggerClassName={clsx(
+            clinicalBlockButtonClassName,
+            'flex items-center justify-center',
             isGinecobstetricia && 'pr-7'
           )}
-          readOnly={readOnly}
+          triggerContent={
+            <span className="text-lg leading-none" aria-hidden>
+              {specialtyIcon(data.specialty)}
+            </span>
+          }
           onChange={onChange}
           onMultipleUpdate={onMultipleUpdate}
         />
@@ -294,22 +285,6 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
           />
         )}
       </td>
-      {showStatus && (
-        <td className="py-0.5 px-1 border-r border-slate-200 w-28 relative">
-          <ClinicalInitialBlockCellButton
-            data={data}
-            label="estado clínico"
-            value={data.status || ''}
-            placeholder="-- Est --"
-            contentClassName={data.status ? 'min-w-0 flex-1 text-current' : 'text-slate-400 italic'}
-            contentSuffix={<ChevronDown size={12} className="shrink-0 text-current" />}
-            triggerClassName={getClinicalStatusButtonClassName(data.status)}
-            readOnly={readOnly}
-            onChange={onChange}
-            onMultipleUpdate={onMultipleUpdate}
-          />
-        </td>
-      )}
     </>
   );
 };

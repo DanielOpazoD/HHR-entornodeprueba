@@ -28,11 +28,13 @@ export interface CensusHeaderCellModel {
  */
 export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   { key: 'bed', label: 'Cama' },
+  // Estado movido al lugar de "Tipo" (rediseño 2026): círculo de color tras la cama.
+  { key: 'status', label: 'Estado' },
+  // "Tipo" queda oculto (ver HIDDEN_CENSUS_COLUMNS); la entrada se mantiene por compatibilidad.
   { key: 'type', label: 'Tipo' },
   { key: 'name', label: 'Paciente' },
   { key: 'diagnosis', label: 'Diagnóstico' },
   { key: 'specialty', label: 'Esp' },
-  { key: 'status', label: 'Estado' },
   // La columna `admission` se reutiliza para Signos Vitales (rediseño "centro de vigilancia" 2026);
   // la fecha de ingreso vive junto al RUT en la celda Paciente. La clave se mantiene por compatibilidad.
   { key: 'admission', label: 'Signos', title: 'Signos vitales (PA · FC · SatO₂ · T°)' },

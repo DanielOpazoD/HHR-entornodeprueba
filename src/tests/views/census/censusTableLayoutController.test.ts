@@ -55,8 +55,8 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
     expect(bindings.bodyProps.onActivateEmptyBed).toBe(onActivateEmptyBed);
-    // 1256 - rut(100) - age(50) - cqx(60): las columnas ocultas no aportan ancho.
-    expect(bindings.tableStyle).toEqual({ width: '1046px', minWidth: '100%' });
+    // 1256 - rut(100) - age(50) - cqx(60) - type(60): las columnas ocultas no aportan ancho.
+    expect(bindings.tableStyle).toEqual({ width: '986px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {

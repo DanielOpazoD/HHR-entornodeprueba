@@ -13,6 +13,7 @@ import {
   PatientInputFlagsSection,
   PatientInputFlowSection,
   PatientInputIdentitySection,
+  PatientInputStatusSection,
 } from '@/features/census/components/patient-row/PatientInputCellSections';
 import type { PatientInputCellsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
@@ -55,6 +56,9 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
 
   return (
     <>
+      {/* Estado clínico primero (columna movida al lugar de "Tipo de cama"). */}
+      <PatientInputStatusSection {...sectionBindings.clinical} accessProfile={accessProfile} />
+
       <PatientInputIdentitySection {...sectionBindings.identity} />
 
       <PatientInputClinicalSection {...sectionBindings.clinical} accessProfile={accessProfile} />

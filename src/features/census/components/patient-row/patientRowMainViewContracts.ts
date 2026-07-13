@@ -28,6 +28,9 @@ export interface PatientMainRowActionCellProps
   hasPatientIdentity?: boolean;
   medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   clinicalDocumentCount?: number;
+  /** Inline style for the left acuity rail — an inset box-shadow (undefined when the row is clear).
+   * Inline (not a Tailwind class) so the arbitrary per-level color is reliable without a JIT scan. */
+  railStyle?: CSSProperties;
 }
 
 export interface PatientMainRowViewProps
