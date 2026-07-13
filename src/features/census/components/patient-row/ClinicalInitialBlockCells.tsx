@@ -2,8 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { Settings2, X } from 'lucide-react';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import { specialtyIcon } from '@/shared/census/specialtyIcons';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type {
   DebouncedTextHandler,
@@ -26,7 +24,6 @@ import { DeliveryRoutePopover } from './DeliveryRoutePopover';
 interface ClinicalInitialBlockCellsProps {
   data: PatientData;
   readOnly?: boolean;
-  accessProfile?: CensusAccessProfile;
   onChange: DebouncedTextHandler;
   onMultipleUpdate?: PatientInputChangeHandlers['multiple'];
   onDeliveryRouteChange?: PatientInputChangeHandlers['deliveryRoute'];
@@ -228,63 +225,43 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
   const canShowDeliveryRoute =
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
 
+  // Rediseño 2026: la Especialidad ya no es una columna — se muestra como texto junto a la fecha de
+  // ingreso (PatientIdentityCell) y se sigue editando desde este editor de Diagnóstico. Los controles
+  // obstétricos (subtipo Gineco + vía del parto) se mudan aquí, a la celda de Diagnóstico.
   return (
-    <>
-      <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px] relative">
-        <ClinicalInitialBlockCellButton
-          data={data}
-          label="diagnóstico"
-          value={data.pathology || ''}
-          placeholder="Diagnóstico"
-          contentClassName={clsx(
-            data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
-            canShowDeliveryRoute && 'pr-6'
-          )}
-          readOnly={readOnly}
-          onChange={onChange}
-          onMultipleUpdate={onMultipleUpdate}
-        />
-        {canShowDeliveryRoute && onDeliveryRouteChange && (
-          <div className="absolute right-2 top-1/2 z-10 -translate-y-1/2">
-            <DeliveryRoutePopover
-              deliveryRoute={data.deliveryRoute}
-              deliveryDate={data.deliveryDate}
-              deliveryCesareanLabor={data.deliveryCesareanLabor}
-              onSave={onDeliveryRouteChange}
-              disabled={readOnly}
-            />
-          </div>
+    <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px] relative">
+      <ClinicalInitialBlockCellButton
+        data={data}
+        label="diagnóstico"
+        value={data.pathology || ''}
+        placeholder="Diagnóstico"
+        contentClassName={clsx(
+          data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
+          isGinecobstetricia && 'pr-8',
+          canShowDeliveryRoute && 'pr-14'
         )}
-      </td>
-      <td className="py-0.5 px-1 border-r border-slate-200 relative text-center">
-        {/* Especialidad como icono (rediseño 2026): el emoji la representa; el nombre queda en el
-            tooltip y en el editor. El estado clínico se muestra ahora en su propia columna (círculo). */}
-        <ClinicalInitialBlockEditor
+        readOnly={readOnly}
+        onChange={onChange}
+        onMultipleUpdate={onMultipleUpdate}
+      />
+      {isGinecobstetricia && (
+        <GinecobstetriciaSubtypeControl
           data={data}
           disabled={readOnly}
-          triggerAriaLabel={`Especialidad: ${data.specialty || 'sin especificar'}`}
-          triggerTitle={data.specialty || 'Sin especialidad — editar'}
-          triggerClassName={clsx(
-            clinicalBlockButtonClassName,
-            'flex items-center justify-center',
-            isGinecobstetricia && 'pr-7'
-          )}
-          triggerContent={
-            <span className="text-lg leading-none" aria-hidden>
-              {specialtyIcon(data.specialty)}
-            </span>
-          }
-          onChange={onChange}
           onMultipleUpdate={onMultipleUpdate}
         />
-        {isGinecobstetricia && (
-          <GinecobstetriciaSubtypeControl
-            data={data}
+      )}
+      {canShowDeliveryRoute && onDeliveryRouteChange && (
+        <div className="absolute right-9 top-1/2 z-10 -translate-y-1/2">
+          <DeliveryRoutePopover
+            deliveryRoute={data.deliveryRoute}
+            deliveryDate={data.deliveryDate}
+            deliveryCesareanLabor={data.deliveryCesareanLabor}
+            onSave={onDeliveryRouteChange}
             disabled={readOnly}
-            onMultipleUpdate={onMultipleUpdate}
           />
-        )}
-      </td>
-    </>
+        </div>
+      )}
+    </td>
   );
 };

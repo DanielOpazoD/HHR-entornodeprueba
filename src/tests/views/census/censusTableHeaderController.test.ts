@@ -35,8 +35,8 @@ describe('censusTableHeaderController', () => {
     expect(keys).not.toContain('dmi');
     expect(keys).not.toContain('cqx');
     expect(keys).not.toContain('upc');
+    expect(keys).not.toContain('specialty'); // especialidad ahora es texto en la celda Paciente
     expect(keys).toContain('diagnosis');
-    expect(keys).toContain('specialty');
   });
 
   it('exposes visible header column definitions before projecting cells', () => {

@@ -122,6 +122,20 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
         <div
           className="absolute right-0 top-8 z-[1000] w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
           data-testid={`clinical-block-editor-${data.bedId}`}
+          onKeyDown={event => {
+            // ESC cierra; Enter guarda (salvo dentro de un textarea, que necesita saltos de línea).
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              closeEditor();
+            } else if (
+              event.key === 'Enter' &&
+              (event.target as HTMLElement).tagName !== 'TEXTAREA'
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+              saveDraft();
+            }
+          }}
         >
           <button
             type="button"

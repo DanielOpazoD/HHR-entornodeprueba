@@ -40,8 +40,8 @@ describe('censusTableColumnProfileController', () => {
     expect(resolveVisibleCensusColumnCount(columns, 'specialist')).toBe(keys.length);
   });
 
-  it('hides rut, age, cqx and type columns in every access profile', () => {
-    expect(HIDDEN_CENSUS_COLUMNS).toEqual(['rut', 'age', 'cqx', 'type']);
+  it('hides rut, age, cqx, type and specialty columns in every access profile', () => {
+    expect(HIDDEN_CENSUS_COLUMNS).toEqual(['rut', 'age', 'cqx', 'type', 'specialty']);
 
     for (const accessProfile of ['default', 'specialist'] as const) {
       const keys = resolveVisibleCensusColumnKeys(columns, accessProfile);
@@ -50,6 +50,7 @@ describe('censusTableColumnProfileController', () => {
       expect(keys).not.toContain('age');
       expect(keys).not.toContain('cqx');
       expect(keys).not.toContain('type');
+      expect(keys).not.toContain('specialty');
       expect(keys).toContain('name');
       expect(resolveVisibleCensusColumnCount(columns, accessProfile)).toBe(keys.length);
     }

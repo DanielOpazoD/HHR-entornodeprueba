@@ -48,6 +48,19 @@ describe('buildRowAcuity', () => {
     expect(acuity.reasons.some(r => r.kind === 'scale' && r.level === 'alert')).toBe(true);
   });
 
+  it('emits ONE scale reason per pending scale (a patient with both Braden + Downton overdue → 2)', () => {
+    const downton = braden({
+      code: 'DOWNTON',
+      name: 'Escala de Riesgo de caídas (Downton)',
+    });
+    const acuity = buildRowAcuity(
+      patient({ evaluationScores: { braden: braden({}), downton } }),
+      '2026-07-15' // both recorded 07-05, bajo (7d) → both overdue
+    );
+    expect(acuity.reasons.filter(r => r.kind === 'scale')).toHaveLength(2);
+    expect(acuity.reasons.map(r => r.label)).toEqual(['Braden vencida', 'Downton vencida']);
+  });
+
   it('flags isolation as watch', () => {
     const acuity = buildRowAcuity(patient({ isIsolated: true }), DAY);
     expect(acuity).toEqual({
@@ -86,11 +99,15 @@ describe('buildCensusAttentionSummary', () => {
     expect(summary).toEqual({ rows: 2, alertRows: 1, scale: 1, isolation: 1 });
   });
 
-  it('counts a row once per kind', () => {
+  it('counts a row once for isolation but each pending scale individually', () => {
+    const downton = braden({ code: 'DOWNTON', name: 'Downton' });
     const summary = buildCensusAttentionSummary(
-      { R1: patient({ evaluationScores: { braden: braden({}) }, isIsolated: true }) },
+      {
+        R1: patient({ evaluationScores: { braden: braden({}), downton }, isIsolated: true }),
+      },
       '2026-07-15'
     );
-    expect(summary).toMatchObject({ rows: 1, alertRows: 1, scale: 1, isolation: 1 });
+    // One patient, two overdue scales, one isolation.
+    expect(summary).toEqual({ rows: 1, alertRows: 1, scale: 2, isolation: 1 });
   });
 });

@@ -89,19 +89,34 @@ const trapModalTabNavigation = (
   }
 };
 
+/**
+ * Enter should confirm the modal — EXCEPT when the user is in a control that owns Enter itself:
+ * a multi-line textarea (newline), a button/link (its own click), a select, or contenteditable.
+ */
+const shouldConfirmOnEnter = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  if (!element || element.isContentEditable) return false;
+  const tag = element.tagName;
+  return tag !== 'TEXTAREA' && tag !== 'BUTTON' && tag !== 'A' && tag !== 'SELECT';
+};
+
 export const useBaseModalLifecycle = ({
   isOpen,
   onClose,
+  onConfirm,
   initialFocusRef,
   lifecycleDependencies,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional: pressing Enter (outside a textarea/button/select) triggers this — "grabar/aceptar". */
+  onConfirm?: () => void;
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   lifecycleDependencies?: BaseModalLifecycleDependencies;
 }) => {
   const modalRef = React.useRef<HTMLDivElement>(null);
   const onCloseRef = React.useRef(onClose);
+  const onConfirmRef = React.useRef(onConfirm);
   const dependencies = React.useMemo(
     () => resolveBaseModalLifecycleDependencies(lifecycleDependencies),
     [lifecycleDependencies]
@@ -109,7 +124,8 @@ export const useBaseModalLifecycle = ({
 
   React.useEffect(() => {
     onCloseRef.current = onClose;
-  }, [onClose]);
+    onConfirmRef.current = onConfirm;
+  }, [onClose, onConfirm]);
 
   useScrollLock(isOpen);
 
@@ -128,6 +144,16 @@ export const useBaseModalLifecycle = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onCloseRef.current();
+      }
+
+      if (
+        event.key === 'Enter' &&
+        !event.shiftKey &&
+        onConfirmRef.current &&
+        shouldConfirmOnEnter(event.target)
+      ) {
+        event.preventDefault();
+        onConfirmRef.current();
       }
 
       trapModalTabNavigation(event, modalRef, runtimeDocument);

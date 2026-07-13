@@ -8,7 +8,8 @@ export interface RayenImportPreviewModalProps {
   diff: CensusImportDiff | null;
   isBusy: boolean;
   error: string | null;
-  onConfirm: () => void;
+  /** `applyPreviousDays` = whether to ALSO file the past-day egreso corrections (the ack checkbox). */
+  onConfirm: (applyPreviousDays: boolean) => void;
   onCancel: () => void;
 }
 
@@ -290,8 +291,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         </button>
         <button
           type="button"
-          onClick={onConfirm}
-          disabled={isBusy || !hasChanges || (needsPreviousDayAck && !acceptedPreviousDays)}
+          // Today's changes (ingresos/movimientos/egresos) always apply; the días-previos ack only
+          // gates whether the past-day corrections are also filed — it never blocks the confirm.
+          onClick={() => onConfirm(acceptedPreviousDays)}
+          disabled={isBusy || !hasChanges}
           className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
         >
           {isBusy ? 'Aplicando…' : 'Confirmar e importar'}

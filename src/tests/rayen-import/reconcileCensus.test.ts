@@ -58,6 +58,19 @@ const seedBed = (encounter: RayenEncounter, bedIdOverride?: string): [string, Pa
 };
 
 describe('reconcileCensus', () => {
+  it('admits a CMA-service patient as a NORMAL admission into the real bed (CMA is a discharge type)', () => {
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([
+        makeEncounter({ service: 'Área quirúrgica indiferenciada', room: 'CMA R1', bed: 'CMAR1' }),
+      ]),
+      { reference: REFERENCE }
+    );
+    expect(diff.admissions).toHaveLength(1);
+    expect(diff.admissions[0].isCma).toBe(false); // never flagged CMA at admission
+    expect(diff.admissions[0].bedId).toBe('R1'); // the real bed, not a virtual CMA slot
+  });
+
   it('creates an admission for a Rayen patient absent from the census', () => {
     const diff = reconcileCensus(makeRecord({}), snapshotOf([makeEncounter()]), {
       reference: REFERENCE,

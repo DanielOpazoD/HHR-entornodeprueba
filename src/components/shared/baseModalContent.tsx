@@ -15,6 +15,7 @@ import { useBaseModalLifecycle } from '@/components/shared/useBaseModalLifecycle
 export const BaseModalContent: React.FC<BaseModalProps> = ({
   isOpen,
   onClose,
+  onConfirm,
   title,
   icon,
   size = 'md',
@@ -32,7 +33,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
   dataModule,
   dataTestId,
 }) => {
-  const { modalRef } = useBaseModalLifecycle({ isOpen, onClose, initialFocusRef });
+  const { modalRef } = useBaseModalLifecycle({ isOpen, onClose, onConfirm, initialFocusRef });
 
   if (!isOpen) return null;
 

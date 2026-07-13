@@ -201,7 +201,7 @@ describe('PatientInputCells', () => {
     // The status is now a colored circle (amber for "De cuidado"), not a text label in the editor.
     const statusButton = screen.getByRole('button', { name: /estado: de cuidado/i });
     expect(statusButton.querySelector('.bg-amber-400')).toBeInTheDocument();
-    expect(statusButton.closest('td')).toHaveClass('w-9');
+    expect(statusButton.closest('td')).toHaveClass('w-7');
     // And it is no longer part of the diagnosis/specialty editor.
     expect(
       screen.queryByRole('button', { name: /editar estado clínico/i })
@@ -304,8 +304,8 @@ describe('PatientInputCells', () => {
       </table>
     );
 
-    // The specialty cell shows an emoji; its trigger is labelled "Especialidad: <nombre>".
-    fireEvent.click(screen.getByRole('button', { name: /^especialidad:/i }));
+    // La especialidad ya no tiene celda propia: se edita desde el editor de Diagnóstico.
+    fireEvent.click(screen.getByRole('button', { name: /editar diagnóstico/i }));
     fireEvent.change(screen.getByLabelText('Especialidad'), {
       target: { value: Specialty.OTRO },
     });

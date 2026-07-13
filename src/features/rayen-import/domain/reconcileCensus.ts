@@ -168,13 +168,11 @@ export const reconcileCensus = (
     return true;
   };
 
-  // Place a Rayen patient into their mapped bed as an admission, if the target is free.
-  const tryAdmit = (
-    encounter: RayenEncounter,
-    patient: PatientData,
-    isCma: boolean,
-    bedId: string
-  ): void => {
+  // Place a Rayen patient into their mapped bed as an admission, if the target is free. A CMA
+  // patient is admitted as a NORMAL inpatient (isCma: false): "CMA" is a DISCHARGE type, resolved at
+  // egreso — not an admission attribute. So a patient in the virtual CMA service occupies their real
+  // bed like anyone else until they leave.
+  const tryAdmit = (encounter: RayenEncounter, patient: PatientData, bedId: string): void => {
     if (!claimTarget(bedId, patient.patientName, encounter)) return;
     const occupant = current.beds[bedId];
     if (isOccupied(occupant) && !consumedBedIds.has(bedId)) {
@@ -187,7 +185,7 @@ export const reconcileCensus = (
       });
       return;
     }
-    diff.admissions.push({ bedId, patient, isCma, source: encounter });
+    diff.admissions.push({ bedId, patient, isCma: false, source: encounter });
   };
 
   const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
@@ -195,7 +193,7 @@ export const reconcileCensus = (
 
   // ---- Active encounters → admissions / updates / transfers ----
   for (const encounter of active) {
-    const { patient, isCma, bedId } = rayenToPatientData(encounter, reference);
+    const { patient, bedId } = rayenToPatientData(encounter, reference);
     const match = findCurrent(encounter);
 
     if (!bedId) {
@@ -240,7 +238,7 @@ export const reconcileCensus = (
     // New patient not yet in the census → admit into the mapped bed if it is free, UNLESS they were
     // admitted after the census day being synced (they don't belong in a past day's census).
     if (admittedAfterCensusDay(encounter, censusDay)) continue;
-    tryAdmit(encounter, patient, isCma, bedId);
+    tryAdmit(encounter, patient, bedId);
   }
 
   // ---- Discharged encounters (alta médica / alta de enfermería) ----
@@ -284,8 +282,8 @@ export const reconcileCensus = (
     // it, so a patient absent from the bed should be restored (e.g. after an accidental
     // deletion in HHR).
     if (encounter.hasNurseDischarge || encounter.isDead || wasDischargedInHhr(encounter)) continue;
-    const { patient, isCma, bedId } = rayenToPatientData(encounter, reference);
-    if (bedId) tryAdmit(encounter, patient, isCma, bedId);
+    const { patient, bedId } = rayenToPatientData(encounter, reference);
+    if (bedId) tryAdmit(encounter, patient, bedId);
   }
 
   // ---- Current patients absent from the snapshot → discharge candidates (review) ----

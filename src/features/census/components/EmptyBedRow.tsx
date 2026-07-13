@@ -2,7 +2,6 @@ import React from 'react';
 import type { DragEvent } from 'react';
 import { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import { Plus } from 'lucide-react';
-import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
 
 interface EmptyBedRowProps {
@@ -31,7 +30,8 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
   onDrop,
 }) => {
   const totalWidth = Object.values(columns).reduce((sum, width) => sum + width, 0);
-  const fixedColumnsWidth = columns.actions + columns.bed + columns.type;
+  // "Tipo de cama" está oculto (rediseño 2026): la fila vacía ya no muestra la clasificación UTI/Media.
+  const fixedColumnsWidth = columns.actions + columns.bed;
   const remainingWidth = totalWidth - fixedColumnsWidth;
 
   return (
@@ -57,16 +57,7 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
       </td>
 
       <td
-        style={{ width: columns.type }}
-        className="py-0 px-1 border-r border-slate-100 text-center"
-      >
-        <MedicalBadge variant="slate" className="opacity-40 scale-90">
-          {bed.type}
-        </MedicalBadge>
-      </td>
-
-      <td
-        colSpan={Math.max(1, visibleColumnCount - 3)}
+        colSpan={Math.max(1, visibleColumnCount - 2)}
         style={{ width: remainingWidth }}
         className="py-0 pl-3"
       >

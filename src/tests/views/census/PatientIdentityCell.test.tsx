@@ -56,6 +56,35 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
   });
 
+  it('shows the specialty as a small chip next to the admission date', () => {
+    const data = DataFactory.createMockPatient('R1', {
+      patientName: 'Juana Rapu',
+      rut: '12.345.678-5',
+      age: '45',
+      admissionDate: '2026-07-12',
+      specialty: 'Med Interna',
+    });
+
+    renderCell({ data });
+
+    const chip = screen.getByTitle('Especialidad: Med Interna');
+    expect(chip).toHaveTextContent('Med Interna');
+    // Rendered after the "FI:" date within the same details line (separated by "/").
+    expect(screen.getByText('FI:')).toBeInTheDocument();
+  });
+
+  it('renders no specialty chip when the patient has no specialty set', () => {
+    const data = DataFactory.createMockPatient('R1', {
+      patientName: 'Juana Rapu',
+      rut: '12.345.678-5',
+      specialty: '',
+    });
+
+    renderCell({ data });
+
+    expect(screen.queryByTitle(/^Especialidad:/)).not.toBeInTheDocument();
+  });
+
   it('keeps unit-suffixed ages as-is in the inline badge', () => {
     const data = DataFactory.createMockPatient('R1', { age: '10d' });
 

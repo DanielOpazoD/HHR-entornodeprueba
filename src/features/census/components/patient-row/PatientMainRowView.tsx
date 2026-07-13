@@ -6,19 +6,6 @@ import { PatientMainRowActionCell } from './PatientMainRowActionCell';
 import { PatientMainRowBlockedCell } from './PatientMainRowBlockedCell';
 import type { PatientMainRowViewProps } from './patientRowContracts';
 import { usePatientMainRowSectionsModel } from './usePatientMainRowSectionsModel';
-import {
-  buildRowAcuity,
-  type RowAcuityLevel,
-} from '@/features/census/controllers/rowAcuityController';
-
-/** Left "acuity rail" — an inset box-shadow (no layout shift, never fights the row's own hover
- * shadow since it lives on the first cell). Inline style so the per-level color is JIT-independent.
- * amber = watch, red = alert; occupied unblocked rows only. */
-const RAIL_STYLE: Record<RowAcuityLevel, React.CSSProperties | undefined> = {
-  none: undefined,
-  watch: { boxShadow: 'inset 3px 0 0 0 #f59e0b' },
-  alert: { boxShadow: 'inset 3px 0 0 0 #ef4444' },
-};
 
 export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
   bed,
@@ -91,11 +78,6 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
     clinicalDocumentCount,
   });
 
-  // Occupied, unblocked rows get a left rail summarizing their worst clinical state (critical vital
-  // or overdue scale → red; warn vital, scale due, or isolation → amber). Empty/blocked rows: none.
-  const railStyle =
-    isEmpty || isBlocked ? undefined : RAIL_STYLE[buildRowAcuity(data, currentDateString).level];
-
   return (
     <tr
       className={`${mainRowViewState.rowClassName} group/patient-row ${isDragging ? 'opacity-40' : ''} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -106,7 +88,7 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <PatientMainRowActionCell {...sections.action} railStyle={railStyle} />
+      <PatientMainRowActionCell {...sections.action} />
 
       <PatientBedConfig {...sections.bedConfig} />
 

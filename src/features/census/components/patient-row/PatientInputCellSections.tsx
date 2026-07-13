@@ -1,7 +1,6 @@
 import React from 'react';
 import { PatientIdentityCell } from './PatientIdentityCell';
 import { DiagnosisInput } from './DiagnosisInput';
-import { SpecialtyCell } from './SpecialtyCell';
 import { StatusSelect } from './StatusSelect';
 import { VitalsCell } from './VitalsCell';
 import { DevicesCell } from './DevicesCell';
@@ -100,10 +99,9 @@ export const PatientInputStatusSection: React.FC<
 
 export const PatientInputClinicalSection: React.FC<
   PatientInputClinicalSectionBindings & { accessProfile?: CensusAccessProfile }
-> = ({ shared, diagnosisMode, handleDebouncedText, onChange, accessProfile = 'default' }) => {
+> = ({ shared, diagnosisMode, handleDebouncedText, onChange }) => {
   const fieldLocks = shared.clinicalFieldLocks;
   const diagnosisLocked = isRemoteLocked(fieldLocks?.diagnosis);
-  const specialtyLocked = isRemoteLocked(fieldLocks?.specialty);
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const usesClinicalInitialBlockPanel =
     !shared.isSubRow && !shared.isEmpty && !!shared.data.patientName;
@@ -113,7 +111,6 @@ export const PatientInputClinicalSection: React.FC<
       <ClinicalInitialBlockCells
         data={shared.data}
         readOnly={baseClinicalReadOnly}
-        accessProfile={accessProfile}
         onChange={handleDebouncedText}
         onMultipleUpdate={onChange.multiple}
         onDeliveryRouteChange={onChange.deliveryRoute}
@@ -139,22 +136,8 @@ export const PatientInputClinicalSection: React.FC<
         onMultipleUpdate={onChange.multiple}
         onDeliveryRouteChange={onChange.deliveryRoute}
       />
-      <SpecialtyCell
-        data={shared.data}
-        isSubRow={shared.isSubRow}
-        isEmpty={shared.isEmpty}
-        readOnly={baseClinicalReadOnly}
-        clinicalPause={buildClinicalPause(
-          shared.currentDateString,
-          shared.data.bedId,
-          'specialty',
-          !baseClinicalReadOnly && specialtyLocked
-        )}
-        onChange={onChange.text}
-        onMultipleUpdate={onChange.multiple}
-      />
-      {/* El estado clínico ya NO va aquí: se renderiza en su propia columna (PatientInputStatusSection),
-          movido a la posición de "Tipo de cama". */}
+      {/* Especialidad y Estado clínico ya NO van aquí: la especialidad es texto en la celda Paciente
+          (junto a FI) y el estado es su propia columna (círculo, PatientInputStatusSection). */}
     </>
   );
 };

@@ -31,15 +31,25 @@ export interface RowAcuity {
 
 const RANK: Record<RowAcuityLevel, number> = { none: 0, watch: 1, alert: 2 };
 
+/** Push ONE scale reason per pending nursing scale, so a patient with two overdue scales counts as
+ * two (see the triage bar). `overdue` → alert, `due` → watch. */
+const pushScaleReason = (
+  reasons: RowAcuityReason[],
+  name: string,
+  urgency: 'ok' | 'due' | 'overdue' | undefined
+): void => {
+  if (urgency === 'overdue')
+    reasons.push({ kind: 'scale', level: 'alert', label: `${name} vencida` });
+  else if (urgency === 'due')
+    reasons.push({ kind: 'scale', level: 'watch', label: `${name} por reaplicar` });
+};
+
 export const buildRowAcuity = (patient: PatientData, censusIsoDay: string): RowAcuity => {
   const reasons: RowAcuityReason[] = [];
 
   const scores = buildScoresCellModel(patient, censusIsoDay);
-  if (scores.alertUrgency === 'overdue') {
-    reasons.push({ kind: 'scale', level: 'alert', label: 'Escala de riesgo vencida' });
-  } else if (scores.alertUrgency === 'due') {
-    reasons.push({ kind: 'scale', level: 'watch', label: 'Escala de riesgo por reaplicar' });
-  }
+  pushScaleReason(reasons, 'Braden', scores.braden?.assessment.reapplication.urgency);
+  pushScaleReason(reasons, 'Downton', scores.downton?.reapplication?.urgency);
 
   if (patient.isIsolated) {
     reasons.push({ kind: 'isolation', level: 'watch', label: 'Paciente en aislamiento' });
@@ -53,13 +63,15 @@ export const buildRowAcuity = (patient: PatientData, censusIsoDay: string): RowA
   return { level, reasons };
 };
 
-/** Census-wide triage tally for the "requieren atención" bar. Counts ROWS per kind (a row with two
- * reasons of the same kind counts once), plus how many rows reach alert level. */
+/** Census-wide triage tally for the "requieren atención" bar. `rows`/`alertRows`/`isolation` count
+ * PATIENTS, while `scale` counts individual pending scales (a patient with two overdue scales adds
+ * two — that's what the nurse must reapply). */
 export interface CensusAttentionSummary {
   /** Rows needing any attention (level !== 'none'). */
   rows: number;
   /** Rows at alert level (the most urgent). */
   alertRows: number;
+  /** Total pending nursing scales across the census (not rows). */
   scale: number;
   isolation: number;
 }
@@ -75,9 +87,8 @@ export const buildCensusAttentionSummary = (
     if (level === 'none') continue;
     summary.rows += 1;
     if (level === 'alert') summary.alertRows += 1;
-    const kinds = new Set(reasons.map(reason => reason.kind));
-    if (kinds.has('scale')) summary.scale += 1;
-    if (kinds.has('isolation')) summary.isolation += 1;
+    summary.scale += reasons.filter(reason => reason.kind === 'scale').length;
+    if (reasons.some(reason => reason.kind === 'isolation')) summary.isolation += 1;
   }
   return summary;
 };

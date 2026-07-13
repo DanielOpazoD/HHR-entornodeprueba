@@ -16,6 +16,10 @@ export const HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig)[] = [
   'age',
   'cqx',
   'type',
+  // Especialidad: ya no es columna propia; se muestra como etiqueta de texto junto a la fecha de
+  // ingreso en la celda "Paciente" (PatientIdentityCell). Se sigue editando desde el editor de
+  // Diagnóstico. La clave se mantiene por compatibilidad.
+  'specialty',
 ] as const;
 
 export const SPECIALIST_HIDDEN_CENSUS_COLUMNS: readonly (keyof TableColumnConfig)[] = [
@@ -31,7 +35,6 @@ const SPECIALIST_MINIMUM_COLUMN_WIDTHS: Readonly<Partial<TableColumnConfig>> = {
   bed: 40,
   name: 170,
   diagnosis: 200,
-  specialty: 80,
   admission: 90,
 };
 
@@ -80,10 +83,6 @@ export const resolveVisibleCensusColumns = (
     diagnosis: Math.max(
       baseColumns.diagnosis,
       SPECIALIST_MINIMUM_COLUMN_WIDTHS.diagnosis ?? baseColumns.diagnosis
-    ),
-    specialty: Math.max(
-      baseColumns.specialty,
-      SPECIALIST_MINIMUM_COLUMN_WIDTHS.specialty ?? baseColumns.specialty
     ),
     admission: Math.max(
       baseColumns.admission,

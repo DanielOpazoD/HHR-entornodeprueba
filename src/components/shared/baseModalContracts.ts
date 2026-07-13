@@ -4,6 +4,8 @@ import type { ModalSize } from '@/components/shared/baseModalStyles';
 export interface BaseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional: Enter (outside a textarea/button/select) confirms — "grabar/aceptar". */
+  onConfirm?: () => void;
   title: React.ReactNode;
   icon?: React.ReactNode;
   size?: ModalSize;
