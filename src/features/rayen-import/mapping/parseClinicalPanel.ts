@@ -2,20 +2,23 @@
  * Parser for the per-patient CLINICAL PANEL (evoluciones + indicaciones) from Ficha Médico's
  * history-report events (relayed slimmed by the extension — see `clinicalPanelBridge`).
  *
- * Pure: raw events in → two ready-to-render lists out (newest first):
- *   - `evolutions`  → medical evolutions (`evolutionResume`, field OBE_NOTES) + nursing
- *                     shift-change notes (`shiftChangeResume`, field OBSERVATION).
- *   - `indications` → pharma (`patientPharmaIndicationResume`), free-text indications
- *                     (`patientFreeIndicationResume`), diet (`nutritionOrderResume`) and rest
- *                     (`restResume`).
+ * Pure: raw events in → ready-to-render structures out:
+ *   - `evolutions` → medical evolutions (`evolutionResume`) + nursing shift-change notes
+ *     (`shiftChangeResume`), newest first. Each carries the PERSON's name (composed from the
+ *     HCP_* name parts — `HCPR_NAME` is the ROLE, not the person) and a `profession` bucket
+ *     (medical / nursing / other) so the drawer can split them into sub-tabs.
+ *   - `indicationDays` → the classic daily indication sheet: one group per calendar day (newest
+ *     first) listing that day's indications in clinical order (régimen → reposo → fármacos →
+ *     libres), with suspended/archived ones split out so the drawer can tuck them behind a
+ *     discreet toggle.
  *
- * The report repeats an indication on every event that re-publishes it, so pharma/free entries are
- * deduped by their stable id (MRE_ID / AMRE_ID) keeping the LATEST publication — that's the row
- * whose SUSPENDED/ARCHIVED flags reflect the current state. Nothing here is persisted: the panel is
- * a live, on-demand view.
+ * Within a day, pharma/free entries are deduped by their stable id (MRE_ID / AMRE_ID) keeping the
+ * LATEST publication (its flags reflect the current state); diet/rest have no stable id, so they
+ * dedupe by their text. Nothing here is persisted: the panel is a live, on-demand view.
  */
 
 import type { RayenClinicalPanelEvent } from '../bridge/clinicalPanelBridge';
+import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelEntryKind =
   | 'evolution'
@@ -25,15 +28,23 @@ export type ClinicalPanelEntryKind =
   | 'diet'
   | 'rest';
 
+/** Bucket for the Evoluciones sub-tabs, derived from the practitioner ROLE. */
+export type EvolutionProfession = 'medical' | 'nursing' | 'other';
+
 export interface ClinicalPanelEntry {
   /** Stable within one parse — source id when the row has one, positional otherwise. */
   id: string;
   kind: ClinicalPanelEntryKind;
-  /** Short heading: "Evolución médica", the drug descriptor, "Régimen"… */
+  /** Short heading: "Evolución", the drug descriptor, "Régimen"… */
   title: string;
   /** The clinical body (notes / posology / observation). */
   text: string;
+  /** The person who signed it ('' when the source row carries no name parts). */
   author: string;
+  /** The practitioner role label (Médico, Enfermera(o)…, '' when unknown/numeric). */
+  role: string;
+  /** Evolutions/shift-change only: sub-tab bucket. */
+  profession?: EvolutionProfession;
   publishedAt: string;
   archived: boolean;
   /** Pharma/free indications only: explicitly suspended in Ficha Médico. */
@@ -44,9 +55,19 @@ export interface ClinicalPanelEntry {
   crossedOut: boolean;
 }
 
+/** One calendar day of the indication sheet. */
+export interface ClinicalPanelIndicationDay {
+  /** Grouping key, YYYY-MM-DD ('' when the source date was unparseable). */
+  day: string;
+  /** Display label, DD-MM-YYYY. */
+  label: string;
+  active: ClinicalPanelEntry[];
+  suspended: ClinicalPanelEntry[];
+}
+
 export interface ClinicalPanel {
   evolutions: ClinicalPanelEntry[];
-  indications: ClinicalPanelEntry[];
+  indicationDays: ClinicalPanelIndicationDay[];
 }
 
 type RawRow = Record<string, unknown>;
@@ -74,23 +95,88 @@ const joinParts = (...parts: string[]): string => parts.filter(Boolean).join(' �
 const byNewestFirst = (a: ClinicalPanelEntry, b: ClinicalPanelEntry): number =>
   timeKey(b.publishedAt) - timeKey(a.publishedAt);
 
-/** Keep one entry per id — the latest publication wins (its flags reflect the current state). */
-const dedupeLatestById = (entries: ClinicalPanelEntry[]): ClinicalPanelEntry[] => {
-  const latest = new Map<string, ClinicalPanelEntry>();
+/** The person's display name from the split HCP_* parts (HCPR_NAME is the role, not the person). */
+const composeAuthor = (r: RawRow): string =>
+  toTitleCaseName(
+    [str(r.HCP_FGN), str(r.HCP_NGN), str(r.HCP_FFN), str(r.HCP_SFN)].filter(Boolean).join(' ')
+  );
+
+/** Role label for display — drop purely-numeric role ids (we can't name them reliably). */
+const roleLabel = (value: unknown): string => {
+  const role = str(value);
+  return /^\d+$/.test(role) ? '' : role;
+};
+
+const classifyProfession = (role: string): EvolutionProfession => {
+  if (/m[eé]dic/i.test(role)) return 'medical';
+  if (/enfermer/i.test(role)) return 'nursing';
+  return 'other';
+};
+
+/** YYYY-MM-DD day key of a publish datetime ('' when unparseable). */
+const dayKey = (publishedAt: string): string => {
+  const iso = publishedAt.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const t = Date.parse(publishedAt);
+  if (Number.isNaN(t)) return '';
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const dayLabel = (day: string): string => {
+  const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : day || 'Sin fecha';
+};
+
+/** Clinical order inside a day's sheet: régimen → reposo → fármacos → libres. */
+const SHEET_ORDER: Record<ClinicalPanelEntryKind, number> = {
+  diet: 0,
+  rest: 1,
+  pharma: 2,
+  'free-indication': 3,
+  evolution: 9,
+  'shift-change': 9,
+};
+
+const bySheetOrder = (a: ClinicalPanelEntry, b: ClinicalPanelEntry): number =>
+  SHEET_ORDER[a.kind] - SHEET_ORDER[b.kind] || a.title.localeCompare(b.title, 'es');
+
+/**
+ * Group indication entries into the daily sheet: dedup within each day (pharma/free by id keeping
+ * the latest publication; diet/rest by text), split active vs suspended/archived, newest day first.
+ */
+const buildIndicationDays = (entries: ClinicalPanelEntry[]): ClinicalPanelIndicationDay[] => {
+  const byDay = new Map<string, Map<string, ClinicalPanelEntry>>();
   for (const entry of entries) {
-    const current = latest.get(entry.id);
+    const day = dayKey(entry.publishedAt);
+    const dedupKey =
+      entry.kind === 'diet' || entry.kind === 'rest'
+        ? `${entry.kind}:${entry.text.toLowerCase()}`
+        : `${entry.kind}:${entry.id}`;
+    const bucket = byDay.get(day) ?? new Map<string, ClinicalPanelEntry>();
+    const current = bucket.get(dedupKey);
     if (!current || timeKey(entry.publishedAt) >= timeKey(current.publishedAt)) {
-      latest.set(entry.id, entry);
+      bucket.set(dedupKey, entry);
     }
+    byDay.set(day, bucket);
   }
-  return [...latest.values()];
+
+  return [...byDay.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([day, bucket]) => {
+      const all = [...bucket.values()].sort(bySheetOrder);
+      return {
+        day,
+        label: dayLabel(day),
+        active: all.filter(e => !e.suspended && !e.archived),
+        suspended: all.filter(e => e.suspended || e.archived),
+      };
+    });
 };
 
 export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalPanel => {
   const evolutions: ClinicalPanelEntry[] = [];
-  const pharma: ClinicalPanelEntry[] = [];
-  const free: ClinicalPanelEntry[] = [];
-  const dietRest: ClinicalPanelEntry[] = [];
+  const indications: ClinicalPanelEntry[] = [];
   let seq = 0;
 
   for (const event of Array.isArray(events) ? events : []) {
@@ -100,12 +186,15 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.evolutionResume)) {
       const text = str(r.OBE_NOTES);
       if (!text) continue;
+      const role = roleLabel(r.HCPR_NAME);
       evolutions.push({
         id: str(r.id) || `evolution-${seq++}`,
         kind: 'evolution',
-        title: 'Evolución médica',
+        title: 'Evolución',
         text,
-        author: str(r.HCPR_NAME),
+        author: composeAuthor(r),
+        role,
+        profession: classifyProfession(role),
         publishedAt: str(r.OBE_PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: false,
@@ -120,9 +209,11 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
       evolutions.push({
         id: str(r.ID) || `shift-change-${seq++}`,
         kind: 'shift-change',
-        title: 'Entrega de turno · Enfermería',
+        title: 'Entrega de turno',
         text,
-        author: str(r.HCPR_NAME),
+        author: composeAuthor(r),
+        role: roleLabel(r.HCPR_NAME),
+        profession: 'nursing',
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: false,
@@ -134,7 +225,7 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
-      pharma.push({
+      indications.push({
         id: str(r.MRE_ID) || `pharma-${seq++}`,
         kind: 'pharma',
         title,
@@ -143,7 +234,8 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
           str(r.ROUTE_ADMINISTRATION),
           str(r.MRE_ADMINISTRATION_NOTE)
         ),
-        author: str(r.HCP_NAME),
+        author: toTitleCaseName(str(r.HCP_NAME)),
+        role: roleLabel(r.HCP_ROLE),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: flag(r.SUSPENDED),
@@ -155,12 +247,13 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.patientFreeIndicationResume)) {
       const text = str(r.INDICATION);
       if (!text) continue;
-      free.push({
+      indications.push({
         id: str(r.AMRE_ID) || `free-${seq++}`,
         kind: 'free-indication',
         title: 'Indicación',
         text,
-        author: str(r.HCP_NAME),
+        author: toTitleCaseName(str(r.HCP_NAME)),
+        role: roleLabel(r.HCP_ROLE),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: flag(r.SUSPENDED),
@@ -172,12 +265,13 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.nutritionOrderResume)) {
       const text = joinParts(str(r.DIET_type), str(r.OBSERVATION));
       if (!text) continue;
-      dietRest.push({
+      indications.push({
         id: `diet-${seq++}`,
         kind: 'diet',
         title: 'Régimen',
         text,
-        author: str(r.HCPR_NAME),
+        author: '',
+        role: roleLabel(r.HCPR_NAME),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: false,
@@ -189,12 +283,13 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.restResume)) {
       const text = joinParts(str(r.rest_type), str(r.OBSERVATION));
       if (!text) continue;
-      dietRest.push({
+      indications.push({
         id: `rest-${seq++}`,
         kind: 'rest',
         title: 'Reposo',
         text,
-        author: str(r.HCPR_NAME),
+        author: '',
+        role: roleLabel(r.HCPR_NAME),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: false,
@@ -206,8 +301,6 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
 
   return {
     evolutions: evolutions.sort(byNewestFirst),
-    indications: [...dedupeLatestById(pharma), ...dedupeLatestById(free), ...dietRest].sort(
-      byNewestFirst
-    ),
+    indicationDays: buildIndicationDays(indications),
   };
 };

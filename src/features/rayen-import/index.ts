@@ -55,6 +55,8 @@ export type {
   ClinicalPanel,
   ClinicalPanelEntry,
   ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
 } from './mapping/parseClinicalPanel';
 export { parseClinicalPanel } from './mapping/parseClinicalPanel';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
