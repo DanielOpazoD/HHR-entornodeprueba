@@ -9,12 +9,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useAuthState } from '@/hooks/useAuthState';
 import {
   useSaveDailyRecordMutation,
   usePatchDailyRecordMutation,
 } from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
-import { useAuthState } from '@/hooks/useAuthState';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
@@ -94,12 +94,13 @@ const INITIAL_STATE: RayenImportState = {
 export const useRayenImport = () => {
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
+  // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
+  const { currentUser, role } = useAuthState();
   // Destructure the stable `mutateAsync` reference: depending on the whole mutation
   // object would change identity each render, recreating applyDiff/previewSnapshot and
   // needlessly re-running the bridge subscription effect below on every render.
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  const { role } = useAuthState();
   // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
   // nurse can only write a previous day within that window — older days are surfaced but skipped.
   const isAdmin = role === 'admin';
@@ -130,10 +131,14 @@ export const useRayenImport = () => {
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const result = applyCensusImportDiff(record, diff, { idFactory: makeId });
-      await saveDailyRecord(result.record);
-      return result;
+      // Stamp who ran this sync and when (single choke point: confirm AND auto-apply both land
+      // here). Displayed next to the "Sincronizar Eloísa" button; formatted in island time there.
+      const by = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
+      const stamped = { ...result.record, rayenSync: { at: new Date().toISOString(), by } };
+      await saveDailyRecord(stamped);
+      return { ...result, record: stamped };
     },
-    [saveDailyRecord]
+    [saveDailyRecord, currentUser]
   );
 
   // Background clinical fill (devices + scales + CUDYR), delegated to `runClinicalFill` — an

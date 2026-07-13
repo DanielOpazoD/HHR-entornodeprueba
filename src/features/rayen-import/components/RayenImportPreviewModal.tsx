@@ -91,7 +91,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     <BaseModal
       isOpen={isOpen}
       onClose={onCancel}
-      title="Importar censo desde Rayen"
+      title="Sincronizar censo · Eloísa"
       icon={<RefreshCw size={20} />}
       size="2xl"
       variant="white"

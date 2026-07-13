@@ -25,8 +25,9 @@ const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string
   { key: 'temp', label: 'T°' },
 ];
 
+// Same semantic tones as ScaleChip's value zone, so SIGNOS and SCORES read as one visual system.
 const STATUS_TEXT: Record<VitalStatus, string> = {
-  normal: 'text-slate-700',
+  normal: 'text-slate-600',
   warn: 'text-amber-600',
   alert: 'text-red-600',
 };
@@ -74,7 +75,7 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             {CELL_READINGS.map(({ key, label }) => {
               const reading = readingByKey(key);
               return (
-                <span key={key} className="flex items-baseline gap-0.5 truncate text-[9px]">
+                <span key={key} className="flex items-baseline gap-0.5 truncate text-[10px]">
                   <span className="font-medium text-slate-400">{label}</span>
                   <span
                     className={clsx(

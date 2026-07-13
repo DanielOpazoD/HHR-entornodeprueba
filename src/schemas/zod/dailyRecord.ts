@@ -83,6 +83,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       transfers: nullishDefault(z.array(TransferDataSchema), () => []),
       cma: nullishDefault(z.array(CMADataSchema), () => []),
       lastUpdated: z.string().default(() => new Date().toISOString()),
+      rayenSync: nullableOptional(z.object({ at: z.string(), by: z.string() })),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().default(1),
       nurses: nullishDefault(z.array(z.string()), () => ['', '']),

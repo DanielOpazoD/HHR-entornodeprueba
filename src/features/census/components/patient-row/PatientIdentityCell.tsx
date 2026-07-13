@@ -24,14 +24,17 @@ import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { resolveNameInputState } from './nameInputController';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
-/** Admission date as compact "DD-MM" for the line under the name (accepts ISO or DD/MM/YYYY). */
+/** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
 const formatAdmissionShort = (raw?: string): string => {
   const value = (raw ?? '').trim();
   if (!value) return '';
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[3]}-${iso[2]}`;
-  const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-]\d{2,4}/);
-  if (dmy) return `${dmy[1].padStart(2, '0')}-${dmy[2].padStart(2, '0')}`;
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (dmy) {
+    const year = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3];
+    return `${dmy[1].padStart(2, '0')}-${dmy[2].padStart(2, '0')}-${year}`;
+  }
   return '';
 };
 
@@ -243,6 +246,9 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 title="Fecha de ingreso"
               >
                 {hasRutValue && <span className="text-slate-300">/</span>}
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400/90">
+                  FI:
+                </span>
                 {admissionShort}
               </span>
             )}

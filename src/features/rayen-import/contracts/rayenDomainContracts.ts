@@ -6,4 +6,4 @@
  */
 
 export type { PatientData } from '@/types/domain/patient';
-export type { DailyRecord } from '@/types/domain/dailyRecord';
+export type { DailyRecord, RayenSyncMeta } from '@/types/domain/dailyRecord';

@@ -40,7 +40,7 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `bridge/rayenImportBridge.ts`            | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
 | `hooks/useRayenImportMode.ts`            | Hook reactivo del modo                                                     |
 | `hooks/useRayenImport.ts`                | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
-| `components/RayenImportButton.tsx`       | Botón "Importar desde Rayen" (barra del censo)                             |
+| `components/RayenImportButton.tsx`       | Botón "Sincronizar Eloísa" (barra del censo)                               |
 | `components/RayenImportPreviewModal.tsx` | Modal de preview del diff (BaseModal)                                      |
 | `components/RayenImportModeSetting.tsx`  | Selector de modo (panel admin)                                             |
 | `index.ts`                               | API pública (único entrypoint externo)                                     |

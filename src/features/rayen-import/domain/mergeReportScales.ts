@@ -31,6 +31,10 @@ const toEntry = (scale: EvaluationScale, includeItems: boolean): EvaluationScore
   severity: scale.severity,
   recordedDate: scale.recordedDate,
   recordedAt: scale.recordedAt,
+  // Who applied it — feeds the census hover card ("aplicada por"). Kept optional: old stored
+  // entries predate this field and Firestore rejects `undefined`, so blank means absent.
+  ...(scale.author ? { author: scale.author } : {}),
+  ...(scale.authorRole ? { authorRole: scale.authorRole } : {}),
   ...(includeItems && scale.items ? { items: scale.items } : {}),
 });
 

@@ -1,39 +1,24 @@
 /**
- * "Scores" census column: compact chips for the nursing risk scales synced from Ficha Médico —
- * Braden (UPP) with its reapplication countdown and Downton (falls) severity. Clicking the cell
+ * "Scores" census column: one segmented chip per nursing risk scale synced from Ficha Médico,
+ * each with its OWN visual identity (Braden violet · Downton indigo · CUDYR teal) — see
+ * `ScaleChip` for the anatomy (identity | value-by-severity | separated reapplication countdown).
+ * Hovering a chip shows the sticky note with when it was applied and by whom. Clicking the cell
  * opens the detail modal with the conducta and the unified risk history. Read-only by design:
  * Ficha Médico is the source of truth (ownership `remoteCanonical`).
  */
 
 import React, { useState } from 'react';
-import clsx from 'clsx';
-import { AlarmClock } from 'lucide-react';
+import { Bandage, ClipboardList, Footprints } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ScoresDetailModal } from './ScoresDetailModal';
+import { ScaleChip } from './ScaleChip';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { useRayenFillStatus } from '@/features/rayen-import';
-import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
 }
-
-const LEVEL_CHIP_CLASSES: Record<BradenRiskLevel, string> = {
-  bajo: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  medio: 'bg-amber-50 text-amber-700 border-amber-300',
-  alto: 'bg-red-50 text-red-700 border-red-300',
-};
-
-const NEUTRAL_CHIP_CLASSES = 'bg-slate-50 text-slate-500 border-slate-200';
-
-// CUDYR category band colors, matching the CUDYR night-handoff view (A highest acuity → D lowest).
-const CUDYR_BAND_CLASSES: Record<'A' | 'B' | 'C' | 'D', string> = {
-  A: 'bg-rose-50 text-rose-700 border-rose-200',
-  B: 'bg-amber-50 text-amber-700 border-amber-300',
-  C: 'bg-sky-50 text-sky-700 border-sky-200',
-  D: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-};
 
 export const ScoresCell: React.FC<ScoresCellProps> = ({
   data,
@@ -49,8 +34,6 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   }
 
   const model = buildScoresCellModel(data, currentDateString);
-  const bradenUrgency = model.braden?.assessment.reapplication.urgency ?? 'ok';
-  const needsReapply = bradenUrgency !== 'ok';
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -62,74 +45,67 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             setIsDetailOpen(true);
           }}
           className="w-full flex flex-col items-stretch gap-0.5 cursor-pointer"
-          title="Ver detalle de escalas de enfermería"
+          aria-label="Ver detalle de escalas de enfermería"
         >
           {model.braden && (
-            <span
-              className={clsx(
-                'flex items-center justify-between gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
-                LEVEL_CHIP_CLASSES[model.braden.assessment.riskLevel],
-                needsReapply && 'ring-1 ring-red-400'
-              )}
-              title={`Braden ${model.braden.total} · ${model.braden.assessment.conducta.riskLabel} · ${model.braden.countdownLabel}`}
-            >
-              <span>Braden {model.braden.total}</span>
-              <span
-                className={clsx(
-                  'flex items-center gap-0.5 font-bold tabular-nums',
-                  needsReapply && 'text-red-600 animate-pulse'
-                )}
-              >
-                {needsReapply && <AlarmClock size={9} strokeWidth={3} />}
-                {model.braden.chipCountdown}
-              </span>
-            </span>
+            <ScaleChip
+              hue="violet"
+              icon={Bandage}
+              label="Braden"
+              value={String(model.braden.total)}
+              severity={model.braden.assessment.riskLevel}
+              countdown={model.braden.chipCountdown}
+              countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
+              note={{
+                title: model.braden.entry.name,
+                recordedDate: model.braden.entry.recordedDate,
+                recordedAt: model.braden.entry.recordedAt,
+                author: model.braden.entry.author,
+                authorRole: model.braden.entry.authorRole,
+                detail: model.braden.assessment.conducta.riskLabel,
+              }}
+            />
           )}
           {model.downton && (
-            <span
-              className={clsx(
-                'flex items-center justify-between gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
-                model.downton.level
-                  ? LEVEL_CHIP_CLASSES[model.downton.level]
-                  : NEUTRAL_CHIP_CLASSES,
-                model.downton.reapplication &&
-                  model.downton.reapplication.urgency !== 'ok' &&
-                  'ring-1 ring-red-400'
-              )}
-              title={`Downton ${model.downton.total} · ${model.downton.severityLabel}${model.downton.countdownLabel ? ` · ${model.downton.countdownLabel}` : ''}`}
-            >
-              <span>Downton {model.downton.total}</span>
-              {model.downton.reapplication && (
-                <span
-                  className={clsx(
-                    'flex items-center gap-0.5 font-bold tabular-nums',
-                    model.downton.reapplication.urgency !== 'ok' && 'text-red-600 animate-pulse'
-                  )}
-                >
-                  {model.downton.reapplication.urgency !== 'ok' && (
-                    <AlarmClock size={9} strokeWidth={3} />
-                  )}
-                  {model.downton.chipCountdown}
-                </span>
-              )}
-            </span>
+            <ScaleChip
+              hue="indigo"
+              icon={Footprints}
+              label="Downton"
+              value={String(model.downton.total)}
+              severity={model.downton.level}
+              countdown={model.downton.chipCountdown}
+              countdownUrgent={
+                !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
+              }
+              note={{
+                title: model.downton.entry.name,
+                recordedDate: model.downton.entry.recordedDate,
+                recordedAt: model.downton.entry.recordedAt,
+                author: model.downton.entry.author,
+                authorRole: model.downton.entry.authorRole,
+                detail: model.downton.severityLabel,
+              }}
+            />
           )}
           {model.cudyr && (
-            <span
-              className={clsx(
-                'flex items-center justify-between gap-0.5 rounded border px-1 py-px text-[9px] font-semibold leading-tight',
-                model.cudyr.band ? CUDYR_BAND_CLASSES[model.cudyr.band] : NEUTRAL_CHIP_CLASSES
-              )}
-              title={`CUDYR ${model.cudyr.category} · importado desde ${model.cudyr.entry.source} (sin desglose)`}
-            >
-              <span>CUDYR {model.cudyr.category}</span>
-            </span>
+            <ScaleChip
+              hue="teal"
+              icon={ClipboardList}
+              label="CUDYR"
+              value={model.cudyr.category}
+              band={model.cudyr.band}
+              note={{
+                title: 'CUDYR (CRD) — categorización',
+                recordedDate: model.cudyr.entry.recordedDate,
+                detail: `Importado desde ${model.cudyr.entry.source} · sin desglose`,
+              }}
+            />
           )}
         </button>
       ) : isFilling ? (
         <div
           className="flex flex-col gap-0.5 animate-pulse"
-          title="Sincronizando escalas desde Rayen…"
+          title="Sincronizando escalas desde Eloísa…"
           aria-label="Cargando escalas"
         >
           <span className="h-2.5 rounded bg-slate-200" />
