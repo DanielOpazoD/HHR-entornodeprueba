@@ -17,6 +17,7 @@ import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaf
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
 import { RayenImportButton } from '@/features/rayen-import';
+import { CensusAttentionBar } from './CensusAttentionBar';
 
 interface CensusStaffHeaderProps {
   readOnly?: boolean;
@@ -55,49 +56,52 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   });
 
   return (
-    <div className="flex justify-center items-start gap-3 flex-wrap animate-fade-in px-4">
-      {/* Staff Selectors */}
-      {!readModel.specialistAccess && (
-        <NurseSelector
-          nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
-          nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
-          nursesList={nursesList}
-          onUpdateNurse={updateNurse}
-          shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
-          onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
-          className={readModel.selectorsClassName}
+    <div className="flex flex-col items-center gap-2 animate-fade-in px-4">
+      <CensusAttentionBar beds={beds ?? {}} censusIsoDay={dailyRecordData.record?.date ?? ''} />
+      <div className="flex justify-center items-start gap-3 flex-wrap">
+        {/* Staff Selectors */}
+        {!readModel.specialistAccess && (
+          <NurseSelector
+            nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
+            nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
+            nursesList={nursesList}
+            onUpdateNurse={updateNurse}
+            shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
+            onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
+            className={readModel.selectorsClassName}
+          />
+        )}
+
+        {!readModel.specialistAccess && (
+          <TensSelector
+            tensDayShift={readModel.staffSelectorsState.tensDayShift}
+            tensNightShift={readModel.staffSelectorsState.tensNightShift}
+            tensList={tensList}
+            onUpdateTens={updateTens}
+            shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
+            onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
+            className={readModel.selectorsClassName}
+          />
+        )}
+
+        {/* Combined Stats Summary Card */}
+        {readModel.showSummary && stats && (
+          <CombinedSummaryCard
+            stats={stats}
+            discharges={readModel.movementSummaryState.discharges}
+            transfers={readModel.movementSummaryState.transfers}
+            cmaCount={readModel.movementSummaryState.cmaCount}
+            newAdmissions={readModel.movementSummaryState.admissionsCount}
+          />
+        )}
+
+        {!readOnly && !readModel.specialistAccess && <RayenImportButton />}
+
+        <ConflictVersionsAdminControl
+          date={dailyRecordData.record?.date}
+          currentRecord={dailyRecordData.record}
         />
-      )}
-
-      {!readModel.specialistAccess && (
-        <TensSelector
-          tensDayShift={readModel.staffSelectorsState.tensDayShift}
-          tensNightShift={readModel.staffSelectorsState.tensNightShift}
-          tensList={tensList}
-          onUpdateTens={updateTens}
-          shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
-          onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
-          className={readModel.selectorsClassName}
-        />
-      )}
-
-      {/* Combined Stats Summary Card */}
-      {readModel.showSummary && stats && (
-        <CombinedSummaryCard
-          stats={stats}
-          discharges={readModel.movementSummaryState.discharges}
-          transfers={readModel.movementSummaryState.transfers}
-          cmaCount={readModel.movementSummaryState.cmaCount}
-          newAdmissions={readModel.movementSummaryState.admissionsCount}
-        />
-      )}
-
-      {!readOnly && !readModel.specialistAccess && <RayenImportButton />}
-
-      <ConflictVersionsAdminControl
-        date={dailyRecordData.record?.date}
-        currentRecord={dailyRecordData.record}
-      />
+      </div>
 
       {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
         <StaffShiftDetailsModal
