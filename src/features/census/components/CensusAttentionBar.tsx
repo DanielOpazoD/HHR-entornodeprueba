@@ -37,7 +37,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({ beds, ce
   if (summary.rows === 0) return null;
 
   const isAlert = summary.alertRows > 0;
-  const items: React.ReactNode[] = [];
+  const items: React.ReactElement[] = [];
   if (summary.scale > 0) {
     items.push(
       <CountItem
@@ -74,7 +74,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({ beds, ce
       {items.length > 0 && (
         <span className="flex items-center gap-2 border-l border-current/20 pl-2 opacity-90">
           {items.map((item, index) => (
-            <React.Fragment key={index}>
+            <React.Fragment key={item.key ?? index}>
               {index > 0 && <span className="opacity-40">·</span>}
               {item}
             </React.Fragment>

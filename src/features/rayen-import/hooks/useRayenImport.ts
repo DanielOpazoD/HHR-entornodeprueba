@@ -266,8 +266,12 @@ export const useRayenImport = () => {
       if (!hasApplicableChanges) {
         // No diff to apply → applyDiff (which stamps rayenSync) never runs, so record the sync's
         // who+when as a granular patch; otherwise "última sincronización" would never update when the
-        // census is already up to date (the common case).
-        void patchDailyRecord({ rayenSync: makeSyncMeta() } as unknown as DailyRecordPatch);
+        // census is already up to date (the common case). A failure here only misses the provenance
+        // stamp (not clinical data), so log it instead of surfacing a blocking error to the user.
+        void patchDailyRecord({ rayenSync: makeSyncMeta() } as unknown as DailyRecordPatch).catch(
+          error =>
+            console.warn('[rayen-import] No se pudo registrar la última sincronización:', error)
+        );
         void fillDevicesInBackground(currentRecord);
       }
 

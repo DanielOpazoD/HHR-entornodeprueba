@@ -100,6 +100,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           ref={buttonRef}
           type="button"
           name="status"
+          data-testid="clinical-status"
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={e => {
