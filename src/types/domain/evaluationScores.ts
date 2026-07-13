@@ -36,6 +36,10 @@ export interface EvaluationScoreEntry {
   recordedDate: string;
   /** When it was performed, verbatim as printed. */
   recordedAt: string;
+  /** Professional who applied the scale, as reported by Ficha Médico (may be absent on old data). */
+  author?: string;
+  /** The professional's role, e.g. "Enfermera". */
+  authorRole?: string;
   /** The individual sub-scale answers (optional; present on the current entries, kept for detail). */
   items?: EvaluationScoreItem[];
 }

@@ -61,6 +61,10 @@ describe('mergeReportScales', () => {
     // History is most-recent-first and compact (no per-item breakdown).
     expect(scores.history?.map(e => e.encounterEventId)).toEqual([110, 100, 90]);
     expect(scores.history?.every(e => e.items === undefined)).toBe(true);
+    // Who applied it travels with every entry — feeds the census hover card.
+    expect(scores.braden?.author).toBe('Enf. Ejemplo');
+    expect(scores.braden?.authorRole).toBe('Enfermera(o)');
+    expect(scores.history?.every(e => e.author === 'Enf. Ejemplo')).toBe(true);
   });
 
   it("as of a past census day, uses that day's value and omits later ones", () => {

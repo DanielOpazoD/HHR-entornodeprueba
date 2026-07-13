@@ -30,6 +30,14 @@ export type {
   DailyRecordHandoffNightChecklist,
 } from './dailyRecordNursingHandoff';
 
+/** Metadata of the last Eloísa (Rayen) census sync applied to this record. */
+export interface RayenSyncMeta {
+  /** Instant the sync was applied (ISO 8601, absolute — format at display in island time). */
+  at: string;
+  /** Display name (or email) of the user who ran the sync. */
+  by: string;
+}
+
 export interface DailyRecord {
   date: string;
   beds: Record<string, PatientData>;
@@ -38,6 +46,8 @@ export interface DailyRecord {
   transfers: TransferData[];
   cma: CMAData[]; // Cirugía Mayor Ambulatoria
   lastUpdated: string;
+  /** Last Eloísa sync applied to this day (who + when) — shown next to the sync button. */
+  rayenSync?: RayenSyncMeta;
   /** Unix timestamp (ms) for the start of the day, used for security rule validation */
   dateTimestamp?: number;
   /** Version of the data structure, used to prevent corruption from old clients */
