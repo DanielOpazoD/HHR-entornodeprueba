@@ -155,7 +155,8 @@ export const runClinicalFill = async (
       // scales: a failure here never blocks them.
       const vitals = parseVitalSigns(forms);
       if (vitals.length > 0) {
-        merged = mergeReportVitals(merged, vitals, { censusIsoDay: fecha });
+        // ALL available vitals (past AND future relative to `fecha`) — see mergeReportVitals.
+        merged = mergeReportVitals(merged, vitals);
       }
     } catch (error) {
       summary.errors.push({ bedId, source: 'vitals', message: message(error) });

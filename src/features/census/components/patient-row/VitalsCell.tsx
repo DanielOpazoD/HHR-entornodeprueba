@@ -10,6 +10,7 @@ import { Activity } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { VitalsDetailModal } from './VitalsDetailModal';
+import { CellSyncIndicator } from './CellSyncIndicator';
 import {
   buildVitalSignsView,
   type VitalReadingView,
@@ -56,6 +57,8 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
+      {/* Syncing feedback over existing readings too (a re-sync of a patient who already has vitals). */}
+      {isFilling && vitals && <CellSyncIndicator />}
       {vitals ? (
         <button
           type="button"
