@@ -79,6 +79,9 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   // Modifying a previous day requires an explicit acknowledgment; reset it each time the modal opens.
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
+  // Days that will receive a cross-day correction — used to tag each affected egreso in its own
+  // list ("→ se grabará el …, no hoy"), so the section wording never suggests it lands today.
+  const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
   React.useEffect(() => {
     if (isOpen) setAcceptedPreviousDays(false);
@@ -164,6 +167,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   {entry.reason === 'missing-in-rayen' && (
                     <span className="ml-1 text-amber-600">(ausente en Rayen — revisar)</span>
                   )}
+                  {previousDays.has(entry.correctedDay ?? '') && (
+                    <span className="ml-1 font-medium text-amber-700">
+                      → se grabará el {entry.correctedDay}
+                      {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
+                    </span>
+                  )}
                 </li>
               ))}
             </Section>
@@ -198,7 +207,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             </Section>
 
             <Section
-              title="Egresos del día no registrados en HHR (se agregarán a altas)"
+              title="Egresos no registrados en HHR (se agregarán a altas)"
               count={diff.reportEgresos?.length ?? 0}
             >
               {(diff.reportEgresos ?? []).map((entry, index) => (
@@ -212,6 +221,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   )}
                   {entry.status === 'Fallecido' && (
                     <span className="ml-1 text-red-600">(Fallecido)</span>
+                  )}
+                  {previousDays.has(entry.correctedDay ?? '') && (
+                    <span className="ml-1 font-medium text-amber-700">
+                      → se grabará el {entry.correctedDay}
+                      {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
+                    </span>
                   )}
                 </li>
               ))}
