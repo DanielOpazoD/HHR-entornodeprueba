@@ -107,9 +107,17 @@ const roleLabel = (value: unknown): string => {
   return /^\d+$/.test(role) ? '' : role;
 };
 
+// Nursing keywords are checked FIRST on purpose: "paramédico" contains "médico", so a médico-first
+// test would misfile the whole nursing/technical team as medical. TENS = técnico en enfermería.
+const NURSING_ROLE = /param[eé]dic|enfermer|\btens\b|t[eé]cnic[oa].*enfermer|auxiliar.*enfermer/i;
+// Physicians: "médico" (any form) OR a surgical/clinical specialty that may omit the word "médico"
+// (e.g. "Cirujano", "Traumatólogo"). Extend the list as new role labels show up in Ficha Médico.
+const MEDICAL_ROLE =
+  /m[eé]dic|cirujan|internist|pediatr|traumat[oó]log|psiquiatr|ginec[oó]|obstetr|anestesi|broncopulmon|cardi[oó]log|neur[oó]log|nefr[oó]log|gastroenter|dermat[oó]log|oftalm[oó]log|otorrino|geriatr|infect[oó]log|reumat[oó]log|hemat[oó]log|onc[oó]log|ur[oó]log|radi[oó]log|intensivist|urgenci[oó]log|becad[oa]|residente/i;
+
 const classifyProfession = (role: string): EvolutionProfession => {
-  if (/m[eé]dic/i.test(role)) return 'medical';
-  if (/enfermer/i.test(role)) return 'nursing';
+  if (NURSING_ROLE.test(role)) return 'nursing';
+  if (MEDICAL_ROLE.test(role)) return 'medical';
   return 'other';
 };
 

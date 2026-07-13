@@ -23,6 +23,7 @@ import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
+import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
 /** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
@@ -80,8 +81,13 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
+  // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
+  // has a home, even before RUT/edad/FI are filled in.
+  const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
   const showIdentityDetails =
-    !isEmpty && (hasRutValue || !!data.age || !!admissionShort || !!specialtyLabel);
+    !isEmpty &&
+    (hasRutValue || !!data.age || !!admissionShort || !!specialtyLabel || isRealPatient);
+  const handleSpecialtyAssign = onNameChange('specialty');
 
   useEffect(() => {
     if (copyFeedback !== 'copied') {
@@ -264,15 +270,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 {admissionShort}
               </span>
             )}
-            {specialtyLabel && (
-              <span
-                className="flex min-w-0 items-center gap-1"
-                title={`Especialidad: ${specialtyLabel}`}
-              >
+            {!isSubRow && (
+              <span className="flex min-w-0 items-center gap-1">
                 {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
-                <span className="truncate rounded bg-slate-100 px-1 py-px text-[9px] font-medium text-slate-600 ring-1 ring-slate-200/70">
-                  {specialtyLabel}
-                </span>
+                <SpecialtyChip
+                  specialty={specialtyLabel}
+                  readOnly={readOnly}
+                  onAssign={handleSpecialtyAssign}
+                />
               </span>
             )}
           </div>

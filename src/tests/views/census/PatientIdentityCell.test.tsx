@@ -73,16 +73,23 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByText('FI:')).toBeInTheDocument();
   });
 
-  it('renders no specialty chip when the patient has no specialty set', () => {
+  it('shows a "Pendiente asignar" chip when the patient has no specialty, and assigns on click', () => {
+    const assign = vi.fn();
+    const onNameChange: DebouncedTextHandler = field => (field === 'specialty' ? assign : vi.fn());
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',
       rut: '12.345.678-5',
       specialty: '',
     });
 
-    renderCell({ data });
+    renderCell({ data, onNameChange });
 
-    expect(screen.queryByTitle(/^Especialidad:/)).not.toBeInTheDocument();
+    const trigger = screen.getByTitle('Asignar especialidad');
+    expect(trigger).toHaveTextContent('Pendiente asignar');
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'Cirugía' }));
+    expect(assign).toHaveBeenCalledWith('Cirugía');
   });
 
   it('keeps unit-suffixed ages as-is in the inline badge', () => {

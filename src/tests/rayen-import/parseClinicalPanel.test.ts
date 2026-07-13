@@ -64,6 +64,25 @@ describe('parseClinicalPanel — evoluciones', () => {
     expect(other).toMatchObject({ author: 'Pedro Rojas', role: 'Kinesiólogo' });
   });
 
+  it('classifies tricky roles: Cirujano → médica, Paramédico/TENS → enfermería, Matrona → otros', () => {
+    const roleOf = (HCPR_NAME: string) =>
+      parseClinicalPanel([
+        event({ evolutionResume: [{ id: HCPR_NAME, OBE_NOTES: 'x', HCPR_NAME }] }),
+      ]).evolutions[0].profession;
+
+    expect(roleOf('Cirujano')).toBe('medical');
+    expect(roleOf('Médico Cirujano')).toBe('medical');
+    expect(roleOf('Traumatólogo')).toBe('medical');
+    // "paramédico" contains "médico" — must NOT leak into medical.
+    expect(roleOf('Paramédico')).toBe('nursing');
+    expect(roleOf('Técnico Paramédico')).toBe('nursing');
+    expect(roleOf('TENS')).toBe('nursing');
+    expect(roleOf('Enfermera(o)')).toBe('nursing');
+    expect(roleOf('Matrona')).toBe('other');
+    expect(roleOf('Kinesiólogo')).toBe('other');
+    expect(roleOf('Nutricionista')).toBe('other');
+  });
+
   it('flags archived/crossed-out and accepts 1/"S" style truthy values', () => {
     const panel = parseClinicalPanel([
       event({

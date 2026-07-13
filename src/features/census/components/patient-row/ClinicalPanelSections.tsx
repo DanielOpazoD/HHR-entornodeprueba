@@ -8,7 +8,18 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { ChevronRight } from 'lucide-react';
-import type { ClinicalPanelEntry, ClinicalPanelIndicationDay } from '@/features/rayen-import';
+import type {
+  ClinicalPanelEntry,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from '@/features/rayen-import';
+
+/** Role-chip color per profession bucket, so the author's discipline reads at a glance. */
+const PROFESSION_CHIP: Record<EvolutionProfession, string> = {
+  medical: 'bg-sky-50 text-sky-700 ring-sky-200',
+  nursing: 'bg-rose-50 text-rose-700 ring-rose-200',
+  other: 'bg-violet-50 text-violet-700 ring-violet-200',
+};
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -40,7 +51,14 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }
           {entry.author || entry.role || 'Sin autor'}
         </span>
         {entry.author && entry.role && (
-          <span className="text-[10px] text-slate-400">{entry.role}</span>
+          <span
+            className={clsx(
+              'rounded px-1 py-px text-[9px] font-medium ring-1',
+              PROFESSION_CHIP[entry.profession ?? 'other']
+            )}
+          >
+            {entry.role}
+          </span>
         )}
         {entry.kind === 'shift-change' && (
           <span className="rounded border border-pink-300 bg-pink-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-pink-700">

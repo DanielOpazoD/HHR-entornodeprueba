@@ -24,6 +24,12 @@ export interface PatientVitalSigns {
   respiratoryRate: number | null;
   /** Pain, visual analog scale (0–10). */
   painEva: number | null;
+  /** Capillary blood glucose / hemoglucotest (mg/dL). */
+  hgt: number | null;
+  /** Rapid insulin administered with the reading (units). */
+  insulinUnits: number | null;
+  /** Abdominal quadrant where the insulin was injected (e.g. "CSI"), '' when not recorded. */
+  insulinQuadrant: string | null;
   /** Free-text observations recorded with the vitals (e.g. "PAM 94, diuresis +"). */
   observations: string | null;
   /** Who recorded them (may be empty). */
