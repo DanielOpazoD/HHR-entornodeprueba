@@ -22,6 +22,7 @@ import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { resolveNameInputState } from './nameInputController';
+import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
 /** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
@@ -181,6 +182,13 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             </div>
           )}
           {canEditInlineName && ageBadge}
+          {!isSubRow && !isEmpty && (
+            <ClinicalPanelTrigger
+              bedId={data.bedId}
+              patientName={fullName}
+              clinicalEpisodeId={data.clinicalEpisodeId}
+            />
+          )}
           {data.isIsolated && (
             <span
               className="shrink-0 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase leading-none text-amber-700 ring-1 ring-amber-300"
