@@ -35,11 +35,13 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
       <span className="relative group/badge inline-flex">
         <MedicalBadge
           variant="blue"
-          className="whitespace-nowrap flex items-center gap-0.5 px-0.5 bg-sky-100 border-sky-200 text-black print:bg-transparent print:text-black"
+          className="whitespace-nowrap flex items-center gap-0.5 px-1 bg-slate-50 border-slate-200 text-slate-600 print:bg-transparent print:text-black"
           pill={false}
         >
           {badgeText}
-          {days !== null && <span className="text-[9px] opacity-70 ml-0.5">({days}d)</span>}
+          {days !== null && (
+            <span className="text-[9px] tabular-nums text-slate-400 ml-0.5">{days}d</span>
+          )}
         </MedicalBadge>
 
         {/* Tooltip */}
