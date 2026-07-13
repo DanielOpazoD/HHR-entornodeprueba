@@ -6,6 +6,7 @@ import { DeviceHistoryModal } from './DeviceHistoryModal';
 import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
 import { useRayenFillStatus } from '@/features/rayen-import';
 import { PatientEmptyCell } from './PatientEmptyCell';
+import { CellSyncIndicator } from './CellSyncIndicator';
 
 interface DevicesCellProps extends BaseCellProps, DeviceHandlers {
   currentDateString: string;
@@ -50,17 +51,7 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 w-32 relative group">
-      {isFilling && devices.length === 0 && (
-        <span
-          className="pointer-events-none absolute right-1 top-1 flex gap-0.5 animate-pulse"
-          title="Sincronizando dispositivos desde Rayen…"
-          aria-label="Cargando dispositivos"
-        >
-          <span className="h-1 w-1 rounded-full bg-teal-400" />
-          <span className="h-1 w-1 rounded-full bg-teal-400" />
-          <span className="h-1 w-1 rounded-full bg-teal-400" />
-        </span>
-      )}
+      {isFilling && <CellSyncIndicator />}
       <DeviceSelector
         devices={devices}
         deviceDetails={deviceDetails}

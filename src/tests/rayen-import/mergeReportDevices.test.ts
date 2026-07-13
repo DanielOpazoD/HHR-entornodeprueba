@@ -70,4 +70,37 @@ describe('mergeReportDevices', () => {
     const before = patient();
     expect(mergeReportDevices(before, [], ctx)).toBe(before);
   });
+
+  it('keeps an HHR-managed device that Eloísa does NOT report (e.g. a manual CVC)', () => {
+    // Nurse configured a CVC in HHR; it's absent from Eloísa's report, which only carries a CUP.
+    const cvcInstance: DeviceInstance = {
+      id: 'cvc-1',
+      type: 'CVC',
+      status: 'Active',
+      installationDate: '2026-07-01',
+      installationTime: '09:00',
+      location: 'Yugular derecha',
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const before = patient({
+      devices: ['CVC'],
+      deviceDetails: { CVC: { installationDate: '2026-07-01' } },
+      deviceInstanceHistory: [cvcInstance],
+    });
+    const result = mergeReportDevices(before, [cup], ctx);
+    // The manual CVC survives; the Eloísa CUP is added alongside it.
+    expect(result.devices).toEqual(['CVC', 'CUP']);
+    expect(result.deviceDetails?.CVC).toMatchObject({ installationDate: '2026-07-01' });
+    expect(result.deviceInstanceHistory?.find(d => d.type === 'CVC')).toMatchObject({
+      id: 'cvc-1',
+    });
+    expect(result.deviceInstanceHistory?.some(d => d.type === 'CUP')).toBe(true);
+  });
+
+  it('never drops HHR-managed devices even when Eloísa reports an empty device list', () => {
+    const before = patient({ devices: ['CVC', 'SNG'] });
+    // Empty Eloísa report → no-op, so nothing the nurse manages is touched.
+    expect(mergeReportDevices(before, [], ctx)).toBe(before);
+  });
 });

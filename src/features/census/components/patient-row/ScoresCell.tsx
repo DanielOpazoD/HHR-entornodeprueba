@@ -13,6 +13,7 @@ import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ScoresDetailModal } from './ScoresDetailModal';
 import { ScaleChip } from './ScaleChip';
+import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { useRayenFillStatus } from '@/features/rayen-import';
 
@@ -37,6 +38,8 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
+      {/* Show the syncing indicator on top of existing data too, so a re-sync gives feedback. */}
+      {isFilling && model.hasAny && <CellSyncIndicator />}
       {model.hasAny ? (
         <button
           type="button"
