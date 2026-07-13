@@ -17,8 +17,15 @@ import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
+import { continentalReportToRapaNui } from '../mapping/reportEgresoDateTime';
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+
+/** Island (Rapa Nui) egreso day + time from the report's continental stamp; empty fields if unparseable. */
+const correctedStamp = (fechaEgreso: string): { correctedDay?: string; correctedTime?: string } => {
+  const stamp = continentalReportToRapaNui(fechaEgreso);
+  return { correctedDay: stamp?.iso, correctedTime: stamp?.hhmm };
+};
 
 /**
  * Every RUN HHR already knows for the day: occupied beds, patients already discharged/moved out
@@ -69,6 +76,7 @@ export const applyEgresoReport = (
       kind: mapped.kind,
       status: mapped.status,
       reason: 'rayen-discharge' as const,
+      ...correctedStamp(row.fechaEgreso),
     };
   });
 
@@ -93,6 +101,7 @@ export const applyEgresoReport = (
         edad: row.edad,
         servicio: row.servicio,
         diagnostico: row.diagnostico,
+        ...correctedStamp(row.fechaEgreso),
       };
     });
 
