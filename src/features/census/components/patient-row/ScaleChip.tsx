@@ -92,14 +92,27 @@ const extractTime = (raw?: string): string | null => {
   return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
 };
 
-/** The hover "sticky note": amber paper, slight tilt, portal-fixed above the chip. */
+/**
+ * The hover "sticky note": amber paper, slight tilt, portal-fixed near the chip. Clamped to the
+ * viewport — horizontally so it never spills past the table edges, and it flips BELOW the chip when
+ * there isn't room above (top census rows), so it can't get clipped by the header.
+ */
+const HALF_WIDTH = 110; // max-width 220 / 2, for the horizontal clamp
 const StickyNote: React.FC<{ note: StickyNoteData; anchor: DOMRect }> = ({ note, anchor }) => {
   const time = extractTime(note.recordedAt);
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const left = Math.min(
+    Math.max(anchor.left + anchor.width / 2, HALF_WIDTH + 8),
+    viewportWidth - HALF_WIDTH - 8
+  );
+  // Not enough room above → flip below the chip (the note then hangs down, tape still on top).
+  const flipBelow = anchor.top < 150;
+  const top = flipBelow ? anchor.bottom + 6 : anchor.top - 6;
   return createPortal(
     <div
       role="tooltip"
-      className="pointer-events-none fixed z-[9999] -translate-x-1/2 -translate-y-full"
-      style={{ left: anchor.left + anchor.width / 2, top: anchor.top - 6 }}
+      className="pointer-events-none fixed z-[9999]"
+      style={{ left, top, transform: `translateX(-50%)${flipBelow ? '' : ' translateY(-100%)'}` }}
     >
       <div className="relative w-max max-w-[220px] -rotate-1 rounded-sm bg-amber-100 px-3 pb-2 pt-3 text-left shadow-lg ring-1 ring-amber-200/80">
         {/* the "tape" holding the note */}
