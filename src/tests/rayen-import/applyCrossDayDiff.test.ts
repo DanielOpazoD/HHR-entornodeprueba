@@ -63,6 +63,28 @@ describe('applyCrossDayDiff', () => {
     expect(result.record.beds).toEqual({});
   });
 
+  it('skips a patient already recorded as discharged that day, even with a DIFFERENT id (dedup by RUT)', () => {
+    // A discharge the nurse (or another path) already filed has a different id than our deterministic
+    // one, so id-only dedup would append a SECOND egreso for the same patient.
+    const alreadyDischarged = {
+      id: 'manual-abc',
+      rut: '19.338.541-9',
+      patientName: 'Haggen Estefanis Roe',
+      movementDate: '2026-07-11',
+      time: '18:00',
+      dischargeType: 'Domicilio (Habitual)',
+      status: 'Vivo',
+      bedId: 'NEO1',
+    } as unknown as DailyRecord['discharges'][number];
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11', { discharges: [alreadyDischarged] }),
+      [{ entry: entry(), patient: haggen() }],
+      ctx
+    );
+    expect(result.applied).toBe(0);
+    expect(result.record.discharges).toHaveLength(1); // not doubled
+  });
+
   it('is idempotent — re-applying the same egreso does not duplicate (same deterministic id)', () => {
     const first = applyCrossDayDiff(
       makeRecord('2026-07-11'),

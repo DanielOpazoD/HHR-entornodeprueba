@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { Check, SquarePen, X } from 'lucide-react';
-import { SPECIALTY_OPTIONS, STATUS_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
+import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import type {
   PatientData,
   PatientRowPatientPatch,
 } from '@/features/census/components/patient-row/patientRowContracts';
 import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
 
+// The clinical status was decoupled from this editor (rediseño 2026): it now lives in its own
+// column as a colored dot (StatusSelect). This editor only edits diagnosis + specialty.
 interface ClinicalInitialBlockDraft {
   pathology: string;
   specialtySelection: string;
   specialtyOther: string;
-  status: string;
 }
 
 interface ClinicalInitialBlockEditorProps {
@@ -38,7 +39,6 @@ const buildClinicalInitialBlockDraft = (data: PatientData): ClinicalInitialBlock
     pathology: data.pathology || '',
     specialtySelection: isKnownSpecialty ? specialty : 'Otro',
     specialtyOther: isKnownSpecialty ? '' : specialty,
-    status: data.status || '',
   };
 };
 
@@ -49,7 +49,6 @@ const buildClinicalInitialBlockPatch = (
   specialty: (draft.specialtySelection === 'Otro'
     ? draft.specialtyOther.trim() || 'Otro'
     : draft.specialtySelection) as PatientData['specialty'],
-  status: draft.status as PatientData['status'],
 });
 
 export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProps> = ({
@@ -88,7 +87,6 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
           : draft.specialtySelection;
       onChange('pathology')(draft.pathology);
       onChange('specialty')(fallbackSpecialty);
-      onChange('status')(draft.status);
     }
     setIsOpen(false);
   };
@@ -124,6 +122,18 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
         <div
           className="absolute right-0 top-8 z-[1000] w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
           data-testid={`clinical-block-editor-${data.bedId}`}
+          onKeyDown={event => {
+            // ESC cierra; Enter guarda SOLO desde un input de texto — así Enter sobre Cancelar/Cerrar
+            // o el select de especialidad activa su propia acción (y el textarea conserva saltos de línea).
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              closeEditor();
+            } else if (event.key === 'Enter' && (event.target as HTMLElement).tagName === 'INPUT') {
+              event.preventDefault();
+              event.stopPropagation();
+              saveDraft();
+            }
+          }}
         >
           <button
             type="button"
@@ -152,55 +162,32 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-slate-600">
-                  Especialidad
-                </span>
-                <select
-                  id={`clinical-block-specialty-${data.bedId}`}
-                  name={`clinical-block-specialty-${data.bedId}`}
-                  data-testid={`clinical-block-specialty-${data.bedId}`}
-                  className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                  value={draft.specialtySelection}
-                  onChange={event =>
-                    setDraft(current => ({
-                      ...current,
-                      specialtySelection: event.target.value,
-                      specialtyOther: event.target.value === 'Otro' ? current.specialtyOther : '',
-                    }))
-                  }
-                >
-                  <option value="">-- Esp --</option>
-                  {SPECIALTY_OPTIONS.map(option => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-slate-600">Estado</span>
-                <select
-                  id={`clinical-block-status-${data.bedId}`}
-                  name={`clinical-block-status-${data.bedId}`}
-                  data-testid={`clinical-block-status-${data.bedId}`}
-                  className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                  value={draft.status}
-                  onChange={event =>
-                    setDraft(current => ({ ...current, status: event.target.value }))
-                  }
-                >
-                  <option value="">-- Est --</option>
-                  {STATUS_OPTIONS.map(option => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-semibold text-slate-600">
+                Especialidad
+              </span>
+              <select
+                id={`clinical-block-specialty-${data.bedId}`}
+                name={`clinical-block-specialty-${data.bedId}`}
+                data-testid={`clinical-block-specialty-${data.bedId}`}
+                className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
+                value={draft.specialtySelection}
+                onChange={event =>
+                  setDraft(current => ({
+                    ...current,
+                    specialtySelection: event.target.value,
+                    specialtyOther: event.target.value === 'Otro' ? current.specialtyOther : '',
+                  }))
+                }
+              >
+                <option value="">-- Esp --</option>
+                {SPECIALTY_OPTIONS.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             {draft.specialtySelection === 'Otro' && (
               <label className="block">

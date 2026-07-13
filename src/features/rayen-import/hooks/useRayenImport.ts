@@ -16,12 +16,14 @@ import {
 } from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
 import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
+import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import { runClinicalFill } from '../clinicalFillRunner';
 import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
@@ -43,34 +45,6 @@ const makeId = (): string => crypto.randomUUID();
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
-
-/** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
-const toIsoReportDate = (record: DailyRecord): string => {
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  // Format in LOCAL time: toISOString() shifts to UTC, which in Rapa Nui (UTC-6/-5) would ask
-  // the report for the wrong day from ~18:00 local onward.
-  const fromDate = (d: Date): string =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  // Canonical source: the record's OWN day (its local-midnight timestamp), never "today". This
-  // is what makes a late sync of a PAST census still ask the report for that census day.
-  if (typeof record.dateTimestamp === 'number' && !Number.isNaN(record.dateTimestamp)) {
-    return fromDate(new Date(record.dateTimestamp));
-  }
-  const raw = (record.date ?? '').trim();
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-  if (dmy) return `${dmy[3]}-${pad(Number(dmy[2]))}-${pad(Number(dmy[1]))}`;
-  return fromDate(new Date());
-};
-
-/** The ISO day after `iso` (YYYY-MM-DD), computed in UTC to avoid host-tz drift. */
-const nextIsoDay = (iso: string): string => {
-  const [y, m, d] = iso.split('-').map(Number);
-  const next = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + 1));
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
-};
 
 interface RayenImportState {
   diff: CensusImportDiff | null;
@@ -128,17 +102,24 @@ export const useRayenImport = () => {
   // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
 
+  // Who + when for the "última sincronización con Eloísa" line next to the button.
+  const makeSyncMeta = useCallback(
+    () => ({
+      at: new Date().toISOString(),
+      by: currentUser?.displayName || currentUser?.email || 'Usuario sin nombre',
+    }),
+    [currentUser]
+  );
+
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const result = applyCensusImportDiff(record, diff, { idFactory: makeId });
-      // Stamp who ran this sync and when (single choke point: confirm AND auto-apply both land
-      // here). Displayed next to the "Sincronizar Eloísa" button; formatted in island time there.
-      const by = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
-      const stamped = { ...result.record, rayenSync: { at: new Date().toISOString(), by } };
+      // Stamp who ran this sync and when (single choke point: confirm AND auto-apply both land here).
+      const stamped = { ...result.record, rayenSync: makeSyncMeta() };
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
     },
-    [saveDailyRecord, currentUser]
+    [saveDailyRecord, makeSyncMeta]
   );
 
   // Background clinical fill (devices + scales + CUDYR), delegated to `runClinicalFill` — an
@@ -283,6 +264,11 @@ export const useRayenImport = () => {
       // With census changes to confirm, syncing "pauses" for human review; with none, the fill runs
       // now and keeps the indicator on until it settles.
       if (!hasApplicableChanges) {
+        // Sin diff que aplicar: sella la sincronización (who+when) por patch; un fallo aquí solo
+        // pierde ese sello (no datos clínicos), así que se loguea sin bloquear al usuario.
+        void patchDailyRecord({ rayenSync: makeSyncMeta() } as unknown as DailyRecordPatch).catch(
+          err => console.warn('[rayen-import] sello de sincronización no registrado:', err)
+        );
         void fillDevicesInBackground(currentRecord);
       }
 
@@ -306,6 +292,8 @@ export const useRayenImport = () => {
       clearSyncTimeout,
       dailyRecord,
       isAdmin,
+      patchDailyRecord,
+      makeSyncMeta,
     ]
   );
 
@@ -332,44 +320,60 @@ export const useRayenImport = () => {
     }, 18000);
   }, [clearSyncTimeout]);
 
-  const confirm = useCallback(async () => {
-    if (!currentRecord || !state.diff) return;
-    const diff = state.diff;
-    setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
-    try {
-      // File the corrected-earlier egresos on their REAL day FIRST. This write is idempotent
-      // (deterministic ids merge on re-sync) and reads `currentRecord.beds`, which applyDiff below is
-      // about to vacate. Filing first means a transient failure here leaves today untouched, so the
-      // whole confirm() is safely retriable — the reverse order would strand the historical discharge
-      // permanently once today's bed is gone (the retry can no longer see the patient).
-      await fileCrossDayCorrections(
-        dailyRecord,
-        currentRecord,
-        diff,
-        toIsoReportDate(currentRecord),
-        isAdmin,
-        makeId
-      );
-      let result: ApplyResult;
+  // `applyPreviousDays` (default true) gates ONLY the cross-day corrections. Today's census changes
+  // (admissions, moves, discharges) ALWAYS apply — the previous-day acknowledgment must never block
+  // them (a bed move shouldn't wait on accepting an unrelated past-day egreso).
+  const confirm = useCallback(
+    async (applyPreviousDays: boolean = true) => {
+      // ALWAYS apply against the freshest record (the ref), not the closure: a bed move the user just
+      // did in HHR may not be in the closure's `currentRecord` yet, which would make the move's source
+      // bed look empty and silently skip the move. The ref reflects the latest saved record.
+      const base = currentRecordRef.current ?? currentRecord;
+      if (!base || !state.diff) return;
+      const diff = state.diff;
+      setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
       try {
-        result = await applyDiff(currentRecord, diff);
+        // File the corrected-earlier egresos on their REAL day FIRST (only when accepted). This write
+        // is idempotent (deterministic ids merge on re-sync) and reads `base.beds`, which applyDiff
+        // below is about to vacate. Filing first means a transient failure here leaves today untouched,
+        // so the whole confirm() is safely retriable.
+        if (applyPreviousDays) {
+          await fileCrossDayCorrections(
+            dailyRecord,
+            base,
+            diff,
+            toIsoReportDate(base),
+            isAdmin,
+            makeId
+          );
+        }
+        let result: ApplyResult;
+        try {
+          result = await applyDiff(base, diff);
+        } catch (error) {
+          // Freshness guard: the record changed under us (another tab, the background fill of a
+          // previous run…). The guard already refreshed the cache — retry ONCE against the fresh
+          // record instead of bouncing the error back to the user.
+          if (!/actualizó hace un momento/i.test(errorMessage(error))) throw error;
+          await new Promise(resolve => setTimeout(resolve, 900));
+          const fresh = currentRecordRef.current;
+          if (!fresh) throw error;
+          result = await applyDiff(fresh, diff);
+        }
+        setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
+        // Keeps `isSyncing` on until the background fill settles it.
+        void fillDevicesInBackground(result.record);
       } catch (error) {
-        // Freshness guard: the record changed under us (another tab, the background fill of a
-        // previous run…). The guard already refreshed the cache — retry ONCE against the fresh
-        // record instead of bouncing the error back to the user.
-        if (!/actualizó hace un momento/i.test(errorMessage(error))) throw error;
-        await new Promise(resolve => setTimeout(resolve, 900));
-        const fresh = currentRecordRef.current;
-        if (!fresh) throw error;
-        result = await applyDiff(fresh, diff);
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          error: errorMessage(error),
+        }));
       }
-      setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
-      // Keeps `isSyncing` on until the background fill settles it.
-      void fillDevicesInBackground(result.record);
-    } catch (error) {
-      setState(prev => ({ ...prev, isBusy: false, isSyncing: false, error: errorMessage(error) }));
-    }
-  }, [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin]);
+    },
+    [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin]
+  );
 
   const cancel = useCallback(() => {
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));

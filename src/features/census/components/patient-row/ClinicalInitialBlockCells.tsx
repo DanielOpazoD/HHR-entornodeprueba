@@ -1,9 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ChevronDown, Settings2, X } from 'lucide-react';
-import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { Settings2, X } from 'lucide-react';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type {
   DebouncedTextHandler,
@@ -26,7 +24,6 @@ import { DeliveryRoutePopover } from './DeliveryRoutePopover';
 interface ClinicalInitialBlockCellsProps {
   data: PatientData;
   readOnly?: boolean;
-  accessProfile?: CensusAccessProfile;
   onChange: DebouncedTextHandler;
   onMultipleUpdate?: PatientInputChangeHandlers['multiple'];
   onDeliveryRouteChange?: PatientInputChangeHandlers['deliveryRoute'];
@@ -86,20 +83,6 @@ const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonPro
     onMultipleUpdate={onMultipleUpdate}
   />
 );
-
-const getClinicalStatusButtonClassName = (status?: string): string =>
-  clsx(
-    'inline-flex h-7 w-full cursor-pointer items-center justify-between gap-0.5 rounded-md border px-1.5 text-left text-[10px] font-bold uppercase tracking-tight shadow-sm transition-all duration-200',
-    'hover:border-medical-300 focus:outline-none focus:ring-2',
-    'disabled:cursor-default disabled:bg-slate-50 disabled:text-slate-500 disabled:hover:border-slate-200',
-    status === 'Grave'
-      ? 'text-red-700 bg-red-50 border-red-200/80 focus:ring-medical-500/20 focus:border-medical-500'
-      : status === 'De cuidado'
-        ? 'text-amber-700 bg-amber-50 border-amber-200/80 focus:ring-medical-500/20 focus:border-medical-500'
-        : status
-          ? 'text-emerald-700 bg-emerald-50/60 border-emerald-200/80 font-semibold focus:ring-medical-500/20 focus:border-medical-500'
-          : 'border-slate-200 text-slate-400 focus:ring-medical-500/20 focus:border-medical-500'
-  );
 
 interface GinecobstetriciaSubtypeControlProps {
   data: PatientData;
@@ -234,82 +217,51 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
 export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps> = ({
   data,
   readOnly = false,
-  accessProfile = 'default',
   onChange,
   onMultipleUpdate,
   onDeliveryRouteChange,
 }) => {
-  const showStatus = !isSpecialistCensusAccessProfile(accessProfile);
   const isGinecobstetricia = isGinecobstetriciaSpecialty(data.specialty);
   const canShowDeliveryRoute =
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
 
+  // Rediseño 2026: la Especialidad ya no es una columna — se muestra como texto junto a la fecha de
+  // ingreso (PatientIdentityCell) y se sigue editando desde este editor de Diagnóstico. Los controles
+  // obstétricos (subtipo Gineco + vía del parto) se mudan aquí, a la celda de Diagnóstico.
   return (
-    <>
-      <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px] relative">
-        <ClinicalInitialBlockCellButton
+    <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px] relative">
+      <ClinicalInitialBlockCellButton
+        data={data}
+        label="diagnóstico"
+        value={data.pathology || ''}
+        placeholder="Diagnóstico"
+        contentClassName={clsx(
+          data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
+          isGinecobstetricia && 'pr-8',
+          canShowDeliveryRoute && 'pr-14'
+        )}
+        readOnly={readOnly}
+        onChange={onChange}
+        onMultipleUpdate={onMultipleUpdate}
+      />
+      {isGinecobstetricia && (
+        <GinecobstetriciaSubtypeControl
           data={data}
-          label="diagnóstico"
-          value={data.pathology || ''}
-          placeholder="Diagnóstico"
-          contentClassName={clsx(
-            data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
-            canShowDeliveryRoute && 'pr-6'
-          )}
-          readOnly={readOnly}
-          onChange={onChange}
+          disabled={readOnly}
           onMultipleUpdate={onMultipleUpdate}
         />
-        {canShowDeliveryRoute && onDeliveryRouteChange && (
-          <div className="absolute right-2 top-1/2 z-10 -translate-y-1/2">
-            <DeliveryRoutePopover
-              deliveryRoute={data.deliveryRoute}
-              deliveryDate={data.deliveryDate}
-              deliveryCesareanLabor={data.deliveryCesareanLabor}
-              onSave={onDeliveryRouteChange}
-              disabled={readOnly}
-            />
-          </div>
-        )}
-      </td>
-      <td className="py-0.5 px-1 border-r border-slate-200 w-28 relative">
-        <ClinicalInitialBlockCellButton
-          data={data}
-          label="especialidad"
-          value={data.specialty || ''}
-          placeholder="-- Esp --"
-          contentClassName={clsx(
-            data.specialty ? 'text-slate-800' : 'text-slate-400 italic',
-            isGinecobstetricia && 'pr-7'
-          )}
-          readOnly={readOnly}
-          onChange={onChange}
-          onMultipleUpdate={onMultipleUpdate}
-        />
-        {isGinecobstetricia && (
-          <GinecobstetriciaSubtypeControl
-            data={data}
-            disabled={readOnly}
-            onMultipleUpdate={onMultipleUpdate}
-          />
-        )}
-      </td>
-      {showStatus && (
-        <td className="py-0.5 px-1 border-r border-slate-200 w-28 relative">
-          <ClinicalInitialBlockCellButton
-            data={data}
-            label="estado clínico"
-            value={data.status || ''}
-            placeholder="-- Est --"
-            contentClassName={data.status ? 'min-w-0 flex-1 text-current' : 'text-slate-400 italic'}
-            contentSuffix={<ChevronDown size={12} className="shrink-0 text-current" />}
-            triggerClassName={getClinicalStatusButtonClassName(data.status)}
-            readOnly={readOnly}
-            onChange={onChange}
-            onMultipleUpdate={onMultipleUpdate}
-          />
-        </td>
       )}
-    </>
+      {canShowDeliveryRoute && onDeliveryRouteChange && (
+        <div className="absolute right-9 top-1/2 z-10 -translate-y-1/2">
+          <DeliveryRoutePopover
+            deliveryRoute={data.deliveryRoute}
+            deliveryDate={data.deliveryDate}
+            deliveryCesareanLabor={data.deliveryCesareanLabor}
+            onSave={onDeliveryRouteChange}
+            disabled={readOnly}
+          />
+        </div>
+      )}
+    </td>
   );
 };

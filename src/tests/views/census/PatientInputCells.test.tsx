@@ -96,7 +96,7 @@ describe('PatientInputCells', () => {
     expect(screen.queryByDisplayValue(/DE|ES|CU/)).not.toBeInTheDocument();
   });
 
-  it('uses the clinical block panel as the primary editor for diagnosis specialty and status', () => {
+  it('uses the clinical block panel as the primary editor for diagnosis and specialty (status decoupled)', () => {
     vi.mocked(useDailyRecordStability).mockReturnValue({
       canEditField: () => true,
     } as unknown as ReturnType<typeof useDailyRecordStability>);
@@ -151,20 +151,18 @@ describe('PatientInputCells', () => {
     fireEvent.change(screen.getByLabelText('Especialidad'), {
       target: { value: Specialty.CIRUGIA },
     });
-    fireEvent.change(screen.getByLabelText('Estado'), {
-      target: { value: PatientStatus.GRAVE },
-    });
+    // The editor no longer has an "Estado" field — status lives in its own dot column.
+    expect(screen.queryByLabelText('Estado')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Guardar'));
 
     expect(onChange.multiple).toHaveBeenCalledWith({
       pathology: 'Neumonia',
       specialty: Specialty.CIRUGIA,
-      status: PatientStatus.GRAVE,
     });
     expect(screen.queryByText(/Actualizado recién/i)).not.toBeInTheDocument();
   });
 
-  it('preserves colored clinical status labels in the primary clinical block cell', () => {
+  it('shows the clinical status as a colored dot in its own column (decoupled)', () => {
     vi.mocked(useDailyRecordStability).mockReturnValue({
       canEditField: () => true,
     } as unknown as ReturnType<typeof useDailyRecordStability>);
@@ -200,18 +198,14 @@ describe('PatientInputCells', () => {
       </table>
     );
 
-    expect(screen.getByRole('button', { name: /editar estado clínico/i })).toHaveClass(
-      'text-amber-700',
-      'bg-amber-50',
-      'border-amber-200/80',
-      'rounded-md',
-      'shadow-sm',
-      'uppercase'
-    );
-    expect(screen.getByText(PatientStatus.DE_CUIDADO)).toHaveClass('flex-1', 'text-current');
+    // The status is now a colored circle (amber for "De cuidado"), not a text label in the editor.
+    const statusButton = screen.getByRole('button', { name: /estado: de cuidado/i });
+    expect(statusButton.querySelector('.bg-amber-400')).toBeInTheDocument();
+    expect(statusButton.closest('td')).toHaveClass('w-7');
+    // And it is no longer part of the diagnosis/specialty editor.
     expect(
-      screen.getByRole('button', { name: /editar estado clínico/i }).closest('td')
-    ).toHaveClass('w-28');
+      screen.queryByRole('button', { name: /editar estado clínico/i })
+    ).not.toBeInTheDocument();
   });
 
   it('saves the initial clinical block for a newly created patient in one patch', () => {
@@ -261,20 +255,15 @@ describe('PatientInputCells', () => {
     fireEvent.change(screen.getByLabelText('Especialidad'), {
       target: { value: Specialty.MEDICINA },
     });
-    fireEvent.change(screen.getByLabelText('Estado'), {
-      target: { value: PatientStatus.DE_CUIDADO },
-    });
     fireEvent.click(screen.getByText('Guardar'));
 
     expect(onChange.multiple).toHaveBeenCalledTimes(1);
     expect(onChange.multiple).toHaveBeenCalledWith({
       pathology: 'Infeccion urinaria',
       specialty: Specialty.MEDICINA,
-      status: PatientStatus.DE_CUIDADO,
     });
     expect(onChange.text).not.toHaveBeenCalledWith('pathology');
     expect(onChange.text).not.toHaveBeenCalledWith('specialty');
-    expect(onChange.text).not.toHaveBeenCalledWith('status');
   });
 
   it('shows a specialty description input when Otro is selected in the clinical block panel', () => {
@@ -315,7 +304,8 @@ describe('PatientInputCells', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /editar especialidad/i }));
+    // La especialidad ya no tiene celda propia: se edita desde el editor de Diagnóstico.
+    fireEvent.click(screen.getByRole('button', { name: /editar diagnóstico/i }));
     fireEvent.change(screen.getByLabelText('Especialidad'), {
       target: { value: Specialty.OTRO },
     });
@@ -329,7 +319,6 @@ describe('PatientInputCells', () => {
     expect(onChange.multiple).toHaveBeenCalledWith({
       pathology: 'Dolor abdominal',
       specialty: 'Unidad dolor',
-      status: PatientStatus.DE_CUIDADO,
     });
   });
 

@@ -76,7 +76,11 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRutValid = isRutMode && hasRutValue && isValidRut(rutValue);
   const isRutInvalid = isRutMode && hasRutValue && !isRutValid;
   const admissionShort = formatAdmissionShort(data.admissionDate);
-  const showIdentityDetails = !isEmpty && (hasRutValue || !!data.age || !!admissionShort);
+  // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
+  // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
+  const specialtyLabel = (data.specialty || '').trim();
+  const showIdentityDetails =
+    !isEmpty && (hasRutValue || !!data.age || !!admissionShort || !!specialtyLabel);
 
   useEffect(() => {
     if (copyFeedback !== 'copied') {
@@ -250,6 +254,17 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                   FI:
                 </span>
                 {admissionShort}
+              </span>
+            )}
+            {specialtyLabel && (
+              <span
+                className="flex min-w-0 items-center gap-1"
+                title={`Especialidad: ${specialtyLabel}`}
+              >
+                {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
+                <span className="truncate rounded bg-slate-100 px-1 py-px text-[9px] font-medium text-slate-600 ring-1 ring-slate-200/70">
+                  {specialtyLabel}
+                </span>
               </span>
             )}
           </div>

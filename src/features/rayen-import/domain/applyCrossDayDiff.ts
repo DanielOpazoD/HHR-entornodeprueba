@@ -62,13 +62,20 @@ export const applyCrossDayDiff = (
   const discharges: DischargeData[] = [...targetRecord.discharges];
   const transfers: TransferData[] = [...targetRecord.transfers];
   const cma: CMAData[] = [...targetRecord.cma];
-  const seen = new Set([...discharges, ...transfers, ...cma].map(movement => movement.id));
+  const existing = [...discharges, ...transfers, ...cma];
+  const seen = new Set(existing.map(movement => movement.id));
+  // Also index by patient RUT: a discharge the nurse (or a prior path) already recorded that day has
+  // a DIFFERENT id than our deterministic one, so id-only dedup would append a SECOND egreso for the
+  // same patient. Skip by RUT too, so a patient already egresado that day is never double-counted.
+  const seenRuts = new Set(existing.map(movement => normalizeRut(movement.rut)).filter(Boolean));
   let applied = 0;
 
   for (const { entry, patient } of entries) {
     const id = crossDayMovementId(entry, day);
-    if (seen.has(id)) continue; // already filed on this day — idempotent
+    const rut = normalizeRut(entry.rut);
+    if (seen.has(id) || (rut && seenRuts.has(rut))) continue; // already recorded (by id or by patient)
     seen.add(id);
+    if (rut) seenRuts.add(rut);
 
     if (entry.kind === 'cma') {
       const record = buildCma(patient, entry, ctx);

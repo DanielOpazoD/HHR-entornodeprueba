@@ -111,6 +111,42 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds.H2C1).toBeUndefined();
   });
 
+  it('applies a chained move (A→B while B→C) without losing either patient', () => {
+    // Carina H6C2→H1C2 and Teresa H1C2→H1C1: H1C2 is both a target and a source. Sources are
+    // captured from the ORIGINAL record before any placement, so the chain resolves cleanly.
+    const [, base] = seedBed(makeEncounter());
+    const teresa = { ...base, patientName: 'Teresa', rut: '1-1', bedId: 'H1C2' };
+    const carina = { ...base, patientName: 'Carina', rut: '2-2', bedId: 'H6C2' };
+    const diff = makeDiff({
+      moves: [
+        {
+          fromBedId: 'H6C2',
+          toBedId: 'H1C2',
+          rut: '2-2',
+          patientName: 'Carina',
+          source: makeEncounter(),
+        },
+        {
+          fromBedId: 'H1C2',
+          toBedId: 'H1C1',
+          rut: '1-1',
+          patientName: 'Teresa',
+          source: makeEncounter(),
+        },
+      ],
+      summary: { ...makeDiff().summary, moves: 2 },
+    });
+    const result = applyCensusImportDiff(
+      makeRecord({ H1C2: teresa, H6C2: carina }),
+      diff,
+      makeCtx()
+    );
+    expect(result.applied.moves).toBe(2);
+    expect(result.record.beds.H1C2?.patientName).toBe('Carina');
+    expect(result.record.beds.H1C1?.patientName).toBe('Teresa');
+    expect(result.record.beds.H6C2).toBeUndefined();
+  });
+
   it('keeps a medically-discharged patient in the bed until nursing discharge', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const result = planAndApply(

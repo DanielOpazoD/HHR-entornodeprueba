@@ -75,7 +75,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   }, [open]);
 
   if (isEmpty && !isSubRow) {
-    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-9" />;
+    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-7" />;
   }
 
   const status = data.status || '';
@@ -91,7 +91,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
 
   return (
     <td
-      className="py-0.5 px-1 border-r border-slate-200 w-9 text-center"
+      className="py-0.5 px-1 border-r border-slate-200 w-7 text-center"
       onMouseDownCapture={freshnessPause.acknowledge}
       onFocusCapture={freshnessPause.acknowledge}
     >
@@ -100,6 +100,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           ref={buttonRef}
           type="button"
           name="status"
+          data-testid="clinical-status"
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={e => {

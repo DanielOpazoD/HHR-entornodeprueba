@@ -198,7 +198,7 @@ describe('PatientRow layout and actions', () => {
     expect(screen.queryByRole('button', { name: /upc/i })).not.toBeInTheDocument();
   });
 
-  it('updates status through the clinical block editor', () => {
+  it('saves diagnosis + specialty through the clinical block editor (status is decoupled)', () => {
     vi.useFakeTimers();
     const { mockContext } = render(
       <table>
@@ -214,17 +214,49 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /editar estado clínico/i }));
-    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: PatientStatus.GRAVE } });
+    fireEvent.click(screen.getByRole('button', { name: /editar diagnóstico/i }));
+    fireEvent.change(screen.getByLabelText('Especialidad'), {
+      target: { value: Specialty.CIRUGIA },
+    });
     fireEvent.click(screen.getByText('Guardar'));
 
     act(() => {
       vi.advanceTimersByTime(450);
     });
 
+    // The editor no longer touches status — only diagnosis + specialty.
     expect(mockContext.updatePatientMultiple).toHaveBeenCalledWith('R1', {
       pathology: 'Neumonía',
-      specialty: Specialty.MEDICINA,
+      specialty: Specialty.CIRUGIA,
+    });
+  });
+
+  it('updates status through its own colored-dot selector, decoupled from the editor', () => {
+    vi.useFakeTimers();
+    const { mockContext } = render(
+      <table>
+        <tbody>
+          <PatientRow
+            data={mockPatient}
+            bed={mockBedDef}
+            currentDateString="2023-01-01"
+            onAction={mockOnAction}
+            bedType={BedType.UTI}
+          />
+        </tbody>
+      </table>
+    );
+
+    // mockPatient.status = Estable → the dot's label is "Estado: Estable".
+    fireEvent.click(screen.getByRole('button', { name: /estado: estable/i }));
+    fireEvent.click(screen.getByText('Grave'));
+
+    // status is a clinical-initial-block field → coalesced (400ms) into a multiple update.
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(mockContext.updatePatientMultiple).toHaveBeenCalledWith('R1', {
       status: PatientStatus.GRAVE,
     });
   });

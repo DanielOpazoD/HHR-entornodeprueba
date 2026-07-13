@@ -1,7 +1,6 @@
 import React from 'react';
 import { PatientIdentityCell } from './PatientIdentityCell';
 import { DiagnosisInput } from './DiagnosisInput';
-import { SpecialtyCell } from './SpecialtyCell';
 import { StatusSelect } from './StatusSelect';
 import { VitalsCell } from './VitalsCell';
 import { DevicesCell } from './DevicesCell';
@@ -70,13 +69,39 @@ export const PatientInputIdentitySection: React.FC<PatientInputIdentitySectionBi
   />
 );
 
+/**
+ * Estado clínico — su propia columna (rediseño 2026), movida a la posición donde estaba "Tipo de
+ * cama" (justo tras la cama). Es un círculo de color (verde/amarillo/rojo) con selector propio,
+ * desacoplado del editor de Diagnóstico/Especialidad. Oculto para el perfil especialista.
+ */
+export const PatientInputStatusSection: React.FC<
+  PatientInputClinicalSectionBindings & { accessProfile?: CensusAccessProfile }
+> = ({ shared, onChange, accessProfile = 'default' }) => {
+  if (isSpecialistCensusAccessProfile(accessProfile)) return null;
+  const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
+  const statusLocked = isRemoteLocked(shared.clinicalFieldLocks?.status);
+  return (
+    <StatusSelect
+      data={shared.data}
+      isSubRow={shared.isSubRow}
+      isEmpty={shared.isEmpty}
+      readOnly={baseClinicalReadOnly}
+      clinicalPause={buildClinicalPause(
+        shared.currentDateString,
+        shared.data.bedId,
+        'status',
+        !baseClinicalReadOnly && statusLocked
+      )}
+      onChange={onChange.text}
+    />
+  );
+};
+
 export const PatientInputClinicalSection: React.FC<
   PatientInputClinicalSectionBindings & { accessProfile?: CensusAccessProfile }
-> = ({ shared, diagnosisMode, handleDebouncedText, onChange, accessProfile = 'default' }) => {
+> = ({ shared, diagnosisMode, handleDebouncedText, onChange }) => {
   const fieldLocks = shared.clinicalFieldLocks;
   const diagnosisLocked = isRemoteLocked(fieldLocks?.diagnosis);
-  const specialtyLocked = isRemoteLocked(fieldLocks?.specialty);
-  const statusLocked = isRemoteLocked(fieldLocks?.status);
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const usesClinicalInitialBlockPanel =
     !shared.isSubRow && !shared.isEmpty && !!shared.data.patientName;
@@ -86,7 +111,6 @@ export const PatientInputClinicalSection: React.FC<
       <ClinicalInitialBlockCells
         data={shared.data}
         readOnly={baseClinicalReadOnly}
-        accessProfile={accessProfile}
         onChange={handleDebouncedText}
         onMultipleUpdate={onChange.multiple}
         onDeliveryRouteChange={onChange.deliveryRoute}
@@ -112,35 +136,8 @@ export const PatientInputClinicalSection: React.FC<
         onMultipleUpdate={onChange.multiple}
         onDeliveryRouteChange={onChange.deliveryRoute}
       />
-      <SpecialtyCell
-        data={shared.data}
-        isSubRow={shared.isSubRow}
-        isEmpty={shared.isEmpty}
-        readOnly={baseClinicalReadOnly}
-        clinicalPause={buildClinicalPause(
-          shared.currentDateString,
-          shared.data.bedId,
-          'specialty',
-          !baseClinicalReadOnly && specialtyLocked
-        )}
-        onChange={onChange.text}
-        onMultipleUpdate={onChange.multiple}
-      />
-      {!isSpecialistCensusAccessProfile(accessProfile) && (
-        <StatusSelect
-          data={shared.data}
-          isSubRow={shared.isSubRow}
-          isEmpty={shared.isEmpty}
-          readOnly={baseClinicalReadOnly}
-          clinicalPause={buildClinicalPause(
-            shared.currentDateString,
-            shared.data.bedId,
-            'status',
-            !baseClinicalReadOnly && statusLocked
-          )}
-          onChange={onChange.text}
-        />
-      )}
+      {/* Especialidad y Estado clínico ya NO van aquí: la especialidad es texto en la celda Paciente
+          (junto a FI) y el estado es su propia columna (círculo, PatientInputStatusSection). */}
     </>
   );
 };

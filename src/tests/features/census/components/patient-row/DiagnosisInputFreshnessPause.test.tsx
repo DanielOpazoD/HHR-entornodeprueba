@@ -48,7 +48,7 @@ describe('DiagnosisInput freshness pause', () => {
 });
 
 describe('DiagnosisInput clinical initial block editor', () => {
-  it('saves diagnosis, specialty and status as one patch', () => {
+  it('saves diagnosis and specialty as one patch (status is decoupled into its own column)', () => {
     const onMultipleUpdate = vi.fn();
     render(
       <table>
@@ -77,15 +77,13 @@ describe('DiagnosisInput clinical initial block editor', () => {
     fireEvent.change(screen.getByLabelText('Especialidad'), {
       target: { value: 'Med Interna' },
     });
-    fireEvent.change(screen.getByLabelText('Estado'), {
-      target: { value: 'Estable' },
-    });
+    // The clinical block editor no longer has an "Estado" field.
+    expect(screen.queryByLabelText('Estado')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Guardar'));
 
     expect(onMultipleUpdate).toHaveBeenCalledWith({
       pathology: 'Neumonia',
       specialty: 'Med Interna',
-      status: 'Estable',
     });
   });
 });
