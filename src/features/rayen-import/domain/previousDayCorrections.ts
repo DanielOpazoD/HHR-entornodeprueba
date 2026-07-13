@@ -11,7 +11,7 @@
 
 import { planPreviousDayEdits } from './planPreviousDayEdits';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
-import { reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
+import { isOccupied, reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -71,7 +71,10 @@ export const fileCrossDayCorrections = async (
     entry: DischargeEntry,
     patient: PatientData | undefined
   ): void => {
-    if (!day || day >= censusDay || !canWritePreviousDay(day, isAdmin) || !patient) return;
+    // isOccupied (not just `patient != null`): mirror the primary discharge loop so a blocked or
+    // nameless bed is never filed to the historical day with garbage data.
+    if (!day || day >= censusDay || !canWritePreviousDay(day, isAdmin) || !isOccupied(patient))
+      return;
     const list = byDay.get(day) ?? [];
     list.push({ entry, patient });
     byDay.set(day, list);

@@ -74,6 +74,27 @@ describe('applyCrossDayDiff', () => {
     expect(second.record.discharges).toHaveLength(1);
   });
 
+  it('falls back to the bed for the id when the RUT is blank (no silent collapse)', () => {
+    // PatientData.rut defaults to '': two blank-RUT discharges on the same day must NOT collapse
+    // to one id and drop a movement — the bed disambiguates them.
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11'),
+      [
+        { entry: entry({ rut: '', bedId: 'NEO1' }), patient: haggen({ rut: '' }) },
+        {
+          entry: entry({ rut: '', bedId: 'NEO2' }),
+          patient: haggen({ rut: '', patientName: 'Otro' }),
+        },
+      ],
+      ctx
+    );
+    expect(result.applied).toBe(2);
+    expect(result.record.discharges.map(discharge => discharge.id)).toEqual([
+      'rayen-egreso:bed-NEO1:2026-07-11',
+      'rayen-egreso:bed-NEO2:2026-07-11',
+    ]);
+  });
+
   it('routes a traslado into transfers[] with the corrected time', () => {
     const result = applyCrossDayDiff(
       makeRecord('2026-07-11'),

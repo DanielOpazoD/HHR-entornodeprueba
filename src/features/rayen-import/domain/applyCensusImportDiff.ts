@@ -19,7 +19,7 @@ import { continentalReportToRapaNui } from '../mapping/reportEgresoDateTime';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 
-const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
+export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
 const hhmm = (now: Date): string => now.toTimeString().slice(0, 5);

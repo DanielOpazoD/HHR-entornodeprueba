@@ -289,7 +289,7 @@ export const useRayenImport = () => {
         result: null,
         error:
           mode === 'auto' && needsReview
-            ? 'El modo automático requiere revisión: hay conflictos o egresos inferidos por ausencia en Rayen.'
+            ? 'El modo automático requiere revisión: hay conflictos, egresos inferidos por ausencia en Rayen, o correcciones de días previos.'
             : null,
       });
     },
@@ -332,6 +332,19 @@ export const useRayenImport = () => {
     const diff = state.diff;
     setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
     try {
+      // File the corrected-earlier egresos on their REAL day FIRST. This write is idempotent
+      // (deterministic ids merge on re-sync) and reads `currentRecord.beds`, which applyDiff below is
+      // about to vacate. Filing first means a transient failure here leaves today untouched, so the
+      // whole confirm() is safely retriable — the reverse order would strand the historical discharge
+      // permanently once today's bed is gone (the retry can no longer see the patient).
+      await fileCrossDayCorrections(
+        dailyRecord,
+        currentRecord,
+        diff,
+        toIsoReportDate(currentRecord),
+        isAdmin,
+        makeId
+      );
       let result: ApplyResult;
       try {
         result = await applyDiff(currentRecord, diff);
@@ -345,15 +358,6 @@ export const useRayenImport = () => {
         if (!fresh) throw error;
         result = await applyDiff(fresh, diff);
       }
-      // Now that today is saved (beds vacated), file the corrected-earlier egresos on their real day.
-      await fileCrossDayCorrections(
-        dailyRecord,
-        currentRecord,
-        diff,
-        toIsoReportDate(currentRecord),
-        isAdmin,
-        makeId
-      );
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
       // Keeps `isSyncing` on until the background fill settles it.
       void fillDevicesInBackground(result.record);

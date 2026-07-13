@@ -23,9 +23,15 @@ import {
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
-/** Stable id so a re-sync merges instead of duplicating (see mergeMovementArrayById). */
-const crossDayMovementId = (entry: DischargeEntry, day: string): string =>
-  `rayen-egreso:${normalizeRut(entry.rut)}:${day}`;
+/**
+ * Stable id so a re-sync merges instead of duplicating (see mergeMovementArrayById). PatientData.rut
+ * defaults to '', so a blank RUT falls back to the bed — otherwise two blank-RUT discharges on the
+ * same day would collapse to one id and silently drop a movement.
+ */
+const crossDayMovementId = (entry: DischargeEntry, day: string): string => {
+  const rut = normalizeRut(entry.rut);
+  return `rayen-egreso:${rut || `bed-${entry.bedId}`}:${day}`;
+};
 
 /** A patient filed on a previous day: the discharge entry + the patient snapshot (from today's bed). */
 export interface CrossDayEntry {

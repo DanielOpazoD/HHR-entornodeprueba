@@ -239,6 +239,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       {edit.isSigned && (
                         <span className="ml-1 text-amber-600">(día ya firmado)</span>
                       )}
+                      {!edit.recordExists && (
+                        <span className="ml-1 font-medium text-red-600">
+                          (no existe registro para ese día — se omitirá)
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
