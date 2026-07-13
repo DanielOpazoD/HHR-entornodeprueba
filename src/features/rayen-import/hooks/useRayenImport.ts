@@ -324,27 +324,31 @@ export const useRayenImport = () => {
   // them (a bed move shouldn't wait on accepting an unrelated past-day egreso).
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
-      if (!currentRecord || !state.diff) return;
+      // ALWAYS apply against the freshest record (the ref), not the closure: a bed move the user just
+      // did in HHR may not be in the closure's `currentRecord` yet, which would make the move's source
+      // bed look empty and silently skip the move. The ref reflects the latest saved record.
+      const base = currentRecordRef.current ?? currentRecord;
+      if (!base || !state.diff) return;
       const diff = state.diff;
       setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
       try {
         // File the corrected-earlier egresos on their REAL day FIRST (only when accepted). This write
-        // is idempotent (deterministic ids merge on re-sync) and reads `currentRecord.beds`, which
-        // applyDiff below is about to vacate. Filing first means a transient failure here leaves today
-        // untouched, so the whole confirm() is safely retriable.
+        // is idempotent (deterministic ids merge on re-sync) and reads `base.beds`, which applyDiff
+        // below is about to vacate. Filing first means a transient failure here leaves today untouched,
+        // so the whole confirm() is safely retriable.
         if (applyPreviousDays) {
           await fileCrossDayCorrections(
             dailyRecord,
-            currentRecord,
+            base,
             diff,
-            toIsoReportDate(currentRecord),
+            toIsoReportDate(base),
             isAdmin,
             makeId
           );
         }
         let result: ApplyResult;
         try {
-          result = await applyDiff(currentRecord, diff);
+          result = await applyDiff(base, diff);
         } catch (error) {
           // Freshness guard: the record changed under us (another tab, the background fill of a
           // previous run…). The guard already refreshed the cache — retry ONCE against the fresh
