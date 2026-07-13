@@ -108,7 +108,8 @@ const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
 
 // Piso para "name": la columna Paciente unificada (nombre + edad + RUT) necesita
 // espacio suficiente aunque la configuración guardada tenga el ancho antiguo (~110).
-const MINIMUM_NAME_COLUMN_WIDTH = 170;
+// v6: bajado a 150 para permitir la columna Paciente más angosta (el nombre trunca).
+const MINIMUM_NAME_COLUMN_WIDTH = 150;
 
 const compactColumns = (columns: Partial<TableColumnConfig>): TableColumnConfig => {
   const merged = {
