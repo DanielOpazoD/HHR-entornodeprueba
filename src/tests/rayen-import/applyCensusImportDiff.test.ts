@@ -251,6 +251,34 @@ describe('applyCensusImportDiff', () => {
     expect(result.applied.discharges).toBe(1);
   });
 
+  it('vacates the bed but skips the movement when the egreso belongs to an earlier island day', () => {
+    // Haggen was in a bed (carried over) but the official report says he left on 07-07, before this
+    // 07-08 census. The bed is freed here; the discharge record is filed on 07-07 (cross-day writer).
+    const occupant = {
+      ...EMPTY_PATIENT,
+      patientName: 'Haggen',
+      rut: '19.338.541-9',
+    } as PatientData;
+    const diff = makeDiff({
+      discharges: [
+        {
+          bedId: 'NEO1',
+          rut: '19.338.541-9',
+          patientName: 'Haggen',
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'rayen-discharge',
+          correctedDay: '2026-07-07',
+          correctedTime: '20:54',
+        },
+      ],
+    });
+    const result = applyCensusImportDiff(makeRecord({ NEO1: occupant }), diff, makeCtx());
+    expect(result.record.beds.NEO1).toBeUndefined(); // bed freed on today
+    expect(result.record.discharges).toHaveLength(0); // NOT filed on today (belongs to 07-07)
+    expect(result.applied.discharges).toBe(1);
+  });
+
   it('routes a report egreso CMA into cma[]', () => {
     const diff = makeDiff({
       reportEgresos: [

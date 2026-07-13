@@ -22,10 +22,9 @@ export const planPreviousDayEdits = (
   censusDay: string,
   probes: PreviousDayProbes
 ): PreviousDayEdit[] => {
-  const candidates: Array<{ correctedDay?: string; patientName: string }> = [
-    ...diff.discharges,
-    ...(diff.reportEgresos ?? []),
-  ];
+  // Scope: bed-occupying discharges (reconcile/known) — the "synced late" case where a discharge was
+  // filed on the sync day. Report egresos (unknown RUN, never in a bed) keep their same-day handling.
+  const candidates: Array<{ correctedDay?: string; patientName: string }> = [...diff.discharges];
 
   const namesByDay = new Map<string, string[]>();
   for (const candidate of candidates) {

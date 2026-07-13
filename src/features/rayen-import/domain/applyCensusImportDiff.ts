@@ -27,6 +27,15 @@ const hhmm = (now: Date): string => now.toTimeString().slice(0, 5);
 const asSpecialty = (value: PatientData['specialty']): string =>
   typeof value === 'string' ? value : String(value);
 
+/** The record's own day as ISO (accepts ISO or DD/MM/YYYY), for comparing against a corrected day. */
+const isoDayOf = (date: string): string => {
+  const iso = (date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = (date ?? '').match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return date ?? '';
+};
+
 export interface ApplyContext {
   /** Generates unique ids for the movement records. */
   idFactory: () => string;
@@ -161,6 +170,13 @@ export const applyCensusImportDiff = (
     if (patient) delete nextBeds[entry.bedId];
     const subject = patient ?? undefined;
     if (!subject) continue; // nothing to discharge (already gone)
+    // A discharge whose official island day is EARLIER than this census day: the bed is vacated here
+    // (the patient really left before today), but its movement record belongs to that previous day —
+    // it is filed there by the cross-day writer on confirm, not appended to today.
+    if (entry.correctedDay && entry.correctedDay < isoDayOf(current.date)) {
+      applied.discharges += 1;
+      continue;
+    }
     if (entry.kind === 'cma') cma.push(buildCma(subject, entry, ctx));
     else if (entry.kind === 'traslado') transfers.push(buildTransfer(subject, entry, current, ctx));
     else discharges.push(buildDischarge(subject, entry, current, ctx));

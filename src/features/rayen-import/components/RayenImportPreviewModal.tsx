@@ -76,6 +76,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       (diff.reportEgresos?.length ?? 0) >
       0;
 
+  // Modifying a previous day requires an explicit acknowledgment; reset it each time the modal opens.
+  const previousDayEdits = diff?.previousDayEdits ?? [];
+  const needsPreviousDayAck = previousDayEdits.length > 0;
+  const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
+  React.useEffect(() => {
+    if (isOpen) setAcceptedPreviousDays(false);
+  }, [isOpen]);
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -208,6 +216,43 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 </li>
               ))}
             </Section>
+
+            {needsPreviousDayAck && (
+              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <h4 className="mb-1 text-sm font-semibold text-amber-800">
+                  Modificar días previos ({previousDayEdits.length})
+                </h4>
+                <p className="mb-2 text-xs text-amber-700">
+                  Según el reporte oficial, estos egresos ocurrieron en un día anterior. Al
+                  confirmar se grabarán en su día real (Rapa Nui), no en el día de hoy.
+                </p>
+                <ul className="space-y-1 text-sm text-amber-900">
+                  {previousDayEdits.map(edit => (
+                    <li key={edit.day}>
+                      <span className="font-semibold tabular-nums">{edit.day}</span> —{' '}
+                      {edit.patientNames.join(', ')}
+                      {!edit.withinEditingWindow && (
+                        <span className="ml-1 font-medium text-red-600">
+                          (requiere administrador — se omitirá)
+                        </span>
+                      )}
+                      {edit.isSigned && (
+                        <span className="ml-1 text-amber-600">(día ya firmado)</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <label className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900">
+                  <input
+                    type="checkbox"
+                    checked={acceptedPreviousDays}
+                    onChange={event => setAcceptedPreviousDays(event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Acepto modificar los días previos indicados
+                </label>
+              </div>
+            )}
           </>
         )}
 
@@ -226,7 +271,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         <button
           type="button"
           onClick={onConfirm}
-          disabled={isBusy || !hasChanges}
+          disabled={isBusy || !hasChanges || (needsPreviousDayAck && !acceptedPreviousDays)}
           className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
         >
           {isBusy ? 'Aplicando…' : 'Confirmar e importar'}

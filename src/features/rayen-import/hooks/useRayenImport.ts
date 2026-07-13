@@ -13,12 +13,15 @@ import {
   useSaveDailyRecordMutation,
   usePatchDailyRecordMutation,
 } from '@/hooks/useDailyRecordQuery';
+import { useRepositories } from '@/services/RepositoryContext';
+import { useAuthState } from '@/hooks/useAuthState';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
+import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import { runClinicalFill } from '../clinicalFillRunner';
 import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
@@ -87,6 +90,11 @@ export const useRayenImport = () => {
   // object would change identity each render, recreating applyDiff/previewSnapshot and
   // needlessly re-running the bridge subscription effect below on every render.
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
+  const { dailyRecord } = useRepositories();
+  const { role } = useAuthState();
+  // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
+  // nurse can only write a previous day within that window — older days are surfaced but skipped.
+  const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_STATE);
   // Guards the experimental auto-apply path. The bridge can deliver snapshots
   // back-to-back; without this, a second auto-apply would start from the same base
@@ -203,7 +211,17 @@ export const useRayenImport = () => {
         diff = applyEgresoReport(diff, reportRows, collectKnownRuns(currentRecord, snapshot));
       }
 
-      const needsReview = requiresReview(diff);
+      // Discharge-day corrections: egresos whose official island day is earlier than the census day
+      // are filed on that previous day (behind confirmation), so they must never auto-apply.
+      const previousDayEdits = await computePreviousDayEdits(
+        dailyRecord,
+        diff,
+        reportDate,
+        isAdmin
+      );
+      if (previousDayEdits.length > 0) diff = { ...diff, previousDayEdits };
+
+      const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
       const canAutoApply = mode === 'auto' && !needsReview;
 
       if (canAutoApply) {
@@ -264,7 +282,15 @@ export const useRayenImport = () => {
             : null,
       });
     },
-    [currentRecord, mode, applyDiff, fillDevicesInBackground, clearSyncTimeout]
+    [
+      currentRecord,
+      mode,
+      applyDiff,
+      fillDevicesInBackground,
+      clearSyncTimeout,
+      dailyRecord,
+      isAdmin,
+    ]
   );
 
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
@@ -308,13 +334,22 @@ export const useRayenImport = () => {
         if (!fresh) throw error;
         result = await applyDiff(fresh, diff);
       }
+      // Now that today is saved (beds vacated), file the corrected-earlier egresos on their real day.
+      await fileCrossDayCorrections(
+        dailyRecord,
+        currentRecord,
+        diff,
+        toIsoReportDate(currentRecord),
+        isAdmin,
+        makeId
+      );
       setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
       // Keeps `isSyncing` on until the background fill settles it.
       void fillDevicesInBackground(result.record);
     } catch (error) {
       setState(prev => ({ ...prev, isBusy: false, isSyncing: false, error: errorMessage(error) }));
     }
-  }, [currentRecord, state.diff, applyDiff, fillDevicesInBackground]);
+  }, [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin]);
 
   const cancel = useCallback(() => {
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
