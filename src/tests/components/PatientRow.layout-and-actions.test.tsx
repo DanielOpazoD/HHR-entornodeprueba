@@ -339,9 +339,10 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    // Rediseño "centro de vigilancia": la fecha de ingreso se muestra compacta ("DD-MM") junto al
+    // Rediseño "centro de vigilancia": la fecha de ingreso se muestra como "FI: DD-MM-YYYY" junto al
     // RUT en la celda Paciente (la antigua columna Ingreso ahora son los Signos Vitales).
-    expect(screen.getByText('01-01')).toBeInTheDocument();
+    expect(screen.getByText('FI:')).toBeInTheDocument();
+    expect(screen.getByText('01-01-2023')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('dialog', { name: 'Configurar fecha y hora de ingreso' })
