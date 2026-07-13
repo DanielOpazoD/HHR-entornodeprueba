@@ -264,13 +264,10 @@ export const useRayenImport = () => {
       // With census changes to confirm, syncing "pauses" for human review; with none, the fill runs
       // now and keeps the indicator on until it settles.
       if (!hasApplicableChanges) {
-        // No diff to apply → applyDiff (which stamps rayenSync) never runs, so record the sync's
-        // who+when as a granular patch; otherwise "última sincronización" would never update when the
-        // census is already up to date (the common case). A failure here only misses the provenance
-        // stamp (not clinical data), so log it instead of surfacing a blocking error to the user.
+        // Sin diff que aplicar: sella la sincronización (who+when) por patch; un fallo aquí solo
+        // pierde ese sello (no datos clínicos), así que se loguea sin bloquear al usuario.
         void patchDailyRecord({ rayenSync: makeSyncMeta() } as unknown as DailyRecordPatch).catch(
-          error =>
-            console.warn('[rayen-import] No se pudo registrar la última sincronización:', error)
+          err => console.warn('[rayen-import] sello de sincronización no registrado:', err)
         );
         void fillDevicesInBackground(currentRecord);
       }
