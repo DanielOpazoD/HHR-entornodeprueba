@@ -208,6 +208,24 @@ describe('parseEvaluationScales', () => {
     ];
     expect(parseEvaluationScales(inProgress)[0].total).toBeNull();
   });
+
+  it('flags an archived summary scale (form.archived) so a live same-day one wins downstream', () => {
+    // Edgardo case: on 10-07 Downton was applied at 09:42 (medio, live) then at 15:23 (alto, ARCHIVED).
+    // The summary feed carries the archived one too; unflagged it would win the highest-id selection.
+    const downtonForm = (over: Record<string, unknown> = {}) => ({
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de Riesgo de caídas (J. H. DOWNTON)',
+      encounterEventId: 500,
+      metaCampList: [
+        item('DOWN_Medicamentos', 'Medicamentos', '1', 'Otros', '10-07-2026 09:42:19 -06:00'),
+        puntaje('DOWN_Puntaje', '2', '10-07-2026 09:42:19 -06:00'),
+        severidad('DOWN_ResultadoScore', 'Riesgo medio', '10-07-2026 09:42:19 -06:00'),
+      ],
+      ...over,
+    });
+    expect(parseEvaluationScales([downtonForm({ archived: true })])[0]?.archived).toBe(true);
+    expect(parseEvaluationScales([downtonForm()])[0]?.archived).toBe(false);
+  });
 });
 
 describe('evaluationScalesForCensusDay', () => {

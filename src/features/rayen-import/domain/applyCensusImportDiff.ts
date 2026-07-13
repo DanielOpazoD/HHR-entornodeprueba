@@ -19,13 +19,22 @@ import { continentalReportToRapaNui } from '../mapping/reportEgresoDateTime';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 
-const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
+export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
 const hhmm = (now: Date): string => now.toTimeString().slice(0, 5);
 
 const asSpecialty = (value: PatientData['specialty']): string =>
   typeof value === 'string' ? value : String(value);
+
+/** The record's own day as ISO (accepts ISO or DD/MM/YYYY), for comparing against a corrected day. */
+const isoDayOf = (date: string): string => {
+  const iso = (date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = (date ?? '').match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return date ?? '';
+};
 
 export interface ApplyContext {
   /** Generates unique ids for the movement records. */
@@ -46,7 +55,7 @@ export interface ApplyResult {
   skipped: SkippedOp[];
 }
 
-const buildDischarge = (
+export const buildDischarge = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
@@ -73,7 +82,7 @@ const buildDischarge = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
-const buildTransfer = (
+export const buildTransfer = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
@@ -100,7 +109,7 @@ const buildTransfer = (
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
-const buildCma = (
+export const buildCma = (
   patient: PatientData,
   entry: DischargeEntry,
   ctx: Required<ApplyContext>
@@ -121,7 +130,7 @@ const reportEgresoTime = (fechaEgreso: string): string =>
 
 // A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
 // builders read, so the day's altas census can log it from the report's data.
-const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
+export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
   ({
     patientName: egreso.patientName,
     rut: egreso.run,
@@ -130,7 +139,7 @@ const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     age: egreso.edad ?? undefined,
   }) as unknown as PatientData;
 
-const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
+export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   bedId: egreso.bedLabel,
   rut: egreso.run,
   patientName: egreso.patientName,
@@ -161,6 +170,13 @@ export const applyCensusImportDiff = (
     if (patient) delete nextBeds[entry.bedId];
     const subject = patient ?? undefined;
     if (!subject) continue; // nothing to discharge (already gone)
+    // A discharge whose official island day is EARLIER than this census day: the bed is vacated here
+    // (the patient really left before today), but its movement record belongs to that previous day —
+    // it is filed there by the cross-day writer on confirm, not appended to today.
+    if (entry.correctedDay && entry.correctedDay < isoDayOf(current.date)) {
+      applied.discharges += 1;
+      continue;
+    }
     if (entry.kind === 'cma') cma.push(buildCma(subject, entry, ctx));
     else if (entry.kind === 'traslado') transfers.push(buildTransfer(subject, entry, current, ctx));
     else discharges.push(buildDischarge(subject, entry, current, ctx));
@@ -171,6 +187,11 @@ export const applyCensusImportDiff = (
   //     the movement record so the day's altas census logs them (already reviewed in the
   //     preview). The patient is synthesized from the report row; time comes from the report.
   for (const egreso of diff.reportEgresos ?? []) {
+    // With the report fetched for [D, D+1] (the source files late egresos a day ahead), the list also
+    // carries egresos of a DIFFERENT island day. Only log here those whose corrected island day IS
+    // this census day; earlier ones are filed on their real day by the cross-day writer, and later
+    // ones belong to a future sync.
+    if (egreso.correctedDay && egreso.correctedDay !== isoDayOf(current.date)) continue;
     const patient = reportEgresoPatient(egreso);
     const entry = reportEgresoEntry(egreso);
     const time = reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);

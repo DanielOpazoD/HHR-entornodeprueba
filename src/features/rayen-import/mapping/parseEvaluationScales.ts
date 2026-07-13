@@ -252,6 +252,11 @@ export const parseEvaluationScales = (raw: unknown): EvaluationScale[] => {
       items,
       total,
       severity,
+      // The summary endpoint (encounterFormEntry) can also carry ARCHIVED (superseded) scales — the
+      // rendered "Instrumentos de evaluación" table hides them, but the raw feed includes them. Flag
+      // them so `mergeScaleSources` drops an archived record when a live one exists the SAME day;
+      // otherwise the archived (later-in-the-day) one would win the highest-id "as-of" selection.
+      archived: form.archived === true,
     });
   }
 
