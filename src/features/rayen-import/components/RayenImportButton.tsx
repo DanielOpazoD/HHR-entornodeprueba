@@ -4,7 +4,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
-import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
+import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
