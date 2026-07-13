@@ -62,4 +62,29 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
 
     expect(findPatientErasures(remote, local)).toEqual([]);
   });
+
+  it('does NOT flag a patient relocated to another bed (internal move, no movement record)', () => {
+    // An internal bed move (R4 → R3) carries no discharge/transfer/CMA; the vacated bed is
+    // accounted for because the SAME patient still occupies another bed in the incoming record.
+    const remote = { beds: { R4: bed('Kevin Villagran') } };
+    const local = { beds: { R3: bed('Kevin Villagran') }, discharges: [], transfers: [], cma: [] };
+
+    expect(findPatientErasures(remote, local)).toEqual([]);
+  });
+
+  it('matches a relocation by RUT even when only the strong id is stable', () => {
+    const remote = { beds: { R4: { patientName: 'Kevin V.', rut: '20.189.620-7' } } };
+    const local = { beds: { R3: { patientName: 'Kevin Villagran', rut: '20189620-7' } } };
+
+    expect(findPatientErasures(remote, local)).toEqual([]);
+  });
+
+  it('still flags a real erasure when a DIFFERENT patient reused the census (no identity match)', () => {
+    const remote = { beds: { R4: bed('Kevin Villagran') } };
+    const local = { beds: { R3: bed('Otra Persona') }, discharges: [], transfers: [], cma: [] };
+
+    expect(findPatientErasures(remote, local)).toEqual([
+      { bedId: 'R4', remotePatientName: 'Kevin Villagran' },
+    ]);
+  });
 });
