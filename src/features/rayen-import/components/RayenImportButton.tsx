@@ -69,7 +69,7 @@ export const RayenImportButton: React.FC = () => {
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy || fill.running;
+  const working = isSyncing || isBusy || fill.running || recoveryBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -333,7 +333,7 @@ export const RayenImportButton: React.FC = () => {
         onClose={closeHistory}
         history={history}
         recovery={recovery}
-        recoveryBusy={recoveryBusy || working}
+        recoveryBusy={working}
         onRecoveryAction={() => void handleRecoveryAction()}
       />
 

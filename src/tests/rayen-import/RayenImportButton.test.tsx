@@ -256,10 +256,41 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Puedes completar esta sincronización')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
+    expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
     expect(mocks.triggerImport).toHaveBeenCalledWith(
       expect.objectContaining({ connection: 'ready', canSync: true })
     );
+  });
+
+  it('keeps complete clinical coverage separate from a partial Camas source', () => {
+    mocks.useDailyRecordData.mockReturnValue({
+      record: {
+        rayenSyncHistory: [
+          {
+            id: 'run-camas',
+            startedAt: '2026-07-14T10:00:00.000Z',
+            completedAt: '2026-07-14T10:03:00.000Z',
+            by: 'Daniel Opazo',
+            status: 'partial',
+            coverage: {
+              total: 11,
+              completed: 11,
+              errors: 0,
+              sourceErrors: 0,
+              completedAt: '2026-07-14T10:03:00.000Z',
+            },
+            source: { fichaMedico: 'ready', gestionCamas: 'missing' },
+          },
+        ],
+      },
+    });
+
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+
+    expect(screen.getByText('Gestión de Camas no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
   });
 
   it('shows the empty history state, closes with Escape and restores focus', async () => {

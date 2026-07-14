@@ -167,6 +167,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
                 {event.status !== 'failed' && (
                   <span
+                    title="Cobertura técnica del enriquecimiento clínico; no incluye la disponibilidad de Gestión de Camas"
                     className={
                       coverage.tone === 'success'
                         ? 'font-semibold text-emerald-700'
@@ -175,7 +176,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
                           : 'font-medium text-slate-500'
                     }
                   >
-                    Cobertura: {coverage.label}
+                    Cobertura clínica: {coverage.label}
                   </span>
                 )}
                 {source && <span className="font-medium text-slate-400">{source}</span>}
