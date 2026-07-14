@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, History } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
@@ -17,6 +17,12 @@ const LaboratoryQuickAction = lazyWithRetry(() =>
   }))
 );
 
+const CensusConflictQuickAction = lazyWithRetry(() =>
+  import('@/components/clinical-conflicts/CensusConflictQuickAction').then(module => ({
+    default: module.CensusConflictQuickAction,
+  }))
+);
+
 const LaboratoryQuickActionFallback = () => (
   <button
     type="button"
@@ -28,6 +34,20 @@ const LaboratoryQuickActionFallback = () => (
   >
     <FlaskConical size={13} />
     <span className="hidden sm:inline">Lab</span>
+  </button>
+);
+
+const CensusConflictQuickActionFallback = () => (
+  <button
+    type="button"
+    disabled
+    aria-disabled="true"
+    tabIndex={-1}
+    className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} min-w-[96px] border-amber-200 bg-amber-50 text-amber-700 opacity-50`}
+    title="Conflictos de versiones HHR (cargando...)"
+  >
+    <History size={13} />
+    <span className="hidden sm:inline">Conflictos HHR</span>
   </button>
 );
 
@@ -44,11 +64,18 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
 
   const renderFeatureQuickActions = React.useCallback(
     (patients: MedicalIndicationsPatientOption[]) => (
-      <React.Suspense fallback={<LaboratoryQuickActionFallback />}>
-        <LaboratoryQuickAction patients={patients} />
-      </React.Suspense>
+      <>
+        <React.Suspense fallback={<LaboratoryQuickActionFallback />}>
+          <LaboratoryQuickAction patients={patients} />
+        </React.Suspense>
+        {auth.role === 'admin' && ui.currentModule === 'CENSUS' ? (
+          <React.Suspense fallback={<CensusConflictQuickActionFallback />}>
+            <CensusConflictQuickAction />
+          </React.Suspense>
+        ) : null}
+      </>
     ),
-    []
+    [auth.role, ui.currentModule]
   );
 
   return (

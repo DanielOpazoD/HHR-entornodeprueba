@@ -252,6 +252,24 @@ describe('ClinicalConflictCenterControl', () => {
     expect(button).toHaveTextContent('2');
   });
 
+  it('supports the compact HHR quick-action presentation used beside Lab', () => {
+    mockRecovery.mockReturnValue(defaultRecovery({ isOpen: false, snapshots: [] }));
+
+    render(
+      <ClinicalConflictCenterControl
+        date="2026-07-01"
+        scope="census"
+        buttonTestId="conflict-versions-button"
+        buttonLabel="Conflictos HHR"
+        buttonVariant="quick-action"
+      />
+    );
+
+    const button = screen.getByTestId('conflict-versions-button');
+    expect(button).toHaveTextContent('Conflictos HHR');
+    expect(button).toHaveClass('h-[30px]', 'min-w-[96px]', 'border-amber-200');
+  });
+
   it('shows anti-rollback impact and disables preserving a version that would remove a later movement', () => {
     const restore = vi.fn();
     mockRecovery.mockReturnValue(defaultRecovery({ restore }));

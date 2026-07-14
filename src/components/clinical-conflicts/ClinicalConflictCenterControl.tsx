@@ -27,7 +27,8 @@ interface ClinicalConflictCenterControlProps {
   buttonTestId?: string;
   className?: string;
   hideButtonLabel?: boolean;
-  buttonVariant?: 'default' | 'operations';
+  buttonLabel?: string;
+  buttonVariant?: 'default' | 'operations' | 'quick-action';
 }
 
 const MODULE_TONE_CLASS: Record<ClinicalConflictModuleDescriptor['tone'], string> = {
@@ -274,6 +275,7 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
   buttonTestId = 'clinical-conflict-center-button',
   className,
   hideButtonLabel = false,
+  buttonLabel = 'Conflictos',
   buttonVariant = 'default',
 }) => {
   const recovery = useConflictVersionRecovery({ date, port });
@@ -338,15 +340,17 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
         aria-label={`Centro de conflictos clínicos de ${SCOPE_LABEL[scope]}`}
         data-testid={buttonTestId}
         className={clsx(
-          'relative inline-flex items-center gap-1.5 border border-slate-200 bg-white text-xs font-semibold shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-          buttonVariant === 'operations'
-            ? 'min-h-9 rounded-lg px-2.5 py-2 text-slate-600'
-            : 'rounded-md px-2 py-1.5 text-slate-500',
+          'relative inline-flex items-center justify-center gap-1.5 border font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+          buttonVariant === 'quick-action'
+            ? 'h-[30px] min-w-[96px] shrink-0 rounded-lg border-amber-200 bg-amber-50 px-2.5 py-0 text-[10px] text-amber-700 hover:bg-amber-100 focus-visible:outline-amber-500'
+            : 'border-slate-200 bg-white text-xs shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-slate-400',
+          buttonVariant === 'operations' && 'min-h-9 rounded-lg px-2.5 py-2 text-slate-600',
+          buttonVariant === 'default' && 'rounded-md px-2 py-1.5 text-slate-500',
           className
         )}
       >
         <History size={14} />
-        {!hideButtonLabel && <span className="hidden sm:inline">Conflictos</span>}
+        {!hideButtonLabel && <span className="hidden sm:inline">{buttonLabel}</span>}
         {recovery.snapshots.length > 0 && (
           <span className="ml-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
             {recovery.snapshots.length}

@@ -6,10 +6,6 @@ import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 
-interface RayenImportButtonProps {
-  trailingAction?: React.ReactNode;
-}
-
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
  * when the last sync of this day ran and who ran it (`record.rayenSync`, stamped on every apply).
@@ -37,7 +33,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
 };
 
-export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ trailingAction }) => {
+export const RayenImportButton: React.FC = () => {
   const {
     mode,
     diff,
@@ -193,7 +189,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ trailingAc
               </span>
             )}
           </button>
-          {trailingAction}
         </div>
       </div>
 

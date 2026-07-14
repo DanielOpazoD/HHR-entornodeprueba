@@ -107,16 +107,6 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('No calculada')).toBeInTheDocument();
   });
 
-  it('keeps the secondary operational action inside the Eloísa bar', () => {
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-
-    render(<RayenImportButton trailingAction={<button type="button">Conflictos</button>} />);
-
-    expect(screen.getByTestId('rayen-operations-bar')).toContainElement(
-      screen.getByRole('button', { name: 'Conflictos' })
-    );
-  });
-
   it('keeps the existing reviewed synchronization action', () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
 
