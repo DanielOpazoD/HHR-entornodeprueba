@@ -196,4 +196,44 @@ describe('dailyRecordPatchPersistenceController', () => {
     expect(result.mergedPatches).not.toHaveProperty('beds.R2');
     expect(logErrorMock).not.toHaveBeenCalled();
   });
+
+  it('merges Rayen history against the freshest persistence base', () => {
+    const fresh = {
+      ...current,
+      rayenSyncHistory: [
+        {
+          id: 'remote-run',
+          startedAt: '2026-04-19T09:00:00.000Z',
+          by: 'Otra pestaña',
+          status: 'complete',
+        },
+      ],
+    } as DailyRecord;
+    applyPatchesMock.mockImplementation((record: DailyRecord, patch: DailyRecordPatch) => ({
+      ...record,
+      ...patch,
+      dateTimestamp: 123,
+    }));
+    normalizeDailyRecordInvariantsMock.mockImplementation((record: DailyRecord) => ({
+      record,
+      patches: {},
+    }));
+
+    const result = preparePatchedRecordPersistence(fresh, '2026-04-19', {
+      rayenSyncHistory: [
+        {
+          id: 'local-run',
+          startedAt: '2026-04-19T10:00:00.000Z',
+          by: 'Esta pestaña',
+          status: 'failed',
+          failureReason: 'snapshot_timeout',
+        },
+      ],
+    });
+
+    expect(result.mergedPatches.rayenSyncHistory?.map(event => event.id)).toEqual([
+      'local-run',
+      'remote-run',
+    ]);
+  });
 });

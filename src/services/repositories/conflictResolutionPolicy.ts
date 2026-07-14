@@ -57,6 +57,7 @@ export const RECORD_STRUCTURAL_FIELDS = new Set([
   'tensDayShift',
   'tensNightShift',
   'activeExtraBeds',
+  'rayenSyncHistory',
   'handoffDayChecklist',
   'handoffNightChecklist',
   'medicalHandoffBySpecialty',

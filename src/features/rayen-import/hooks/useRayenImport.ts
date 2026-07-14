@@ -16,7 +16,6 @@ import {
 } from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
@@ -24,19 +23,12 @@ import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgre
 import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
 import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
-import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import { runClinicalFill } from '../clinicalFillRunner';
-import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
 import {
   subscribeToRayenSnapshots,
   subscribeToRayenImportErrors,
   requestRayenSnapshot,
   requestEgresoLookup,
   requestEgresoReport,
-  requestDeviceReport,
-  requestHistoryScales,
-  requestScalesReport,
-  requestCudyrCategories,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import {
@@ -44,6 +36,9 @@ import {
   INITIAL_RAYEN_IMPORT_STATE,
   type RayenImportState,
 } from './rayenImportState';
+import { failureReasonFromHealth, useRayenSyncAudit } from './useRayenSyncAudit';
+import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
+import { useRayenClinicalFill } from './useRayenClinicalFill';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
@@ -85,84 +80,39 @@ export const useRayenImport = () => {
   currentRecordRef.current = currentRecord;
   // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
-
-  // Who + when for the "última sincronización con Eloísa" line next to the button.
-  const makeSyncMeta = useCallback(
-    () => ({
-      at: new Date().toISOString(),
-      by: currentUser?.displayName || currentUser?.email || 'Usuario sin nombre',
-    }),
-    [currentUser]
-  );
+  const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
+  const { startRun, applyRunToRecord, persistAppliedRun, completeRun, failRun, cancelRun } =
+    useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
 
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const result = applyCensusImportDiff(record, diff, { idFactory: makeId });
-      // Stamp who ran this sync and when (single choke point: confirm AND auto-apply both land here).
-      const stamped = { ...result.record, rayenSync: makeSyncMeta() };
+      // Stamp the applied run + aggregate-only history atomically with the full census save.
+      const stamped = applyRunToRecord(result.record, diff).record;
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
     },
-    [saveDailyRecord, makeSyncMeta]
+    [applyRunToRecord, saveDailyRecord]
   );
 
-  // Background clinical fill (devices + scales + CUDYR), delegated to `runClinicalFill` — an
-  // independent, port-injected, unit-tested runner. Results are applied as GRANULAR PER-PATIENT
-  // PATCHES (beds.{bedId}.devices / evaluationScores / …) instead of full-record saves, so:
-  //  - the fill can never clobber (or be blocked by) a concurrent census confirmation — the
-  //    freshness guard "El censo se actualizó hace un momento" — and
-  //  - each patient's data appears progressively as soon as it arrives.
-  // Single-flight via beginRayenFill; progress + completion summary go to the fill-status store so
-  // the button area and the DMI/Scores cells can show what is happening.
-  const fillDevicesInBackground = useCallback(
-    async (record: DailyRecord): Promise<void> => {
-      // `fecha` is the CENSUS day (record's own day, never "today"), so a late sync of a past census
-      // still asks Ficha Médico for that day's devices/scales/CUDYR — see toIsoReportDate.
-      const fecha = toIsoReportDate(record);
-      const eligibleCount = Object.values(record.beds).filter(
-        patient => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
-      ).length;
-
-      if (!beginRayenFill(eligibleCount)) return; // a fill is already running — single flight
-      try {
-        const summary = await runClinicalFill(
-          record,
-          fecha,
-          {
-            fetchDeviceReport: requestDeviceReport,
-            extractDeviceItems: extractDeviceTextItems,
-            fetchHistoryScales: requestHistoryScales,
-            fetchScalesForms: requestScalesReport,
-            fetchCudyrCategories: () => requestCudyrCategories(15000),
-            applyPatch: async patch => {
-              await patchDailyRecord(patch);
-            },
-            now: () => new Date(),
-            createId: makeId,
-          },
-          ({ done, total }) => reportRayenFillProgress(done, total)
-        );
-        if (summary.errors.length > 0) {
-          console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
-        }
-        endRayenFill(new Set(summary.errors.map(item => item.bedId)).size);
-      } catch (error) {
-        // The runner collects per-patient errors itself; this only guards truly unexpected failures.
-        console.warn('[rayen-import] Relleno clínico falló:', error);
-        endRayenFill(0);
-      }
-
-      // The background fill has settled — stop the "sincronizando" indicator.
-      setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
-    },
-    [patchDailyRecord]
-  );
+  const finishSyncing = useCallback(() => {
+    setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
+  }, []);
+  const fillDevicesInBackground = useRayenClinicalFill({
+    patchDailyRecord,
+    completeRun,
+    onSettled: finishSyncing,
+    createId: makeId,
+  });
 
   const previewSnapshot = useCallback(
     async (snapshot: RayenCensusSnapshot) => {
       // The snapshot arrived — cancel the "no answer" fallback timer.
       clearSyncTimeout();
       if (!currentRecord) {
+        // There is no daily record where an audit event could be persisted, but the
+        // deliberate run still has to be closed so a later snapshot cannot reuse it.
+        void failRun('apply_failed');
         setState(prev => ({
           ...prev,
           isSyncing: false,
@@ -224,6 +174,7 @@ export const useRayenImport = () => {
           })
           .catch(error => {
             autoApplyingRef.current = false;
+            void failRun('apply_failed');
             setState(prev => ({
               ...prev,
               isBusy: false,
@@ -249,10 +200,14 @@ export const useRayenImport = () => {
       if (!hasApplicableChanges) {
         // Sin diff que aplicar: sella la sincronización (who+when) por patch; un fallo aquí solo
         // pierde ese sello (no datos clínicos), así que se loguea sin bloquear al usuario.
-        void patchDailyRecord({ rayenSync: makeSyncMeta() } as unknown as DailyRecordPatch).catch(
-          err => console.warn('[rayen-import] sello de sincronización no registrado:', err)
-        );
-        void fillDevicesInBackground(currentRecord);
+        try {
+          const stamped = await persistAppliedRun(currentRecord, diff);
+          void fillDevicesInBackground(stamped);
+        } catch (err) {
+          console.warn('[rayen-import] sello de sincronización no registrado:', err);
+          void failRun('apply_failed');
+          setState(prev => ({ ...prev, isSyncing: false }));
+        }
       }
 
       setState({
@@ -275,8 +230,8 @@ export const useRayenImport = () => {
       clearSyncTimeout,
       dailyRecord,
       isAdmin,
-      patchDailyRecord,
-      makeSyncMeta,
+      persistAppliedRun,
+      failRun,
     ]
   );
 
@@ -284,38 +239,53 @@ export const useRayenImport = () => {
 
   useEffect(
     () =>
-      subscribeToRayenImportErrors(extensionError => {
+      subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
+        void failRun('snapshot_error');
+        // The extension payload may contain upstream details. Keep it out of the
+        // persisted audit trail and out of the clinical UI; log only a category.
+        console.warn('[rayen-import] La extensión informó un error de lectura.');
         setState(prev => ({
           ...prev,
           isBusy: false,
           isSyncing: false,
-          error: extensionError,
+          error:
+            'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.',
         }));
       }),
-    [clearSyncTimeout]
+    [clearSyncTimeout, failRun]
   );
 
   // Trigger an import: show the spinner immediately, ask the extension for a snapshot, and guard with
   // a fallback timer so an uninstalled/asleep extension doesn't leave it spinning forever.
-  const triggerImport = useCallback(() => {
-    clearSyncTimeout();
-    setState(prev => ({ ...prev, isSyncing: true, result: null, error: null }));
-    requestRayenSnapshot();
-    syncTimeoutRef.current = setTimeout(() => {
-      syncTimeoutRef.current = null;
-      setState(prev =>
-        prev.isSyncing
-          ? {
-              ...prev,
-              isSyncing: false,
-              error:
-                'No se recibió respuesta de la extensión Rayen. Verifica que esté instalada y con la pestaña de Ficha Médico abierta.',
-            }
-          : prev
-      );
-    }, 18000);
-  }, [clearSyncTimeout]);
+  const triggerImport = useCallback(
+    (health?: RayenExtensionHealthState) => {
+      clearSyncTimeout();
+      startRun(health);
+      if (health && !health.canSync) {
+        void failRun(failureReasonFromHealth(health));
+        setState(prev => ({ ...prev, isSyncing: false, result: null, error: null }));
+        return;
+      }
+      setState(prev => ({ ...prev, isSyncing: true, result: null, error: null }));
+      requestRayenSnapshot();
+      syncTimeoutRef.current = setTimeout(() => {
+        syncTimeoutRef.current = null;
+        void failRun('snapshot_timeout');
+        setState(prev =>
+          prev.isSyncing
+            ? {
+                ...prev,
+                isSyncing: false,
+                error:
+                  'No se recibió respuesta de la extensión Rayen. Verifica que esté instalada y con la pestaña de Ficha Médico abierta.',
+              }
+            : prev
+        );
+      }, 18000);
+    },
+    [clearSyncTimeout, failRun, startRun]
+  );
 
   // `applyPreviousDays` (default true) gates ONLY the cross-day corrections. Today's census changes
   // (admissions, moves, discharges) ALWAYS apply — the previous-day acknowledgment must never block
@@ -361,6 +331,7 @@ export const useRayenImport = () => {
         // Keeps `isSyncing` on until the background fill settles it.
         void fillDevicesInBackground(result.record);
       } catch (error) {
+        void failRun('apply_failed');
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -369,12 +340,13 @@ export const useRayenImport = () => {
         }));
       }
     },
-    [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin]
+    [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin, failRun]
   );
 
   const cancel = useCallback(() => {
+    cancelRun();
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, []);
+  }, [cancelRun]);
 
   return useMemo(
     () => ({

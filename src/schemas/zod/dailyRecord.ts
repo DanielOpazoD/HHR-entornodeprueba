@@ -51,6 +51,60 @@ const DailyRecordStaffingDetailsSchema = z.object({
   }),
 });
 
+const RayenSyncCoverageSchema = z.object({
+  total: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+  errors: z.number().int().nonnegative(),
+  sourceErrors: z.number().int().nonnegative(),
+  completedAt: z.string(),
+});
+
+const RayenSyncChangesSchema = z.object({
+  admissions: z.number().int().nonnegative(),
+  updates: z.number().int().nonnegative(),
+  moves: z.number().int().nonnegative(),
+  discharges: z.number().int().nonnegative(),
+  unchanged: z.number().int().nonnegative(),
+});
+
+const RayenSyncSourceSchema = z.object({
+  extensionVersion: nullableOptional(z.string()),
+  protocolVersion: nullableOptional(z.number().int().nonnegative()),
+  fichaMedico: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
+  gestionCamas: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
+});
+
+const RayenSyncEventSchema = z.object({
+  id: z.string(),
+  startedAt: z.string(),
+  completedAt: nullableOptional(z.string()),
+  by: z.string(),
+  status: z.enum(['applied', 'complete', 'partial', 'failed']),
+  coverage: nullableOptional(RayenSyncCoverageSchema),
+  changes: nullableOptional(RayenSyncChangesSchema),
+  source: nullableOptional(RayenSyncSourceSchema),
+  failureReason: nullableOptional(
+    z.enum([
+      'extension_unavailable',
+      'extension_incompatible',
+      'ficha_medico_unavailable',
+      'snapshot_timeout',
+      'snapshot_error',
+      'apply_failed',
+    ])
+  ),
+});
+
+const RayenSyncMetaSchema = z.object({
+  at: z.string(),
+  by: z.string(),
+  runId: nullableOptional(z.string()),
+  status: nullableOptional(z.enum(['applied', 'complete', 'partial'])),
+  coverage: nullableOptional(RayenSyncCoverageSchema),
+  changes: nullableOptional(RayenSyncChangesSchema),
+  source: nullableOptional(RayenSyncSourceSchema),
+});
+
 export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.preprocess(
   input => {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -83,7 +137,8 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       transfers: nullishDefault(z.array(TransferDataSchema), () => []),
       cma: nullishDefault(z.array(CMADataSchema), () => []),
       lastUpdated: z.string().default(() => new Date().toISOString()),
-      rayenSync: nullableOptional(z.object({ at: z.string(), by: z.string() })),
+      rayenSync: nullableOptional(RayenSyncMetaSchema),
+      rayenSyncHistory: nullableOptional(z.array(RayenSyncEventSchema)),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().default(1),
       nurses: nullishDefault(z.array(z.string()), () => ['', '']),

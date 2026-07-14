@@ -93,6 +93,38 @@ describe('zod daily record schemas', () => {
       });
       expect(record.handoffDayChecklist?.escalaBraden).toBe(true);
     });
+
+    it('preserves the backward-compatible Eloísa sync projection and aggregate history', () => {
+      const record = DailyRecordSchema.parse({
+        date: '2026-07-14',
+        rayenSync: {
+          at: '2026-07-14T10:00:00.000Z',
+          by: 'Operador HHR',
+          runId: 'run-1',
+          status: 'complete',
+          coverage: {
+            total: 2,
+            completed: 2,
+            errors: 0,
+            sourceErrors: 0,
+            completedAt: '2026-07-14T10:03:00.000Z',
+          },
+        },
+        rayenSyncHistory: [
+          {
+            id: 'run-1',
+            startedAt: '2026-07-14T10:00:00.000Z',
+            completedAt: '2026-07-14T10:03:00.000Z',
+            by: 'Operador HHR',
+            status: 'complete',
+            changes: { admissions: 0, updates: 1, moves: 0, discharges: 0, unchanged: 1 },
+          },
+        ],
+      });
+
+      expect(record.rayenSync?.coverage?.completed).toBe(2);
+      expect(record.rayenSyncHistory?.[0]).toMatchObject({ id: 'run-1', status: 'complete' });
+    });
   });
 
   describe('safeParseDailyRecord', () => {
