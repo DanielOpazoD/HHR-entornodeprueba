@@ -19,6 +19,12 @@ const dischargeKindLabel: Record<string, string> = {
   cma: 'Egreso CMA',
 };
 
+/** ISO "YYYY-MM-DD" → "DD-MM-YYYY" for display in the sync dialog. */
+const ddmmyyyy = (iso?: string): string => {
+  const m = (iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : (iso ?? '');
+};
+
 interface ChipProps {
   label: string;
   value: number;
@@ -170,7 +176,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   )}
                   {previousDays.has(entry.correctedDay ?? '') && (
                     <span className="ml-1 font-medium text-amber-700">
-                      → se grabará el {entry.correctedDay}
+                      → se grabará el {ddmmyyyy(entry.correctedDay)}
                       {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
                     </span>
                   )}
@@ -225,7 +231,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   )}
                   {previousDays.has(entry.correctedDay ?? '') && (
                     <span className="ml-1 font-medium text-amber-700">
-                      → se grabará el {entry.correctedDay}
+                      → se grabará el {ddmmyyyy(entry.correctedDay)}
                       {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
                     </span>
                   )}
@@ -245,7 +251,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 <ul className="space-y-1 text-sm text-amber-900">
                   {previousDayEdits.map(edit => (
                     <li key={edit.day}>
-                      <span className="font-semibold tabular-nums">{edit.day}</span> —{' '}
+                      <span className="font-semibold tabular-nums">{ddmmyyyy(edit.day)}</span> —{' '}
                       {edit.patientNames.join(', ')}
                       {!edit.withinEditingWindow && (
                         <span className="ml-1 font-medium text-red-600">

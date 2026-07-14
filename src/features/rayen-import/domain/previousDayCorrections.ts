@@ -20,10 +20,29 @@ import type {
   PreviousDayEdit,
   DischargeEntry,
 } from '../contracts/censusImportDiff';
+import type { ReportEgreso } from '../contracts/egresoReport';
 
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
   isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;
+
+const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+
+/** True when `record` already carries an egreso (discharge/transfer/cma) for `rut` (RUT-verified). */
+const recordHasEgresoForRut = (record: DailyRecord | null | undefined, rut: string): boolean => {
+  const norm = normalizeRut(rut);
+  if (!record || !norm) return false;
+  const movements = [...record.discharges, ...record.transfers, ...record.cma];
+  return movements.some(movement => normalizeRut(movement.rut) === norm);
+};
+
+/** Result of planning the previous-day corrections: the affected days + the report egresos that
+ * still need to be filed (ones already consigned on their real day are dropped so the preview
+ * doesn't nag about an egreso that is already there). */
+export interface PreviousDayPlan {
+  edits: PreviousDayEdit[];
+  reportEgresos: ReportEgreso[];
+}
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
   ...new Set(
@@ -38,23 +57,41 @@ export const computePreviousDayEdits = async (
   diff: CensusImportDiff,
   censusDay: string,
   isAdmin: boolean
-): Promise<PreviousDayEdit[]> => {
+): Promise<PreviousDayPlan> => {
+  const reportEgresos = diff.reportEgresos ?? [];
   const days = previousDays(diff, censusDay);
-  if (days.length === 0) return [];
+  if (days.length === 0) return { edits: [], reportEgresos };
   const records = new Map<string, DailyRecord | null>();
   await Promise.all(
     days.map(async day => {
       records.set(day, await port.getForDate(day));
     })
   );
-  return planPreviousDayEdits(diff, censusDay, {
+  const alreadyDischarged = (day: string, rut: string): boolean =>
+    recordHasEgresoForRut(records.get(day), rut);
+
+  const edits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),
     isSigned: day =>
       Boolean(
         (records.get(day) as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
       ),
     withinEditingWindow: day => canWritePreviousDay(day, isAdmin),
+    alreadyDischarged,
   });
+
+  // Drop a report egreso whose real (earlier) island day already holds it — the preview must not
+  // list an egreso that is already consigned there ("falta el egreso de X" would be wrong).
+  const cleanedReportEgresos = reportEgresos.filter(
+    egreso =>
+      !(
+        egreso.correctedDay &&
+        egreso.correctedDay < censusDay &&
+        alreadyDischarged(egreso.correctedDay, egreso.run)
+      )
+  );
+
+  return { edits, reportEgresos: cleanedReportEgresos };
 };
 
 export const fileCrossDayCorrections = async (

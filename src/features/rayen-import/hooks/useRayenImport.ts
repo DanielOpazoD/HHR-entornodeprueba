@@ -209,13 +209,12 @@ export const useRayenImport = () => {
       }
 
       // Discharge-day corrections: egresos whose official island day is earlier than the census day
-      // are filed on that previous day (behind confirmation), so they must never auto-apply.
-      const previousDayEdits = await computePreviousDayEdits(
-        dailyRecord,
-        diff,
-        reportDate,
-        isAdmin
-      );
+      // are filed on that previous day (behind confirmation), so they must never auto-apply. The plan
+      // also drops egresos already consigned on their real day (RUT-verified), so the preview never
+      // nags about an egreso that is already there.
+      const previousDayPlan = await computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin);
+      const previousDayEdits = previousDayPlan.edits;
+      diff = { ...diff, reportEgresos: previousDayPlan.reportEgresos };
       if (previousDayEdits.length > 0) diff = { ...diff, previousDayEdits };
 
       const needsReview = requiresReview(diff) || previousDayEdits.length > 0;

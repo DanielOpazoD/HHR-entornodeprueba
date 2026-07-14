@@ -83,6 +83,26 @@ describe('parseClinicalPanel — evoluciones', () => {
     expect(roleOf('Nutricionista')).toBe('other');
   });
 
+  it('files a shift-change by the practitioner role: a medical one lands in "medical"', () => {
+    const panel = parseClinicalPanel([
+      event({
+        shiftChangeResume: [
+          {
+            ID: 8,
+            OBSERVATION: 'Entrega turno médico: pendiente TAC.',
+            HCPR_NAME: 'Médico',
+            PUBLISH_DATETIME: '2026-07-12T08:00:00',
+          },
+        ],
+      }),
+    ]);
+    expect(panel.evolutions[0]).toMatchObject({
+      kind: 'shift-change',
+      profession: 'medical',
+      role: 'Médico',
+    });
+  });
+
   it('flags archived/crossed-out and accepts 1/"S" style truthy values', () => {
     const panel = parseClinicalPanel([
       event({

@@ -153,6 +153,7 @@ describe('planPreviousDayEdits', () => {
     recordExists: () => true,
     withinEditingWindow: () => true,
     isSigned: () => false,
+    alreadyDischarged: () => false,
   };
 
   it('collects only discharges whose corrected island day is earlier than the census day', () => {
@@ -177,11 +178,32 @@ describe('planPreviousDayEdits', () => {
     });
   });
 
+  it('omits a patient whose egreso is ALREADY consigned that day (verified by RUT)', () => {
+    const edits = planPreviousDayEdits(
+      diff({
+        discharges: [
+          entry({ rut: '19.338.541-9', correctedDay: '2026-07-11', patientName: 'YaEgresado' }),
+          entry({ rut: '5-2', correctedDay: '2026-07-11', patientName: 'Falta' }),
+        ],
+      }),
+      '2026-07-12',
+      { ...probes, alreadyDischarged: (_day, rut) => rut === '19.338.541-9' }
+    );
+    // Only the still-missing patient survives; the already-recorded one is dropped from the message.
+    expect(edits).toHaveLength(1);
+    expect(edits[0].patientNames).toEqual(['Falta']);
+  });
+
   it('reflects the probe flags per day (out-of-window / signed)', () => {
     const edits = planPreviousDayEdits(
       diff({ discharges: [entry({ correctedDay: '2026-07-09' })] }),
       '2026-07-12',
-      { recordExists: () => true, withinEditingWindow: () => false, isSigned: () => true }
+      {
+        recordExists: () => true,
+        withinEditingWindow: () => false,
+        isSigned: () => true,
+        alreadyDischarged: () => false,
+      }
     );
     expect(edits[0]).toMatchObject({
       day: '2026-07-09',

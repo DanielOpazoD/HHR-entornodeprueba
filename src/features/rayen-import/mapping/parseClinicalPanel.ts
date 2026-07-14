@@ -214,14 +214,17 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.shiftChangeResume)) {
       const text = str(r.OBSERVATION);
       if (!text) continue;
+      // BOTH doctors and nurses hand over shift — file it by the practitioner's role, not always as
+      // nursing (a medical shift-change belongs in the Médicas sub-tab).
+      const shiftRole = roleLabel(r.HCPR_NAME);
       evolutions.push({
         id: str(r.ID) || `shift-change-${seq++}`,
         kind: 'shift-change',
         title: 'Entrega de turno',
         text,
         author: composeAuthor(r),
-        role: roleLabel(r.HCPR_NAME),
-        profession: 'nursing',
+        role: shiftRole,
+        profession: classifyProfession(shiftRole),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: flag(r.ARCHIVED),
         suspended: false,

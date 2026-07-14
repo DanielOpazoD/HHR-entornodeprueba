@@ -38,12 +38,13 @@ const formatTime = (raw: string): string => {
 };
 
 export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }) => {
-  const inactive = entry.archived || entry.crossedOut;
+  // Only an ANNULLED (crossed-out) note is dimmed. Archived notes keep normal styling — just the
+  // "Archivada" tag — since being superseded doesn't make the text less readable.
   return (
     <article
       className={clsx(
         'rounded-md border border-slate-200 bg-white p-2 shadow-sm',
-        inactive && 'opacity-60'
+        entry.crossedOut && 'opacity-60'
       )}
     >
       <header className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
@@ -61,7 +62,7 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }
           </span>
         )}
         {entry.kind === 'shift-change' && (
-          <span className="rounded border border-pink-300 bg-pink-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-pink-700">
+          <span className="rounded border border-slate-300 bg-slate-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600">
             Entrega turno
           </span>
         )}
