@@ -3,12 +3,21 @@ import { AlertTriangle, CheckCircle2, CircleX, Clock3, History } from 'lucide-re
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { rayenSyncChangeCount } from '../domain/rayenSyncHistory';
-import { presentRayenCoverage, rayenFailureReasonLabel } from './rayenSyncPresentation';
+import {
+  presentRayenCoverage,
+  presentRayenSyncOutcome,
+  rayenFailureReasonLabel,
+  type RayenSyncRecoveryPresentation,
+} from './rayenSyncPresentation';
+import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   history: RayenSyncEvent[];
+  recovery: RayenSyncRecoveryPresentation | null;
+  recoveryBusy: boolean;
+  onRecoveryAction: () => void;
 }
 
 const formatIslandTime = (iso: string): string => {
@@ -23,29 +32,30 @@ const formatIslandTime = (iso: string): string => {
 };
 
 const statusPresentation = (event: RayenSyncEvent) => {
-  if (event.status === 'complete') {
+  const outcome = presentRayenSyncOutcome(event);
+  if (outcome.tone === 'success') {
     return {
-      label: 'Completa',
+      label: outcome.label,
       icon: <CheckCircle2 size={15} aria-hidden="true" />,
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     };
   }
-  if (event.status === 'partial') {
+  if (outcome.tone === 'warning') {
     return {
-      label: 'Parcial',
+      label: outcome.label,
       icon: <AlertTriangle size={15} aria-hidden="true" />,
       className: 'border-amber-200 bg-amber-50 text-amber-700',
     };
   }
-  if (event.status === 'failed') {
+  if (outcome.tone === 'danger') {
     return {
-      label: 'Fallida',
+      label: outcome.label,
       icon: <CircleX size={15} aria-hidden="true" />,
       className: 'border-red-200 bg-red-50 text-red-700',
     };
   }
   return {
-    label: 'Censo aplicado',
+    label: outcome.label,
     icon: <Clock3 size={15} aria-hidden="true" />,
     className: 'border-sky-200 bg-sky-50 text-sky-700',
   };
@@ -76,6 +86,9 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
   isOpen,
   onClose,
   history,
+  recovery,
+  recoveryBusy,
+  onRecoveryAction,
 }) => (
   <BaseModal
     isOpen={isOpen}
@@ -88,6 +101,11 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
     dataModule="rayen-import"
     dataTestId="rayen-sync-history-modal"
   >
+    <RayenSyncRecoveryNotice
+      presentation={recovery}
+      busy={recoveryBusy}
+      onAction={onRecoveryAction}
+    />
     {history.length === 0 ? (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
         <History className="mx-auto text-slate-300" size={24} aria-hidden="true" />
@@ -105,6 +123,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
       >
         {history.map(event => {
           const status = statusPresentation(event);
+          const outcome = presentRayenSyncOutcome(event);
           const coverage = presentRayenCoverage(
             event.coverage,
             event.status !== 'failed',
@@ -131,6 +150,15 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
                       ? rayenFailureReasonLabel(event.failureReason)
                       : changesLabel(event)}
                   </p>
+                  {event.status !== 'failed' && outcome.detail && (
+                    <p
+                      className={`mt-1 text-[11px] font-semibold ${
+                        outcome.tone === 'warning' ? 'text-amber-700' : 'text-sky-700'
+                      }`}
+                    >
+                      {outcome.detail}
+                    </p>
+                  )}
                 </div>
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-bold ${status.className}`}
@@ -143,6 +171,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
                 {event.status !== 'failed' && (
                   <span
+                    title="Cobertura técnica del enriquecimiento clínico; no incluye la disponibilidad de Gestión de Camas"
                     className={
                       coverage.tone === 'success'
                         ? 'font-semibold text-emerald-700'
@@ -151,7 +180,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
                           : 'font-medium text-slate-500'
                     }
                   >
-                    Cobertura: {coverage.label}
+                    Cobertura clínica: {coverage.label}
                   </span>
                 )}
                 {source && <span className="font-medium text-slate-400">{source}</span>}

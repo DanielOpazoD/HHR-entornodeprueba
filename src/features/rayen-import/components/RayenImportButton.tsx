@@ -14,7 +14,12 @@ import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
-import { presentRayenCoverage, rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import {
+  presentRayenCoverage,
+  presentRayenSyncRecovery,
+  rayenPrimaryActionLabel,
+  rayenSyncStatusLabel,
+} from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 
 /**
@@ -46,6 +51,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
 
 export const RayenImportButton: React.FC = () => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const {
     mode,
@@ -63,7 +69,7 @@ export const RayenImportButton: React.FC = () => {
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy || fill.running;
+  const working = isSyncing || isBusy || fill.running || recoveryBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -72,6 +78,10 @@ export const RayenImportButton: React.FC = () => {
         .slice()
         .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
     [record?.rayenSyncHistory]
+  );
+  const recovery = React.useMemo(
+    () => presentRayenSyncRecovery(history[0], extension.connection, working),
+    [extension.connection, history, working]
   );
 
   // Visible, verifiable fill status: live progress while running, then a completion summary with
@@ -135,10 +145,31 @@ export const RayenImportButton: React.FC = () => {
     triggerImport(health);
   };
   const primaryActionLabel = rayenPrimaryActionLabel(extension.connection, working);
+  const persistedStatusLabel = rayenSyncStatusLabel(record?.rayenSync?.status);
+  const persistedStatusClass =
+    record?.rayenSync?.status === 'complete'
+      ? 'text-emerald-700'
+      : record?.rayenSync?.status === 'partial'
+        ? 'text-amber-700'
+        : 'text-sky-700';
   const closeHistory = React.useCallback(() => {
     setHistoryOpen(false);
     queueMicrotask(() => historyTriggerRef.current?.focus());
   }, []);
+  const handleRecoveryAction = async (): Promise<void> => {
+    if (!recovery?.action) return;
+    setRecoveryBusy(true);
+    try {
+      if (recovery.action === 'retry') {
+        closeHistory();
+        await handleSync();
+      } else {
+        await extension.refresh();
+      }
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
 
   return (
     <div
@@ -211,8 +242,11 @@ export const RayenImportButton: React.FC = () => {
               <Clock3 size={11} aria-hidden="true" />
               Última sincronización
             </p>
-            <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-700">
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[11px] font-semibold tabular-nums text-slate-700">
               {lastSync ?? 'Sin sincronización registrada'}
+              {lastSync && persistedStatusLabel && (
+                <span className={persistedStatusClass}>· {persistedStatusLabel}</span>
+              )}
             </p>
           </div>
 
@@ -254,12 +288,19 @@ export const RayenImportButton: React.FC = () => {
             type="button"
             onClick={() => setHistoryOpen(true)}
             aria-label={`Abrir historial de sincronización del día, ${history.length} eventos`}
+            title={`Historial de sincronización · ${history.length} evento${history.length === 1 ? '' : 's'}`}
             data-testid="rayen-sync-history-button"
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            className="relative inline-flex size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
           >
-            <History size={14} aria-hidden="true" />
-            <span className="hidden xl:inline">Historial</span>
-            <span className="tabular-nums">· {history.length}</span>
+            <History size={15} aria-hidden="true" />
+            {history.length > 0 && (
+              <span
+                className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full border border-white bg-slate-600 px-1 text-[9px] font-bold leading-4 tabular-nums text-white shadow-sm"
+                aria-hidden="true"
+              >
+                {history.length > 9 ? '9+' : history.length}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -294,7 +335,14 @@ export const RayenImportButton: React.FC = () => {
         onConfirm={confirm}
         onCancel={cancel}
       />
-      <RayenSyncHistoryModal isOpen={historyOpen} onClose={closeHistory} history={history} />
+      <RayenSyncHistoryModal
+        isOpen={historyOpen}
+        onClose={closeHistory}
+        history={history}
+        recovery={recovery}
+        recoveryBusy={working}
+        onRecoveryAction={() => void handleRecoveryAction()}
+      />
 
       {extension.connection !== 'ready' && extension.connection !== 'checking' && (
         <p
