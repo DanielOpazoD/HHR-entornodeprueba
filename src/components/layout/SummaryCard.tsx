@@ -150,7 +150,7 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
   const movementSummary = buildMovementSummaryModel(discharges, transfers, cmaCount, newAdmissions);
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2 flex flex-row gap-0 hover:border-slate-300 hover:shadow-sm transition-all animate-fade-in">
+    <div className="flex flex-row gap-0 rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-slate-300 animate-fade-in">
       {/* Section 1: Censo Camas */}
       <div className="pr-3 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">

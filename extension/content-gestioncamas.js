@@ -72,6 +72,10 @@
     });
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+      sendResponse({ ready: true, message: 'Gestión de Camas disponible.' });
+      return false;
+    }
     if (msg && msg.type === 'RAYEN_GC_LOOKUP') {
       lookupViaMainWorld(Array.isArray(msg.runs) ? msg.runs : []).then(sendResponse);
       return true; // keep the message channel open for the async response

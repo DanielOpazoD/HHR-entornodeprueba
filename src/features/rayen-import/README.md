@@ -38,7 +38,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `importRayenCensusUseCase.ts`            | Use-case `planRayenCensusImport` (planifica el diff)                       |
 | `settings/rayenImportSettings.ts`        | Setting de modo (`preview`/`auto`) en localStorage                         |
 | `bridge/rayenImportBridge.ts`            | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
+| `bridge/extensionHealthBridge.ts`        | Handshake de versión/capacidades, sin leer información clínica             |
 | `hooks/useRayenImportMode.ts`            | Hook reactivo del modo                                                     |
+| `hooks/useRayenExtensionHealth.ts`       | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
 | `hooks/useRayenImport.ts`                | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
 | `components/RayenImportButton.tsx`       | Botón "Sincronizar Eloísa" (barra del censo)                               |
 | `components/RayenImportPreviewModal.tsx` | Modal de preview del diff (BaseModal)                                      |
@@ -68,15 +70,13 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 ## Tests
 
-- `src/tests/rayen-import/*.test.ts` (Vitest, 44): mapeo de camas, mapeo de paciente, egreso,
-  reconciliación, `requiresReview`, **apply**, validación del registro producido (Zod del HHR),
-  setting de modo y validación del puente.
+- `src/tests/rayen-import/*.test.ts`: mapeo de camas/paciente/egreso, reconciliación,
+  `requiresReview`, **apply**, Zod del registro producido, settings, navegación y handshake de la
+  extensión, estados de salud y barra operativa.
 
 ## Pendiente
 
-- La **extensión** que lee Rayen y envía el snapshot por el puente (Fase 2).
 - (Opcional) mover el setting de modo a Firestore para que sea app-wide en vez de por-dispositivo.
-- Tests RTL de los componentes UI.
 
 ## Referencia funcional
 

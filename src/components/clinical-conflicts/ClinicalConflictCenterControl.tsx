@@ -1,7 +1,11 @@
 import React from 'react';
 import clsx from 'clsx';
-import { AlertTriangle, CheckCircle2, History, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { BaseModalContent } from '@/components/shared/baseModalContent';
+import {
+  ClinicalConflictCenterButton,
+  type ClinicalConflictCenterButtonVariant,
+} from '@/components/clinical-conflicts/ClinicalConflictCenterButton';
 import { useConflictVersionRecovery } from '@/hooks/clinical-conflicts/useConflictVersionRecovery';
 import {
   buildClinicalConflictCenterModel,
@@ -27,6 +31,8 @@ interface ClinicalConflictCenterControlProps {
   buttonTestId?: string;
   className?: string;
   hideButtonLabel?: boolean;
+  buttonLabel?: string;
+  buttonVariant?: ClinicalConflictCenterButtonVariant;
 }
 
 const MODULE_TONE_CLASS: Record<ClinicalConflictModuleDescriptor['tone'], string> = {
@@ -273,6 +279,8 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
   buttonTestId = 'clinical-conflict-center-button',
   className,
   hideButtonLabel = false,
+  buttonLabel = 'Conflictos',
+  buttonVariant = 'default',
 }) => {
   const recovery = useConflictVersionRecovery({ date, port });
   const centerModel = React.useMemo(
@@ -329,25 +337,16 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
 
   return (
     <>
-      <button
-        type="button"
+      <ClinicalConflictCenterButton
         onClick={recovery.open}
-        title={`Centro de conflictos clínicos · ${SCOPE_LABEL[scope]}`}
-        aria-label={`Centro de conflictos clínicos de ${SCOPE_LABEL[scope]}`}
-        data-testid={buttonTestId}
-        className={clsx(
-          'relative inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700',
-          className
-        )}
-      >
-        <History size={14} />
-        {!hideButtonLabel && <span className="hidden sm:inline">Conflictos</span>}
-        {recovery.snapshots.length > 0 && (
-          <span className="ml-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
-            {recovery.snapshots.length}
-          </span>
-        )}
-      </button>
+        scopeLabel={SCOPE_LABEL[scope]}
+        snapshotCount={recovery.snapshots.length}
+        testId={buttonTestId}
+        className={className}
+        hideLabel={hideButtonLabel}
+        label={buttonLabel}
+        variant={buttonVariant}
+      />
 
       <BaseModalContent
         isOpen={recovery.isOpen}

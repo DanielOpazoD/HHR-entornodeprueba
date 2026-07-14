@@ -51,6 +51,12 @@ export type {
   RayenClinicalPanelResult,
 } from './bridge/clinicalPanelBridge';
 export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
+export type { RayenEncounterNavigationResult } from './bridge/encounterNavigationBridge';
+export {
+  RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE,
+  RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
+  requestRayenEncounterNavigation,
+} from './bridge/encounterNavigationBridge';
 export type {
   ClinicalPanel,
   ClinicalPanelEntry,
@@ -125,6 +131,19 @@ export {
   requestCudyrCategories,
 } from './bridge/rayenImportBridge';
 export type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
+export type {
+  RayenExtensionHealthCheck,
+  RayenExtensionHealthReport,
+  RayenSourceAvailability,
+  RayenSourceHealth,
+} from './bridge/extensionHealthBridge';
+export {
+  RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
+  RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
+  RAYEN_EXTENSION_PROTOCOL_VERSION,
+  isRayenExtensionHealthReport,
+  requestRayenExtensionHealth,
+} from './bridge/extensionHealthBridge';
 
 // Clinical fill runner (devices + scales + CUDYR via granular patches)
 export type {
@@ -141,6 +160,11 @@ export type { RayenFillProgress } from './hooks/useRayenFillStatus';
 export { useRayenImportMode } from './hooks/useRayenImportMode';
 export type { UseRayenImportModeResult } from './hooks/useRayenImportMode';
 export { useRayenImport } from './hooks/useRayenImport';
+export { useRayenExtensionHealth } from './hooks/useRayenExtensionHealth';
+export type {
+  RayenExtensionConnectionState,
+  RayenExtensionHealthState,
+} from './hooks/useRayenExtensionHealth';
 
 // Components
 export { RayenImportButton } from './components/RayenImportButton';

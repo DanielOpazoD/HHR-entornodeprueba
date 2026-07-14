@@ -1,14 +1,18 @@
+import type { ReactElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientInputCells } from '@/features/census/components/patient-row/PatientInputCells';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { useDailyRecordStability } from '@/context/DailyRecordContext';
+import { UIProvider } from '@/context/UIContext';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { clearDailyRecordClinicalFieldPausesForTests } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStability: vi.fn(),
 }));
+
+const renderWithUI = (ui: ReactElement) => render(<UIProvider>{ui}</UIProvider>);
 
 describe('PatientInputCells', () => {
   beforeEach(() => {
@@ -33,7 +37,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -73,7 +77,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -117,7 +121,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -181,7 +185,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -231,7 +235,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -287,7 +291,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>
@@ -347,7 +351,7 @@ describe('PatientInputCells', () => {
       multiple: vi.fn(),
     };
 
-    render(
+    renderWithUI(
       <table>
         <tbody>
           <tr>

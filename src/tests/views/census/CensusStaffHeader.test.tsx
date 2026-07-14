@@ -70,15 +70,8 @@ vi.mock('@/components/layout/SummaryCard', () => ({
   ),
 }));
 
-// Admin-only affordance with its own Auth/UI provider dependencies; this header test is
-// focused on the staff read-model wiring, so the control is stubbed like the other children.
-vi.mock('@/features/census/components/ConflictVersionsAdminControl', () => ({
-  ConflictVersionsAdminControl: () => null,
-}));
-
 // Rayen census-import control mounts a hook that needs TanStack Query + repository
-// providers. Like ConflictVersionsAdminControl above, it's stubbed so this header test
-// stays focused on staff read-model wiring (the button has its own dedicated tests).
+// providers. It is stubbed so this header test stays focused on staff read-model wiring.
 vi.mock('@/features/rayen-import', () => ({
   RayenImportButton: () => null,
 }));

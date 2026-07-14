@@ -29,6 +29,7 @@ import { runClinicalFill } from '../clinicalFillRunner';
 import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
 import {
   subscribeToRayenSnapshots,
+  subscribeToRayenImportErrors,
   requestRayenSnapshot,
   requestEgresoLookup,
   requestEgresoReport,
@@ -38,32 +39,15 @@ import {
   requestCudyrCategories,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
+import {
+  getRayenImportErrorMessage,
+  INITIAL_RAYEN_IMPORT_STATE,
+  type RayenImportState,
+} from './rayenImportState';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
 const makeId = (): string => crypto.randomUUID();
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
-interface RayenImportState {
-  diff: CensusImportDiff | null;
-  isPreviewOpen: boolean;
-  isBusy: boolean;
-  /** True from clicking Import until the whole flow settles (snapshot → plan → background fill). */
-  isSyncing: boolean;
-  result: ApplyResult | null;
-  error: string | null;
-}
-
-const INITIAL_STATE: RayenImportState = {
-  diff: null,
-  isPreviewOpen: false,
-  isBusy: false,
-  isSyncing: false,
-  result: null,
-  error: null,
-};
 
 export const useRayenImport = () => {
   const { mode } = useRayenImportMode();
@@ -78,7 +62,7 @@ export const useRayenImport = () => {
   // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
   // nurse can only write a previous day within that window — older days are surfaced but skipped.
   const isAdmin = role === 'admin';
-  const [state, setState] = useState<RayenImportState>(INITIAL_STATE);
+  const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   // Guards the experimental auto-apply path. The bridge can deliver snapshots
   // back-to-back; without this, a second auto-apply would start from the same base
   // record as the first (which has not finished saving) and silently clobber it.
@@ -244,7 +228,7 @@ export const useRayenImport = () => {
               ...prev,
               isBusy: false,
               isSyncing: false,
-              error: errorMessage(error),
+              error: getRayenImportErrorMessage(error),
             }));
           });
         return;
@@ -297,6 +281,20 @@ export const useRayenImport = () => {
   );
 
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
+
+  useEffect(
+    () =>
+      subscribeToRayenImportErrors(extensionError => {
+        clearSyncTimeout();
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          error: extensionError,
+        }));
+      }),
+    [clearSyncTimeout]
+  );
 
   // Trigger an import: show the spinner immediately, ask the extension for a snapshot, and guard with
   // a fallback timer so an uninstalled/asleep extension doesn't leave it spinning forever.
@@ -353,7 +351,7 @@ export const useRayenImport = () => {
           // Freshness guard: the record changed under us (another tab, the background fill of a
           // previous run…). The guard already refreshed the cache — retry ONCE against the fresh
           // record instead of bouncing the error back to the user.
-          if (!/actualizó hace un momento/i.test(errorMessage(error))) throw error;
+          if (!/actualizó hace un momento/i.test(getRayenImportErrorMessage(error))) throw error;
           await new Promise(resolve => setTimeout(resolve, 900));
           const fresh = currentRecordRef.current;
           if (!fresh) throw error;
@@ -367,7 +365,7 @@ export const useRayenImport = () => {
           ...prev,
           isBusy: false,
           isSyncing: false,
-          error: errorMessage(error),
+          error: getRayenImportErrorMessage(error),
         }));
       }
     },

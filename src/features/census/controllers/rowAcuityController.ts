@@ -14,8 +14,10 @@
 
 import { buildScoresCellModel } from './evaluationScoresCellController';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 
 export type RowAcuityLevel = 'none' | 'watch' | 'alert';
+export type CensusAttentionFilter = 'all' | 'attention' | 'scale' | 'isolation';
 
 /** A single reason a row is flagged, plus the category so the triage bar can tally by kind. */
 export interface RowAcuityReason {
@@ -81,14 +83,55 @@ export const buildCensusAttentionSummary = (
   censusIsoDay: string
 ): CensusAttentionSummary => {
   const summary: CensusAttentionSummary = { rows: 0, alertRows: 0, scale: 0, isolation: 0 };
-  for (const patient of Object.values(beds)) {
-    if (!patient?.patientName?.trim() || patient.isBlocked) continue;
+
+  const tallyPatient = (patient: PatientData): void => {
+    if (!patient?.patientName?.trim() || patient.isBlocked) return;
     const { level, reasons } = buildRowAcuity(patient, censusIsoDay);
-    if (level === 'none') continue;
-    summary.rows += 1;
-    if (level === 'alert') summary.alertRows += 1;
-    summary.scale += reasons.filter(reason => reason.kind === 'scale').length;
-    if (reasons.some(reason => reason.kind === 'isolation')) summary.isolation += 1;
+    if (level !== 'none') {
+      summary.rows += 1;
+      if (level === 'alert') summary.alertRows += 1;
+      summary.scale += reasons.filter(reason => reason.kind === 'scale').length;
+      if (reasons.some(reason => reason.kind === 'isolation')) summary.isolation += 1;
+    }
+
+    if (patient.clinicalCrib && !patient.isBlocked) {
+      tallyPatient(patient.clinicalCrib);
+    }
+  };
+
+  for (const patient of Object.values(beds)) {
+    tallyPatient(patient);
   }
   return summary;
+};
+
+const rowMatchesAttentionFilter = (
+  row: UnifiedBedRow,
+  censusIsoDay: string,
+  filter: Exclude<CensusAttentionFilter, 'all'>
+): boolean => {
+  if (row.kind !== 'occupied' || row.data.isBlocked || !row.data.patientName?.trim()) return false;
+
+  const acuity = buildRowAcuity(row.data, censusIsoDay);
+  if (filter === 'attention') return acuity.level !== 'none';
+  return acuity.reasons.some(reason => reason.kind === filter);
+};
+
+/** Applies surveillance mode to already-resolved census rows. It never mutates or reorders rows;
+ * empty beds simply disappear while a clinical attention filter is active. */
+export const filterCensusRowsByAttention = (
+  rows: UnifiedBedRow[],
+  censusIsoDay: string,
+  filter: CensusAttentionFilter
+): UnifiedBedRow[] => {
+  if (filter === 'all') return rows;
+  return rows.filter(row => rowMatchesAttentionFilter(row, censusIsoDay, filter));
+};
+
+export const getCensusAttentionFilterLabel = (
+  filter: Exclude<CensusAttentionFilter, 'all'>
+): string => {
+  if (filter === 'scale') return 'Escalas por reaplicar';
+  if (filter === 'isolation') return 'Pacientes en aislamiento';
+  return 'Pacientes que requieren atención';
 };

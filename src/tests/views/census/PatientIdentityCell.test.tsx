@@ -2,6 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
+import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import * as browserClipboardRuntime from '@/shared/runtime/browserClipboardRuntime';
 import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
@@ -10,19 +11,21 @@ const noopChange: DebouncedTextHandler = () => vi.fn();
 
 const renderCell = (props?: Partial<React.ComponentProps<typeof PatientIdentityCell>>) =>
   render(
-    <table>
-      <tbody>
-        <tr>
-          <PatientIdentityCell
-            data={DataFactory.createMockPatient('R1')}
-            hasRutError={false}
-            onNameChange={noopChange}
-            onOpenDemographics={vi.fn()}
-            {...props}
-          />
-        </tr>
-      </tbody>
-    </table>
+    <UIProvider>
+      <table>
+        <tbody>
+          <tr>
+            <PatientIdentityCell
+              data={DataFactory.createMockPatient('R1')}
+              hasRutError={false}
+              onNameChange={noopChange}
+              onOpenDemographics={vi.fn()}
+              {...props}
+            />
+          </tr>
+        </tbody>
+      </table>
+    </UIProvider>
   );
 
 describe('PatientIdentityCell', () => {

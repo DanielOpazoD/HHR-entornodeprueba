@@ -24,7 +24,7 @@ describe('CensusStaleDayBanner', () => {
       />
     );
 
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveClass('bg-slate-50', 'text-slate-600');
     fireEvent.click(screen.getByRole('button', { name: /ir a hoy/i }));
     expect(onGoToToday).toHaveBeenCalledTimes(1);
   });

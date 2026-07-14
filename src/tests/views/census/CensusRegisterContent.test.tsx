@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CensusRegisterContent } from '@/features/census/components/CensusRegisterContent';
@@ -27,11 +27,26 @@ vi.mock('@/features/census/components/CensusPrintHeader', () => ({
 }));
 
 vi.mock('@/features/census/components/CensusStaffHeader', () => ({
-  CensusStaffHeader: () => <div data-testid="census-staff-header" />,
+  CensusStaffHeader: ({
+    attentionFilter,
+    onAttentionFilterChange,
+  }: {
+    attentionFilter: string;
+    onAttentionFilterChange: (filter: 'scale') => void;
+  }) => (
+    <div data-testid="census-staff-header">
+      <span data-testid="staff-attention-filter">{attentionFilter}</span>
+      <button type="button" onClick={() => onAttentionFilterChange('scale')}>
+        Filtrar escalas
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('@/features/census/components/CensusRegisterMainContent', () => ({
-  CensusRegisterMainContent: () => <div data-testid="census-table" />,
+  CensusRegisterMainContent: ({ attentionFilter }: { attentionFilter: string }) => (
+    <div data-testid="census-table" data-attention-filter={attentionFilter} />
+  ),
 }));
 
 vi.mock('@/features/census/components/CensusRegisterSections', () => ({
@@ -75,6 +90,30 @@ describe('CensusRegisterContent', () => {
 
     // After the deferred enhancement settles, the secondary sections appear.
     expect(await screen.findByTestId('census-register-sections')).toBeInTheDocument();
+  });
+
+  it('wires the attention filter from the operational header into the census table', () => {
+    const props = {
+      currentDateString: '2026-03-10',
+      readOnly: false,
+      beds: {},
+      visibleBeds: [],
+      marginStyle: {},
+      stats: null,
+      showBedManagerModal: false,
+      onCloseBedManagerModal: vi.fn(),
+    };
+    const { rerender } = render(<CensusRegisterContent {...props} />);
+
+    expect(screen.getByTestId('staff-attention-filter')).toHaveTextContent('all');
+    expect(screen.getByTestId('census-table')).toHaveAttribute('data-attention-filter', 'all');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar escalas' }));
+    expect(screen.getByTestId('staff-attention-filter')).toHaveTextContent('scale');
+    expect(screen.getByTestId('census-table')).toHaveAttribute('data-attention-filter', 'scale');
+
+    rerender(<CensusRegisterContent {...props} currentDateString="2026-03-11" />);
+    expect(screen.getByTestId('staff-attention-filter')).toHaveTextContent('scale');
   });
 
   it('keeps remote reconciliation as internal state without adding a visible banner', () => {
