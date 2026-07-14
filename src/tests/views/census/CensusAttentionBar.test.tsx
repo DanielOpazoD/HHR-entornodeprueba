@@ -15,8 +15,18 @@ const Harness: React.FC = () => {
       <CensusAttentionBar
         beds={{
           R1: DataFactory.createMockPatient('R1', {
-            patientName: 'Paciente aislado',
-            isIsolated: true,
+            patientName: 'Paciente con escala pendiente',
+            evaluationScores: {
+              braden: {
+                code: 'BRADEN',
+                name: 'Escala de riesgo UPP (Braden)',
+                encounterEventId: 1,
+                total: 17,
+                severity: 'Riesgo bajo',
+                recordedDate: '2026-07-05',
+                recordedAt: '05-07-2026 08:00',
+              },
+            },
           }),
         }}
         censusIsoDay={DAY}
@@ -28,24 +38,38 @@ const Harness: React.FC = () => {
 };
 
 describe('CensusAttentionBar', () => {
-  it('turns attention indicators into toggleable surveillance filters', () => {
+  it('shows only the compact scale filter and toggles the full census', () => {
     render(<Harness />);
 
-    const attention = screen.getByTestId('census-attention-filter-all');
-    const isolation = screen.getByTestId('census-attention-filter-isolation');
+    const scale = screen.getByTestId('census-attention-filter-scale');
+    expect(scale).toHaveTextContent('1 escala');
+    expect(scale).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('Vigilancia')).not.toBeInTheDocument();
+    expect(screen.queryByText(/requiere atención/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/aislamiento/)).not.toBeInTheDocument();
 
-    expect(attention).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(attention);
-    expect(screen.getByTestId('active-filter')).toHaveTextContent('attention');
-    expect(attention).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(scale);
+    expect(screen.getByTestId('active-filter')).toHaveTextContent('scale');
+    expect(scale).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(isolation);
-    expect(screen.getByTestId('active-filter')).toHaveTextContent('isolation');
-    expect(isolation).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(isolation);
+    fireEvent.click(scale);
     expect(screen.getByTestId('active-filter')).toHaveTextContent('all');
-    expect(screen.queryByTestId('census-attention-filter-clear')).not.toBeInTheDocument();
+  });
+
+  it('does not surface isolation-only attention in this shortcut', () => {
+    render(
+      <CensusAttentionBar
+        beds={{
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: 'Paciente aislado',
+            isIsolated: true,
+          }),
+        }}
+        censusIsoDay={DAY}
+      />
+    );
+
+    expect(screen.queryByTestId('census-attention-bar')).not.toBeInTheDocument();
   });
 
   it('stays hidden when there is nothing to watch and the full census is active', () => {
