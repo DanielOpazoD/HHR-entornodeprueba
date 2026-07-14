@@ -205,7 +205,7 @@ describe('RayenImportButton', () => {
     expect(mocks.triggerImport).toHaveBeenCalledWith(blockedHealth);
   });
 
-  it('renders persisted coverage and opens the accessible daily history', () => {
+  it('explains a partial result and retries through the existing reviewed flow', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -236,6 +236,7 @@ describe('RayenImportButton', () => {
               completedAt: '2026-07-14T10:03:00.000Z',
             },
             changes: { admissions: 1, updates: 2, moves: 0, discharges: 0, unchanged: 8 },
+            source: { fichaMedico: 'ready', gestionCamas: 'ready' },
           },
         ],
       },
@@ -244,12 +245,21 @@ describe('RayenImportButton', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByText('10/11 · 1 pendiente')).toBeInTheDocument();
+    expect(screen.getByText('· Parcial')).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir historial de sincronización del día, 1 eventos' })
     );
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
+    expect(screen.getByText('1 paciente pendiente')).toBeInTheDocument();
+    expect(screen.getByText('Puedes completar esta sincronización')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
+    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
+    expect(mocks.triggerImport).toHaveBeenCalledWith(
+      expect.objectContaining({ connection: 'ready', canSync: true })
+    );
   });
 
   it('shows the empty history state, closes with Escape and restores focus', async () => {

@@ -1,4 +1,9 @@
-import type { RayenSyncCoverage, RayenSyncFailureReason } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncCoverage,
+  RayenSyncEvent,
+  RayenSyncFailureReason,
+  RayenSyncStatus,
+} from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
 export interface CoveragePresentation {
@@ -50,4 +55,128 @@ export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
   if (reason === 'apply_failed') return 'No se pudo aplicar el censo';
   return 'Extensión no disponible';
+};
+
+export type RayenSyncOutcomeTone = 'success' | 'warning' | 'danger' | 'info';
+
+export interface RayenSyncOutcomePresentation {
+  label: string;
+  detail: string | null;
+  tone: RayenSyncOutcomeTone;
+  unresolved: boolean;
+}
+
+export const rayenSyncStatusLabel = (status?: RayenSyncStatus): string | null => {
+  if (status === 'complete') return 'Completa';
+  if (status === 'partial') return 'Parcial';
+  if (status === 'applied') return 'Censo aplicado';
+  if (status === 'failed') return 'Fallida';
+  return null;
+};
+
+const partialReasons = (event: RayenSyncEvent): string[] => {
+  const reasons: string[] = [];
+  if (event.coverage?.errors) {
+    reasons.push(
+      `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} pendiente${event.coverage.errors === 1 ? '' : 's'}`
+    );
+  } else if (event.coverage?.sourceErrors) {
+    reasons.push('Fuente clínica incompleta');
+  }
+  if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
+    reasons.push('Gestión de Camas no disponible');
+  }
+  return reasons;
+};
+
+export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcomePresentation => {
+  if (event.status === 'complete') {
+    return { label: 'Completa', detail: null, tone: 'success', unresolved: false };
+  }
+  if (event.status === 'failed') {
+    return {
+      label: 'Fallida',
+      detail: rayenFailureReasonLabel(event.failureReason),
+      tone: 'danger',
+      unresolved: true,
+    };
+  }
+  if (event.status === 'applied') {
+    return {
+      label: 'Censo aplicado',
+      detail: 'Enriquecimiento clínico pendiente',
+      tone: 'info',
+      unresolved: true,
+    };
+  }
+  const reasons = partialReasons(event);
+  return {
+    label: 'Parcial',
+    detail: reasons.join(' · ') || 'Enriquecimiento clínico parcial',
+    tone: 'warning',
+    unresolved: true,
+  };
+};
+
+export interface RayenSyncRecoveryPresentation {
+  title: string;
+  detail: string;
+  action: 'refresh' | 'retry' | null;
+  actionLabel: string | null;
+  tone: 'warning' | 'danger' | 'info';
+}
+
+export const presentRayenSyncRecovery = (
+  event: RayenSyncEvent | undefined,
+  connection: RayenExtensionConnectionState,
+  synchronizationRunning = false
+): RayenSyncRecoveryPresentation | null => {
+  if (!event) return null;
+  const outcome = presentRayenSyncOutcome(event);
+  if (!outcome.unresolved) return null;
+
+  if (synchronizationRunning) {
+    return {
+      title: 'Sincronización en curso',
+      detail: outcome.detail ?? 'Completando la ejecución actual.',
+      action: null,
+      actionLabel: null,
+      tone: 'info',
+    };
+  }
+
+  if (connection === 'checking') {
+    return {
+      title: 'Comprobando conexión',
+      detail: outcome.detail ?? 'Validando si Eloísa está disponible.',
+      action: null,
+      actionLabel: null,
+      tone: 'info',
+    };
+  }
+  if (connection === 'ready') {
+    return {
+      title: 'Puedes completar esta sincronización',
+      detail: `${outcome.detail ?? 'La ejecución quedó pendiente'}. Eloísa está operativa.`,
+      action: 'retry',
+      actionLabel: 'Reintentar con revisión',
+      tone: 'warning',
+    };
+  }
+
+  const title =
+    connection === 'blocked'
+      ? 'Ficha Médico requiere atención'
+      : connection === 'incompatible'
+        ? 'La extensión debe actualizarse'
+        : connection === 'degraded'
+          ? 'La conexión sigue parcial'
+          : 'Eloísa no responde';
+  return {
+    title,
+    detail: outcome.detail ?? 'La ejecución no se completó.',
+    action: 'refresh',
+    actionLabel: 'Comprobar nuevamente',
+    tone: connection === 'blocked' || connection === 'incompatible' ? 'danger' : 'warning',
+  };
 };
