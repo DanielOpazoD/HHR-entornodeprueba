@@ -7,9 +7,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { AlarmClock, Biohazard, TriangleAlert } from 'lucide-react';
+import { AlarmClock, Biohazard, Eye, TriangleAlert } from 'lucide-react';
 import {
   buildCensusAttentionSummary,
+  type CensusAttentionFilter,
   type CensusAttentionSummary,
 } from '@/features/census/controllers/rowAcuityController';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
@@ -17,70 +18,106 @@ import type { PatientData } from '@/features/census/contracts/censusPatientContr
 interface CensusAttentionBarProps {
   beds: Record<string, PatientData>;
   censusIsoDay: string;
+  activeFilter?: CensusAttentionFilter;
+  onFilterChange?: (filter: CensusAttentionFilter) => void;
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
-const CountItem: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-  <span className="inline-flex items-center gap-1 tabular-nums">
+interface FilterButtonProps {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  testId: string;
+}
+
+const FilterButton: React.FC<FilterButtonProps> = ({ active, icon, label, onClick, testId }) => (
+  <button
+    type="button"
+    aria-pressed={active}
+    data-testid={testId}
+    onClick={onClick}
+    className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-current ${
+      active
+        ? 'border-current bg-white text-current shadow-sm'
+        : 'border-transparent bg-white/45 text-current hover:border-current/20 hover:bg-white/80'
+    }`}
+  >
     {icon}
     {label}
-  </span>
+  </button>
 );
 
-export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({ beds, censusIsoDay }) => {
+export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
+  beds,
+  censusIsoDay,
+  activeFilter = 'all',
+  onFilterChange,
+}) => {
   const summary: CensusAttentionSummary = useMemo(
     () => buildCensusAttentionSummary(beds, censusIsoDay),
     [beds, censusIsoDay]
   );
 
-  if (summary.rows === 0) return null;
+  if (summary.rows === 0 && activeFilter === 'all') return null;
 
   const isAlert = summary.alertRows > 0;
-  const items: React.ReactElement[] = [];
-  if (summary.scale > 0) {
-    items.push(
-      <CountItem
-        key="scale"
-        icon={<AlarmClock size={12} strokeWidth={2.5} aria-hidden />}
-        label={plural(summary.scale, 'escala por reaplicar', 'escalas por reaplicar')}
-      />
-    );
-  }
-  if (summary.isolation > 0) {
-    items.push(
-      <CountItem
-        key="isolation"
-        icon={<Biohazard size={12} strokeWidth={2.5} aria-hidden />}
-        label={plural(summary.isolation, 'aislamiento', 'aislamientos')}
-      />
-    );
-  }
+  const selectFilter = (filter: CensusAttentionFilter): void => {
+    onFilterChange?.(activeFilter === filter ? 'all' : filter);
+  };
 
   return (
     <div
-      role="status"
+      role="group"
+      aria-label="Filtros del modo vigilancia"
       data-testid="census-attention-bar"
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+      className={`inline-flex min-h-14 flex-wrap items-center gap-2 rounded-xl border px-2.5 py-2 text-xs shadow-sm ${
         isAlert
           ? 'border-red-200 bg-red-50 text-red-700'
           : 'border-amber-200 bg-amber-50 text-amber-700'
       }`}
     >
-      <TriangleAlert size={15} strokeWidth={2.5} className="shrink-0" aria-hidden />
-      <span className="font-semibold">
-        {plural(summary.rows, 'paciente requiere atención', 'pacientes requieren atención')}
+      <span className="inline-flex items-center gap-1.5 px-1 font-semibold">
+        <Eye size={15} strokeWidth={2.5} aria-hidden />
+        Vigilancia
       </span>
-      {items.length > 0 && (
-        <span className="flex items-center gap-2 border-l border-current/20 pl-2 opacity-90">
-          {items.map((item, index) => (
-            <React.Fragment key={item.key ?? index}>
-              {index > 0 && <span className="opacity-40">·</span>}
-              {item}
-            </React.Fragment>
-          ))}
-        </span>
+
+      {summary.rows > 0 ? (
+        <>
+          <FilterButton
+            active={activeFilter === 'attention'}
+            icon={<TriangleAlert size={13} strokeWidth={2.5} aria-hidden />}
+            label={plural(summary.rows, 'requiere atención', 'requieren atención')}
+            onClick={() => selectFilter('attention')}
+            testId="census-attention-filter-all"
+          />
+          {summary.scale > 0 && (
+            <FilterButton
+              active={activeFilter === 'scale'}
+              icon={<AlarmClock size={13} strokeWidth={2.5} aria-hidden />}
+              label={plural(summary.scale, 'escala', 'escalas')}
+              onClick={() => selectFilter('scale')}
+              testId="census-attention-filter-scale"
+            />
+          )}
+          {summary.isolation > 0 && (
+            <FilterButton
+              active={activeFilter === 'isolation'}
+              icon={<Biohazard size={13} strokeWidth={2.5} aria-hidden />}
+              label={plural(summary.isolation, 'aislamiento', 'aislamientos')}
+              onClick={() => selectFilter('isolation')}
+              testId="census-attention-filter-isolation"
+            />
+          )}
+        </>
+      ) : (
+        <span className="px-1 font-medium">Ya no hay pacientes en este filtro</span>
       )}
+
+      <span className="sr-only" role="status" aria-live="polite">
+        {activeFilter === 'all' ? 'Mostrando censo completo' : 'Modo vigilancia activo'}
+      </span>
     </div>
   );
 };

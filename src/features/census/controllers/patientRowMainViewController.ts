@@ -24,8 +24,8 @@ export const resolvePatientMainRowClassName = ({
   patientName,
 }: ResolvePatientMainRowClassNameParams): string =>
   clsx(
-    'group/row relative border-b border-slate-100/80 transition-all duration-150',
-    'hover:bg-blue-50/40 hover:shadow-[inset_0_0_0_1px_rgba(59,130,246,0.08)]',
+    'group/row relative border-b border-slate-100/90 transition-colors duration-150',
+    'hover:bg-slate-50/80',
     isBlocked ? 'bg-slate-50/50' : 'bg-white',
     'text-[12px] leading-tight',
     patientName?.trim() === '' && 'animate-slide-fade-in'

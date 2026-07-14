@@ -8,6 +8,7 @@ interface ConflictVersionsAdminControlProps {
   currentRecord?: DailyRecord | null;
   /** Injectable for tests/stories; defaults to the real port. */
   port?: DailyRecordConflictRecoveryPort;
+  variant?: 'icon' | 'operations';
 }
 
 /**
@@ -18,6 +19,7 @@ export const ConflictVersionsAdminControl: React.FC<ConflictVersionsAdminControl
   date,
   currentRecord,
   port,
+  variant = 'icon',
 }) => (
   <ClinicalConflictCenterControl
     date={date}
@@ -25,7 +27,8 @@ export const ConflictVersionsAdminControl: React.FC<ConflictVersionsAdminControl
     currentRecord={currentRecord}
     port={port}
     buttonTestId="conflict-versions-button"
-    className="self-center"
-    hideButtonLabel
+    className="self-center shrink-0"
+    hideButtonLabel={variant === 'icon'}
+    buttonVariant={variant === 'operations' ? 'operations' : 'default'}
   />
 );

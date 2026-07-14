@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, type CSSProperties } from 'react';
+import React, { Suspense, lazy, type CSSProperties, useState } from 'react';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
@@ -12,6 +12,7 @@ import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusA
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
+import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
 const LazyCensusRegisterSections = lazy(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -44,6 +45,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
   const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
+  const [attentionFilter, setAttentionFilter] = useState<CensusAttentionFilter>('all');
   const dailyRecordStatus = useDailyRecordStatus();
   const operationalState = resolveCensusOperationalState({
     branch: 'register',
@@ -57,10 +59,16 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     <CensusActionsProvider>
       <CensusPrintHeader currentDateString={currentDateString} />
 
-      <div className="space-y-6" style={marginStyle}>
+      <div className="space-y-4" style={marginStyle}>
         <CensusOperationalStateBanner state={operationalState} />
 
-        <CensusStaffHeader readOnly={readOnly} stats={stats} accessProfile={accessProfile} />
+        <CensusStaffHeader
+          readOnly={readOnly}
+          stats={stats}
+          accessProfile={accessProfile}
+          attentionFilter={attentionFilter}
+          onAttentionFilterChange={setAttentionFilter}
+        />
 
         <CensusRegisterMainContent
           currentDateString={currentDateString}
@@ -68,6 +76,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           visibleBeds={visibleBeds}
           beds={beds}
           accessProfile={accessProfile}
+          attentionFilter={attentionFilter}
+          onClearAttentionFilter={() => setAttentionFilter('all')}
         />
 
         {shouldRenderDeferredSections ? (

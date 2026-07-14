@@ -43,7 +43,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
 
   return (
     <div
-      className={`card px-2 py-1.5 flex flex-col gap-0.5 hover:border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
+      className={`card px-2 py-1.5 flex flex-col gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button

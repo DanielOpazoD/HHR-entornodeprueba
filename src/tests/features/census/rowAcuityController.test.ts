@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRowAcuity,
   buildCensusAttentionSummary,
+  filterCensusRowsByAttention,
+  getCensusAttentionFilterLabel,
 } from '@/features/census/controllers/rowAcuityController';
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
+import { BedType } from '@/types/domain/beds';
 
 const DAY = '2026-07-12';
 
@@ -109,5 +113,71 @@ describe('buildCensusAttentionSummary', () => {
     );
     // One patient, two overdue scales, one isolation.
     expect(summary).toEqual({ rows: 1, alertRows: 1, scale: 2, isolation: 1 });
+  });
+
+  it('includes a clinical crib because it is rendered as its own patient row', () => {
+    const summary = buildCensusAttentionSummary(
+      {
+        R1: patient({
+          clinicalCrib: patient({ patientName: 'RN de Ana', isIsolated: true }),
+        }),
+      },
+      DAY
+    );
+
+    expect(summary).toEqual({ rows: 1, alertRows: 0, scale: 0, isolation: 1 });
+  });
+});
+
+describe('filterCensusRowsByAttention', () => {
+  const bed = (id: string) => ({ id, name: id, type: BedType.MEDIA, isCuna: false });
+  const rows: UnifiedBedRow[] = [
+    { kind: 'empty', id: 'R0', bed: bed('R0') },
+    {
+      kind: 'occupied',
+      id: 'R1',
+      bed: bed('R1'),
+      data: patient({ evaluationScores: { braden: braden({}) } }),
+      isSubRow: false,
+    },
+    {
+      kind: 'occupied',
+      id: 'R2',
+      bed: bed('R2'),
+      data: patient({ isIsolated: true }),
+      isSubRow: false,
+    },
+    {
+      kind: 'occupied',
+      id: 'R3',
+      bed: bed('R3'),
+      data: patient({ vitalSigns: vitals({ spo2: 85 }) }),
+      isSubRow: false,
+    },
+  ];
+
+  it('returns the original rows for the complete census', () => {
+    expect(filterCensusRowsByAttention(rows, '2026-07-15', 'all')).toBe(rows);
+  });
+
+  it('shows only rows requiring attention and removes empty beds', () => {
+    expect(filterCensusRowsByAttention(rows, '2026-07-15', 'attention').map(row => row.id)).toEqual(
+      ['R1', 'R2']
+    );
+  });
+
+  it('filters scale and isolation queues independently without reordering them', () => {
+    expect(filterCensusRowsByAttention(rows, '2026-07-15', 'scale').map(row => row.id)).toEqual([
+      'R1',
+    ]);
+    expect(filterCensusRowsByAttention(rows, '2026-07-15', 'isolation').map(row => row.id)).toEqual(
+      ['R2']
+    );
+  });
+
+  it('provides concise labels for the active surveillance mode', () => {
+    expect(getCensusAttentionFilterLabel('attention')).toBe('Pacientes que requieren atención');
+    expect(getCensusAttentionFilterLabel('scale')).toBe('Escalas por reaplicar');
+    expect(getCensusAttentionFilterLabel('isolation')).toBe('Pacientes en aislamiento');
   });
 });

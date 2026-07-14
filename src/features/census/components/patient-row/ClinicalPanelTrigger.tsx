@@ -34,11 +34,11 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           event.stopPropagation();
           setIsOpen(true);
         }}
-        className="shrink-0 rounded p-0.5 text-slate-300 transition-colors hover:bg-medical-50 hover:text-medical-600"
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500"
         title="Panel clínico (evoluciones e indicaciones de Eloísa)"
         aria-label={`Abrir panel clínico de ${patientName}`}
       >
-        <BookOpenText size={13} />
+        <BookOpenText size={14} />
       </button>
       {isOpen && (
         <ClinicalPanelDrawer

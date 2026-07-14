@@ -4,6 +4,7 @@ import type { DailyRecord } from '@/features/census/contracts/censusRecordContra
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CensusTable } from './CensusTable';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
 interface CensusRegisterMainContentProps {
   currentDateString: string;
@@ -11,6 +12,8 @@ interface CensusRegisterMainContentProps {
   visibleBeds: BedDefinition[];
   beds: DailyRecord['beds'];
   accessProfile: CensusAccessProfile;
+  attentionFilter?: CensusAttentionFilter;
+  onClearAttentionFilter?: () => void;
 }
 
 export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps> = ({
@@ -19,12 +22,16 @@ export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps>
   visibleBeds: _visibleBeds,
   beds: _beds,
   accessProfile,
+  attentionFilter = 'all',
+  onClearAttentionFilter,
 }) => (
   <SectionErrorBoundary sectionName="Tabla de Pacientes" fallbackHeight="400px">
     <CensusTable
       currentDateString={currentDateString}
       readOnly={readOnly}
       accessProfile={accessProfile}
+      attentionFilter={attentionFilter}
+      onClearAttentionFilter={onClearAttentionFilter}
     />
   </SectionErrorBoundary>
 );

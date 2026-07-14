@@ -27,6 +27,7 @@ interface ClinicalConflictCenterControlProps {
   buttonTestId?: string;
   className?: string;
   hideButtonLabel?: boolean;
+  buttonVariant?: 'default' | 'operations';
 }
 
 const MODULE_TONE_CLASS: Record<ClinicalConflictModuleDescriptor['tone'], string> = {
@@ -273,6 +274,7 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
   buttonTestId = 'clinical-conflict-center-button',
   className,
   hideButtonLabel = false,
+  buttonVariant = 'default',
 }) => {
   const recovery = useConflictVersionRecovery({ date, port });
   const centerModel = React.useMemo(
@@ -336,7 +338,10 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
         aria-label={`Centro de conflictos clínicos de ${SCOPE_LABEL[scope]}`}
         data-testid={buttonTestId}
         className={clsx(
-          'relative inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700',
+          'relative inline-flex items-center gap-1.5 border border-slate-200 bg-white text-xs font-semibold shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+          buttonVariant === 'operations'
+            ? 'min-h-9 rounded-lg px-2.5 py-2 text-slate-600'
+            : 'rounded-md px-2 py-1.5 text-slate-500',
           className
         )}
       >

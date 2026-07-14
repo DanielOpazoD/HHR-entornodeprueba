@@ -16,6 +16,12 @@ import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
+import { Eye } from 'lucide-react';
+import {
+  filterCensusRowsByAttention,
+  getCensusAttentionFilterLabel,
+  type CensusAttentionFilter,
+} from '@/features/census/controllers/rowAcuityController';
 
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
@@ -30,12 +36,16 @@ interface CensusTableProps {
   currentDateString: string;
   readOnly?: boolean;
   accessProfile?: CensusAccessProfile;
+  attentionFilter?: CensusAttentionFilter;
+  onClearAttentionFilter?: () => void;
 }
 
 export const CensusTable: React.FC<CensusTableProps> = ({
   currentDateString,
   readOnly = false,
   accessProfile = 'default',
+  attentionFilter = 'all',
+  onClearAttentionFilter,
 }) => {
   const [activeEmptyBedId, setActiveEmptyBedId] = useState<string | null>(null);
   const tableRootRef = useRef<HTMLDivElement>(null);
@@ -164,9 +174,19 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   if (!isReady || !bindings) return <ViewLoader />;
 
   const { headerProps, bodyProps, tableStyle } = bindings;
+  const filteredUnifiedRows = filterCensusRowsByAttention(
+    bodyProps.unifiedRows,
+    currentDateString,
+    attentionFilter
+  );
+  const activeAttentionLabel =
+    attentionFilter === 'all' ? null : getCensusAttentionFilterLabel(attentionFilter);
 
   return (
-    <div ref={tableRootRef} className="card print:border-none print:shadow-none !overflow-visible">
+    <div
+      ref={tableRootRef}
+      className="overflow-visible rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.025)] print:border-none print:shadow-none"
+    >
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
           <div
@@ -181,6 +201,31 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             {freshnessUi.userMessage}
           </div>
         ) : null}
+        {activeAttentionLabel ? (
+          <div
+            className="flex min-h-8 items-center justify-between gap-3 rounded-t-xl border-b border-slate-200 bg-slate-50/90 px-3 py-1 text-xs text-slate-700"
+            data-testid="census-vigilance-mode-banner"
+            role="status"
+          >
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              <Eye size={14} className="text-amber-600" aria-hidden="true" />
+              {activeAttentionLabel}
+              <span className="font-normal text-slate-500">
+                · {filteredUnifiedRows.length}{' '}
+                {filteredUnifiedRows.length === 1 ? 'paciente visible' : 'pacientes visibles'}
+              </span>
+            </span>
+            {onClearAttentionFilter ? (
+              <button
+                type="button"
+                onClick={onClearAttentionFilter}
+                className="rounded-md px-2 py-1 font-semibold text-teal-700 transition-colors hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600"
+              >
+                Ver censo completo
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <table
           data-testid="census-table"
           className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
@@ -189,6 +234,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           <CensusTableHeader {...headerProps} />
           <CensusTableBody
             {...bodyProps}
+            unifiedRows={filteredUnifiedRows}
             onActivateEmptyBed={openEmptyBedDemographics}
             dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
             clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}

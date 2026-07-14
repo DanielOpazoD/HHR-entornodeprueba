@@ -18,11 +18,14 @@ import type { CensusAccessProfile } from '@/features/census/types/censusAccessPr
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
 import { RayenImportButton } from '@/features/rayen-import';
 import { CensusAttentionBar } from './CensusAttentionBar';
+import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
 interface CensusStaffHeaderProps {
   readOnly?: boolean;
   stats: Statistics | null;
   accessProfile?: CensusAccessProfile;
+  attentionFilter?: CensusAttentionFilter;
+  onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
 }
 
 /**
@@ -34,6 +37,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   readOnly = false,
   stats,
   accessProfile = 'default',
+  attentionFilter = 'all',
+  onAttentionFilterChange,
 }) => {
   const dailyRecordData = useDailyRecordData();
   const beds = useDailyRecordBeds();
@@ -56,51 +61,68 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   });
 
   return (
-    <div className="flex flex-col items-center gap-2 animate-fade-in px-4">
-      <CensusAttentionBar beds={beds ?? {}} censusIsoDay={dailyRecordData.record?.date ?? ''} />
-      <div className="flex justify-center items-start gap-3 flex-wrap">
-        {/* Staff Selectors */}
-        {!readModel.specialistAccess && (
-          <NurseSelector
-            nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
-            nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
-            nursesList={nursesList}
-            onUpdateNurse={updateNurse}
-            shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
-            onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
-            className={readModel.selectorsClassName}
+    <div className="flex w-full flex-col items-center gap-2 animate-fade-in">
+      <div className="flex w-fit max-w-full flex-col items-stretch gap-2">
+        <div className="flex flex-wrap items-start justify-center gap-3">
+          {/* Staff Selectors */}
+          {!readModel.specialistAccess && (
+            <NurseSelector
+              nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
+              nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
+              nursesList={nursesList}
+              onUpdateNurse={updateNurse}
+              shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
+              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
+              className={readModel.selectorsClassName}
+            />
+          )}
+
+          {!readModel.specialistAccess && (
+            <TensSelector
+              tensDayShift={readModel.staffSelectorsState.tensDayShift}
+              tensNightShift={readModel.staffSelectorsState.tensNightShift}
+              tensList={tensList}
+              onUpdateTens={updateTens}
+              shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
+              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
+              className={readModel.selectorsClassName}
+            />
+          )}
+
+          {/* Combined Stats Summary Card */}
+          {readModel.showSummary && stats && (
+            <CombinedSummaryCard
+              stats={stats}
+              discharges={readModel.movementSummaryState.discharges}
+              transfers={readModel.movementSummaryState.transfers}
+              cmaCount={readModel.movementSummaryState.cmaCount}
+              newAdmissions={readModel.movementSummaryState.admissionsCount}
+            />
+          )}
+        </div>
+
+        <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+          <CensusAttentionBar
+            beds={beds ?? {}}
+            censusIsoDay={dailyRecordData.record?.date ?? ''}
+            activeFilter={attentionFilter}
+            onFilterChange={onAttentionFilterChange}
           />
-        )}
 
-        {!readModel.specialistAccess && (
-          <TensSelector
-            tensDayShift={readModel.staffSelectorsState.tensDayShift}
-            tensNightShift={readModel.staffSelectorsState.tensNightShift}
-            tensList={tensList}
-            onUpdateTens={updateTens}
-            shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
-            onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
-            className={readModel.selectorsClassName}
-          />
-        )}
-
-        {/* Combined Stats Summary Card */}
-        {readModel.showSummary && stats && (
-          <CombinedSummaryCard
-            stats={stats}
-            discharges={readModel.movementSummaryState.discharges}
-            transfers={readModel.movementSummaryState.transfers}
-            cmaCount={readModel.movementSummaryState.cmaCount}
-            newAdmissions={readModel.movementSummaryState.admissionsCount}
-          />
-        )}
-
-        {!readOnly && !readModel.specialistAccess && <RayenImportButton />}
-
-        <ConflictVersionsAdminControl
-          date={dailyRecordData.record?.date}
-          currentRecord={dailyRecordData.record}
-        />
+          {!readOnly && !readModel.specialistAccess && (
+            <div className="min-w-0 flex-1 lg:min-w-[760px]">
+              <RayenImportButton
+                trailingAction={
+                  <ConflictVersionsAdminControl
+                    date={dailyRecordData.record?.date}
+                    currentRecord={dailyRecordData.record}
+                    variant="operations"
+                  />
+                }
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
