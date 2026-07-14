@@ -1,0 +1,3 @@
+# Vendored Chrome extension (Rayen → HHR bridge): keep its own authored formatting and the
+# minified xlsx lib untouched by the repo's prettier.
+extension/

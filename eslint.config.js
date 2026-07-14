@@ -14,6 +14,9 @@ export default tseslint.config(
       'coverage',
       'dev-dist',
       'dist',
+      // Vendored Chrome extension (Rayen → HHR bridge): authored in its own MV3/service-worker
+      // style with `chrome`/window globals and a minified xlsx lib — linted in its own context.
+      'extension',
       'node_modules',
       'output',
       'playwright-report',
