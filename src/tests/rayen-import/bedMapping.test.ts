@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { mapRayenBed } from '@/features/rayen-import';
+import { isCmaLocation } from '@/features/rayen-import/mapping/bedMapping';
+
+describe('isCmaLocation', () => {
+  it('recognizes a stored CMA location (virtual service or "CMA R#/NEO#" bed token)', () => {
+    expect(isCmaLocation('Área quirúrgica indiferenciada / CMA R1 / CMA R1')).toBe(true);
+    expect(isCmaLocation('Área quirúrgica indiferenciada / CMA NEO2 / CMANEO2')).toBe(true);
+  });
+
+  it('is false for the real médico-quirúrgica service and plain physical beds', () => {
+    expect(isCmaLocation('Área Médico Quirúrgica Indiferenciada / Habitación 1 / H1C1')).toBe(
+      false
+    );
+    expect(isCmaLocation('Recuperación 2 / R2')).toBe(false);
+    expect(isCmaLocation('')).toBe(false);
+    expect(isCmaLocation(undefined)).toBe(false);
+  });
+});
 
 describe('mapRayenBed', () => {
   it('maps general beds from room + bed short names (H{N} + C{n})', () => {

@@ -15,22 +15,26 @@ export const SPECIALTY_ABBREVIATIONS: Record<string, string> = {
 };
 
 /**
- * Distinct — but SOFT — chip colors per specialty so the census reads at a glance without shouting
- * (very light bg, medium-tone text, hairline ring). Tailwind utility classes.
+ * Chip color per specialty. All real specialties share ONE soft celeste (they are all "a specialty");
+ * only the unspecified one ("Otro" / No especificado) stands out in a muted amber so it reads as
+ * "still generic — consider assigning a real one". Tailwind utility classes.
  */
+const SPECIALTY_CHIP_CELESTE = 'bg-sky-50 text-sky-600 ring-sky-100';
+const SPECIALTY_CHIP_UNSPECIFIED = 'bg-amber-50 text-amber-600 ring-amber-200';
+
 export const SPECIALTY_CHIP_STYLES: Record<string, string> = {
-  [Specialty.MEDICINA]: 'bg-sky-50 text-sky-600 ring-sky-100',
-  [Specialty.CIRUGIA]: 'bg-rose-50 text-rose-500 ring-rose-100',
-  [Specialty.TRAUMATOLOGIA]: 'bg-orange-50 text-orange-500 ring-orange-100',
-  [Specialty.GINECOBSTETRICIA]: 'bg-pink-50 text-pink-500 ring-pink-100',
-  [Specialty.PSIQUIATRIA]: 'bg-violet-50 text-violet-500 ring-violet-100',
-  [Specialty.PEDIATRIA]: 'bg-cyan-50 text-cyan-600 ring-cyan-100',
-  [Specialty.ODONTOLOGIA]: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
-  [Specialty.OTRO]: 'bg-slate-50 text-slate-500 ring-slate-200',
+  [Specialty.MEDICINA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.CIRUGIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.TRAUMATOLOGIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.GINECOBSTETRICIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.PSIQUIATRIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.PEDIATRIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.ODONTOLOGIA]: SPECIALTY_CHIP_CELESTE,
+  [Specialty.OTRO]: SPECIALTY_CHIP_UNSPECIFIED,
 };
 
-/** Fallback style for a specialty label not in the map (e.g. a free-typed value). */
-export const SPECIALTY_CHIP_FALLBACK = 'bg-slate-50 text-slate-500 ring-slate-200';
+/** Fallback for a specialty label not in the map (a free-typed value is still "a specialty"). */
+export const SPECIALTY_CHIP_FALLBACK = SPECIALTY_CHIP_CELESTE;
 
 export const ADMISSION_ORIGIN_OPTIONS: string[] = ['CAE', 'APS', 'Urgencias', 'Pabellón', 'Otro'];
 export type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';

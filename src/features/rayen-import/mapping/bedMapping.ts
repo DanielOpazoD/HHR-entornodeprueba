@@ -43,6 +43,18 @@ const normalize = (value?: string): string =>
 const isCmaService = (serviceNorm: string): boolean =>
   serviceNorm.includes('QUIRURGICAINDIFERENCIADA') && !serviceNorm.includes('MEDICO');
 
+/**
+ * True when a stored HHR patient `location` ("service / room / bed", set at admission) is a CMA
+ * virtual location — i.e. the patient is a CMA (ambulatory major surgery) case. Used to classify a
+ * discharge as CMA even when the discharge itself carries no CMA signal (e.g. the patient vanished
+ * from the census on a partial egreso, before the administrative egreso report lists them). Matches
+ * the same rules as `mapRayenBed`: the CMA virtual service, or a "CMA R#/NEO#" bed token.
+ */
+export const isCmaLocation = (location?: string): boolean => {
+  const norm = normalize(location);
+  return isCmaService(norm) || /CMA[RN]/.test(norm);
+};
+
 export interface RayenBedLocation {
   room?: string;
   bed?: string;

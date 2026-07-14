@@ -68,14 +68,14 @@ export const setFirestoreEnabled = (enabled: boolean): void => {
 // crece para los nombres completos de las escalas ("Braden 17"). La fecha de ingreso vive en Paciente.
 export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   actions: 22,
-  bed: 34,
+  bed: 28,
   type: 30,
   name: 150,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 20,
+  status: 16,
   admission: 96,
   dmi: 67,
   scores: 92,
@@ -86,19 +86,20 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
 export const DEFAULT_PAGE_MARGIN = 12; // px (corresponds to p-3)
 // v5: rediseño "centro de vigilancia" — Estado como punto, columna Signos Vitales, Scores con nombres.
 // v6: Estado (punto) y Paciente más compactos (status 28→20, name 172→150).
-export const CURRENT_TABLE_CONFIG_VERSION = 6;
+// v7: Estado y Cama aún más angostos (status 20→16, bed 34→28).
+export const CURRENT_TABLE_CONFIG_VERSION = 7;
 export const TABLE_CONFIG_LOCAL_CACHE_KEY = 'hhr.tableConfig.lastKnown';
 
 const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   actions: 22,
-  bed: 34,
+  bed: 28,
   type: 28,
   name: 150,
   rut: 0,
   age: 0,
   diagnosis: 123,
   specialty: 45,
-  status: 20,
+  status: 16,
   admission: 96,
   dmi: 67,
   scores: 92,
