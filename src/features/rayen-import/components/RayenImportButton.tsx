@@ -1,8 +1,9 @@
 import React from 'react';
-import { CheckCircle2, Clock3, DatabaseZap, RefreshCw, UserRound } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Clock3, DatabaseZap, RefreshCw, UserRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
+import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 
@@ -49,6 +50,7 @@ export const RayenImportButton: React.FC = () => {
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
+  const extension = useRayenExtensionHealth();
   const working = isSyncing || isBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
@@ -63,17 +65,40 @@ export const RayenImportButton: React.FC = () => {
         : `Datos clínicos: ${fill.total}/${fill.total} ✓`
       : null;
 
-  const sourceState = working
-    ? 'Actualizando fuente'
-    : lastSync
-      ? 'Fuente actualizada'
-      : 'Pendiente de sincronizar';
+  const sourceState =
+    extension.connection === 'checking'
+      ? 'Comprobando conexión'
+      : extension.connection === 'ready'
+        ? `Conectada · v${extension.report?.version ?? ''}`
+        : extension.connection === 'degraded'
+          ? `Conexión parcial · v${extension.report?.version ?? ''}`
+          : extension.connection === 'incompatible'
+            ? 'Extensión incompatible'
+            : extension.connection === 'blocked'
+              ? 'Ficha Médico no disponible'
+              : 'Extensión sin respuesta';
   const responsibleState = lastSync ? (record?.rayenSync?.by ?? 'Sin identificar') : 'Sin registro';
   const coverageState = fillNote
     ? fillNote.replace('Datos clínicos: ', '').replace('Datos clínicos ', '')
     : lastSync
       ? 'No calculada'
       : 'Sin sincronización';
+
+  const fichaReady = extension.report?.fichaMedico.status === 'ready';
+  const camasReady = extension.report?.gestionCamas.status === 'ready';
+  const healthTone =
+    extension.connection === 'ready'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : extension.connection === 'checking'
+        ? 'border-slate-200 bg-slate-50 text-slate-500'
+        : extension.connection === 'degraded'
+          ? 'border-amber-200 bg-amber-50 text-amber-700'
+          : 'border-red-200 bg-red-50 text-red-700';
+
+  const handleSync = async (): Promise<void> => {
+    const health = await extension.refresh();
+    if (health.canSync) triggerImport();
+  };
 
   return (
     <div
@@ -84,11 +109,13 @@ export const RayenImportButton: React.FC = () => {
         <div className="flex min-w-[205px] items-center gap-2.5">
           <span
             className={`inline-flex size-9 shrink-0 items-center justify-center rounded-lg border ${
-              working
+              working || extension.connection === 'checking'
                 ? 'border-teal-200 bg-teal-100 text-teal-700'
-                : lastSync
+                : extension.connection === 'ready'
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-amber-200 bg-amber-50 text-amber-700'
+                  : extension.connection === 'degraded'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-red-200 bg-red-50 text-red-700'
             }`}
             aria-hidden="true"
           >
@@ -102,16 +129,31 @@ export const RayenImportButton: React.FC = () => {
               <p className="text-sm font-bold leading-tight text-slate-800">Eloísa</p>
               <span
                 className={`size-1.5 rounded-full ${
-                  working
+                  working || extension.connection === 'checking'
                     ? 'animate-pulse bg-teal-500'
-                    : lastSync
+                    : extension.connection === 'ready'
                       ? 'bg-emerald-500'
-                      : 'bg-amber-500'
+                      : extension.connection === 'degraded'
+                        ? 'bg-amber-500'
+                        : 'bg-red-500'
                 }`}
                 aria-hidden="true"
               />
               <span className="text-[11px] font-medium text-slate-500">{sourceState}</span>
             </div>
+            <p
+              className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"
+              title={extension.message}
+              data-testid="rayen-extension-health"
+            >
+              <span className={fichaReady ? 'text-emerald-700' : 'text-red-700'}>
+                Ficha {fichaReady ? '✓' : '—'}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className={camasReady ? 'text-emerald-700' : 'text-amber-700'}>
+                Camas {camasReady ? '✓' : '—'}
+              </span>
+            </p>
           </div>
         </div>
 
@@ -169,9 +211,9 @@ export const RayenImportButton: React.FC = () => {
         <div className="flex shrink-0 items-center justify-end gap-2">
           <button
             type="button"
-            onClick={triggerImport}
-            disabled={working}
-            aria-busy={working}
+            onClick={() => void handleSync()}
+            disabled={working || extension.connection === 'checking'}
+            aria-busy={working || extension.connection === 'checking'}
             title={
               mode === 'auto'
                 ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
@@ -200,6 +242,17 @@ export const RayenImportButton: React.FC = () => {
         onConfirm={confirm}
         onCancel={cancel}
       />
+
+      {extension.connection !== 'ready' && extension.connection !== 'checking' && (
+        <p
+          className={`flex items-center gap-1.5 border-t px-3 py-1.5 text-xs font-medium ${healthTone}`}
+          data-testid="rayen-extension-health-message"
+          role="status"
+        >
+          <CircleAlert size={13} aria-hidden="true" />
+          {extension.message}
+        </p>
+      )}
 
       {error && !isPreviewOpen && (
         <p

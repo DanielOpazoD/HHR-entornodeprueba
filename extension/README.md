@@ -33,6 +33,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `background.js` | Enruta la petición del HHR a la pestaña de Rayen y devuelve el snapshot |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
+| `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 
 ## Instalar (modo desarrollador)
 
@@ -52,6 +53,8 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 4. En una fila sincronizada, el icono de enlace externo abre el episodio exacto en Ficha Médico.
    Reutiliza una pestaña existente cuando está disponible; esta acción es solo navegación y no escribe
    datos en Rayen.
+5. La barra Eloísa muestra la versión del puente y la disponibilidad independiente de Ficha Médico y
+   Gestión de Camas. El diagnóstico se ejecuta al abrir/recuperar foco y antes de sincronizar.
 
 ## Requisitos y notas
 
@@ -67,9 +70,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 - El núcleo de lectura+normalización se probó contra datos reales de Rayen (4 pacientes) y produjo
   un `RayenCensusSnapshot` correcto (apellidos separados, RUN, cama, diagnóstico, `isComplete`).
-- La sintaxis de los 5 archivos pasa `node --check`.
-- **Pendiente de prueba en vivo (requiere cargar la extensión en Chrome):** el ruteo completo
-  background ⇄ tabs ⇄ mundos. Son patrones MV3 estándar, pero no se ejecutaron de punta a punta.
+- La sintaxis de los scripts operativos pasa `node --check`.
+- El handshake v1 se validó de punta a punta en Chrome con la extensión v0.5.0, Ficha Médico y
+  Gestión de Camas abiertas; la barra HHR confirmó ambos relés sin transferir datos clínicos.
 
 ## Pendiente / a confirmar con datos reales
 

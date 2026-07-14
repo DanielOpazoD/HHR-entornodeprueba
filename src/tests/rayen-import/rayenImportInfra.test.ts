@@ -7,6 +7,10 @@ import {
   isRayenCensusSnapshot,
   type RayenCensusSnapshot,
 } from '@/features/rayen-import';
+import {
+  RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+  subscribeToRayenImportErrors,
+} from '@/features/rayen-import/bridge/rayenImportBridge';
 
 describe('rayen import mode setting', () => {
   beforeEach(() => {
@@ -54,5 +58,25 @@ describe('isRayenCensusSnapshot', () => {
     expect(isRayenCensusSnapshot(null)).toBe(false);
     expect(isRayenCensusSnapshot({ facilityId: 1342 })).toBe(false);
     expect(isRayenCensusSnapshot({ ...validSnapshot, encounters: [{ run: '1' }] })).toBe(false);
+  });
+});
+
+describe('Rayen import error bridge', () => {
+  it('delivers the extension error immediately to subscribers', () => {
+    const handler = vi.fn();
+    const unsubscribe = subscribeToRayenImportErrors(handler);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+          error: 'No hay una pestaña de Ficha Médico abierta.',
+        },
+      })
+    );
+
+    expect(handler).toHaveBeenCalledWith('No hay una pestaña de Ficha Médico abierta.');
+    unsubscribe();
   });
 });

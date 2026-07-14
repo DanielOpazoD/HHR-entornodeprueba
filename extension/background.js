@@ -15,12 +15,13 @@
 
 // SheetJS + the Jasper .xls row parser, loaded once into the service worker. importScripts must
 // run at top level (MV3 classic SW); parsing itself only happens for report requests.
-importScripts('encounter-navigation.js', 'xlsx.full.min.js', 'report-parser.js');
+importScripts('encounter-navigation.js', 'health-check.js', 'xlsx.full.min.js', 'report-parser.js');
 
 const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
+const EXTENSION_PROTOCOL_VERSION = 1;
 
 // Try every matching tab (active/most-recent first): some may be stale tabs whose content
 // script isn't injected. The first one that answers wins.
@@ -83,6 +84,35 @@ const handleOpenEncounter = async encId => {
       error: 'No se pudo abrir Ficha Médico: ' + String((error && error.message) || error),
     };
   }
+};
+
+const handleExtensionHealth = async () => {
+  const [fichaMedico, gestionCamas] = await Promise.all([
+    chrome.tabs.query({ url: FICHAMEDICO_MATCH }).then(tabs =>
+      self.HhrExtensionHealth.probeTabs({
+        tabs,
+        sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
+        missingMessage: 'Abre Ficha Médico e inicia sesión para sincronizar.',
+        staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
+      })
+    ),
+    chrome.tabs.query({ url: GESTIONCAMAS_MATCH }).then(tabs =>
+      self.HhrExtensionHealth.probeTabs({
+        tabs,
+        sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
+        missingMessage: 'Gestión de Camas no está abierta.',
+        staleMessage: 'Recarga Gestión de Camas para activar la extensión.',
+      })
+    ),
+  ]);
+
+  return {
+    version: chrome.runtime.getManifest().version,
+    protocolVersion: EXTENSION_PROTOCOL_VERSION,
+    checkedAt: new Date().toISOString(),
+    fichaMedico,
+    gestionCamas,
+  };
 };
 
 const handleEgresoLookup = runs =>
@@ -470,6 +500,10 @@ const handleCudyrCategoriesRequest = async () => {
 };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_REQUEST') {
+    handleExtensionHealth().then(sendResponse);
+    return true;
+  }
   if (msg && msg.type === 'RAYEN_SNAPSHOT_REQUEST') {
     handleSnapshotRequest().then(sendResponse);
     return true; // async response

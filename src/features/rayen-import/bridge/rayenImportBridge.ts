@@ -13,6 +13,7 @@ import type { EgresoLookupResult } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 
 export const RAYEN_IMPORT_MESSAGE_TYPE = 'HHR_RAYEN_CENSUS_SNAPSHOT';
+export const RAYEN_IMPORT_ERROR_MESSAGE_TYPE = 'HHR_RAYEN_IMPORT_ERROR';
 export const RAYEN_REQUEST_MESSAGE_TYPE = 'HHR_RAYEN_REQUEST_SNAPSHOT';
 export const RAYEN_EGRESO_LOOKUP_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST';
 export const RAYEN_EGRESO_LOOKUP_RESULT_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_RESULT';
@@ -79,13 +80,24 @@ const isRayenImportMessage = (value: unknown): value is RayenImportMessage => {
 };
 
 type SnapshotHandler = (snapshot: RayenCensusSnapshot) => void;
+type ImportErrorHandler = (error: string) => void;
 
 const handlers = new Set<SnapshotHandler>();
+const errorHandlers = new Set<ImportErrorHandler>();
 let windowListenerAttached = false;
 
 const onWindowMessage = (event: MessageEvent): void => {
   // Same-origin only: the extension content script posts into this page.
   if (typeof window !== 'undefined' && event.origin !== window.location.origin) return;
+  if (
+    typeof event.data === 'object' &&
+    event.data !== null &&
+    event.data.type === RAYEN_IMPORT_ERROR_MESSAGE_TYPE &&
+    typeof event.data.error === 'string'
+  ) {
+    errorHandlers.forEach(handler => handler(event.data.error));
+    return;
+  }
   if (!isRayenImportMessage(event.data)) return;
   handlers.forEach(handler => handler(event.data.snapshot));
 };
@@ -101,7 +113,33 @@ export const subscribeToRayenSnapshots = (handler: SnapshotHandler): (() => void
     handlers.delete(handler);
     // Tear down the shared window listener once the last subscriber leaves, so the
     // bridge keeps no global listener while the import feature is unmounted.
-    if (handlers.size === 0 && windowListenerAttached && typeof window !== 'undefined') {
+    if (
+      handlers.size === 0 &&
+      errorHandlers.size === 0 &&
+      windowListenerAttached &&
+      typeof window !== 'undefined'
+    ) {
+      window.removeEventListener('message', onWindowMessage);
+      windowListenerAttached = false;
+    }
+  };
+};
+
+/** Subscribe to explicit snapshot errors posted by the extension instead of waiting for fallback. */
+export const subscribeToRayenImportErrors = (handler: ImportErrorHandler): (() => void) => {
+  errorHandlers.add(handler);
+  if (!windowListenerAttached && typeof window !== 'undefined') {
+    window.addEventListener('message', onWindowMessage);
+    windowListenerAttached = true;
+  }
+  return () => {
+    errorHandlers.delete(handler);
+    if (
+      handlers.size === 0 &&
+      errorHandlers.size === 0 &&
+      windowListenerAttached &&
+      typeof window !== 'undefined'
+    ) {
       window.removeEventListener('message', onWindowMessage);
       windowListenerAttached = false;
     }

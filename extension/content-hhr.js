@@ -20,6 +20,10 @@
  * Patient navigation (read-only handoff to the exact Ficha Médico encounter):
  *   Page → us:  { type: 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST', reqId, encId }
  *   us  → page: { type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT', reqId, ok, reused, error? }
+ *
+ * Capability health (no clinical data or token access):
+ *   Page → us:  { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId }
+ *   us  → page: { type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report, error? }
  */
 (() => {
   'use strict';
@@ -30,6 +34,23 @@
     if (event.source !== window) return;
     const data = event.data;
     if (!data) return;
+
+    if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {
+      const reqId = data.reqId;
+      chrome.runtime
+        .sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' })
+        .then(report => {
+          post({ type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report });
+        })
+        .catch(error => {
+          post({
+            type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT',
+            reqId,
+            error: String(error),
+          });
+        });
+      return;
+    }
 
     if (data.type === 'HHR_RAYEN_REQUEST_SNAPSHOT') {
       chrome.runtime

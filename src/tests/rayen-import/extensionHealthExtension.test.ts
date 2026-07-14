@@ -1,0 +1,68 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import '../../../extension/health-check.js';
+
+const health = (
+  globalThis as typeof globalThis & {
+    HhrExtensionHealth: {
+      orderTabs: <T extends { active?: boolean; lastAccessed?: number }>(tabs: T[]) => T[];
+      probeTabs: (input: {
+        tabs: Array<{ id?: number; active?: boolean; lastAccessed?: number }>;
+        sendMessage: (tabId: number, message: { type: string }) => Promise<unknown>;
+        missingMessage: string;
+        staleMessage: string;
+      }) => Promise<{ status: string; message: string }>;
+    };
+  }
+).HhrExtensionHealth;
+
+describe('extension health helpers', () => {
+  it('prefers the active and most recently used relay tab', () => {
+    const tabs = [
+      { id: 1, active: false, lastAccessed: 300 },
+      { id: 2, active: true, lastAccessed: 100 },
+      { id: 3, active: false, lastAccessed: 500 },
+    ];
+    expect(health.orderTabs(tabs).map(tab => tab.id)).toEqual([2, 3, 1]);
+    expect(tabs.map(tab => tab.id)).toEqual([1, 2, 3]);
+  });
+
+  it('reports missing, ready and stale relays without reading clinical data', async () => {
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('stale tab'))
+      .mockResolvedValueOnce({ ready: true, message: 'Ficha Médico disponible.' });
+
+    await expect(
+      health.probeTabs({
+        tabs: [],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'missing', message: 'No abierta.' });
+
+    await expect(
+      health.probeTabs({
+        tabs: [
+          { id: 1, active: true },
+          { id: 2, active: false },
+        ],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'Ficha Médico disponible.' });
+
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 3 }],
+        sendMessage: vi.fn().mockResolvedValue({ ready: false }),
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'stale', message: 'Recarga.' });
+
+    expect(sendMessage.mock.calls[0]?.[1]).toEqual({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+  });
+});

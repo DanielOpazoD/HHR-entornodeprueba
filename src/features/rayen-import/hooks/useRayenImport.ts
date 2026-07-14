@@ -29,6 +29,7 @@ import { runClinicalFill } from '../clinicalFillRunner';
 import { beginRayenFill, reportRayenFillProgress, endRayenFill } from './useRayenFillStatus';
 import {
   subscribeToRayenSnapshots,
+  subscribeToRayenImportErrors,
   requestRayenSnapshot,
   requestEgresoLookup,
   requestEgresoReport,
@@ -297,6 +298,20 @@ export const useRayenImport = () => {
   );
 
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
+
+  useEffect(
+    () =>
+      subscribeToRayenImportErrors(extensionError => {
+        clearSyncTimeout();
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          error: extensionError,
+        }));
+      }),
+    [clearSyncTimeout]
+  );
 
   // Trigger an import: show the spinner immediately, ask the extension for a snapshot, and guard with
   // a fallback timer so an uninstalled/asleep extension doesn't leave it spinning forever.
