@@ -114,7 +114,7 @@ export const useRayenSyncAudit = ({
       const completedEvent = completeRayenSyncEvent(appliedEvent, coverage);
       const history = upsertRayenSyncEvent(base.rayenSyncHistory, completedEvent);
       const patch: DailyRecordPatch = { rayenSyncHistory: history };
-      if (base.rayenSync?.runId === runId || recordAtApply.rayenSync?.runId === runId) {
+      if (base.rayenSync?.runId === runId) {
         patch.rayenSync = rayenSyncMetaFromEvent(completedEvent);
       }
       if (activeRunRef.current?.id === runId) activeRunRef.current = null;

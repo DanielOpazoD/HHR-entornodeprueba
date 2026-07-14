@@ -137,6 +137,8 @@ describe('useRayenSyncAudit', () => {
     act(() => {
       result.current.startRun();
     });
+    const secondApplied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = secondApplied;
 
     await act(async () => {
       await result.current.completeRun(firstApplied, { total: 2, patched: 2, errors: [] });
@@ -144,10 +146,13 @@ describe('useRayenSyncAudit', () => {
 
     expect(patchDailyRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        rayenSync: expect.objectContaining({ runId: 'run-1', status: 'complete' }),
-        rayenSyncHistory: [expect.objectContaining({ id: 'run-1', status: 'complete' })],
+        rayenSyncHistory: expect.arrayContaining([
+          expect.objectContaining({ id: 'run-1', status: 'complete' }),
+          expect.objectContaining({ id: 'run-2', status: 'applied' }),
+        ]),
       })
     );
+    expect(patchDailyRecord.mock.calls[0][0]).not.toHaveProperty('rayenSync');
   });
 
   it('does not persist a cancelled preview', async () => {
