@@ -1,0 +1,108 @@
+/**
+ * content-gestioncamas.js  (ISOLATED world, document_start)
+ *
+ * Relay on the Eloísa Gestión de Camas page. Bridges the background service worker
+ * (chrome.runtime) and the MAIN-world lookup (`inject-gestioncamas.js`) via
+ * window.postMessage, since the two cannot talk directly.
+ */
+(() => {
+  'use strict';
+
+  // Diagnostic marker so page-context checks can confirm this relay injected.
+  try {
+    document.documentElement.setAttribute('data-rayen-gc-relay', '1');
+  } catch (_) {}
+
+  const LOOKUP_TIMEOUT_MS = 45000;
+
+  const lookupViaMainWorld = runs =>
+    new Promise(resolve => {
+      const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
+      let settled = false;
+
+      const onMessage = event => {
+        if (event.source !== window) return;
+        const d = event.data;
+        if (!d || d.type !== 'RAYEN_GC_LOOKUP_RESULT' || d.reqId !== reqId) return;
+        cleanup();
+        resolve(d.error ? { error: d.error } : { results: d.results });
+      };
+
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', onMessage);
+      };
+
+      window.addEventListener('message', onMessage);
+      window.postMessage({ type: 'RAYEN_GC_LOOKUP_REQUEST', reqId, runs }, window.location.origin);
+
+      setTimeout(() => {
+        if (settled) return;
+        cleanup();
+        resolve({ error: 'Tiempo de espera agotado consultando Gestión de Camas.' });
+      }, LOOKUP_TIMEOUT_MS);
+    });
+
+  // Ask the MAIN world for the captured auth token + API base so the background can download
+  // reports (see inject-gestioncamas.js). Generic request/response over window.postMessage.
+  const getFetchInfoViaMainWorld = () =>
+    new Promise(resolve => {
+      const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
+      let settled = false;
+      const onMessage = event => {
+        if (event.source !== window) return;
+        const d = event.data;
+        if (!d || d.type !== 'RAYEN_GC_FETCHINFO_RESULT' || d.reqId !== reqId) return;
+        cleanup();
+        resolve(d.error ? { error: d.error } : { info: d.info });
+      };
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', onMessage);
+      };
+      window.addEventListener('message', onMessage);
+      window.postMessage({ type: 'RAYEN_GC_FETCHINFO_REQUEST', reqId }, window.location.origin);
+      setTimeout(() => {
+        if (settled) return;
+        cleanup();
+        resolve({ error: 'Tiempo de espera agotado obteniendo el token de Gestión de Camas.' });
+      }, LOOKUP_TIMEOUT_MS);
+    });
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === 'RAYEN_GC_LOOKUP') {
+      lookupViaMainWorld(Array.isArray(msg.runs) ? msg.runs : []).then(sendResponse);
+      return true; // keep the message channel open for the async response
+    }
+    if (msg && msg.type === 'RAYEN_GC_GET_FETCH_INFO') {
+      getFetchInfoViaMainWorld().then(sendResponse);
+      return true;
+    }
+    return undefined;
+  });
+
+  // Diagnostic: let the page (MAIN world) trigger a background report download/save end-to-end,
+  // so the flow can be verified from the Gestión de Camas tab without needing an HHR tab open.
+  window.addEventListener('message', event => {
+    if (event.source !== window) return;
+    const d = event.data;
+    if (!d || (d.type !== 'RAYEN_GC_TEST_REPORT' && d.type !== 'RAYEN_GC_TEST_SAVE')) return;
+    const isSave = d.type === 'RAYEN_GC_TEST_SAVE';
+    chrome.runtime.sendMessage(
+      { type: isSave ? 'RAYEN_EGRESO_REPORT_SAVE' : 'RAYEN_EGRESO_REPORT_REQUEST', dateStart: d.dateStart, dateEnd: d.dateEnd },
+      resp => {
+        const err = chrome.runtime.lastError;
+        window.postMessage(
+          {
+            type: isSave ? 'RAYEN_GC_TEST_SAVE_RESULT' : 'RAYEN_GC_TEST_REPORT_RESULT',
+            reqId: d.reqId,
+            resp: err ? { error: err.message } : resp,
+          },
+          window.location.origin
+        );
+      }
+    );
+  });
+})();
