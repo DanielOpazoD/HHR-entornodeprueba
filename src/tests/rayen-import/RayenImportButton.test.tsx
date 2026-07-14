@@ -116,7 +116,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Sin sincronización')).toBeInTheDocument();
   });
 
-  it('distinguishes a completed census sync from uncalculated clinical coverage', () => {
+  it('distinguishes a legacy census sync from persisted clinical coverage', () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -129,7 +129,7 @@ describe('RayenImportButton', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByText('Conectada · v0.5.0')).toBeInTheDocument();
-    expect(screen.getByText('No calculada')).toBeInTheDocument();
+    expect(screen.getByText('No disponible en sincronizaciones antiguas')).toBeInTheDocument();
   });
 
   it('checks extension health before the existing reviewed synchronization action', async () => {
@@ -140,6 +140,9 @@ describe('RayenImportButton', () => {
 
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
+    expect(mocks.triggerImport).toHaveBeenCalledWith(
+      expect.objectContaining({ connection: 'ready', canSync: true })
+    );
   });
 
   it('shows a partial connection without blocking census synchronization', async () => {
@@ -171,11 +174,11 @@ describe('RayenImportButton', () => {
       'validación de egresos será parcial'
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar parcial' }));
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
   });
 
-  it('does not start the import when Ficha Médico is unavailable', async () => {
+  it('records the deliberate attempt when Ficha Médico is unavailable', async () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
@@ -196,9 +199,72 @@ describe('RayenImportButton', () => {
     mocks.refreshHealth.mockResolvedValue(blockedHealth);
 
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar Ficha Médico' }));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
+    expect(mocks.triggerImport).toHaveBeenCalledWith(blockedHealth);
+  });
+
+  it('renders persisted coverage and opens the accessible daily history', () => {
+    mocks.useDailyRecordData.mockReturnValue({
+      record: {
+        rayenSync: {
+          at: '2026-07-14T10:00:00.000Z',
+          by: 'Daniel Opazo',
+          runId: 'run-1',
+          status: 'partial',
+          coverage: {
+            total: 11,
+            completed: 10,
+            errors: 1,
+            sourceErrors: 1,
+            completedAt: '2026-07-14T10:03:00.000Z',
+          },
+        },
+        rayenSyncHistory: [
+          {
+            id: 'run-1',
+            startedAt: '2026-07-14T10:00:00.000Z',
+            completedAt: '2026-07-14T10:03:00.000Z',
+            by: 'Daniel Opazo',
+            status: 'partial',
+            coverage: {
+              total: 11,
+              completed: 10,
+              errors: 1,
+              sourceErrors: 1,
+              completedAt: '2026-07-14T10:03:00.000Z',
+            },
+            changes: { admissions: 1, updates: 2, moves: 0, discharges: 0, unchanged: 8 },
+          },
+        ],
+      },
+    });
+
+    render(<RayenImportButton />);
+
+    expect(screen.getByText('10/11 · 1 pendiente')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Abrir historial de sincronización del día, 1 eventos' })
+    );
+    expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
+    expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
+    expect(screen.getByText('Parcial')).toBeInTheDocument();
+  });
+
+  it('shows the empty history state, closes with Escape and restores focus', async () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    render(<RayenImportButton />);
+
+    const historyButton = screen.getByRole('button', {
+      name: 'Abrir historial de sincronización del día, 0 eventos',
+    });
+    historyButton.focus();
+    fireEvent.click(historyButton);
+    expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeNull();
+    await waitFor(() => expect(historyButton).toHaveFocus());
   });
 });
