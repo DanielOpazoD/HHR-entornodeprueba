@@ -11,6 +11,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff, DischargeEntry, FieldChange } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
+import { isCmaLocation } from '../mapping/bedMapping';
 import { resolveDischargeIntent } from '../mapping/dischargeMapping';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
@@ -252,7 +253,10 @@ export const reconcileCensus = (
     if (match) {
       if (consumedBedIds.has(match.bedId)) continue;
       consumedBedIds.add(match.bedId);
-      const { isCma } = rayenToPatientData(encounter, reference);
+      const { isCma: encounterIsCma } = rayenToPatientData(encounter, reference);
+      // Backstop: honor the CMA classification from the stored location too, in case a partial-egreso
+      // encounter no longer reports the CMA bed/service.
+      const isCma = encounterIsCma || isCmaLocation(match.patient.location);
       const intent = resolveDischargeIntent(encounter, isCma);
       if (encounter.hasNurseDischarge) {
         diff.discharges.push({
@@ -294,11 +298,14 @@ export const reconcileCensus = (
       if (consumedBedIds.has(bedId)) continue;
       const patient = current.beds[bedId];
       if (!isOccupied(patient)) continue;
+      // A CMA patient can vanish from the census on a partial egreso (nurse discharge done) BEFORE the
+      // administrative egreso report lists them. Their stored `location` still carries the CMA virtual
+      // bed ("CMA R1"), so file the egreso as a CMA discharge — not a plain "alta".
       const entry: DischargeEntry = {
         bedId,
         rut: patient.rut,
         patientName: patient.patientName,
-        kind: 'alta',
+        kind: isCmaLocation(patient.location) ? 'cma' : 'alta',
         status: 'Vivo',
         reason: 'missing-in-rayen',
       };

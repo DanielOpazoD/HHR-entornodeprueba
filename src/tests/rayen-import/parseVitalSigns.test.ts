@@ -85,6 +85,26 @@ describe('parseVitalSigns', () => {
     expect(v.spo2).toBeNull();
   });
 
+  it('parses HGT and administered rapid insulin (units + quadrant)', () => {
+    const [v] = parseVitalSigns([
+      vitalsForm({
+        metaCampList: [
+          campo('global_Rexa_Hemoglucotest', '142'),
+          campo('exam_Fis_Adm_InsulinaUIC', '6'),
+          campo('exam_Fis_Adm_InsulinaSentCUAD', 'CSI'),
+        ],
+      }),
+    ]);
+    expect(v).toMatchObject({ hgt: 142, insulinUnits: 6, insulinQuadrant: 'CSI' });
+  });
+
+  it('keeps a form that carries ONLY a glucose reading (no classic vitals)', () => {
+    const [v] = parseVitalSigns([
+      vitalsForm({ metaCampList: [campo('global_Rexa_Hemoglucotest', '98')] }),
+    ]);
+    expect(v).toMatchObject({ hgt: 98, heartRate: null });
+  });
+
   it('skips a VITAL_SIGNS form with only a timestamp and no readings', () => {
     expect(
       parseVitalSigns([

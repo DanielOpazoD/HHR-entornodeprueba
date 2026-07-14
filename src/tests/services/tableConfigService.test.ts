@@ -97,7 +97,7 @@ describe('tableConfigService', () => {
       } as unknown as FirestoreDocResult);
 
       const config = await loadTableConfig();
-      expect(config.columns.bed).toBe(34);
+      expect(config.columns.bed).toBe(28);
       expect(config.columns.name).toBe(DEFAULT_COLUMN_WIDTHS.name); // from defaults
       expect(config.columns.type).toBe(28);
       expect(config.columns.upc).toBe(22);

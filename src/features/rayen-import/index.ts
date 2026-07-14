@@ -46,6 +46,19 @@ export {
   evaluationScalesAsOf,
 } from './mapping/parseEvaluationScales';
 export { parseHistoryScales } from './mapping/parseHistoryScales';
+export type {
+  RayenClinicalPanelEvent,
+  RayenClinicalPanelResult,
+} from './bridge/clinicalPanelBridge';
+export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
+export type {
+  ClinicalPanel,
+  ClinicalPanelEntry,
+  ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './mapping/parseClinicalPanel';
+export { parseClinicalPanel } from './mapping/parseClinicalPanel';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
 export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';
 export { mergeReportVitals } from './domain/mergeReportVitals';

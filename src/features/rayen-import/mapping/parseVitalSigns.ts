@@ -63,8 +63,12 @@ const FIELD_IDS = {
   temperature: ['global_TempAxilar', 'Global_TempBucal', 'global_TempOido', 'global_TempRectal'],
   respiratoryRate: ['exa_Fisic_Frecuencia_Respiratoria'],
   painEva: ['global_EscalaDolorEVA'],
+  hgt: ['global_Rexa_Hemoglucotest'],
+  insulinUnits: ['exam_Fis_Adm_InsulinaUIC', 'exam_Fis_Adm_InsulinaSent'],
 } as const;
 const OBS_IDS = ['global_Observaciones'];
+/** Abdominal quadrant where the rapid insulin was injected (paired with `insulinUnits`). */
+const INSULIN_QUADRANT_IDS = ['exam_Fis_Adm_InsulinaSentCUAD'];
 /** Clinical measurement time recorded inside the form (falls back to the form stamp for `recordedAt`). */
 const TIME_IDS = ['SIGNS_FechaHora', 'global_FechaHoraSapu'];
 
@@ -113,12 +117,17 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       temperature: num(get(FIELD_IDS.temperature)),
       respiratoryRate: num(get(FIELD_IDS.respiratoryRate)),
       painEva: num(get(FIELD_IDS.painEva)),
+      hgt: num(get(FIELD_IDS.hgt)),
+      insulinUnits: num(get(FIELD_IDS.insulinUnits)),
+      insulinQuadrant: get(INSULIN_QUADRANT_IDS) || null,
       observations: get(OBS_IDS) || null,
       author: str(form.authorHealthCarePractitionerName),
       authorRole: str(form.authorHealthCarePractitionerRoleName),
     };
 
     // Skip a VITAL_SIGNS form that carries no actual readings (only a timestamp / observation).
+    // HGT and insulin count too: a glucose check or an insulin administration can be recorded on a
+    // form of its own, and we still want that row in the history.
     const hasReading =
       record.systolic != null ||
       record.diastolic != null ||
@@ -126,7 +135,10 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       record.spo2 != null ||
       record.temperature != null ||
       record.respiratoryRate != null ||
-      record.painEva != null;
+      record.painEva != null ||
+      record.hgt != null ||
+      record.insulinUnits != null ||
+      !!record.insulinQuadrant;
     if (!hasReading) continue;
 
     parsed.push({ key: Number(form.encounterEventId) || 0, record });

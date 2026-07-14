@@ -71,6 +71,34 @@ describe('reconcileCensus', () => {
     expect(diff.admissions[0].bedId).toBe('R1'); // the real bed, not a virtual CMA slot
   });
 
+  it('files a CMA discharge (not a plain alta) when a CMA patient vanishes from a COMPLETE census', () => {
+    // Partial egreso: the CMA patient left the census before the administrative egreso report lists
+    // them. Their stored `location` still says "CMA R1", so the inferred discharge must be CMA.
+    const cma = makeEncounter({
+      service: 'Área quirúrgica indiferenciada',
+      room: 'CMA R1',
+      bed: 'CMAR1',
+    });
+    const [bedId, patient] = seedBed(cma); // patient.location = "…/CMA R1/CMAR1"
+    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
+      reference: REFERENCE,
+    });
+    expect(diff.discharges).toHaveLength(1);
+    expect(diff.discharges[0]).toMatchObject({
+      bedId: 'R1',
+      kind: 'cma',
+      reason: 'missing-in-rayen',
+    });
+  });
+
+  it('files a plain alta when a NON-CMA patient vanishes from a complete census', () => {
+    const [bedId, patient] = seedBed(makeEncounter()); // médico-quirúrgica bed, no CMA
+    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
+      reference: REFERENCE,
+    });
+    expect(diff.discharges[0]).toMatchObject({ kind: 'alta', reason: 'missing-in-rayen' });
+  });
+
   it('creates an admission for a Rayen patient absent from the census', () => {
     const diff = reconcileCensus(makeRecord({}), snapshotOf([makeEncounter()]), {
       reference: REFERENCE,

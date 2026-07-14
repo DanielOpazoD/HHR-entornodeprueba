@@ -15,6 +15,9 @@ const vitals = (over: Partial<PatientVitalSigns> = {}): PatientVitalSigns => ({
   temperature: 36.5,
   respiratoryRate: 16,
   painEva: 2,
+  hgt: null,
+  insulinUnits: null,
+  insulinQuadrant: null,
   observations: null,
   author: '',
   authorRole: '',
@@ -38,6 +41,29 @@ describe('buildVitalSignsView', () => {
     const view = buildVitalSignsView(vitals({ spo2: 88 }));
     expect(view?.readings.find(r => r.key === 'spo2')?.status).toBe('alert');
     expect(view?.worst).toBe('alert');
+  });
+
+  it('adds HGT with a glucose band and lifts the worst status when hypo/hyper', () => {
+    const normal = buildVitalSignsView(vitals({ hgt: 110 }));
+    expect(normal?.readings.find(r => r.key === 'hgt')).toMatchObject({
+      value: '110',
+      unit: 'mg/dL',
+      status: 'normal',
+    });
+    expect(buildVitalSignsView(vitals({ hgt: 45 }))?.worst).toBe('alert'); // severe hypo
+    expect(
+      buildVitalSignsView(vitals({ hgt: 210 }))?.readings.find(r => r.key === 'hgt')?.status
+    ).toBe('warn');
+  });
+
+  it('adds Ins/Cuad as a neutral text reading (units · quadrant) and keeps it out of the chip', () => {
+    const view = buildVitalSignsView(vitals({ insulinUnits: 6, insulinQuadrant: 'CSI' }));
+    expect(view?.readings.find(r => r.key === 'ins')).toMatchObject({
+      label: 'Ins/Cuad',
+      value: '6 · CSI',
+      status: 'normal',
+    });
+    expect(view?.chip).toBe('98% · 36.5°'); // insulin never enters the compact chip
   });
 
   it('flags fever as a warning/alert by temperature band', () => {

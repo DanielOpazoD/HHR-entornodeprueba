@@ -12,7 +12,7 @@ import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 export type VitalStatus = 'normal' | 'warn' | 'alert';
 
 export interface VitalReadingView {
-  key: 'pa' | 'fc' | 'spo2' | 'temp' | 'fr' | 'eva';
+  key: 'pa' | 'fc' | 'spo2' | 'temp' | 'fr' | 'eva' | 'hgt' | 'ins';
   label: string;
   /** Formatted value, e.g. "130/82" or "36.5". */
   value: string;
@@ -53,6 +53,8 @@ const hrStatus = (v: number): VitalStatus => band(v, 40, 50, 100, 130);
 const rrStatus = (v: number): VitalStatus => band(v, 8, 12, 20, 25);
 const sbpStatus = (v: number): VitalStatus => band(v, 90, 100, 160, 181);
 const evaStatus = (v: number): VitalStatus => (v >= 7 ? 'alert' : v >= 4 ? 'warn' : 'normal');
+// Capillary glucose (mg/dL): hypo < 70 (severe < 54), hyper > 180 (severe ≥ 400).
+const hgtStatus = (v: number): VitalStatus => band(v, 54, 70, 180, 400);
 
 /** Trim a trailing ".0" so "36.0" shows as "36". */
 const fmt = (v: number): string => String(Number.isInteger(v) ? v : Number(v.toFixed(1)));
@@ -119,6 +121,31 @@ export const buildVitalSignsView = (
       status: evaStatus(vitals.painEva),
     });
   }
+  if (vitals.hgt != null) {
+    readings.push({
+      key: 'hgt',
+      label: 'HGT',
+      value: fmt(vitals.hgt),
+      unit: 'mg/dL',
+      status: hgtStatus(vitals.hgt),
+    });
+  }
+  // Rapid insulin administered: units + abdominal quadrant ("Ins/Cuad"). Not a range — shown neutral.
+  if (vitals.insulinUnits != null || vitals.insulinQuadrant) {
+    const parts = [
+      vitals.insulinUnits != null ? fmt(vitals.insulinUnits) : '',
+      vitals.insulinQuadrant || '',
+    ].filter(Boolean);
+    if (parts.length > 0) {
+      readings.push({
+        key: 'ins',
+        label: 'Ins/Cuad',
+        value: parts.join(' · '),
+        unit: 'UI',
+        status: 'normal',
+      });
+    }
+  }
 
   if (readings.length === 0) return null;
 
@@ -154,6 +181,8 @@ export const VITALS_HISTORY_COLUMNS: ReadonlyArray<{
   { key: 'temp', label: 'T°' },
   { key: 'fr', label: 'FR' },
   { key: 'eva', label: 'EVA' },
+  { key: 'hgt', label: 'HGT' },
+  { key: 'ins', label: 'Ins/Cuad' },
 ];
 
 export interface VitalsHistoryRow {
