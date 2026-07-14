@@ -97,25 +97,27 @@ export const useRayenSyncAudit = ({
 
   const completeRun = useCallback(
     async (recordAtApply: DailyRecord, summary: ClinicalFillSummary): Promise<void> => {
-      const run = activeRunRef.current;
-      if (!run) return;
+      // The applied record carries the authoritative run id. A newer manual attempt
+      // may already be active while this background fill is finishing.
+      const runId = recordAtApply.rayenSync?.runId;
+      if (!runId) return;
       const liveRecord = currentRecordRef.current;
-      const base = liveRecord?.rayenSyncHistory?.some(event => event.id === run.id)
+      const base = liveRecord?.rayenSyncHistory?.some(event => event.id === runId)
         ? liveRecord
         : recordAtApply;
-      const appliedEvent = base.rayenSyncHistory?.find(event => event.id === run.id);
+      const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
       if (!appliedEvent) {
-        activeRunRef.current = null;
+        if (activeRunRef.current?.id === runId) activeRunRef.current = null;
         return;
       }
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
       const completedEvent = completeRayenSyncEvent(appliedEvent, coverage);
       const history = upsertRayenSyncEvent(base.rayenSyncHistory, completedEvent);
       const patch: DailyRecordPatch = { rayenSyncHistory: history };
-      if (base.rayenSync?.runId === run.id || recordAtApply.rayenSync?.runId === run.id) {
+      if (base.rayenSync?.runId === runId || recordAtApply.rayenSync?.runId === runId) {
         patch.rayenSync = rayenSyncMetaFromEvent(completedEvent);
       }
-      activeRunRef.current = null;
+      if (activeRunRef.current?.id === runId) activeRunRef.current = null;
       await patchDailyRecord(patch);
     },
     [currentRecordRef, now, patchDailyRecord]

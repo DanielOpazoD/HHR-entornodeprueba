@@ -115,6 +115,41 @@ describe('useRayenSyncAudit', () => {
     expect(patchDailyRecord.mock.calls[0][0]).not.toHaveProperty('rayenSync');
   });
 
+  it('completes the applied run even when a newer run becomes active', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const currentRecordRef = { current: record() };
+    const ids = ['run-1', 'run-2'];
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'Operador HHR',
+        now: () => new Date('2026-07-14T10:00:00.000Z'),
+        createId: () => ids.shift() ?? 'run-extra',
+      })
+    );
+
+    act(() => {
+      result.current.startRun();
+    });
+    const firstApplied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = firstApplied;
+    act(() => {
+      result.current.startRun();
+    });
+
+    await act(async () => {
+      await result.current.completeRun(firstApplied, { total: 2, patched: 2, errors: [] });
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rayenSync: expect.objectContaining({ runId: 'run-1', status: 'complete' }),
+        rayenSyncHistory: [expect.objectContaining({ id: 'run-1', status: 'complete' })],
+      })
+    );
+  });
+
   it('does not persist a cancelled preview', async () => {
     const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
     const currentRecordRef = { current: record() };

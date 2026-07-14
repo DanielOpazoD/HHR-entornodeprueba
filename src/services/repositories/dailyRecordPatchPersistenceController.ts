@@ -14,17 +14,25 @@ import {
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
 import { buildDailyRecordClinicalEpisodeIdPatches } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 
 export const preparePatchedRecordPersistence = (
   current: DailyRecord,
   date: string,
   patch: DailyRecordPatch
 ): { record: DailyRecord; mergedPatches: DailyRecordPatch } => {
-  const updatedForInvariants = applyPatches(current, patch);
+  const inputPatch: DailyRecordPatch =
+    patch.rayenSyncHistory === undefined
+      ? patch
+      : {
+          ...patch,
+          rayenSyncHistory: mergeRayenSyncHistory(current.rayenSyncHistory, patch.rayenSyncHistory),
+        };
+  const updatedForInvariants = applyPatches(current, inputPatch);
   assertAdmissionDatePersistencePolicy(date, updatedForInvariants, current, {
-    changedPaths: Object.keys(patch),
+    changedPaths: Object.keys(inputPatch),
   });
-  const mergedPatches: DailyRecordPatch = { ...patch };
+  const mergedPatches: DailyRecordPatch = { ...inputPatch };
   ensureDailyRecordDateTimestamp(updatedForInvariants);
 
   if (updatedForInvariants.dateTimestamp != null) {
@@ -57,7 +65,7 @@ export const preparePatchedRecordPersistence = (
         date,
         operation: 'updatePartial',
         repairPaths,
-        touchedPaths: Object.keys(patch),
+        touchedPaths: Object.keys(inputPatch),
       })
     );
   }

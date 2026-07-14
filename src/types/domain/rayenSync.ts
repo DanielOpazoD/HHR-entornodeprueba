@@ -1,5 +1,7 @@
 /** Persisted, privacy-safe evidence for one user-initiated Eloísa synchronization. */
 
+export const MAX_RAYEN_SYNC_HISTORY = 20;
+
 export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';

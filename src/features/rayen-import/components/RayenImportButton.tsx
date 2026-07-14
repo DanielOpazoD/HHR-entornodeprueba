@@ -63,7 +63,7 @@ export const RayenImportButton: React.FC = () => {
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy;
+  const working = isSyncing || isBusy || fill.running;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -134,7 +134,7 @@ export const RayenImportButton: React.FC = () => {
     const health = await extension.refresh();
     triggerImport(health);
   };
-  const primaryActionLabel = rayenPrimaryActionLabel(extension.connection, isSyncing || isBusy);
+  const primaryActionLabel = rayenPrimaryActionLabel(extension.connection, working);
   const closeHistory = React.useCallback(() => {
     setHistoryOpen(false);
     queueMicrotask(() => historyTriggerRef.current?.focus());

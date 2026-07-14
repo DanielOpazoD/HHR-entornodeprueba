@@ -6,8 +6,9 @@ import type {
   RayenSyncMeta,
   RayenSyncSource,
 } from '@/types/domain/rayenSync';
+import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
-export const MAX_RAYEN_SYNC_HISTORY = 20;
+export { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
 export interface RayenSyncRun {
   id: string;

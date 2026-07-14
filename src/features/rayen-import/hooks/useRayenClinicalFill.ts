@@ -31,7 +31,21 @@ export const useRayenClinicalFill = ({
       const eligibleCount = Object.values(record.beds).filter(
         patient => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
       ).length;
-      if (!beginRayenFill(eligibleCount)) return;
+      if (!beginRayenFill(eligibleCount)) {
+        // A deliberate run was already applied, so it must not remain indefinitely
+        // at `applied` when the single-flight guard rejects its enrichment pass.
+        try {
+          await completeRun(record, {
+            total: eligibleCount,
+            patched: 0,
+            errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
+          });
+        } catch (error) {
+          console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
+        }
+        onSettled();
+        return;
+      }
 
       let summary: ClinicalFillSummary;
       try {

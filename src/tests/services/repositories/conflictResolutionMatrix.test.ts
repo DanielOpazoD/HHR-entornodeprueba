@@ -61,6 +61,32 @@ describe('conflictResolutionMatrix', () => {
     expect(resolved.activeExtraBeds).toEqual(['Extra-2', 'Extra-1']);
   });
 
+  it('merges concurrent Rayen history by run id during conflict recovery', () => {
+    const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
+    remote.rayenSyncHistory = [
+      { id: 'shared', startedAt: '2026-02-18T09:00:00.000Z', by: 'A', status: 'applied' },
+      { id: 'remote', startedAt: '2026-02-18T08:00:00.000Z', by: 'B', status: 'complete' },
+    ];
+    const local = makeRecord('2026-02-18', '2026-02-18T10:01:00.000Z');
+    local.rayenSyncHistory = [
+      { id: 'shared', startedAt: '2026-02-18T09:00:00.000Z', by: 'A', status: 'complete' },
+      { id: 'local', startedAt: '2026-02-18T10:00:00.000Z', by: 'C', status: 'failed' },
+    ];
+
+    const resolved = resolveDailyRecordConflict(remote, local, {
+      changedPaths: ['rayenSyncHistory'],
+    });
+
+    expect(resolved.rayenSyncHistory?.map(event => event.id)).toEqual([
+      'local',
+      'shared',
+      'remote',
+    ]);
+    expect(resolved.rayenSyncHistory?.find(event => event.id === 'shared')?.status).toBe(
+      'complete'
+    );
+  });
+
   it('keeps legacy nurses as a compatibility mirror of nursesDayShift during full merge', () => {
     const remote = makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z');
     remote.nurses = ['Ana'];

@@ -28,6 +28,7 @@ import {
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRecordObjectFields } from '@/services/repositories/conflictResolutionRecordObjectMergeUtils';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
+import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
   STAFFING_SLOT_ARRAY_FIELDS,
   buildMergedDayShiftStaffingMirror,
@@ -146,6 +147,7 @@ const resolveWholeRecord = (
       traceContext,
       'activeExtraBeds'
     ),
+    rayenSyncHistory: mergeRayenSyncHistory(remote.rayenSyncHistory, local.rayenSyncHistory),
     ...mergeRecordObjectFields(remote, local, preferLocal, traceContext),
     lastUpdated: toIso(Math.max(remoteTs, localTs)),
   };
@@ -260,6 +262,20 @@ const resolveByChangedPaths = (
         traceContext,
         root
       );
+      continue;
+    }
+
+    if (root === 'rayenSyncHistory') {
+      (patches as Record<string, unknown>)[root] = mergeRayenSyncHistory(
+        remote.rayenSyncHistory,
+        local.rayenSyncHistory
+      );
+      traceContext.add({
+        path: root,
+        strategy: 'merge_array_by_id',
+        winner: 'merged',
+        reason: 'union_preserve_local_override',
+      });
       continue;
     }
 
