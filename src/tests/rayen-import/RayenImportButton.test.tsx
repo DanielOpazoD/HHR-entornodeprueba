@@ -246,9 +246,12 @@ describe('RayenImportButton', () => {
 
     expect(screen.getByText('10/11 · 1 pendiente')).toBeInTheDocument();
     expect(screen.getByText('· Parcial')).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Abrir historial de sincronización del día, 1 eventos' })
-    );
+    const historyButton = screen.getByRole('button', {
+      name: 'Abrir historial de sincronización del día, 1 eventos',
+    });
+    expect(historyButton).not.toHaveTextContent('Historial');
+    expect(historyButton).toHaveAttribute('title', 'Historial de sincronización · 1 evento');
+    fireEvent.click(historyButton);
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();

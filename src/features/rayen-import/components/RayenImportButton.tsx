@@ -288,12 +288,19 @@ export const RayenImportButton: React.FC = () => {
             type="button"
             onClick={() => setHistoryOpen(true)}
             aria-label={`Abrir historial de sincronización del día, ${history.length} eventos`}
+            title={`Historial de sincronización · ${history.length} evento${history.length === 1 ? '' : 's'}`}
             data-testid="rayen-sync-history-button"
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            className="relative inline-flex size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
           >
-            <History size={14} aria-hidden="true" />
-            <span className="hidden xl:inline">Historial</span>
-            <span className="tabular-nums">· {history.length}</span>
+            <History size={15} aria-hidden="true" />
+            {history.length > 0 && (
+              <span
+                className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full border border-white bg-slate-600 px-1 text-[9px] font-bold leading-4 tabular-nums text-white shadow-sm"
+                aria-hidden="true"
+              >
+                {history.length > 9 ? '9+' : history.length}
+              </span>
+            )}
           </button>
           <button
             type="button"
