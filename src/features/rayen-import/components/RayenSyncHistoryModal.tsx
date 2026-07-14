@@ -151,7 +151,11 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
                       : changesLabel(event)}
                   </p>
                   {event.status !== 'failed' && outcome.detail && (
-                    <p className="mt-1 text-[11px] font-semibold text-amber-700">
+                    <p
+                      className={`mt-1 text-[11px] font-semibold ${
+                        outcome.tone === 'warning' ? 'text-amber-700' : 'text-sky-700'
+                      }`}
+                    >
                       {outcome.detail}
                     </p>
                   )}

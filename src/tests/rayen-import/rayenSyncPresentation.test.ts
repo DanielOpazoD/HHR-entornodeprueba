@@ -65,7 +65,7 @@ describe('rayen sync presentation', () => {
 
     expect(presentRayenSyncOutcome(event)).toMatchObject({
       label: 'Parcial',
-      detail: '1 paciente pendiente · Gestión de Camas no disponible',
+      detail: '1 paciente pendiente · Fuente clínica incompleta · Gestión de Camas no disponible',
       tone: 'warning',
       unresolved: true,
     });

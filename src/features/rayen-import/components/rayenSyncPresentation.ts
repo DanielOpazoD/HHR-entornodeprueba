@@ -80,7 +80,8 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
     reasons.push(
       `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} pendiente${event.coverage.errors === 1 ? '' : 's'}`
     );
-  } else if (event.coverage?.sourceErrors) {
+  }
+  if (event.coverage?.sourceErrors) {
     reasons.push('Fuente clínica incompleta');
   }
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
@@ -90,12 +91,13 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
 };
 
 export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcomePresentation => {
+  const label = rayenSyncStatusLabel(event.status) ?? 'Parcial';
   if (event.status === 'complete') {
-    return { label: 'Completa', detail: null, tone: 'success', unresolved: false };
+    return { label, detail: null, tone: 'success', unresolved: false };
   }
   if (event.status === 'failed') {
     return {
-      label: 'Fallida',
+      label,
       detail: rayenFailureReasonLabel(event.failureReason),
       tone: 'danger',
       unresolved: true,
@@ -103,7 +105,7 @@ export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcome
   }
   if (event.status === 'applied') {
     return {
-      label: 'Censo aplicado',
+      label,
       detail: 'Enriquecimiento clínico pendiente',
       tone: 'info',
       unresolved: true,
@@ -111,7 +113,7 @@ export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcome
   }
   const reasons = partialReasons(event);
   return {
-    label: 'Parcial',
+    label,
     detail: reasons.join(' · ') || 'Enriquecimiento clínico parcial',
     tone: 'warning',
     unresolved: true,

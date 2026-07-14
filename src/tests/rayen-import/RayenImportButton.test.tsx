@@ -255,7 +255,9 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
-    expect(screen.getByText('1 paciente pendiente')).toBeInTheDocument();
+    expect(
+      screen.getByText('1 paciente pendiente · Fuente clínica incompleta')
+    ).toBeInTheDocument();
     expect(screen.getByText('Puedes completar esta sincronización')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
