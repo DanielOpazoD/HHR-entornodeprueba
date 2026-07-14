@@ -6,8 +6,10 @@
  */
 
 import React, { useState } from 'react';
-import { BookOpenText } from 'lucide-react';
+import { BookOpenText, ExternalLink, Loader2 } from 'lucide-react';
 
+import { useNotification } from '@/context/UIContext';
+import { requestRayenEncounterNavigation } from '@/features/rayen-import';
 import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
 
 interface ClinicalPanelTriggerProps {
@@ -22,24 +24,70 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   clinicalEpisodeId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isOpeningEncounter, setIsOpeningEncounter] = useState(false);
+  const { success, error: notifyError } = useNotification();
   const episode = (clinicalEpisodeId || '').trim();
   if (!episode || !patientName.trim()) return null;
 
+  const handleOpenEncounter = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (isOpeningEncounter) return;
+    setIsOpeningEncounter(true);
+    try {
+      const result = await requestRayenEncounterNavigation(episode);
+      if (result.ok) {
+        success(
+          'Eloísa abierta',
+          result.reused
+            ? 'Se activó la pestaña de Ficha Médico en el episodio seleccionado.'
+            : 'Se abrió Ficha Médico en el episodio seleccionado.'
+        );
+      } else {
+        notifyError('No se pudo abrir Eloísa', result.error || 'Error de navegación desconocido.');
+      }
+    } catch (error) {
+      notifyError(
+        'No se pudo abrir Eloísa',
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setIsOpeningEncounter(false);
+    }
+  };
+
   return (
     <>
-      <button
-        type="button"
-        data-testid={`clinical-panel-trigger-${bedId}`}
-        onClick={event => {
-          event.stopPropagation();
-          setIsOpen(true);
-        }}
-        className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500"
-        title="Panel clínico (evoluciones e indicaciones de Eloísa)"
-        aria-label={`Abrir panel clínico de ${patientName}`}
-      >
-        <BookOpenText size={14} />
-      </button>
+      <span className="inline-flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          data-testid={`clinical-panel-trigger-${bedId}`}
+          onClick={event => {
+            event.stopPropagation();
+            setIsOpen(true);
+          }}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500"
+          title="Panel clínico (evoluciones e indicaciones de Eloísa)"
+          aria-label={`Abrir panel clínico de ${patientName}`}
+        >
+          <BookOpenText size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid={`rayen-encounter-trigger-${bedId}`}
+          onClick={handleOpenEncounter}
+          disabled={isOpeningEncounter}
+          aria-busy={isOpeningEncounter}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-60"
+          title="Abrir este episodio en Ficha Médico"
+          aria-label={`Abrir a ${patientName} en Eloísa`}
+        >
+          {isOpeningEncounter ? (
+            <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          ) : (
+            <ExternalLink size={14} aria-hidden="true" />
+          )}
+        </button>
+      </span>
       {isOpen && (
         <ClinicalPanelDrawer
           bedId={bedId}

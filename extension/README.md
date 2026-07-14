@@ -32,6 +32,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `background.js` | Enruta la petición del HHR a la pestaña de Rayen y devuelve el snapshot |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
+| `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 
 ## Instalar (modo desarrollador)
 
@@ -48,6 +49,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
    **"Importar desde Rayen"**.
 3. Según el modo (Configuración → Integraciones): se abre el **preview** para confirmar, o —en
    modo automático experimental— se aplica solo (salvo conflictos/egresos inferidos, que caen a preview).
+4. En una fila sincronizada, el icono de enlace externo abre el episodio exacto en Ficha Médico.
+   Reutiliza una pestaña existente cuando está disponible; esta acción es solo navegación y no escribe
+   datos en Rayen.
 
 ## Requisitos y notas
 

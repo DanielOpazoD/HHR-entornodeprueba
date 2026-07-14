@@ -16,6 +16,10 @@
  * including patients HHR never synced; parsed to rows in the background):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_REPORT_REQUEST', reqId, dateStart, dateEnd }
  *   us  → page: { type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, rows }
+ *
+ * Patient navigation (read-only handoff to the exact Ficha Médico encounter):
+ *   Page → us:  { type: 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST', reqId, encId }
+ *   us  → page: { type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT', reqId, ok, reused, error? }
  */
 (() => {
   'use strict';
@@ -42,6 +46,32 @@
         .catch(error => {
           console.warn('[Rayen→HHR] Bridge error:', error);
           post({ type: 'HHR_RAYEN_IMPORT_ERROR', error: String(error) });
+        });
+      return;
+    }
+
+    if (data.type === 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST') {
+      const reqId = data.reqId;
+      chrome.runtime
+        .sendMessage({ type: 'RAYEN_OPEN_ENCOUNTER_REQUEST', encId: data.encId })
+        .then(response => {
+          post({
+            type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT',
+            reqId,
+            ok: response && response.ok === true,
+            reused: response && response.reused === true,
+            error: response && response.error,
+          });
+        })
+        .catch(error => {
+          console.warn('[Rayen→HHR] Encounter navigation error:', error);
+          post({
+            type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT',
+            reqId,
+            ok: false,
+            reused: false,
+            error: String(error),
+          });
         });
       return;
     }

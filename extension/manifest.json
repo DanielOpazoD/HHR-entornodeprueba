@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.3.9",
+  "version": "0.4.0",
   "description": "Lee el censo de hospitalizados de Rayen (Ficha Médico) y lo entrega al censo local HHR para importarlo con revisión.",
   "permissions": ["tabs", "downloads"],
   "host_permissions": [

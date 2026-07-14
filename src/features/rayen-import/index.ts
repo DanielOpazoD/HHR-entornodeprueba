@@ -51,6 +51,12 @@ export type {
   RayenClinicalPanelResult,
 } from './bridge/clinicalPanelBridge';
 export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
+export type { RayenEncounterNavigationResult } from './bridge/encounterNavigationBridge';
+export {
+  RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE,
+  RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
+  requestRayenEncounterNavigation,
+} from './bridge/encounterNavigationBridge';
 export type {
   ClinicalPanel,
   ClinicalPanelEntry,
