@@ -1,10 +1,20 @@
 import React from 'react';
-import { CheckCircle2, CircleAlert, Clock3, DatabaseZap, RefreshCw, UserRound } from 'lucide-react';
+import {
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
+  DatabaseZap,
+  History,
+  RefreshCw,
+  UserRound,
+} from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
+import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
+import { presentRayenCoverage, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 
 /**
@@ -35,6 +45,8 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
 };
 
 export const RayenImportButton: React.FC = () => {
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const {
     mode,
     diff,
@@ -54,6 +66,13 @@ export const RayenImportButton: React.FC = () => {
   const working = isSyncing || isBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
+  const history = React.useMemo(
+    () =>
+      (record?.rayenSyncHistory ?? [])
+        .slice()
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+    [record?.rayenSyncHistory]
+  );
 
   // Visible, verifiable fill status: live progress while running, then a completion summary with
   // the per-patient error count — so the user can tell whether devices/scores actually synced.
@@ -78,11 +97,27 @@ export const RayenImportButton: React.FC = () => {
               ? 'Ficha Médico no disponible'
               : 'Extensión sin respuesta';
   const responsibleState = lastSync ? (record?.rayenSync?.by ?? 'Sin identificar') : 'Sin registro';
-  const coverageState = fillNote
-    ? fillNote.replace('Datos clínicos: ', '').replace('Datos clínicos ', '')
-    : lastSync
-      ? 'No calculada'
-      : 'Sin sincronización';
+  const persistedCoverage = presentRayenCoverage(
+    record?.rayenSync?.coverage,
+    Boolean(lastSync),
+    record?.rayenSync?.status === 'applied' && Boolean(record.rayenSync.runId)
+  );
+  const coverageState = fill.running
+    ? (fillNote?.replace('Datos clínicos: ', '').replace('Datos clínicos ', '') ?? 'Procesando…')
+    : record?.rayenSync?.coverage
+      ? persistedCoverage.label
+      : fillNote
+        ? fillNote.replace('Datos clínicos: ', '').replace('Datos clínicos ', '')
+        : persistedCoverage.label;
+  const coverageTone = fill.running
+    ? 'running'
+    : record?.rayenSync?.coverage
+      ? persistedCoverage.tone
+      : fillNote
+        ? fill.errors > 0
+          ? 'warning'
+          : 'success'
+        : 'muted';
 
   const fichaReady = extension.report?.fichaMedico.status === 'ready';
   const camasReady = extension.report?.gestionCamas.status === 'ready';
@@ -97,8 +132,13 @@ export const RayenImportButton: React.FC = () => {
 
   const handleSync = async (): Promise<void> => {
     const health = await extension.refresh();
-    if (health.canSync) triggerImport();
+    triggerImport(health);
   };
+  const primaryActionLabel = rayenPrimaryActionLabel(extension.connection, isSyncing || isBusy);
+  const closeHistory = React.useCallback(() => {
+    setHistoryOpen(false);
+    queueMicrotask(() => historyTriggerRef.current?.focus());
+  }, []);
 
   return (
     <div
@@ -193,13 +233,13 @@ export const RayenImportButton: React.FC = () => {
             </p>
             <p
               className={`mt-0.5 truncate text-[11px] font-semibold ${
-                fill.running
+                coverageTone === 'running'
                   ? 'animate-pulse text-teal-700 motion-reduce:animate-none'
-                  : fillNote
-                    ? fill.errors > 0
-                      ? 'text-amber-700'
-                      : 'text-emerald-700'
-                    : 'text-slate-400'
+                  : coverageTone === 'warning'
+                    ? 'text-amber-700'
+                    : coverageTone === 'success'
+                      ? 'text-emerald-700'
+                      : 'text-slate-400'
               }`}
               data-testid="rayen-fill-status"
             >
@@ -209,6 +249,18 @@ export const RayenImportButton: React.FC = () => {
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2">
+          <button
+            ref={historyTriggerRef}
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            aria-label={`Abrir historial de sincronización del día, ${history.length} eventos`}
+            data-testid="rayen-sync-history-button"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+          >
+            <History size={14} aria-hidden="true" />
+            <span className="hidden xl:inline">Historial</span>
+            <span className="tabular-nums">· {history.length}</span>
+          </button>
           <button
             type="button"
             onClick={() => void handleSync()}
@@ -224,7 +276,7 @@ export const RayenImportButton: React.FC = () => {
             className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-teal-700 px-3.5 py-2 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
             <RefreshCw size={15} strokeWidth={2.5} className={working ? 'animate-spin' : ''} />
-            {working ? 'Sincronizando…' : 'Sincronizar'}
+            {primaryActionLabel}
             {mode === 'auto' && (
               <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                 Auto
@@ -242,6 +294,7 @@ export const RayenImportButton: React.FC = () => {
         onConfirm={confirm}
         onCancel={cancel}
       />
+      <RayenSyncHistoryModal isOpen={historyOpen} onClose={closeHistory} history={history} />
 
       {extension.connection !== 'ready' && extension.connection !== 'checking' && (
         <p

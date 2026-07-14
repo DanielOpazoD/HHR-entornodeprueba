@@ -35,6 +35,7 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `mapping/dischargeMapping.ts`            | Tipo de egreso HHR (alta / traslado / CMA · Vivo/Fallecido)                |
 | `domain/reconcileCensus.ts`              | Motor de reconciliación puro (ingresos/updates/moves/egresos/conflictos)   |
 | `domain/applyCensusImportDiff.ts`        | Aplica el diff → siguiente `DailyRecord` (puro, defensivo)                 |
+| `domain/rayenSyncHistory.ts`             | Historial diario agregado, idempotente y acotado                           |
 | `importRayenCensusUseCase.ts`            | Use-case `planRayenCensusImport` (planifica el diff)                       |
 | `settings/rayenImportSettings.ts`        | Setting de modo (`preview`/`auto`) en localStorage                         |
 | `bridge/rayenImportBridge.ts`            | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
@@ -42,8 +43,11 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `hooks/useRayenImportMode.ts`            | Hook reactivo del modo                                                     |
 | `hooks/useRayenExtensionHealth.ts`       | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
 | `hooks/useRayenImport.ts`                | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
+| `hooks/useRayenSyncAudit.ts`             | Coordina inicio, aplicación, cobertura final y fallo sanitizado            |
+| `hooks/useRayenClinicalFill.ts`          | Ejecuta enriquecimiento y cierra la evidencia técnica del run              |
 | `components/RayenImportButton.tsx`       | Botón "Sincronizar Eloísa" (barra del censo)                               |
 | `components/RayenImportPreviewModal.tsx` | Modal de preview del diff (BaseModal)                                      |
+| `components/RayenSyncHistoryModal.tsx`   | Historial operativo del día, sin información clínica individual            |
 | `components/RayenImportModeSetting.tsx`  | Selector de modo (panel admin)                                             |
 | `index.ts`                               | API pública (único entrypoint externo)                                     |
 
@@ -54,6 +58,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
   cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
+- **Trazabilidad sin PHI:** `rayenSyncHistory` guarda solo actor, tiempos, salud de fuentes y
+  agregados del diff/cobertura. No persiste nombres, RUN, diagnósticos ni errores crudos.
+- **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
 - **`moves` ≠ traslados:** `moves` = reubicación de cama dentro del censo; el traslado a otro hospital
   es un _tipo de egreso_ (`DischargeEntry.kind = 'traslado'`).
 

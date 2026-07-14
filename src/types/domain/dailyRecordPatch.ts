@@ -16,6 +16,7 @@ import type {
   MedicalSignatureTimestampByScope,
 } from './dailyRecordMedicalHandoff';
 import type { DailyRecordStaffingDetailsV1 } from './dailyRecordStaffingDetails';
+import type { RayenSyncEvent, RayenSyncMeta } from './rayenSync';
 
 type PatientFieldPath = `beds.${string}.${keyof PatientData}`;
 type PatientCudyrPath = `beds.${string}.cudyr.${keyof CudyrScore}`;
@@ -52,6 +53,8 @@ type TopLevelValueMap = {
   cudyrLockedBy: string | undefined;
   cudyrUpdatedAt: string | undefined;
   bedTypeOverrides: Record<string, BedType>;
+  rayenSync: RayenSyncMeta | undefined;
+  rayenSyncHistory: RayenSyncEvent[] | undefined;
 };
 
 type TopLevelPath = keyof TopLevelValueMap;
