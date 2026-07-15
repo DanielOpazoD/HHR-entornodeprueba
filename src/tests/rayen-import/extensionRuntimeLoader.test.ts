@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const healthBridgeSource = readFileSync(
+  path.resolve('src/features/rayen-import/bridge/extensionHealthBridge.ts'),
+  'utf8'
+);
 const extensionDirectory = path.resolve('extension');
 
 describe('extension heavy runtime loading', () => {
@@ -117,5 +121,17 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('sendMessage: sendHealthProbe');
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
+  });
+
+  it('keeps the application and extension health protocol versions aligned', () => {
+    const extensionVersion = backgroundSource.match(
+      /\bEXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/
+    )?.[1];
+    const applicationVersion = healthBridgeSource.match(
+      /\bRAYEN_EXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/
+    )?.[1];
+
+    expect(extensionVersion).toBeDefined();
+    expect(applicationVersion).toBe(extensionVersion);
   });
 });

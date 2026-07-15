@@ -3,13 +3,16 @@ import {
   deriveHealthState,
   type RayenExtensionHealthState,
 } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
-import type { RayenExtensionHealthReport } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  RAYEN_EXTENSION_PROTOCOL_VERSION,
+  type RayenExtensionHealthReport,
+} from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const makeReport = (
   overrides: Partial<RayenExtensionHealthReport> = {}
 ): RayenExtensionHealthReport => ({
   version: '0.6.0',
-  protocolVersion: 2,
+  protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
   checkedAt: '2026-07-14T05:00:00.000Z',
   fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
   gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },

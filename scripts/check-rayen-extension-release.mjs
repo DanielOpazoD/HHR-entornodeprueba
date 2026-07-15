@@ -6,6 +6,14 @@ import path from 'node:path';
 const root = process.cwd();
 const extensionDir = path.join(root, 'extension');
 const manifestPath = path.join(extensionDir, 'manifest.json');
+const healthBridgePath = path.join(
+  root,
+  'src',
+  'features',
+  'rayen-import',
+  'bridge',
+  'extensionHealthBridge.ts'
+);
 const errors = [];
 
 const fail = message => errors.push(message);
@@ -85,6 +93,30 @@ for (const host of manifest.host_permissions || []) {
 }
 
 const backgroundSource = readFileSync(path.join(extensionDir, 'background.js'), 'utf8');
+const healthBridgeSource = existsSync(healthBridgePath)
+  ? readFileSync(healthBridgePath, 'utf8')
+  : '';
+const extensionProtocolVersion = Number(
+  backgroundSource.match(/\bEXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/)?.[1]
+);
+const applicationProtocolVersion = Number(
+  healthBridgeSource.match(/\bRAYEN_EXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/)?.[1]
+);
+if (!Number.isInteger(extensionProtocolVersion)) {
+  fail('background.js no declara EXTENSION_PROTOCOL_VERSION como entero literal.');
+}
+if (!Number.isInteger(applicationProtocolVersion)) {
+  fail('La aplicación HHR no declara RAYEN_EXTENSION_PROTOCOL_VERSION como entero literal.');
+}
+if (
+  Number.isInteger(extensionProtocolVersion) &&
+  Number.isInteger(applicationProtocolVersion) &&
+  extensionProtocolVersion !== applicationProtocolVersion
+) {
+  fail(
+    `Protocolo incompatible: extensión=${extensionProtocolVersion}, aplicación=${applicationProtocolVersion}.`
+  );
+}
 const executableBackgroundSource = backgroundSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');

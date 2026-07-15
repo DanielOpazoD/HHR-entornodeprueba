@@ -8,7 +8,7 @@
 
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
-export const RAYEN_EXTENSION_PROTOCOL_VERSION = 2;
+export const RAYEN_EXTENSION_PROTOCOL_VERSION = 3;
 
 export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 
