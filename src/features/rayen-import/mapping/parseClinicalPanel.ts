@@ -23,6 +23,7 @@ import type {
   RayenClinicalPanelCarePlan,
   RayenClinicalPanelEvent,
 } from '../bridge/clinicalPanelBridge';
+import { parseClinicalCareDays, type ClinicalPanelCareDay } from './parseClinicalCarePlan';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelEntryKind =
@@ -70,29 +71,6 @@ export interface ClinicalPanelIndicationDay {
   suspended: ClinicalPanelEntry[];
 }
 
-export type ClinicalPanelCareActionStatus =
-  | 'performed'
-  | 'outside-plan'
-  | 'not-performed'
-  | 'pending'
-  | 'suspended';
-
-export interface ClinicalPanelCareAction {
-  id: string;
-  title: string;
-  detail: string;
-  schedule: string;
-  author: string;
-  performedAt: string;
-  status: ClinicalPanelCareActionStatus;
-}
-
-export interface ClinicalPanelCareDay {
-  day: string;
-  label: string;
-  actions: ClinicalPanelCareAction[];
-}
-
 export interface ClinicalPanel {
   evolutions: ClinicalPanelEntry[];
   indicationDays: ClinicalPanelIndicationDay[];
@@ -110,9 +88,6 @@ const flag = (value: unknown): boolean => {
   const s = str(value).toLowerCase();
   return s === 'true' || s === '1' || s === 's' || s === 'si' || s === 'sí';
 };
-
-const marker = (value: unknown): boolean =>
-  flag(value) || (!!value && typeof value === 'object' && Object.keys(value).length > 0);
 
 const timeKey = (publishedAt: string): number => {
   const t = Date.parse(publishedAt);
@@ -212,51 +187,6 @@ const buildIndicationDays = (entries: ClinicalPanelEntry[]): ClinicalPanelIndica
         suspended: all.filter(e => e.suspended || e.archived),
       };
     });
-};
-
-const careStatus = (body: RawRow, header: RawRow): ClinicalPanelCareActionStatus => {
-  if (flag(body.isSuspended) || flag(header.isSuspended)) return 'suspended';
-  if (marker(body.doNotExecute)) return 'not-performed';
-  if (flag(body.isPerformedOutSidePlanning)) return 'outside-plan';
-  if (flag(body.isPerformed)) return 'performed';
-  return 'pending';
-};
-
-const buildCareDays = (headers: unknown[]): ClinicalPanelCareDay[] => {
-  const byDay = new Map<string, ClinicalPanelCareAction[]>();
-  let seq = 0;
-
-  for (const header of rows(headers)) {
-    for (const body of rows(header.carePlanBody)) {
-      const title = str(body.title) || str(body.activity);
-      if (!title) continue;
-      const performedAt = str(body.administrationDate) || str(body.timestamp);
-      const sourceDate = str(header.scheduledDate) || str(header.labelDate) || performedAt;
-      const day = dayKey(sourceDate);
-      const bucket = byDay.get(day) ?? [];
-      bucket.push({
-        id: str(body.entryGuid) || str(body.activityId) || `care-${seq++}`,
-        title,
-        detail:
-          str(body.activity) === title
-            ? str(body.tag)
-            : joinParts(str(body.activity), str(body.tag)),
-        schedule: str(body.hoursRangeActi) || str(body.hoursRange) || str(header.label),
-        author: toTitleCaseName(str(body.user)),
-        performedAt,
-        status: careStatus(body, header),
-      });
-      byDay.set(day, bucket);
-    }
-  }
-
-  return [...byDay.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([day, actions]) => ({
-      day,
-      label: dayLabel(day),
-      actions: actions.sort((a, b) => timeKey(b.performedAt) - timeKey(a.performedAt)),
-    }));
 };
 
 export const parseClinicalPanel = (
@@ -397,6 +327,6 @@ export const parseClinicalPanel = (
   return {
     evolutions: evolutions.sort(byNewestFirst),
     indicationDays: buildIndicationDays(indications),
-    careDays: buildCareDays(carePlan.carePlanHeaders),
+    careDays: parseClinicalCareDays(carePlan.carePlanHeaders),
   };
 };

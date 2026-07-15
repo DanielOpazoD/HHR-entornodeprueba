@@ -63,11 +63,13 @@ export type {
   ClinicalPanelEntry,
   ClinicalPanelEntryKind,
   ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './mapping/parseClinicalPanel';
+export type {
   ClinicalPanelCareAction,
   ClinicalPanelCareActionStatus,
   ClinicalPanelCareDay,
-  EvolutionProfession,
-} from './mapping/parseClinicalPanel';
+} from './mapping/parseClinicalCarePlan';
 export { parseClinicalPanel } from './mapping/parseClinicalPanel';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
 export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';
