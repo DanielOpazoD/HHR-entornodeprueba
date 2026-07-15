@@ -12,15 +12,24 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 - **`preview` (default, SIEMPRE seguro):** muestra el diff en un modal y requiere confirmación.
 - **`auto` (EXPERIMENTAL):** aplica el diff sin confirmación, **pero cae al preview** si hay algo que
-  requiere revisión — conflictos o **egresos inferidos** (`missing-in-rayen`). Gate: `requiresReview(diff)`.
+  requiere revisión — conflictos, señales de cierre aún sin alta administrativa o egresos del reporte
+  no representados en HHR. Gate: `requiresReview(diff)`.
   El admin elige el modo en Configuración → Integraciones (localStorage).
 
 ## Seguridad clínica
 
-- **Egresos inferidos solo con censo completo:** un paciente ausente del snapshot se marca como egreso
-  (`missing-in-rayen`) **únicamente** si `snapshot.isComplete === true`. Un snapshot parcial nunca implica
-  altas por ausencia — la extensión debe fijar `isComplete` solo tras armar el censo completo.
-- **El modo automático nunca aplica un egreso inferido sin revisión** (ver `requiresReview`).
+- **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
+  señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
+  Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
+- **Ventana D a D+1:** el reporte se solicita hasta el día siguiente por el desfase conocido del
+  filtro de Rayen. La fecha y hora impresas en cada fila ya son el sello estadístico de Rapa Nui: se
+  normalizan, pero no se desplazan nuevamente por zona horaria.
+- **CMA por origen exacto:** un alta administrativa viva se clasifica como CMA cuando ingreso y
+  egreso estadístico ocurren el mismo día y la cama exacta `CMA R1`…`CMA R4` o `CMA NEO1/2` consta
+  en la ubicación Eloísa guardada o en el informe de altas. `R1`/`NEO1` sin prefijo CMA no cuentan.
+  Un traslado explícito o un fallecimiento conservan su clasificación administrativa.
+- **Sin inferencias por ausencia:** un snapshot completo puede mostrar el pendiente administrativo;
+  un snapshot parcial no genera ni siquiera ese pendiente.
 - **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test
   `producedRecordValidity.test.ts`), así el `save` no es rechazado por validación ni por reglas Firestore.
 

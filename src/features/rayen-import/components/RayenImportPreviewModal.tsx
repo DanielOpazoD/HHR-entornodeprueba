@@ -117,8 +117,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               <Chip label="Movimientos de cama" value={diff.summary.moves} tone="teal" />
               <Chip label="Egresos" value={diff.summary.discharges} tone="amber" />
               <Chip
-                label="Pend. alta enfermería"
-                value={diff.summary.pendingNursingDischarges}
+                label="Pend. alta administrativa"
+                value={diff.summary.pendingAdministrativeDischarges}
                 tone="indigo"
               />
               <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
@@ -171,9 +171,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   {entry.status === 'Fallecido' && (
                     <span className="ml-1 text-red-600">(Fallecido)</span>
                   )}
-                  {entry.reason === 'missing-in-rayen' && (
-                    <span className="ml-1 text-amber-600">(ausente en Rayen — revisar)</span>
-                  )}
                   {previousDays.has(entry.correctedDay ?? '') && (
                     <span className="ml-1 font-medium text-amber-700">
                       → se grabará el {ddmmyyyy(entry.correctedDay)}
@@ -185,21 +182,17 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             </Section>
 
             <Section
-              title="Pendientes de alta de enfermería (se mantienen en cama)"
-              count={diff.pendingNursingDischarges.length}
+              title="Pendientes de alta administrativa (se mantienen en cama)"
+              count={diff.pendingAdministrativeDischarges.length}
             >
-              {diff.pendingNursingDischarges.map(entry => (
+              {diff.pendingAdministrativeDischarges.map(entry => (
                 <li key={`pnd-${entry.bedId}-${entry.rut}`}>
                   <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
-                  <span className="text-gray-500">alta médica</span>
-                  {entry.kind !== 'alta' && (
-                    <span className="ml-1 text-teal-600">
-                      ({dischargeKindLabel[entry.kind] ?? entry.kind})
-                    </span>
-                  )}
-                  {entry.status === 'Fallecido' && (
-                    <span className="ml-1 text-red-600">(Fallecido)</span>
-                  )}
+                  <span className="text-gray-500">
+                    {entry.signal === 'clinical-closure'
+                      ? 'cierre clínico registrado; falta egreso en Gestión de Camas'
+                      : 'ausente en Ficha Médico; no confirmado en Gestión de Camas'}
+                  </span>
                 </li>
               ))}
             </Section>

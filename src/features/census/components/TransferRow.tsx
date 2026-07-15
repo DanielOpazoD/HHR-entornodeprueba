@@ -10,14 +10,18 @@ interface TransferRowProps {
   onUndo: (id: string) => Promise<void>;
   onEdit: (item: TransferData) => void;
   onDelete: (id: string) => Promise<void>;
+  onConvertToHomeDischarge?: (id: string) => Promise<void>;
+  onConvertToCma?: (id: string) => Promise<void>;
 }
 
 export const TransferRow: React.FC<TransferRowProps> = React.memo(
-  ({ item, recordDate, onUndo, onEdit, onDelete }) => {
+  ({ item, recordDate, onUndo, onEdit, onDelete, onConvertToHomeDischarge, onConvertToCma }) => {
     const viewModel = resolveTransferRowViewModel(item, {
       undoTransfer: onUndo,
       editTransfer: onEdit,
       deleteTransfer: onDelete,
+      convertTransferToHomeDischarge: onConvertToHomeDischarge,
+      convertTransferToCma: onConvertToCma,
     });
 
     return <TransferRowView viewModel={viewModel} recordDate={recordDate} transferItem={item} />;

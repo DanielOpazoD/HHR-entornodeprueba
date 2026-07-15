@@ -9,10 +9,8 @@
 
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
-import type { CensusImportDiff, DischargeEntry, FieldChange } from '../contracts/censusImportDiff';
+import type { CensusImportDiff, FieldChange } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
-import { isCmaLocation } from '../mapping/bedMapping';
-import { resolveDischargeIntent } from '../mapping/dischargeMapping';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
@@ -111,10 +109,9 @@ export const reconcileCensus = (
   const findCurrent = (encounter: RayenEncounter): CurrentPatientRef | undefined =>
     currentByEpisode.get(encounter.encounterId) ?? currentByRut.get(normalizeRut(encounter.run));
 
-  // Episodes/RUTs the nurse already discharged in HHR (alta de enfermería). Their absence
-  // from the beds is intentional, so a matching Rayen medical discharge must NOT be
-  // re-admitted. A patient merely DELETED from HHR is absent from these records → it can
-  // be restored to its bed.
+  // Episodes/RUTs already represented by a statistical HHR movement. Their absence from beds
+  // is intentional, so a matching Ficha encounter must not be re-admitted. A patient merely
+  // deleted from HHR is absent from these records and can be restored provisionally.
   const dischargedInHhr = new Set<string>();
   for (const record of [
     ...(current.discharges ?? []),
@@ -134,7 +131,7 @@ export const reconcileCensus = (
     updates: [],
     moves: [],
     discharges: [],
-    pendingNursingDischarges: [],
+    pendingAdministrativeDischarges: [],
     conflicts: [],
     unchangedCount: 0,
     summary: {
@@ -142,7 +139,7 @@ export const reconcileCensus = (
       updates: 0,
       moves: 0,
       discharges: 0,
-      pendingNursingDischarges: 0,
+      pendingAdministrativeDischarges: 0,
       conflicts: 0,
       unchanged: 0,
     },
@@ -242,74 +239,46 @@ export const reconcileCensus = (
     tryAdmit(encounter, patient, bedId);
   }
 
-  // ---- Discharged encounters (alta médica / alta de enfermería) ----
-  // A Rayen medical discharge (alta médica) alone does NOT vacate the HHR bed; the nurse's
-  // discharge (alta de enfermería, `hasNurseDischarge`) is what finalizes the departure.
-  // So: nurse discharge → record the egreso and vacate; medical discharge only → keep the
-  // patient in the bed (pending). The precise alta subtype (domicilio/traslado) is refined
-  // later from gestión de camas; here we resolve alta | cma | (status Fallecido).
+  // ---- Clinically closed encounters (epicrisis médica / enfermería) ----
+  // Ficha Médico is NOT the authority for the statistical discharge. Even when both clinical
+  // closures are complete, the patient stays in the HHR bed until the Gestión de Camas
+  // administrative-discharge report confirms the departure and its destination.
   for (const encounter of discharged) {
     const match = findCurrent(encounter);
     if (match) {
       if (consumedBedIds.has(match.bedId)) continue;
       consumedBedIds.add(match.bedId);
-      const { isCma: encounterIsCma } = rayenToPatientData(encounter, reference);
-      // Backstop: honor the CMA classification from the stored location too, in case a partial-egreso
-      // encounter no longer reports the CMA bed/service.
-      const isCma = encounterIsCma || isCmaLocation(match.patient.location);
-      const intent = resolveDischargeIntent(encounter, isCma);
-      if (encounter.hasNurseDischarge) {
-        diff.discharges.push({
-          bedId: match.bedId,
-          rut: match.patient.rut,
-          patientName: match.patient.patientName,
-          kind: intent.kind,
-          status: intent.status,
-          reason: 'rayen-discharge',
-          source: encounter,
-        });
-      } else {
-        diff.pendingNursingDischarges.push({
-          bedId: match.bedId,
-          rut: match.patient.rut,
-          patientName: match.patient.patientName,
-          kind: intent.kind,
-          status: intent.status,
-          source: encounter,
-        });
-      }
+      diff.pendingAdministrativeDischarges.push({
+        bedId: match.bedId,
+        rut: match.patient.rut,
+        patientName: match.patient.patientName,
+        signal: 'clinical-closure',
+        source: encounter,
+      });
       continue;
     }
-    // Not in any HHR bed. If the patient's discharge is already finalized — the nurse did
-    // it in Rayen (alta de enfermería), the patient is deceased, or it is recorded in HHR —
-    // honor it (they correctly left). Otherwise a medical discharge alone does not finalize
-    // it, so a patient absent from the bed should be restored (e.g. after an accidental
-    // deletion in HHR).
-    if (encounter.hasNurseDischarge || encounter.isDead || wasDischargedInHhr(encounter)) continue;
+    // A movement already recorded in HHR remains an explicit local decision. Otherwise, restore
+    // the clinically closed encounter if its bed can be resolved; the administrative report may
+    // later replace that provisional admission with the definitive statistical movement.
+    if (wasDischargedInHhr(encounter)) continue;
     const { patient, bedId } = rayenToPatientData(encounter, reference);
     if (bedId) tryAdmit(encounter, patient, bedId);
   }
 
-  // ---- Current patients absent from the snapshot → discharge candidates (review) ----
-  // Only inferred when the snapshot is the FULL census; a partial snapshot must never
-  // imply that an unseen patient was discharged (clinical safety).
+  // ---- Current patients absent from the snapshot → administrative confirmation pending ----
+  // Absence from Ficha Médico is only a signal. It never creates a movement or vacates a bed;
+  // the authoritative Gestión de Camas report must confirm the statistical discharge.
   if (snapshot.isComplete === true) {
     for (const bedId of occupiedBedIds) {
       if (consumedBedIds.has(bedId)) continue;
       const patient = current.beds[bedId];
       if (!isOccupied(patient)) continue;
-      // A CMA patient can vanish from the census on a partial egreso (nurse discharge done) BEFORE the
-      // administrative egreso report lists them. Their stored `location` still carries the CMA virtual
-      // bed ("CMA R1"), so file the egreso as a CMA discharge — not a plain "alta".
-      const entry: DischargeEntry = {
+      diff.pendingAdministrativeDischarges.push({
         bedId,
         rut: patient.rut,
         patientName: patient.patientName,
-        kind: isCmaLocation(patient.location) ? 'cma' : 'alta',
-        status: 'Vivo',
-        reason: 'missing-in-rayen',
-      };
-      diff.discharges.push(entry);
+        signal: 'missing-from-ficha',
+      });
     }
   }
 
@@ -318,7 +287,7 @@ export const reconcileCensus = (
     updates: diff.updates.length,
     moves: diff.moves.length,
     discharges: diff.discharges.length,
-    pendingNursingDischarges: diff.pendingNursingDischarges.length,
+    pendingAdministrativeDischarges: diff.pendingAdministrativeDischarges.length,
     conflicts: diff.conflicts.length,
     unchanged: diff.unchangedCount,
   };
@@ -327,12 +296,10 @@ export const reconcileCensus = (
 };
 
 /**
- * True when a diff contains items a human must resolve before it is safe to apply
- * without review: conflicts, or discharges *inferred* from a patient's absence
- * (`missing-in-rayen`) rather than confirmed by Rayen. The experimental auto mode
- * must fall back to preview when this returns true.
+ * True when a diff contains items a human must review: conflicts, clinical closures still
+ * awaiting the administrative discharge, or report rows that HHR has not recorded yet.
  */
 export const requiresReview = (diff: CensusImportDiff): boolean =>
   diff.conflicts.length > 0 ||
-  diff.discharges.some(discharge => discharge.reason === 'missing-in-rayen') ||
+  diff.pendingAdministrativeDischarges.length > 0 ||
   (diff.reportEgresos?.length ?? 0) > 0;

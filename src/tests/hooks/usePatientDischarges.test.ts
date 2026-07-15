@@ -293,6 +293,52 @@ describe('usePatientDischarges', () => {
     );
   });
 
+  it('converts a home discharge into transfer in one movement patch', () => {
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [
+        {
+          id: 'discharge-transfer',
+          bedId: 'R1',
+          bedName: 'R1',
+          bedType: 'Cama',
+          patientName: 'Test Patient',
+          rut: '12345678-9',
+          diagnosis: 'Test Diagnosis',
+          time: '10:20',
+          status: 'Vivo',
+          dischargeType: 'Domicilio (Habitual)',
+          clinicalEpisodeId: 'episode-transfer',
+        },
+      ],
+      transfers: [],
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => result.current.convertDischargeToTransfer('discharge-transfer'));
+
+    expect(mockPatchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discharges: [
+          expect.objectContaining({
+            id: 'discharge-transfer',
+            deletedReason: 'converted_to_transfer',
+          }),
+        ],
+        transfers: [
+          expect.objectContaining({
+            patientName: 'Test Patient',
+            evacuationMethod: '',
+            receivingCenter: '',
+            clinicalEpisodeId: 'episode-transfer',
+          }),
+        ],
+      })
+    );
+  });
+
   it('should handle mother-only discharge', () => {
     const recordWithCrib = {
       ...mockRecord,

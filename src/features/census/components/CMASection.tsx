@@ -14,7 +14,7 @@ import { useCensusMovementData } from '@/features/census/hooks/useCensusMovement
 
 export const CMASection: React.FC = () => {
   const { cma, recordDate } = useCensusMovementData();
-  const { convertCmaToHomeDischarge, deleteCMA, undoCMA, updateCMA } =
+  const { convertCmaToHomeDischarge, convertCmaToTransfer, deleteCMA, undoCMA, updateCMA } =
     useDailyRecordMovementActions();
   const { updatePatientMultiple } = useDailyRecordBedActions();
   const { confirm } = useConfirmDialog();
@@ -28,6 +28,7 @@ export const CMASection: React.FC = () => {
     deleteCMA,
     undoCMA,
     convertCmaToHomeDischarge,
+    convertCmaToTransfer,
   });
 
   return (
@@ -51,6 +52,7 @@ export const CMASection: React.FC = () => {
           onUndo={sectionModel.handleUndo}
           onDelete={sectionModel.handleDelete}
           onConvertToDischarge={sectionModel.handleConvertToDischarge}
+          onConvertToTransfer={sectionModel.handleConvertToTransfer}
         />
       )}
     ></CensusMovementSection>

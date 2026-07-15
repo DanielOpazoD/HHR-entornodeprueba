@@ -11,7 +11,10 @@ import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildAtomicPatientMovementPatch, buildUndoCmaPatch } from '@/application/census/public';
 import { tombstoneMovementById } from '@/application/census/movementTombstonePolicy';
-import { convertCmaToHomeDischargeRecord } from '@/application/census/movementTypeConversionPolicy';
+import {
+  convertCmaToHomeDischargeRecord,
+  convertCmaToTransferRecord,
+} from '@/application/census/movementTypeConversionPolicy';
 import { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
 import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
@@ -211,6 +214,24 @@ export const useCMA = (
     [patchRecord]
   );
 
+  const convertCmaToTransfer = useCallback(
+    (id: string) => {
+      const currentRecord = recordRef.current;
+      if (!currentRecord) return;
+      const updatedRecord = convertCmaToTransferRecord(currentRecord, id, () =>
+        crypto.randomUUID()
+      );
+      if (updatedRecord === currentRecord) return;
+
+      void Promise.resolve(
+        patchRecord({ cma: updatedRecord.cma, transfers: updatedRecord.transfers })
+      ).catch(error => {
+        logCmaPersistenceFailure('convert_to_transfer', error);
+      });
+    },
+    [patchRecord]
+  );
+
   return useMemo(
     () => ({
       addCMA,
@@ -218,7 +239,8 @@ export const useCMA = (
       updateCMA,
       undoCMA,
       convertCmaToHomeDischarge,
+      convertCmaToTransfer,
     }),
-    [addCMA, deleteCMA, updateCMA, undoCMA, convertCmaToHomeDischarge]
+    [addCMA, deleteCMA, updateCMA, undoCMA, convertCmaToHomeDischarge, convertCmaToTransfer]
   );
 };

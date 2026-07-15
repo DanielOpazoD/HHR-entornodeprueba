@@ -21,7 +21,7 @@ const diff = (): CensusImportDiff =>
     updates: [],
     moves: [],
     discharges: [],
-    pendingNursingDischarges: [],
+    pendingAdministrativeDischarges: [],
     conflicts: [],
     unchangedCount: 2,
     summary: {
@@ -29,7 +29,7 @@ const diff = (): CensusImportDiff =>
       updates: 0,
       moves: 0,
       discharges: 0,
-      pendingNursingDischarges: 0,
+      pendingAdministrativeDischarges: 0,
       conflicts: 0,
       unchanged: 2,
     },

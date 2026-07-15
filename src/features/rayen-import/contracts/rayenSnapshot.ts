@@ -40,11 +40,7 @@ export interface RayenEncounter {
   diagnosis?: string;
   /** True if the encounter has a medical discharge (alta médica) in Rayen. */
   hasMedicalDischarge?: boolean;
-  /**
-   * True if the nurse completed the discharge (alta de enfermería) in Rayen. This is the
-   * event that finalizes the departure: while false, a medically-discharged patient is
-   * kept in the bed (pending); once true, the sync records the actual egreso.
-   */
+  /** True if the nurse completed the clinical closure in Rayen; never an administrative egreso authority. */
   hasNurseDischarge?: boolean;
   /** Discharge datetime if discharged (ISO). */
   dischargeDatetime?: string;

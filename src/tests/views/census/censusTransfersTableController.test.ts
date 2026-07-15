@@ -45,6 +45,8 @@ describe('censusTransfersTableController', () => {
     let undoCalledWith = '';
     let editedId = '';
     let deleteCalledWith = '';
+    let homeCalledWith = '';
+    let cmaCalledWith = '';
 
     const actions = buildTransferRowActions(transfer, {
       undoTransfer: id => {
@@ -56,16 +58,34 @@ describe('censusTransfersTableController', () => {
       deleteTransfer: id => {
         deleteCalledWith = id;
       },
+      convertTransferToHomeDischarge: id => {
+        homeCalledWith = id;
+      },
+      convertTransferToCma: id => {
+        cmaCalledWith = id;
+      },
     });
 
-    expect(actions.map(action => action.kind)).toEqual(['undo', 'edit', 'delete']);
+    expect(actions.map(action => action.kind)).toEqual([
+      'undo',
+      'edit',
+      'convert',
+      'convert',
+      'delete',
+    ]);
+    expect(actions.map(action => action.title)).toContain('Convertir a alta domicilio');
+    expect(actions.map(action => action.title)).toContain('Convertir a CMA');
 
     actions[0].onClick();
     actions[1].onClick();
     actions[2].onClick();
+    actions[3].onClick();
+    actions[4].onClick();
 
     expect(undoCalledWith).toBe('t-2');
     expect(editedId).toBe('t-2');
     expect(deleteCalledWith).toBe('t-2');
+    expect(homeCalledWith).toBe('t-2');
+    expect(cmaCalledWith).toBe('t-2');
   });
 });

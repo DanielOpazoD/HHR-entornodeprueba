@@ -26,9 +26,15 @@ import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurre
 import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
+import {
+  convertTransferToCmaRecord,
+  convertTransferToHomeDischargeRecord,
+} from '@/application/census/movementTypeConversionPolicy';
 import type {
   AddTransferAction,
   DeleteTransferAction,
+  ConvertTransferToCmaAction,
+  ConvertTransferToHomeDischargeAction,
   TransferMovementActions,
   UndoTransferAction,
   UpdateTransferAction,
@@ -195,13 +201,69 @@ export const usePatientTransfers = (
     [executeMovementUndo, withCurrentRecord]
   );
 
+  const convertTransferToHomeDischarge: ConvertTransferToHomeDischargeAction = useCallback(
+    id => {
+      withCurrentRecord(currentRecord => {
+        const updatedRecord = convertTransferToHomeDischargeRecord(currentRecord, id, () =>
+          crypto.randomUUID()
+        );
+        if (updatedRecord === currentRecord) return;
+        const patch = {
+          transfers: updatedRecord.transfers,
+          discharges: updatedRecord.discharges,
+        };
+        if (patchRecord) {
+          void patchRecord(patch).catch(error => {
+            logTransferPersistenceFailure('convert_to_discharge', error);
+          });
+          return;
+        }
+        void saveAndUpdate(updatedRecord).catch(error => {
+          logTransferPersistenceFailure('convert_to_discharge', error);
+        });
+      });
+    },
+    [patchRecord, saveAndUpdate, withCurrentRecord]
+  );
+
+  const convertTransferToCma: ConvertTransferToCmaAction = useCallback(
+    id => {
+      withCurrentRecord(currentRecord => {
+        const updatedRecord = convertTransferToCmaRecord(currentRecord, id, () =>
+          crypto.randomUUID()
+        );
+        if (updatedRecord === currentRecord) return;
+        const patch = { transfers: updatedRecord.transfers, cma: updatedRecord.cma };
+        if (patchRecord) {
+          void patchRecord(patch).catch(error => {
+            logTransferPersistenceFailure('convert_to_cma', error);
+          });
+          return;
+        }
+        void saveAndUpdate(updatedRecord).catch(error => {
+          logTransferPersistenceFailure('convert_to_cma', error);
+        });
+      });
+    },
+    [patchRecord, saveAndUpdate, withCurrentRecord]
+  );
+
   return useMemo(
     () => ({
       addTransfer,
       updateTransfer,
       deleteTransfer,
       undoTransfer,
+      convertTransferToHomeDischarge,
+      convertTransferToCma,
     }),
-    [addTransfer, updateTransfer, deleteTransfer, undoTransfer]
+    [
+      addTransfer,
+      updateTransfer,
+      deleteTransfer,
+      undoTransfer,
+      convertTransferToHomeDischarge,
+      convertTransferToCma,
+    ]
   );
 };

@@ -14,6 +14,7 @@ interface UseCmaSectionModelParams {
   deleteCMA: (id: string) => void;
   undoCMA?: (item: CMAData) => void;
   convertCmaToHomeDischarge: (id: string) => void;
+  convertCmaToTransfer?: (id: string) => void;
 }
 
 interface UseCmaSectionModelResult extends CensusMovementSectionModel<CMAData> {
@@ -21,6 +22,7 @@ interface UseCmaSectionModelResult extends CensusMovementSectionModel<CMAData> {
   handleUndo: (item: CMAData) => Promise<void>;
   handleDelete: (item: CMAData) => Promise<void>;
   handleConvertToDischarge: (item: CMAData) => Promise<void>;
+  handleConvertToTransfer: (item: CMAData) => Promise<void>;
 }
 
 export const useCmaSectionModel = ({
@@ -32,19 +34,25 @@ export const useCmaSectionModel = ({
   deleteCMA,
   undoCMA,
   convertCmaToHomeDischarge,
+  convertCmaToTransfer,
 }: UseCmaSectionModelParams): UseCmaSectionModelResult => {
   const sectionState = resolveCmaSectionState(cma);
-  const { handleUpdate, handleUndo, handleDelete, handleConvertToDischarge } = useCmaSectionActions(
-    {
-      confirm,
-      notifyError,
-      updateCMA,
-      updatePatientMultiple,
-      deleteCMA,
-      undoCMA,
-      convertCmaToHomeDischarge,
-    }
-  );
+  const {
+    handleUpdate,
+    handleUndo,
+    handleDelete,
+    handleConvertToDischarge,
+    handleConvertToTransfer,
+  } = useCmaSectionActions({
+    confirm,
+    notifyError,
+    updateCMA,
+    updatePatientMultiple,
+    deleteCMA,
+    undoCMA,
+    convertCmaToHomeDischarge,
+    convertCmaToTransfer,
+  });
 
   return {
     isRenderable: sectionState.isRenderable,
@@ -54,5 +62,6 @@ export const useCmaSectionModel = ({
     handleUndo,
     handleDelete,
     handleConvertToDischarge,
+    handleConvertToTransfer,
   };
 };

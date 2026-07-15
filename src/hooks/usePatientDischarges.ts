@@ -20,7 +20,10 @@ import {
   selectDischargeUndoMovement,
   selectMovementUndoAuditMetadata,
 } from '@/application/census/public';
-import { convertDischargeToCmaRecord } from '@/application/census/movementTypeConversionPolicy';
+import {
+  convertDischargeToCmaRecord,
+  convertDischargeToTransferRecord,
+} from '@/application/census/movementTypeConversionPolicy';
 import { usePatientMovementFeedback } from '@/hooks/usePatientMovementFeedback';
 import { usePatientMovementAudit } from '@/hooks/usePatientMovementAudit';
 import { usePatientMovementCreationExecutor } from '@/hooks/usePatientMovementCreationExecutor';
@@ -32,6 +35,7 @@ import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookController
 import type {
   AddDischargeAction,
   ConvertDischargeToCmaAction,
+  ConvertDischargeToTransferAction,
   DeleteDischargeAction,
   DischargeMovementActions,
   UndoDischargeAction,
@@ -250,6 +254,32 @@ export const usePatientDischarges = (
     [patchRecord, saveAndUpdate, withCurrentRecord]
   );
 
+  const convertDischargeToTransfer: ConvertDischargeToTransferAction = useCallback(
+    id => {
+      withCurrentRecord(currentRecord => {
+        const updatedRecord = convertDischargeToTransferRecord(currentRecord, id, () =>
+          crypto.randomUUID()
+        );
+        if (updatedRecord === currentRecord) return;
+
+        const patch = {
+          discharges: updatedRecord.discharges,
+          transfers: updatedRecord.transfers,
+        };
+        if (patchRecord) {
+          void patchRecord(patch).catch(error => {
+            logDischargePersistenceFailure('convert_to_transfer', error);
+          });
+          return;
+        }
+        void saveAndUpdate(updatedRecord).catch(error => {
+          logDischargePersistenceFailure('convert_to_transfer', error);
+        });
+      });
+    },
+    [patchRecord, saveAndUpdate, withCurrentRecord]
+  );
+
   return useMemo(
     () => ({
       addDischarge,
@@ -257,7 +287,15 @@ export const usePatientDischarges = (
       deleteDischarge,
       undoDischarge,
       convertDischargeToCma,
+      convertDischargeToTransfer,
     }),
-    [addDischarge, updateDischarge, deleteDischarge, undoDischarge, convertDischargeToCma]
+    [
+      addDischarge,
+      updateDischarge,
+      deleteDischarge,
+      undoDischarge,
+      convertDischargeToCma,
+      convertDischargeToTransfer,
+    ]
   );
 };

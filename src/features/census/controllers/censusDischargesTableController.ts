@@ -1,7 +1,7 @@
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
 import type { CensusMovementTableHeader } from '@/features/census/types/censusMovementTableTypes';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
-import { canConvertDischargeToCma } from '@/application/census/movementTypeConversionPolicy';
+import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
 
 export const DISCHARGES_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
   { label: 'Cama Origen' },
@@ -24,6 +24,7 @@ interface DischargeRowActionHandlers {
   editDischarge: (discharge: DischargeData) => void;
   deleteDischarge: (id: string) => void;
   convertDischargeToCma: (id: string) => void;
+  convertDischargeToTransfer?: (id: string) => void;
 }
 
 export const buildDischargeRowActions = (
@@ -46,7 +47,17 @@ export const buildDischargeRowActions = (
     editAction,
   ];
 
-  if (canConvertDischargeToCma(discharge)) {
+  if (canReclassifyHomeDischarge(discharge)) {
+    if (handlers.convertDischargeToTransfer) {
+      actions.push({
+        kind: 'convert',
+        title: 'Convertir a traslado',
+        className: 'text-orange-500 hover:text-orange-700',
+        onClick: () => {
+          void handlers.convertDischargeToTransfer?.(discharge.id);
+        },
+      });
+    }
     actions.push({
       kind: 'convert',
       title: 'Convertir a CMA',

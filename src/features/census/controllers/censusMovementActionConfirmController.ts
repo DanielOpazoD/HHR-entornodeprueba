@@ -88,3 +88,17 @@ export const TRANSFER_DELETE_CONFIRM_DIALOG: MovementConfirmDialog = {
   cancelText: 'Cancelar',
   variant: 'danger',
 };
+
+type EgresoClassification = 'alta domicilio' | 'traslado' | 'CMA';
+
+export const buildMovementTypeConversionConfirmDialog = (
+  source: EgresoClassification,
+  target: EgresoClassification,
+  patientName?: string
+): MovementConfirmDialog => ({
+  title: `Convertir ${source} a ${target}`,
+  message: `¿Cambiar la clasificación del egreso${patientName ? ` de ${patientName}` : ''} de ${source} a ${target}? El paciente seguirá egresado y no volverá a una cama.`,
+  confirmText: 'Convertir',
+  cancelText: 'Cancelar',
+  variant: 'warning',
+});

@@ -56,12 +56,13 @@ export interface DischargeEntry {
   patientName: string;
   kind: DischargeKind;
   status: 'Vivo' | 'Fallecido';
-  reason: 'rayen-discharge' | 'missing-in-rayen';
+  /** Only the Gestión de Camas administrative-discharge report may create this movement. */
+  reason: 'administrative-discharge';
   source?: RayenEncounter;
   /**
-   * Rapa Nui (island) day + time of the egreso as told by the official "Alta Administrativa" report,
-   * already TZ-corrected from continental Chile (see `continentalReportToRapaNui`). When
-   * `correctedDay` is earlier than the census day being synced, the discharge belongs to that
+   * Rapa Nui day + time of the egreso as printed by the official "Alta Administrativa" report.
+   * The D+1 workaround expands only the search range; it never shifts this statistical timestamp.
+   * When `correctedDay` is earlier than the census day being synced, the discharge belongs to that
    * previous day's record — the movement is filed there (behind confirmation), not on the sync day.
    */
   correctedDay?: string;
@@ -83,19 +84,17 @@ export interface PreviousDayEdit {
 }
 
 /**
- * A patient with a Rayen medical discharge (alta médica) who is KEPT in their HHR bed.
- * The nurse's discharge in HHR (alta de enfermería) is the sole event that finalizes a
- * departure, so the sync never vacates the bed for a medical discharge — it only reports
- * the pending state so the nurse knows to complete the discharge in HHR.
+ * A patient with a Ficha Médico closure signal who is KEPT in their HHR bed. Neither medical
+ * nor nursing closure finalizes a statistical departure: the sync waits for the Gestión de Camas
+ * administrative-discharge report.
  */
-export interface PendingNursingDischargeEntry {
+export interface PendingAdministrativeDischargeEntry {
   bedId: string;
   rut: string;
   patientName: string;
-  /** How the eventual HHR discharge would be classified (alta | traslado | cma). */
-  kind: DischargeKind;
-  status: 'Vivo' | 'Fallecido';
-  source: RayenEncounter;
+  /** Signal observed in Ficha Médico. It is informative and never vacates the HHR bed. */
+  signal: 'clinical-closure' | 'missing-from-ficha';
+  source?: RayenEncounter;
 }
 
 /** Something that cannot be applied automatically and needs human resolution. */
@@ -112,7 +111,7 @@ export interface CensusImportSummary {
   updates: number;
   moves: number;
   discharges: number;
-  pendingNursingDischarges: number;
+  pendingAdministrativeDischarges: number;
   conflicts: number;
   unchanged: number;
   /** How many previous days would be modified (discharge-day corrections). Optional/back-compat. */
@@ -124,8 +123,8 @@ export interface CensusImportDiff {
   updates: UpdateEntry[];
   moves: MoveEntry[];
   discharges: DischargeEntry[];
-  /** Medical discharges kept in the bed until the nurse completes the discharge in HHR. */
-  pendingNursingDischarges: PendingNursingDischargeEntry[];
+  /** Clinical closure signals kept in bed until Gestión de Camas confirms administrative discharge. */
+  pendingAdministrativeDischarges: PendingAdministrativeDischargeEntry[];
   conflicts: ConflictEntry[];
   /**
    * Egresos from the bulk "Alta Administrativa" report whose RUN is unknown to HHR (patients

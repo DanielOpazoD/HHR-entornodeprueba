@@ -282,6 +282,58 @@ describe('usePatientTransfers', () => {
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
   });
 
+  it('converts a transfer to home discharge or CMA through atomic movement patches', () => {
+    const transfer = {
+      id: 'transfer-convert',
+      bedId: 'R2',
+      bedName: 'R2',
+      bedType: 'Cama',
+      patientName: 'Transferred',
+      rut: '22-2',
+      diagnosis: 'Diagnosis',
+      specialty: 'Medicina',
+      time: '12:40',
+      evacuationMethod: 'Ambulancia',
+      receivingCenter: 'Hospital',
+      clinicalEpisodeId: 'episode-transfer',
+    };
+    const recordWithTransfer = {
+      ...mockRecord,
+      transfers: [transfer],
+      discharges: [],
+      cma: [],
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => result.current.convertTransferToHomeDischarge('transfer-convert'));
+    expect(mockPatchRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        transfers: [expect.objectContaining({ deletedReason: 'converted_to_discharge' })],
+        discharges: [
+          expect.objectContaining({
+            dischargeType: 'Domicilio (Habitual)',
+            clinicalEpisodeId: 'episode-transfer',
+          }),
+        ],
+      })
+    );
+
+    act(() => result.current.convertTransferToCma('transfer-convert'));
+    expect(mockPatchRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        transfers: [expect.objectContaining({ deletedReason: 'converted_to_cma' })],
+        cma: [
+          expect.objectContaining({
+            interventionType: 'Cirugía Mayor Ambulatoria',
+            clinicalEpisodeId: 'episode-transfer',
+          }),
+        ],
+      })
+    );
+  });
+
   it('should undo transfer and restore patient snapshot', () => {
     const recordWithTransfer = {
       ...mockRecord,

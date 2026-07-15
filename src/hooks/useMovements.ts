@@ -28,10 +28,13 @@ export const useMovements = (
       deleteDischarge: discharges.deleteDischarge,
       undoDischarge: discharges.undoDischarge,
       convertDischargeToCma: discharges.convertDischargeToCma,
+      convertDischargeToTransfer: discharges.convertDischargeToTransfer,
       addTransfer: transfers.addTransfer,
       updateTransfer: transfers.updateTransfer,
       deleteTransfer: transfers.deleteTransfer,
       undoTransfer: transfers.undoTransfer,
+      convertTransferToHomeDischarge: transfers.convertTransferToHomeDischarge,
+      convertTransferToCma: transfers.convertTransferToCma,
     }),
     [discharges, transfers]
   );

@@ -7,6 +7,7 @@ import {
   executeUndoCmaController,
 } from '@/features/census/controllers/censusCmaController';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
+import { buildMovementTypeConversionConfirmDialog } from '@/features/census/controllers/censusMovementActionConfirmController';
 
 interface UseCmaSectionActionsParams {
   confirm: (options: ControllerConfirmDescriptor) => Promise<boolean>;
@@ -16,6 +17,7 @@ interface UseCmaSectionActionsParams {
   deleteCMA: (id: string) => void;
   undoCMA?: (item: CMAData) => void;
   convertCmaToHomeDischarge: (id: string) => void;
+  convertCmaToTransfer?: (id: string) => void;
 }
 
 interface UseCmaSectionActionsResult {
@@ -23,6 +25,7 @@ interface UseCmaSectionActionsResult {
   handleUndo: (item: CMAData) => Promise<void>;
   handleDelete: (item: CMAData) => Promise<void>;
   handleConvertToDischarge: (item: CMAData) => Promise<void>;
+  handleConvertToTransfer: (item: CMAData) => Promise<void>;
 }
 
 export const useCmaSectionActions = ({
@@ -33,6 +36,7 @@ export const useCmaSectionActions = ({
   deleteCMA,
   undoCMA,
   convertCmaToHomeDischarge,
+  convertCmaToTransfer,
 }: UseCmaSectionActionsParams): UseCmaSectionActionsResult => {
   const handleUpdate = React.useCallback(
     (id: string, updates: Partial<CMAData>) => {
@@ -75,13 +79,9 @@ export const useCmaSectionActions = ({
     async (item: CMAData) => {
       let confirmed = false;
       try {
-        confirmed = await confirm({
-          title: 'Convertir CMA a alta domicilio',
-          message: `¿Convertir el registro CMA de ${item.patientName || 'este paciente'} en una alta a domicilio?`,
-          confirmText: 'Convertir',
-          cancelText: 'Cancelar',
-          variant: 'warning',
-        });
+        confirmed = await confirm(
+          buildMovementTypeConversionConfirmDialog('CMA', 'alta domicilio', item.patientName)
+        );
       } catch {
         notifyError('No se pudo convertir', 'No se pudo confirmar el cambio de tipo de egreso.');
         return;
@@ -94,10 +94,28 @@ export const useCmaSectionActions = ({
     [confirm, convertCmaToHomeDischarge, notifyError]
   );
 
+  const handleConvertToTransfer = React.useCallback(
+    async (item: CMAData) => {
+      try {
+        if (
+          await confirm(
+            buildMovementTypeConversionConfirmDialog('CMA', 'traslado', item.patientName)
+          )
+        ) {
+          convertCmaToTransfer?.(item.id);
+        }
+      } catch {
+        notifyError('No se pudo convertir', 'No se pudo confirmar el cambio de tipo de egreso.');
+      }
+    },
+    [confirm, convertCmaToTransfer, notifyError]
+  );
+
   return {
     handleUpdate,
     handleUndo,
     handleDelete,
     handleConvertToDischarge,
+    handleConvertToTransfer,
   };
 };

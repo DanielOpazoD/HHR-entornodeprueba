@@ -29,6 +29,7 @@ export type UpdateDischargeAction = (
 export type DeleteDischargeAction = (id: string) => void;
 export type UndoDischargeAction = (id: string) => void;
 export type ConvertDischargeToCmaAction = (id: string) => void;
+export type ConvertDischargeToTransferAction = (id: string) => void;
 
 export type AddTransferAction = (
   bedId: string,
@@ -43,6 +44,8 @@ export type AddTransferAction = (
 export type UpdateTransferAction = (id: string, updates: Partial<TransferData>) => void;
 export type DeleteTransferAction = (id: string) => void;
 export type UndoTransferAction = (id: string) => void;
+export type ConvertTransferToHomeDischargeAction = (id: string) => void;
+export type ConvertTransferToCmaAction = (id: string) => void;
 
 export interface DischargeMovementActions {
   addDischarge: AddDischargeAction;
@@ -50,6 +53,7 @@ export interface DischargeMovementActions {
   deleteDischarge: DeleteDischargeAction;
   undoDischarge: UndoDischargeAction;
   convertDischargeToCma: ConvertDischargeToCmaAction;
+  convertDischargeToTransfer: ConvertDischargeToTransferAction;
 }
 
 export interface TransferMovementActions {
@@ -57,6 +61,8 @@ export interface TransferMovementActions {
   updateTransfer: UpdateTransferAction;
   deleteTransfer: DeleteTransferAction;
   undoTransfer: UndoTransferAction;
+  convertTransferToHomeDischarge: ConvertTransferToHomeDischargeAction;
+  convertTransferToCma: ConvertTransferToCmaAction;
 }
 
 export type PatientMovementActions = DischargeMovementActions & TransferMovementActions;

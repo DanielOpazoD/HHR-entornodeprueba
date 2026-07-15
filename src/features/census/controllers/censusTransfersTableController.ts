@@ -30,14 +30,36 @@ interface TransferRowActionHandlers {
   undoTransfer: (id: string) => void;
   editTransfer: (transfer: TransferData) => void;
   deleteTransfer: (id: string) => void;
+  convertTransferToHomeDischarge?: (id: string) => void;
+  convertTransferToCma?: (id: string) => void;
 }
 
 export const buildTransferRowActions = (
   transfer: TransferData,
   handlers: TransferRowActionHandlers
-) =>
-  buildMovementRowActions(transfer, {
+) => {
+  const [undoAction, editAction, deleteAction] = buildMovementRowActions(transfer, {
     onUndo: handlers.undoTransfer,
     onEdit: handlers.editTransfer,
     onDelete: handlers.deleteTransfer,
   });
+  const actions = [undoAction, editAction];
+  if (handlers.convertTransferToHomeDischarge) {
+    actions.push({
+      kind: 'convert' as const,
+      title: 'Convertir a alta domicilio',
+      className: 'text-orange-500 hover:text-orange-700',
+      onClick: () => void handlers.convertTransferToHomeDischarge?.(transfer.id),
+    });
+  }
+  if (handlers.convertTransferToCma) {
+    actions.push({
+      kind: 'convert' as const,
+      title: 'Convertir a CMA',
+      className: 'text-orange-500 hover:text-orange-700',
+      onClick: () => void handlers.convertTransferToCma?.(transfer.id),
+    });
+  }
+  actions.push(deleteAction);
+  return actions;
+};
