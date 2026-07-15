@@ -25,6 +25,25 @@ export interface MovementTombstoneFields {
 export interface MovementEpisodeFields {
   /** Stable episode identifier. Optional while legacy movement rows are backfilled. */
   clinicalEpisodeId?: string;
+  /** Optional operational provenance. Missing on legacy movements by design. */
+  movementProvenance?: MovementProvenance;
+}
+
+export type MovementClassification = 'discharge' | 'transfer' | 'cma';
+export type MovementProvenanceSource = 'manual' | 'gestion_camas' | 'reclassified';
+
+export interface MovementProvenance {
+  /** What produced the movement's current classification. */
+  source: MovementProvenanceSource;
+  /** Stable across every reclassification of the same egreso. */
+  lineageId: string;
+  classifiedAt: string;
+  classifiedBy?: string;
+  /** Eloísa run that supplied the authoritative Gestión de Camas report. */
+  syncRunId?: string;
+  /** Immediate predecessor; its tombstone keeps the rest of the chain. */
+  previousMovementId?: string;
+  previousClassification?: MovementClassification;
 }
 
 export interface DischargeData extends MovementTombstoneFields, MovementEpisodeFields {

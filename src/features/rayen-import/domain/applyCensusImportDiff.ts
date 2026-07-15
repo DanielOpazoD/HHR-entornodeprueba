@@ -15,6 +15,7 @@ import type { DischargeData, TransferData, CMAData } from '@/types/domain/moveme
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import { buildMovementProvenance } from '@/application/census/movementProvenancePolicy';
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -41,6 +42,16 @@ export interface ApplyContext {
   idFactory: () => string;
   /** Reference "now" for timestamps (defaults to new Date()). */
   now?: Date;
+  /** Attributable user and run for provenance of Gestión de Camas movements. */
+  actor?: string;
+  syncRunId?: string;
+}
+
+export interface ResolvedApplyContext {
+  idFactory: () => string;
+  now: Date;
+  actor?: string;
+  syncRunId?: string;
 }
 
 export interface SkippedOp {
@@ -59,67 +70,97 @@ export const buildDischarge = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
-  ctx: Required<ApplyContext>
-): DischargeData => ({
-  id: ctx.idFactory(),
-  movementDate: record.date,
-  admissionDate: patient.admissionDate || undefined,
-  bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
-  bedId: entry.bedId,
-  bedType: BED_TYPE.get(entry.bedId) ?? '',
-  patientName: patient.patientName,
-  rut: patient.rut,
-  diagnosis: patient.pathology,
-  specialty: asSpecialty(patient.specialty),
-  time: entry.correctedTime || hhmm(ctx.now),
-  status: entry.status,
-  dischargeType: entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
-  age: patient.age || undefined,
-  insurance: patient.insurance,
-  origin: patient.origin,
-  isRapanui: patient.isRapanui,
-  originalData: { ...patient },
-  clinicalEpisodeId: patient.clinicalEpisodeId,
-});
+  ctx: ResolvedApplyContext
+): DischargeData => {
+  const id = ctx.idFactory();
+  return {
+    id,
+    movementDate: record.date,
+    admissionDate: patient.admissionDate || undefined,
+    bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
+    bedId: entry.bedId,
+    bedType: BED_TYPE.get(entry.bedId) ?? '',
+    patientName: patient.patientName,
+    rut: patient.rut,
+    diagnosis: patient.pathology,
+    specialty: asSpecialty(patient.specialty),
+    time: entry.correctedTime || hhmm(ctx.now),
+    status: entry.status,
+    dischargeType: entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
+    age: patient.age || undefined,
+    insurance: patient.insurance,
+    origin: patient.origin,
+    isRapanui: patient.isRapanui,
+    originalData: { ...patient },
+    clinicalEpisodeId: patient.clinicalEpisodeId,
+    movementProvenance: buildMovementProvenance({
+      movementId: id,
+      source: 'gestion_camas',
+      actor: ctx.actor,
+      at: ctx.now.toISOString(),
+      syncRunId: ctx.syncRunId,
+    }),
+  };
+};
 
 export const buildTransfer = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
-  ctx: Required<ApplyContext>
-): TransferData => ({
-  id: ctx.idFactory(),
-  movementDate: record.date,
-  admissionDate: patient.admissionDate || undefined,
-  bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
-  bedId: entry.bedId,
-  bedType: BED_TYPE.get(entry.bedId) ?? '',
-  patientName: patient.patientName,
-  rut: patient.rut,
-  diagnosis: patient.pathology,
-  specialty: asSpecialty(patient.specialty),
-  time: entry.correctedTime || hhmm(ctx.now),
-  evacuationMethod: '',
-  receivingCenter: '',
-  age: patient.age || undefined,
-  insurance: patient.insurance,
-  origin: patient.origin,
-  isRapanui: patient.isRapanui,
-  originalData: { ...patient },
-  clinicalEpisodeId: patient.clinicalEpisodeId,
-});
+  ctx: ResolvedApplyContext
+): TransferData => {
+  const id = ctx.idFactory();
+  return {
+    id,
+    movementDate: record.date,
+    admissionDate: patient.admissionDate || undefined,
+    bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
+    bedId: entry.bedId,
+    bedType: BED_TYPE.get(entry.bedId) ?? '',
+    patientName: patient.patientName,
+    rut: patient.rut,
+    diagnosis: patient.pathology,
+    specialty: asSpecialty(patient.specialty),
+    time: entry.correctedTime || hhmm(ctx.now),
+    evacuationMethod: '',
+    receivingCenter: '',
+    age: patient.age || undefined,
+    insurance: patient.insurance,
+    origin: patient.origin,
+    isRapanui: patient.isRapanui,
+    originalData: { ...patient },
+    clinicalEpisodeId: patient.clinicalEpisodeId,
+    movementProvenance: buildMovementProvenance({
+      movementId: id,
+      source: 'gestion_camas',
+      actor: ctx.actor,
+      at: ctx.now.toISOString(),
+      syncRunId: ctx.syncRunId,
+    }),
+  };
+};
 
 export const buildCma = (
   patient: PatientData,
   entry: DischargeEntry,
-  ctx: Required<ApplyContext>
-): CMAData => ({
-  ...CensusManager.formatCMAData(patient, entry.bedId),
-  id: ctx.idFactory(),
-  timestamp: ctx.now.toISOString(),
-  dischargeTime: entry.correctedTime || hhmm(ctx.now),
-  clinicalEpisodeId: patient.clinicalEpisodeId,
-});
+  ctx: ResolvedApplyContext
+): CMAData => {
+  const id = ctx.idFactory();
+  return {
+    ...CensusManager.formatCMAData(patient, entry.bedId),
+    id,
+    timestamp: ctx.now.toISOString(),
+    dischargeTime: entry.correctedTime || hhmm(ctx.now),
+    clinicalEpisodeId: patient.clinicalEpisodeId,
+    movementProvenance: buildMovementProvenance({
+      movementId: id,
+      source: 'gestion_camas',
+      actor: ctx.actor,
+      at: ctx.now.toISOString(),
+      syncRunId: ctx.syncRunId,
+    }),
+  };
+};
 
 /**
  * The official statistical egreso time. Gestión de Camas already prints the Rapa Nui wall clock;
@@ -155,9 +196,11 @@ export const applyCensusImportDiff = (
   diff: CensusImportDiff,
   context: ApplyContext
 ): ApplyResult => {
-  const ctx: Required<ApplyContext> = {
+  const ctx: ResolvedApplyContext = {
     idFactory: context.idFactory,
     now: context.now ?? new Date(),
+    actor: context.actor,
+    syncRunId: context.syncRunId,
   };
   const nextBeds: Record<string, PatientData> = { ...current.beds };
   const discharges: DischargeData[] = [...current.discharges];

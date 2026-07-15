@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Specialty } from '@/types/domain/patientClassification';
-import { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
+import { DischargeData, TransferData, CMAData, MovementProvenance } from '@/types/domain/movements';
 import { nullableOptional } from './helpers';
 import { PatientDataSchema } from './patient';
 
@@ -24,8 +24,20 @@ const MovementTombstoneFieldsSchema = {
   deletedReason: nullableOptional(z.string()),
 };
 
+export const MovementProvenanceSchema: z.ZodType<MovementProvenance, z.ZodTypeDef, unknown> =
+  z.object({
+    source: z.enum(['manual', 'gestion_camas', 'reclassified']),
+    lineageId: z.string().min(1),
+    classifiedAt: z.string().min(1),
+    classifiedBy: nullableOptional(z.string()),
+    syncRunId: nullableOptional(z.string()),
+    previousMovementId: nullableOptional(z.string()),
+    previousClassification: nullableOptional(z.enum(['discharge', 'transfer', 'cma'])),
+  });
+
 const MovementEpisodeFieldsSchema = {
   clinicalEpisodeId: nullableOptional(z.string()),
+  movementProvenance: nullableOptional(MovementProvenanceSchema),
 };
 
 export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown> = z

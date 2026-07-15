@@ -18,6 +18,7 @@ describe('usePatientMovementAudit', () => {
       logEvent: mockLogEvent,
       logPatientDischarge: mockLogPatientDischarge,
       logPatientTransfer: mockLogPatientTransfer,
+      userId: 'auditor@hospital.cl',
     } as unknown as ReturnType<typeof useAuditContext>);
   });
 
@@ -140,5 +141,39 @@ describe('usePatientMovementAudit', () => {
       '5-1',
       '2025-01-04'
     );
+  });
+
+  it('logs an attributable egreso reclassification with its lineage', () => {
+    const { result } = renderHook(() => usePatientMovementAudit());
+
+    result.current.logDischargeReclassification(
+      {
+        movementId: 'reclassified:d-1:transfer',
+        previousMovementId: 'd-1',
+        patientName: 'Paciente Egreso',
+        rut: '5-1',
+        from: 'Alta domicilio',
+        to: 'Traslado',
+        lineageId: 'd-1',
+        clinicalEpisodeId: 'episode-1',
+      },
+      '2025-01-04'
+    );
+
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      'PATIENT_DISCHARGE_RECLASSIFIED',
+      'patient',
+      'reclassified:d-1:transfer',
+      expect.objectContaining({
+        clinicalEvent: 'Reclasificación de egreso',
+        previousMovementId: 'd-1',
+        from: 'Alta domicilio',
+        to: 'Traslado',
+        lineageId: 'd-1',
+      }),
+      '5-1',
+      '2025-01-04'
+    );
+    expect(result.current.actor).toBe('auditor@hospital.cl');
   });
 });

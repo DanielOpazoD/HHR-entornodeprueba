@@ -100,7 +100,8 @@ export const fileCrossDayCorrections = async (
   diff: CensusImportDiff,
   censusDay: string,
   isAdmin: boolean,
-  makeId: () => string
+  makeId: () => string,
+  provenance?: { actor?: string; syncRunId?: string }
 ): Promise<void> => {
   const byDay = new Map<string, CrossDayEntry[]>();
   const add = (
@@ -133,7 +134,11 @@ export const fileCrossDayCorrections = async (
   for (const [day, entries] of byDay) {
     const record = await port.getForDate(day);
     if (!record) continue;
-    const next = applyCrossDayDiff(record, entries, { idFactory: makeId });
+    const next = applyCrossDayDiff(record, entries, {
+      idFactory: makeId,
+      actor: provenance?.actor,
+      syncRunId: provenance?.syncRunId,
+    });
     if (next.applied === 0) continue;
     await patchDailyRecordWithCompatibility(
       port,

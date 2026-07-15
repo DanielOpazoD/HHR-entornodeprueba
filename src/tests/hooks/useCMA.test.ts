@@ -40,6 +40,11 @@ describe('useCMA', () => {
             patientName: 'John Doe',
             rut: '11.111.111-1',
             bedName: 'CMA 1',
+            movementProvenance: expect.objectContaining({
+              source: 'manual',
+              lineageId: expect.any(String),
+              classifiedAt: expect.any(String),
+            }),
           }),
         ]),
       })

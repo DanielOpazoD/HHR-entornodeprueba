@@ -25,6 +25,7 @@ import {
   buildTransferEntries,
   resolveTransferUpdatedBed,
 } from '@/features/census/controllers/patientMovementTransferMutationController';
+import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 
 export type { MovementCreationErrorCode } from '@/features/census/controllers/patientMovementCreationSharedController';
 export type MovementCreationError = ControllerError<MovementCreationErrorCode>;
@@ -36,6 +37,7 @@ export interface AddDischargeMovementInput {
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
   createId?: () => string;
+  provenance?: MovementProvenanceSeed;
 }
 
 export interface AddTransferMovementInput {
@@ -45,6 +47,7 @@ export interface AddTransferMovementInput {
   bedsCatalog: readonly BedDefinition[];
   createEmptyPatient: (bedId: string) => PatientData;
   createId?: () => string;
+  provenance?: MovementProvenanceSeed;
 }
 
 type AddDischargeMovementResult = ControllerResult<
@@ -71,6 +74,7 @@ export const resolveAddDischargeMovement = ({
   bedsCatalog,
   createEmptyPatient,
   createId = defaultCreateId,
+  provenance,
 }: AddDischargeMovementInput): AddDischargeMovementResult => {
   const sourceResolution = resolveOccupiedMovementSource({ record, bedId });
   if (!sourceResolution.ok) {
@@ -91,6 +95,7 @@ export const resolveAddDischargeMovement = ({
     payload,
     resolvedMovementDate,
     createId,
+    provenance,
   });
   const updatedBeds = {
     ...record.beds,
@@ -119,6 +124,7 @@ export const resolveAddTransferMovement = ({
   bedsCatalog,
   createEmptyPatient,
   createId = defaultCreateId,
+  provenance,
 }: AddTransferMovementInput): AddTransferMovementResult => {
   const sourceResolution = resolveOccupiedMovementSource({ record, bedId });
   if (!sourceResolution.ok) {
@@ -139,6 +145,7 @@ export const resolveAddTransferMovement = ({
     payload,
     resolvedMovementDate,
     createId,
+    provenance,
   });
   const updatedBeds = {
     ...record.beds,

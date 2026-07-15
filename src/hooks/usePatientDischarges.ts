@@ -23,6 +23,7 @@ import {
 import {
   convertDischargeToCmaRecord,
   convertDischargeToTransferRecord,
+  selectMovementReclassificationSummary,
 } from '@/application/census/movementTypeConversionPolicy';
 import { usePatientMovementFeedback } from '@/hooks/usePatientMovementFeedback';
 import { usePatientMovementAudit } from '@/hooks/usePatientMovementAudit';
@@ -32,6 +33,7 @@ import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurre
 import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
+import { buildManualMovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import type {
   AddDischargeAction,
   ConvertDischargeToCmaAction,
@@ -58,8 +60,13 @@ export const usePatientDischarges = (
 ): DischargeMovementActions => {
   const recordRef = useLatestRef(record);
   const { notifyCreationError, notifyUndoError } = usePatientMovementFeedback(runtime);
-  const { logDischargeEntries, logDischargeDiagnosisChange, logDischargeUndoEntry } =
-    usePatientMovementAudit();
+  const {
+    logDischargeEntries,
+    logDischargeDiagnosisChange,
+    logDischargeReclassification,
+    logDischargeUndoEntry,
+    actor,
+  } = usePatientMovementAudit();
   const executeMovementCreation = usePatientMovementCreationExecutor({
     saveAndUpdate,
     patchRecord,
@@ -112,6 +119,7 @@ export const usePatientDischarges = (
             payload,
             bedsCatalog: BEDS,
             createEmptyPatient,
+            provenance: buildManualMovementProvenanceSeed(actor),
           })
         );
         void executeMovementCreation({
@@ -126,7 +134,7 @@ export const usePatientDischarges = (
         });
       });
     },
-    [executeMovementCreation, logDischargeEntries, withCurrentRecord]
+    [actor, executeMovementCreation, logDischargeEntries, withCurrentRecord]
   );
 
   const updateDischarge: UpdateDischargeAction = useCallback(
@@ -231,53 +239,61 @@ export const usePatientDischarges = (
   const convertDischargeToCma: ConvertDischargeToCmaAction = useCallback(
     id => {
       withCurrentRecord(currentRecord => {
-        const updatedRecord = convertDischargeToCmaRecord(currentRecord, id, () =>
-          crypto.randomUUID()
+        const updatedRecord = convertDischargeToCmaRecord(
+          currentRecord,
+          id,
+          () => crypto.randomUUID(),
+          { actor, at: new Date().toISOString() }
         );
         if (updatedRecord === currentRecord) return;
-
-        if (patchRecord) {
-          void patchRecord({
-            discharges: updatedRecord.discharges,
-            cma: updatedRecord.cma,
-          }).catch(error => {
-            logDischargePersistenceFailure('convert_to_cma', error);
-          });
-          return;
-        }
-
-        void saveAndUpdate(updatedRecord).catch(error => {
-          logDischargePersistenceFailure('convert_to_cma', error);
-        });
+        const summary = selectMovementReclassificationSummary(updatedRecord, id);
+        const persistence = patchRecord
+          ? patchRecord({ discharges: updatedRecord.discharges, cma: updatedRecord.cma })
+          : saveAndUpdate(updatedRecord);
+        void persistence
+          .then(() => {
+            if (!summary) return;
+            try {
+              logDischargeReclassification(summary, currentRecord.date);
+            } catch (error) {
+              logDischargeAuditFailure('convert_to_cma', error);
+            }
+          })
+          .catch(error => logDischargePersistenceFailure('convert_to_cma', error));
       });
     },
-    [patchRecord, saveAndUpdate, withCurrentRecord]
+    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
   );
 
   const convertDischargeToTransfer: ConvertDischargeToTransferAction = useCallback(
     id => {
       withCurrentRecord(currentRecord => {
-        const updatedRecord = convertDischargeToTransferRecord(currentRecord, id, () =>
-          crypto.randomUUID()
+        const updatedRecord = convertDischargeToTransferRecord(
+          currentRecord,
+          id,
+          () => crypto.randomUUID(),
+          { actor, at: new Date().toISOString() }
         );
         if (updatedRecord === currentRecord) return;
-
         const patch = {
           discharges: updatedRecord.discharges,
           transfers: updatedRecord.transfers,
         };
-        if (patchRecord) {
-          void patchRecord(patch).catch(error => {
-            logDischargePersistenceFailure('convert_to_transfer', error);
-          });
-          return;
-        }
-        void saveAndUpdate(updatedRecord).catch(error => {
-          logDischargePersistenceFailure('convert_to_transfer', error);
-        });
+        const summary = selectMovementReclassificationSummary(updatedRecord, id);
+        const persistence = patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord);
+        void persistence
+          .then(() => {
+            if (!summary) return;
+            try {
+              logDischargeReclassification(summary, currentRecord.date);
+            } catch (error) {
+              logDischargeAuditFailure('convert_to_transfer', error);
+            }
+          })
+          .catch(error => logDischargePersistenceFailure('convert_to_transfer', error));
       });
     },
-    [patchRecord, saveAndUpdate, withCurrentRecord]
+    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
   );
 
   return useMemo(

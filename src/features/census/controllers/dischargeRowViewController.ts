@@ -27,6 +27,7 @@ export const resolveDischargeRowViewModel = (
   diagnosis: item.diagnosis,
   movementDate: item.movementDate,
   movementTime: item.time,
+  movementProvenance: item.movementProvenance,
   dischargeTypeLabel: item.dischargeType || '-',
   statusLabel: item.status,
   statusBadgeClassName: getDischargeStatusBadgeClassName(item.status),

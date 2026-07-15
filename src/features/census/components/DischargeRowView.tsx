@@ -55,6 +55,7 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
           recordDate={recordDate}
           movementDate={viewModel.movementDate}
           movementTime={viewModel.movementTime}
+          movementProvenance={viewModel.movementProvenance}
           actions={viewModel.actions}
           actionsPresentation="menu"
         >

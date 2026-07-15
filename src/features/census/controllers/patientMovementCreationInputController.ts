@@ -10,6 +10,7 @@ import {
   AddDischargeMovementInput,
   AddTransferMovementInput,
 } from '@/features/census/controllers/patientMovementCreationController';
+import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 
 interface MovementCreationDependencies {
   bedsCatalog: readonly BedDefinition[];
@@ -20,12 +21,14 @@ interface BuildAddDischargeInputParams extends MovementCreationDependencies {
   record: DailyRecord;
   bedId: string;
   payload: DischargeAddCommandPayload;
+  provenance?: MovementProvenanceSeed;
 }
 
 interface BuildAddTransferInputParams extends MovementCreationDependencies {
   record: DailyRecord;
   bedId: string;
   payload: TransferCommandPayload;
+  provenance?: MovementProvenanceSeed;
 }
 
 interface BuildDischargeCommandPayloadParams {
@@ -87,12 +90,14 @@ export const buildAddDischargeInput = ({
   payload,
   bedsCatalog,
   createEmptyPatient,
+  provenance,
 }: BuildAddDischargeInputParams): AddDischargeMovementInput => ({
   record,
   bedId,
   payload,
   bedsCatalog,
   createEmptyPatient,
+  provenance,
 });
 
 export const buildAddTransferInput = ({
@@ -101,10 +106,12 @@ export const buildAddTransferInput = ({
   payload,
   bedsCatalog,
   createEmptyPatient,
+  provenance,
 }: BuildAddTransferInputParams): AddTransferMovementInput => ({
   record,
   bedId,
   payload,
   bedsCatalog,
   createEmptyPatient,
+  provenance,
 });

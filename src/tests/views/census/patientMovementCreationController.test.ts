@@ -98,6 +98,11 @@ describe('patientMovementCreationController', () => {
         let n = 0;
         return () => `id-${++n}`;
       })(),
+      provenance: {
+        source: 'manual',
+        actor: 'enfermera@hospital.cl',
+        at: '2025-01-01T12:00:00.000Z',
+      },
     });
 
     expect(result.ok).toBe(true);
@@ -105,6 +110,13 @@ describe('patientMovementCreationController', () => {
       expect(result.value.updatedRecord.discharges).toHaveLength(2);
       expect(result.value.updatedRecord.discharges[0].clinicalEpisodeId).toBe('ep-mother');
       expect(result.value.updatedRecord.discharges[1].clinicalEpisodeId).toBe('ep-baby');
+      expect(result.value.updatedRecord.discharges[0].movementProvenance).toEqual({
+        source: 'manual',
+        lineageId: 'id-1',
+        classifiedAt: '2025-01-01T12:00:00.000Z',
+        classifiedBy: 'enfermera@hospital.cl',
+      });
+      expect(result.value.updatedRecord.discharges[1].movementProvenance?.lineageId).toBe('id-2');
       expect(result.value.updatedRecord.discharges[0].originalData?.clinicalEpisodeId).toBe(
         'ep-mother'
       );
@@ -265,6 +277,11 @@ describe('patientMovementCreationController', () => {
         let n = 0;
         return () => `id-${++n}`;
       })(),
+      provenance: {
+        source: 'manual',
+        actor: 'enfermera@hospital.cl',
+        at: '2025-01-01T12:00:00.000Z',
+      },
     });
 
     expect(result.ok).toBe(true);
@@ -272,6 +289,12 @@ describe('patientMovementCreationController', () => {
       expect(result.value.updatedRecord.transfers).toHaveLength(2);
       expect(result.value.updatedRecord.transfers[0].clinicalEpisodeId).toBe('ep-mother');
       expect(result.value.updatedRecord.transfers[1].clinicalEpisodeId).toBe('ep-baby');
+      expect(result.value.updatedRecord.transfers[0].movementProvenance).toEqual({
+        source: 'manual',
+        lineageId: 'id-1',
+        classifiedAt: '2025-01-01T12:00:00.000Z',
+        classifiedBy: 'enfermera@hospital.cl',
+      });
       expect(result.value.updatedRecord.transfers[0].originalData?.clinicalEpisodeId).toBe(
         'ep-mother'
       );

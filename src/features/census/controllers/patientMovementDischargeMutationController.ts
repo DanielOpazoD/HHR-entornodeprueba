@@ -8,6 +8,10 @@ import {
   type MovementAuditEntry,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
 import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import {
+  buildMovementProvenance,
+  type MovementProvenanceSeed,
+} from '@/application/census/movementProvenancePolicy';
 
 interface BuildDischargeEntriesParams {
   patient: PatientData;
@@ -16,6 +20,7 @@ interface BuildDischargeEntriesParams {
   payload: DischargeAddCommandPayload;
   resolvedMovementDate: string;
   createId: () => string;
+  provenance?: MovementProvenanceSeed;
 }
 
 export const buildDischargeEntries = ({
@@ -25,6 +30,7 @@ export const buildDischargeEntries = ({
   payload,
   resolvedMovementDate,
   createId,
+  provenance,
 }: BuildDischargeEntriesParams): {
   discharges: DischargeData[];
   auditEntries: MovementAuditEntry[];
@@ -65,6 +71,9 @@ export const buildDischargeEntries = ({
       isRapanui: patientWithEpisodeId.isRapanui,
       originalData: clonePatientSnapshot(patientWithEpisodeId),
       isNested: false,
+      movementProvenance: provenance
+        ? buildMovementProvenance({ movementId, ...provenance })
+        : undefined,
     });
     auditEntries.push({
       movementId,
@@ -104,6 +113,9 @@ export const buildDischargeEntries = ({
       isRapanui: patient.isRapanui,
       originalData: clonePatientSnapshot(cribWithEpisodeId),
       isNested: true,
+      movementProvenance: provenance
+        ? buildMovementProvenance({ movementId, ...provenance })
+        : undefined,
     });
     auditEntries.push({
       movementId,

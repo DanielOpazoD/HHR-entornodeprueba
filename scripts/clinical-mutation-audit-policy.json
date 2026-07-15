@@ -123,6 +123,10 @@
       "justification": "Census clinical edit (local-first audit); abort would block charting."
     },
     {
+      "action": "PATIENT_DISCHARGE_RECLASSIFIED",
+      "justification": "Egreso reclassification persists first and then emits an attributable local-first audit. Blocking the clinical correction on an audit failure would preserve a known-wrong classification; audit failures remain observable through the movement logger."
+    },
+    {
       "action": "PATIENT_NOTE_UPDATED",
       "justification": "Census note edit (local-first audit); abort would block charting."
     },

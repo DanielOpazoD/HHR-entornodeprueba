@@ -83,6 +83,47 @@ describe('zod daily record schemas', () => {
       expect(record.cma[0]?.specialty).toBe('Urología');
     });
 
+    it('validates and preserves movement provenance across a daily-record reload', () => {
+      const record = DailyRecordSchema.parse({
+        date: '2026-07-14',
+        discharges: [
+          {
+            id: 'alta-1',
+            movementProvenance: {
+              source: 'gestion_camas',
+              lineageId: 'alta-1',
+              classifiedAt: '2026-07-14T15:30:00.000Z',
+              classifiedBy: 'operador@hospital.cl',
+              syncRunId: 'run-egresos-1',
+            },
+          },
+        ],
+      });
+
+      expect(record.discharges[0]?.movementProvenance).toEqual({
+        source: 'gestion_camas',
+        lineageId: 'alta-1',
+        classifiedAt: '2026-07-14T15:30:00.000Z',
+        classifiedBy: 'operador@hospital.cl',
+        syncRunId: 'run-egresos-1',
+      });
+      expect(() =>
+        DailyRecordSchema.parse({
+          date: '2026-07-14',
+          discharges: [
+            {
+              id: 'alta-invalida',
+              movementProvenance: {
+                source: 'desconocido',
+                lineageId: '',
+                classifiedAt: '',
+              },
+            },
+          ],
+        })
+      ).toThrow();
+    });
+
     it('should parse handoff checklists', () => {
       const record = DailyRecordSchema.parse({
         date: '2026-01-15',

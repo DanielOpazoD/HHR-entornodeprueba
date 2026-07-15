@@ -9,7 +9,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/types/domain/movements.ts',
   'src/application/census/cmaEpisodeMovementFields.ts',
   'src/application/census/cmaUndoPatchUseCase.ts',
-  'src/application/census/movementTypeConversionPolicy.ts',
+  'src/application/census/movementReclassificationBuilders.ts',
   'src/hooks/usePatientMovementUndoExecutor.ts',
   'src/hooks/controllers/censusExcelSheetController.ts',
   'src/features/census/components/DischargeRowView.tsx',

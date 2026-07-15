@@ -17,7 +17,12 @@ const NOW = new Date(2026, 6, 8, 15, 30, 0);
 
 const makeCtx = (): ApplyContext => {
   let n = 0;
-  return { idFactory: () => `id-${++n}`, now: NOW };
+  return {
+    idFactory: () => `id-${++n}`,
+    now: NOW,
+    actor: 'Enfermera Rayen',
+    syncRunId: 'sync-run-1',
+  };
 };
 
 const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({
@@ -183,6 +188,13 @@ describe('applyCensusImportDiff', () => {
       dischargeType: 'Domicilio (Habitual)',
       time: '18:20',
       bedId,
+      movementProvenance: {
+        source: 'gestion_camas',
+        lineageId: 'id-1',
+        classifiedAt: NOW.toISOString(),
+        classifiedBy: 'Enfermera Rayen',
+        syncRunId: 'sync-run-1',
+      },
     });
   });
 

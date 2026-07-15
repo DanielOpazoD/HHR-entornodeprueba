@@ -19,6 +19,7 @@ import {
   buildTransfer,
   buildCma,
   type ApplyContext,
+  type ResolvedApplyContext,
 } from './applyCensusImportDiff';
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
@@ -54,9 +55,11 @@ export const applyCrossDayDiff = (
   entries: CrossDayEntry[],
   context: ApplyContext
 ): CrossDayResult => {
-  const ctx: Required<ApplyContext> = {
+  const ctx: ResolvedApplyContext = {
     idFactory: context.idFactory,
     now: context.now ?? new Date(),
+    actor: context.actor,
+    syncRunId: context.syncRunId,
   };
   const day = targetRecord.date;
   const discharges: DischargeData[] = [...targetRecord.discharges];

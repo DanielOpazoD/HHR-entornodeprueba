@@ -40,6 +40,7 @@ describe('usePatientDischarges', () => {
     vi.mocked(useAuditContext).mockReturnValue({
       logEvent: mockLogEvent,
       logPatientDischarge: mockLogPatientDischarge,
+      userId: 'auditor@hospital.cl',
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
     mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
@@ -229,7 +230,7 @@ describe('usePatientDischarges', () => {
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
   });
 
-  it('converts a home discharge into CMA in one movement patch', () => {
+  it('converts a home discharge into CMA in one movement patch', async () => {
     const originalData = {
       bedId: 'R1',
       patientName: 'Test Patient',
@@ -278,6 +279,7 @@ describe('usePatientDischarges', () => {
         ],
         cma: [
           expect.objectContaining({
+            id: 'reclassified:discharge-1:cma',
             patientName: 'Test Patient',
             rut: '12345678-9',
             age: '44',
@@ -287,9 +289,29 @@ describe('usePatientDischarges', () => {
             dischargeTime: '10:20',
             interventionType: 'Cirugía Mayor Ambulatoria',
             clinicalEpisodeId: 'episode-discharge',
+            movementProvenance: expect.objectContaining({
+              source: 'reclassified',
+              previousMovementId: 'discharge-1',
+              previousClassification: 'discharge',
+              classifiedBy: 'auditor@hospital.cl',
+            }),
           }),
         ],
       })
+    );
+    await waitFor(() =>
+      expect(mockLogEvent).toHaveBeenCalledWith(
+        'PATIENT_DISCHARGE_RECLASSIFIED',
+        'patient',
+        'reclassified:discharge-1:cma',
+        expect.objectContaining({
+          from: 'Alta domicilio',
+          to: 'CMA',
+          lineageId: 'discharge-1',
+        }),
+        '12345678-9',
+        '2024-12-28'
+      )
     );
   });
 

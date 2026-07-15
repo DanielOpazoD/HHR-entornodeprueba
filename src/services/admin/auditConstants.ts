@@ -5,6 +5,7 @@ export const CRITICAL_ACTIONS: AuditAction[] = [
   'PATIENT_DISCHARGED',
   'PATIENT_TRANSFERRED',
   'PATIENT_DISCHARGE_DIAGNOSIS_CHANGED',
+  'PATIENT_DISCHARGE_RECLASSIFIED',
   'PATIENT_BED_CHANGED',
   'DAILY_RECORD_DELETED',
 ];
@@ -29,6 +30,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PATIENT_BED_CHANGED: 'Cambio de Cama',
   PATIENT_DIAGNOSIS_CHANGED: 'Cambio de Diagnóstico',
   PATIENT_DISCHARGE_DIAGNOSIS_CHANGED: 'Cambio de Diagnóstico de Egreso',
+  PATIENT_DISCHARGE_RECLASSIFIED: 'Reclasificación de Egreso',
   PATIENT_CLEARED: 'Limpieza de Cama',
   DAILY_RECORD_DELETED: 'Eliminación de Registro',
   DAILY_RECORD_CREATED: 'Creación de Registro',
