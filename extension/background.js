@@ -457,15 +457,8 @@ const slimMedicationStates = payload =>
     'programmingEndDatetime',
   ]);
 
-const fetchFichaJson = async (url, token) => {
-  const res = await fetch(url, {
-    headers: { Authorization: token, Accept: 'application/json' },
-    credentials: 'omit',
-  });
-  if (res.status === 204) return null;
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
-};
+const fetchFichaJson = (url, token) =>
+  self.HhrClinicalPanelFetch.fetchJsonWithTimeout({ url, token, fetchImpl: fetch });
 
 const fetchMedicationStates = async (baseUrl, isSuspended, token) => {
   const rows = await self.HhrClinicalPanelFetch.fetchMedicationPages({

@@ -11,6 +11,28 @@
 
   const errorMessage = reason => String((reason && reason.message) || reason || 'error desconocido');
 
+  const fetchJsonWithTimeout = async ({ url, token, fetchImpl, timeoutMs = 15_000 }) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(url, {
+        headers: { Authorization: token, Accept: 'application/json' },
+        credentials: 'omit',
+        signal: controller.signal,
+      });
+      if (response.status === 204) return null;
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return await response.json();
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Tiempo de espera agotado consultando Ficha Médico.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   const unwrapRequiredSources = sources => {
     const failed = sources.find(source => source.result.status === 'rejected');
     if (failed) throw new Error(`${failed.label}: ${errorMessage(failed.result.reason)}`);
@@ -38,5 +60,5 @@
     throw new Error(`La consulta de medicamentos superó ${maxPages} páginas.`);
   };
 
-  return { fetchMedicationPages, unwrapRequiredSources };
+  return { fetchJsonWithTimeout, fetchMedicationPages, unwrapRequiredSources };
 });

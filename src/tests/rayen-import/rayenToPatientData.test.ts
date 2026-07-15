@@ -97,6 +97,16 @@ describe('rayenToPatientData', () => {
     expect(patient.cie10Description).toBe('Neumonía bacteriana, no especificada');
   });
 
+  it('omits both CIE-10 fields when the source code contains only whitespace', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({ diagnosisCode: '   ', diagnosisDescription: 'Descripción huérfana' }),
+      REFERENCE
+    );
+
+    expect(patient.cie10Code).toBeUndefined();
+    expect(patient.cie10Description).toBeUndefined();
+  });
+
   it('maps the isolation flag from the encounter', () => {
     expect(
       rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE).patient.isIsolated

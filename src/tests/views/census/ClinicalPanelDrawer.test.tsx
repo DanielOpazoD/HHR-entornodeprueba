@@ -116,4 +116,26 @@ describe('ClinicalPanelDrawer', () => {
     expect(screen.getByText('Ejecutada')).toBeInTheDocument();
     expect(screen.getByText('1/1 ejecutadas')).toBeInTheDocument();
   });
+
+  it('fails closed instead of rendering partial clinical data alongside an error', async () => {
+    mocks.request.mockResolvedValue({
+      ...panelResult,
+      error: 'No se pudieron obtener los medicamentos activos.',
+    });
+
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByText('No se pudieron obtener los medicamentos activos.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Evolución médica estable.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+  });
 });

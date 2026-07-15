@@ -54,6 +54,14 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
   const canShowClinicalInitialBlockEditor =
     !readOnly && !isSubRow && !isEmpty && Boolean(data.patientName);
+  const freeTextRightPadding =
+    data.cie10Code && canShowDeliveryRoute
+      ? canShowClinicalInitialBlockEditor
+        ? 'pr-32'
+        : 'pr-24'
+      : canShowDeliveryRoute || canShowClinicalInitialBlockEditor || data.cie10Code
+        ? 'pr-16'
+        : undefined;
   const hasPathologyError =
     !PatientInputSchema.pick({ pathology: true }).safeParse({ pathology: data.pathology })
       .success && !!data.pathology;
@@ -172,8 +180,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
               ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
               : 'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
             isSubRow && 'text-xs h-6',
-            (canShowDeliveryRoute || canShowClinicalInitialBlockEditor || data.cie10Code) &&
-              'pr-16',
+            freeTextRightPadding,
             freshnessPause.pauseClassName
           )}
           placeholder="Diagnóstico (texto libre)"

@@ -1,10 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-panel-fetch.js';
 
 const clinicalPanelFetch = (
   globalThis as typeof globalThis & {
     HhrClinicalPanelFetch: {
+      fetchJsonWithTimeout: (input: {
+        url: string;
+        token: string;
+        fetchImpl: (url: string, init: RequestInit) => Promise<Response>;
+        timeoutMs?: number;
+      }) => Promise<unknown>;
       fetchMedicationPages: (input: {
         fetchPage: (page: number, limit: number) => Promise<unknown>;
         pageSize?: number;
@@ -21,6 +27,54 @@ const clinicalPanelFetch = (
 ).HhrClinicalPanelFetch;
 
 describe('clinical panel extension fetch contracts', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('aborts a stalled clinical request after the configured timeout', async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Abort', 'AbortError'))
+          );
+        })
+    );
+
+    const request = clinicalPanelFetch.fetchJsonWithTimeout({
+      url: 'https://fichamedicoback.rayensalud.cl/api/test',
+      token: 'Bearer test',
+      fetchImpl,
+      timeoutMs: 15_000,
+    });
+    const assertion = expect(request).rejects.toThrow('Tiempo de espera agotado');
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await assertion;
+    expect(fetchImpl.mock.calls[0]?.[1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('preserves empty 204 responses and rejects non-success HTTP responses', async () => {
+    const emptyFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
+    emptyFetch.mockResolvedValue({ status: 204, ok: true } as Response);
+    await expect(
+      clinicalPanelFetch.fetchJsonWithTimeout({
+        url: 'https://fichamedicoback.rayensalud.cl/api/empty',
+        token: 'Bearer test',
+        fetchImpl: emptyFetch,
+      })
+    ).resolves.toBeNull();
+
+    const failedFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
+    failedFetch.mockResolvedValue({ status: 503, ok: false } as Response);
+    await expect(
+      clinicalPanelFetch.fetchJsonWithTimeout({
+        url: 'https://fichamedicoback.rayensalud.cl/api/unavailable',
+        token: 'Bearer test',
+        fetchImpl: failedFetch,
+      })
+    ).rejects.toThrow('HTTP 503');
+  });
+
   it('fetches every medication-state page instead of stopping at the first 100 rows', async () => {
     const firstPage = Array.from({ length: 100 }, (_, id) => ({ id }));
     const fetchPage = vi

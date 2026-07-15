@@ -78,7 +78,10 @@ export const parseClinicalCareDays = (headers: unknown[]): ClinicalPanelCareDay[
       const title = str(body.title) || str(body.activity);
       if (!title) continue;
       const performedAt = str(body.administrationDate) || str(body.timestamp);
-      const day = dayKey(str(header.scheduledDate) || str(header.labelDate) || performedAt);
+      const day =
+        [header.scheduledDate, header.labelDate, performedAt]
+          .map(value => dayKey(str(value)))
+          .find(Boolean) ?? '';
       const bucket = byDay.get(day) ?? [];
       const activity = str(body.activity);
       bucket.push({

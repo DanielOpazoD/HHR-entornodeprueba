@@ -331,4 +331,19 @@ describe('parseClinicalPanel — cuidados de enfermería', () => {
       schedule: '08:00',
     });
   });
+
+  it('falls back to the first valid care date instead of the first non-empty value', () => {
+    const panel = parseClinicalPanel([], {
+      medicationStates: [],
+      carePlanHeaders: [
+        {
+          scheduledDate: 'fecha-inválida',
+          labelDate: '2026-07-14T00:00:00',
+          carePlanBody: [{ entryGuid: 'care-date', title: 'Control de signos vitales' }],
+        },
+      ],
+    });
+
+    expect(panel.careDays[0]).toMatchObject({ day: '2026-07-14', label: '14-07-2026' });
+  });
 });

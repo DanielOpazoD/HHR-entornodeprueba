@@ -69,11 +69,9 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   // `reload` (refresh/retry buttons) is the one that flips back to 'loading' first.
   const load = useCallback(async () => {
     const result = await requestClinicalPanel(clinicalEpisodeId);
-    if (
-      result.error &&
-      result.events.length === 0 &&
-      result.carePlan.carePlanHeaders.length === 0
-    ) {
+    // Clinical sources form one required snapshot. Never present a partial response as complete,
+    // including responses from an older extension version that may still include partial arrays.
+    if (result.error) {
       setState({ phase: 'error', message: result.error });
       return;
     }

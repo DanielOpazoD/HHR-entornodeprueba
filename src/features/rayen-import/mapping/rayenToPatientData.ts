@@ -109,7 +109,7 @@ export const rayenToPatientData = (
     biologicalSex: mapBiologicalSex(encounter.administrativeSex, encounter.gender),
     pathology: cleanDiagnosis(encounter.diagnosis),
     cie10Code: encounter.diagnosisCode?.trim() || undefined,
-    cie10Description: encounter.diagnosisCode
+    cie10Description: encounter.diagnosisCode?.trim()
       ? cleanDiagnosis(encounter.diagnosisDescription || encounter.diagnosis)
       : undefined,
     admissionDate: toIsoDate(encounter.admissionDatetime),

@@ -86,4 +86,31 @@ describe('DiagnosisInput clinical initial block editor', () => {
       specialty: 'Med Interna',
     });
   });
+
+  it('reserves space for CIE-10, delivery route, and the clinical editor together', () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <DiagnosisInput
+              data={DataFactory.createMockPatient('R1', {
+                patientName: 'Paciente Test',
+                pathology: 'Embarazo de término',
+                specialty: Specialty.GINECOBSTETRICIA,
+                ginecobstetriciaType: 'Obstétrica',
+                cie10Code: 'Z34.9',
+                cie10Description: 'Supervisión de embarazo normal',
+              })}
+              diagnosisMode="free"
+              onChange={() => vi.fn()}
+              onMultipleUpdate={vi.fn()}
+              onDeliveryRouteChange={vi.fn()}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    expect(screen.getByPlaceholderText('Diagnóstico (texto libre)')).toHaveClass('pr-32');
+  });
 });
