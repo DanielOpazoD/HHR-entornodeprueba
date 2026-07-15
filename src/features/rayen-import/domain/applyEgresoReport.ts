@@ -49,14 +49,35 @@ const toIsoDay = (raw: string): string => {
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-  return raw;
+  return '';
 };
 
 interface CmaOriginEvidence {
   admissionDate?: string;
+  admissionTime?: string;
   /** Eloísa location stored when the patient occupied the bed. */
   location?: string;
 }
+
+const timeFrom = (raw?: string): string | undefined => {
+  const match = (raw ?? '').match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
+  if (!match) return undefined;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return undefined;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const reportPredatesAdmission = (
+  stamp: { iso: string; hhmm: string },
+  evidence: CmaOriginEvidence
+): boolean => {
+  const admissionDay = toIsoDay(evidence.admissionDate ?? '');
+  if (!admissionDay) return false;
+  if (stamp.iso !== admissionDay) return stamp.iso < admissionDay;
+  const admissionTime = timeFrom(evidence.admissionTime) ?? timeFrom(evidence.admissionDate);
+  return admissionTime ? stamp.hhmm < admissionTime : false;
+};
 
 const resolveReportDischarge = (row: EgresoReportRow, evidence: CmaOriginEvidence = {}) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
@@ -76,11 +97,23 @@ const occupiedBedsByRun = (
   record: DailyRecord
 ): Map<
   string,
-  { bedId: string; patientName: string; admissionDate?: string; location?: string }
+  {
+    bedId: string;
+    patientName: string;
+    admissionDate?: string;
+    admissionTime?: string;
+    location?: string;
+  }
 > => {
   const byRun = new Map<
     string,
-    { bedId: string; patientName: string; admissionDate?: string; location?: string }
+    {
+      bedId: string;
+      patientName: string;
+      admissionDate?: string;
+      admissionTime?: string;
+      location?: string;
+    }
   >();
   for (const [bedId, patient] of Object.entries(record.beds)) {
     if (!patient?.patientName?.trim() || patient.isBlocked) continue;
@@ -90,6 +123,7 @@ const occupiedBedsByRun = (
         bedId,
         patientName: patient.patientName,
         admissionDate: patient.admissionDate,
+        admissionTime: patient.admissionTime,
         location: patient.location,
       });
     }
@@ -114,6 +148,26 @@ const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
   };
 };
 
+const appendReportConflict = (
+  diff: CensusImportDiff,
+  conflict: CensusImportDiff['conflicts'][number]
+): CensusImportDiff => {
+  const conflicts = [...diff.conflicts, conflict];
+  return {
+    ...diff,
+    conflicts,
+    summary: { ...diff.summary, conflicts: conflicts.length },
+  };
+};
+
+/** Keeps a failed authority lookup visible and prevents the automatic path from applying the diff. */
+export const markEgresoReportUnavailable = (diff: CensusImportDiff): CensusImportDiff =>
+  appendReportConflict(diff, {
+    bedId: null,
+    reason:
+      'No se pudo consultar el informe de altas administrativas de Gestión de Camas; los egresos no están verificados.',
+  });
+
 export const applyEgresoReport = (
   diff: CensusImportDiff,
   reportRows: EgresoReportRow[],
@@ -122,19 +176,49 @@ export const applyEgresoReport = (
   if (reportRows.length === 0) return diff;
 
   const recordDay = toIsoDay(record.date);
+  const occupied = occupiedBedsByRun(record);
   const byRun = new Map<string, EgresoReportRow>();
+  let diffWithReportConflicts = diff;
   for (const row of reportRows) {
     const run = normalizeRut(row.run);
-    const rowDay = correctedStamp(row.fechaEgreso).correctedDay;
+    if (!run) continue;
+    const stamp = parseStatisticalEgresoStamp(row.fechaEgreso);
+    if (!stamp) {
+      diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
+        bedId: null,
+        rut: row.run,
+        reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${row.run}; no se aplicó.`,
+      });
+      continue;
+    }
     // The query intentionally reaches D+1 to compensate Rayen's date offset. A genuine
     // next-island-day discharge must never be pulled backwards into the current census.
-    if (run && (!rowDay || rowDay <= recordDay)) byRun.set(run, row);
+    if (!recordDay || stamp.iso > recordDay) continue;
+    const current = occupied.get(run);
+    if (current && reportPredatesAdmission(stamp, current)) {
+      diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
+        bedId: current.bedId,
+        rut: row.run,
+        patientName: current.patientName,
+        reason: `El egreso informado para ${current.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
+      });
+      continue;
+    }
+    // Report ordering is not a domain guarantee. Keep the latest eligible statistical event for
+    // a RUN so repeated rows cannot make reconciliation depend on workbook row order.
+    const previous = byRun.get(run);
+    const previousStamp = previous && parseStatisticalEgresoStamp(previous.fechaEgreso);
+    if (
+      !previousStamp ||
+      `${stamp.iso}T${stamp.hhmm}` > `${previousStamp.iso}T${previousStamp.hhmm}`
+    ) {
+      byRun.set(run, row);
+    }
   }
-  if (byRun.size === 0) return diff;
+  if (byRun.size === 0) return diffWithReportConflicts;
 
   const confirmedRuns = new Set(byRun.keys());
   const recordedRuns = collectRecordedMovementRuns(record);
-  const occupied = occupiedBedsByRun(record);
   const plannedRuns = new Set<string>();
   const addPlannedRun = (rut?: string): void => {
     const run = normalizeRut(rut);
@@ -155,7 +239,7 @@ export const applyEgresoReport = (
   const pendingAdministrativeDischarges = diff.pendingAdministrativeDischarges.filter(
     entry => !confirmedRuns.has(normalizeRut(entry.rut))
   );
-  const conflicts = diff.conflicts.filter(
+  const conflicts = diffWithReportConflicts.conflicts.filter(
     entry => !entry.rut || !confirmedRuns.has(normalizeRut(entry.rut))
   );
 

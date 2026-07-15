@@ -3,6 +3,7 @@ import {
   applyEgresoReport,
   collectRecordedMovementRuns,
   mapDestinoDeAlta,
+  markEgresoReportUnavailable,
   requiresReview,
   type CensusImportDiff,
   type EgresoReportRow,
@@ -327,6 +328,78 @@ describe('applyEgresoReport', () => {
       current
     );
     expect(enriched.discharges).toHaveLength(0);
+  });
+
+  it('review-gates an invalid statistical timestamp instead of vacating the occupied bed', () => {
+    const current = makeRecord({ R2: patient('1-9') });
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [row({ run: '1-9', fechaEgreso: 'fecha desconocida', destino: 'Domicilio' })],
+      current
+    );
+
+    expect(enriched.discharges).toHaveLength(0);
+    expect(enriched.reportEgresos ?? []).toHaveLength(0);
+    expect(enriched.conflicts).toEqual([
+      expect.objectContaining({ rut: '1-9', reason: expect.stringContaining('fecha/hora') }),
+    ]);
+    expect(enriched.summary.conflicts).toBe(1);
+    expect(requiresReview(enriched)).toBe(true);
+  });
+
+  it('does not apply an earlier same-RUN egreso to a later active readmission', () => {
+    const current = makeRecord({
+      R2: {
+        ...patient('1-9', 'Paciente Reingresado'),
+        admissionDate: '2026-07-14',
+        admissionTime: '16:00',
+      },
+    });
+    const pending = {
+      bedId: 'R2',
+      rut: '1-9',
+      patientName: 'Paciente Reingresado',
+      signal: 'clinical-closure' as const,
+    };
+    const enriched = applyEgresoReport(
+      makeDiff({ pendingAdministrativeDischarges: [pending] }),
+      [row({ run: '1-9', fechaEgreso: '14-07-2026  12:00', destino: 'Domicilio' })],
+      current
+    );
+
+    expect(enriched.discharges).toHaveLength(0);
+    expect(enriched.pendingAdministrativeDischarges).toEqual([pending]);
+    expect(enriched.conflicts).toEqual([
+      expect.objectContaining({ bedId: 'R2', reason: expect.stringContaining('ingreso activo') }),
+    ]);
+  });
+
+  it('accepts the same-RUN egreso when its official time follows the active admission', () => {
+    const current = makeRecord({
+      R2: {
+        ...patient('1-9'),
+        admissionDate: '2026-07-14',
+        admissionTime: '08:00',
+      },
+    });
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [row({ run: '1-9', fechaEgreso: '14-07-2026  12:00', destino: 'Domicilio' })],
+      current
+    );
+
+    expect(enriched.discharges).toEqual([
+      expect.objectContaining({ bedId: 'R2', reason: 'administrative-discharge' }),
+    ]);
+    expect(enriched.conflicts).toHaveLength(0);
+  });
+
+  it('marks an unavailable authority report as a review-gated conflict', () => {
+    const enriched = markEgresoReportUnavailable(makeDiff());
+
+    expect(enriched.conflicts).toHaveLength(1);
+    expect(enriched.summary.conflicts).toBe(1);
+    expect(requiresReview(enriched)).toBe(true);
   });
 
   it('returns the diff untouched for an empty report', () => {

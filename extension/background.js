@@ -21,7 +21,7 @@ const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
-const EXTENSION_PROTOCOL_VERSION = 1;
+const EXTENSION_PROTOCOL_VERSION = 2;
 
 // Try every matching tab (active/most-recent first): some may be stale tabs whose content
 // script isn't injected. The first one that answers wins.

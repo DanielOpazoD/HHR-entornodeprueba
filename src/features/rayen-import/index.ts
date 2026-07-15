@@ -93,7 +93,11 @@ export { reconcileCensus, requiresReview } from './domain/reconcileCensus';
 export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusImportDiff';
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';
 
-export { applyEgresoReport, collectRecordedMovementRuns } from './domain/applyEgresoReport';
+export {
+  applyEgresoReport,
+  collectRecordedMovementRuns,
+  markEgresoReportUnavailable,
+} from './domain/applyEgresoReport';
 
 export type { MergeDevicesContext } from './domain/mergeReportDevices';
 export { mergeReportDevices } from './domain/mergeReportDevices';

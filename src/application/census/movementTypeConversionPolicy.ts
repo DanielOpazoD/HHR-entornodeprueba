@@ -8,6 +8,10 @@ import {
 } from './movementTombstonePolicy';
 
 type CreateId = () => string;
+type CmaWithOriginalBed = CMAData & { originalBedId: string };
+
+const hasOriginalBed = (item: CMAData | undefined): item is CmaWithOriginalBed =>
+  Boolean(item?.originalBedId?.trim());
 
 const DEFAULT_CMA_INTERVENTION_TYPE: CMAData['interventionType'] = 'Cirugía Mayor Ambulatoria';
 const DEFAULT_HOME_DISCHARGE_TYPE: DischargeData['dischargeType'] = 'Domicilio (Habitual)';
@@ -55,7 +59,7 @@ const buildCmaFromDischarge = (discharge: DischargeData, createId: CreateId): CM
 });
 
 const buildDischargeFromCma = (
-  item: CMAData,
+  item: CmaWithOriginalBed,
   record: DailyRecord,
   createId: CreateId
 ): DischargeData => ({
@@ -64,7 +68,7 @@ const buildDischargeFromCma = (
   admissionDate: item.originalData?.admissionDate,
   clinicalEpisodeId: item.clinicalEpisodeId,
   bedName: item.bedName,
-  bedId: item.originalBedId || item.id,
+  bedId: item.originalBedId,
   bedType: '',
   patientName: item.patientName,
   rut: item.rut,
@@ -153,7 +157,7 @@ const buildCmaFromTransfer = (item: TransferData, createId: CreateId): CMAData =
 });
 
 const buildTransferFromCma = (
-  item: CMAData,
+  item: CmaWithOriginalBed,
   record: DailyRecord,
   createId: CreateId
 ): TransferData => ({
@@ -162,7 +166,7 @@ const buildTransferFromCma = (
   admissionDate: item.originalData?.admissionDate,
   clinicalEpisodeId: item.clinicalEpisodeId,
   bedName: item.bedName,
-  bedId: item.originalBedId || item.id,
+  bedId: item.originalBedId,
   bedType: '',
   patientName: item.patientName,
   rut: item.rut,
@@ -221,7 +225,7 @@ export const convertCmaToHomeDischargeRecord = (
   createId: CreateId
 ): DailyRecord => {
   const item = findActiveCmaById(record, cmaId);
-  if (!item) {
+  if (!hasOriginalBed(item)) {
     return record;
   }
 
@@ -240,7 +244,7 @@ export const convertCmaToTransferRecord = (
   createId: CreateId
 ): DailyRecord => {
   const item = findActiveCmaById(record, cmaId);
-  if (!item) return record;
+  if (!hasOriginalBed(item)) return record;
 
   return {
     ...record,

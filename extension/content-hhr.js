@@ -15,7 +15,7 @@
  * Egreso report (bulk "Alta Administrativa" list by date — enumerates the day's egresos,
  * including patients HHR never synced; parsed to rows in the background):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_REPORT_REQUEST', reqId, dateStart, dateEnd }
- *   us  → page: { type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, rows }
+ *   us  → page: { type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok, rows }
  *
  * Patient navigation (read-only handoff to the exact Ficha Médico encounter):
  *   Page → us:  { type: 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST', reqId, encId }
@@ -123,13 +123,13 @@
           dateEnd: data.dateEnd,
         })
         .then(response => {
-          const rows = (response && Array.isArray(response.rows) && response.rows) || [];
-          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, rows });
+          const ok = Boolean(response && response.ok === true && Array.isArray(response.rows));
+          const rows = ok ? response.rows : [];
+          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok, rows });
         })
         .catch(error => {
-          // Degrade gracefully: no report → the sync keeps whatever the census reconcile produced.
           console.warn('[Rayen→HHR] Egreso report error:', error);
-          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, rows: [] });
+          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok: false, rows: [] });
         });
       return;
     }

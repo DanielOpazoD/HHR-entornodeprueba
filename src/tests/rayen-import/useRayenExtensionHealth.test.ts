@@ -8,8 +8,8 @@ import type { RayenExtensionHealthReport } from '@/features/rayen-import/bridge/
 const makeReport = (
   overrides: Partial<RayenExtensionHealthReport> = {}
 ): RayenExtensionHealthReport => ({
-  version: '0.5.0',
-  protocolVersion: 1,
+  version: '0.6.0',
+  protocolVersion: 2,
   checkedAt: '2026-07-14T05:00:00.000Z',
   fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
   gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
@@ -46,7 +46,7 @@ describe('deriveHealthState', () => {
       'blocked',
       false
     );
-    expectConnection(deriveHealthState(makeReport({ protocolVersion: 2 })), 'incompatible', false);
+    expectConnection(deriveHealthState(makeReport({ protocolVersion: 1 })), 'incompatible', false);
     expectConnection(deriveHealthState(null, 'Sin extensión.'), 'offline', false);
   });
 });

@@ -206,6 +206,26 @@ describe('movementTypeConversionPolicy', () => {
     ]);
   });
 
+  it('does not convert a legacy CMA without a source bed into a home discharge', () => {
+    const record = DataFactory.createMockDailyRecord('2026-05-14', {
+      cma: [DataFactory.createMockCMA({ id: 'cma-without-bed', originalBedId: undefined })],
+      discharges: [],
+    });
+
+    expect(convertCmaToHomeDischargeRecord(record, 'cma-without-bed', () => 'd-invalid')).toBe(
+      record
+    );
+  });
+
+  it('does not convert a legacy CMA without a source bed into a transfer', () => {
+    const record = DataFactory.createMockDailyRecord('2026-05-14', {
+      cma: [DataFactory.createMockCMA({ id: 'cma-without-bed', originalBedId: undefined })],
+      transfers: [],
+    });
+
+    expect(convertCmaToTransferRecord(record, 'cma-without-bed', () => 't-invalid')).toBe(record);
+  });
+
   it('converts a transfer to either home discharge or CMA without duplicating active movements', () => {
     const originalData = DataFactory.createMockPatient('H1C1', {
       clinicalEpisodeId: 'episode-from-transfer',

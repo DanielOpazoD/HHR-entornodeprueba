@@ -19,7 +19,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
-import { applyEgresoReport } from '../domain/applyEgresoReport';
+import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyEgresoReport';
 import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
 import {
@@ -126,10 +126,11 @@ export const useRayenImport = () => {
       // Fetch the report for [D, D+1]: the source files a late island egreso on the NEXT day (its
       // filter runs in a zone ahead of Rapa Nui), so asking only for D would miss it. The extra day's
       // rows are routed to their real island day (or skipped) by the day-correction logic downstream.
-      const reportRows = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
-      if (reportRows.length > 0) {
-        diff = applyEgresoReport(diff, reportRows, currentRecord);
-      }
+      const reportResult = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
+      const reportAvailable = reportResult.ok;
+      diff = reportAvailable
+        ? applyEgresoReport(diff, reportResult.rows, currentRecord)
+        : markEgresoReportUnavailable(diff);
 
       // Discharge-day corrections: egresos whose official island day is earlier than the census day
       // are filed on that previous day (behind confirmation), so they must never auto-apply. The plan
@@ -186,7 +187,7 @@ export const useRayenImport = () => {
         0;
       // With census changes to confirm, syncing "pauses" for human review; with none, the fill runs
       // now and keeps the indicator on until it settles.
-      if (!hasApplicableChanges) {
+      if (!hasApplicableChanges && reportAvailable) {
         // Sin diff que aplicar: sella la sincronización (who+when) por patch; un fallo aquí solo
         // pierde ese sello (no datos clínicos), así que se loguea sin bloquear al usuario.
         try {
@@ -203,10 +204,11 @@ export const useRayenImport = () => {
         diff,
         isPreviewOpen: true,
         isBusy: false,
-        isSyncing: !hasApplicableChanges,
+        isSyncing: !hasApplicableChanges && reportAvailable,
         result: null,
-        error:
-          mode === 'auto' && needsReview
+        error: !reportAvailable
+          ? 'No fue posible verificar las altas administrativas en Gestión de Camas. Revisa esa pestaña y vuelve a sincronizar; el censo no se aplicará automáticamente.'
+          : mode === 'auto' && needsReview
             ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
             : null,
       });

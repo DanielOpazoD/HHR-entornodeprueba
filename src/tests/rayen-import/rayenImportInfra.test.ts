@@ -8,7 +8,9 @@ import {
   type RayenCensusSnapshot,
 } from '@/features/rayen-import';
 import {
+  RAYEN_EGRESO_REPORT_RESULT_TYPE,
   RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+  requestEgresoReport,
   subscribeToRayenImportErrors,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
 
@@ -78,5 +80,54 @@ describe('Rayen import error bridge', () => {
 
     expect(handler).toHaveBeenCalledWith('No hay una pestaña de Ficha Médico abierta.');
     unsubscribe();
+  });
+});
+
+describe('administrative-discharge report bridge', () => {
+  it('accepts a successful empty report as authoritative', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const pending = requestEgresoReport('2026-07-14', '2026-07-15', 1000);
+    const request = postMessage.mock.calls[0]?.[0] as { reqId: string };
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_EGRESO_REPORT_RESULT_TYPE,
+          reqId: request.reqId,
+          ok: true,
+          rows: [],
+        },
+      })
+    );
+
+    await expect(pending).resolves.toEqual({ ok: true, rows: [] });
+    postMessage.mockRestore();
+  });
+
+  it('rejects a legacy rows-only response that cannot prove report availability', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const pending = requestEgresoReport('2026-07-14', '2026-07-15', 1000);
+    const request = postMessage.mock.calls[0]?.[0] as { reqId: string };
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: RAYEN_EGRESO_REPORT_RESULT_TYPE, reqId: request.reqId, rows: [] },
+      })
+    );
+
+    await expect(pending).resolves.toEqual({ ok: false, reason: 'unavailable' });
+    postMessage.mockRestore();
+  });
+
+  it('returns an explicit timeout instead of an authoritative empty report', async () => {
+    vi.useFakeTimers();
+    const pending = requestEgresoReport('2026-07-14', '2026-07-15', 25);
+
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expect(pending).resolves.toEqual({ ok: false, reason: 'timeout' });
+    vi.useRealTimers();
   });
 });
