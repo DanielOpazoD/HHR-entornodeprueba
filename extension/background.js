@@ -21,6 +21,7 @@ importScripts(
   'health-check.js',
   'clinical-panel-fetch.js',
   'prescription-print.js',
+  'lab-viewer.js',
   'xlsx.full.min.js',
   'report-parser.js',
   'jspdf.umd.min.js',
@@ -53,14 +54,19 @@ const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, rejec
   );
 });
 
-const fetchWithTimeout = async (url, options, timeoutMs = BACKEND_REQUEST_TIMEOUT_MS) => {
+const fetchWithTimeout = async (
+  url,
+  options,
+  timeoutMs = BACKEND_REQUEST_TIMEOUT_MS,
+  timeoutMessage = 'Tiempo de espera agotado consultando Eloísa. Reintenta la operación.'
+) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...(options || {}), signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error('Tiempo de espera agotado consultando Eloísa. Reintenta la operación.');
+      throw new Error(timeoutMessage);
     }
     throw error;
   } finally {
@@ -3301,6 +3307,196 @@ const handleCudyrCategoriesRequest = async () => {
   }
 };
 
+// Port 3000 is commonly occupied by the local HHR/Vite app in this checkout.
+const SYSLAB_LOCAL_ORIGIN = 'http://localhost:3001';
+const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
+const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
+const LAB_DETAILS_BATCH_SIZE = 3;
+const LAB_MAX_SELECTED_EXAMS = 24;
+
+const fetchSyslabJson = async (path, options, timeoutMs) => {
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      SYSLAB_LOCAL_ORIGIN + path,
+      {
+        ...(options || {}),
+        headers: {
+          Accept: 'application/json',
+          ...((options && options.headers) || {}),
+        },
+        credentials: 'omit',
+        cache: 'no-store',
+      },
+      timeoutMs,
+      'Syslab demoró demasiado en responder. Comprueba el scraper local y reintenta.'
+    );
+  } catch (error) {
+    throw new Error(
+      'No se pudo conectar con el scraper Syslab en localhost:3001. ' +
+      String((error && error.message) || error)
+    );
+  }
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (_error) {}
+  if (!response.ok) {
+    throw new Error((payload && payload.error) || 'El scraper Syslab respondió HTTP ' + response.status + '.');
+  }
+  return payload || {};
+};
+
+const sweepExpiredLabBatches = async () => {
+  const stored = await chrome.storage.session.get(null);
+  const now = Date.now();
+  const expiredKeys = Object.entries(stored || {})
+    .filter(([key, value]) => key.startsWith(LAB_BATCH_PREFIX) && (
+      !value || !Number.isFinite(value.createdAt) || now - value.createdAt > LAB_BATCH_TTL_MS
+    ))
+    .map(([key]) => key);
+  if (expiredKeys.length) await chrome.storage.session.remove(expiredKeys);
+};
+
+const handleLabSearchRequest = async ({ encId }) => {
+  const context = await getClinicalReportContext(encId);
+  if (context.error) return context;
+  const rutBody = self.HhrLabViewer.normalizeRutBody(context.patient && context.patient.run);
+  if (!/^\d{5,9}$/.test(rutBody)) {
+    return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
+  }
+
+  const health = await fetchSyslabJson('/health', {}, 6_000);
+  if (!health || health.status !== 'ok') {
+    return { error: 'El scraper local respondió, pero no informó un estado saludable.' };
+  }
+  const payload = await fetchSyslabJson('/api/exams?rut=' + encodeURIComponent(rutBody), {}, 25_000);
+  if (payload.success !== true) {
+    return { error: payload.error || 'Syslab no pudo buscar los exámenes del paciente.' };
+  }
+  const exams = self.HhrLabViewer.sanitizeExamList(payload.data);
+  const batchId = crypto.randomUUID();
+  await sweepExpiredLabBatches();
+  await chrome.storage.session.set({
+    [LAB_BATCH_PREFIX + batchId]: {
+      encounterId: String(encId),
+      rutBody,
+      createdAt: Date.now(),
+      exams,
+    },
+  });
+  return {
+    ok: true,
+    batchId,
+    patient: context.patient,
+    exams: exams.map(exam => ({
+      id: exam.id,
+      date: exam.date,
+      time: exam.time,
+      patientName: exam.patientName,
+      origin: exam.origin,
+      exams: exam.exams,
+      hasReport: true,
+    })),
+  };
+};
+
+const readLabBatch = async batchId => {
+  if (!/^[0-9a-f-]{36}$/i.test(String(batchId || ''))) {
+    return { error: 'La búsqueda de laboratorio no es válida. Actualiza el visor.' };
+  }
+  const key = LAB_BATCH_PREFIX + batchId;
+  const stored = await chrome.storage.session.get(key);
+  const batch = stored && stored[key];
+  if (!batch || !Array.isArray(batch.exams)) {
+    return { error: 'La búsqueda de laboratorio ya no está disponible. Actualiza el visor.' };
+  }
+  if (!Number.isFinite(batch.createdAt) || Date.now() - batch.createdAt > LAB_BATCH_TTL_MS) {
+    await chrome.storage.session.remove(key);
+    return { error: 'La búsqueda de laboratorio caducó. Actualiza el visor para proteger al paciente.' };
+  }
+  return { batch };
+};
+
+const selectedLabExams = (batch, examIds) => {
+  const ids = [...new Set((Array.isArray(examIds) ? examIds : []).map(String))]
+    .filter(Boolean);
+  if (ids.length > LAB_MAX_SELECTED_EXAMS) return [];
+  const allowedById = new Map(batch.exams.map(exam => [String(exam.id), exam]));
+  const exams = ids.map(id => allowedById.get(id)).filter(Boolean);
+  return exams.length === ids.length && exams.length > 0 ? exams : [];
+};
+
+const handleLabDetailsRequest = async ({ batchId, examIds }) => {
+  const batchResult = await readLabBatch(batchId);
+  if (batchResult.error) return batchResult;
+  const requestedIds = [...new Set((Array.isArray(examIds) ? examIds : []).map(String).filter(Boolean))];
+  if (requestedIds.length > LAB_MAX_SELECTED_EXAMS) {
+    return { error: 'Puedes analizar como máximo 24 informes por operación.' };
+  }
+  const exams = selectedLabExams(batchResult.batch, requestedIds);
+  if (!exams.length) return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
+
+  const details = [];
+  for (let index = 0; index < exams.length; index += LAB_DETAILS_BATCH_SIZE) {
+    const group = exams.slice(index, index + LAB_DETAILS_BATCH_SIZE);
+    const payload = await fetchSyslabJson(
+      '/api/exams/details',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ links: group.map(exam => exam.link) }),
+      },
+      25_000
+    );
+    if (payload.success !== true) {
+      return { error: payload.error || 'No se pudieron interpretar todos los informes seleccionados.' };
+    }
+    details.push(...(Array.isArray(payload.data) ? payload.data : []));
+  }
+  return { ok: true, analysis: self.HhrLabViewer.buildAnalysis(details, exams) };
+};
+
+const handleLabPdfOpenRequest = async ({ batchId, examId }) => {
+  const batchResult = await readLabBatch(batchId);
+  if (batchResult.error) return batchResult;
+  const exams = selectedLabExams(batchResult.batch, [examId]);
+  if (exams.length !== 1 || !self.HhrLabViewer.isAllowedSyslabLink(exams[0].link)) {
+    return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
+  }
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      SYSLAB_LOCAL_ORIGIN + '/api/exams/pdf?link=' + encodeURIComponent(exams[0].link),
+      { headers: { Accept: 'application/pdf' }, credentials: 'omit', cache: 'no-store' },
+      25_000,
+      'Syslab demoró demasiado en preparar el PDF.'
+    );
+  } catch (error) {
+    return { error: 'No se pudo obtener el PDF desde el scraper local: ' + String((error && error.message) || error) };
+  }
+  if (!response.ok) return { error: 'El scraper respondió HTTP ' + response.status + ' al solicitar el PDF.' };
+  const buffer = await response.arrayBuffer();
+  if (!buffer.byteLength || buffer.byteLength > 6 * 1024 * 1024) {
+    return { error: 'El informe PDF está vacío o supera el límite seguro de 6 MB.' };
+  }
+  const signature = String.fromCharCode.apply(null, new Uint8Array(buffer).slice(0, 4));
+  if (signature !== '%PDF') return { error: 'El scraper no devolvió un PDF válido.' };
+  const jobId = crypto.randomUUID();
+  await chrome.storage.session.set({
+    [`hhr-pdf-print-${jobId}`]: {
+      base64: bufferToBase64(buffer),
+      filename: `Laboratorio_${exams[0].id}.pdf`,
+      createdAt: Date.now(),
+    },
+  });
+  const tab = await chrome.tabs.create({
+    url: chrome.runtime.getURL(`print-pdf.html?job=${encodeURIComponent(jobId)}`),
+    active: true,
+  });
+  return { ok: true, viewerTabId: tab && tab.id };
+};
+
 const respondAsync = (promise, sendResponse, fallbackMessage) => {
   Promise.resolve(promise)
     .then(response => sendResponse(response || { error: fallbackMessage }))
@@ -3348,6 +3544,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg && msg.type === 'RAYEN_CLINICAL_PANEL_REQUEST') {
     return respond(handleClinicalPanelRequest({ encId: msg.encId }), 'No se pudo cargar el panel clínico.');
+  }
+  if (msg && msg.type === 'RAYEN_LAB_SEARCH_REQUEST') {
+    return respond(handleLabSearchRequest({ encId: msg.encId }), 'No se pudieron buscar los exámenes de laboratorio.');
+  }
+  if (msg && msg.type === 'RAYEN_LAB_DETAILS_REQUEST') {
+    return respond(
+      handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds }),
+      'No se pudieron analizar los informes de laboratorio.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_LAB_PDF_OPEN_REQUEST') {
+    return respond(
+      handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId }),
+      'No se pudo abrir el informe de laboratorio.'
+    );
   }
   if (msg && msg.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST') {
     return respondAsync(

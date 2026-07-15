@@ -48,6 +48,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
+| `lab-viewer.js` | Contratos, lista blanca Syslab y organización pura de comparación, alertas y tendencias |
 
 ## Instalar (modo desarrollador)
 
@@ -78,8 +79,25 @@ En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Ce
 oficial del Hospital Hanga Roa. La barra detecta la altura real del encabezado de Eloísa y se ubica en el
 extremo derecho de la primera franja gris, sin cubrir la segunda fila de navegación. Es compacta y su
 contenedor modular permite incorporar nuevas herramientas. Incluye **Recetas**, **Regímenes**,
-**Indicaciones**, **Entrega de turno** y **Scores**. En pantallas
+**Indicaciones**, **Entrega de turno**, **Scores** y **Lab**. En pantallas
 pequeñas se convierte en un control flotante para no cubrir la navegación.
+
+### Visor de exámenes de laboratorio
+
+- **Lab** está disponible al abrir un episodio clínico. Obtiene el RUN del encabezado oficial de
+  Eloísa y consulta el scraper local en `http://localhost:3001`; la extensión no guarda ni contiene
+  credenciales de Syslab.
+- La búsqueda muestra los informes por fecha, hora, origen y examen. Permite filtrar, seleccionar
+  varios, abrir el PDF autenticado y analizar hasta 24 informes por operación.
+- El análisis conserva las capacidades centrales del visor HHR: tabla longitudinal por variable,
+  referencias y alertas fuera de rango, tendencias numéricas con cada valor rotulado, vista completa
+  por informe y copia tabulada para uso clínico.
+- Los enlaces que entrega el scraper se aceptan solo si pertenecen a
+  `http://10.4.69.90/syslab/detalleexamenes.php`. La lista autorizada queda ligada a la búsqueda en
+  `chrome.storage.session`, caduca a los 15 minutos y nunca persiste resultados de laboratorio.
+- Para usarlo, configura `PORT=3001` e inicia el scraper en `/Users/daniel/Documents/scraper LAB`
+  con `node server.js` antes de abrir **Lab**. Se reserva ese puerto porque el HHR local suele ocupar
+  `3000`. El scraper es quien autentica y navega el portal interno mediante Playwright.
 
 Cuando la vista tiene un episodio activo, **Recetas** abre primero **Paciente actual**. Desde listas,
 paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja deshabilitada la pestaña
