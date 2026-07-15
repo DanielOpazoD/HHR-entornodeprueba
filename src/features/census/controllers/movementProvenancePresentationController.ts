@@ -8,8 +8,15 @@ export interface MovementProvenancePresentation {
 }
 
 const formatStamp = (iso?: string): string => {
-  const match = (iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  return match ? `${match[3]}-${match[2]}-${match[1]} ${match[4]}:${match[5]}` : '';
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}-${month}-${year} ${hours}:${minutes}`;
 };
 
 const withDetails = (base: string, provenance: MovementProvenance): string => {

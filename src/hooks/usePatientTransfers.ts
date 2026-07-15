@@ -25,6 +25,7 @@ import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoEx
 import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurrentRecord';
 import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
+import { useMovementReclassificationExecution } from '@/hooks/useMovementReclassificationExecution';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
 import {
   convertTransferToCmaRecord,
@@ -83,6 +84,7 @@ export const usePatientTransfers = (
   const executeTransferMutation = usePatientMovementMutationByIdExecutor({
     executeMovementMutation,
   });
+  const executeReclassification = useMovementReclassificationExecution();
 
   const addTransfer: AddTransferAction = useCallback(
     (bedId, method, center, centerOther, escort, time, movementDate) => {
@@ -220,20 +222,30 @@ export const usePatientTransfers = (
           discharges: updatedRecord.discharges,
         };
         const summary = selectMovementReclassificationSummary(updatedRecord, id);
-        const persistence = patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord);
-        void persistence
-          .then(() => {
+        executeReclassification({
+          recordDate: currentRecord.date,
+          sourceMovementId: id,
+          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          onPersisted: () => {
             if (!summary) return;
             try {
               logDischargeReclassification(summary, currentRecord.date);
             } catch (error) {
               logTransferAuditFailure('convert_to_discharge', error);
             }
-          })
-          .catch(error => logTransferPersistenceFailure('convert_to_discharge', error));
+          },
+          onPersistenceError: error => logTransferPersistenceFailure('convert_to_discharge', error),
+        });
       });
     },
-    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
+    [
+      actor,
+      executeReclassification,
+      logDischargeReclassification,
+      patchRecord,
+      saveAndUpdate,
+      withCurrentRecord,
+    ]
   );
 
   const convertTransferToCma: ConvertTransferToCmaAction = useCallback(
@@ -248,20 +260,30 @@ export const usePatientTransfers = (
         if (updatedRecord === currentRecord) return;
         const patch = { transfers: updatedRecord.transfers, cma: updatedRecord.cma };
         const summary = selectMovementReclassificationSummary(updatedRecord, id);
-        const persistence = patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord);
-        void persistence
-          .then(() => {
+        executeReclassification({
+          recordDate: currentRecord.date,
+          sourceMovementId: id,
+          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          onPersisted: () => {
             if (!summary) return;
             try {
               logDischargeReclassification(summary, currentRecord.date);
             } catch (error) {
               logTransferAuditFailure('convert_to_cma', error);
             }
-          })
-          .catch(error => logTransferPersistenceFailure('convert_to_cma', error));
+          },
+          onPersistenceError: error => logTransferPersistenceFailure('convert_to_cma', error),
+        });
       });
     },
-    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
+    [
+      actor,
+      executeReclassification,
+      logDischargeReclassification,
+      patchRecord,
+      saveAndUpdate,
+      withCurrentRecord,
+    ]
   );
 
   return useMemo(

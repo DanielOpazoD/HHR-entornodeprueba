@@ -10,7 +10,7 @@ import type {
 } from '@/features/rayen-import/contracts/censusImportDiff';
 
 const NOW = new Date(2026, 6, 12, 15, 30, 0);
-const ctx = { idFactory: () => 'random-id', now: NOW };
+const ctx = { idFactory: () => 'random-id', now: NOW, syncRunId: 'cross-day-run-1' };
 
 const makeRecord = (date: string, over: Partial<DailyRecord> = {}): DailyRecord => ({
   date,
@@ -58,6 +58,12 @@ describe('applyCrossDayDiff', () => {
       movementDate: '2026-07-11',
       time: '20:54',
       patientName: 'Haggen Estefanis Roe',
+      movementProvenance: {
+        source: 'gestion_camas',
+        lineageId: 'rayen-egreso:193385419:2026-07-11',
+        classifiedAt: NOW.toISOString(),
+        syncRunId: 'cross-day-run-1',
+      },
     });
     // never touches beds on the historical day
     expect(result.record.beds).toEqual({});

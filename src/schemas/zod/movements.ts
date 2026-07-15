@@ -24,16 +24,31 @@ const MovementTombstoneFieldsSchema = {
   deletedReason: nullableOptional(z.string()),
 };
 
+const MovementProvenanceSharedSchema = {
+  lineageId: z.string().min(1),
+  classifiedAt: z.string().min(1),
+  classifiedBy: nullableOptional(z.string()),
+};
+
 export const MovementProvenanceSchema: z.ZodType<MovementProvenance, z.ZodTypeDef, unknown> =
-  z.object({
-    source: z.enum(['manual', 'gestion_camas', 'reclassified']),
-    lineageId: z.string().min(1),
-    classifiedAt: z.string().min(1),
-    classifiedBy: nullableOptional(z.string()),
-    syncRunId: nullableOptional(z.string()),
-    previousMovementId: nullableOptional(z.string()),
-    previousClassification: nullableOptional(z.enum(['discharge', 'transfer', 'cma'])),
-  });
+  z.discriminatedUnion('source', [
+    z.object({
+      ...MovementProvenanceSharedSchema,
+      source: z.literal('manual'),
+    }),
+    z.object({
+      ...MovementProvenanceSharedSchema,
+      source: z.literal('gestion_camas'),
+      syncRunId: z.string().min(1),
+    }),
+    z.object({
+      ...MovementProvenanceSharedSchema,
+      source: z.literal('reclassified'),
+      syncRunId: nullableOptional(z.string()),
+      previousMovementId: z.string().min(1),
+      previousClassification: z.enum(['discharge', 'transfer', 'cma']),
+    }),
+  ]);
 
 const MovementEpisodeFieldsSchema = {
   clinicalEpisodeId: nullableOptional(z.string()),

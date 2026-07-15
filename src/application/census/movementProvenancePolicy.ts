@@ -1,19 +1,25 @@
-import type {
-  MovementClassification,
-  MovementProvenance,
-  MovementProvenanceSource,
-} from '@/types/domain/movements';
+import type { MovementClassification, MovementProvenance } from '@/types/domain/movements';
 
-export interface MovementProvenanceSeed {
-  source: Exclude<MovementProvenanceSource, 'reclassified'>;
+interface MovementProvenanceSeedBase {
   actor?: string;
   at: string;
-  syncRunId?: string;
 }
 
-interface BuildMovementProvenanceInput extends MovementProvenanceSeed {
-  movementId: string;
+interface ManualMovementProvenanceSeed extends MovementProvenanceSeedBase {
+  source: 'manual';
+  syncRunId?: never;
 }
+
+interface BedManagementMovementProvenanceSeed extends MovementProvenanceSeedBase {
+  source: 'gestion_camas';
+  syncRunId: string;
+}
+
+export type MovementProvenanceSeed =
+  | ManualMovementProvenanceSeed
+  | BedManagementMovementProvenanceSeed;
+
+type BuildMovementProvenanceInput = MovementProvenanceSeed & { movementId: string };
 
 interface BuildReclassifiedMovementProvenanceInput {
   previousMovementId: string;
@@ -33,13 +39,25 @@ export const buildMovementProvenance = ({
   syncRunId,
 }: BuildMovementProvenanceInput): MovementProvenance => {
   const classifiedBy = optionalText(actor);
-  const normalizedSyncRunId = optionalText(syncRunId);
-  return {
-    source,
+  const shared = {
     lineageId: movementId,
     classifiedAt: at,
     ...(classifiedBy ? { classifiedBy } : {}),
-    ...(normalizedSyncRunId ? { syncRunId: normalizedSyncRunId } : {}),
+  };
+  if (source === 'gestion_camas') {
+    const normalizedSyncRunId = optionalText(syncRunId);
+    if (!normalizedSyncRunId) {
+      throw new Error('Gestion de Camas movement provenance requires a synchronization run id.');
+    }
+    return {
+      ...shared,
+      source,
+      syncRunId: normalizedSyncRunId,
+    };
+  }
+  return {
+    ...shared,
+    source,
   };
 };
 
@@ -66,7 +84,7 @@ export const buildReclassifiedMovementProvenance = ({
 export const buildManualMovementProvenanceSeed = (
   actor: string | undefined,
   at: string = new Date().toISOString()
-): MovementProvenanceSeed => ({ source: 'manual', actor, at });
+): ManualMovementProvenanceSeed => ({ source: 'manual', actor, at });
 
 export const stableReclassifiedMovementId = (
   previousMovementId: string,

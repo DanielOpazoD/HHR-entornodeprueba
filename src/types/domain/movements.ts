@@ -32,19 +32,44 @@ export interface MovementEpisodeFields {
 export type MovementClassification = 'discharge' | 'transfer' | 'cma';
 export type MovementProvenanceSource = 'manual' | 'gestion_camas' | 'reclassified';
 
-export interface MovementProvenance {
-  /** What produced the movement's current classification. */
-  source: MovementProvenanceSource;
+interface MovementProvenanceBase {
   /** Stable across every reclassification of the same egreso. */
   lineageId: string;
   classifiedAt: string;
   classifiedBy?: string;
+}
+
+export interface ManualMovementProvenance extends MovementProvenanceBase {
+  /** The movement was classified deliberately inside HHR. */
+  source: 'manual';
+  syncRunId?: never;
+  previousMovementId?: never;
+  previousClassification?: never;
+}
+
+export interface BedManagementMovementProvenance extends MovementProvenanceBase {
+  /** The authoritative classification came from Gestión de Camas through Eloísa. */
+  source: 'gestion_camas';
   /** Eloísa run that supplied the authoritative Gestión de Camas report. */
+  syncRunId: string;
+  previousMovementId?: never;
+  previousClassification?: never;
+}
+
+export interface ReclassifiedMovementProvenance extends MovementProvenanceBase {
+  /** The classification was corrected from another persisted movement. */
+  source: 'reclassified';
+  /** Preserved when the original classification came from Gestión de Camas. */
   syncRunId?: string;
   /** Immediate predecessor; its tombstone keeps the rest of the chain. */
-  previousMovementId?: string;
-  previousClassification?: MovementClassification;
+  previousMovementId: string;
+  previousClassification: MovementClassification;
 }
+
+export type MovementProvenance =
+  | ManualMovementProvenance
+  | BedManagementMovementProvenance
+  | ReclassifiedMovementProvenance;
 
 export interface DischargeData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;

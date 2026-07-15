@@ -315,6 +315,57 @@ describe('usePatientDischarges', () => {
     );
   });
 
+  it('does not persist or audit competing reclassifications of the same discharge twice', async () => {
+    let resolvePersistence: (() => void) | undefined;
+    mockPatchRecord = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          resolvePersistence = resolve;
+        })
+    ) as ApplyDailyRecordPatch;
+    const recordWithDischarge = {
+      ...mockRecord,
+      discharges: [
+        {
+          id: 'discharge-concurrent',
+          bedId: 'R1',
+          bedName: 'R1',
+          bedType: 'Cama',
+          patientName: 'Test Patient',
+          rut: '12345678-9',
+          diagnosis: 'Test Diagnosis',
+          time: '10:20',
+          status: 'Vivo',
+          dischargeType: 'Domicilio (Habitual)',
+          originalData: mockRecord.beds.R1,
+        },
+      ],
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      usePatientDischarges(recordWithDischarge, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+
+    act(() => {
+      result.current.convertDischargeToCma('discharge-concurrent');
+      result.current.convertDischargeToTransfer('discharge-concurrent');
+    });
+    expect(mockPatchRecord).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvePersistence?.();
+      await Promise.resolve();
+    });
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      'PATIENT_DISCHARGE_RECLASSIFIED',
+      'patient',
+      'reclassified:discharge-concurrent:cma',
+      expect.any(Object),
+      '12345678-9',
+      '2024-12-28'
+    );
+  });
+
   it('converts a home discharge into transfer in one movement patch', () => {
     const recordWithDischarge = {
       ...mockRecord,

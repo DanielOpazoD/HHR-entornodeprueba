@@ -18,7 +18,7 @@ const NOW = new Date(2020, 5, 1, 15, 30, 0);
 
 const makeCtx = (): ApplyContext => {
   let n = 0;
-  return { idFactory: () => `id-${++n}`, now: NOW };
+  return { idFactory: () => `id-${++n}`, now: NOW, syncRunId: 'validity-run' };
 };
 
 const makeRecord = (beds: Record<string, PatientData>): DailyRecord => ({

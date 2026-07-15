@@ -32,6 +32,7 @@ import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoEx
 import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurrentRecord';
 import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
+import { useMovementReclassificationExecution } from '@/hooks/useMovementReclassificationExecution';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
 import { buildManualMovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import type {
@@ -90,6 +91,7 @@ export const usePatientDischarges = (
   const executeDischargeMutation = usePatientMovementMutationByIdExecutor({
     executeMovementMutation,
   });
+  const executeReclassification = useMovementReclassificationExecution();
 
   const addDischarge: AddDischargeAction = useCallback(
     (
@@ -247,22 +249,33 @@ export const usePatientDischarges = (
         );
         if (updatedRecord === currentRecord) return;
         const summary = selectMovementReclassificationSummary(updatedRecord, id);
-        const persistence = patchRecord
-          ? patchRecord({ discharges: updatedRecord.discharges, cma: updatedRecord.cma })
-          : saveAndUpdate(updatedRecord);
-        void persistence
-          .then(() => {
+        executeReclassification({
+          recordDate: currentRecord.date,
+          sourceMovementId: id,
+          persist: () =>
+            patchRecord
+              ? patchRecord({ discharges: updatedRecord.discharges, cma: updatedRecord.cma })
+              : saveAndUpdate(updatedRecord),
+          onPersisted: () => {
             if (!summary) return;
             try {
               logDischargeReclassification(summary, currentRecord.date);
             } catch (error) {
               logDischargeAuditFailure('convert_to_cma', error);
             }
-          })
-          .catch(error => logDischargePersistenceFailure('convert_to_cma', error));
+          },
+          onPersistenceError: error => logDischargePersistenceFailure('convert_to_cma', error),
+        });
       });
     },
-    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
+    [
+      actor,
+      executeReclassification,
+      logDischargeReclassification,
+      patchRecord,
+      saveAndUpdate,
+      withCurrentRecord,
+    ]
   );
 
   const convertDischargeToTransfer: ConvertDischargeToTransferAction = useCallback(
@@ -280,20 +293,30 @@ export const usePatientDischarges = (
           transfers: updatedRecord.transfers,
         };
         const summary = selectMovementReclassificationSummary(updatedRecord, id);
-        const persistence = patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord);
-        void persistence
-          .then(() => {
+        executeReclassification({
+          recordDate: currentRecord.date,
+          sourceMovementId: id,
+          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          onPersisted: () => {
             if (!summary) return;
             try {
               logDischargeReclassification(summary, currentRecord.date);
             } catch (error) {
               logDischargeAuditFailure('convert_to_transfer', error);
             }
-          })
-          .catch(error => logDischargePersistenceFailure('convert_to_transfer', error));
+          },
+          onPersistenceError: error => logDischargePersistenceFailure('convert_to_transfer', error),
+        });
       });
     },
-    [actor, logDischargeReclassification, patchRecord, saveAndUpdate, withCurrentRecord]
+    [
+      actor,
+      executeReclassification,
+      logDischargeReclassification,
+      patchRecord,
+      saveAndUpdate,
+      withCurrentRecord,
+    ]
   );
 
   return useMemo(

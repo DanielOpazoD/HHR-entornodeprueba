@@ -79,16 +79,17 @@ export const applyCrossDayDiff = (
     if (seen.has(id) || (rut && seenRuts.has(rut))) continue; // already recorded (by id or by patient)
     seen.add(id);
     if (rut) seenRuts.add(rut);
+    const movementContext: ResolvedApplyContext = { ...ctx, idFactory: () => id };
 
     if (entry.kind === 'cma') {
-      const record = buildCma(patient, entry, ctx);
-      cma.push({ ...record, id, dischargeTime: entry.correctedTime || record.dischargeTime });
+      const record = buildCma(patient, entry, movementContext);
+      cma.push({ ...record, dischargeTime: entry.correctedTime || record.dischargeTime });
     } else if (entry.kind === 'traslado') {
-      const record = buildTransfer(patient, entry, targetRecord, ctx);
-      transfers.push({ ...record, id, time: entry.correctedTime || record.time });
+      const record = buildTransfer(patient, entry, targetRecord, movementContext);
+      transfers.push({ ...record, time: entry.correctedTime || record.time });
     } else {
-      const record = buildDischarge(patient, entry, targetRecord, ctx);
-      discharges.push({ ...record, id, time: entry.correctedTime || record.time });
+      const record = buildDischarge(patient, entry, targetRecord, movementContext);
+      discharges.push({ ...record, time: entry.correctedTime || record.time });
     }
     applied += 1;
   }

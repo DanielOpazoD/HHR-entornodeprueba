@@ -327,7 +327,10 @@ describe('usePatientTransfers', () => {
       })
     );
 
-    act(() => result.current.convertTransferToCma('transfer-convert'));
+    const { result: cmaResult } = renderHook(() =>
+      usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+    act(() => cmaResult.current.convertTransferToCma('transfer-convert'));
     expect(mockPatchRecord).toHaveBeenLastCalledWith(
       expect.objectContaining({
         transfers: [expect.objectContaining({ deletedReason: 'converted_to_cma' })],

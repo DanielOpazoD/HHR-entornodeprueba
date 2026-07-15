@@ -44,14 +44,14 @@ export interface ApplyContext {
   now?: Date;
   /** Attributable user and run for provenance of Gestión de Camas movements. */
   actor?: string;
-  syncRunId?: string;
+  syncRunId: string;
 }
 
 export interface ResolvedApplyContext {
   idFactory: () => string;
   now: Date;
   actor?: string;
-  syncRunId?: string;
+  syncRunId: string;
 }
 
 export interface SkippedOp {
