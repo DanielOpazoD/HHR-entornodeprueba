@@ -192,6 +192,61 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     expect(day.suspended[0]).toMatchObject({ title: 'CEFTRIAXONA 2 g', suspended: true });
   });
 
+  it('uses the current care-plan medication state as authority for suspension', () => {
+    const panel = parseClinicalPanel(
+      [
+        event({
+          patientPharmaIndicationResume: [
+            {
+              MRE_ID: 900,
+              DESCRIPTOR: 'CEFTRIAXONA 2 g',
+              PUBLISH_DATETIME: '2026-07-12T08:00:00',
+              SUSPENDED: false,
+            },
+          ],
+        }),
+      ],
+      {
+        carePlanHeaders: [],
+        medicationStates: [{ id: 900, suspended: true, archived: false }],
+      }
+    );
+
+    expect(panel.indicationDays[0].active).toHaveLength(0);
+    expect(panel.indicationDays[0].suspended[0]).toMatchObject({
+      id: '900',
+      suspended: true,
+    });
+  });
+
+  it('moves a finalized medication out of the active plan without labelling it suspended', () => {
+    const panel = parseClinicalPanel(
+      [
+        event({
+          patientPharmaIndicationResume: [
+            {
+              MRE_ID: 901,
+              DESCRIPTOR: 'AMOXICILINA 500 mg',
+              PUBLISH_DATETIME: '2026-07-12T08:00:00',
+              SUSPENDED: false,
+            },
+          ],
+        }),
+      ],
+      {
+        carePlanHeaders: [],
+        medicationStates: [{ id: 901, suspended: false, archived: false, finalized: true }],
+      }
+    );
+
+    expect(panel.indicationDays[0].active).toHaveLength(0);
+    expect(panel.indicationDays[0].suspended[0]).toMatchObject({
+      id: '901',
+      suspended: false,
+      finalized: true,
+    });
+  });
+
   it('buckets indications with an unparseable date under a "Sin fecha" day', () => {
     const panel = parseClinicalPanel([
       event({
@@ -227,5 +282,68 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     ]);
     expect(panel.evolutions).toHaveLength(0);
     expect(panel.indicationDays).toHaveLength(0);
+  });
+});
+
+describe('parseClinicalPanel — cuidados de enfermería', () => {
+  it('groups assigned-care actions by day and makes execution state explicit', () => {
+    const panel = parseClinicalPanel([], {
+      medicationStates: [],
+      carePlanHeaders: [
+        {
+          scheduledDate: '2026-07-13T00:00:00',
+          carePlanBody: [
+            {
+              entryGuid: 'care-1',
+              title: 'Cambio de posición',
+              activity: 'Cambio de posición',
+              hoursRangeActi: '08:00',
+              administrationDate: '2026-07-13T08:12:00',
+              user: 'ANA PÉREZ',
+              isPerformed: true,
+            },
+            {
+              entryGuid: 'care-2',
+              title: 'Aseo y confort',
+              isPerformedOutSidePlanning: true,
+              administrationDate: '2026-07-13T09:00:00',
+            },
+            {
+              entryGuid: 'care-3',
+              title: 'Curación',
+              doNotExecute: { reason: 'rechazo' },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(panel.careDays).toHaveLength(1);
+    expect(panel.careDays[0].label).toBe('13-07-2026');
+    expect(panel.careDays[0].actions.map(action => action.status)).toEqual([
+      'outside-plan',
+      'performed',
+      'not-performed',
+    ]);
+    expect(panel.careDays[0].actions[1]).toMatchObject({
+      title: 'Cambio de posición',
+      author: 'Ana Pérez',
+      schedule: '08:00',
+    });
+  });
+
+  it('falls back to the first valid care date instead of the first non-empty value', () => {
+    const panel = parseClinicalPanel([], {
+      medicationStates: [],
+      carePlanHeaders: [
+        {
+          scheduledDate: 'fecha-inválida',
+          labelDate: '2026-07-14T00:00:00',
+          carePlanBody: [{ entryGuid: 'care-date', title: 'Control de signos vitales' }],
+        },
+      ],
+    });
+
+    expect(panel.careDays[0]).toMatchObject({ day: '2026-07-14', label: '14-07-2026' });
   });
 });

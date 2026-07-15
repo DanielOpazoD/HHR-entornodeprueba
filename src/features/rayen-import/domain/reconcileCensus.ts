@@ -25,6 +25,8 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'admissionDate',
   'admissionTime',
   'pathology',
+  'cie10Code',
+  'cie10Description',
   'isIsolated',
 ];
 
@@ -72,6 +74,9 @@ const diffFields = (current: PatientData, incoming: PatientData): FieldChange[] 
   for (const field of SYNCABLE_FIELDS) {
     const from = current[field];
     const to = incoming[field];
+    // A failed/legacy extension lookup has no CIE-10 value. Preserve any local coding instead of
+    // treating missing bridge data as an instruction to erase it.
+    if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
     if (String(from ?? '') !== String(to ?? '')) {
       changes.push({ field, from, to });
     }

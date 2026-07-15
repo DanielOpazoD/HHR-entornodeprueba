@@ -48,6 +48,7 @@ export {
 export { parseHistoryScales } from './mapping/parseHistoryScales';
 export type {
   RayenClinicalPanelEvent,
+  RayenClinicalPanelCarePlan,
   RayenClinicalPanelResult,
 } from './bridge/clinicalPanelBridge';
 export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
@@ -64,6 +65,11 @@ export type {
   ClinicalPanelIndicationDay,
   EvolutionProfession,
 } from './mapping/parseClinicalPanel';
+export type {
+  ClinicalPanelCareAction,
+  ClinicalPanelCareActionStatus,
+  ClinicalPanelCareDay,
+} from './mapping/parseClinicalCarePlan';
 export { parseClinicalPanel } from './mapping/parseClinicalPanel';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
 export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';

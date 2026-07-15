@@ -1,11 +1,12 @@
 /**
  * ClinicalPanelDrawer — "Panel clínico" del paciente (vista Eloísa en vivo).
  *
- * Right-side drawer with two tabs, fetched ON DEMAND from Ficha Médico via the extension:
- *   - Evoluciones: split by profession (Médicas / Enfermería / Otros) with the author of every
- *     note; nursing shift-change notes file under Enfermería.
+ * Right-side drawer with three tabs, fetched ON DEMAND from Ficha Médico via the extension:
+ *   - Evoluciones: split by profession (Médico / Enfermería / Otros), with an internal handoff
+ *     view for the medical and nursing worlds.
  *   - Indicaciones: the classic daily indication sheet — one box per calendar day (régimen →
  *     reposo → fármacos → libres), suspended/archived behind a discreet per-day toggle.
+ *   - Cuidados: compact nursing actions grouped by day, with their execution state visible.
  *
  * Nothing is persisted in HHR/Firestore: it is a live read-only view, so the clinical text never
  * widens the app's data footprint. Requires the Ficha Médico tab (same requirement as the rest of
@@ -21,7 +22,7 @@ import {
   type ClinicalPanel,
   type EvolutionProfession,
 } from '@/features/rayen-import';
-import { EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
+import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 
 interface ClinicalPanelDrawerProps {
   bedId: string;
@@ -35,18 +36,19 @@ type PanelState =
   | { phase: 'error'; message: string }
   | { phase: 'ready'; panel: ClinicalPanel };
 
-type PanelTab = 'evolutions' | 'indications';
+type PanelTab = 'evolutions' | 'indications' | 'care';
+type EvolutionView = 'notes' | 'handoffs';
 
 const PROFESSION_TABS: { key: EvolutionProfession; label: string; empty: string }[] = [
-  { key: 'medical', label: 'Médicas', empty: 'Sin evoluciones médicas en los últimos 14 días.' },
+  { key: 'medical', label: 'Médico', empty: 'Sin registros médicos en los últimos 14 días.' },
   {
     key: 'nursing',
     label: 'Enfermería',
-    empty: 'Sin evoluciones de enfermería en los últimos 14 días.',
+    empty: 'Sin registros de enfermería en los últimos 14 días.',
   },
   {
     key: 'other',
-    label: 'Otros prof.',
+    label: 'Otros',
     empty: 'Sin evoluciones de otros profesionales en los últimos 14 días.',
   },
 ];
@@ -60,17 +62,20 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const [state, setState] = useState<PanelState>({ phase: 'loading' });
   const [tab, setTab] = useState<PanelTab>('evolutions');
   const [profession, setProfession] = useState<EvolutionProfession>('medical');
+  const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // The initial state is already 'loading', so the mount effect only fetches (no sync setState);
   // `reload` (refresh/retry buttons) is the one that flips back to 'loading' first.
   const load = useCallback(async () => {
     const result = await requestClinicalPanel(clinicalEpisodeId);
-    if (result.error && result.events.length === 0) {
+    // Clinical sources form one required snapshot. Never present a partial response as complete,
+    // including responses from an older extension version that may still include partial arrays.
+    if (result.error) {
       setState({ phase: 'error', message: result.error });
       return;
     }
-    setState({ phase: 'ready', panel: parseClinicalPanel(result.events) });
+    setState({ phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) });
   }, [clinicalEpisodeId]);
 
   const reload = useCallback(() => {
@@ -102,12 +107,21 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const panel = state.phase === 'ready' ? state.panel : null;
   const professionCount = (key: EvolutionProfession): number =>
     panel ? panel.evolutions.filter(e => e.profession === key).length : 0;
-  const visibleEvolutions = panel ? panel.evolutions.filter(e => e.profession === profession) : [];
+  const professionEntries = panel
+    ? panel.evolutions.filter(entry => entry.profession === profession)
+    : [];
+  const visibleEvolutions = professionEntries.filter(entry => {
+    if (profession === 'other') return true;
+    return evolutionView === 'handoffs'
+      ? entry.kind === 'shift-change'
+      : entry.kind !== 'shift-change';
+  });
 
   const tabButton = (key: PanelTab, label: string, count: number | null): React.ReactElement => (
     <button
       type="button"
       onClick={() => setTab(key)}
+      aria-label={count === null ? label : `${label} (${count})`}
       className={clsx(
         'flex-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors',
         tab === key ? 'bg-white text-medical-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -134,13 +148,13 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         aria-label={`Panel clínico de ${patientName}`}
         tabIndex={-1}
         data-testid={`clinical-panel-drawer-${bedId}`}
-        className="fixed right-0 top-0 z-[1101] flex h-full w-[430px] max-w-[92vw] flex-col border-l border-slate-200 bg-slate-50 shadow-2xl focus:outline-none"
+        className="fixed right-0 top-0 z-[1101] flex h-full w-[460px] max-w-[94vw] flex-col border-l border-slate-200 bg-slate-50 shadow-2xl focus:outline-none"
       >
         <header className="flex items-start gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[14px] font-bold text-slate-800">{patientName}</h2>
             <p className="text-[10px] text-slate-400">
-              Cama {bedId} · Panel clínico Eloísa — vista en vivo, no se guarda en HHR
+              Cama {bedId} · Eloísa en vivo · no se guarda en HHR
             </p>
           </div>
           <button
@@ -168,7 +182,17 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           {tabButton(
             'indications',
             'Indicaciones',
-            panel ? panel.indicationDays.reduce((sum, day) => sum + day.active.length, 0) : null
+            panel
+              ? panel.indicationDays.reduce(
+                  (sum, day) => sum + day.active.length + day.suspended.length,
+                  0
+                )
+              : null
+          )}
+          {tabButton(
+            'care',
+            'Cuidados',
+            panel ? panel.careDays.reduce((sum, day) => sum + day.actions.length, 0) : null
           )}
         </nav>
 
@@ -179,6 +203,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 key={p.key}
                 type="button"
                 onClick={() => setProfession(p.key)}
+                aria-label={`${p.label} (${professionCount(p.key)})`}
                 className={clsx(
                   'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
                   profession === p.key
@@ -190,6 +215,41 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 <span className="ml-1 text-[9px] font-bold opacity-60">
                   {professionCount(p.key)}
                 </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'evolutions' && state.phase === 'ready' && profession !== 'other' && (
+          <div className="flex gap-1 border-b border-slate-200 bg-white px-2 py-1">
+            {(
+              [
+                {
+                  key: 'notes' as const,
+                  label: 'Evoluciones',
+                  count: professionEntries.filter(entry => entry.kind !== 'shift-change').length,
+                },
+                {
+                  key: 'handoffs' as const,
+                  label: 'Entrega de turno',
+                  count: professionEntries.filter(entry => entry.kind === 'shift-change').length,
+                },
+              ] satisfies Array<{ key: EvolutionView; label: string; count: number }>
+            ).map(item => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setEvolutionView(item.key)}
+                aria-label={`${item.label} (${item.count})`}
+                className={clsx(
+                  'rounded px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                  evolutionView === item.key
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-500 hover:bg-slate-100'
+                )}
+              >
+                {item.label}
+                <span className="ml-1 opacity-70">{item.count}</span>
               </button>
             ))}
           </div>
@@ -219,7 +279,9 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <>
               {visibleEvolutions.length === 0 && (
                 <p className="py-10 text-center text-[12px] italic text-slate-400">
-                  {PROFESSION_TABS.find(p => p.key === profession)?.empty}
+                  {evolutionView === 'handoffs' && profession !== 'other'
+                    ? `Sin entregas de turno de ${profession === 'medical' ? 'medicina' : 'enfermería'} en los últimos 14 días.`
+                    : PROFESSION_TABS.find(p => p.key === profession)?.empty}
                 </p>
               )}
               {visibleEvolutions.map(entry => (
@@ -237,6 +299,19 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               )}
               {panel?.indicationDays.map(day => (
                 <IndicationDayCard key={day.day} day={day} />
+              ))}
+            </>
+          )}
+
+          {state.phase === 'ready' && tab === 'care' && (
+            <>
+              {panel && panel.careDays.length === 0 && (
+                <p className="py-10 text-center text-[12px] italic text-slate-400">
+                  Sin cuidados asignados registrados en el plan visible.
+                </p>
+              )}
+              {panel?.careDays.map(day => (
+                <CareDayCard key={day.day} day={day} />
               ))}
             </>
           )}

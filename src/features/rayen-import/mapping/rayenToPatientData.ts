@@ -108,6 +108,10 @@ export const rayenToPatientData = (
     age: ageFromBirthDate(encounter.birthDate, reference),
     biologicalSex: mapBiologicalSex(encounter.administrativeSex, encounter.gender),
     pathology: cleanDiagnosis(encounter.diagnosis),
+    cie10Code: encounter.diagnosisCode?.trim() || undefined,
+    cie10Description: encounter.diagnosisCode?.trim()
+      ? cleanDiagnosis(encounter.diagnosisDescription || encounter.diagnosis)
+      : undefined,
     admissionDate: toIsoDate(encounter.admissionDatetime),
     admissionTime: extractTime(encounter.admissionDatetime),
     // A synced patient defaults to "Estable"; `status` is not in SYNCABLE_FIELDS, so a re-sync

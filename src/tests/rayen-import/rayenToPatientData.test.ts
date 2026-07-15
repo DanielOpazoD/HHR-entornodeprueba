@@ -82,6 +82,31 @@ describe('rayenToPatientData', () => {
     expect(patient.isIsolated).toBe(false);
   });
 
+  it('maps the principal Ficha Medico diagnosis and its CIE-10 code', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        diagnosis: 'Neumonía bacteriana',
+        diagnosisCode: 'J15.9',
+        diagnosisDescription: 'Neumonía bacteriana, no especificada',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.pathology).toBe('Neumonía bacteriana');
+    expect(patient.cie10Code).toBe('J15.9');
+    expect(patient.cie10Description).toBe('Neumonía bacteriana, no especificada');
+  });
+
+  it('omits both CIE-10 fields when the source code contains only whitespace', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({ diagnosisCode: '   ', diagnosisDescription: 'Descripción huérfana' }),
+      REFERENCE
+    );
+
+    expect(patient.cie10Code).toBeUndefined();
+    expect(patient.cie10Description).toBeUndefined();
+  });
+
   it('maps the isolation flag from the encounter', () => {
     expect(
       rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE).patient.isIsolated

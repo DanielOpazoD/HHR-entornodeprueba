@@ -148,6 +148,39 @@ describe('reconcileCensus', () => {
     expect(diff.updates[0].changes.map(c => c.field)).toContain('pathology');
   });
 
+  it('updates principal diagnosis and CIE-10 together without erasing local coding on lookup failure', () => {
+    const coded = makeEncounter({
+      diagnosis: 'Neumonía bacteriana',
+      diagnosisCode: 'J15.9',
+      diagnosisDescription: 'Neumonía bacteriana, no especificada',
+    });
+    const [bedId, patient] = seedBed(makeEncounter());
+    const local = { ...patient, cie10Code: 'A00.0', cie10Description: 'Código local anterior' };
+
+    const codedDiff = reconcileCensus(makeRecord({ [bedId]: local }), snapshotOf([coded]), {
+      reference: REFERENCE,
+    });
+    expect(codedDiff.updates[0].changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'pathology', to: 'Neumonía bacteriana' }),
+        expect.objectContaining({ field: 'cie10Code', to: 'J15.9' }),
+        expect.objectContaining({
+          field: 'cie10Description',
+          to: 'Neumonía bacteriana, no especificada',
+        }),
+      ])
+    );
+
+    const unavailableDiff = reconcileCensus(
+      makeRecord({ [bedId]: local }),
+      snapshotOf([makeEncounter()]),
+      { reference: REFERENCE }
+    );
+    expect(
+      unavailableDiff.updates.flatMap(update => update.changes.map(change => change.field))
+    ).not.toEqual(expect.arrayContaining(['cie10Code', 'cie10Description']));
+  });
+
   it('detects a move when the Rayen bed differs from the census bed', () => {
     // Same episode currently in H2C1, Rayen now places it in H1C2.
     const [, patient] = seedBed(makeEncounter());

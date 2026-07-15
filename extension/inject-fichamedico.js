@@ -23,6 +23,7 @@
 
   let capturedAuth = null;
   let capturedListUrl = null;
+  const normalization = globalThis.HhrFichaMedicoNormalization;
 
   const rememberFromRequest = (url, authHeader) => {
     try {
@@ -76,7 +77,11 @@
   const headerUrl = (base, encId) =>
     `${base.origin}/api/encounter/patientHeaderData/${encId}/false`;
 
-  const normalizeEncounter = (item, header, discharged) => {
+  const diagnosisUrl = (base, encId) =>
+    `${base.origin}/api/encounter/entrySummary/diagnosisEntry/` +
+    `${encId}/0/2/${base.searchParams.get('healthCarePractitionerId') || '7941'}`;
+
+  const normalizeEncounter = (item, header, principalDiagnosis, discharged) => {
     const p = item.patient || {};
     const h = header || {};
     return {
@@ -93,7 +98,9 @@
       room: item.roomShortName || '',
       bed: item.bedShortName || '',
       admissionDatetime: h.encStartPeriod || item.startDatetime || '',
-      diagnosis: h.haoDiagName || item.diagnosisName || '',
+      diagnosis: principalDiagnosis.name,
+      diagnosisCode: principalDiagnosis.code || undefined,
+      diagnosisDescription: principalDiagnosis.code ? principalDiagnosis.name : undefined,
       hasMedicalDischarge: discharged || !!item.hasMedicalDischarge,
       hasNurseDischarge: !!item.hasNurseDischarge,
       dischargeDatetime: realDate(h.encEndPeriod) || realDate(item.medicalDischargeDateTime),
@@ -127,16 +134,29 @@
       ...(Array.isArray(discharged) ? discharged : []).map(item => ({ item, discharged: true })),
     ];
 
-    const encounters = [];
-    for (const { item, discharged: isDischarged } of rows) {
-      let header = null;
-      try {
-        header = await apiGet(headerUrl(base, item.id), capturedAuth);
-      } catch (_) {
-        // Fall back to the list's own patient sub-object if the header call fails.
+    // Keep a small concurrency ceiling: headers and diagnoses are independent, but the bridge
+    // should not burst dozens of requests against Ficha Medico at once.
+    const encounters = new Array(rows.length);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < rows.length) {
+        const index = cursor++;
+        const { item, discharged: isDischarged } = rows[index];
+        const [headerResult, diagnosisResult] = await Promise.allSettled([
+          apiGet(headerUrl(base, item.id), capturedAuth),
+          apiGet(diagnosisUrl(base, item.id), capturedAuth),
+        ]);
+        const header = headerResult.status === 'fulfilled' ? headerResult.value : null;
+        const diagnosisRows = diagnosisResult.status === 'fulfilled' ? diagnosisResult.value : [];
+        const principalDiagnosis = normalization.selectPrincipalDiagnosis(
+          diagnosisRows,
+          header,
+          item
+        );
+        encounters[index] = normalizeEncounter(item, header, principalDiagnosis, isDischarged);
       }
-      encounters.push(normalizeEncounter(item, header, isDischarged));
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));
 
     return {
       capturedAt: new Date().toISOString(),

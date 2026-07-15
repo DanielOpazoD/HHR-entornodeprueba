@@ -1,9 +1,8 @@
 /**
- * Bridge request for the per-patient CLINICAL PANEL (evoluciones + indicaciones), served by the
- * extension from Ficha Médico's history report (`getPatientEncounterHistoryReportServer` — the same
- * endpoint the scales history uses). The extension slims each event to a whitelist of resume fields
- * (see extension background.js); nothing is persisted in HHR — the panel is fetched on demand when
- * the drawer opens, so the clinical text never enters Firestore.
+ * Bridge request for the per-patient CLINICAL PANEL (evoluciones + indicaciones + cuidados), served
+ * by the extension from Ficha Médico's history and current care-plan endpoints. The extension slims
+ * every response to a whitelist (see extension/background.js); nothing is persisted in HHR — the
+ * panel is fetched on demand when the drawer opens, so the clinical text never enters Firestore.
  */
 
 export const RAYEN_CLINICAL_PANEL_REQUEST_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_REQUEST';
@@ -23,10 +22,22 @@ export interface RayenClinicalPanelEvent {
   restResume: unknown[];
 }
 
+/** Slim current-state payload from Ficha Medico's care-plan endpoints. */
+export interface RayenClinicalPanelCarePlan {
+  carePlanHeaders: unknown[];
+  medicationStates: unknown[];
+}
+
 export interface RayenClinicalPanelResult {
   events: RayenClinicalPanelEvent[];
+  carePlan: RayenClinicalPanelCarePlan;
   error?: string;
 }
+
+const EMPTY_CARE_PLAN: RayenClinicalPanelCarePlan = {
+  carePlanHeaders: [],
+  medicationStates: [],
+};
 
 /**
  * Ask the extension for one patient's clinical panel events. Resolves to `{ events: [] }` (with an
@@ -39,7 +50,7 @@ export const requestClinicalPanel = (
 ): Promise<RayenClinicalPanelResult> =>
   new Promise(resolve => {
     if (typeof window === 'undefined' || !encId) {
-      resolve({ events: [] });
+      resolve({ events: [], carePlan: EMPTY_CARE_PLAN });
       return;
     }
     const reqId = `clinical-panel-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
@@ -61,6 +72,17 @@ export const requestClinicalPanel = (
       cleanup();
       resolve({
         events: Array.isArray(data.events) ? (data.events as RayenClinicalPanelEvent[]) : [],
+        carePlan:
+          data.carePlan && typeof data.carePlan === 'object'
+            ? {
+                carePlanHeaders: Array.isArray(data.carePlan.carePlanHeaders)
+                  ? data.carePlan.carePlanHeaders
+                  : [],
+                medicationStates: Array.isArray(data.carePlan.medicationStates)
+                  ? data.carePlan.medicationStates
+                  : [],
+              }
+            : EMPTY_CARE_PLAN,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };
@@ -72,6 +94,10 @@ export const requestClinicalPanel = (
     );
     timeoutId = setTimeout(() => {
       cleanup();
-      resolve({ events: [], error: 'Tiempo de espera agotado bajando el panel clínico.' });
+      resolve({
+        events: [],
+        carePlan: EMPTY_CARE_PLAN,
+        error: 'Tiempo de espera agotado bajando el panel clínico.',
+      });
     }, timeoutMs);
   });

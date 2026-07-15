@@ -1,6 +1,6 @@
 /**
- * Parser for the per-patient CLINICAL PANEL (evoluciones + indicaciones) from Ficha Médico's
- * history-report events (relayed slimmed by the extension — see `clinicalPanelBridge`).
+ * Parser for the per-patient CLINICAL PANEL (evoluciones + indicaciones + cuidados) from Ficha
+ * Médico's history and current care-plan events (relayed slimmed by the extension).
  *
  * Pure: raw events in → ready-to-render structures out:
  *   - `evolutions` → medical evolutions (`evolutionResume`) + nursing shift-change notes
@@ -11,13 +11,19 @@
  *     first) listing that day's indications in clinical order (régimen → reposo → fármacos →
  *     libres), with suspended/archived ones split out so the drawer can tuck them behind a
  *     discreet toggle.
+ *   - `careDays` → nursing care actions with performed, pending, omitted, suspended and
+ *     outside-planning states.
  *
  * Within a day, pharma/free entries are deduped by their stable id (MRE_ID / AMRE_ID) keeping the
  * LATEST publication (its flags reflect the current state); diet/rest have no stable id, so they
  * dedupe by their text. Nothing here is persisted: the panel is a live, on-demand view.
  */
 
-import type { RayenClinicalPanelEvent } from '../bridge/clinicalPanelBridge';
+import type {
+  RayenClinicalPanelCarePlan,
+  RayenClinicalPanelEvent,
+} from '../bridge/clinicalPanelBridge';
+import { parseClinicalCareDays, type ClinicalPanelCareDay } from './parseClinicalCarePlan';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelEntryKind =
@@ -49,7 +55,9 @@ export interface ClinicalPanelEntry {
   archived: boolean;
   /** Pharma/free indications only: explicitly suspended in Ficha Médico. */
   suspended: boolean;
-  /** Pharma/free indications only: flagged as new by Ficha Médico. */
+  /** Pharma only: course explicitly completed in the current medication plan. */
+  finalized?: boolean;
+  /** Pharma/free indications only: source flag retained for compatibility; not shown in the UI. */
   isNew: boolean;
   /** Evolutions only: struck-through (annulled) note. */
   crossedOut: boolean;
@@ -68,6 +76,7 @@ export interface ClinicalPanelIndicationDay {
 export interface ClinicalPanel {
   evolutions: ClinicalPanelEntry[];
   indicationDays: ClinicalPanelIndicationDay[];
+  careDays: ClinicalPanelCareDay[];
 }
 
 type RawRow = Record<string, unknown>;
@@ -176,15 +185,21 @@ const buildIndicationDays = (entries: ClinicalPanelEntry[]): ClinicalPanelIndica
       return {
         day,
         label: dayLabel(day),
-        active: all.filter(e => !e.suspended && !e.archived),
-        suspended: all.filter(e => e.suspended || e.archived),
+        active: all.filter(e => !e.suspended && !e.archived && !e.finalized),
+        suspended: all.filter(e => e.suspended || e.archived || e.finalized),
       };
     });
 };
 
-export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalPanel => {
+export const parseClinicalPanel = (
+  events: RayenClinicalPanelEvent[],
+  carePlan: RayenClinicalPanelCarePlan = { carePlanHeaders: [], medicationStates: [] }
+): ClinicalPanel => {
   const evolutions: ClinicalPanelEntry[] = [];
   const indications: ClinicalPanelEntry[] = [];
+  const medicationStates = new Map(
+    rows(carePlan.medicationStates).map(row => [str(row.id), row] as const)
+  );
   let seq = 0;
 
   for (const event of Array.isArray(events) ? events : []) {
@@ -236,6 +251,7 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
+      const currentState = medicationStates.get(str(r.MRE_ID));
       indications.push({
         id: str(r.MRE_ID) || `pharma-${seq++}`,
         kind: 'pharma',
@@ -248,8 +264,9 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
         author: toTitleCaseName(str(r.HCP_NAME)),
         role: roleLabel(r.HCP_ROLE),
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
-        archived: flag(r.ARCHIVED),
-        suspended: flag(r.SUSPENDED),
+        archived: currentState ? flag(currentState.archived) : flag(r.ARCHIVED),
+        suspended: currentState ? flag(currentState.suspended) : flag(r.SUSPENDED),
+        finalized: currentState ? flag(currentState.finalized) : false,
         isNew: flag(r.IS_NEW),
         crossedOut: false,
       });
@@ -313,5 +330,6 @@ export const parseClinicalPanel = (events: RayenClinicalPanelEvent[]): ClinicalP
   return {
     evolutions: evolutions.sort(byNewestFirst),
     indicationDays: buildIndicationDays(indications),
+    careDays: parseClinicalCareDays(carePlan.carePlanHeaders),
   };
 };
