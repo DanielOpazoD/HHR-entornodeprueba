@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build:rules-assets": "node scripts/build-rules-assets.mjs",
+    "check:rayen-extension-release": "node scripts/check-rayen-extension-release.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

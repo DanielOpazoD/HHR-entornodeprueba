@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.7.0",
-  "description": "Lee el censo de hospitalizados de Rayen (Ficha Médico) y lo entrega al censo local HHR para importarlo con revisión.",
-  "permissions": ["tabs", "downloads"],
+  "version": "0.21.3",
+  "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
+  "permissions": ["tabs", "downloads", "storage"],
   "host_permissions": [
     "https://fichamedico.rayensalud.cl/*",
     "https://fichamedicoback.rayensalud.cl/*",
+    "https://formulariosclinicosback.rayensalud.cl/*",
     "https://hospitalizado.rayensalud.cl/*",
     "https://hospbackend.rayensalud.cl/*",
     "http://localhost/*",
@@ -15,6 +16,12 @@
   "background": {
     "service_worker": "background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["hhr-logo.svg"],
+      "matches": ["https://fichamedico.rayensalud.cl/*"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
@@ -24,7 +31,7 @@
     },
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
-      "js": ["content-fichamedico.js"],
+      "js": ["prescription-print.js", "content-fichamedico.js", "content-prescription-print.js"],
       "run_at": "document_start"
     },
     {
