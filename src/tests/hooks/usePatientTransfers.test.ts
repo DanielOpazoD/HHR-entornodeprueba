@@ -39,6 +39,7 @@ describe('usePatientTransfers', () => {
     vi.mocked(useAuditContext).mockReturnValue({
       logEvent: mockLogEvent,
       logPatientTransfer: mockLogPatientTransfer,
+      userId: 'auditor@hospital.cl',
     } as unknown as ReturnType<typeof useAuditContext>);
     mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
     mockPatchRecord = vi.fn().mockResolvedValue(undefined) as ApplyDailyRecordPatch;
@@ -282,7 +283,7 @@ describe('usePatientTransfers', () => {
     expect(mockSaveAndUpdate).not.toHaveBeenCalled();
   });
 
-  it('converts a transfer to home discharge or CMA through atomic movement patches', () => {
+  it('converts a transfer to home discharge or CMA through atomic movement patches', async () => {
     const transfer = {
       id: 'transfer-convert',
       bedId: 'R2',
@@ -313,24 +314,47 @@ describe('usePatientTransfers', () => {
         transfers: [expect.objectContaining({ deletedReason: 'converted_to_discharge' })],
         discharges: [
           expect.objectContaining({
+            id: 'reclassified:transfer-convert:discharge',
             dischargeType: 'Domicilio (Habitual)',
             clinicalEpisodeId: 'episode-transfer',
+            movementProvenance: expect.objectContaining({
+              source: 'reclassified',
+              previousMovementId: 'transfer-convert',
+              classifiedBy: 'auditor@hospital.cl',
+            }),
           }),
         ],
       })
     );
 
-    act(() => result.current.convertTransferToCma('transfer-convert'));
+    const { result: cmaResult } = renderHook(() =>
+      usePatientTransfers(recordWithTransfer, mockSaveAndUpdate, undefined, mockPatchRecord)
+    );
+    act(() => cmaResult.current.convertTransferToCma('transfer-convert'));
     expect(mockPatchRecord).toHaveBeenLastCalledWith(
       expect.objectContaining({
         transfers: [expect.objectContaining({ deletedReason: 'converted_to_cma' })],
         cma: [
           expect.objectContaining({
+            id: 'reclassified:transfer-convert:cma',
             interventionType: 'Cirugía Mayor Ambulatoria',
             clinicalEpisodeId: 'episode-transfer',
           }),
         ],
       })
+    );
+    await waitFor(() =>
+      expect(mockLogEvent).toHaveBeenCalledWith(
+        'PATIENT_DISCHARGE_RECLASSIFIED',
+        'patient',
+        expect.stringMatching(/^reclassified:transfer-convert:/),
+        expect.objectContaining({
+          from: 'Traslado',
+          lineageId: 'transfer-convert',
+        }),
+        '22-2',
+        '2024-12-28'
+      )
     );
   });
 

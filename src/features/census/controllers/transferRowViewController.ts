@@ -27,6 +27,7 @@ export const resolveTransferRowViewModel = (
   diagnosis: item.diagnosis,
   movementDate: item.movementDate,
   movementTime: item.time,
+  movementProvenance: item.movementProvenance,
   evacuationMethodLabel: item.evacuationMethod,
   receivingCenterLabel: getTransferCenterLabel(item),
   transferEscortLabel: getTransferEscortLabel(item),

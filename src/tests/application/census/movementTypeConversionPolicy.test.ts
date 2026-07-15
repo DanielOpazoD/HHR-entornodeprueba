@@ -7,6 +7,7 @@ import {
   convertDischargeToTransferRecord,
   convertTransferToCmaRecord,
   convertTransferToHomeDischargeRecord,
+  selectMovementReclassificationSummary,
 } from '@/application/census/movementTypeConversionPolicy';
 import {
   getActiveCma,
@@ -14,6 +15,11 @@ import {
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
+
+const RECLASSIFICATION_CONTEXT = {
+  actor: 'enfermera@hospital.cl',
+  at: '2026-05-14T18:30:00.000Z',
+};
 
 describe('movementTypeConversionPolicy', () => {
   it('converts an active home discharge into CMA while tombstoning the original movement', () => {
@@ -44,7 +50,12 @@ describe('movementTypeConversionPolicy', () => {
       cma: [],
     });
 
-    const updated = convertDischargeToCmaRecord(record, 'd-1', () => 'cma-new');
+    const updated = convertDischargeToCmaRecord(
+      record,
+      'd-1',
+      () => 'cma-new',
+      RECLASSIFICATION_CONTEXT
+    );
 
     expect(getActiveDischarges(updated.discharges)).toEqual([]);
     expect(updated.discharges[0]).toEqual(
@@ -52,7 +63,7 @@ describe('movementTypeConversionPolicy', () => {
     );
     expect(getActiveCma(updated.cma)).toEqual([
       expect.objectContaining({
-        id: 'cma-new',
+        id: 'reclassified:d-1:cma',
         patientName: 'Paciente Uno',
         rut: '11.111.111-1',
         age: '46',
@@ -62,6 +73,14 @@ describe('movementTypeConversionPolicy', () => {
         dischargeTime: '12:45',
         clinicalEpisodeId: 'episode-1',
         originalData,
+        movementProvenance: {
+          source: 'reclassified',
+          lineageId: 'd-1',
+          classifiedAt: RECLASSIFICATION_CONTEXT.at,
+          classifiedBy: RECLASSIFICATION_CONTEXT.actor,
+          previousMovementId: 'd-1',
+          previousClassification: 'discharge',
+        },
       }),
     ]);
   });
@@ -114,13 +133,18 @@ describe('movementTypeConversionPolicy', () => {
       transfers: [],
     });
 
-    const updated = convertDischargeToTransferRecord(record, 'd-transfer', () => 't-new');
+    const updated = convertDischargeToTransferRecord(
+      record,
+      'd-transfer',
+      () => 't-new',
+      RECLASSIFICATION_CONTEXT
+    );
 
     expect(updated.beds).toEqual({});
     expect(getActiveDischarges(updated.discharges)).toEqual([]);
     expect(getActiveTransfers(updated.transfers)).toEqual([
       expect.objectContaining({
-        id: 't-new',
+        id: 'reclassified:d-transfer:transfer',
         bedId: 'R1',
         time: '14:20',
         evacuationMethod: '',
@@ -153,7 +177,12 @@ describe('movementTypeConversionPolicy', () => {
       ],
     });
 
-    const updated = convertCmaToHomeDischargeRecord(record, 'cma-1', () => 'd-new');
+    const updated = convertCmaToHomeDischargeRecord(
+      record,
+      'cma-1',
+      () => 'd-new',
+      RECLASSIFICATION_CONTEXT
+    );
 
     expect(getActiveCma(updated.cma)).toEqual([]);
     expect(updated.cma[0]).toEqual(
@@ -161,7 +190,7 @@ describe('movementTypeConversionPolicy', () => {
     );
     expect(getActiveDischarges(updated.discharges)).toEqual([
       expect.objectContaining({
-        id: 'd-new',
+        id: 'reclassified:cma-1:discharge',
         patientName: 'Paciente Dos',
         rut: '22.222.222-2',
         age: '55',
@@ -193,12 +222,17 @@ describe('movementTypeConversionPolicy', () => {
       transfers: [],
     });
 
-    const updated = convertCmaToTransferRecord(record, 'cma-transfer', () => 't-from-cma');
+    const updated = convertCmaToTransferRecord(
+      record,
+      'cma-transfer',
+      () => 't-from-cma',
+      RECLASSIFICATION_CONTEXT
+    );
 
     expect(getActiveCma(updated.cma)).toEqual([]);
     expect(getActiveTransfers(updated.transfers)).toEqual([
       expect.objectContaining({
-        id: 't-from-cma',
+        id: 'reclassified:cma-transfer:transfer',
         bedId: 'R2',
         time: '16:30',
         clinicalEpisodeId: 'episode-cma-transfer',
@@ -245,26 +279,111 @@ describe('movementTypeConversionPolicy', () => {
       cma: [],
     });
 
-    const asHome = convertTransferToHomeDischargeRecord(record, 't-source', () => 'd-home');
+    const asHome = convertTransferToHomeDischargeRecord(
+      record,
+      't-source',
+      () => 'd-home',
+      RECLASSIFICATION_CONTEXT
+    );
     expect(getActiveTransfers(asHome.transfers)).toEqual([]);
     expect(getActiveDischarges(asHome.discharges)).toEqual([
       expect.objectContaining({
-        id: 'd-home',
+        id: 'reclassified:t-source:discharge',
         dischargeType: 'Domicilio (Habitual)',
         time: '18:00',
         clinicalEpisodeId: 'episode-from-transfer',
       }),
     ]);
 
-    const asCma = convertTransferToCmaRecord(record, 't-source', () => 'cma-from-transfer');
+    const asCma = convertTransferToCmaRecord(
+      record,
+      't-source',
+      () => 'cma-from-transfer',
+      RECLASSIFICATION_CONTEXT
+    );
     expect(getActiveTransfers(asCma.transfers)).toEqual([]);
     expect(getActiveCma(asCma.cma)).toEqual([
       expect.objectContaining({
-        id: 'cma-from-transfer',
+        id: 'reclassified:t-source:cma',
         originalBedId: 'H1C1',
         dischargeTime: '18:00',
         clinicalEpisodeId: 'episode-from-transfer',
       }),
     ]);
+  });
+
+  it('preserves the Eloísa lineage and produces an attributable reclassification summary', () => {
+    const discharge = DataFactory.createMockDischarge({
+      id: 'rayen-discharge',
+      status: 'Vivo',
+      dischargeType: 'Domicilio (Habitual)',
+      movementProvenance: {
+        source: 'gestion_camas',
+        lineageId: 'rayen-discharge',
+        classifiedAt: '2026-05-14T16:00:00.000Z',
+        classifiedBy: 'Eloísa',
+        syncRunId: 'sync-run-1',
+      },
+    });
+    const record = DataFactory.createMockDailyRecord('2026-05-14', {
+      discharges: [discharge],
+      transfers: [],
+    });
+
+    const updated = convertDischargeToTransferRecord(
+      record,
+      discharge.id,
+      () => 'unused',
+      RECLASSIFICATION_CONTEXT
+    );
+
+    expect(getActiveTransfers(updated.transfers)[0]?.movementProvenance).toEqual(
+      expect.objectContaining({
+        source: 'reclassified',
+        lineageId: 'rayen-discharge',
+        syncRunId: 'sync-run-1',
+        previousMovementId: 'rayen-discharge',
+        previousClassification: 'discharge',
+      })
+    );
+    expect(selectMovementReclassificationSummary(updated, discharge.id)).toEqual({
+      movementId: 'reclassified:rayen-discharge:transfer',
+      previousMovementId: 'rayen-discharge',
+      patientName: discharge.patientName,
+      rut: discharge.rut,
+      from: 'Alta domicilio',
+      to: 'Traslado',
+      lineageId: 'rayen-discharge',
+      clinicalEpisodeId: discharge.clinicalEpisodeId,
+    });
+  });
+
+  it('uses a deterministic target id so a concurrent retry cannot append the same conversion twice', () => {
+    const discharge = DataFactory.createMockDischarge({
+      id: 'concurrent-discharge',
+      status: 'Vivo',
+      dischargeType: 'Domicilio (Habitual)',
+    });
+    const record = DataFactory.createMockDailyRecord('2026-05-14', {
+      discharges: [discharge],
+      cma: [],
+    });
+    const first = convertDischargeToCmaRecord(
+      record,
+      discharge.id,
+      () => 'random-1',
+      RECLASSIFICATION_CONTEXT
+    );
+    const retryBase = { ...record, cma: first.cma };
+
+    const retried = convertDischargeToCmaRecord(
+      retryBase,
+      discharge.id,
+      () => 'random-2',
+      RECLASSIFICATION_CONTEXT
+    );
+
+    expect(getActiveCma(retried.cma)).toHaveLength(1);
+    expect(getActiveCma(retried.cma)[0]?.id).toBe('reclassified:concurrent-discharge:cma');
   });
 });

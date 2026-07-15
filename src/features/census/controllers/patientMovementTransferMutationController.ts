@@ -7,6 +7,10 @@ import {
   clonePatientSnapshot,
 } from '@/features/census/controllers/patientMovementCreationSharedController';
 import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import {
+  buildMovementProvenance,
+  type MovementProvenanceSeed,
+} from '@/application/census/movementProvenancePolicy';
 
 interface BuildTransferEntriesParams {
   patient: PatientData;
@@ -15,6 +19,7 @@ interface BuildTransferEntriesParams {
   payload: TransferCommandPayload;
   resolvedMovementDate: string;
   createId: () => string;
+  provenance?: MovementProvenanceSeed;
 }
 
 export const buildTransferEntries = ({
@@ -24,6 +29,7 @@ export const buildTransferEntries = ({
   payload,
   resolvedMovementDate,
   createId,
+  provenance,
 }: BuildTransferEntriesParams): TransferData[] => {
   const {
     evacuationMethod: method,
@@ -34,9 +40,10 @@ export const buildTransferEntries = ({
   } = payload;
   const patientWithEpisodeId = ensurePatientClinicalEpisodeId(patient);
 
+  const primaryMovementId = createId();
   const transfers: TransferData[] = [
     {
-      id: createId(),
+      id: primaryMovementId,
       movementDate: resolvedMovementDate,
       admissionDate: patientWithEpisodeId.admissionDate,
       clinicalEpisodeId: patientWithEpisodeId.clinicalEpisodeId,
@@ -58,13 +65,17 @@ export const buildTransferEntries = ({
       isRapanui: patientWithEpisodeId.isRapanui,
       originalData: clonePatientSnapshot(patientWithEpisodeId),
       isNested: false,
+      movementProvenance: provenance
+        ? buildMovementProvenance({ movementId: primaryMovementId, ...provenance })
+        : undefined,
     },
   ];
 
   if (patient.clinicalCrib?.patientName) {
     const cribWithEpisodeId = ensurePatientClinicalEpisodeId(patient.clinicalCrib);
+    const cribMovementId = createId();
     transfers.push({
-      id: createId(),
+      id: cribMovementId,
       movementDate: resolvedMovementDate,
       admissionDate: cribWithEpisodeId.admissionDate,
       clinicalEpisodeId: cribWithEpisodeId.clinicalEpisodeId,
@@ -86,6 +97,9 @@ export const buildTransferEntries = ({
       isRapanui: patient.isRapanui,
       originalData: clonePatientSnapshot(cribWithEpisodeId),
       isNested: true,
+      movementProvenance: provenance
+        ? buildMovementProvenance({ movementId: cribMovementId, ...provenance })
+        : undefined,
     });
   }
 

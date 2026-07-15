@@ -79,18 +79,30 @@ export const useRayenImport = () => {
   // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
   const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
-  const { startRun, applyRunToRecord, persistAppliedRun, completeRun, failRun, cancelRun } =
-    useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
+  const {
+    startRun,
+    ensureRun,
+    applyRunToRecord,
+    persistAppliedRun,
+    completeRun,
+    failRun,
+    cancelRun,
+  } = useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
 
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
-      const result = applyCensusImportDiff(record, diff, { idFactory: makeId });
+      const run = ensureRun();
+      const result = applyCensusImportDiff(record, diff, {
+        idFactory: makeId,
+        actor: run.by,
+        syncRunId: run.id,
+      });
       // Stamp the applied run + aggregate-only history atomically with the full census save.
       const stamped = applyRunToRecord(result.record, diff).record;
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
     },
-    [applyRunToRecord, saveDailyRecord]
+    [applyRunToRecord, ensureRun, saveDailyRecord]
   );
 
   const finishSyncing = useCallback(() => {
@@ -296,13 +308,15 @@ export const useRayenImport = () => {
         // below is about to vacate. Filing first means a transient failure here leaves today untouched,
         // so the whole confirm() is safely retriable.
         if (applyPreviousDays) {
+          const run = ensureRun();
           await fileCrossDayCorrections(
             dailyRecord,
             base,
             diff,
             toIsoReportDate(base),
             isAdmin,
-            makeId
+            makeId,
+            { actor: run.by, syncRunId: run.id }
           );
         }
         let result: ApplyResult;
@@ -331,7 +345,16 @@ export const useRayenImport = () => {
         }));
       }
     },
-    [currentRecord, state.diff, applyDiff, fillDevicesInBackground, dailyRecord, isAdmin, failRun]
+    [
+      currentRecord,
+      state.diff,
+      applyDiff,
+      fillDevicesInBackground,
+      dailyRecord,
+      isAdmin,
+      ensureRun,
+      failRun,
+    ]
   );
 
   const cancel = useCallback(() => {

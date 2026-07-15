@@ -83,6 +83,93 @@ describe('zod daily record schemas', () => {
       expect(record.cma[0]?.specialty).toBe('Urología');
     });
 
+    it('validates and preserves movement provenance across a daily-record reload', () => {
+      const record = DailyRecordSchema.parse({
+        date: '2026-07-14',
+        discharges: [
+          {
+            id: 'alta-1',
+            movementProvenance: {
+              source: 'gestion_camas',
+              lineageId: 'alta-1',
+              classifiedAt: '2026-07-14T15:30:00.000Z',
+              classifiedBy: 'operador@hospital.cl',
+              syncRunId: 'run-egresos-1',
+            },
+          },
+        ],
+      });
+
+      expect(record.discharges[0]?.movementProvenance).toEqual({
+        source: 'gestion_camas',
+        lineageId: 'alta-1',
+        classifiedAt: '2026-07-14T15:30:00.000Z',
+        classifiedBy: 'operador@hospital.cl',
+        syncRunId: 'run-egresos-1',
+      });
+    });
+
+    it.each([
+      [
+        'unknown source',
+        {
+          source: 'desconocido',
+          lineageId: 'alta-1',
+          classifiedAt: '2026-07-14T15:30:00.000Z',
+        },
+      ],
+      [
+        'empty lineage',
+        {
+          source: 'manual',
+          lineageId: '',
+          classifiedAt: '2026-07-14T15:30:00.000Z',
+        },
+      ],
+      [
+        'empty classification timestamp',
+        { source: 'manual', lineageId: 'alta-1', classifiedAt: '' },
+      ],
+      [
+        'Gestion de Camas without a synchronization run',
+        {
+          source: 'gestion_camas',
+          lineageId: 'alta-1',
+          classifiedAt: '2026-07-14T15:30:00.000Z',
+        },
+      ],
+      [
+        'reclassification without its predecessor movement',
+        {
+          source: 'reclassified',
+          lineageId: 'alta-1',
+          classifiedAt: '2026-07-14T15:30:00.000Z',
+          previousClassification: 'discharge',
+        },
+      ],
+      [
+        'reclassification without its predecessor classification',
+        {
+          source: 'reclassified',
+          lineageId: 'alta-1',
+          classifiedAt: '2026-07-14T15:30:00.000Z',
+          previousMovementId: 'alta-previous',
+        },
+      ],
+    ])('rejects movement provenance with %s', (_caseName, movementProvenance) => {
+      expect(() =>
+        DailyRecordSchema.parse({
+          date: '2026-07-14',
+          discharges: [
+            {
+              id: 'alta-invalida',
+              movementProvenance,
+            },
+          ],
+        })
+      ).toThrow();
+    });
+
     it('should parse handoff checklists', () => {
       const record = DailyRecordSchema.parse({
         date: '2026-01-15',

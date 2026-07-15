@@ -11,6 +11,7 @@ import {
 import { buildCmaClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
 import { resolveCmaUndoButtonTitle } from '@/features/census/controllers/censusCmaTableController';
 import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
+import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 
 const LazyIEEHFormDialog = lazy(() =>
   import('@/features/census/components/IEEHFormDialog').then(module => ({
@@ -148,13 +149,16 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             <span className="text-xs text-slate-600">{item.specialty || '-'}</span>
           </td>
           <td className="p-2 text-center">
-            <input
-              type="time"
-              step="300"
-              className="text-xs font-medium text-slate-600 bg-green-50 px-2 py-1 rounded border border-green-200 w-20 text-center"
-              value={item.dischargeTime || ''}
-              onChange={event => onUpdate(item.id, { dischargeTime: event.target.value })}
-            />
+            <div className="flex flex-col items-center">
+              <input
+                type="time"
+                step="300"
+                className="w-20 rounded border border-green-200 bg-green-50 px-2 py-1 text-center text-xs font-medium text-slate-600"
+                value={item.dischargeTime || ''}
+                onChange={event => onUpdate(item.id, { dischargeTime: event.target.value })}
+              />
+              <MovementProvenanceBadge provenance={item.movementProvenance} />
+            </div>
           </td>
           <td className="p-2 text-right print:hidden">
             <div className="flex items-center justify-end gap-1">

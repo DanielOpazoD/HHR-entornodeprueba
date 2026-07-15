@@ -9,6 +9,16 @@ interface DischargeDiagnosisChangeAuditDetailsInput {
   clinicalEpisodeId?: string;
 }
 
+interface DischargeReclassificationAuditDetailsInput {
+  patientName: string;
+  movementId: string;
+  previousMovementId: string;
+  from: string;
+  to: string;
+  lineageId: string;
+  clinicalEpisodeId?: string;
+}
+
 interface BedMovementAuditDetailsInput {
   movementKind: Extract<PatientMovementKind, 'move' | 'copy'>;
   patientName: string;
@@ -64,6 +74,17 @@ export interface DischargeDiagnosisChangeAuditDetails extends Record<string, unk
       new: string;
     };
   };
+}
+
+export interface DischargeReclassificationAuditDetails extends Record<string, unknown> {
+  clinicalEvent: string;
+  patientName: string;
+  movementId: string;
+  previousMovementId: string;
+  from: string;
+  to: string;
+  lineageId: string;
+  clinicalEpisodeId?: string;
 }
 
 export interface PatientDischargedAuditDetails extends Record<string, unknown> {
@@ -167,6 +188,25 @@ export const buildDischargeDiagnosisChangeAuditDetails = ({
       new: nextDiagnosis || '',
     },
   },
+});
+
+export const buildDischargeReclassificationAuditDetails = ({
+  patientName,
+  movementId,
+  previousMovementId,
+  from,
+  to,
+  lineageId,
+  clinicalEpisodeId,
+}: DischargeReclassificationAuditDetailsInput): DischargeReclassificationAuditDetails => ({
+  clinicalEvent: 'Reclasificación de egreso',
+  patientName,
+  movementId,
+  previousMovementId,
+  from,
+  to,
+  lineageId,
+  clinicalEpisodeId,
 });
 
 export const buildPatientMovementSummary = (

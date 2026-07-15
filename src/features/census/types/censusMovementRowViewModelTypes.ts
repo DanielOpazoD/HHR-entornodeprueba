@@ -1,4 +1,5 @@
 import type { CensusMovementActionDescriptor } from '@/features/census/types/censusMovementActionTypes';
+import type { MovementProvenance } from '@/types/domain/movements';
 
 export interface CensusMovementRowBaseViewModel {
   id: string;
@@ -9,6 +10,7 @@ export interface CensusMovementRowBaseViewModel {
   diagnosis: string;
   movementDate?: string;
   movementTime?: string;
+  movementProvenance?: MovementProvenance;
   actions: CensusMovementActionDescriptor[];
 }
 

@@ -53,6 +53,7 @@ export const actionIcons: Record<AuditAction, React.ReactNode> = {
   PATIENT_BED_CHANGED: React.createElement(GitBranch, { size: 14 }),
   PATIENT_DIAGNOSIS_CHANGED: React.createElement(Stethoscope, { size: 14 }),
   PATIENT_DISCHARGE_DIAGNOSIS_CHANGED: React.createElement(Stethoscope, { size: 14 }),
+  PATIENT_DISCHARGE_RECLASSIFIED: React.createElement(GitBranch, { size: 14 }),
   PATIENT_CLEARED: React.createElement(Trash2, { size: 14 }),
   DAILY_RECORD_DELETED: React.createElement(Trash2, { size: 14 }),
   DAILY_RECORD_CREATED: React.createElement(FileText, { size: 14 }),
@@ -112,6 +113,7 @@ export const actionColors: Record<AuditAction, string> = {
   PATIENT_BED_CHANGED: 'bg-indigo-50 text-indigo-700 border-indigo-100',
   PATIENT_DIAGNOSIS_CHANGED: 'bg-sky-50 text-sky-700 border-sky-100',
   PATIENT_DISCHARGE_DIAGNOSIS_CHANGED: 'bg-blue-50 text-blue-700 border-blue-100',
+  PATIENT_DISCHARGE_RECLASSIFIED: 'bg-amber-50 text-amber-700 border-amber-100',
   PATIENT_CLEARED: 'bg-slate-50 text-slate-700 border-slate-100',
   DAILY_RECORD_DELETED: 'bg-rose-50 text-rose-700 border-rose-100',
   DAILY_RECORD_CREATED: 'bg-cyan-50 text-cyan-700 border-cyan-100',
@@ -179,6 +181,8 @@ export const renderHumanDetails = (log: AuditLogEntry) => {
       return `Se actualizó el diagnóstico de ${details.patientName || 'paciente'}.`;
     case 'PATIENT_DISCHARGE_DIAGNOSIS_CHANGED':
       return `Se actualizó el diagnóstico de egreso de ${details.patientName || 'paciente'}.`;
+    case 'PATIENT_DISCHARGE_RECLASSIFIED':
+      return `Se reclasificó el egreso de ${details.patientName || 'paciente'}: ${details.from || 'origen no registrado'} → ${details.to || 'destino no registrado'}.`;
     case 'PATIENT_CLEARED':
       return `Se liberó la cama ${details.bedId || log.entityId} (Paciente: ${details.patientName || 'N/A'}).`;
     case 'DAILY_RECORD_CREATED':

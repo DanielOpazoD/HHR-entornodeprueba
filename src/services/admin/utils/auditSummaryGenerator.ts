@@ -26,6 +26,8 @@ export const generateSummary = (
       return `Alta: ${patientName} (${(details.status as string) || 'Egreso'})`;
     case 'PATIENT_TRANSFERRED':
       return `Traslado: ${patientName} → ${(details.destination as string) || 'otro centro'}`;
+    case 'PATIENT_DISCHARGE_RECLASSIFIED':
+      return `Egreso reclasificado: ${patientName} (${String(details.from || '—')} → ${String(details.to || '—')})`;
     case 'PATIENT_MODIFIED': {
       const patientMovementSummary = buildPatientMovementSummary(
         {

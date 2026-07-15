@@ -78,9 +78,17 @@ const applyRemoteRecovery = async (
   fields: string[],
   error: unknown,
   state: RemoteWriteState,
-  expectedVersion?: string
+  expectedVersion?: string,
+  allowConflictAutoMerge: boolean = true
 ): Promise<'continue' | 'return'> => {
-  const recovery = await resolveRemoteWriteRecovery(date, record, fields, error, expectedVersion);
+  const recovery = await resolveRemoteWriteRecovery(
+    date,
+    record,
+    fields,
+    error,
+    expectedVersion,
+    allowConflictAutoMerge
+  );
   if (recovery.status === 'throw') {
     applyRecoveryDecisionToState(
       state,
@@ -132,6 +140,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   releaseLocalPreOutboxHold,
   renewLocalPreOutboxHold,
   renewLocalPreOutboxHoldEveryMs,
+  allowConflictAutoMerge = true,
 }: {
   date: string;
   record: DailyRecord;
@@ -145,6 +154,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   releaseLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHoldEveryMs?: number;
+  /** Some multi-field mutations must be retried from fresh state, never union-merged. */
+  allowConflictAutoMerge?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (queueLocalBeforeRemote) {
     const outboxResult = await queueLocalBeforeRemote();
@@ -181,6 +192,14 @@ export const persistLocalAndAttemptRemoteSync = async ({
   } catch (err) {
     onRemoteFailure(err);
     await releaseLocalPreOutboxHold?.();
-    return applyRemoteRecovery(date, record, changedPaths, err, remoteState, expectedVersion);
+    return applyRemoteRecovery(
+      date,
+      record,
+      changedPaths,
+      err,
+      remoteState,
+      expectedVersion,
+      allowConflictAutoMerge
+    );
   }
 };

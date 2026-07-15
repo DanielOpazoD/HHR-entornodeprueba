@@ -6,15 +6,40 @@ import {
   getActiveTransfers,
   tombstoneMovementById,
 } from './movementTombstonePolicy';
+import {
+  buildCmaFromDischarge,
+  buildCmaFromTransfer,
+  buildDischargeFromCma,
+  buildDischargeFromTransfer,
+  buildTransferFromCma,
+  buildTransferFromDischarge,
+  DEFAULT_HOME_DISCHARGE_TYPE,
+  hasOriginalBed,
+} from './movementReclassificationBuilders';
+import type {
+  MovementCreateId,
+  MovementReclassificationContext,
+} from './movementReclassificationBuilders';
+import type { MovementClassification } from '@/types/domain/movements';
 
-type CreateId = () => string;
-type CmaWithOriginalBed = CMAData & { originalBedId: string };
+export type { MovementReclassificationContext } from './movementReclassificationBuilders';
 
-const hasOriginalBed = (item: CMAData | undefined): item is CmaWithOriginalBed =>
-  Boolean(item?.originalBedId?.trim());
+export interface MovementReclassificationSummary {
+  movementId: string;
+  previousMovementId: string;
+  patientName: string;
+  rut: string;
+  from: string;
+  to: string;
+  lineageId: string;
+  clinicalEpisodeId?: string;
+}
 
-const DEFAULT_CMA_INTERVENTION_TYPE: CMAData['interventionType'] = 'Cirugía Mayor Ambulatoria';
-const DEFAULT_HOME_DISCHARGE_TYPE: DischargeData['dischargeType'] = 'Domicilio (Habitual)';
+const CLASSIFICATION_LABEL: Record<MovementClassification, string> = {
+  discharge: 'Alta domicilio',
+  transfer: 'Traslado',
+  cma: 'CMA',
+};
 
 const findActiveDischargeById = (record: DailyRecord, id: string): DischargeData | undefined =>
   getActiveDischarges(record.discharges).find(item => item.id === id);
@@ -25,6 +50,48 @@ const findActiveCmaById = (record: DailyRecord, id: string): CMAData | undefined
 const findActiveTransferById = (record: DailyRecord, id: string): TransferData | undefined =>
   getActiveTransfers(record.transfers).find(item => item.id === id);
 
+const appendMovementOnce = <T extends { id: string }>(items: T[] | undefined, item: T): T[] => {
+  const current = items ?? [];
+  return current.some(existing => existing.id === item.id) ? current : [...current, item];
+};
+
+export const selectMovementReclassificationSummary = (
+  record: DailyRecord,
+  previousMovementId: string
+): MovementReclassificationSummary | null => {
+  const candidates: Array<{
+    movement: DischargeData | TransferData | CMAData;
+    classification: MovementClassification;
+  }> = [
+    ...(record.discharges ?? []).map(movement => ({
+      movement,
+      classification: 'discharge' as const,
+    })),
+    ...(record.transfers ?? []).map(movement => ({
+      movement,
+      classification: 'transfer' as const,
+    })),
+    ...(record.cma ?? []).map(movement => ({ movement, classification: 'cma' as const })),
+  ];
+  const target = candidates.find(
+    candidate =>
+      !candidate.movement.deletedAt &&
+      candidate.movement.movementProvenance?.previousMovementId === previousMovementId
+  );
+  const provenance = target?.movement.movementProvenance;
+  if (!target || !provenance?.previousClassification) return null;
+  return {
+    movementId: target.movement.id,
+    previousMovementId,
+    patientName: target.movement.patientName,
+    rut: target.movement.rut,
+    from: CLASSIFICATION_LABEL[provenance.previousClassification],
+    to: CLASSIFICATION_LABEL[target.classification],
+    lineageId: provenance.lineageId,
+    clinicalEpisodeId: target.movement.clinicalEpisodeId,
+  };
+};
+
 export const canReclassifyHomeDischarge = (
   discharge: Pick<DischargeData, 'status' | 'dischargeType'>
 ): boolean =>
@@ -33,160 +100,11 @@ export const canReclassifyHomeDischarge = (
 /** Backward-compatible name used by existing callers. */
 export const canConvertDischargeToCma = canReclassifyHomeDischarge;
 
-const buildCmaFromDischarge = (discharge: DischargeData, createId: CreateId): CMAData => ({
-  id: createId(),
-  bedName: discharge.bedName,
-  patientName: discharge.patientName,
-  rut: discharge.rut,
-  age: discharge.age || '',
-  birthDate: discharge.originalData?.birthDate,
-  biologicalSex: discharge.originalData?.biologicalSex,
-  insurance: (discharge.insurance || discharge.originalData?.insurance) as CMAData['insurance'],
-  admissionOrigin: discharge.originalData?.admissionOrigin,
-  admissionOriginDetails: discharge.originalData?.admissionOriginDetails,
-  origin: (discharge.origin || discharge.originalData?.origin) as CMAData['origin'],
-  isRapanui: discharge.isRapanui ?? discharge.originalData?.isRapanui,
-  diagnosis: discharge.diagnosis,
-  cie10Code: discharge.originalData?.cie10Code,
-  cie10Description: discharge.originalData?.cie10Description,
-  specialty: discharge.specialty || '',
-  interventionType: DEFAULT_CMA_INTERVENTION_TYPE,
-  dischargeTime: discharge.time,
-  timestamp: new Date().toISOString(),
-  originalBedId: discharge.bedId,
-  originalData: discharge.originalData,
-  clinicalEpisodeId: discharge.clinicalEpisodeId,
-});
-
-const buildDischargeFromCma = (
-  item: CmaWithOriginalBed,
-  record: DailyRecord,
-  createId: CreateId
-): DischargeData => ({
-  id: createId(),
-  movementDate: record.date,
-  admissionDate: item.originalData?.admissionDate,
-  clinicalEpisodeId: item.clinicalEpisodeId,
-  bedName: item.bedName,
-  bedId: item.originalBedId,
-  bedType: '',
-  patientName: item.patientName,
-  rut: item.rut,
-  diagnosis: item.diagnosis,
-  specialty: item.specialty,
-  time: item.dischargeTime || '',
-  status: 'Vivo',
-  dischargeType: DEFAULT_HOME_DISCHARGE_TYPE,
-  age: item.age,
-  insurance: item.insurance,
-  origin: item.origin,
-  isRapanui: item.isRapanui,
-  originalData: item.originalData,
-  isNested: false,
-});
-
-const buildTransferFromDischarge = (item: DischargeData, createId: CreateId): TransferData => ({
-  id: createId(),
-  movementDate: item.movementDate,
-  admissionDate: item.admissionDate,
-  clinicalEpisodeId: item.clinicalEpisodeId,
-  bedName: item.bedName,
-  bedId: item.bedId,
-  bedType: item.bedType,
-  patientName: item.patientName,
-  rut: item.rut,
-  diagnosis: item.diagnosis,
-  specialty: item.specialty,
-  time: item.time,
-  evacuationMethod: '',
-  receivingCenter: '',
-  age: item.age,
-  insurance: item.insurance,
-  origin: item.origin,
-  isRapanui: item.isRapanui,
-  originalData: item.originalData,
-  isNested: item.isNested,
-});
-
-const buildDischargeFromTransfer = (item: TransferData, createId: CreateId): DischargeData => ({
-  id: createId(),
-  movementDate: item.movementDate,
-  admissionDate: item.admissionDate,
-  clinicalEpisodeId: item.clinicalEpisodeId,
-  bedName: item.bedName,
-  bedId: item.bedId,
-  bedType: item.bedType,
-  patientName: item.patientName,
-  rut: item.rut,
-  diagnosis: item.diagnosis,
-  specialty: item.specialty,
-  time: item.time,
-  status: 'Vivo',
-  dischargeType: DEFAULT_HOME_DISCHARGE_TYPE,
-  age: item.age,
-  insurance: item.insurance,
-  origin: item.origin,
-  isRapanui: item.isRapanui,
-  originalData: item.originalData,
-  isNested: item.isNested,
-});
-
-const buildCmaFromTransfer = (item: TransferData, createId: CreateId): CMAData => ({
-  id: createId(),
-  bedName: item.bedName,
-  patientName: item.patientName,
-  rut: item.rut,
-  age: item.age || '',
-  birthDate: item.originalData?.birthDate,
-  biologicalSex: item.originalData?.biologicalSex,
-  insurance: (item.insurance || item.originalData?.insurance) as CMAData['insurance'],
-  admissionOrigin: item.originalData?.admissionOrigin,
-  admissionOriginDetails: item.originalData?.admissionOriginDetails,
-  origin: (item.origin || item.originalData?.origin) as CMAData['origin'],
-  isRapanui: item.isRapanui ?? item.originalData?.isRapanui,
-  diagnosis: item.diagnosis,
-  cie10Code: item.originalData?.cie10Code,
-  cie10Description: item.originalData?.cie10Description,
-  specialty: item.specialty || '',
-  interventionType: DEFAULT_CMA_INTERVENTION_TYPE,
-  dischargeTime: item.time,
-  timestamp: new Date().toISOString(),
-  originalBedId: item.bedId,
-  originalData: item.originalData,
-  clinicalEpisodeId: item.clinicalEpisodeId,
-});
-
-const buildTransferFromCma = (
-  item: CmaWithOriginalBed,
-  record: DailyRecord,
-  createId: CreateId
-): TransferData => ({
-  id: createId(),
-  movementDate: record.date,
-  admissionDate: item.originalData?.admissionDate,
-  clinicalEpisodeId: item.clinicalEpisodeId,
-  bedName: item.bedName,
-  bedId: item.originalBedId,
-  bedType: '',
-  patientName: item.patientName,
-  rut: item.rut,
-  diagnosis: item.diagnosis,
-  specialty: item.specialty,
-  time: item.dischargeTime || '',
-  evacuationMethod: '',
-  receivingCenter: '',
-  age: item.age,
-  insurance: item.insurance,
-  origin: item.origin,
-  isRapanui: item.isRapanui,
-  originalData: item.originalData,
-  isNested: false,
-});
-
 export const convertDischargeToCmaRecord = (
   record: DailyRecord,
   dischargeId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const discharge = findActiveDischargeById(record, dischargeId);
   if (!discharge || !canReclassifyHomeDischarge(discharge)) {
@@ -197,15 +115,17 @@ export const convertDischargeToCmaRecord = (
     ...record,
     discharges: tombstoneMovementById(record.discharges, dischargeId, {
       deletedReason: 'converted_to_cma',
+      deletedBy: context?.actor,
     }),
-    cma: [...(record.cma || []), buildCmaFromDischarge(discharge, createId)],
+    cma: appendMovementOnce(record.cma, buildCmaFromDischarge(discharge, createId, context)),
   };
 };
 
 export const convertDischargeToTransferRecord = (
   record: DailyRecord,
   dischargeId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const discharge = findActiveDischargeById(record, dischargeId);
   if (!discharge || !canReclassifyHomeDischarge(discharge)) return record;
@@ -214,15 +134,20 @@ export const convertDischargeToTransferRecord = (
     ...record,
     discharges: tombstoneMovementById(record.discharges, dischargeId, {
       deletedReason: 'converted_to_transfer',
+      deletedBy: context?.actor,
     }),
-    transfers: [...(record.transfers || []), buildTransferFromDischarge(discharge, createId)],
+    transfers: appendMovementOnce(
+      record.transfers,
+      buildTransferFromDischarge(discharge, createId, context)
+    ),
   };
 };
 
 export const convertCmaToHomeDischargeRecord = (
   record: DailyRecord,
   cmaId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const item = findActiveCmaById(record, cmaId);
   if (!hasOriginalBed(item)) {
@@ -233,15 +158,20 @@ export const convertCmaToHomeDischargeRecord = (
     ...record,
     cma: tombstoneMovementById(record.cma, cmaId, {
       deletedReason: 'converted_to_discharge',
+      deletedBy: context?.actor,
     }),
-    discharges: [...(record.discharges || []), buildDischargeFromCma(item, record, createId)],
+    discharges: appendMovementOnce(
+      record.discharges,
+      buildDischargeFromCma(item, record, createId, context)
+    ),
   };
 };
 
 export const convertCmaToTransferRecord = (
   record: DailyRecord,
   cmaId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const item = findActiveCmaById(record, cmaId);
   if (!hasOriginalBed(item)) return record;
@@ -250,15 +180,20 @@ export const convertCmaToTransferRecord = (
     ...record,
     cma: tombstoneMovementById(record.cma, cmaId, {
       deletedReason: 'converted_to_transfer',
+      deletedBy: context?.actor,
     }),
-    transfers: [...(record.transfers || []), buildTransferFromCma(item, record, createId)],
+    transfers: appendMovementOnce(
+      record.transfers,
+      buildTransferFromCma(item, record, createId, context)
+    ),
   };
 };
 
 export const convertTransferToHomeDischargeRecord = (
   record: DailyRecord,
   transferId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const item = findActiveTransferById(record, transferId);
   if (!item) return record;
@@ -267,15 +202,20 @@ export const convertTransferToHomeDischargeRecord = (
     ...record,
     transfers: tombstoneMovementById(record.transfers, transferId, {
       deletedReason: 'converted_to_discharge',
+      deletedBy: context?.actor,
     }),
-    discharges: [...(record.discharges || []), buildDischargeFromTransfer(item, createId)],
+    discharges: appendMovementOnce(
+      record.discharges,
+      buildDischargeFromTransfer(item, createId, context)
+    ),
   };
 };
 
 export const convertTransferToCmaRecord = (
   record: DailyRecord,
   transferId: string,
-  createId: CreateId
+  createId: MovementCreateId,
+  context?: MovementReclassificationContext
 ): DailyRecord => {
   const item = findActiveTransferById(record, transferId);
   if (!item) return record;
@@ -284,7 +224,8 @@ export const convertTransferToCmaRecord = (
     ...record,
     transfers: tombstoneMovementById(record.transfers, transferId, {
       deletedReason: 'converted_to_cma',
+      deletedBy: context?.actor,
     }),
-    cma: [...(record.cma || []), buildCmaFromTransfer(item, createId)],
+    cma: appendMovementOnce(record.cma, buildCmaFromTransfer(item, createId, context)),
   };
 };

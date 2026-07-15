@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useAuditContext } from '@/context/AuditContext';
 import {
   buildDischargeDiagnosisChangeAuditDetails,
+  buildDischargeReclassificationAuditDetails,
   buildDischargeUndoAuditDetails,
 } from '@/services/admin/auditClinicalEventCatalog';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
@@ -31,8 +32,19 @@ interface DischargeDiagnosisAuditEntry {
   clinicalEpisodeId?: string;
 }
 
+export interface DischargeReclassificationAuditEntry {
+  movementId: string;
+  previousMovementId: string;
+  patientName: string;
+  rut?: string;
+  from: string;
+  to: string;
+  lineageId: string;
+  clinicalEpisodeId?: string;
+}
+
 export const usePatientMovementAudit = () => {
-  const { logEvent, logPatientDischarge, logPatientTransfer } = useAuditContext();
+  const { logEvent, logPatientDischarge, logPatientTransfer, userId } = useAuditContext();
   const logDischargeEntries = useCallback(
     (entries: DischargeAuditEntry[], recordDate: string) => {
       // When the canonical discharge facade is on, the modal owns the
@@ -115,13 +127,36 @@ export const usePatientMovementAudit = () => {
     [logEvent]
   );
 
+  const logDischargeReclassification = useCallback(
+    (entry: DischargeReclassificationAuditEntry, recordDate: string) => {
+      logEvent(
+        'PATIENT_DISCHARGE_RECLASSIFIED',
+        'patient',
+        entry.movementId,
+        buildDischargeReclassificationAuditDetails(entry),
+        entry.rut,
+        recordDate
+      );
+    },
+    [logEvent]
+  );
+
   return useMemo(
     () => ({
       logDischargeEntries,
       logDischargeDiagnosisChange,
+      logDischargeReclassification,
       logDischargeUndoEntry,
       logTransferEntry,
+      actor: userId,
     }),
-    [logDischargeEntries, logDischargeDiagnosisChange, logDischargeUndoEntry, logTransferEntry]
+    [
+      logDischargeEntries,
+      logDischargeDiagnosisChange,
+      logDischargeReclassification,
+      logDischargeUndoEntry,
+      logTransferEntry,
+      userId,
+    ]
   );
 };

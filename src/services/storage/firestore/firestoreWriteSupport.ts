@@ -211,6 +211,92 @@ export const saveRecordAtomically = async (
   });
 };
 
+/**
+ * Applies a dot-notation partial update in the same transaction that verifies the caller's base
+ * version and snapshots the previous document. This is reserved for mutations whose invariant
+ * spans more than one field (for example, moving one egreso classification to another).
+ */
+export const updateRecordPartiallyAtomically = async (
+  docRef: DocumentReference,
+  partialData: DocumentData,
+  expectedLastUpdated: string | undefined,
+  conflictMessage: string,
+  contextLabel: string,
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<void> => {
+  const db = runtime.getDb();
+
+  await runTransaction(db, async transaction => {
+    const snap = await transaction.get(docRef);
+
+    // A partial mutation can never reconstruct a deleted daily record safely. Reclassification
+    // payloads only carry movement arrays, so creating from them would omit beds and metadata.
+    if (!snap.exists() || !expectedLastUpdated) {
+      recordOperationalErrorTelemetry(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        createOperationalError({
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+          context: {
+            contextLabel,
+            reason: snap.exists() ? 'missing_base_version' : 'missing_remote_record',
+          },
+        }),
+        {
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+        }
+      );
+      throw new ConcurrencyError(conflictMessage);
+    }
+
+    const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
+    const remoteVersionMs = Date.parse(remoteLastUpdated || '');
+    const expectedVersionMs = Date.parse(expectedLastUpdated);
+    if (
+      !Number.isFinite(remoteVersionMs) ||
+      !Number.isFinite(expectedVersionMs) ||
+      remoteVersionMs !== expectedVersionMs
+    ) {
+      recordOperationalErrorTelemetry(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        createOperationalError({
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+          context: {
+            contextLabel,
+            reason: 'base_version_mismatch',
+            remoteLastUpdated,
+            expectedLastUpdated,
+          },
+        }),
+        {
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+        }
+      );
+      throw new ConcurrencyError(conflictMessage);
+    }
+
+    const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+    transaction.set(historyRef, {
+      ...(snap.data() as Record<string, unknown>),
+      snapshotTimestamp: Timestamp.now(),
+    });
+    transaction.update(docRef, partialData);
+  });
+};
+
 export const saveHistorySnapshot = async (date: string): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);
