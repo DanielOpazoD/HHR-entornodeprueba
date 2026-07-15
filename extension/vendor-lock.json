@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "vendors": [
+    {
+      "file": "jspdf.umd.min.js",
+      "package": "jspdf",
+      "version": "4.2.1",
+      "license": "MIT",
+      "sha256": "e6551fcdc32f09d6853b2c5126d18d01d9447e0da618a41a11ebeee0f6c20d54"
+    },
+    {
+      "file": "pdf-lib.min.js",
+      "package": "pdf-lib",
+      "version": "1.17.1",
+      "license": "MIT",
+      "sha256": "0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f"
+    },
+    {
+      "file": "xlsx.full.min.js",
+      "package": "xlsx",
+      "version": "0.18.5",
+      "license": "Apache-2.0",
+      "sha256": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
+    }
+  ]
+}

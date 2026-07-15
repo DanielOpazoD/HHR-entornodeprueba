@@ -1,0 +1,70 @@
+// @vitest-environment node
+import { readFileSync } from 'node:fs';
+
+import { describe, expect, it } from 'vitest';
+
+const backgroundSource = readFileSync(
+  new URL('../../../extension/background.js', import.meta.url),
+  'utf8'
+);
+const contentSource = readFileSync(
+  new URL('../../../extension/content-prescription-print.js', import.meta.url),
+  'utf8'
+);
+
+const sliceBetween = (startMarker: string, endMarker: string) => {
+  const start = backgroundSource.indexOf(startMarker);
+  const end = backgroundSource.indexOf(endMarker, start + startMarker.length);
+  if (start < 0 || end < 0) throw new Error(`No se encontró ${startMarker}.`);
+  return backgroundSource.slice(start, end);
+};
+
+describe('extension BRADEN source reconciliation', () => {
+  it('always reads history and forms for the integrated regimen PDF', () => {
+    const source = sliceBetween(
+      'const fetchHospitalizedRegimenSummaries = async',
+      'const getActiveHospitalizedPatientsWithFallback = async'
+    );
+
+    expect(source).toContain('fetchBradenHistoryEvents(patient.encounterId, info)');
+    expect(source).toContain('fetchEvaluationForms(patient.encounterId, info)');
+    expect(source).toContain('deriveLatestBraden(');
+    expect(source).not.toContain('if (!braden)');
+  });
+
+  it('always reconciles both sources in the global Scores table', () => {
+    const source = sliceBetween(
+      'const handleScoresOptionsRequest = async',
+      'const readScoresBatch = async'
+    );
+
+    expect(source).toContain('fetchScaleHistoryEvents(patient.encounterId, info, 120)');
+    expect(source).toContain('fetchEvaluationForms(patient.encounterId, info)');
+    expect(source).toContain("forms.error ? [] : forms.forms,\n      'BRADEN'");
+    expect(source).toContain("forms.error ? [] : forms.forms,\n      'DOWNTON'");
+    expect(source).toContain('BRADEN: evaluationReadErrors ? [] : bradenHistory.slice(0, 8)');
+    expect(source).toContain('DOWNTON: evaluationReadErrors ? [] : downtonHistory.slice(0, 8)');
+    expect(source).not.toContain('if (!bradenHistory.length || !downtonHistory.length)');
+  });
+
+  it('does not render or enable registration from a partial scale read', () => {
+    expect(contentSource).toContain('const history = unavailableReason\n            ? []');
+    expect(contentSource).toContain(
+      "if (!unavailableReason && instrument !== 'CUDYR' && history.length)"
+    );
+    expect(contentSource).toContain(
+      'action.disabled = !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
+    );
+  });
+
+  it('uses the same two-source read for an ambiguous BRADEN or Downton recovery', () => {
+    const source = sliceBetween(
+      'const readClinicalWriteRecoveryReview = async',
+      'const handleClinicalWriteRecoveryRequest = async'
+    );
+
+    expect(source).toContain('fetchScaleHistoryEvents(encId, info, 120)');
+    expect(source).toContain('fetchEvaluationForms(encId, info)');
+    expect(source).toContain('history.error || forms.error');
+  });
+});

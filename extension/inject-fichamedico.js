@@ -6,28 +6,40 @@
  * on request, reads the full census + discharges + per-patient demographics and
  * normalizes them to a `RayenCensusSnapshot` (the shape the HHR bridge validates).
  *
- * It talks to the isolated content script only via window.postMessage; the token
- * itself NEVER leaves this world — only the resulting snapshot does.
+ * It talks to the isolated content script only via window.postMessage. The captured token is
+ * released only after session/identity verification, into the extension context on this device.
  */
 (() => {
   'use strict';
   if (window.__rayenBridgeInjected) return;
   window.__rayenBridgeInjected = true;
 
+  // React routing normally uses pushState/replaceState, which do not emit popstate. Surface a
+  // DOM event so the isolated UI can invalidate any patient-bound modal before another action.
+  ['pushState', 'replaceState'].forEach(method => {
+    const original = history[method];
+    if (typeof original !== 'function') return;
+    history[method] = function () {
+      const result = original.apply(this, arguments);
+      window.dispatchEvent(new CustomEvent('hhr:fichamedico-locationchange'));
+      return result;
+    };
+  });
+
   const BACKEND_HINT = 'rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
-  const DEFAULT_LIST_URL =
-    'https://fichamedicoback.rayensalud.cl/api/encounter/list/filter' +
-    '?facilityId=1342&healthCarePractitionerId=7941&healthCarePractitionerRoleId=1' +
-    '&encounterEventTypeId=1&filterType=3&healthCarePractitionerTid=0';
-
   let capturedAuth = null;
   let capturedListUrl = null;
   const normalization = globalThis.HhrFichaMedicoNormalization;
+  let capturedApiOrigin = null;
 
   const rememberFromRequest = (url, authHeader) => {
     try {
-      if (authHeader && String(url).includes(BACKEND_HINT)) capturedAuth = authHeader;
+      if (authHeader && String(url).includes(BACKEND_HINT)) {
+        capturedAuth = authHeader;
+        const parsed = new URL(String(url), window.location.origin);
+        if (parsed.hostname === 'fichamedicoback.rayensalud.cl') capturedApiOrigin = parsed.origin;
+      }
       if (url && String(url).includes(LIST_PATH)) capturedListUrl = String(url);
     } catch (_) {}
   };
@@ -68,6 +80,75 @@
     return res.json();
   };
 
+  // Read only the non-secret clinical identity fields required to authorize writes. The full
+  // session object can contain credentials and identifiers that the extension does not need, so
+  // it is deliberately reduced here before crossing out of MAIN world.
+  const readSafeSessionIdentity = async () => {
+    try {
+      const response = await origFetch('/api/auth/session', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      const session = payload && payload.ok !== false ? payload.session : null;
+      if (!session) return null;
+      const facilityId = String(session.facilityId || '');
+      const practitionerId = String(session.healthCarePractitionerId || '');
+      const practitionerRoleId = String(session.healthCarePractitionerRoleId || '');
+      if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
+        return null;
+      }
+      return {
+        facilityId,
+        practitionerId,
+        practitionerRoleId,
+        role: String(session.role || '').replace(/\s+/g, ' ').trim(),
+        fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
+        tokenMatchesCapturedAuth: Boolean(session.token) && String(session.token) === String(capturedAuth || ''),
+      };
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const getVerifiedClinicalContext = async () => {
+    if (!capturedAuth || !capturedApiOrigin) {
+      throw new Error('Recarga Eloísa para vincular la sesión clínica actual.');
+    }
+    const identity = await readSafeSessionIdentity();
+    if (!identity || !identity.tokenMatchesCapturedAuth) {
+      throw new Error('La sesión clínica cambió o no pudo verificarse. Recarga Eloísa antes de continuar.');
+    }
+    const isNurse = /enfermer/i.test(identity.role);
+    let base = null;
+    if (capturedListUrl) {
+      const candidate = new URL(capturedListUrl);
+      if (!candidate.hostname.endsWith('.rayensalud.cl') || !candidate.pathname.includes(LIST_PATH)) {
+        throw new Error('La lista clínica capturada no pertenece a Eloísa.');
+      }
+      const capturedFacility = String(candidate.searchParams.get('facilityId') || '');
+      const capturedPractitioner = String(candidate.searchParams.get('healthCarePractitionerId') || '');
+      const capturedRole = String(candidate.searchParams.get('healthCarePractitionerRoleId') || '');
+      if (capturedFacility === identity.facilityId && capturedPractitioner === identity.practitionerId &&
+          capturedRole === identity.practitionerRoleId) {
+        base = candidate;
+      } else if (!isNurse) {
+        throw new Error('La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.');
+      }
+    }
+    if (!base && !isNurse) {
+      throw new Error('Abre o recarga la lista de pacientes para vincular la sesión clínica actual.');
+    }
+    if (base) {
+      base.searchParams.set('facilityId', identity.facilityId);
+      base.searchParams.set('healthCarePractitionerId', identity.practitionerId);
+      base.searchParams.set('healthCarePractitionerRoleId', identity.practitionerRoleId);
+    }
+    return { base, identity, apiOrigin: capturedApiOrigin, listSource: base ? 'medical' : 'nursing' };
+  };
+
   const realDate = iso => {
     if (!iso) return undefined;
     const year = Number(String(iso).slice(0, 4));
@@ -84,24 +165,29 @@
   const normalizeEncounter = (item, header, principalDiagnosis, discharged) => {
     const p = item.patient || {};
     const h = header || {};
+    const fullName = String(item.patientName || p.patientName || '').replace(/\s+/g, ' ').trim();
     return {
       encounterId: String(item.id),
-      run: h.preferredIdentifierCode || p.identifier || '',
-      firstGivenName: h.firstGivenName || '',
+      run: h.preferredIdentifierCode || p.identifier || item.patientIdentifier || '',
+      firstGivenName: h.firstGivenName || fullName || '',
       nextGivenNames: h.nextGivenNames || '',
       firstFamilyName: h.firstFamilyName || '',
       secondFamilyName: h.secondFamilyName || '',
-      birthDate: h.birthDate || p.birthDate || '',
+      birthDate: h.birthDate || p.birthDate || item.birthDate || '',
+      administrativeSexId: h.adseId || item.patientAdministrativeSexId || '',
       administrativeSex: h.adseName || '',
       gender: h.gendName || p.genero || '',
-      service: item.hospitalDepartmentShortName || '',
-      room: item.roomShortName || '',
-      bed: item.bedShortName || '',
+      service: item.hospitalDepartmentShortName || item.hospitalDepartmentName || item.serviceName || '',
+      room: item.roomShortName || item.roomName || '',
+      bed: item.bedShortName || item.bedName || '',
+      hospitalDepartmentId: item.hospitalDepartmentId || h.hospitalDepartmentId || '',
+      nurseStationId: item.nurseStationId || '',
+      patientId: h.patID || item.patientId || p.id || '',
       admissionDatetime: h.encStartPeriod || item.startDatetime || '',
       diagnosis: principalDiagnosis.name,
       diagnosisCode: principalDiagnosis.code || undefined,
       diagnosisDescription: principalDiagnosis.code ? principalDiagnosis.name : undefined,
-      hasMedicalDischarge: discharged || !!item.hasMedicalDischarge,
+      hasMedicalDischarge: discharged || !!item.hasMedicalDischarge || !!item.medicalDischarge,
       hasNurseDischarge: !!item.hasNurseDischarge,
       dischargeDatetime: realDate(h.encEndPeriod) || realDate(item.medicalDischargeDateTime),
       isDead: !!item.isDead,
@@ -111,12 +197,8 @@
   };
 
   const readCensus = async () => {
-    if (!capturedAuth) {
-      throw new Error(
-        'No se capturó el token de Rayen. Abre o recarga la lista de pacientes en Ficha Médico y reintenta.'
-      );
-    }
-    const base = new URL(capturedListUrl || DEFAULT_LIST_URL);
+    const context = await getVerifiedClinicalContext();
+    const base = context.base || new URL(context.apiOrigin);
     const withFilter = ft => {
       const u = new URL(base);
       u.searchParams.set('filterType', ft);
@@ -124,10 +206,29 @@
     };
 
     // filterType=3 (sin médico + Servicio Todos) = full active census; filterType=2 = egresos.
-    const [active, discharged] = await Promise.all([
-      apiGet(withFilter('3'), capturedAuth),
-      apiGet(withFilter('2'), capturedAuth).catch(() => []),
-    ]);
+    let active;
+    let discharged;
+    if (context.listSource === 'nursing') {
+      const lists = await Promise.all(
+        ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'].map(list =>
+          apiGet(
+            `${context.apiOrigin}/api/encounter/${list}/${encodeURIComponent(context.identity.facilityId)}`,
+            capturedAuth
+          )
+        )
+      );
+      const byEncounter = new Map();
+      lists.flat().forEach(item => {
+        if (item && item.id != null) byEncounter.set(String(item.id), item);
+      });
+      active = [...byEncounter.values()];
+      discharged = [];
+    } else {
+      [active, discharged] = await Promise.all([
+        apiGet(withFilter('3'), capturedAuth),
+        apiGet(withFilter('2'), capturedAuth).catch(() => []),
+      ]);
+    }
 
     const rows = [
       ...(Array.isArray(active) ? active : []).map(item => ({ item, discharged: false })),
@@ -160,7 +261,7 @@
 
     return {
       capturedAt: new Date().toISOString(),
-      facilityId: Number(base.searchParams.get('facilityId')) || 1342,
+      facilityId: Number(context.identity.facilityId),
       isComplete: true, // filterType=3 + Servicio Todos covers the whole active census
       encounters,
     };
@@ -190,22 +291,34 @@
     // the per-patient "Resumen diario paciente" PDF (which carries the invasive-devices table)
     // bypassing CORS. Token crosses into the extension's own context, never leaves the machine.
     if (data.type === 'RAYEN_FM_FETCHINFO_REQUEST') {
-      const base = new URL(capturedListUrl || DEFAULT_LIST_URL);
+      let context = null;
+      let contextError = '';
+      try {
+        context = await getVerifiedClinicalContext();
+      } catch (error) {
+        contextError = String((error && error.message) || error);
+      }
+      const base = context && context.base;
+      const safeIdentity = context && context.identity;
       window.postMessage(
         {
           type: 'RAYEN_FM_FETCHINFO_RESULT',
           reqId: data.reqId,
-          info: capturedAuth
+          info: context
             ? {
                 token: capturedAuth,
-                apiOrigin: base.origin,
-                facId: base.searchParams.get('facilityId') || '1342',
-                practitionerId: base.searchParams.get('healthCarePractitionerId') || '7941',
+                apiOrigin: context.apiOrigin,
+                listUrl: base ? base.toString() : '',
+                listSource: context.listSource,
+                facId: safeIdentity.facilityId,
+                practitionerId: safeIdentity.practitionerId,
+                practitionerRoleId: safeIdentity.practitionerRoleId,
+                role: safeIdentity.role,
+                fullName: safeIdentity.fullName,
+                identityVerified: true,
               }
             : null,
-          error: capturedAuth
-            ? null
-            : 'Sin token de Ficha Médico. Abre o recarga la lista de pacientes e inténtalo.',
+          error: context ? null : contextError || 'No se pudo verificar la sesión de Ficha Médico.',
         },
         window.location.origin
       );
