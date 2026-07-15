@@ -232,6 +232,26 @@ export const updateRecordPartiallyAtomically = async (
     // A partial mutation can never reconstruct a deleted daily record safely. Reclassification
     // payloads only carry movement arrays, so creating from them would omit beds and metadata.
     if (!snap.exists() || !expectedLastUpdated) {
+      recordOperationalErrorTelemetry(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        createOperationalError({
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+          context: {
+            contextLabel,
+            reason: snap.exists() ? 'missing_base_version' : 'missing_remote_record',
+          },
+        }),
+        {
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+        }
+      );
       throw new ConcurrencyError(conflictMessage);
     }
 
@@ -251,7 +271,12 @@ export const updateRecordPartiallyAtomically = async (
           message: conflictMessage,
           severity: 'warning',
           userSafeMessage: conflictMessage,
-          context: { contextLabel, remoteLastUpdated, expectedLastUpdated },
+          context: {
+            contextLabel,
+            reason: 'base_version_mismatch',
+            remoteLastUpdated,
+            expectedLastUpdated,
+          },
         }),
         {
           code: 'firestore_concurrency_conflict',

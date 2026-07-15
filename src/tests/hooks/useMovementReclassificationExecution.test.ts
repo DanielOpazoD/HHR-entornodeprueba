@@ -65,4 +65,31 @@ describe('useMovementReclassificationExecution', () => {
     });
     expect(persist).toHaveBeenCalledTimes(2);
   });
+
+  it('reports a post-persistence callback failure without releasing the successful claim', async () => {
+    const callbackError = new Error('audit callback failed');
+    const persist = vi.fn().mockResolvedValue(undefined);
+    const onPersistenceError = vi.fn();
+    const { result } = renderHook(() => useMovementReclassificationExecution());
+    const execution = {
+      recordDate: '2026-07-14',
+      sourceMovementId: 'cma-1',
+      persist,
+      onPersisted: vi.fn(() => {
+        throw callbackError;
+      }),
+      onPersistenceError,
+    };
+
+    act(() => {
+      expect(result.current(execution)).toBe(true);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onPersistenceError).toHaveBeenCalledWith(callbackError);
+    expect(result.current(execution)).toBe(false);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
 });

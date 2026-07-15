@@ -483,6 +483,51 @@ describe('firestoreWriteSupport', () => {
 
       expect(tx.set).not.toHaveBeenCalled();
       expect(tx.update).not.toHaveBeenCalled();
+      expect(mockCreateOperationalError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({ reason: 'missing_remote_record' }),
+        })
+      );
+      expect(mockRecordOperationalErrorTelemetry).toHaveBeenCalledWith(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        expect.anything(),
+        expect.objectContaining({ code: 'firestore_concurrency_conflict' })
+      );
+    });
+
+    it('rejects an existing record without an expected base version and records telemetry', async () => {
+      const tx = makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: '2026-07-14T10:00:00.000Z' }),
+      });
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+
+      await expect(
+        updateRecordPartiallyAtomically(
+          { kind: 'docRef' } as never,
+          { discharges: [], cma: [{ id: 'cma-1' }] },
+          undefined,
+          'conflict',
+          'movement reclassification'
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
+      expect(mockCreateOperationalError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({ reason: 'missing_base_version' }),
+        })
+      );
+      expect(mockRecordOperationalErrorTelemetry).toHaveBeenCalledWith(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        expect.anything(),
+        expect.objectContaining({ code: 'firestore_concurrency_conflict' })
+      );
     });
 
     it.each([

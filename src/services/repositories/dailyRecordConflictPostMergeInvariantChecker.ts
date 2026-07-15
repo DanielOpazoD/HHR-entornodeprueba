@@ -145,7 +145,7 @@ const collectMovementLineageInvariantViolations = (
   findActiveMovementLineageConflicts(record).map(conflict => ({
     type: 'movement_lineage_classified_twice',
     path: `movements.lineage.${conflict.lineageId}`,
-    message: `El mismo egreso quedo activo en más de una clasificación (${conflict.classifications.join(
+    message: `El mismo egreso quedó activo en más de una clasificación (${conflict.classifications.join(
       ', '
     )}).`,
   }));

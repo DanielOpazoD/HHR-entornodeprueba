@@ -30,10 +30,19 @@ export const useMovementReclassificationExecution = () => {
       return false;
     }
 
-    void persistence.then(execution.onPersisted, error => {
-      claimedSourcesRef.current.delete(key);
-      execution.onPersistenceError(error);
-    });
+    void persistence.then(
+      () => {
+        try {
+          execution.onPersisted();
+        } catch (error) {
+          execution.onPersistenceError(error);
+        }
+      },
+      error => {
+        claimedSourcesRef.current.delete(key);
+        execution.onPersistenceError(error);
+      }
+    );
     return true;
   }, []);
 };
