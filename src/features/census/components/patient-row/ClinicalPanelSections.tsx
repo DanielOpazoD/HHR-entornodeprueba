@@ -7,8 +7,10 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleOff, Clock3, TriangleAlert } from 'lucide-react';
 import type {
+  ClinicalPanelCareActionStatus,
+  ClinicalPanelCareDay,
   ClinicalPanelEntry,
   ClinicalPanelIndicationDay,
   EvolutionProfession,
@@ -35,6 +37,13 @@ const formatTime = (raw: string): string => {
   if (Number.isNaN(t)) return '';
   const d = new Date(t);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const INDICATION_KIND_LABEL: Partial<Record<ClinicalPanelEntry['kind'], string>> = {
+  diet: 'Régimen',
+  rest: 'Reposo',
+  pharma: 'Fármaco',
+  'free-indication': 'Indicación',
 };
 
 export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }) => {
@@ -92,17 +101,27 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
   muted = false,
 }) => (
   <li
-    className={clsx('flex items-baseline gap-1.5 text-[12px] leading-snug', muted && 'opacity-60')}
+    className={clsx(
+      'grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-1.5 rounded px-1 py-0.5 text-[12px] leading-snug',
+      muted ? 'bg-slate-50 text-slate-500' : 'text-slate-700'
+    )}
     title={[entry.author, entry.role, formatTime(entry.publishedAt)].filter(Boolean).join(' · ')}
   >
-    <span className="mt-px shrink-0 text-slate-300">•</span>
-    <span className={clsx('min-w-0', muted && 'line-through decoration-slate-400')}>
-      <span className="font-semibold text-slate-700">{entry.title}</span>
-      {entry.text && <span className="text-slate-600"> — {entry.text}</span>}
+    <span className="mt-0.5 rounded bg-slate-100 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-slate-500">
+      {INDICATION_KIND_LABEL[entry.kind]}
     </span>
-    {entry.isNew && !muted && (
-      <span className="ml-auto shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold uppercase text-emerald-700">
-        Nueva
+    <span className={clsx('min-w-0', muted && 'line-through decoration-slate-400')}>
+      <span className="block font-semibold text-slate-700">{entry.title}</span>
+      {entry.text && <span className="block text-[11px] text-slate-500">{entry.text}</span>}
+    </span>
+    {muted && (
+      <span
+        className={clsx(
+          'shrink-0 rounded px-1 py-px text-[8px] font-bold uppercase',
+          entry.suspended ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
+        )}
+      >
+        {entry.suspended ? 'Suspendida' : 'Archivada'}
       </span>
     )}
   </li>
@@ -112,8 +131,11 @@ export const IndicationDayCard: React.FC<{ day: ClinicalPanelIndicationDay }> = 
   const [showSuspended, setShowSuspended] = useState(false);
   return (
     <section className="rounded-md border border-slate-200 bg-white p-2 shadow-sm">
-      <h3 className="mb-1 border-b border-slate-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-        {day.label}
+      <h3 className="mb-1 flex items-center justify-between border-b border-slate-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+        <span>{day.label}</span>
+        <span className="text-[9px] font-medium normal-case text-slate-400">
+          {day.active.length} activas
+        </span>
       </h3>
       {day.active.length > 0 ? (
         <ul className="space-y-1">
@@ -136,8 +158,7 @@ export const IndicationDayCard: React.FC<{ day: ClinicalPanelIndicationDay }> = 
               size={11}
               className={clsx('transition-transform', showSuspended && 'rotate-90')}
             />
-            {day.suspended.length}{' '}
-            {day.suspended.length === 1 ? 'suspendida/archivada' : 'suspendidas/archivadas'}
+            {day.suspended.length} {day.suspended.length === 1 ? 'inactiva' : 'inactivas'}
           </button>
           {showSuspended && (
             <ul className="mt-1 space-y-1">
@@ -148,6 +169,87 @@ export const IndicationDayCard: React.FC<{ day: ClinicalPanelIndicationDay }> = 
           )}
         </div>
       )}
+    </section>
+  );
+};
+
+const CARE_STATUS: Record<
+  ClinicalPanelCareActionStatus,
+  { label: string; className: string; icon: React.ReactNode }
+> = {
+  performed: {
+    label: 'Ejecutada',
+    className: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    icon: <CheckCircle2 size={11} />,
+  },
+  'outside-plan': {
+    label: 'Ejecutada fuera de plan',
+    className: 'bg-amber-50 text-amber-700 ring-amber-200',
+    icon: <TriangleAlert size={11} />,
+  },
+  'not-performed': {
+    label: 'No ejecutada',
+    className: 'bg-red-50 text-red-700 ring-red-200',
+    icon: <CircleOff size={11} />,
+  },
+  pending: {
+    label: 'Pendiente',
+    className: 'bg-slate-100 text-slate-600 ring-slate-200',
+    icon: <Clock3 size={11} />,
+  },
+  suspended: {
+    label: 'Suspendida',
+    className: 'bg-slate-100 text-slate-500 ring-slate-200',
+    icon: <CircleOff size={11} />,
+  },
+};
+
+export const CareDayCard: React.FC<{ day: ClinicalPanelCareDay }> = ({ day }) => {
+  const executed = day.actions.filter(
+    action => action.status === 'performed' || action.status === 'outside-plan'
+  ).length;
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-2 shadow-sm">
+      <h3 className="mb-1.5 flex items-center justify-between border-b border-slate-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+        <span>{day.label}</span>
+        <span className="text-[9px] font-medium normal-case text-emerald-600">
+          {executed}/{day.actions.length} ejecutadas
+        </span>
+      </h3>
+      <ul className="space-y-1">
+        {day.actions.map(action => {
+          const status = CARE_STATUS[action.status];
+          return (
+            <li key={action.id} className="rounded border border-slate-100 bg-slate-50/70 p-1.5">
+              <div className="flex items-start gap-1.5">
+                <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-slate-700">
+                  {action.title}
+                </span>
+                <span
+                  className={clsx(
+                    'inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-[9px] font-bold ring-1',
+                    status.className
+                  )}
+                >
+                  {status.icon}
+                  {status.label}
+                </span>
+              </div>
+              {(action.detail || action.schedule) && (
+                <p className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  {[action.detail, action.schedule].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {(action.author || action.performedAt) && (
+                <p className="mt-0.5 text-right text-[9px] text-slate-400">
+                  {[action.author, formatWhen(action.performedAt)].filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 };

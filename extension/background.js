@@ -21,7 +21,7 @@ const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
-const EXTENSION_PROTOCOL_VERSION = 2;
+const EXTENSION_PROTOCOL_VERSION = 3;
 
 // Try every matching tab (active/most-recent first): some may be stale tabs whose content
 // script isn't injected. The first one that answers wins.
@@ -414,6 +414,53 @@ const CLINICAL_PANEL_RESUMES = {
   nutritionOrderResume: ['DIET_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED'],
   restResume: ['rest_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED'],
 };
+
+const slimCarePlanHeaders = payload =>
+  Array.isArray(payload && payload.carePlanHeader)
+    ? payload.carePlanHeader.map(header => ({
+        label: header && header.label,
+        labelDate: header && header.labelDate,
+        scheduledDate: header && header.scheduledDate,
+        isSuspended: header && header.isSuspended,
+        carePlanBody: pickFields(header && header.carePlanBody, [
+          'entryGuid',
+          'activityId',
+          'activity',
+          'title',
+          'tag',
+          'hoursRange',
+          'hoursRangeActi',
+          'administrationDate',
+          'timestamp',
+          'user',
+          'isPerformed',
+          'isPerformedOutSidePlanning',
+          'isFinished',
+          'isSuspended',
+          'doNotExecute',
+        ]),
+      }))
+    : [];
+
+const slimMedicationStates = payload =>
+  pickFields(payload && payload.Medication, [
+    'id',
+    'suspended',
+    'archived',
+    'finalized',
+    'programmingEndDatetime',
+  ]);
+
+const fetchFichaJson = async (url, token) => {
+  const res = await fetch(url, {
+    headers: { Authorization: token, Accept: 'application/json' },
+    credentials: 'omit',
+  });
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+};
+
 const handleClinicalPanelRequest = async ({ encId }) => {
   if (!encId) return { error: 'Falta enc_id para el panel clínico.' };
   const infoResp = await sendToMatchingTab(
@@ -427,33 +474,65 @@ const handleClinicalPanelRequest = async ({ encId }) => {
   if (!info || !info.token || !info.apiOrigin) {
     return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
   }
-  const url =
+  const historyUrl =
     `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
     `getPatientEncounterHistoryReportServer/false/0/0/-14`;
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-    });
-    if (res.status === 204) return { ok: true, events: [] };
-    if (!res.ok) return { error: 'El servidor de Ficha Médico respondió HTTP ' + res.status + '.' };
-    const raw = await res.json();
-    const events = [];
-    for (const ev of Array.isArray(raw) ? raw : []) {
-      if (!ev) continue;
-      const slim = { publishDatetime: ev.publishDatetime || '' };
-      let hasContent = false;
-      for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
-        const picked = pickFields(ev[resume], fields);
-        slim[resume] = picked;
-        if (picked.length > 0) hasContent = true;
-      }
-      if (hasContent) events.push(slim);
-    }
-    return { ok: true, events };
-  } catch (error) {
-    return { error: 'Falló la descarga del panel clínico: ' + String((error && error.message) || error) };
+  const encodedEncounter = encodeURIComponent(encId);
+  const careUrl = `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
+  const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}?page=0&limit=100`;
+
+  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult] =
+    await Promise.allSettled([
+      fetchFichaJson(historyUrl, info.token),
+      fetchFichaJson(careUrl, info.token),
+      fetchFichaJson(`${medicationBase}&isSuspended=false`, info.token),
+      fetchFichaJson(`${medicationBase}&isSuspended=true`, info.token),
+    ]);
+
+  if (
+    historyResult.status === 'rejected' &&
+    careResult.status === 'rejected' &&
+    activeMedicationResult.status === 'rejected' &&
+    suspendedMedicationResult.status === 'rejected'
+  ) {
+    return {
+      error:
+        'Falló la descarga del panel clínico: ' +
+        String((historyResult.reason && historyResult.reason.message) || historyResult.reason),
+    };
   }
+
+  const events = [];
+  const rawHistory = historyResult.status === 'fulfilled' ? historyResult.value : [];
+  for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
+    if (!ev) continue;
+    const slim = { publishDatetime: ev.publishDatetime || '' };
+    let hasContent = false;
+    for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
+      const picked = pickFields(ev[resume], fields);
+      slim[resume] = picked;
+      if (picked.length > 0) hasContent = true;
+    }
+    if (hasContent) events.push(slim);
+  }
+
+  const activeMedicationPayload =
+    activeMedicationResult.status === 'fulfilled' ? activeMedicationResult.value : null;
+  const suspendedMedicationPayload =
+    suspendedMedicationResult.status === 'fulfilled' ? suspendedMedicationResult.value : null;
+
+  return {
+    ok: true,
+    events,
+    carePlan: {
+      carePlanHeaders:
+        careResult.status === 'fulfilled' ? slimCarePlanHeaders(careResult.value) : [],
+      medicationStates: [
+        ...slimMedicationStates(activeMedicationPayload),
+        ...slimMedicationStates(suspendedMedicationPayload),
+      ],
+    },
+  };
 };
 
 // Fetch the CUDYR (CRD) composite result of every patient from Ficha Médico's nurse worklists

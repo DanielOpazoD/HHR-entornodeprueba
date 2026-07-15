@@ -48,6 +48,7 @@ export {
 export { parseHistoryScales } from './mapping/parseHistoryScales';
 export type {
   RayenClinicalPanelEvent,
+  RayenClinicalPanelCarePlan,
   RayenClinicalPanelResult,
 } from './bridge/clinicalPanelBridge';
 export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
@@ -62,6 +63,9 @@ export type {
   ClinicalPanelEntry,
   ClinicalPanelEntryKind,
   ClinicalPanelIndicationDay,
+  ClinicalPanelCareAction,
+  ClinicalPanelCareActionStatus,
+  ClinicalPanelCareDay,
   EvolutionProfession,
 } from './mapping/parseClinicalPanel';
 export { parseClinicalPanel } from './mapping/parseClinicalPanel';

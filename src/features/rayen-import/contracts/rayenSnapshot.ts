@@ -38,6 +38,10 @@ export interface RayenEncounter {
   admissionDatetime?: string;
   /** Admission diagnosis text — Rayen `haoDiagName` / `diagnosisName`. */
   diagnosis?: string;
+  /** CIE-10 code of the first active principal diagnosis in Ficha Medico. */
+  diagnosisCode?: string;
+  /** Display name paired with `diagnosisCode`. */
+  diagnosisDescription?: string;
   /** True if the encounter has a medical discharge (alta médica) in Rayen. */
   hasMedicalDischarge?: boolean;
   /** True if the nurse completed the clinical closure in Rayen; never an administrative egreso authority. */

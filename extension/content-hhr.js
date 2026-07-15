@@ -203,13 +203,23 @@
             type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT',
             reqId,
             events: (response && Array.isArray(response.events) && response.events) || [],
+            carePlan: (response && response.carePlan) || {
+              carePlanHeaders: [],
+              medicationStates: [],
+            },
             error: response && response.error,
           });
         })
         .catch(error => {
           // Degrade gracefully: no events → the panel shows its empty/error state.
           console.warn('[Rayen→HHR] Clinical panel error:', error);
-          post({ type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId, events: [], error: String(error) });
+          post({
+            type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT',
+            reqId,
+            events: [],
+            carePlan: { carePlanHeaders: [], medicationStates: [] },
+            error: String(error),
+          });
         });
       return;
     }

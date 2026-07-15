@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
+import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
 import { Settings2, X } from 'lucide-react';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type {
@@ -237,12 +238,21 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
         placeholder="Diagnóstico"
         contentClassName={clsx(
           data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
+          data.cie10Code && (isGinecobstetricia ? 'pr-28' : 'pr-16'),
           isGinecobstetricia && 'pr-8',
           canShowDeliveryRoute && 'pr-14'
         )}
         readOnly={readOnly}
         onChange={onChange}
         onMultipleUpdate={onMultipleUpdate}
+      />
+      <DiagnosisCodeBadge
+        code={data.cie10Code}
+        description={data.cie10Description || data.pathology}
+        className={clsx(
+          'absolute top-1/2 z-10 -translate-y-1/2',
+          canShowDeliveryRoute ? 'right-16' : isGinecobstetricia ? 'right-9' : 'right-1'
+        )}
       />
       {isGinecobstetricia && (
         <GinecobstetriciaSubtypeControl

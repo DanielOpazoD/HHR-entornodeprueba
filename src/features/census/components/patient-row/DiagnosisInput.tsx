@@ -23,6 +23,7 @@ import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
+import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
 
 interface DiagnosisInputProps extends BaseCellProps {
   diagnosisMode: DiagnosisMode;
@@ -111,18 +112,18 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
           {canShowClinicalInitialBlockEditor && (
             <ClinicalInitialBlockEditor
               data={data}
-              alignRightClassName={data.cie10Code ? 'right-14' : 'right-1'}
+              alignRightClassName={data.cie10Code ? 'right-20' : 'right-1'}
               onChange={onChange}
               onMultipleUpdate={onMultipleUpdate}
             />
           )}
 
           {data.cie10Code && (
-            <span
-              className="absolute right-1 top-1 inline-flex items-center gap-1 text-[9px] font-mono text-slate-600 bg-slate-50 px-1 py-0.5 rounded border border-slate-200"
-              title={`Código CIE-10: ${data.cie10Code}`}
-            >
-              <span>{data.cie10Code}</span>
+            <span className="absolute right-1 top-1 inline-flex items-center gap-1">
+              <DiagnosisCodeBadge
+                code={data.cie10Code}
+                description={data.cie10Description || data.pathology}
+              />
               {!readOnly && (
                 <button
                   type="button"
@@ -171,7 +172,8 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
               ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
               : 'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
             isSubRow && 'text-xs h-6',
-            (canShowDeliveryRoute || canShowClinicalInitialBlockEditor) && 'pr-16',
+            (canShowDeliveryRoute || canShowClinicalInitialBlockEditor || data.cie10Code) &&
+              'pr-16',
             freshnessPause.pauseClassName
           )}
           placeholder="Diagnóstico (texto libre)"
@@ -184,13 +186,25 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
         {canShowClinicalInitialBlockEditor && (
           <ClinicalInitialBlockEditor
             data={data}
-            alignRightClassName={canShowDeliveryRoute ? 'right-7' : 'right-1'}
+            alignRightClassName={
+              data.cie10Code
+                ? canShowDeliveryRoute
+                  ? 'right-24'
+                  : 'right-16'
+                : canShowDeliveryRoute
+                  ? 'right-7'
+                  : 'right-1'
+            }
             onChange={onChange}
             onMultipleUpdate={onMultipleUpdate}
           />
         )}
 
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <DiagnosisCodeBadge
+            code={data.cie10Code}
+            description={data.cie10Description || data.pathology}
+          />
           {canShowDeliveryRoute && onDeliveryRouteChange && (
             <DeliveryRoutePopover
               deliveryRoute={data.deliveryRoute}

@@ -1,6 +1,6 @@
 /**
  * ClinicalPanelTrigger — discreet per-patient button that opens the ClinicalPanelDrawer
- * (evoluciones + indicaciones from Ficha Médico, live view). Self-contained (button + drawer
+ * (evoluciones + indicaciones + cuidados from Ficha Médico, live view). Self-contained (button + drawer
  * state) so host cells only add one element. Rendered only for synced patients — the panel is
  * fetched by `clinicalEpisodeId`, which exists only after an Eloísa sync.
  */
@@ -66,7 +66,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
             setIsOpen(true);
           }}
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500"
-          title="Panel clínico (evoluciones e indicaciones de Eloísa)"
+          title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
           aria-label={`Abrir panel clínico de ${patientName}`}
         >
           <BookOpenText size={14} />

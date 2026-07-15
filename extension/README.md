@@ -21,7 +21,11 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 - El **token HSP nunca sale** del mundo principal de Rayen; solo viaja el snapshot ya normalizado.
 - La lectura usa `filterType=3` (sin médico + Servicio Todos = censo completo) + `filterType=2`
-  (egresos), y `patientHeaderData/{encId}` por paciente. Marca `isComplete=true`.
+  (egresos), `patientHeaderData/{encId}` y el diagnóstico principal activo por paciente. Marca
+  `isComplete=true` y entrega el código CIE-10 cuando Ficha Médico lo informa.
+- El panel clínico se consulta solo al abrirlo: combina historial, estado vigente de fármacos y
+  plan de cuidados. Así distingue suspendidos, muestra acciones de enfermería ejecutadas y separa
+  entregas de turno médicas y de enfermería sin persistir ese contenido en HHR.
 
 ## Archivos
 
@@ -29,6 +33,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | --- | --- |
 | `manifest.json` | MV3: permisos de host, content scripts (MAIN + ISOLATED), service worker |
 | `inject-fichamedico.js` | MAIN world en Rayen: captura token, lee y **normaliza** al snapshot |
+| `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `background.js` | Enruta la petición del HHR a la pestaña de Rayen y devuelve el snapshot |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
@@ -55,6 +60,8 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
    datos en Rayen.
 5. La barra Eloísa muestra la versión del puente y la disponibilidad independiente de Ficha Médico y
    Gestión de Camas. El diagnóstico se ejecuta al abrir/recuperar foco y antes de sincronizar.
+6. El botón de panel clínico de cada paciente sincronizado abre una vista en vivo con mundos
+   Médico/Enfermería, entregas de turno, indicaciones y cuidados de enfermería.
 
 ## Requisitos y notas
 
@@ -68,11 +75,12 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 ## Verificación
 
-- El núcleo de lectura+normalización se probó contra datos reales de Rayen (4 pacientes) y produjo
-  un `RayenCensusSnapshot` correcto (apellidos separados, RUN, cama, diagnóstico, `isComplete`).
+- El núcleo de lectura+normalización se probó contra datos reales de Rayen y produce un
+  `RayenCensusSnapshot` con apellidos separados, RUN, cama, diagnóstico principal, CIE-10 e
+  `isComplete`.
 - La sintaxis de los scripts operativos pasa `node --check`.
-- El handshake v1 se validó de punta a punta en Chrome con la extensión v0.5.0, Ficha Médico y
-  Gestión de Camas abiertas; la barra HHR confirmó ambos relés sin transferir datos clínicos.
+- El protocolo v3 minimiza el historial, los estados de medicación y el plan de cuidados antes de
+  cruzar hacia HHR; el contenido del panel sigue siendo efímero y de solo lectura.
 
 ## Pendiente / a confirmar con datos reales
 
