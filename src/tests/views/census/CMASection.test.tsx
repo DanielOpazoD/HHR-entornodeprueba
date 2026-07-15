@@ -36,6 +36,7 @@ describe('CMASection', () => {
   const deleteCMA = vi.fn();
   const updateCMA = vi.fn();
   const convertCmaToHomeDischarge = vi.fn();
+  const convertCmaToTransfer = vi.fn();
   const updatePatientMultiple = vi.fn();
   const confirm = vi.fn();
   const notifyError = vi.fn();
@@ -56,6 +57,7 @@ describe('CMASection', () => {
       deleteCMA,
       updateCMA,
       convertCmaToHomeDischarge,
+      convertCmaToTransfer,
     } as unknown as MovementActionsValue);
 
     vi.mocked(useDailyRecordBedActions).mockReturnValue({
@@ -264,5 +266,20 @@ describe('CMASection', () => {
 
     const { container } = render(<CMASection />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('converts CMA into transfer from the shared actions menu', async () => {
+    confirm.mockResolvedValue(true);
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      discharges: [],
+      transfers: [],
+      cma: [cmaItem],
+    } as unknown as MovementsValue);
+
+    render(<CMASection />);
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /convertir a traslado/i }));
+
+    await waitFor(() => expect(convertCmaToTransfer).toHaveBeenCalledWith('cma-1'));
   });
 });

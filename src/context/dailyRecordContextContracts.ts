@@ -121,6 +121,7 @@ export interface DailyRecordMovementActions extends PatientMovementActions {
   updateCMA: (id: string, updates: Partial<CMAData>) => void;
   undoCMA: (item: CMAData) => void;
   convertCmaToHomeDischarge: (id: string) => void;
+  convertCmaToTransfer: (id: string) => void;
 }
 
 export interface DailyRecordHandoffActions {

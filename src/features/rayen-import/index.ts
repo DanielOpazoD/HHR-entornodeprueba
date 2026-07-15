@@ -13,7 +13,7 @@ export type {
   UpdateEntry,
   MoveEntry,
   DischargeEntry,
-  PendingNursingDischargeEntry,
+  PendingAdministrativeDischargeEntry,
   ConflictEntry,
   CensusImportSummary,
   CensusImportDiff,
@@ -75,7 +75,7 @@ export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
 
 export type { BedMappingResult, BedMatchKind, RayenBedLocation } from './mapping/bedMapping';
-export { mapRayenBed } from './mapping/bedMapping';
+export { isCmaBedLabel, isCmaLocation, mapRayenBed } from './mapping/bedMapping';
 
 export type { MappedPatient } from './mapping/rayenToPatientData';
 export {
@@ -93,9 +93,11 @@ export { reconcileCensus, requiresReview } from './domain/reconcileCensus';
 export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusImportDiff';
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';
 
-export { applyEgresoLookups, runsNeedingEgresoLookup } from './domain/applyEgresoLookups';
-
-export { applyEgresoReport, collectKnownRuns } from './domain/applyEgresoReport';
+export {
+  applyEgresoReport,
+  collectRecordedMovementRuns,
+  markEgresoReportUnavailable,
+} from './domain/applyEgresoReport';
 
 export type { MergeDevicesContext } from './domain/mergeReportDevices';
 export { mergeReportDevices } from './domain/mergeReportDevices';
@@ -123,7 +125,6 @@ export {
   subscribeToRayenSnapshots,
   pushRayenSnapshot,
   requestRayenSnapshot,
-  requestEgresoLookup,
   requestEgresoReport,
   requestDeviceReport,
   requestScalesReport,

@@ -8,7 +8,13 @@ import { useTransfersSectionModel } from '@/features/census/hooks/useTransfersSe
 // Interface for props removed as data comes from context
 
 export const TransfersSection: React.FC = () => {
-  const { recordDate, sectionModel, handleEditTransfer } = useTransfersSectionModel();
+  const {
+    recordDate,
+    sectionModel,
+    handleEditTransfer,
+    handleConvertTransferToHomeDischarge,
+    handleConvertTransferToCma,
+  } = useTransfersSectionModel();
 
   return (
     <CensusMovementSection
@@ -26,6 +32,8 @@ export const TransfersSection: React.FC = () => {
           onUndo={sectionModel.handleUndo}
           onEdit={handleEditTransfer}
           onDelete={sectionModel.handleDelete}
+          onConvertToHomeDischarge={handleConvertTransferToHomeDischarge}
+          onConvertToCma={handleConvertTransferToCma}
         />
       )}
     />

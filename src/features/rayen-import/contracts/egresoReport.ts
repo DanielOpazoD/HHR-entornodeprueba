@@ -47,7 +47,7 @@ export interface ReportEgreso {
   servicio?: string;
   /** Principal discharge diagnosis, when the report carries it. */
   diagnostico?: string;
-  /** Rapa Nui (island) egreso day + time, TZ-corrected from the report's continental stamp. */
+  /** Normalized Rapa Nui egreso day + time exactly as printed by the statistical report. */
   correctedDay?: string;
   correctedTime?: string;
 }

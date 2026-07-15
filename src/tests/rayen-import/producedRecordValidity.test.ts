@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
+  applyEgresoReport,
   planRayenCensusImport,
   rayenToPatientData,
   type ApplyContext,
@@ -68,8 +69,8 @@ describe('produced DailyRecord validity (fix #2)', () => {
     const current = makeRecord({ [bedA]: patA, [bedB]: patB });
 
     // Snapshot (complete): new admission C; B has a medical discharge (kept in bed,
-    // pending nursing discharge); A is absent from the complete census → inferred
-    // missing-in-rayen discharge that DOES vacate the bed.
+    // pending administrative confirmation); A is absent from Ficha Médico. Only the
+    // Gestión de Camas report below is allowed to vacate A's bed.
     const snapshot: RayenCensusSnapshot = {
       capturedAt: '2020-06-01T20:00:00-06:00',
       facilityId: 1342,
@@ -87,13 +88,29 @@ describe('produced DailyRecord validity (fix #2)', () => {
       ],
     };
 
-    const { diff } = planRayenCensusImport({ current, snapshot, reference: REFERENCE });
+    const planned = planRayenCensusImport({ current, snapshot, reference: REFERENCE }).diff;
+    const diff = applyEgresoReport(
+      planned,
+      [
+        {
+          run: encA.run,
+          patientName: 'ANA PEREZ',
+          bedLabel: bedA,
+          servicio: encA.service ?? '',
+          edad: '40',
+          destino: 'Domicilio',
+          motivo: 'Alta hospitalaria',
+          fechaEgreso: '01-06-2020  15:30',
+        },
+      ],
+      current
+    );
     const { record, applied } = applyCensusImportDiff(current, diff, makeCtx());
 
-    // Sanity on the scenario: C admitted, A discharged (missing-in-rayen), B kept in bed.
+    // Sanity on the scenario: C admitted, A administratively discharged, B kept in bed.
     expect(applied.admissions).toBe(1);
     expect(applied.discharges).toBe(1);
-    expect(diff.summary.pendingNursingDischarges).toBe(1);
+    expect(diff.summary.pendingAdministrativeDischarges).toBe(1);
     expect(record.discharges).toHaveLength(1);
     expect(record.beds[bedB]?.patientName).toBe(patB.patientName);
 

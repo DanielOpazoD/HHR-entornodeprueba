@@ -65,7 +65,7 @@ const makeDiff = (over: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
   updates: [],
   moves: [],
   discharges: [],
-  pendingNursingDischarges: [],
+  pendingAdministrativeDischarges: [],
   conflicts: [],
   unchangedCount: 0,
   summary: {
@@ -73,7 +73,7 @@ const makeDiff = (over: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
     updates: 0,
     moves: 0,
     discharges: 0,
-    pendingNursingDischarges: 0,
+    pendingAdministrativeDischarges: 0,
     conflicts: 0,
     unchanged: 0,
   },
@@ -147,13 +147,13 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds.H6C2).toBeUndefined();
   });
 
-  it('keeps a medically-discharged patient in the bed until nursing discharge', () => {
+  it('keeps a medically-discharged patient in bed until administrative discharge', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const result = planAndApply(
       makeRecord({ [bedId]: patient }),
       snapshotOf([makeEncounter({ hasMedicalDischarge: true })])
     );
-    // Alta médica does not vacate the bed; the nurse finalizes the discharge in HHR.
+    // Ficha Médico does not vacate the bed; Gestión de Camas finalizes the discharge.
     expect(result.record.beds[bedId]?.patientName).toBe('Ana Perez');
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.cma).toHaveLength(0);
@@ -169,7 +169,8 @@ describe('applyCensusImportDiff', () => {
           patientName: patient.patientName,
           kind: 'alta',
           status: 'Vivo',
-          reason: 'missing-in-rayen',
+          reason: 'administrative-discharge',
+          correctedTime: '18:20',
         },
       ],
     });
@@ -180,7 +181,7 @@ describe('applyCensusImportDiff', () => {
       id: 'id-1',
       status: 'Vivo',
       dischargeType: 'Domicilio (Habitual)',
-      time: '15:30',
+      time: '18:20',
       bedId,
     });
   });
@@ -201,8 +202,9 @@ describe('applyCensusImportDiff', () => {
           patientName: patient.patientName,
           kind: 'cma',
           status: 'Vivo',
-          reason: 'rayen-discharge',
+          reason: 'administrative-discharge',
           source: cmaEncounter,
+          correctedTime: '17:23',
         },
       ],
     });
@@ -213,8 +215,28 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.cma[0]).toMatchObject({
       id: 'id-1',
       interventionType: 'Cirugía Mayor Ambulatoria',
-      dischargeTime: '15:30',
+      dischargeTime: '17:23',
     });
+  });
+
+  it('uses the statistical egreso hour for a transfer of an occupied patient', () => {
+    const [bedId, patient] = seedBed(makeEncounter());
+    const diff = makeDiff({
+      discharges: [
+        {
+          bedId,
+          rut: patient.rut,
+          patientName: patient.patientName,
+          kind: 'traslado',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          correctedTime: '19:53',
+        },
+      ],
+    });
+
+    const result = applyCensusImportDiff(makeRecord({ [bedId]: patient }), diff, makeCtx());
+    expect(result.record.transfers[0]?.time).toBe('19:53');
   });
 
   it('never overwrites an occupied bed (defensive skip)', () => {
@@ -238,7 +260,7 @@ describe('applyCensusImportDiff', () => {
         updates: 0,
         moves: 0,
         discharges: 0,
-        pendingNursingDischarges: 0,
+        pendingAdministrativeDischarges: 0,
         conflicts: 0,
         unchanged: 0,
       },
@@ -281,7 +303,7 @@ describe('applyCensusImportDiff', () => {
       rut: '11.044.046-4',
       diagnosis: 'Herida de la pierna',
       dischargeType: 'Domicilio (Habitual)',
-      time: '17:11', // report's 19:11 continental (−04) → 17:11 Rapa Nui (−06), not "now"
+      time: '19:11', // official statistical time from the report, not the sync execution time
       status: 'Vivo',
     });
     expect(result.applied.discharges).toBe(1);
@@ -303,7 +325,7 @@ describe('applyCensusImportDiff', () => {
           patientName: 'Haggen',
           kind: 'alta',
           status: 'Vivo',
-          reason: 'rayen-discharge',
+          reason: 'administrative-discharge',
           correctedDay: '2026-07-07',
           correctedTime: '20:54',
         },
@@ -357,7 +379,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.cma).toHaveLength(1);
     expect(result.record.cma[0]).toMatchObject({
       patientName: 'Paciente Cma',
-      dischargeTime: '10:30', // report's 12:30 continental (−04) → 10:30 Rapa Nui (−06)
+      dischargeTime: '12:30', // official statistical time from the report
     });
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.transfers).toHaveLength(0);
@@ -381,7 +403,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.transfers).toHaveLength(1);
     expect(result.record.transfers[0]).toMatchObject({
       patientName: 'Paciente Traslado',
-      time: '08:00', // report's 10:00 continental (−04) → 08:00 Rapa Nui (−06)
+      time: '10:00', // official statistical time from the report
     });
     expect(result.record.discharges).toHaveLength(0);
   });

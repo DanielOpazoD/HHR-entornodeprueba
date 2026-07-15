@@ -1,44 +1,51 @@
 /**
- * Timezone correction for the "Alta Administrativa" egreso report (gestión de camas / Hospitalizados
- * backend). That system prints egreso datetimes in **continental Chile time (America/Santiago)**,
- * which is exactly **2 hours ahead of Rapa Nui** (Pacific/Easter) — the two zones share the same DST
- * transitions, so the gap is a constant 2h year-round. Left uncorrected, a Rapa Nui egreso after
- * 22:00 local is printed on the *next* continental day, and its hour reads +2h off the island clock.
+ * Parser for the official statistical discharge stamp printed by Gestión de Camas.
  *
- * `continentalReportToRapaNui` reads the report's `DD-MM-YYYY HH:MM` and returns the equivalent Rapa
- * Nui local day + time, so the discharge lands on the correct ISLAND day with the real local hour.
+ * Live evidence from the individual "Informe Estadístico de Egreso Hospitalario" and the
+ * administrative-discharge API event confirms that the report already prints the Rapa Nui wall
+ * clock. Therefore this parser NORMALIZES the value but never shifts it by timezone. The known D+1
+ * workaround belongs only to the report search range; it must not alter the timestamp printed in a
+ * row.
  */
 
-export interface RapaNuiEgresoStamp {
+export interface StatisticalEgresoStamp {
   /** Rapa Nui calendar day (YYYY-MM-DD). */
   iso: string;
-  /** Rapa Nui local time (HH:MM). */
+  /** Official statistical egreso time (HH:MM). */
   hhmm: string;
-  /** Rapa Nui datetime as printed by the report (DD-MM-YYYY HH:MM). */
+  /** Normalized official datetime (DD-MM-YYYY HH:MM). */
   text: string;
 }
 
-/** Continental Chile is 2h ahead of Rapa Nui (constant across DST). */
-const CONTINENTAL_MINUS_RAPA_NUI_MS = 2 * 60 * 60 * 1000;
-
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 
-export const continentalReportToRapaNui = (fechaEgreso: string): RapaNuiEgresoStamp | null => {
+export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgresoStamp | null => {
   const match = (fechaEgreso || '')
     .trim()
-    .match(/^(\d{1,2})-(\d{1,2})-(\d{4})[ T]+(\d{1,2}):(\d{2})/);
+    .match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})[\sT]+(\d{1,2}):(\d{2})/);
   if (!match) return null;
   const [, dd, mm, yyyy, hh, mi] = match;
+  const day = Number(dd);
+  const month = Number(mm);
+  const year = Number(yyyy);
+  const hour = Number(hh);
+  const minute = Number(mi);
+  const calendarProbe = new Date(Date.UTC(year, month - 1, day));
+  const isValid =
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    hour >= 0 &&
+    hour <= 23 &&
+    minute >= 0 &&
+    minute <= 59 &&
+    calendarProbe.getUTCFullYear() === year &&
+    calendarProbe.getUTCMonth() === month - 1 &&
+    calendarProbe.getUTCDate() === day;
+  if (!isValid) return null;
 
-  // Anchor the naive continental stamp in UTC to do pure arithmetic (no host-tz interference),
-  // subtract the 2h offset to reach Rapa Nui local, then read the wall-clock fields back out.
-  const rapaNui = new Date(
-    Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi)) -
-      CONTINENTAL_MINUS_RAPA_NUI_MS
-  );
-
-  const iso = `${rapaNui.getUTCFullYear()}-${pad2(rapaNui.getUTCMonth() + 1)}-${pad2(rapaNui.getUTCDate())}`;
-  const hhmm = `${pad2(rapaNui.getUTCHours())}:${pad2(rapaNui.getUTCMinutes())}`;
-  const text = `${pad2(rapaNui.getUTCDate())}-${pad2(rapaNui.getUTCMonth() + 1)}-${rapaNui.getUTCFullYear()} ${hhmm}`;
+  const iso = `${year}-${pad2(month)}-${pad2(day)}`;
+  const hhmm = `${pad2(hour)}:${pad2(minute)}`;
+  const text = `${pad2(day)}-${pad2(month)}-${year} ${hhmm}`;
   return { iso, hhmm, text };
 };

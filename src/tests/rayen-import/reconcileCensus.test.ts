@@ -71,9 +71,7 @@ describe('reconcileCensus', () => {
     expect(diff.admissions[0].bedId).toBe('R1'); // the real bed, not a virtual CMA slot
   });
 
-  it('files a CMA discharge (not a plain alta) when a CMA patient vanishes from a COMPLETE census', () => {
-    // Partial egreso: the CMA patient left the census before the administrative egreso report lists
-    // them. Their stored `location` still says "CMA R1", so the inferred discharge must be CMA.
+  it('keeps a CMA patient in bed when absent from Ficha Médico until administrative confirmation', () => {
     const cma = makeEncounter({
       service: 'Área quirúrgica indiferenciada',
       room: 'CMA R1',
@@ -83,20 +81,22 @@ describe('reconcileCensus', () => {
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
       reference: REFERENCE,
     });
-    expect(diff.discharges).toHaveLength(1);
-    expect(diff.discharges[0]).toMatchObject({
-      bedId: 'R1',
-      kind: 'cma',
-      reason: 'missing-in-rayen',
-    });
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toEqual([
+      expect.objectContaining({ bedId: 'R1', signal: 'missing-from-ficha' }),
+    ]);
   });
 
-  it('files a plain alta when a NON-CMA patient vanishes from a complete census', () => {
+  it('does not infer a plain alta when a non-CMA patient vanishes from a complete census', () => {
     const [bedId, patient] = seedBed(makeEncounter()); // médico-quirúrgica bed, no CMA
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
       reference: REFERENCE,
     });
-    expect(diff.discharges[0]).toMatchObject({ kind: 'alta', reason: 'missing-in-rayen' });
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
+      bedId,
+      signal: 'missing-from-ficha',
+    });
   });
 
   it('creates an admission for a Rayen patient absent from the census', () => {
@@ -160,20 +160,22 @@ describe('reconcileCensus', () => {
     expect(diff.moves[0]).toMatchObject({ fromBedId: 'H2C1', toBedId: 'H1C2' });
   });
 
-  it('keeps a medically-discharged patient in the bed (pending nursing discharge)', () => {
+  it('keeps a medically-discharged patient in bed pending administrative discharge', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(
       makeRecord({ [bedId]: patient }),
       snapshotOf([makeEncounter({ hasMedicalDischarge: true })]),
       { reference: REFERENCE }
     );
-    // Alta médica alone must NOT discharge in HHR: the nurse's alta de enfermería does.
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(1);
-    expect(diff.pendingNursingDischarges[0]).toMatchObject({ bedId, kind: 'alta', status: 'Vivo' });
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
+    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
+      bedId,
+      signal: 'clinical-closure',
+    });
   });
 
-  it('tags a medically-discharged CMA patient as a CMA pending discharge, still in bed', () => {
+  it('keeps a medically-discharged CMA patient pending without guessing its final type', () => {
     const cmaEncounter = makeEncounter({
       encounterId: 'ECMA',
       service: 'Área quirúrgica indiferenciada',
@@ -187,8 +189,11 @@ describe('reconcileCensus', () => {
       { reference: REFERENCE }
     );
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(1);
-    expect(diff.pendingNursingDischarges[0]).toMatchObject({ kind: 'cma', bedId: 'R1' });
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
+    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
+      signal: 'clinical-closure',
+      bedId: 'R1',
+    });
   });
 
   it('restores a medically-discharged patient that was deleted from the HHR bed', () => {
@@ -201,12 +206,12 @@ describe('reconcileCensus', () => {
     expect(diff.admissions).toHaveLength(1);
     expect(diff.admissions[0].bedId).toBe('R2');
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
   });
 
-  it('does NOT restore a patient already discharged in HHR (alta de enfermería)', () => {
-    // Same alta médica, but the nurse already completed the discharge in HHR (the patient
-    // is in discharge records) → their absence from the bed is correct, do not re-admit.
+  it('does not restore a patient already represented by an HHR movement', () => {
+    // The patient's statistical movement is already stored, so their absence from the bed is
+    // intentional even if Ficha Médico still returns the clinical encounter.
     const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', hasMedicalDischarge: true });
     const diff = reconcileCensus(
       makeRecord({}, { discharges: [hhrDischarge(enc.run, enc.encounterId)] }),
@@ -214,37 +219,35 @@ describe('reconcileCensus', () => {
       { reference: REFERENCE }
     );
     expect(diff.admissions).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
     expect(diff.discharges).toHaveLength(0);
   });
 
-  it('records the egreso (not pending) once the nurse discharge is confirmed', () => {
+  it('does not record an egreso even when both clinical closures are complete', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(
       makeRecord({ [bedId]: patient }),
       snapshotOf([makeEncounter({ hasMedicalDischarge: true, hasNurseDischarge: true })]),
       { reference: REFERENCE }
     );
-    // Alta médica + alta de enfermería → egreso real que vacía la cama, no pendiente.
-    expect(diff.pendingNursingDischarges).toHaveLength(0);
-    expect(diff.discharges).toHaveLength(1);
-    expect(diff.discharges[0]).toMatchObject({ bedId, kind: 'alta', reason: 'rayen-discharge' });
-    expect(requiresReview(diff)).toBe(false); // confirmed by Rayen, no human review needed
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
+    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
+      bedId,
+      signal: 'clinical-closure',
+    });
+    expect(diff.discharges).toHaveLength(0);
+    expect(requiresReview(diff)).toBe(true);
   });
 
-  it('does NOT restore an absent patient who is deceased', () => {
-    // Fallecido ausente de la cama HHR, sin alta de enfermería ni registro HHR: jamás debe
-    // re-ingresarse por la ruta de restauración.
+  it('restores a deceased clinical encounter when no administrative egreso exists yet', () => {
     const enc = makeEncounter({ room: 'Recuperacion 2', bed: 'R2', isDead: true });
     const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
-    expect(diff.admissions).toHaveLength(0);
+    expect(diff.admissions).toHaveLength(1);
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
   });
 
-  it('does NOT restore an absent patient whose nurse discharge is done in Rayen', () => {
-    // Alta de enfermería finalizada en Rayen pero ausente de la cama HHR y sin registro en
-    // HHR → egresó de verdad; no re-ingresar.
+  it('restores an absent patient with nursing closure until the administrative report confirms it', () => {
     const enc = makeEncounter({
       room: 'Recuperacion 2',
       bed: 'R2',
@@ -252,18 +255,21 @@ describe('reconcileCensus', () => {
       hasNurseDischarge: true,
     });
     const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
-    expect(diff.admissions).toHaveLength(0);
+    expect(diff.admissions).toHaveLength(1);
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingNursingDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
   });
 
-  it('flags a census patient absent from a COMPLETE snapshot as missing-in-rayen', () => {
+  it('flags a census patient absent from a COMPLETE snapshot as pending administrative discharge', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
       reference: REFERENCE,
     });
-    expect(diff.discharges).toHaveLength(1);
-    expect(diff.discharges[0].reason).toBe('missing-in-rayen');
+    expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
+      bedId,
+      signal: 'missing-from-ficha',
+    });
   });
 
   it('NEVER infers a discharge from a partial snapshot (isComplete omitted/false)', () => {
@@ -272,6 +278,7 @@ describe('reconcileCensus', () => {
       reference: REFERENCE,
     });
     expect(diff.discharges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
   });
 
   it('reports a conflict when a new Rayen patient targets an occupied bed', () => {
@@ -326,7 +333,7 @@ describe('requiresReview (auto-mode safety gate)', () => {
     expect(requiresReview(diff)).toBe(true);
   });
 
-  it('is true when there are inferred (missing-in-rayen) discharges', () => {
+  it('is true when an administrative discharge is pending', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
       reference: REFERENCE,
@@ -334,14 +341,14 @@ describe('requiresReview (auto-mode safety gate)', () => {
     expect(requiresReview(diff)).toBe(true);
   });
 
-  it('is false for a medical discharge kept in the bed (no inference needed)', () => {
+  it('is true for a clinical closure kept in bed pending administrative confirmation', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(
       makeRecord({ [bedId]: patient }),
       snapshotOf([makeEncounter({ hasMedicalDischarge: true })], true),
       { reference: REFERENCE }
     );
-    expect(diff.pendingNursingDischarges).toHaveLength(1);
-    expect(requiresReview(diff)).toBe(false);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
+    expect(requiresReview(diff)).toBe(true);
   });
 });

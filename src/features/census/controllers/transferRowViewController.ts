@@ -10,6 +10,8 @@ interface TransferRowActionHandlers {
   undoTransfer: (id: string) => void | Promise<void>;
   editTransfer: (transfer: TransferData) => void | Promise<void>;
   deleteTransfer: (id: string) => void | Promise<void>;
+  convertTransferToHomeDischarge?: (id: string) => void | Promise<void>;
+  convertTransferToCma?: (id: string) => void | Promise<void>;
 }
 
 export const resolveTransferRowViewModel = (

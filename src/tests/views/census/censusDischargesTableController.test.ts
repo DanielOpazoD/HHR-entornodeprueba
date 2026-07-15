@@ -36,6 +36,7 @@ describe('censusDischargesTableController', () => {
     let editedId = '';
     let deleteCalledWith = '';
     let convertedId = '';
+    let convertedTransferId = '';
 
     const actions = buildDischargeRowActions(discharge, {
       undoDischarge: id => {
@@ -53,26 +54,34 @@ describe('censusDischargesTableController', () => {
       convertDischargeToCma: id => {
         convertedId = id;
       },
+      convertDischargeToTransfer: id => {
+        convertedTransferId = id;
+      },
     });
     expect(actions.map(action => action.kind)).toEqual([
       'undo',
       'viewDocuments',
       'edit',
       'convert',
+      'convert',
       'delete',
     ]);
+    expect(actions.map(action => action.title)).toContain('Convertir a traslado');
+    expect(actions.map(action => action.title)).toContain('Convertir a CMA');
 
     actions[0].onClick();
     actions[1].onClick();
     actions[2].onClick();
     actions[3].onClick();
     actions[4].onClick();
+    actions[5].onClick();
 
     expect(undoCalledWith).toBe('d-2');
     expect(viewedId).toBe('d-2');
     expect(editedId).toBe('d-2');
     expect(deleteCalledWith).toBe('d-2');
     expect(convertedId).toBe('d-2');
+    expect(convertedTransferId).toBe('d-2');
   });
 
   it('does not expose CMA conversion for non-home discharges', () => {

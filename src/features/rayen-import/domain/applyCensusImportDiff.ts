@@ -14,7 +14,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
-import { continentalReportToRapaNui } from '../mapping/reportEgresoDateTime';
+import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -71,7 +71,7 @@ export const buildDischarge = (
   rut: patient.rut,
   diagnosis: patient.pathology,
   specialty: asSpecialty(patient.specialty),
-  time: hhmm(ctx.now),
+  time: entry.correctedTime || hhmm(ctx.now),
   status: entry.status,
   dischargeType: entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
   age: patient.age || undefined,
@@ -98,7 +98,7 @@ export const buildTransfer = (
   rut: patient.rut,
   diagnosis: patient.pathology,
   specialty: asSpecialty(patient.specialty),
-  time: hhmm(ctx.now),
+  time: entry.correctedTime || hhmm(ctx.now),
   evacuationMethod: '',
   receivingCenter: '',
   age: patient.age || undefined,
@@ -117,16 +117,16 @@ export const buildCma = (
   ...CensusManager.formatCMAData(patient, entry.bedId),
   id: ctx.idFactory(),
   timestamp: ctx.now.toISOString(),
-  dischargeTime: hhmm(ctx.now),
+  dischargeTime: entry.correctedTime || hhmm(ctx.now),
   clinicalEpisodeId: patient.clinicalEpisodeId,
 });
 
 /**
- * The egreso time as shown on the island clock. The report prints continental Chile time (−04), 2h
- * ahead of Rapa Nui (−06), so convert before storing; '' when the stamp is unparseable.
+ * The official statistical egreso time. Gestión de Camas already prints the Rapa Nui wall clock;
+ * normalize it without applying a second timezone shift.
  */
 const reportEgresoTime = (fechaEgreso: string): string =>
-  continentalReportToRapaNui(fechaEgreso)?.hhmm ?? '';
+  parseStatisticalEgresoStamp(fechaEgreso)?.hhmm ?? '';
 
 // A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
 // builders read, so the day's altas census can log it from the report's data.
@@ -145,7 +145,9 @@ export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   patientName: egreso.patientName,
   kind: egreso.kind,
   status: egreso.status,
-  reason: 'rayen-discharge',
+  reason: 'administrative-discharge',
+  correctedDay: egreso.correctedDay,
+  correctedTime: egreso.correctedTime,
 });
 
 export const applyCensusImportDiff = (
@@ -194,7 +196,7 @@ export const applyCensusImportDiff = (
     if (egreso.correctedDay && egreso.correctedDay !== isoDayOf(current.date)) continue;
     const patient = reportEgresoPatient(egreso);
     const entry = reportEgresoEntry(egreso);
-    const time = reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);
+    const time = egreso.correctedTime || reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);
     if (egreso.kind === 'traslado') {
       transfers.push({ ...buildTransfer(patient, entry, current, ctx), time });
     } else if (egreso.kind === 'cma') {

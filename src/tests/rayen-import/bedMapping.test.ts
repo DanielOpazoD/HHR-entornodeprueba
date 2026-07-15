@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { mapRayenBed } from '@/features/rayen-import';
-import { isCmaLocation } from '@/features/rayen-import/mapping/bedMapping';
+import { isCmaBedLabel, isCmaLocation, mapRayenBed } from '@/features/rayen-import';
+
+describe('isCmaBedLabel', () => {
+  it.each(['CMA R1', 'CMA-R2', 'CMAR3', 'CMA R4', 'CMA NEO1', 'CMA Neo 2', 'CMAN1'])(
+    'recognizes the exact CMA-prefixed Eloísa bed %s',
+    label => {
+      expect(isCmaBedLabel(label)).toBe(true);
+    }
+  );
+
+  it.each(['R1', 'R4', 'NEO1', 'Neo2', 'Recuperación 1', 'CMA R5', 'CMA NEO3'])(
+    'does not confuse the ordinary/invalid bed %s with CMA',
+    label => {
+      expect(isCmaBedLabel(label)).toBe(false);
+    }
+  );
+});
 
 describe('isCmaLocation', () => {
   it('recognizes a stored CMA location (virtual service or "CMA R#/NEO#" bed token)', () => {
@@ -13,6 +28,9 @@ describe('isCmaLocation', () => {
       false
     );
     expect(isCmaLocation('Recuperación 2 / R2')).toBe(false);
+    expect(isCmaLocation('Área Médico Quirúrgica Indiferenciada / Recuperación 1 / R1')).toBe(
+      false
+    );
     expect(isCmaLocation('')).toBe(false);
     expect(isCmaLocation(undefined)).toBe(false);
   });

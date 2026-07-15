@@ -30,10 +30,11 @@ interface CmaSectionRowProps {
   onUndo: (item: CMAData) => Promise<void>;
   onDelete: (item: CMAData) => void | Promise<void>;
   onConvertToDischarge: (item: CMAData) => void | Promise<void>;
+  onConvertToTransfer?: (item: CMAData) => void | Promise<void>;
 }
 
 export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
-  ({ item, recordDate, onUpdate, onUndo, onDelete, onConvertToDischarge }) => {
+  ({ item, recordDate, onUpdate, onUndo, onDelete, onConvertToDischarge, onConvertToTransfer }) => {
     const [showIeehDialog, setShowIeehDialog] = useState(false);
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
@@ -79,6 +80,16 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
         className: '',
         onClick: () => void onConvertToDischarge(item),
       },
+      ...(onConvertToTransfer
+        ? [
+            {
+              kind: 'convert' as const,
+              title: 'Convertir a traslado',
+              className: '',
+              onClick: () => void onConvertToTransfer(item),
+            },
+          ]
+        : []),
       {
         kind: 'delete',
         title: 'Eliminar registro',

@@ -4,14 +4,20 @@ import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
 import {
+  buildMovementTypeConversionConfirmDialog,
   DISCHARGE_DELETE_CONFIRM_DIALOG,
   DISCHARGE_UNDO_CONFIRM_DIALOG,
 } from '../controllers/censusMovementActionConfirmController';
 
 export const useDischargesSectionModel = () => {
   const { recordDate, discharges } = useCensusMovementData();
-  const { undoDischarge, deleteDischarge, updateDischarge, convertDischargeToCma } =
-    useDailyRecordMovementActions();
+  const {
+    undoDischarge,
+    deleteDischarge,
+    updateDischarge,
+    convertDischargeToCma,
+    convertDischargeToTransfer,
+  } = useDailyRecordMovementActions();
   const { handleEditDischarge } = useCensusActionCommands();
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
@@ -28,11 +34,7 @@ export const useDischargesSectionModel = () => {
     let confirmed = false;
     try {
       confirmed = await confirm({
-        title: 'Convertir alta a CMA',
-        message: '¿Convertir esta alta a un egreso CMA?',
-        confirmText: 'Convertir',
-        cancelText: 'Cancelar',
-        variant: 'warning',
+        ...buildMovementTypeConversionConfirmDialog('alta domicilio', 'CMA'),
       });
     } catch {
       notifyError('No se pudo convertir', 'No se pudo confirmar el cambio de tipo de egreso.');
@@ -43,6 +45,15 @@ export const useDischargesSectionModel = () => {
       convertDischargeToCma(id);
     }
   };
+  const handleConvertDischargeToTransfer = async (id: string) => {
+    try {
+      if (await confirm(buildMovementTypeConversionConfirmDialog('alta domicilio', 'traslado'))) {
+        convertDischargeToTransfer(id);
+      }
+    } catch {
+      notifyError('No se pudo convertir', 'No se pudo confirmar el cambio de tipo de egreso.');
+    }
+  };
 
   return {
     recordDate,
@@ -50,5 +61,6 @@ export const useDischargesSectionModel = () => {
     handleEditDischarge,
     updateDischarge,
     handleConvertDischargeToCma,
+    handleConvertDischargeToTransfer,
   };
 };

@@ -37,6 +37,7 @@ describe('DischargesSection', () => {
   const mockOnUndo = vi.fn();
   const mockOnDelete = vi.fn();
   const mockConvertDischargeToCma = vi.fn();
+  const mockConvertDischargeToTransfer = vi.fn();
   const mockHandleEdit = vi.fn();
   const mockConfirm = vi.fn();
   const mockNotifyError = vi.fn();
@@ -69,6 +70,7 @@ describe('DischargesSection', () => {
       undoDischarge: mockOnUndo,
       deleteDischarge: mockOnDelete,
       convertDischargeToCma: mockConvertDischargeToCma,
+      convertDischargeToTransfer: mockConvertDischargeToTransfer,
     } as unknown as MovementActionsValue);
     // Default empty movements
     vi.mocked(useDailyRecordMovements).mockReturnValue({
@@ -126,10 +128,24 @@ describe('DischargesSection', () => {
     await waitFor(() => {
       expect(mockConfirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Convertir alta a CMA',
+          title: 'Convertir alta domicilio a CMA',
         })
       );
       expect(mockConvertDischargeToCma).toHaveBeenCalledWith('1');
+    });
+  });
+
+  it('converts a home discharge into a transfer from the shared actions menu', async () => {
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      discharges: mockDischarges,
+    } as unknown as MovementsValue);
+
+    render(<DischargesSection />);
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /convertir a traslado/i }));
+
+    await waitFor(() => {
+      expect(mockConvertDischargeToTransfer).toHaveBeenCalledWith('1');
     });
   });
 

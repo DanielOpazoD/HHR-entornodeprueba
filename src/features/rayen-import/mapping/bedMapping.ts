@@ -10,8 +10,10 @@
  *     CMA R{k} / CMAR{k}    → R{k}   (same physical bed, isCma=true)
  *     CMA NEO{k} / CMAN{k}  → NEO{k} (same physical bed, isCma=true)
  *
- * CMA is a *discharge type*, not a distinct location: a CMA patient occupies the
- * same real bed; `isCma` only flags that the eventual discharge is a CMA discharge.
+ * CMA is a *discharge type*, not a distinct HHR location: a CMA patient occupies the
+ * same real bed. The exact CMA-prefixed source label is nevertheless preserved in
+ * `PatientData.location`, so the administrative discharge can distinguish `CMA R1`
+ * from the ordinary physical bed `R1`.
  */
 
 /** Reason the bed was resolved — useful for diagnostics and preview UI. */
@@ -44,6 +46,14 @@ const isCmaService = (serviceNorm: string): boolean =>
   serviceNorm.includes('QUIRURGICAINDIFERENCIADA') && !serviceNorm.includes('MEDICO');
 
 /**
+ * Exact CMA bed labels exposed by Gestión de Camas/Eloísa. Separator and case variants are
+ * accepted (`CMA R1`, `CMA-R1`, `CMAR1`), but a plain physical `R1`/`NEO1` never matches.
+ * `CMAN1/2` is retained because older Rayen payloads use that short-name for `CMA NEO1/2`.
+ */
+export const isCmaBedLabel = (value?: string): boolean =>
+  /^CMA(?:R[1-4]|N(?:EO)?[12])$/.test(normalize(value));
+
+/**
  * True when a stored HHR patient `location` ("service / room / bed", set at admission) is a CMA
  * virtual location — i.e. the patient is a CMA (ambulatory major surgery) case. Used to classify a
  * discharge as CMA even when the discharge itself carries no CMA signal (e.g. the patient vanished
@@ -51,8 +61,8 @@ const isCmaService = (serviceNorm: string): boolean =>
  * the same rules as `mapRayenBed`: the CMA virtual service, or a "CMA R#/NEO#" bed token.
  */
 export const isCmaLocation = (location?: string): boolean => {
-  const norm = normalize(location);
-  return isCmaService(norm) || /CMA[RN]/.test(norm);
+  const value = location ?? '';
+  return isCmaService(normalize(value)) || value.split('/').some(isCmaBedLabel);
 };
 
 export interface RayenBedLocation {
@@ -66,7 +76,8 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const bedRaw = normalize(location.bed);
   const serviceNorm = normalize(location.service);
 
-  const isCma = roomRaw.startsWith('CMA') || bedRaw.startsWith('CMA') || isCmaService(serviceNorm);
+  const isCma =
+    isCmaBedLabel(location.room) || isCmaBedLabel(location.bed) || isCmaService(serviceNorm);
 
   // Strip the CMA prefix so the underlying physical bed can be matched.
   const room = roomRaw.replace(/^CMA/, '');

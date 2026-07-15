@@ -3,8 +3,8 @@
  * extension bridge), plan the diff, then either open the preview (default) or apply
  * automatically (experimental mode). Applying persists via `useSaveDailyRecordMutation`.
  *
- * Safety rail: auto mode only auto-applies when the diff has NO conflicts; otherwise
- * it falls back to the preview so a human resolves them.
+ * Safety rail: auto mode only auto-applies when the diff has no review-gated signals;
+ * otherwise it falls back to the preview so a human can verify them.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,15 +19,13 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
-import { applyEgresoLookups, runsNeedingEgresoLookup } from '../domain/applyEgresoLookups';
-import { applyEgresoReport, collectKnownRuns } from '../domain/applyEgresoReport';
+import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyEgresoReport';
 import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
 import {
   subscribeToRayenSnapshots,
   subscribeToRayenImportErrors,
   requestRayenSnapshot,
-  requestEgresoLookup,
   requestEgresoReport,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
@@ -122,25 +120,17 @@ export const useRayenImport = () => {
       }
       let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
 
-      // Late-sync gap: patients absent from Ficha Médico are inferred discharges. Ask gestión
-      // de camas (by RUN) for their real egreso and upgrade them to confirmed discharges with
-      // the right kind (alta/traslado). Degrades gracefully to [] if that tab isn't available.
-      const runs = runsNeedingEgresoLookup(diff);
-      if (runs.length > 0) {
-        diff = applyEgresoLookups(diff, await requestEgresoLookup(runs));
-      }
-
-      // Bulk egreso report (Fase C): enumerate the day's egresos in gestión de camas. Confirms
-      // the destination (domicilio/traslado) of known discharges AND surfaces egresos HHR never
-      // synced (unknown RUN) for review. Degrades to [] if the report/tab is unavailable.
+      // The bulk Gestión de Camas report is the only authority for statistical egresos. Ficha
+      // Médico may signal a clinical closure, but it never vacates a bed by itself.
       const reportDate = toIsoReportDate(currentRecord);
       // Fetch the report for [D, D+1]: the source files a late island egreso on the NEXT day (its
       // filter runs in a zone ahead of Rapa Nui), so asking only for D would miss it. The extra day's
       // rows are routed to their real island day (or skipped) by the day-correction logic downstream.
-      const reportRows = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
-      if (reportRows.length > 0) {
-        diff = applyEgresoReport(diff, reportRows, collectKnownRuns(currentRecord, snapshot));
-      }
+      const reportResult = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
+      const reportAvailable = reportResult.ok;
+      diff = reportAvailable
+        ? applyEgresoReport(diff, reportResult.rows, currentRecord)
+        : markEgresoReportUnavailable(diff);
 
       // Discharge-day corrections: egresos whose official island day is earlier than the census day
       // are filed on that previous day (behind confirmation), so they must never auto-apply. The plan
@@ -197,7 +187,7 @@ export const useRayenImport = () => {
         0;
       // With census changes to confirm, syncing "pauses" for human review; with none, the fill runs
       // now and keeps the indicator on until it settles.
-      if (!hasApplicableChanges) {
+      if (!hasApplicableChanges && reportAvailable) {
         // Sin diff que aplicar: sella la sincronización (who+when) por patch; un fallo aquí solo
         // pierde ese sello (no datos clínicos), así que se loguea sin bloquear al usuario.
         try {
@@ -214,11 +204,12 @@ export const useRayenImport = () => {
         diff,
         isPreviewOpen: true,
         isBusy: false,
-        isSyncing: !hasApplicableChanges,
+        isSyncing: !hasApplicableChanges && reportAvailable,
         result: null,
-        error:
-          mode === 'auto' && needsReview
-            ? 'El modo automático requiere revisión: hay conflictos, egresos inferidos por ausencia en Rayen, o correcciones de días previos.'
+        error: !reportAvailable
+          ? 'No fue posible verificar las altas administrativas en Gestión de Camas. Revisa esa pestaña y vuelve a sincronizar; el censo no se aplicará automáticamente.'
+          : mode === 'auto' && needsReview
+            ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
             : null,
       });
     },

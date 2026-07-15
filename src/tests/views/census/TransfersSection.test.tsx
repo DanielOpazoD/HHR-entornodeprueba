@@ -36,6 +36,8 @@ describe('TransfersSection', () => {
 
   const mockOnUndo = vi.fn();
   const mockOnDelete = vi.fn();
+  const mockConvertTransferToHomeDischarge = vi.fn();
+  const mockConvertTransferToCma = vi.fn();
   const mockHandleEdit = vi.fn();
   const mockConfirm = vi.fn();
   const mockNotifyError = vi.fn();
@@ -73,6 +75,8 @@ describe('TransfersSection', () => {
     vi.mocked(useDailyRecordMovementActions).mockReturnValue({
       undoTransfer: mockOnUndo,
       deleteTransfer: mockOnDelete,
+      convertTransferToHomeDischarge: mockConvertTransferToHomeDischarge,
+      convertTransferToCma: mockConvertTransferToCma,
     } as unknown as MovementActionsValue);
     vi.mocked(useDailyRecordMovements).mockReturnValue({
       transfers: [],
@@ -144,6 +148,19 @@ describe('TransfersSection', () => {
     // Escort should show for t2 (Ambulancia) but NOT for t3 (Aerocardal)
     expect(screen.getByText(/Acompaña: Medic Y/)).toBeInTheDocument();
     expect(screen.queryByText(/Acompaña: Medic Z/)).not.toBeInTheDocument();
+  });
+
+  it('offers both classification corrections for a transfer', async () => {
+    vi.mocked(useDailyRecordMovements).mockReturnValue({
+      transfers: mockTransfers,
+    } as MovementsValue);
+    render(<TransfersSection />);
+
+    clickTransferAction(/convertir a alta domicilio/i);
+    await waitFor(() => expect(mockConvertTransferToHomeDischarge).toHaveBeenCalledWith('t1'));
+
+    clickTransferAction(/convertir a cma/i);
+    await waitFor(() => expect(mockConvertTransferToCma).toHaveBeenCalledWith('t1'));
   });
 
   it('returns null if transfers is null', () => {

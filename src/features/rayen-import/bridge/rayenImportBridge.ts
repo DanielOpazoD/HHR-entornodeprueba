@@ -97,27 +97,33 @@ export const requestEgresoLookup = (
 
 /**
  * Ask the extension to download + parse the bulk "Alta Administrativa" egreso report for a date
- * range (ISO YYYY-MM-DD) in gestión de camas. This enumerates the day's egresos — including
- * patients HHR never synced — with their discharge destination. Resolves to `[]` if the
- * extension / gestión de camas tab is unavailable or times out, so the caller degrades gracefully.
+ * range (ISO YYYY-MM-DD) in gestión de camas. A successful empty report is deliberately distinct
+ * from an unavailable/timed-out report: callers must not treat failed authority lookup as proof
+ * that there were no administrative discharges.
  */
+export type EgresoReportRequestResult =
+  | { ok: true; rows: EgresoReportRow[] }
+  | { ok: false; reason: 'invalid-request' | 'unavailable' | 'timeout' };
+
 export const requestEgresoReport = (
   dateStart: string,
   dateEnd: string,
   timeoutMs = 40000
-): Promise<EgresoReportRow[]> =>
+): Promise<EgresoReportRequestResult> =>
   new Promise(resolve => {
     if (typeof window === 'undefined' || !dateStart || !dateEnd) {
-      resolve([]);
+      resolve({ ok: false, reason: 'invalid-request' });
       return;
     }
     const reqId = `egreso-report-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const cleanup = (): void => {
       if (settled) return;
       settled = true;
       window.removeEventListener('message', onMessage);
+      if (timeoutId) clearTimeout(timeoutId);
     };
 
     const onMessage = (event: MessageEvent): void => {
@@ -125,7 +131,11 @@ export const requestEgresoReport = (
       const data = event.data;
       if (!data || data.type !== RAYEN_EGRESO_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
       cleanup();
-      resolve(Array.isArray(data.rows) ? (data.rows as EgresoReportRow[]) : []);
+      if (data.ok !== true || !Array.isArray(data.rows)) {
+        resolve({ ok: false, reason: 'unavailable' });
+        return;
+      }
+      resolve({ ok: true, rows: data.rows as EgresoReportRow[] });
     };
 
     window.addEventListener('message', onMessage);
@@ -133,9 +143,9 @@ export const requestEgresoReport = (
       { type: RAYEN_EGRESO_REPORT_REQUEST_TYPE, reqId, dateStart, dateEnd },
       window.location.origin
     );
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       cleanup();
-      resolve([]);
+      resolve({ ok: false, reason: 'timeout' });
     }, timeoutMs);
   });
 

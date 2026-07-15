@@ -198,6 +198,38 @@ describe('useCMA', () => {
     );
   });
 
+  it('converts a CMA entry into a transfer in one movement patch', () => {
+    mockRecord.cma = [
+      DataFactory.createMockCMA({
+        id: 'cma-transfer',
+        patientName: 'Paciente CMA',
+        rut: '11.111.111-1',
+        bedName: 'R1',
+        originalBedId: 'R1',
+        dischargeTime: '15:30',
+        clinicalEpisodeId: 'episode-cma-transfer',
+      }),
+    ];
+    const { result } = renderHook(() => useCMA(mockRecord, saveAndUpdate, patchRecord));
+
+    act(() => result.current.convertCmaToTransfer('cma-transfer'));
+
+    expect(patchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cma: [expect.objectContaining({ deletedReason: 'converted_to_transfer' })],
+        transfers: [
+          expect.objectContaining({
+            bedId: 'R1',
+            time: '15:30',
+            evacuationMethod: '',
+            receivingCenter: '',
+            clinicalEpisodeId: 'episode-cma-transfer',
+          }),
+        ],
+      })
+    );
+  });
+
   it('should handle record being null', () => {
     const { result } = renderHook(() => useCMA(null, saveAndUpdate, patchRecord));
 

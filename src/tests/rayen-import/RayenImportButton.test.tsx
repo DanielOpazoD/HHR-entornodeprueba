@@ -57,13 +57,13 @@ describe('RayenImportButton', () => {
     const readyHealth = {
       connection: 'ready',
       report: {
-        version: '0.5.0',
-        protocolVersion: 1,
+        version: '0.6.0',
+        protocolVersion: 2,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
         gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
       },
-      message: 'Extensión Eloísa v0.5.0 operativa.',
+      message: 'Extensión Eloísa v0.6.0 operativa.',
       canSync: true,
     };
     mocks.refreshHealth.mockResolvedValue(readyHealth);
@@ -94,7 +94,7 @@ describe('RayenImportButton', () => {
 
     expect(screen.getByTestId('rayen-operations-bar')).toBeInTheDocument();
     expect(screen.getByText('Fuente clínica externa')).toBeInTheDocument();
-    expect(screen.getByText('Conectada · v0.5.0')).toBeInTheDocument();
+    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
     expect(screen.getByText('Ficha ✓')).toBeInTheDocument();
     expect(screen.getByText('Camas ✓')).toBeInTheDocument();
     expect(screen.getByText('Responsable')).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conectada · v0.5.0')).toBeInTheDocument();
+    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
     expect(screen.getByText('Sin sincronización registrada')).toBeInTheDocument();
     expect(screen.getByText('Responsable')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica')).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conectada · v0.5.0')).toBeInTheDocument();
+    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
     expect(screen.getByText('No disponible en sincronizaciones antiguas')).toBeInTheDocument();
   });
 
@@ -149,8 +149,8 @@ describe('RayenImportButton', () => {
     const degradedHealth = {
       connection: 'degraded',
       report: {
-        version: '0.5.0',
-        protocolVersion: 1,
+        version: '0.6.0',
+        protocolVersion: 2,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
         gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
@@ -168,7 +168,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conexión parcial · v0.5.0')).toBeInTheDocument();
+    expect(screen.getByText('Conexión parcial · v0.6.0')).toBeInTheDocument();
     expect(screen.getByText('Camas —')).toBeInTheDocument();
     expect(screen.getByTestId('rayen-extension-health-message')).toHaveTextContent(
       'validación de egresos será parcial'
@@ -182,8 +182,8 @@ describe('RayenImportButton', () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
-        version: '0.5.0',
-        protocolVersion: 1,
+        version: '0.6.0',
+        protocolVersion: 2,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'missing', message: 'Abre Ficha Médico e inicia sesión.' },
         gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
