@@ -225,6 +225,17 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
   const isGinecobstetricia = isGinecobstetriciaSpecialty(data.specialty);
   const canShowDeliveryRoute =
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
+  const diagnosisRightPadding = data.cie10Code
+    ? canShowDeliveryRoute
+      ? 'pr-32'
+      : isGinecobstetricia
+        ? 'pr-28'
+        : 'pr-16'
+    : canShowDeliveryRoute
+      ? 'pr-14'
+      : isGinecobstetricia
+        ? 'pr-8'
+        : undefined;
 
   // Rediseño 2026: la Especialidad ya no es una columna — se muestra como texto junto a la fecha de
   // ingreso (PatientIdentityCell) y se sigue editando desde este editor de Diagnóstico. Los controles
@@ -238,9 +249,7 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
         placeholder="Diagnóstico"
         contentClassName={clsx(
           data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
-          data.cie10Code && (isGinecobstetricia ? 'pr-28' : 'pr-16'),
-          isGinecobstetricia && 'pr-8',
-          canShowDeliveryRoute && 'pr-14'
+          diagnosisRightPadding
         )}
         readOnly={readOnly}
         onChange={onChange}
