@@ -229,49 +229,46 @@ export const updateRecordPartiallyAtomically = async (
   await runTransaction(db, async transaction => {
     const snap = await transaction.get(docRef);
 
-    if (snap.exists() && !expectedLastUpdated) {
+    // A partial mutation can never reconstruct a deleted daily record safely. Reclassification
+    // payloads only carry movement arrays, so creating from them would omit beds and metadata.
+    if (!snap.exists() || !expectedLastUpdated) {
       throw new ConcurrencyError(conflictMessage);
     }
 
-    if (snap.exists() && expectedLastUpdated) {
-      const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
-      if (remoteLastUpdated) {
-        const drift =
-          new Date(remoteLastUpdated).getTime() - new Date(expectedLastUpdated).getTime();
-        if (drift > 0) {
-          recordOperationalErrorTelemetry(
-            'firestore',
-            'atomic_partial_update_concurrency',
-            createOperationalError({
-              code: 'firestore_concurrency_conflict',
-              message: conflictMessage,
-              severity: 'warning',
-              userSafeMessage: conflictMessage,
-              context: { contextLabel, remoteLastUpdated, expectedLastUpdated },
-            }),
-            {
-              code: 'firestore_concurrency_conflict',
-              message: conflictMessage,
-              severity: 'warning',
-              userSafeMessage: conflictMessage,
-            }
-          );
-          throw new ConcurrencyError(conflictMessage);
+    const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
+    const remoteVersionMs = Date.parse(remoteLastUpdated || '');
+    const expectedVersionMs = Date.parse(expectedLastUpdated);
+    if (
+      !Number.isFinite(remoteVersionMs) ||
+      !Number.isFinite(expectedVersionMs) ||
+      remoteVersionMs !== expectedVersionMs
+    ) {
+      recordOperationalErrorTelemetry(
+        'firestore',
+        'atomic_partial_update_concurrency',
+        createOperationalError({
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
+          context: { contextLabel, remoteLastUpdated, expectedLastUpdated },
+        }),
+        {
+          code: 'firestore_concurrency_conflict',
+          message: conflictMessage,
+          severity: 'warning',
+          userSafeMessage: conflictMessage,
         }
-      }
+      );
+      throw new ConcurrencyError(conflictMessage);
     }
 
-    if (snap.exists()) {
-      const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
-      transaction.set(historyRef, {
-        ...(snap.data() as Record<string, unknown>),
-        snapshotTimestamp: Timestamp.now(),
-      });
-      transaction.update(docRef, partialData);
-      return;
-    }
-
-    transaction.set(docRef, partialData, { merge: true });
+    const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+    transaction.set(historyRef, {
+      ...(snap.data() as Record<string, unknown>),
+      snapshotTimestamp: Timestamp.now(),
+    });
+    transaction.update(docRef, partialData);
   });
 };
 

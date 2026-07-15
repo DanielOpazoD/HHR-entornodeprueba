@@ -464,5 +464,52 @@ describe('firestoreWriteSupport', () => {
       expect(tx.set).not.toHaveBeenCalled();
       expect(tx.update).not.toHaveBeenCalled();
     });
+
+    it('rejects a missing remote record instead of recreating it from an incomplete patch', async () => {
+      const tx = makeTx({ exists: () => false });
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+
+      await expect(
+        updateRecordPartiallyAtomically(
+          { kind: 'docRef' } as never,
+          { discharges: [], cma: [{ id: 'cma-1' }] },
+          '2026-07-14T10:00:00.000Z',
+          'conflict',
+          'movement reclassification'
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['older', '2026-07-14T09:59:59.000Z'],
+      ['missing', undefined],
+      ['invalid', 'not-a-date'],
+    ])('rejects a %s remote base version', async (_label, remoteLastUpdated) => {
+      const tx = makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: remoteLastUpdated }),
+      });
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+
+      await expect(
+        updateRecordPartiallyAtomically(
+          { kind: 'docRef' } as never,
+          { transfers: [], cma: [{ id: 'cma-1' }] },
+          '2026-07-14T10:00:00.000Z',
+          'conflict',
+          'movement reclassification'
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
+    });
   });
 });
