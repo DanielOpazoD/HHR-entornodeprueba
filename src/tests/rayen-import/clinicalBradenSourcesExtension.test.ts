@@ -48,13 +48,24 @@ describe('extension BRADEN source reconciliation', () => {
   });
 
   it('does not render or enable registration from a partial scale read', () => {
-    expect(contentSource).toContain('const history = unavailableReason\n            ? []');
+    expect(contentSource).toMatch(/const history = unavailableReason\s*\?\s*\[\]/);
     expect(contentSource).toContain(
       "if (!unavailableReason && instrument !== 'CUDYR' && history.length)"
     );
     expect(contentSource).toContain(
       'action.disabled = !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
     );
+  });
+
+  it('fails closed when any required form source is unavailable', () => {
+    const source = sliceBetween(
+      'const fetchEvaluationForms = async',
+      'const fetchScaleHistoryEvents = async'
+    );
+
+    expect(source).toContain('const failures = results.filter(result => result.error)');
+    expect(source).toContain('if (failures.length)');
+    expect(source).not.toContain('const successful = results.filter');
   });
 
   it('uses the same two-source read for an ambiguous BRADEN or Downton recovery', () => {

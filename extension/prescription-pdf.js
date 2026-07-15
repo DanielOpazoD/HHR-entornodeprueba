@@ -398,6 +398,9 @@
       var maxLines = wrapped.reduce(function (max, lines) { return Math.max(max, lines.length); }, 1);
       var rowHeight = Math.max(23, maxLines * 8 + 8);
       if (y + rowHeight > pageBottom) addNewPage();
+      if (y + rowHeight > pageBottom) {
+        throw new Error('Una fila de BRADEN es demasiado extensa para imprimirse sin pérdida de contenido.');
+      }
       var x = margin;
       var alternate = rowIndex % 2 !== 0;
       doc.setFillColor(alternate ? 249 : 255, alternate ? 251 : 255, alternate ? 251 : 255);

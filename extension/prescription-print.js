@@ -229,7 +229,14 @@
         var stableId = String(row.MRE_ID || '').trim();
         var identity = stableId
           ? 'id:' + stableId
-          : 'row:' + [author, medicationName, row.POSOLOGY || '', dateTime].join('|').toLowerCase();
+          : 'row:' + [
+              author,
+              medicationName,
+              row.POSOLOGY || '',
+              row.ROUTE_ADMINISTRATION || '',
+              row.MRE_ADMINISTRATION_NOTE || '',
+              dateTime,
+            ].join('|').toLowerCase();
         var current = latestRows.get(identity);
         var inactive = isTrueFlag(row.ARCHIVED) || isTrueFlag(row.SUSPENDED);
         var hasExternalFlag = ['IS_EXTERNAL', 'is_external', 'ALL_MEDICATION', 'allMedication']
@@ -477,7 +484,7 @@
     var bytes = new Uint8Array(buffer);
     var source = new TextDecoder('latin1').decode(bytes);
     var streams = [];
-    var expression = /<<(?:.|\r|\n)*?\/Filter\s*\/FlateDecode(?:.|\r|\n)*?>>\s*stream\r?\n/g;
+    var expression = /<<(?:.|\r|\n)*?\/Filter\s*(?:\/FlateDecode|\[\s*\/FlateDecode\s*\])(?:.|\r|\n)*?>>\s*stream\r?\n/g;
     var match;
     while ((match = expression.exec(source))) {
       var start = match.index + match[0].length;
@@ -760,6 +767,8 @@
 
   var extractOfficialPrescriptionMetadata = async function (buffer) {
     var streams = await inflatePdfStreams(buffer);
+    var pages = pdfTextItems(streams);
+    var firstPage = pages[0] || [];
     var values = [];
     streams.forEach(function (stream) {
       var expression = /\(((?:\\.|[^\\)])*)\)\s*Tj/g;
@@ -768,7 +777,14 @@
     });
     var joined = values.join('\n');
     var folio = (joined.match(/Folio:\s*([A-Z0-9-]+)/i) || [])[1] || '';
-    var emissionDateTime = (joined.match(/\b(\d{2}-\d{2}-\d{4})\s{1,}(\d{2}:\d{2})\b/) || []);
+    var emissionDateTime = [
+      'Fecha emisión',
+      'Fecha emisión:',
+      'Fecha impresión',
+      'Fecha impresión:',
+    ].reduce(function (value, label) {
+      return value || sameRowValue(firstPage, label);
+    }, '');
     var prescriberIndex = values.findIndex(function (item) { return /^Prescriptor:\s*$/i.test(item.trim()); });
     var professional = '';
     var professionalRun = '';
@@ -788,7 +804,7 @@
     }
     return {
       folio: folio,
-      emissionDateTime: emissionDateTime.length ? emissionDateTime[1] + ' ' + emissionDateTime[2] : '',
+      emissionDateTime: normalizedPdfText(emissionDateTime),
       professional: professional,
       professionalRun: professionalRun,
     };

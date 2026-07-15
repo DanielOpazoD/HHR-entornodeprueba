@@ -198,4 +198,29 @@ describe('extension prescription print content flow', () => {
       expect(firstPrint.disabled).toBe(false);
     });
   });
+
+  it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', () => {
+    expect(contentSource).toContain("submit.textContent = 'Imprimir regímenes y BRADEN'");
+    expect(contentSource).toContain("submit.textContent = 'Reintentar impresión'");
+
+    const scoreAck = contentSource.indexOf(
+      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
+      contentSource.indexOf('const renderScoresCenter')
+    );
+    const scoreDisconnect = contentSource.indexOf('if (!panel.isConnected) return;', scoreAck);
+    expect(scoreAck).toBeGreaterThan(-1);
+    expect(scoreDisconnect).toBeGreaterThan(scoreAck);
+
+    const handoffRequest = contentSource.indexOf("type: 'RAYEN_HANDOFF_SAVE_REQUEST'");
+    const handoffAck = contentSource.indexOf(
+      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
+      handoffRequest
+    );
+    const handoffDisconnect = contentSource.indexOf(
+      'if (!root.isConnected) return;',
+      handoffRequest
+    );
+    expect(handoffAck).toBeGreaterThan(handoffRequest);
+    expect(handoffDisconnect).toBeGreaterThan(handoffAck);
+  });
 });

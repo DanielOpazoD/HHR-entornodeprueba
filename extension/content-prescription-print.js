@@ -1384,6 +1384,7 @@
           selectedText.textContent = patients.length + (patients.length === 1 ? ' paciente hospitalizado' : ' pacientes hospitalizados');
           availableText.textContent = regimenCount + ' con régimen · ' + bradenCount + ' con BRADEN';
           submit.disabled = Number(response.regimenErrorCount || 0) > 0 || Number(response.unavailableCount || 0) > 0;
+          submit.textContent = 'Imprimir regímenes y BRADEN';
           if (submit.disabled) submit.title = 'Actualiza: faltan regímenes o resultados BRADEN por verificar.';
           return;
         }
@@ -1431,6 +1432,8 @@
         if (!result || result.error) {
           cancel.disabled = false;
           renderError((result && result.error) || 'No se pudo preparar el documento solicitado.');
+          submit.disabled = false;
+          submit.textContent = 'Reintentar impresión';
           return;
         }
         const skipped = Array.isArray(result.skipped) ? result.skipped.length : 0;
@@ -1711,7 +1714,6 @@
             encId: patient.encounterId,
             observation: pendingText,
           });
-          if (!root.isConnected) return;
           setClinicalGuardState(root, 'pending', handoffKey, false);
           if (!result || result.error) {
             const mayHaveSucceeded = Boolean(result && result.writeMayHaveSucceeded);
@@ -2039,7 +2041,6 @@
             setClinicalGuardState(root, 'uncertain', scoreKey, false);
             setClinicalGuardState(root, 'dirty', scoreKey, false);
             setControlsDisabled(true);
-            if (!panel.isConnected) return;
             if (instrument === 'CUDYR') {
               patient.scores.CUDYR = { crdValue: String(result.record.total), crdDateTime: result.record.dateTime };
             } else {

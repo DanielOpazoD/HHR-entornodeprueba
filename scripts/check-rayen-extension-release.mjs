@@ -85,9 +85,24 @@ for (const host of manifest.host_permissions || []) {
 }
 
 const backgroundSource = readFileSync(path.join(extensionDir, 'background.js'), 'utf8');
-const startupSource = backgroundSource.slice(0, 5000);
+const executableBackgroundSource = backgroundSource
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/\/\/.*$/gm, '');
+const importScriptsCalls = [...executableBackgroundSource.matchAll(/\bimportScripts\s*\(([^)]*)\)\s*;/g)];
+if (importScriptsCalls.length !== 1) {
+  fail('background.js debe registrar sus runtimes en una única llamada importScripts() inicial.');
+}
+const startupCall = importScriptsCalls[0];
+const firstDeclarationIndex = executableBackgroundSource.search(/\b(?:const|let|var|function|class)\b/);
+if (startupCall && firstDeclarationIndex >= 0 && Number(startupCall.index) > firstDeclarationIndex) {
+  fail('importScripts() debe ejecutarse antes de las declaraciones del service worker MV3.');
+}
+const startupRuntimes = new Set(
+  [...String(startupCall && startupCall[1] || '').matchAll(/(['"])([^'"]+)\1/g)]
+    .map(match => match[2])
+);
 for (const heavyRuntime of ['jspdf.umd.min.js', 'pdf-lib.min.js', 'xlsx.full.min.js']) {
-  if (!startupSource.includes(`'${heavyRuntime}'`)) {
+  if (!startupRuntimes.has(heavyRuntime)) {
     fail(`${heavyRuntime} debe registrarse durante la evaluación inicial del service worker MV3.`);
   }
 }

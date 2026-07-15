@@ -35,6 +35,44 @@ const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
 const EXTENSION_PROTOCOL_VERSION = 3;
+const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
+const TAB_MESSAGE_TIMEOUT_MS = 50_000;
+const HEALTH_PROBE_TIMEOUT_MS = 5_000;
+
+const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+  Promise.resolve(promise).then(
+    value => {
+      clearTimeout(timeout);
+      resolve(value);
+    },
+    error => {
+      clearTimeout(timeout);
+      reject(error);
+    }
+  );
+});
+
+const fetchWithTimeout = async (url, options, timeoutMs = BACKEND_REQUEST_TIMEOUT_MS) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...(options || {}), signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('Tiempo de espera agotado consultando Eloísa. Reintenta la operación.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const sendHealthProbe = (tabId, message) => withTimeout(
+  chrome.tabs.sendMessage(tabId, message),
+  HEALTH_PROBE_TIMEOUT_MS,
+  'La pestaña no respondió a la verificación de conexión.'
+);
 
 // Try every matching tab (active/most-recent first): some may be stale tabs whose content
 // script isn't injected. The first one that answers wins.
@@ -45,7 +83,11 @@ const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) =
   let lastError = 'Sin respuesta de la pestaña.';
   for (const tab of ordered) {
     try {
-      const response = await chrome.tabs.sendMessage(tab.id, message);
+      const response = await withTimeout(
+        chrome.tabs.sendMessage(tab.id, message),
+        TAB_MESSAGE_TIMEOUT_MS,
+        'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
+      );
       if (response) return response;
     } catch (error) {
       lastError = String((error && error.message) || error);
@@ -104,7 +146,7 @@ const handleExtensionHealth = async () => {
     chrome.tabs.query({ url: FICHAMEDICO_MATCH }).then(tabs =>
       self.HhrExtensionHealth.probeTabs({
         tabs,
-        sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
+        sendMessage: sendHealthProbe,
         missingMessage: 'Abre Ficha Médico e inicia sesión para sincronizar.',
         staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
       })
@@ -112,7 +154,7 @@ const handleExtensionHealth = async () => {
     chrome.tabs.query({ url: GESTIONCAMAS_MATCH }).then(tabs =>
       self.HhrExtensionHealth.probeTabs({
         tabs,
-        sendMessage: (tabId, message) => chrome.tabs.sendMessage(tabId, message),
+        sendMessage: sendHealthProbe,
         missingMessage: 'Gestión de Camas no está abierta.',
         staleMessage: 'Recarga Gestión de Camas para activar la extensión.',
       })
@@ -170,7 +212,7 @@ const fetchReportBuffer = async ({ dateStart, dateEnd }) => {
     `?fac_id=${encodeURIComponent(info.facId)}` +
     `&start_datetime=${encodeURIComponent(dateStart)}&end_datetime=${encodeURIComponent(dateEnd)}`;
   try {
-    const res = await fetch(url, { headers: { Authorization: info.token } });
+    const res = await fetchWithTimeout(url, { headers: { Authorization: info.token } });
     if (!res.ok) return { error: 'El servidor de reportes respondió HTTP ' + res.status + '.' };
     return { buffer: await res.arrayBuffer() };
   } catch (error) {
@@ -243,7 +285,7 @@ const fetchDeviceReportBuffer = async ({ encId, fecha }) => {
     `?enc_id=${encodeURIComponent(encId)}&fac_id=${encodeURIComponent(info.facId)}` +
     `&fecha=${encodeURIComponent(fecha)}`;
   try {
-    const res = await fetch(url, { headers: { Authorization: info.token }, credentials: 'omit' });
+    const res = await fetchWithTimeout(url, { headers: { Authorization: info.token }, credentials: 'omit' });
     if (!res.ok) return { error: 'El servidor de Ficha Médico respondió HTTP ' + res.status + '.' };
     return { buffer: await res.arrayBuffer() };
   } catch (error) {
@@ -318,7 +360,7 @@ const handleScalesReportRequest = async ({ encId }) => {
     `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
     `${encodeURIComponent(encId)}/1/0/${encodeURIComponent(info.practitionerId || '7941')}`;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
     });
@@ -357,7 +399,7 @@ const handleHistoryScalesRequest = async ({ encId }) => {
     `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
     `getPatientEncounterHistoryReportServer/false/0/0/-14`;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
     });
@@ -573,7 +615,7 @@ const fetchPrescriptionEvents = async (encId, knownInfo) => {
     `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
     'getPatientEncounterHistoryReportServer/false/0/0/-120';
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
     });
@@ -599,7 +641,7 @@ const fetchCurrentMedicationEntries = async (encId, knownInfo) => {
   }
   const encounterEventTypeId = /enfermer/i.test(String(info.role || '')) ? '2' : '1';
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/entrySummary/medicationRequestEntry/` +
         `${encodeURIComponent(encId)}/${encounterEventTypeId}/${encodeURIComponent(info.practitionerId)}`,
       {
@@ -633,7 +675,7 @@ const fetchEvaluationForms = async (encId, knownInfo) => {
   try {
     const encounterEventTypes = /enfermer/i.test(String(info.role || '')) ? ['2'] : ['2', '1'];
     const results = await Promise.all(encounterEventTypes.map(async eventType => {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
           `${encodeURIComponent(encId)}/${eventType}/0/${encodeURIComponent(info.practitionerId)}`,
         {
@@ -647,12 +689,15 @@ const fetchEvaluationForms = async (encId, knownInfo) => {
       const forms = await response.json();
       return { forms: Array.isArray(forms) ? forms : [] };
     }));
-    const successful = results.filter(result => !result.error);
-    if (!successful.length) {
-      return { error: 'Eloísa no permitió consultar los instrumentos (' + results.map(result => result.error).join(', ') + ').' };
+    const failures = results.filter(result => result.error);
+    if (failures.length) {
+      return {
+        error: 'Eloísa no permitió verificar todas las fuentes de instrumentos (' +
+          failures.map(result => result.error).join(', ') + ').',
+      };
     }
     const byIdentity = new Map();
-    successful.flatMap(result => result.forms).forEach(form => {
+    results.flatMap(result => result.forms).forEach(form => {
       if (!form) return;
       const key = String(form.guid || form.id || form.encounterEventId || JSON.stringify(form));
       byIdentity.set(key, form);
@@ -669,7 +714,7 @@ const fetchScaleHistoryEvents = async (encId, knownInfo, lookbackDays = 30) => {
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
         'getPatientEncounterHistoryReportServer/false/0/0/-' + Math.min(180, Math.max(1, Number(lookbackDays) || 30)),
       {
@@ -715,7 +760,7 @@ const fetchNutritionOrderEntry = async (encId, knownInfo) => {
   const info = infoResult.info;
   if (!info.practitionerId) return { error: 'La sesión no informó el profesional lector.' };
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/entrySummary/nutritionOrderEntry/` +
         `${encodeURIComponent(encId)}/${encodeURIComponent(info.practitionerId)}`,
       {
@@ -739,7 +784,7 @@ const fetchTreatmentValidation = async (encId, knownInfo) => {
   const info = infoResult.info;
   if (!info || !info.token || !info.apiOrigin) return { validation: null };
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/validateTreatment/${encodeURIComponent(encId)}`,
       {
         headers: { Authorization: info.token, Accept: 'application/json' },
@@ -803,7 +848,7 @@ const getClinicalReportContext = async (encId, knownInfo, referenceDateTime) => 
   let patientId = '';
   let patient = null;
   try {
-    const headerResponse = await fetch(
+    const headerResponse = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(encId)}/false`,
       {
         headers: { Authorization: info.token, Accept: 'application/json' },
@@ -853,7 +898,7 @@ const getClinicalReportContext = async (encId, knownInfo, referenceDateTime) => 
 
 const fetchOfficialPdf = async ({ url, token, label }) => {
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: token, Accept: 'application/pdf' },
       credentials: 'omit',
     });
@@ -1033,7 +1078,7 @@ const NURSING_WORKLISTS = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNur
 const fetchNursingWorklistRows = async info => {
   const results = await Promise.all(NURSING_WORKLISTS.map(async list => {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId)}`,
         {
           headers: { Authorization: info.token, Accept: 'application/json' },
@@ -1070,7 +1115,7 @@ const fetchActiveEncounterRows = async info => {
   try {
     const listUrl = new URL(info.listUrl);
     listUrl.searchParams.set('filterType', '3');
-    const response = await fetch(listUrl.toString(), {
+    const response = await fetchWithTimeout(listUrl.toString(), {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
@@ -1093,7 +1138,7 @@ const fetchActiveHospitalizedPatients = async info => {
       let header = null;
       if (/^\d+$/.test(encId)) {
         try {
-          const headerResponse = await fetch(
+          const headerResponse = await fetchWithTimeout(
             `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(encId)}/false`,
             {
               headers: { Authorization: info.token, Accept: 'application/json' },
@@ -1719,7 +1764,7 @@ const fetchFichaClaims = async info => {
     const url = new URL('/api/login/claim/getAllInApp', info.apiOrigin);
     url.searchParams.set('hcpId', info.practitionerId);
     url.searchParams.set('facilityId', info.facId);
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
@@ -1749,7 +1794,7 @@ const fetchShiftChangeEntries = async (encId, info) => {
     return { error: 'Faltan datos para leer la entrega de turno.' };
   }
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/entrySummary/shiftChangeObservationEntry/` +
         `${encodeURIComponent(encId)}/${encodeURIComponent(info.practitionerId)}`,
       {
@@ -1772,7 +1817,7 @@ const fetchNurseStations = async info => {
     const url = new URL('/api/bedManagement/nurseStation', info.apiOrigin);
     url.searchParams.set('facilityId', info.facId);
     url.searchParams.set('tid', '0');
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
@@ -1914,7 +1959,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   const begun = await writeGuard.beginWrite();
   if (begun.error) return begun;
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/entrySummary/shiftChangeObservationEntry`,
       {
         method: 'POST',
@@ -2026,13 +2071,15 @@ const CLINICAL_FORMS_ORIGIN = 'https://formulariosclinicosback.rayensalud.cl';
 const CUDYR_MENTAL_DEPARTMENT_IDS = new Set(['45', '46', '47', '49', '50', '51']);
 
 const fetchCudyrCategories = async info => {
-  const lists = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'];
+  if (!/^\d+$/.test(String(info && info.facId || ''))) {
+    return { error: 'La sesión no informó un establecimiento verificable para consultar CUDYR.' };
+  }
   const byEnc = new Map();
   let successfulLists = 0;
-  for (const list of lists) {
+  for (const list of NURSING_WORKLISTS) {
     try {
-      const response = await fetch(
-        `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId || '1342')}`,
+      const response = await fetchWithTimeout(
+        `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId)}`,
         {
           headers: { Authorization: info.token, Accept: 'application/json' },
           credentials: 'omit',
@@ -2052,7 +2099,7 @@ const fetchCudyrCategories = async info => {
       }
     } catch (_error) {}
   }
-  if (successfulLists !== lists.length) {
+  if (successfulLists !== NURSING_WORKLISTS.length) {
     return { error: 'Eloísa no permitió verificar las tres listas CUDYR; los valores podrían estar incompletos.' };
   }
   return { items: [...byEnc.values()] };
@@ -2060,7 +2107,7 @@ const fetchCudyrCategories = async info => {
 
 const fetchCudyrDefinitions = async info => {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/categorizationForm/getAllCategorizationForm`,
       {
         headers: { Authorization: info.token, Accept: 'application/json' },
@@ -2088,7 +2135,7 @@ const fetchClinicalFormsCatalog = async info => {
     const url = new URL('/api/Form', CLINICAL_FORMS_ORIGIN);
     url.searchParams.set('hcpr_id', info.practitionerRoleId);
     url.searchParams.set('fac_id', info.facId);
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
@@ -2103,7 +2150,7 @@ const fetchClinicalFormsCatalog = async info => {
 const fetchClinicalFormSchema = async (formId, info) => {
   if (!/^\d+$/.test(String(formId || ''))) return { error: 'El instrumento seleccionado no es válido.' };
   try {
-    const response = await fetch(`${CLINICAL_FORMS_ORIGIN}/api/Form/${encodeURIComponent(formId)}`, {
+    const response = await fetchWithTimeout(`${CLINICAL_FORMS_ORIGIN}/api/Form/${encodeURIComponent(formId)}`, {
       headers: { Authorization: info.token, Accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
@@ -2486,7 +2533,7 @@ const handleCudyrSave = async ({ encId, answers, patient, info, writeGuard }) =>
   const begun = await writeGuard.beginWrite();
   if (begun.error) return begun;
   try {
-    const response = await fetch(`${info.apiOrigin}/api/categorizationForm/save`, {
+    const response = await fetchWithTimeout(`${info.apiOrigin}/api/categorizationForm/save`, {
       method: 'POST',
       headers: { Authorization: info.token, Accept: 'application/json', 'Content-Type': 'application/json' },
       credentials: 'omit',
@@ -2612,7 +2659,7 @@ const handleEvaluationScaleSave = async ({ encId, instrument, answers, patient, 
   const begun = await writeGuard.beginWrite();
   if (begun.error) return begun;
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/${encodeURIComponent(encId)}`,
       {
         method: 'POST',
@@ -3150,13 +3197,12 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
   if (!selectedGroup) {
     return { error: 'No se encontraron fármacos activos para esa receta.' };
   }
-  if (selectedGroup && (!selectedGroup.prescriberVerified || !selectedGroup.professionalRun)) {
+  if (!selectedGroup.prescriberVerified || !selectedGroup.professionalRun) {
     return { error: 'La identidad del prescriptor no pudo verificarse. Usa la receta completa oficial.' };
   }
-  if (selectedGroup && !(selectedGroup.printDateTime || selectedGroup.validationDateTime)) {
+  if (!(selectedGroup.printDateTime || selectedGroup.validationDateTime)) {
     return { error: 'No se encontró una fecha atribuible con certeza a ese prescriptor. Usa la receta completa oficial.' };
   }
-  const allMedications = groups.flatMap(group => group.medications);
   let officialMetadata;
   try {
     officialMetadata = await self.HhrPrescriptionPrint.extractOfficialPrescriptionMetadata(
@@ -3168,31 +3214,7 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
   if (!officialMetadata.emissionDateTime) {
     return { error: 'La receta oficial no informó su fecha y hora de emisión.' };
   }
-  if (selectionKey === 'complete' && format === 'compact' && !officialMetadata.folio) {
-    return { error: 'La receta oficial no informó el folio necesario para la versión compacta.' };
-  }
-  const validationProfessional = String(validation && validation.healthCarePractitionerName || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-  const validatorGroup = groups.find(item =>
-    String(item.professional || '').replace(/\s+/g, ' ').trim().toLowerCase() === validationProfessional
-  );
-  const group = selectedGroup || {
-    professional:
-      (validation && validation.healthCarePractitionerName) ||
-      officialMetadata.professional ||
-      'Profesionales tratantes',
-    professionalRun:
-      (validatorGroup && validatorGroup.professionalRun) || officialMetadata.professionalRun || '',
-    medications: allMedications,
-      validationDateTime:
-        (validation && validation.creationDatetime) ||
-        groups.reduce((latest, item) => item.validationDateTime > latest ? item.validationDateTime : latest, ''),
-    validationDate:
-      self.HhrPrescriptionPrint.toIsoDate(validation && validation.creationDatetime) ||
-      groups.reduce((latest, item) => item.validationDate > latest ? item.validationDate : latest, ''),
-  };
+  const group = selectedGroup;
   if (group.medications.length === 0) return { error: 'No se encontraron fármacos activos.' };
   const context = await getClinicalReportContext(
     encId,
@@ -3211,7 +3233,7 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
       validationDateTime: group.printDateTime || group.validationDateTime,
       dateSource: group.printDateSource || 'validation',
       emissionDateTime: officialMetadata.emissionDateTime,
-      folio: selectionKey === 'complete' && format === 'compact' ? officialMetadata.folio : '',
+      folio: '',
       printFormat: format,
       isExternalPrescription: Boolean(group.external),
     });
@@ -3249,13 +3271,15 @@ const handleCudyrCategoriesRequest = async () => {
   if (!info || !info.token || !info.apiOrigin) {
     return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
   }
-  const facId = info.facId || '1342';
-  const lists = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'];
+  const facId = String(info.facId || '').trim();
+  if (!/^\d+$/.test(facId)) {
+    return { error: 'No se pudo verificar el establecimiento activo de Ficha Médico.' };
+  }
   const byEnc = new Map();
   try {
-    for (const list of lists) {
+    for (const list of NURSING_WORKLISTS) {
       const url = `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(facId)}`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: { Authorization: info.token, Accept: 'application/json' },
         credentials: 'omit',
       });
@@ -3290,49 +3314,40 @@ const respondAsync = (promise, sendResponse, fallbackMessage) => {
 };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  const respond = (promise, fallbackMessage = 'La operación de la extensión no pudo completarse.') =>
+    respondAsync(promise, sendResponse, fallbackMessage);
   if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_REQUEST') {
-    handleExtensionHealth().then(sendResponse);
-    return true;
+    return respond(handleExtensionHealth(), 'No se pudo verificar el estado de la extensión.');
   }
   if (msg && msg.type === 'RAYEN_SNAPSHOT_REQUEST') {
-    handleSnapshotRequest().then(sendResponse);
-    return true; // async response
+    return respond(handleSnapshotRequest(), 'No se pudo leer el censo de Ficha Médico.');
   }
   if (msg && msg.type === 'RAYEN_OPEN_ENCOUNTER_REQUEST') {
-    handleOpenEncounter(msg.encId).then(sendResponse);
-    return true; // async response
+    return respond(handleOpenEncounter(msg.encId), 'No se pudo abrir el episodio clínico.');
   }
   if (msg && msg.type === 'RAYEN_EGRESO_LOOKUP_REQUEST') {
-    handleEgresoLookup(Array.isArray(msg.runs) ? msg.runs : []).then(sendResponse);
-    return true; // async response
+    return respond(handleEgresoLookup(Array.isArray(msg.runs) ? msg.runs : []), 'No se pudo consultar el egreso.');
   }
   if (msg && msg.type === 'RAYEN_EGRESO_REPORT_REQUEST') {
-    handleReportRequest({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }).then(sendResponse);
-    return true; // async response
+    return respond(handleReportRequest({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }), 'No se pudo leer el reporte de egresos.');
   }
   if (msg && msg.type === 'RAYEN_EGRESO_REPORT_SAVE') {
-    handleReportSave({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }).then(sendResponse);
-    return true; // async response
+    return respond(handleReportSave({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }), 'No se pudo guardar el reporte de egresos.');
   }
   if (msg && msg.type === 'RAYEN_DEVICE_REPORT_REQUEST') {
-    handleDeviceReportRequest({ encId: msg.encId, fecha: msg.fecha }).then(sendResponse);
-    return true; // async response
+    return respond(handleDeviceReportRequest({ encId: msg.encId, fecha: msg.fecha }), 'No se pudo leer el reporte de dispositivos.');
   }
   if (msg && msg.type === 'RAYEN_DEVICE_REPORT_SAVE') {
-    handleDeviceReportSave({ encId: msg.encId, fecha: msg.fecha }).then(sendResponse);
-    return true; // async response
+    return respond(handleDeviceReportSave({ encId: msg.encId, fecha: msg.fecha }), 'No se pudo guardar el reporte de dispositivos.');
   }
   if (msg && msg.type === 'RAYEN_SCALES_REPORT_REQUEST') {
-    handleScalesReportRequest({ encId: msg.encId }).then(sendResponse);
-    return true; // async response
+    return respond(handleScalesReportRequest({ encId: msg.encId }), 'No se pudo leer el reporte de escalas.');
   }
   if (msg && msg.type === 'RAYEN_HISTORY_SCALES_REQUEST') {
-    handleHistoryScalesRequest({ encId: msg.encId }).then(sendResponse);
-    return true; // async response
+    return respond(handleHistoryScalesRequest({ encId: msg.encId }), 'No se pudo leer el historial de escalas.');
   }
   if (msg && msg.type === 'RAYEN_CLINICAL_PANEL_REQUEST') {
-    handleClinicalPanelRequest({ encId: msg.encId }).then(sendResponse);
-    return true; // async response
+    return respond(handleClinicalPanelRequest({ encId: msg.encId }), 'No se pudo cargar el panel clínico.');
   }
   if (msg && msg.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST') {
     return respondAsync(
@@ -3371,85 +3386,80 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     );
   }
   if (msg && msg.type === 'RAYEN_INDICATIONS_PRINT_REQUEST') {
-    handleIndicationsPrintRequest({ encId: msg.encId }).then(sendResponse);
-    return true; // async response
+    return respond(handleIndicationsPrintRequest({ encId: msg.encId }), 'No se pudieron preparar las indicaciones.');
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_INDICATIONS_OPTIONS_REQUEST') {
-    handleHospitalizedIndicationsOptionsRequest({ currentEncId: msg.currentEncId }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleHospitalizedIndicationsOptionsRequest({ currentEncId: msg.currentEncId }),
+      'No se pudieron revisar las indicaciones de pacientes hospitalizados.'
+    );
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_INDICATIONS_PRINT_REQUEST') {
-    handleHospitalizedIndicationsPrintRequest({
-      batchId: msg.batchId,
-      encIds: msg.encIds,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleHospitalizedIndicationsPrintRequest({ batchId: msg.batchId, encIds: msg.encIds }),
+      'No se pudo generar la impresión de indicaciones.'
+    );
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST') {
-    handleHospitalizedRegimenOptionsRequest({ currentEncId: msg.currentEncId }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleHospitalizedRegimenOptionsRequest({ currentEncId: msg.currentEncId }),
+      'No se pudieron revisar los regímenes hospitalizados.'
+    );
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST') {
-    handleHospitalizedRegimenPrintRequest().then(sendResponse);
-    return true; // async response
+    return respond(handleHospitalizedRegimenPrintRequest(), 'No se pudo generar el reporte de regímenes.');
   }
   if (msg && msg.type === 'RAYEN_HANDOFF_OPTIONS_REQUEST') {
-    handleHandoffOptionsRequest({ currentEncId: msg.currentEncId }).then(sendResponse);
-    return true; // async response
+    return respond(handleHandoffOptionsRequest({ currentEncId: msg.currentEncId }), 'No se pudo cargar la entrega de turno.');
   }
   if (msg && msg.type === 'RAYEN_HANDOFF_SAVE_REQUEST') {
-    handleHandoffSaveRequest({
-      batchId: msg.batchId,
-      encId: msg.encId,
-      observation: msg.observation,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleHandoffSaveRequest({ batchId: msg.batchId, encId: msg.encId, observation: msg.observation }),
+      'No se pudo completar el guardado de la entrega de turno.'
+    );
   }
   if (msg && msg.type === 'RAYEN_HANDOFF_REPORT_REQUEST') {
-    handleHandoffReportRequest({ nurseStationId: msg.nurseStationId }).then(sendResponse);
-    return true; // async response
+    return respond(handleHandoffReportRequest({ nurseStationId: msg.nurseStationId }), 'No se pudo preparar el reporte de turno.');
   }
   if (msg && msg.type === 'RAYEN_SCORES_OPTIONS_REQUEST') {
-    handleScoresOptionsRequest({ currentEncId: msg.currentEncId }).then(sendResponse);
-    return true; // async response
+    return respond(handleScoresOptionsRequest({ currentEncId: msg.currentEncId }), 'No se pudieron cargar los instrumentos clínicos.');
   }
   if (msg && msg.type === 'RAYEN_SCORE_FORM_REQUEST') {
-    handleScoreFormRequest({
-      batchId: msg.batchId,
-      encId: msg.encId,
-      instrument: msg.instrument,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleScoreFormRequest({ batchId: msg.batchId, encId: msg.encId, instrument: msg.instrument }),
+      'No se pudo cargar el formulario clínico.'
+    );
   }
   if (msg && msg.type === 'RAYEN_SCORE_SAVE_REQUEST') {
-    handleScoreSaveRequest({
-      batchId: msg.batchId,
-      encId: msg.encId,
-      instrument: msg.instrument,
-      answers: msg.answers,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleScoreSaveRequest({
+        batchId: msg.batchId,
+        encId: msg.encId,
+        instrument: msg.instrument,
+        answers: msg.answers,
+      }),
+      'No se pudo completar el guardado del instrumento.'
+    );
   }
   if (msg && msg.type === 'RAYEN_CLINICAL_WRITE_ACK') {
-    acknowledgeClinicalWrite({
-      key: msg.key,
-      generationId: msg.generationId,
-      receiptId: msg.receiptId,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      acknowledgeClinicalWrite({ key: msg.key, generationId: msg.generationId, receiptId: msg.receiptId }),
+      'No se pudo confirmar localmente el guardado clínico.'
+    );
   }
   if (msg && msg.type === 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST') {
-    handleClinicalWriteRecoveryRequest({
-      key: msg.key,
-      generationId: msg.generationId,
-      phase: msg.phase,
-      recoveryToken: msg.recoveryToken,
-    }).then(sendResponse);
-    return true; // async response
+    return respond(
+      handleClinicalWriteRecoveryRequest({
+        key: msg.key,
+        generationId: msg.generationId,
+        phase: msg.phase,
+        recoveryToken: msg.recoveryToken,
+      }),
+      'No se pudo revisar el estado del guardado clínico.'
+    );
   }
   if (msg && msg.type === 'RAYEN_CUDYR_CATEGORIES_REQUEST') {
-    handleCudyrCategoriesRequest().then(sendResponse);
-    return true; // async response
+    return respond(handleCudyrCategoriesRequest(), 'No se pudo consultar CUDYR.');
   }
   return undefined;
 });

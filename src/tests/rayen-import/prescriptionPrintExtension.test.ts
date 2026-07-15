@@ -585,6 +585,38 @@ describe('extension nursing prescription print helpers', () => {
     expect(groups[1]?.key).toBe('professional:elena-diaz');
   });
 
+  it('keeps clinically distinct fallback rows when Eloísa omits MRE_ID', () => {
+    const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
+      {
+        patientPharmaIndicationResume: [
+          {
+            DESCRIPTOR: 'Mometasona 50 mcg',
+            POSOLOGY: '1 aplicación cada 12 horas',
+            ROUTE_ADMINISTRATION: 'Nasal',
+            MRE_ADMINISTRATION_NOTE: 'Fosa derecha',
+            HCP_NAME: 'Elena Díaz',
+            PUBLISH_DATETIME: '2026-07-15T08:56:00',
+          },
+          {
+            DESCRIPTOR: 'Mometasona 50 mcg',
+            POSOLOGY: '1 aplicación cada 12 horas',
+            ROUTE_ADMINISTRATION: 'Tópica',
+            MRE_ADMINISTRATION_NOTE: 'Lesión nasal externa',
+            HCP_NAME: 'Elena Díaz',
+            PUBLISH_DATETIME: '2026-07-15T08:56:00',
+          },
+        ],
+      },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.count).toBe(2);
+    expect(groups[0]?.medications.map(medication => [medication.route, medication.note])).toEqual([
+      ['Nasal', 'Fosa derecha'],
+      ['Tópica', 'Lesión nasal externa'],
+    ]);
+  });
+
   it('detects each active external medication as an individually printable prescription', () => {
     const professionalGroups = prescriptionPrint.applyProfessionalValidationDates(
       prescriptionPrint.deriveProfessionalPrescriptionGroups([
@@ -975,6 +1007,40 @@ describe('extension nursing prescription print helpers', () => {
     expect(prescriptionPrint.formatRun('17752753K')).toBe('17.752.753-K');
     expect(prescriptionPrint.formatRun('ABC123')).toBe('');
     expect(prescriptionPrint.formatRun('17.752.753-1')).toBe('');
+  });
+
+  it('anchors emission time to its labeled header instead of an earlier timestamp', async () => {
+    const document = new jsPDF({ compress: true });
+    document.text('01-01-2020  00:01', 20, 10);
+    document.text('Fecha emisión', 20, 20);
+    document.text('15-07-2026  08:56', 120, 20);
+    document.text('Folio: 012D5533', 120, 35);
+
+    const metadata = await prescriptionPrint.extractOfficialPrescriptionMetadata(
+      document.output('arraybuffer')
+    );
+
+    expect(metadata.emissionDateTime).toBe('15-07-2026 08:56');
+  });
+
+  it('extracts metadata when the official PDF declares FlateDecode as a filter array', async () => {
+    const document = new jsPDF({ compress: true });
+    document.text('Fecha impresión', 20, 20);
+    document.text('15-07-2026  08:56', 120, 20);
+    document.text('Folio: 012D5533', 120, 35);
+    const original = new Uint8Array(document.output('arraybuffer'));
+    const source = new TextDecoder('latin1').decode(original);
+    const needle = '/Filter /FlateDecode';
+    const index = source.indexOf(needle);
+    expect(index).toBeGreaterThanOrEqual(0);
+    const replacement = new TextEncoder().encode('/Filter [/FlateDecode]');
+    const modified = new Uint8Array(original.length - needle.length + replacement.length);
+    modified.set(original.slice(0, index));
+    modified.set(replacement, index);
+    modified.set(original.slice(index + needle.length), index + replacement.length);
+
+    const metadata = await prescriptionPrint.extractOfficialPrescriptionMetadata(modified.buffer);
+    expect(metadata).toMatchObject({ folio: '012D5533', emissionDateTime: '15-07-2026 08:56' });
   });
 
   it('extracts equivalent patient, medication and footer content from the official PDF layout', async () => {

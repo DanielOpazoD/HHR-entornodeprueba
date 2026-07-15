@@ -77,7 +77,11 @@ const pdfPrint = (
         buffer: ArrayBuffer,
         library: typeof PDFLib
       ) => Promise<ArrayBuffer>;
-      mergePdfBuffers: (buffers: ArrayBuffer[], library: typeof PDFLib) => Promise<ArrayBuffer>;
+      mergePdfBuffers: (
+        buffers: ArrayBuffer[],
+        library: typeof PDFLib,
+        limits?: { maxInputBytes?: number; maxPages?: number }
+      ) => Promise<ArrayBuffer>;
     };
   }
 ).HhrPdfPrint;
@@ -253,6 +257,41 @@ describe('extension professional prescription PDF', () => {
     ).toBe('/Print');
   });
 
+  it('rejects oversized merge inputs before allocating the combined PDF', async () => {
+    const source = prescriptionPdf.generateProfessionalPrescriptionPdf(
+      {
+        patient: { name: 'Paciente' },
+        professional: 'Elena Díaz',
+        validationDate: '2026-07-15',
+        emissionDateTime: '15-07-2026 08:00',
+        medications: [{ medication: 'Paracetamol', posology: '1 cada 8 horas' }],
+      },
+      jsPDF
+    );
+
+    await expect(
+      pdfPrint.mergePdfBuffers([source], PDFLib, { maxInputBytes: source.byteLength - 1 })
+    ).rejects.toThrow(/tamaño seguro.*menos pacientes/i);
+  });
+
+  it('rejects merge batches that exceed the configured safe page count', async () => {
+    const first = prescriptionPdf.generateProfessionalPrescriptionPdf(
+      {
+        patient: { name: 'Paciente uno' },
+        professional: 'Elena Díaz',
+        validationDate: '2026-07-15',
+        emissionDateTime: '15-07-2026 08:00',
+        medications: [{ medication: 'Paracetamol', posology: '1 cada 8 horas' }],
+      },
+      jsPDF
+    );
+    const second = first.slice(0);
+
+    await expect(
+      pdfPrint.mergePdfBuffers([first, second], PDFLib, { maxPages: 1 })
+    ).rejects.toThrow(/máximo seguro de 1 páginas.*menos pacientes/i);
+  });
+
   it('fits materially more medications per page in compact format', async () => {
     const medications = Array.from({ length: 20 }, (_, index) => ({
       medication: `Medicamento ${index + 1} 500 mg Comprimidos`,
@@ -387,6 +426,30 @@ describe('extension professional prescription PDF', () => {
 
     expect(buffer.byteLength).toBeGreaterThan(3_000);
     expect(loaded.getPageCount()).toBeGreaterThan(1);
+  });
+
+  it('fails closed instead of clipping an oversized BRADEN row', () => {
+    expect(() =>
+      prescriptionPdf.generateBradenSummaryPdf(
+        {
+          generatedAt: '2026-07-15T09:10:00',
+          patients: [
+            {
+              name: 'Paciente de prueba',
+              run: '8.932.066-6',
+              bed: 'H6C1',
+              braden: {
+                total: 12,
+                severity: 'Riesgo alto',
+                dateTime: '2026-07-15T08:40:00-06:00',
+                author: 'Profesional ' + 'con identificación extensa '.repeat(8_000),
+              },
+            },
+          ],
+        },
+        jsPDF
+      )
+    ).toThrow(/fila de BRADEN.*sin pérdida/i);
   });
 
   it('creates one integrated regimen and BRADEN table with repeated pages for long censuses', async () => {

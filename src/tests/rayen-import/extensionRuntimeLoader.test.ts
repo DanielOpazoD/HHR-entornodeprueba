@@ -62,6 +62,7 @@ describe('extension heavy runtime loading', () => {
       crypto: globalThis.crypto,
       TextEncoder,
       TextDecoder,
+      AbortController,
       URL,
       Blob,
       atob,
@@ -106,5 +107,15 @@ describe('extension heavy runtime loading', () => {
     expect((context as unknown as { XLSX?: unknown }).XLSX).toBeDefined();
     expect(backgroundSource).toContain("header.birthDate || ''");
     expect(backgroundSource).toContain('formatAgeLabel');
+  });
+
+  it('bounds backend and tab communication and settles every asynchronous message branch', () => {
+    expect(backgroundSource).toContain('BACKEND_REQUEST_TIMEOUT_MS = 45_000');
+    expect(backgroundSource).toContain('TAB_MESSAGE_TIMEOUT_MS = 50_000');
+    expect(backgroundSource).toContain('HEALTH_PROBE_TIMEOUT_MS = 5_000');
+    expect(backgroundSource).toMatch(/withTimeout\(\s*chrome\.tabs\.sendMessage/);
+    expect(backgroundSource).toContain('sendMessage: sendHealthProbe');
+    expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
+    expect(backgroundSource).not.toContain('.then(sendResponse)');
   });
 });

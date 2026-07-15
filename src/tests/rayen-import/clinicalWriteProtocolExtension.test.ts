@@ -134,6 +134,30 @@ describe('extension clinical write protocol', () => {
     expect(harness.records.size).toBe(0);
   });
 
+  it('rejects an overlapping write for the same clinical key', async () => {
+    const key = 'handoff:141437';
+    let releaseFirst!: () => void;
+    let markEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      markEntered = resolve;
+    });
+    const blocked = new Promise<void>(resolve => {
+      releaseFirst = resolve;
+    });
+    const first = protocol.withClinicalWriteLock(key, async () => {
+      markEntered();
+      await blocked;
+      return { ok: true, verified: false };
+    });
+
+    await entered;
+    const overlapping = await protocol.withClinicalWriteLock(key, async () => ({ ok: true }));
+    expect(overlapping.error).toContain('guardado clínico en curso');
+
+    releaseFirst();
+    await expect(first).resolves.toEqual({ ok: true, verified: false });
+  });
+
   it('does not create a marker when preflight validation returns before beginWrite', async () => {
     const result = await protocol.withClinicalWriteLock('score:141437:CUDYR', async () => ({
       error: 'El paciente ya no está hospitalizado.',
