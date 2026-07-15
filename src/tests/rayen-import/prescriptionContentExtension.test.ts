@@ -238,4 +238,15 @@ describe('extension prescription print content flow', () => {
     expect(handoffAck).toBeGreaterThan(handoffRequest);
     expect(handoffDisconnect).toBeGreaterThan(handoffAck);
   });
+
+  it('keeps credentials on the official Rayen page and exposes session controls in Centro HHR', () => {
+    expect(contentSource).toContain("type: 'RAYEN_GC_CONNECT_REQUEST'");
+    expect(contentSource).toContain("type: 'RAYEN_GC_DISCONNECT_REQUEST'");
+    expect(contentSource).toContain(
+      'La contraseña se ingresa únicamente en la página oficial de Rayen'
+    );
+    expect(contentSource).toContain("createOperationsCenterModal('connection'");
+    expect(contentSource).toContain('hhr-ops-connection-dot');
+    expect(contentSource).not.toMatch(/type=["']password["']/i);
+  });
 });

@@ -19,7 +19,11 @@
       try {
         const response = await sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' });
         if (response && response.ready === true) {
-          return { status: 'ready', message: response.message || 'Pestaña disponible.' };
+          return {
+            status: 'ready',
+            message: response.message || 'Pestaña disponible.',
+            ...(response.identity ? { identity: response.identity } : {}),
+          };
         }
         if (response && response.message) unavailableMessage = response.message;
       } catch (_error) {

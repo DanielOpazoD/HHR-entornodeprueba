@@ -34,7 +34,7 @@ describe('extension heavy runtime loading', () => {
 
   it('keeps nursing clinical writes tied to the verified session role', () => {
     const identityGuards = [
-      ...backgroundSource.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n  \);/g),
+      ...backgroundSource.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2}\);/g),
     ].map(match => match[1]);
 
     expect(identityGuards).toHaveLength(3);
@@ -107,7 +107,7 @@ describe('extension heavy runtime loading', () => {
       clearTimeout,
       chrome: {
         runtime: {
-          getManifest: () => ({ version: '0.21.5' }),
+          getManifest: () => ({ version: '0.22.0' }),
           getURL: (value: string) => `chrome-extension://test/${value}`,
           onMessage: { addListener: () => undefined },
         },

@@ -23,10 +23,33 @@
 
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   let capturedAuth = null;
+  let lastAnnouncedAuth = null;
+
+  const announceCapturedSession = (auth, attempt = 0) => {
+    setTimeout(() => {
+      const base = apiBase();
+      if (!base && attempt < 8) {
+        announceCapturedSession(auth, attempt + 1);
+        return;
+      }
+      if (!base || auth !== capturedAuth || auth === lastAnnouncedAuth) return;
+      lastAnnouncedAuth = auth;
+      window.postMessage(
+        {
+          type: 'RAYEN_GC_SESSION_CAPTURED',
+          info: { token: auth, apiBase: base, facId: facilityId() },
+        },
+        window.location.origin
+      );
+    }, attempt === 0 ? 40 : 250);
+  };
 
   const remember = (url, auth) => {
     try {
-      if (auth && String(url).includes(BACKEND_HINT)) capturedAuth = auth;
+      if (auth && String(url).includes(BACKEND_HINT)) {
+        capturedAuth = auth;
+        announceCapturedSession(auth);
+      }
     } catch (_) {}
   };
 

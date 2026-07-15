@@ -80,6 +80,7 @@
       ).then(status =>
         sendResponse({
           ready: status && status.ready === true,
+          identity: status && status.identity || null,
           message:
             (status && status.message) ||
             'La sesión clínica de Ficha Médico no pudo verificarse.',

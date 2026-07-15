@@ -71,6 +71,19 @@
       }, LOOKUP_TIMEOUT_MS);
     });
 
+  // Persist only the short-lived access token in chrome.storage.session through the worker.
+  // The password remains exclusively in Rayen's official login page.
+  window.addEventListener('message', event => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (!data || data.type !== 'RAYEN_GC_SESSION_CAPTURED' || !data.info) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'RAYEN_GC_SESSION_CAPTURED', info: data.info }, () => {
+        void chrome.runtime.lastError;
+      });
+    } catch (_error) {}
+  });
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       sendResponse({ ready: true, message: 'Gestión de Camas disponible.' });

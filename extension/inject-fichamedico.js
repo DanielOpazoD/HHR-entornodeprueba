@@ -378,6 +378,13 @@
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
           ready,
+          identity: ready
+            ? {
+                fullName: identity.fullName,
+                role: identity.role,
+                practitionerId: identity.practitionerId,
+              }
+            : null,
           message: ready
             ? 'Ficha Médico disponible. Sesión clínica vigente.'
             : 'La sesión clínica de Ficha Médico no está disponible.',
