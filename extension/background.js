@@ -40,6 +40,7 @@ const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;
 const GESTION_CAMAS_LOGIN_URL = 'https://hospitalizado.rayensalud.cl/';
+const GESTION_CAMAS_SESSION_PROBE_RUN = '000000000';
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
   const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -106,78 +107,404 @@ const readGestionCamasSession = async () => {
   return result && result[gestionCamasSession.SESSION_STORAGE_KEY] || null;
 };
 
-const clearGestionCamasSession = async () => {
+const readPendingGestionCamasConnection = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.PENDING_WINDOW_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.PENDING_WINDOW_STORAGE_KEY]) || null;
+};
+
+const readGestionCamasConnectionControl = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]) || null;
+};
+
+const readClosingGestionCamasWindow = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY]) || null;
+};
+
+const isClosingGestionCamasWindow = (record, windowId, now = Date.now()) =>
+  Boolean(
+    record &&
+      Number(record.windowId) === Number(windowId) &&
+      Number(record.authorizedAt) > now - 60_000
+  );
+
+const sameGestionCamasSession = (left, right) => Boolean(
+  left && right &&
+  left.token === right.token &&
+  left.apiBase === right.apiBase &&
+  left.facId === right.facId &&
+  Number(left.sourceTabId) === Number(right.sourceTabId) &&
+  String(left.connectionAttemptId || '') === String(right.connectionAttemptId || '')
+);
+
+let gestionCamasSessionMutation = Promise.resolve();
+const mutateGestionCamasSession = task => {
+  const operation = gestionCamasSessionMutation.then(task, task);
+  gestionCamasSessionMutation = operation.catch(() => {});
+  return operation;
+};
+
+const clearGestionCamasSession = async expectedRecord => mutateGestionCamasSession(async () => {
+  if (expectedRecord) {
+    const current = await readGestionCamasSession();
+    if (!sameGestionCamasSession(current, expectedRecord)) return false;
+  }
   await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
-};
+  return true;
+});
 
-const persistGestionCamasSession = async info => {
-  const record = gestionCamasSession.buildSessionRecord(info);
-  if (!record) throw new Error('Gestión de Camas entregó una sesión no reconocida.');
-  await chrome.storage.session.set({ [gestionCamasSession.SESSION_STORAGE_KEY]: record });
-  return record;
-};
+const clearUnusableGestionCamasSession = async () =>
+  mutateGestionCamasSession(async () => {
+    const current = await readGestionCamasSession();
+    if (!current || gestionCamasSession.isUsable(current)) return current;
+    await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
+    return null;
+  });
 
-const closePendingGestionCamasWindow = async sender => {
-  const result = await chrome.storage.session.get(gestionCamasSession.PENDING_WINDOW_STORAGE_KEY);
-  const pending = result && result[gestionCamasSession.PENDING_WINDOW_STORAGE_KEY];
-  if (!pending || !sender || !sender.tab) return;
-  const senderWindowId = Number(sender.tab.windowId);
-  const senderTabId = Number(sender.tab.id);
-  if (Number(pending.windowId) !== senderWindowId || Number(pending.tabId) !== senderTabId) return;
-  await chrome.storage.session.remove(gestionCamasSession.PENDING_WINDOW_STORAGE_KEY);
-  setTimeout(() => {
-    chrome.windows.remove(senderWindowId).catch(() => {});
-  }, 450);
+const persistGestionCamasSession = async (info, { sourceTabId } = {}) =>
+  mutateGestionCamasSession(async () => {
+    const record = gestionCamasSession.buildSessionRecord(info);
+    if (!record || !record.facId) {
+      throw new Error('Gestión de Camas entregó una sesión sin establecimiento verificable.');
+    }
+    const normalizedSourceTabId = Number(sourceTabId);
+    if (!Number.isInteger(normalizedSourceTabId) || normalizedSourceTabId < 0) {
+      throw new Error('Gestión de Camas entregó una sesión sin pestaña de origen verificable.');
+    }
+    const current = await readGestionCamasSession();
+    const pending = await readPendingGestionCamasConnection();
+    const control = await readGestionCamasConnectionControl();
+    const suppliedAttemptId = String(info && info.connectionAttemptId || '');
+    const matchesPendingAttempt = Boolean(
+      pending &&
+      Number(pending.tabId) === normalizedSourceTabId &&
+      String(pending.attemptId) === suppliedAttemptId
+    );
+    const matchesCurrentBinding = Boolean(
+      current &&
+      Number(current.sourceTabId) === normalizedSourceTabId &&
+      String(current.connectionAttemptId || '') === suppliedAttemptId
+    );
+    const acceptsInitialUnscopedCapture = Boolean(
+      !current && !pending && !suppliedAttemptId && !(control && control.blocked)
+    );
+    if (!matchesPendingAttempt && !matchesCurrentBinding && !acceptsInitialUnscopedCapture) {
+      throw new Error('La captura pertenece a un intento de conexión anterior.');
+    }
+
+    record.sourceTabId = normalizedSourceTabId;
+    record.connectionAttemptId = suppliedAttemptId;
+    await chrome.storage.session.set({ [gestionCamasSession.SESSION_STORAGE_KEY]: record });
+    return record;
+  });
+
+const markGestionCamasSessionVerified = async record => {
+  let completedPopup = null;
+  const verified = await mutateGestionCamasSession(async () => {
+    const current = await readGestionCamasSession();
+    if (!sameGestionCamasSession(current, record)) return null;
+    const next = { ...current, lastVerifiedAt: Date.now() };
+    await chrome.storage.session.set({ [gestionCamasSession.SESSION_STORAGE_KEY]: next });
+    const pending = await readPendingGestionCamasConnection();
+    if (
+      pending &&
+      next.connectionAttemptId &&
+      String(pending.attemptId) === String(next.connectionAttemptId) &&
+      Number(pending.tabId) === Number(next.sourceTabId)
+    ) {
+      await chrome.storage.session.remove(gestionCamasSession.PENDING_WINDOW_STORAGE_KEY);
+      if (pending.closeOnVerify) {
+        completedPopup = {
+          windowId: Number(pending.windowId),
+          attemptId: String(pending.attemptId),
+        };
+        await chrome.storage.session.set({
+          [gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY]: {
+            ...completedPopup,
+            authorizedAt: Date.now(),
+          },
+        });
+      }
+    }
+    return next;
+  });
+  if (completedPopup && Number.isInteger(completedPopup.windowId)) {
+    setTimeout(() => {
+      mutateGestionCamasSession(async () => {
+        const closing = await readClosingGestionCamasWindow();
+        if (
+          !closing ||
+          Number(closing.windowId) !== completedPopup.windowId ||
+          String(closing.attemptId) !== completedPopup.attemptId
+        ) {
+          return false;
+        }
+        const pending = await readPendingGestionCamasConnection();
+        return !(
+          pending &&
+          Number(pending.windowId) === completedPopup.windowId &&
+          String(pending.attemptId) !== completedPopup.attemptId
+        );
+      }).then(canClose => {
+        if (canClose) chrome.windows.remove(completedPopup.windowId).catch(() => {});
+      });
+    }, 450);
+    setTimeout(() => {
+      mutateGestionCamasSession(async () => {
+        const closing = await readClosingGestionCamasWindow();
+        if (
+          closing &&
+          Number(closing.windowId) === completedPopup.windowId &&
+          String(closing.attemptId) === completedPopup.attemptId
+        ) {
+          await chrome.storage.session.remove(gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY);
+        }
+      });
+    }, 60_000);
+  }
+  return verified;
 };
 
 const captureGestionCamasSession = async (info, sender) => {
-  const record = await persistGestionCamasSession(info);
-  await closePendingGestionCamasWindow(sender);
+  const record = await persistGestionCamasSession(info, { sourceTabId: sender?.tab?.id });
   return { ok: true, connection: gestionCamasSession.publicStatus(record) };
 };
 
-const requestLiveGestionCamasSession = async () => {
-  const response = await sendToMatchingTab(
-    GESTIONCAMAS_MATCH,
-    { type: 'RAYEN_GC_GET_FETCH_INFO' },
-    'Gestión de Camas no está abierta.',
-    'Gestión de Camas está abierta, pero su sesión todavía no está disponible.'
-  );
-  if (response.error || !response.info) return { error: response.error || 'Sin sesión disponible.' };
-  try {
-    return { record: await persistGestionCamasSession(response.info) };
-  } catch (error) {
-    return { error: String((error && error.message) || error) };
+const handleGestionCamasDocumentReady = async sender => {
+  const sourceTabId = Number(sender?.tab?.id);
+  if (!Number.isInteger(sourceTabId)) return { connectionAttemptId: '' };
+  const control = await readGestionCamasConnectionControl();
+  if (control && control.blocked) return { connectionAttemptId: '' };
+  const pending = await readPendingGestionCamasConnection();
+  if (pending && Number(pending.tabId) === sourceTabId) {
+    return { connectionAttemptId: String(pending.attemptId || '') };
   }
+  const current = await readGestionCamasSession();
+  if (current && Number(current.sourceTabId) === sourceTabId) {
+    return { connectionAttemptId: String(current.connectionAttemptId || '') };
+  }
+  return { connectionAttemptId: '' };
+};
+
+const requestLiveGestionCamasSession = async () => {
+  const tabs = self.HhrExtensionHealth.orderTabs(
+    await chrome.tabs.query({ url: GESTIONCAMAS_MATCH })
+  );
+  if (!tabs.length) return { error: 'Gestión de Camas no está abierta.' };
+  const pending = await readPendingGestionCamasConnection();
+  const current = await readGestionCamasSession();
+  let lastError = 'Gestión de Camas está abierta, pero su sesión todavía no está disponible.';
+  for (const tab of tabs) {
+    try {
+      const connectionAttemptId =
+        pending && Number(pending.tabId) === Number(tab.id)
+          ? String(pending.attemptId || '')
+          : current && Number(current.sourceTabId) === Number(tab.id)
+            ? String(current.connectionAttemptId || '')
+            : '';
+      const response = await withTimeout(
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'RAYEN_GC_GET_FETCH_INFO',
+          connectionAttemptId,
+        }),
+        TAB_MESSAGE_TIMEOUT_MS,
+        'La pestaña de Gestión de Camas no respondió dentro del tiempo esperado.'
+      );
+      if (response && response.info) {
+        const candidate = await persistGestionCamasSession(response.info, {
+          sourceTabId: tab.id,
+        });
+        const verified = await verifyGestionCamasSession(candidate);
+        if (verified.record) return { record: verified.record };
+        if (verified.changed) {
+          const replacement = await readGestionCamasSession();
+          if (gestionCamasSession.isUsable(replacement)) return { record: replacement };
+        }
+        await clearGestionCamasSession(candidate);
+        lastError = verified.error || 'La credencial capturada no pudo verificarse.';
+        continue;
+      }
+      if (response && response.error) lastError = String(response.error);
+    } catch (error) {
+      lastError = String((error && error.message) || error);
+    }
+  }
+  return { error: lastError };
 };
 
 const resolveGestionCamasSession = async ({ allowLive = true } = {}) => {
-  const cached = await readGestionCamasSession();
-  if (gestionCamasSession.isUsable(cached)) return { record: cached };
-  if (cached) await clearGestionCamasSession();
-  if (!allowLive) return { error: 'Gestión de Camas no está conectada.' };
-  return requestLiveGestionCamasSession();
+  let record = await readGestionCamasSession();
+  if (!gestionCamasSession.isUsable(record)) {
+    if (record) await clearGestionCamasSession(record);
+    if (!allowLive) return { error: 'Gestión de Camas no está conectada.' };
+    const live = await requestLiveGestionCamasSession();
+    if (!live.record) return live;
+    record = live.record;
+  }
+  if (gestionCamasSession.isVerificationFresh(record)) return { record };
+  const verified = await verifyGestionCamasSession(record);
+  if (verified.record) return verified;
+  if (verified.changed) {
+    return { error: 'La sesión cambió durante la comprobación. Reintenta la operación.' };
+  }
+  return { error: verified.error || 'No se pudo comprobar la sesión de Gestión de Camas.' };
+};
+
+const classifyGestionCamasRejection = async (response, record) => {
+  if (!response) return '';
+  if (response.status === 401) {
+    return await clearGestionCamasSession(record) ? 'expired' : 'changed';
+  }
+  if (response.status === 403) return 'forbidden';
+  return '';
+};
+
+const verifyGestionCamasSession = async record => {
+  if (!record || !record.facId) return { error: 'La sesión no informa el establecimiento.' };
+  const url =
+    `${record.apiBase}/facility/${record.facId}/encounter` +
+    `?facId=0&prefferedIdentifierCode=${GESTION_CAMAS_SESSION_PROBE_RUN}&prefferedPeridentId=2`;
+  try {
+    const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
+    if (response.ok) {
+      const verified = await markGestionCamasSessionVerified(record);
+      return verified ? { record: verified } : { changed: true };
+    }
+    const rejection = await classifyGestionCamasRejection(response, record);
+    if (rejection === 'changed') return { changed: true };
+    if (rejection === 'expired') return { error: 'La sesión de Gestión de Camas venció.' };
+    if (rejection === 'forbidden') {
+      return { error: 'Rayen rechazó la comprobación por permisos; la sesión no se marcó como vigente.' };
+    }
+    return { error: 'Rayen respondió HTTP ' + response.status + ' al comprobar la sesión.' };
+  } catch (error) {
+    return { error: 'No se pudo comprobar la sesión: ' + String((error && error.message) || error) };
+  }
 };
 
 const handleGestionCamasHealth = async () => {
-  const cached = await readGestionCamasSession();
-  if (gestionCamasSession.isUsable(cached)) return gestionCamasSession.publicStatus(cached);
-  const live = await requestLiveGestionCamasSession();
-  if (live.record) return gestionCamasSession.publicStatus(live.record);
-  if (cached) return gestionCamasSession.publicStatus(cached);
+  let record = await readGestionCamasSession();
+  if (!gestionCamasSession.isUsable(record)) {
+    record = await clearUnusableGestionCamasSession();
+    if (!gestionCamasSession.isUsable(record)) {
+      const live = await requestLiveGestionCamasSession();
+      if (!live.record) {
+        return {
+          ...gestionCamasSession.publicStatus(null),
+          message: live.error || 'Gestión de Camas no está conectada.',
+        };
+      }
+      record = live.record;
+    }
+  }
+  if (gestionCamasSession.isVerificationFresh(record)) {
+    return gestionCamasSession.publicStatus(record);
+  }
+  const verified = await verifyGestionCamasSession(record);
+  if (verified.record) return gestionCamasSession.publicStatus(verified.record);
+  if (verified.changed) return gestionCamasSession.publicStatus(await readGestionCamasSession());
+  const status = gestionCamasSession.publicStatus(record);
   return {
-    ...gestionCamasSession.publicStatus(null),
-    message: live.error || 'Gestión de Camas no está conectada.',
+    ...status,
+    status: 'stale',
+    message: verified.error || status.message,
   };
 };
 
-const handleConnectGestionCamas = async () => {
+const setGestionCamasConnectionAttempt = async (
+  tabId,
+  connectionAttemptId,
+  { rehydrated = false } = {}
+) => {
+  let lastError = 'La pestaña de Gestión de Camas no confirmó el intento de conexión.';
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await mutateGestionCamasSession(async () => {
+      const pending = await readPendingGestionCamasConnection();
+      if (
+        !pending ||
+        Number(pending.tabId) !== Number(tabId) ||
+        String(pending.attemptId || '') !== String(connectionAttemptId || '')
+      ) {
+        return { replaced: true };
+      }
+      try {
+        const response = await withTimeout(
+          chrome.tabs.sendMessage(tabId, {
+            type: 'RAYEN_GC_SET_CONNECTION_ATTEMPT',
+            connectionAttemptId,
+            rehydrated,
+          }),
+          HEALTH_PROBE_TIMEOUT_MS,
+          'La pestaña no respondió al preparar la conexión.'
+        );
+        return { ok: Boolean(response && response.ok) };
+      } catch (error) {
+        return { error: String((error && error.message) || error) };
+      }
+    });
+    if (result.replaced) {
+      throw new Error('El intento de conexión fue reemplazado por uno más reciente.');
+    }
+    if (result.ok) return;
+    if (result.error) lastError = result.error;
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  throw new Error(lastError);
+};
+
+const beginGestionCamasConnectionAttempt = async ({ windowId, tabId, closeOnVerify, renew }) => {
+  const pending = {
+    windowId,
+    tabId,
+    closeOnVerify: Boolean(closeOnVerify),
+    attemptId: crypto.randomUUID(),
+    createdAt: Date.now(),
+  };
+  const accepted = await mutateGestionCamasSession(async () => {
+    const closing = await readClosingGestionCamasWindow();
+    if (isClosingGestionCamasWindow(closing, windowId)) return false;
+    if (closing && Number(closing.authorizedAt) <= Date.now() - 60_000) {
+      await chrome.storage.session.remove(gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY);
+    }
+    await chrome.storage.session.set({
+      [gestionCamasSession.PENDING_WINDOW_STORAGE_KEY]: pending,
+      [gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]: {
+        blocked: false,
+        updatedAt: Date.now(),
+      },
+    });
+    if (renew) await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
+    return true;
+  });
+  if (!accepted) return null;
+  await setGestionCamasConnectionAttempt(tabId, pending.attemptId, {
+    rehydrated: Boolean(closeOnVerify),
+  });
+  return pending;
+};
+
+const handleConnectGestionCamas = async ({ renew = false } = {}) => {
   const tabs = await chrome.tabs.query({ url: GESTIONCAMAS_MATCH });
   const existing = self.HhrExtensionHealth.orderTabs(tabs)[0];
   if (existing && existing.id != null) {
-    await chrome.tabs.update(existing.id, { active: true });
-    if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
-    return { ok: true, reused: true, message: 'Completa el acceso en la ventana oficial de Gestión de Camas.' };
+    const pending = await beginGestionCamasConnectionAttempt({
+      windowId: existing.windowId,
+      tabId: existing.id,
+      closeOnVerify: false,
+      renew,
+    });
+    if (pending) {
+      await chrome.tabs.update(existing.id, { active: true });
+      if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
+      return { ok: true, reused: true, message: 'Completa el acceso en la ventana oficial de Gestión de Camas.' };
+    }
   }
   const popup = await chrome.windows.create({
     url: GESTION_CAMAS_LOGIN_URL,
@@ -188,22 +515,31 @@ const handleConnectGestionCamas = async () => {
   });
   const popupTab = popup && Array.isArray(popup.tabs) ? popup.tabs[0] : null;
   if (popup && popup.id != null && popupTab && popupTab.id != null) {
-    await chrome.storage.session.set({
-      [gestionCamasSession.PENDING_WINDOW_STORAGE_KEY]: {
-        windowId: popup.id,
-        tabId: popupTab.id,
-        createdAt: Date.now(),
-      },
+    await beginGestionCamasConnectionAttempt({
+      windowId: popup.id,
+      tabId: popupTab.id,
+      closeOnVerify: true,
+      renew,
     });
+  } else if (renew) {
+    await clearGestionCamasSession();
   }
   return { ok: true, reused: false, message: 'Inicia sesión en la ventana oficial de Gestión de Camas.' };
 };
 
 const handleDisconnectGestionCamas = async () => {
-  await chrome.storage.session.remove([
-    gestionCamasSession.SESSION_STORAGE_KEY,
-    gestionCamasSession.PENDING_WINDOW_STORAGE_KEY,
-  ]);
+  await mutateGestionCamasSession(async () => {
+    await chrome.storage.session.remove([
+      gestionCamasSession.SESSION_STORAGE_KEY,
+      gestionCamasSession.PENDING_WINDOW_STORAGE_KEY,
+    ]);
+    await chrome.storage.session.set({
+      [gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]: {
+        blocked: true,
+        updatedAt: Date.now(),
+      },
+    });
+  });
   return { ok: true, connection: gestionCamasSession.publicStatus(null) };
 };
 
@@ -291,14 +627,6 @@ const pickGestionCamasEncounterMetadata = value => {
   return result;
 };
 
-const handleGestionCamasUnauthorized = async response => {
-  if (response && (response.status === 401 || response.status === 403)) {
-    await clearGestionCamasSession();
-    return true;
-  }
-  return false;
-};
-
 const handleEgresoLookup = async runs => {
   const session = await resolveGestionCamasSession();
   if (!session.record) {
@@ -316,17 +644,29 @@ const handleEgresoLookup = async runs => {
     try {
       const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
       if (!response.ok) {
-        const unauthorized = await handleGestionCamasUnauthorized(response);
+        const rejection = await classifyGestionCamasRejection(response, record);
         results.push({
           run,
-          error: unauthorized
+          error: rejection === 'changed'
+            ? 'La sesión cambió durante la consulta. Reintenta la operación.'
+            : rejection === 'expired'
             ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+            : rejection === 'forbidden'
+              ? 'Gestión de Camas rechazó esta consulta por permisos.'
             : 'HTTP ' + response.status,
         });
-        if (unauthorized) break;
+        if (rejection === 'expired' || rejection === 'changed') break;
         continue;
       }
       const payload = await response.json();
+      const verified = await markGestionCamasSessionVerified(record);
+      if (!verified) {
+        results.push({
+          run,
+          error: 'La sesión cambió durante la consulta. Reintenta la operación.',
+        });
+        break;
+      }
       const item = Array.isArray(payload) ? payload[0] : payload;
       results.push({ run, egreso: item ? pickGestionCamasEncounterMetadata(item) : null });
     } catch (error) {
@@ -364,14 +704,23 @@ const fetchReportBuffer = async ({ dateStart, dateEnd }) => {
   try {
     const res = await fetchWithTimeout(url, { headers: { Authorization: info.token } });
     if (!res.ok) {
-      const unauthorized = await handleGestionCamasUnauthorized(res);
+      const rejection = await classifyGestionCamasRejection(res, info);
       return {
-        error: unauthorized
+        error: rejection === 'changed'
+          ? 'La sesión cambió durante la descarga. Reintenta la operación.'
+          : rejection === 'expired'
           ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+          : rejection === 'forbidden'
+            ? 'La sesión es válida, pero no tiene permiso para descargar este reporte.'
           : 'El servidor de reportes respondió HTTP ' + res.status + '.',
       };
     }
-    return { buffer: await res.arrayBuffer() };
+    const buffer = await res.arrayBuffer();
+    const verified = await markGestionCamasSessionVerified(info);
+    if (!verified) {
+      return { error: 'La sesión cambió durante la descarga. Reintenta la operación.' };
+    }
+    return { buffer };
   } catch (error) {
     return { error: 'Falló la descarga del reporte: ' + String((error && error.message) || error) };
   }
@@ -3482,8 +3831,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       'No se pudo conservar la sesión temporal de Gestión de Camas.'
     );
   }
+  if (msg && msg.type === 'RAYEN_GC_DOCUMENT_READY') {
+    return respond(
+      handleGestionCamasDocumentReady(sender),
+      'No se pudo restaurar el intento de conexión de Gestión de Camas.'
+    );
+  }
   if (msg && msg.type === 'RAYEN_GC_CONNECT_REQUEST') {
-    return respond(handleConnectGestionCamas(), 'No se pudo abrir Gestión de Camas.');
+    return respond(
+      handleConnectGestionCamas({ renew: msg.renew === true }),
+      'No se pudo abrir Gestión de Camas.'
+    );
   }
   if (msg && msg.type === 'RAYEN_GC_DISCONNECT_REQUEST') {
     return respond(handleDisconnectGestionCamas(), 'No se pudo olvidar la conexión de Gestión de Camas.');

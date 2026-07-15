@@ -2275,6 +2275,7 @@
   };
 
   const connectionTimeLabel = source => {
+    if (source && source.remainingSeconds == null) return 'Vigencia controlada por Rayen';
     const seconds = Number(source && source.remainingSeconds);
     if (!Number.isFinite(seconds)) return 'Vigencia controlada por Rayen';
     if (seconds <= 0) return 'Sesión vencida';
@@ -2318,6 +2319,7 @@
     const refresh = main.querySelector('.hhr-connection-refresh');
     const feedback = main.querySelector('.hhr-connection-feedback');
     let pollingGeneration = 0;
+    let shouldRenewSession = false;
 
     const setFeedback = (message, error = false) => {
       feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
@@ -2331,7 +2333,11 @@
         (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
       card.querySelector('.hhr-connection-status').textContent = ready
         ? 'Conectado'
-        : stale ? 'Sesión vencida' : 'No conectado';
+        : stale
+          ? source && source.remainingSeconds != null && Number(source.remainingSeconds) === 0
+            ? 'Sesión vencida'
+            : 'Requiere comprobación'
+          : 'No conectado';
       const identity = source && source.identity || {};
       const name = identity.fullName || identity.username || fallbackName;
       const user = card.querySelector('.hhr-connection-user');
@@ -2356,6 +2362,7 @@
       const fichaName = ficha.identity && ficha.identity.fullName || 'Sesión de Ficha Médico';
       renderSource(fichaCard, ficha, fichaName);
       renderSource(camasCard, camas, 'Cuenta autenticada en Gestión de Camas');
+      shouldRenewSession = camas.connectionSource === 'session';
       connect.textContent = camas.status === 'ready' ? 'Renovar' : 'Conectar';
       forget.hidden = camas.status !== 'ready' && camas.status !== 'stale';
       refreshOperationsConnectionBadge(document.getElementById(OPERATIONS_BAR_ID), true, report);
@@ -2387,7 +2394,10 @@
     connect.addEventListener('click', async () => {
       connect.disabled = true;
       setFeedback('Abriendo la página oficial de Gestión de Camas…');
-      const response = await sendMessage({ type: 'RAYEN_GC_CONNECT_REQUEST' });
+      const response = await sendMessage({
+        type: 'RAYEN_GC_CONNECT_REQUEST',
+        renew: shouldRenewSession,
+      });
       if (!response || response.error) {
         connect.disabled = false;
         setFeedback((response && response.error) || 'No se pudo abrir Gestión de Camas.', true);

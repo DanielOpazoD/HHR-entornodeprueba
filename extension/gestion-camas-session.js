@@ -4,8 +4,11 @@
 
   const SESSION_STORAGE_KEY = 'hhrGestionCamasSessionV1';
   const PENDING_WINDOW_STORAGE_KEY = 'hhrGestionCamasPendingWindowV1';
+  const CONNECTION_CONTROL_STORAGE_KEY = 'hhrGestionCamasConnectionControlV1';
+  const CLOSING_WINDOW_STORAGE_KEY = 'hhrGestionCamasClosingWindowV1';
   const EXPIRING_WINDOW_MS = 10 * 60 * 1000;
   const CLOCK_SKEW_MS = 15 * 1000;
+  const VERIFICATION_FRESHNESS_MS = 2 * 60 * 1000;
   const ALLOWED_API_HOST = 'hospbackend.rayensalud.cl';
 
   const cleanText = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -57,7 +60,8 @@
   const buildSessionRecord = (info, now = Date.now()) => {
     const token = authorizationToken(info && info.token);
     const apiBase = normalizeApiBase(info && info.apiBase);
-    if (!token || !apiBase) return null;
+    const facId = /^\d+$/.test(String(info && info.facId || '')) ? String(info.facId) : '';
+    if (!token || !apiBase || !facId) return null;
     const claims = parseJwtClaims(token);
     const expSeconds = Number(claims.exp);
     const expiresAt = Number.isFinite(expSeconds) && expSeconds > 0
@@ -66,9 +70,10 @@
     return {
       token,
       apiBase,
-      facId: /^\d+$/.test(String(info && info.facId || '')) ? String(info.facId) : '',
+      facId,
       capturedAt: now,
-      lastVerifiedAt: now,
+      // Only the background worker may promote a capture after its facility-bound probe.
+      lastVerifiedAt: null,
       expiresAt,
       identity: sessionIdentity(claims),
     };
@@ -79,6 +84,13 @@
     authorizationToken(record.token) &&
     normalizeApiBase(record.apiBase) &&
     (record.expiresAt == null || Number(record.expiresAt) > now + CLOCK_SKEW_MS)
+  );
+
+  const isVerificationFresh = (record, now = Date.now()) => Boolean(
+    isUsable(record, now) &&
+    record.lastVerifiedAt != null &&
+    Number.isFinite(Number(record.lastVerifiedAt)) &&
+    Number(record.lastVerifiedAt) > now - VERIFICATION_FRESHNESS_MS
   );
 
   const publicStatus = (record, now = Date.now()) => {
@@ -103,6 +115,19 @@
         connectionSource: 'session',
       };
     }
+    if (!isVerificationFresh(record, now)) {
+      return {
+        status: 'stale',
+        message: record.lastVerifiedAt
+          ? 'La sesión de Gestión de Camas requiere una nueva comprobación.'
+          : 'La sesión fue capturada, pero todavía no ha sido verificada por Rayen.',
+        identity: record.identity || { fullName: '', username: '' },
+        expiresAt,
+        remainingSeconds: expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : null,
+        connectionSource: 'session',
+        verification: 'pending',
+      };
+    }
     const remainingMs = expiresAt ? expiresAt - now : null;
     const expiring = remainingMs !== null && remainingMs <= EXPIRING_WINDOW_MS;
     return {
@@ -117,13 +142,17 @@
       remainingSeconds: remainingMs === null ? null : Math.max(0, Math.floor(remainingMs / 1000)),
       connectionSource: 'session',
       expiring,
+      verification: 'fresh',
     };
   };
 
   root.HhrGestionCamasSession = {
+    CLOSING_WINDOW_STORAGE_KEY,
+    CONNECTION_CONTROL_STORAGE_KEY,
     SESSION_STORAGE_KEY,
     PENDING_WINDOW_STORAGE_KEY,
     buildSessionRecord,
+    isVerificationFresh,
     isUsable,
     normalizeApiBase,
     parseJwtClaims,

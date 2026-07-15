@@ -7,7 +7,7 @@ interface SessionRecord {
   apiBase: string;
   facId: string;
   capturedAt: number;
-  lastVerifiedAt: number;
+  lastVerifiedAt: number | null;
   expiresAt: number | null;
   identity: { fullName: string; username: string };
 }
@@ -16,6 +16,7 @@ const session = (
   globalThis as typeof globalThis & {
     HhrGestionCamasSession: {
       buildSessionRecord: (info: unknown, now?: number) => SessionRecord | null;
+      isVerificationFresh: (record: SessionRecord | null, now?: number) => boolean;
       isUsable: (record: SessionRecord | null, now?: number) => boolean;
       normalizeApiBase: (value: unknown) => string;
       publicStatus: (record: SessionRecord | null, now?: number) => Record<string, unknown>;
@@ -42,6 +43,7 @@ describe('Gestión de Camas session helpers', () => {
         token: fixture,
         apiBase: 'https://hospbackend.rayensalud.cl/api/',
         facId: '1342',
+        verified: true,
       },
       now
     );
@@ -52,6 +54,9 @@ describe('Gestión de Camas session helpers', () => {
       expiresAt: now + 3600_000,
       identity: { fullName: 'Valeria Salfate', username: 'vsalfate' },
     });
+    expect(record?.lastVerifiedAt).toBeNull();
+    if (!record) throw new Error('Expected a valid session fixture');
+    record.lastVerifiedAt = now;
     expect(session.isUsable(record, now)).toBe(true);
     expect(session.publicStatus(record, now)).toMatchObject({
       status: 'ready',
@@ -60,6 +65,13 @@ describe('Gestión de Camas session helpers', () => {
     });
     expect(session.normalizeApiBase('https://evil.example/api')).toBe('');
     expect(session.normalizeApiBase('http://hospbackend.rayensalud.cl/api')).toBe('');
+    expect(
+      session.buildSessionRecord({
+        token: fixture,
+        apiBase: 'https://hospbackend.rayensalud.cl',
+        facId: '',
+      })
+    ).toBeNull();
   });
 
   it('distinguishes expiring, expired and missing sessions without exposing the token', () => {
@@ -70,9 +82,13 @@ describe('Gestión de Camas session helpers', () => {
         token: fixture,
         apiBase: 'https://hospbackend.rayensalud.cl',
         facId: '1342',
+        verified: true,
       },
       now
     );
+    expect(expiring?.lastVerifiedAt).toBeNull();
+    if (!expiring) throw new Error('Expected a valid expiring session fixture');
+    expiring.lastVerifiedAt = now;
     const expiringStatus = session.publicStatus(expiring, now);
     expect(expiringStatus).toMatchObject({ status: 'ready', expiring: true });
     expect(expiringStatus).not.toHaveProperty('token');
@@ -97,14 +113,41 @@ describe('Gestión de Camas session helpers', () => {
         token: fixture,
         apiBase: 'https://hospbackend.rayensalud.cl',
         facId: '1342',
+        verified: true,
       },
       now
     );
+    expect(record?.lastVerifiedAt).toBeNull();
+    if (!record) throw new Error('Expected a valid opaque session fixture');
+    record.lastVerifiedAt = now;
     expect(session.isUsable(record, now)).toBe(true);
     expect(session.publicStatus(record, now)).toMatchObject({
       status: 'ready',
       expiresAt: null,
       remainingSeconds: null,
+    });
+    expect(session.publicStatus(record, now + 3 * 60_000)).toMatchObject({
+      status: 'stale',
+      verification: 'pending',
+    });
+  });
+
+  it('does not show a captured but unverified token as connected', () => {
+    const now = Date.UTC(2026, 6, 15, 14, 0, 0);
+    const fixture = jwtFixture({ exp: now / 1000 + 3600 });
+    const record = session.buildSessionRecord(
+      {
+        token: fixture,
+        apiBase: 'https://hospbackend.rayensalud.cl',
+        facId: '1342',
+      },
+      now
+    );
+    expect(session.isUsable(record, now)).toBe(true);
+    expect(session.isVerificationFresh(record, now)).toBe(false);
+    expect(session.publicStatus(record, now)).toMatchObject({
+      status: 'stale',
+      verification: 'pending',
     });
   });
 });

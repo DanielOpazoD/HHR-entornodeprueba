@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const gestionCamasSource = readFileSync(path.resolve('extension/inject-gestioncamas.js'), 'utf8');
 const extensionManifest = JSON.parse(
   readFileSync(path.resolve('extension/manifest.json'), 'utf8')
 ) as {
@@ -155,6 +156,43 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('response && !response.error');
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
+  });
+
+  it('keeps the retained Gestion de Camas session verified and facility-bound', () => {
+    expect(gestionCamasSource).toContain(
+      "const sessionKey = [auth, base, facId, connectionAttemptId].join('|')"
+    );
+    expect(gestionCamasSource).toContain('!/^\\d+$/.test(facId)');
+    expect(gestionCamasSource).toContain('auth !== capturedAuth');
+    expect(gestionCamasSource).toContain('d.rehydrated === true');
+    expect(gestionCamasSource).toContain('capturedAuthConnectionAttemptId');
+    expect(gestionCamasSource).toContain(
+      'this.__gcConnectionAttemptId = activeConnectionAttemptId'
+    );
+    expect(gestionCamasSource).not.toContain('verified: Boolean(verified)');
+    expect(backgroundSource).toContain('sameGestionCamasSession(current, record)');
+    expect(backgroundSource).toContain('record.sourceTabId = normalizedSourceTabId');
+    expect(backgroundSource).toContain('record.connectionAttemptId = suppliedAttemptId');
+    expect(backgroundSource).toContain('attemptId: crypto.randomUUID()');
+    expect(backgroundSource).toContain('RAYEN_GC_SET_CONNECTION_ATTEMPT');
+    expect(backgroundSource).toContain('RAYEN_GC_DOCUMENT_READY');
+    expect(backgroundSource).toContain('CONNECTION_CONTROL_STORAGE_KEY');
+    expect(backgroundSource).toContain('CLOSING_WINDOW_STORAGE_KEY');
+    expect(backgroundSource).toContain('clearUnusableGestionCamasSession');
+    expect(backgroundSource).toContain(
+      'const verified = await verifyGestionCamasSession(candidate)'
+    );
+    expect(backgroundSource).toContain('if (verified.record) return { record: verified.record }');
+    expect(backgroundSource).toContain('isClosingGestionCamasWindow(closing, windowId)');
+    expect(backgroundSource).toContain('return { replaced: true }');
+    expect(backgroundSource).toMatch(
+      /mutateGestionCamasSession\(async \(\) => \{\s+const pending = await readPendingGestionCamasConnection\(\)/
+    );
+    expect(backgroundSource).toContain('if (!verified)');
+    expect(backgroundSource).toContain("? 'expired' : 'changed'");
+    expect(backgroundSource).toContain('if (response.status === 401)');
+    expect(backgroundSource).toContain("if (response.status === 403) return 'forbidden'");
+    expect(backgroundSource).not.toContain('response.status === 401 || response.status === 403');
   });
 
   it('keeps the application and extension health protocol versions aligned', () => {
