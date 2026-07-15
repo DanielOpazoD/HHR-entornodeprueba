@@ -55,6 +55,8 @@ export interface ClinicalPanelEntry {
   archived: boolean;
   /** Pharma/free indications only: explicitly suspended in Ficha Médico. */
   suspended: boolean;
+  /** Pharma only: course explicitly completed in the current medication plan. */
+  finalized?: boolean;
   /** Pharma/free indications only: source flag retained for compatibility; not shown in the UI. */
   isNew: boolean;
   /** Evolutions only: struck-through (annulled) note. */
@@ -183,8 +185,8 @@ const buildIndicationDays = (entries: ClinicalPanelEntry[]): ClinicalPanelIndica
       return {
         day,
         label: dayLabel(day),
-        active: all.filter(e => !e.suspended && !e.archived),
-        suspended: all.filter(e => e.suspended || e.archived),
+        active: all.filter(e => !e.suspended && !e.archived && !e.finalized),
+        suspended: all.filter(e => e.suspended || e.archived || e.finalized),
       };
     });
 };
@@ -264,6 +266,7 @@ export const parseClinicalPanel = (
         publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
         archived: currentState ? flag(currentState.archived) : flag(r.ARCHIVED),
         suspended: currentState ? flag(currentState.suspended) : flag(r.SUSPENDED),
+        finalized: currentState ? flag(currentState.finalized) : false,
         isNew: flag(r.IS_NEW),
         crossedOut: false,
       });

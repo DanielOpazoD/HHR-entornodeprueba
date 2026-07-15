@@ -45,6 +45,12 @@ const panelResult = {
           IS_NEW: true,
           SUSPENDED: false,
         },
+        {
+          MRE_ID: 8,
+          DESCRIPTOR: 'AMOXICILINA 500 mg',
+          PUBLISH_DATETIME: '2026-07-13T08:30:00',
+          SUSPENDED: false,
+        },
       ],
       patientFreeIndicationResume: [],
       nutritionOrderResume: [],
@@ -52,7 +58,10 @@ const panelResult = {
     },
   ],
   carePlan: {
-    medicationStates: [{ id: 7, suspended: true, archived: false }],
+    medicationStates: [
+      { id: 7, suspended: true, archived: false },
+      { id: 8, suspended: false, archived: false, finalized: true },
+    ],
     carePlanHeaders: [
       {
         scheduledDate: '2026-07-13T00:00:00',
@@ -76,7 +85,7 @@ describe('ClinicalPanelDrawer', () => {
     mocks.request.mockResolvedValue(panelResult);
   });
 
-  it('separates medical/nursing handoffs, shows canonical suspended medication, and renders care execution', async () => {
+  it('separates handoffs, labels inactive medications, and renders care execution', async () => {
     render(
       <ClinicalPanelDrawer
         bedId="H1C2"
@@ -98,8 +107,9 @@ describe('ClinicalPanelDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Indicaciones/i }));
     expect(screen.queryByText('Nueva')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /1 inactiva/i }));
+    fireEvent.click(screen.getByRole('button', { name: /2 inactivas/i }));
     expect(screen.getByText('Suspendida')).toBeInTheDocument();
+    expect(screen.getByText('Finalizada')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Cuidados/i }));
     expect(screen.getByText('Cambio de posición')).toBeInTheDocument();

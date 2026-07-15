@@ -39,6 +39,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
+| `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
 
 ## Instalar (modo desarrollador)
 

@@ -121,7 +121,7 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
           entry.suspended ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
         )}
       >
-        {entry.suspended ? 'Suspendida' : 'Archivada'}
+        {entry.finalized ? 'Finalizada' : entry.suspended ? 'Suspendida' : 'Archivada'}
       </span>
     )}
   </li>

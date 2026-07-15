@@ -15,7 +15,13 @@
 
 // SheetJS + the Jasper .xls row parser, loaded once into the service worker. importScripts must
 // run at top level (MV3 classic SW); parsing itself only happens for report requests.
-importScripts('encounter-navigation.js', 'health-check.js', 'xlsx.full.min.js', 'report-parser.js');
+importScripts(
+  'encounter-navigation.js',
+  'health-check.js',
+  'clinical-panel-fetch.js',
+  'xlsx.full.min.js',
+  'report-parser.js'
+);
 
 const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
@@ -461,6 +467,14 @@ const fetchFichaJson = async (url, token) => {
   return res.json();
 };
 
+const fetchMedicationStates = async (baseUrl, isSuspended, token) => {
+  const rows = await self.HhrClinicalPanelFetch.fetchMedicationPages({
+    fetchPage: (page, limit) =>
+      fetchFichaJson(`${baseUrl}?page=${page}&limit=${limit}&isSuspended=${isSuspended}`, token),
+  });
+  return slimMedicationStates({ Medication: rows });
+};
+
 const handleClinicalPanelRequest = async ({ encId }) => {
   if (!encId) return { error: 'Falta enc_id para el panel clínico.' };
   const infoResp = await sendToMatchingTab(
@@ -479,31 +493,35 @@ const handleClinicalPanelRequest = async ({ encId }) => {
     `getPatientEncounterHistoryReportServer/false/0/0/-14`;
   const encodedEncounter = encodeURIComponent(encId);
   const careUrl = `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
-  const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}?page=0&limit=100`;
+  const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}`;
 
   const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult] =
     await Promise.allSettled([
       fetchFichaJson(historyUrl, info.token),
       fetchFichaJson(careUrl, info.token),
-      fetchFichaJson(`${medicationBase}&isSuspended=false`, info.token),
-      fetchFichaJson(`${medicationBase}&isSuspended=true`, info.token),
+      fetchMedicationStates(medicationBase, false, info.token),
+      fetchMedicationStates(medicationBase, true, info.token),
     ]);
 
-  if (
-    historyResult.status === 'rejected' &&
-    careResult.status === 'rejected' &&
-    activeMedicationResult.status === 'rejected' &&
-    suspendedMedicationResult.status === 'rejected'
-  ) {
+  let sources;
+  try {
+    sources = self.HhrClinicalPanelFetch.unwrapRequiredSources([
+      { label: 'historial clínico', result: historyResult },
+      { label: 'plan de cuidados', result: careResult },
+      { label: 'medicamentos activos', result: activeMedicationResult },
+      { label: 'medicamentos inactivos', result: suspendedMedicationResult },
+    ]);
+  } catch (error) {
     return {
       error:
         'Falló la descarga del panel clínico: ' +
-        String((historyResult.reason && historyResult.reason.message) || historyResult.reason),
+        String((error && error.message) || error),
     };
   }
 
+  const [rawHistory, carePayload, activeMedicationStates, suspendedMedicationStates] = sources;
+
   const events = [];
-  const rawHistory = historyResult.status === 'fulfilled' ? historyResult.value : [];
   for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
     if (!ev) continue;
     const slim = { publishDatetime: ev.publishDatetime || '' };
@@ -516,21 +534,12 @@ const handleClinicalPanelRequest = async ({ encId }) => {
     if (hasContent) events.push(slim);
   }
 
-  const activeMedicationPayload =
-    activeMedicationResult.status === 'fulfilled' ? activeMedicationResult.value : null;
-  const suspendedMedicationPayload =
-    suspendedMedicationResult.status === 'fulfilled' ? suspendedMedicationResult.value : null;
-
   return {
     ok: true,
     events,
     carePlan: {
-      carePlanHeaders:
-        careResult.status === 'fulfilled' ? slimCarePlanHeaders(careResult.value) : [],
-      medicationStates: [
-        ...slimMedicationStates(activeMedicationPayload),
-        ...slimMedicationStates(suspendedMedicationPayload),
-      ],
+      carePlanHeaders: slimCarePlanHeaders(carePayload),
+      medicationStates: [...activeMedicationStates, ...suspendedMedicationStates],
     },
   };
 };

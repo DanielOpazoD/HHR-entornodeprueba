@@ -219,6 +219,34 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     });
   });
 
+  it('moves a finalized medication out of the active plan without labelling it suspended', () => {
+    const panel = parseClinicalPanel(
+      [
+        event({
+          patientPharmaIndicationResume: [
+            {
+              MRE_ID: 901,
+              DESCRIPTOR: 'AMOXICILINA 500 mg',
+              PUBLISH_DATETIME: '2026-07-12T08:00:00',
+              SUSPENDED: false,
+            },
+          ],
+        }),
+      ],
+      {
+        carePlanHeaders: [],
+        medicationStates: [{ id: 901, suspended: false, archived: false, finalized: true }],
+      }
+    );
+
+    expect(panel.indicationDays[0].active).toHaveLength(0);
+    expect(panel.indicationDays[0].suspended[0]).toMatchObject({
+      id: '901',
+      suspended: false,
+      finalized: true,
+    });
+  });
+
   it('buckets indications with an unparseable date under a "Sin fecha" day', () => {
     const panel = parseClinicalPanel([
       event({
