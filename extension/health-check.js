@@ -12,6 +12,7 @@
   const probeTabs = async ({ tabs, sendMessage, missingMessage, staleMessage }) => {
     const ordered = orderTabs(tabs);
     if (ordered.length === 0) return { status: 'missing', message: missingMessage };
+    let unavailableMessage = staleMessage;
 
     for (const tab of ordered) {
       if (!tab || tab.id == null) continue;
@@ -20,12 +21,13 @@
         if (response && response.ready === true) {
           return { status: 'ready', message: response.message || 'Pestaña disponible.' };
         }
+        if (response && response.message) unavailableMessage = response.message;
       } catch (_error) {
         // Try the next matching tab: another open tab may have the current relay injected.
       }
     }
 
-    return { status: 'stale', message: staleMessage };
+    return { status: 'stale', message: unavailableMessage };
   };
 
   root.HhrExtensionHealth = { orderTabs, probeTabs };

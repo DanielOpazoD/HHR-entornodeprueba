@@ -79,7 +79,7 @@ const sendHealthProbe = (tabId, message) => withTimeout(
 const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
   const tabs = await chrome.tabs.query({ url: urlMatch });
   if (!tabs.length) return { error: noTabError };
-  const ordered = tabs.slice().sort((a, b) => Number(b.active) - Number(a.active));
+  const ordered = self.HhrExtensionHealth.orderTabs(tabs);
   let lastError = 'Sin respuesta de la pestaña.';
   for (const tab of ordered) {
     try {
@@ -88,7 +88,8 @@ const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) =
         TAB_MESSAGE_TIMEOUT_MS,
         'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
       );
-      if (response) return response;
+      if (response && !response.error) return response;
+      if (response && response.error) lastError = String(response.error);
     } catch (error) {
       lastError = String((error && error.message) || error);
     }

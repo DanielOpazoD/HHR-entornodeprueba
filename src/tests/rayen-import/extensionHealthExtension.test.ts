@@ -57,11 +57,17 @@ describe('extension health helpers', () => {
     await expect(
       health.probeTabs({
         tabs: [{ id: 3 }],
-        sendMessage: vi.fn().mockResolvedValue({ ready: false }),
+        sendMessage: vi.fn().mockResolvedValue({
+          ready: false,
+          message: 'La sesión clínica de Ficha Médico no está disponible.',
+        }),
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'stale', message: 'Recarga.' });
+    ).resolves.toEqual({
+      status: 'stale',
+      message: 'La sesión clínica de Ficha Médico no está disponible.',
+    });
 
     expect(sendMessage.mock.calls[0]?.[1]).toEqual({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
   });

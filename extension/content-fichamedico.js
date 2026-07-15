@@ -46,7 +46,7 @@
     });
 
   // Generic request/response to the MAIN world over window.postMessage.
-  const askMainWorld = (requestType, resultType) =>
+  const askMainWorld = (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) =>
     new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
@@ -68,13 +68,24 @@
         if (settled) return;
         cleanup();
         resolve({ error: 'Tiempo de espera agotado (Ficha Médico).' });
-      }, READ_TIMEOUT_MS);
+      }, timeoutMs);
     });
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
-      sendResponse({ ready: true, message: 'Ficha Médico disponible.' });
-      return false;
+      askMainWorld(
+        'RAYEN_FM_SESSION_STATUS_REQUEST',
+        'RAYEN_FM_SESSION_STATUS_RESULT',
+        4000
+      ).then(status =>
+        sendResponse({
+          ready: status && status.ready === true,
+          message:
+            (status && status.message) ||
+            'La sesión clínica de Ficha Médico no pudo verificarse.',
+        })
+      );
+      return true;
     }
     if (msg && msg.type === 'RAYEN_READ') {
       readViaMainWorld().then(sendResponse);

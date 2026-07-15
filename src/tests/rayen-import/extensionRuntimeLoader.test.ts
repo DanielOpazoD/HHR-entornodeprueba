@@ -7,6 +7,11 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const extensionManifest = JSON.parse(
+  readFileSync(path.resolve('extension/manifest.json'), 'utf8')
+) as {
+  content_scripts?: Array<{ matches?: string[]; js?: string[]; run_at?: string }>;
+};
 const healthBridgeSource = readFileSync(
   path.resolve('src/features/rayen-import/bridge/extensionHealthBridge.ts'),
   'utf8'
@@ -14,6 +19,19 @@ const healthBridgeSource = readFileSync(
 const extensionDirectory = path.resolve('extension');
 
 describe('extension heavy runtime loading', () => {
+  it('injects the Ficha Medico session bridge and operations UI on every route', () => {
+    const fichaEntries = (extensionManifest.content_scripts || []).filter(entry =>
+      entry.matches?.includes('https://fichamedico.rayensalud.cl/*')
+    );
+    const scripts = fichaEntries.flatMap(entry => entry.js || []);
+
+    expect(fichaEntries).toHaveLength(2);
+    expect(fichaEntries.every(entry => entry.run_at === 'document_start')).toBe(true);
+    expect(scripts).toContain('inject-fichamedico.js');
+    expect(scripts).toContain('content-fichamedico.js');
+    expect(scripts).toContain('content-prescription-print.js');
+  });
+
   it('registers PDF and spreadsheet vendors during classic MV3 worker startup', () => {
     const startup = backgroundSource.slice(0, backgroundSource.indexOf('const FICHAMEDICO_MATCH'));
 
@@ -75,7 +93,7 @@ describe('extension heavy runtime loading', () => {
       clearTimeout,
       chrome: {
         runtime: {
-          getManifest: () => ({ version: '0.21.3' }),
+          getManifest: () => ({ version: '0.21.4' }),
           getURL: (value: string) => `chrome-extension://test/${value}`,
           onMessage: { addListener: () => undefined },
         },
@@ -119,6 +137,8 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('HEALTH_PROBE_TIMEOUT_MS = 5_000');
     expect(backgroundSource).toMatch(/withTimeout\(\s*chrome\.tabs\.sendMessage/);
     expect(backgroundSource).toContain('sendMessage: sendHealthProbe');
+    expect(backgroundSource).toContain('self.HhrExtensionHealth.orderTabs(tabs)');
+    expect(backgroundSource).toContain('response && !response.error');
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
   });

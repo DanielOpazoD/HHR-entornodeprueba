@@ -27,6 +27,7 @@
   });
 
   const BACKEND_HINT = 'rayensalud.cl';
+  const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
   let capturedAuth = null;
   let capturedListUrl = null;
@@ -36,7 +37,9 @@
   const rememberFromRequest = (url, authHeader) => {
     try {
       if (authHeader && String(url).includes(BACKEND_HINT)) {
-        capturedAuth = authHeader;
+        const nextAuth = String(authHeader);
+        if (capturedAuth && capturedAuth !== nextAuth) capturedListUrl = null;
+        capturedAuth = nextAuth;
         const parsed = new URL(String(url), window.location.origin);
         if (parsed.hostname === 'fichamedicoback.rayensalud.cl') capturedApiOrigin = parsed.origin;
       }
@@ -82,7 +85,14 @@
 
   // Read only the non-secret clinical identity fields required to authorize writes. The full
   // session object can contain credentials and identifiers that the extension does not need, so
-  // it is deliberately reduced here before crossing out of MAIN world.
+  // it is deliberately reduced here before crossing out of MAIN world. The token remains only in
+  // this page's memory and is refreshed from Eloísa's own session endpoint after full route loads.
+  const clearClinicalBinding = () => {
+    capturedAuth = null;
+    capturedListUrl = null;
+    capturedApiOrigin = null;
+  };
+
   const readSafeSessionIdentity = async () => {
     try {
       const response = await origFetch('/api/auth/session', {
@@ -90,23 +100,33 @@
         cache: 'no-store',
         headers: { Accept: 'application/json' },
       });
-      if (!response.ok) return null;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) clearClinicalBinding();
+        return null;
+      }
       const payload = await response.json();
       const session = payload && payload.ok !== false ? payload.session : null;
-      if (!session) return null;
+      const sessionToken = String((session && session.token) || '');
+      if (!session || !sessionToken) {
+        clearClinicalBinding();
+        return null;
+      }
       const facilityId = String(session.facilityId || '');
       const practitionerId = String(session.healthCarePractitionerId || '');
       const practitionerRoleId = String(session.healthCarePractitionerRoleId || '');
       if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
         return null;
       }
+      if (capturedAuth && capturedAuth !== sessionToken) capturedListUrl = null;
+      capturedAuth = sessionToken;
+      capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
       return {
         facilityId,
         practitionerId,
         practitionerRoleId,
         role: String(session.role || '').replace(/\s+/g, ' ').trim(),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        tokenMatchesCapturedAuth: Boolean(session.token) && String(session.token) === String(capturedAuth || ''),
+        tokenMatchesCapturedAuth: sessionToken === String(capturedAuth || ''),
       };
     } catch (_) {
       return null;
@@ -114,12 +134,12 @@
   };
 
   const getVerifiedClinicalContext = async () => {
-    if (!capturedAuth || !capturedApiOrigin) {
-      throw new Error('Recarga Eloísa para vincular la sesión clínica actual.');
-    }
     const identity = await readSafeSessionIdentity();
+    if (!capturedAuth || !capturedApiOrigin) {
+      throw new Error('La sesión clínica de Eloísa no está disponible. Inicia sesión y reintenta.');
+    }
     if (!identity || !identity.tokenMatchesCapturedAuth) {
-      throw new Error('La sesión clínica cambió o no pudo verificarse. Recarga Eloísa antes de continuar.');
+      throw new Error('La sesión clínica cambió o venció. Inicia sesión nuevamente antes de continuar.');
     }
     const isNurse = /enfermer/i.test(identity.role);
     let base = null;
@@ -139,7 +159,7 @@
       }
     }
     if (!base && !isNurse) {
-      throw new Error('Abre o recarga la lista de pacientes para vincular la sesión clínica actual.');
+      base = new URL(LIST_PATH, capturedApiOrigin);
     }
     if (base) {
       base.searchParams.set('facilityId', identity.facilityId);
@@ -148,6 +168,20 @@
     }
     return { base, identity, apiOrigin: capturedApiOrigin, listSource: base ? 'medical' : 'nursing' };
   };
+
+  // Prime and revalidate the in-memory binding whenever the SPA changes route or the tab becomes
+  // active again. No token is persisted by the extension and Eloísa remains the authority on
+  // expiration; a 401/403 clears the binding immediately.
+  const refreshSessionBinding = () => {
+    void readSafeSessionIdentity();
+  };
+  window.addEventListener('hhr:fichamedico-locationchange', refreshSessionBinding);
+  window.addEventListener('pageshow', refreshSessionBinding);
+  window.addEventListener('focus', refreshSessionBinding);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshSessionBinding();
+  });
+  refreshSessionBinding();
 
   const realDate = iso => {
     if (!iso) return undefined;
@@ -284,6 +318,23 @@
           window.location.origin
         );
       }
+      return;
+    }
+
+    if (data.type === 'RAYEN_FM_SESSION_STATUS_REQUEST') {
+      const identity = await readSafeSessionIdentity();
+      const ready = Boolean(identity && capturedAuth && capturedApiOrigin);
+      window.postMessage(
+        {
+          type: 'RAYEN_FM_SESSION_STATUS_RESULT',
+          reqId: data.reqId,
+          ready,
+          message: ready
+            ? 'Ficha Médico disponible. Sesión clínica vigente.'
+            : 'La sesión clínica de Ficha Médico no está disponible.',
+        },
+        window.location.origin
+      );
       return;
     }
 
