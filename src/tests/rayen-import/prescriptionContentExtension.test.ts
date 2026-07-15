@@ -8,18 +8,32 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+const NativeMutationObserver = globalThis.MutationObserver;
+const contentObservers = new Set<MutationObserver>();
 
 describe('extension prescription print content flow', () => {
   afterEach(() => {
+    contentObservers.forEach(observer => observer.disconnect());
+    contentObservers.clear();
     delete (globalThis as typeof globalThis & { __hhrPrescriptionPrintInjected?: boolean })
       .__hhrPrescriptionPrintInjected;
     document.body.innerHTML = '';
     document.documentElement.removeAttribute('data-hhr-prescription-print-script');
     document.documentElement.removeAttribute('data-hhr-prescription-print-state');
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('keeps the print action available for consecutive prescriptions', async () => {
+    vi.stubGlobal(
+      'MutationObserver',
+      class extends NativeMutationObserver {
+        constructor(callback: MutationCallback) {
+          super(callback);
+          contentObservers.add(this);
+        }
+      }
+    );
     window.matchMedia = vi
       .fn()
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
@@ -199,7 +213,8 @@ describe('extension prescription print content flow', () => {
     });
   });
 
-  it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', () => {
+  it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', async () => {
+    await new Promise(resolve => setTimeout(resolve, 120));
     expect(contentSource).toContain("submit.textContent = 'Imprimir regímenes y BRADEN'");
     expect(contentSource).toContain("submit.textContent = 'Reintentar impresión'");
 
