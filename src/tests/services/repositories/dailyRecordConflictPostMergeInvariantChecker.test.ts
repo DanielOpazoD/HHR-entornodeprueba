@@ -166,6 +166,40 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
     expect(result.record).toBe(resolved);
   });
 
+  it('blocks two active classifications that share the same egreso lineage', () => {
+    const remote = makeRecord('2026-07-01T10:10:00.000Z');
+    const local = makeRecord('2026-07-01T10:00:00.000Z');
+    const resolved = makeRecord('2026-07-01T10:10:00.000Z');
+    const provenance = {
+      source: 'reclassified' as const,
+      lineageId: 'egreso-lineage-1',
+      classifiedAt: '2026-07-01T10:10:00.000Z',
+      previousMovementId: 'source-1',
+      previousClassification: 'discharge' as const,
+    };
+    resolved.transfers = [
+      { id: 'transfer-1', movementProvenance: provenance },
+    ] as unknown as DailyRecord['transfers'];
+    resolved.cma = [
+      { id: 'cma-1', movementProvenance: provenance },
+    ] as unknown as DailyRecord['cma'];
+
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local,
+      resolved,
+      context: { date: '2026-07-01', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toContainEqual(
+      expect.objectContaining({
+        type: 'movement_lineage_classified_twice',
+        path: 'movements.lineage.egreso-lineage-1',
+      })
+    );
+  });
+
   it('blocks handoff note and medical entry loss for the same clinical episode', () => {
     const remote = makeRecord('2026-07-01T10:10:00.000Z');
     remote.beds = {

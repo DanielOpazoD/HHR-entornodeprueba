@@ -211,6 +211,70 @@ export const saveRecordAtomically = async (
   });
 };
 
+/**
+ * Applies a dot-notation partial update in the same transaction that verifies the caller's base
+ * version and snapshots the previous document. This is reserved for mutations whose invariant
+ * spans more than one field (for example, moving one egreso classification to another).
+ */
+export const updateRecordPartiallyAtomically = async (
+  docRef: DocumentReference,
+  partialData: DocumentData,
+  expectedLastUpdated: string | undefined,
+  conflictMessage: string,
+  contextLabel: string,
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<void> => {
+  const db = runtime.getDb();
+
+  await runTransaction(db, async transaction => {
+    const snap = await transaction.get(docRef);
+
+    if (snap.exists() && !expectedLastUpdated) {
+      throw new ConcurrencyError(conflictMessage);
+    }
+
+    if (snap.exists() && expectedLastUpdated) {
+      const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
+      if (remoteLastUpdated) {
+        const drift =
+          new Date(remoteLastUpdated).getTime() - new Date(expectedLastUpdated).getTime();
+        if (drift > 0) {
+          recordOperationalErrorTelemetry(
+            'firestore',
+            'atomic_partial_update_concurrency',
+            createOperationalError({
+              code: 'firestore_concurrency_conflict',
+              message: conflictMessage,
+              severity: 'warning',
+              userSafeMessage: conflictMessage,
+              context: { contextLabel, remoteLastUpdated, expectedLastUpdated },
+            }),
+            {
+              code: 'firestore_concurrency_conflict',
+              message: conflictMessage,
+              severity: 'warning',
+              userSafeMessage: conflictMessage,
+            }
+          );
+          throw new ConcurrencyError(conflictMessage);
+        }
+      }
+    }
+
+    if (snap.exists()) {
+      const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+      transaction.set(historyRef, {
+        ...(snap.data() as Record<string, unknown>),
+        snapshotTimestamp: Timestamp.now(),
+      });
+      transaction.update(docRef, partialData);
+      return;
+    }
+
+    transaction.set(docRef, partialData, { merge: true });
+  });
+};
+
 export const saveHistorySnapshot = async (date: string): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);

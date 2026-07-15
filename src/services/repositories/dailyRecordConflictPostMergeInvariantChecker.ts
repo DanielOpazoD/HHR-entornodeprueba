@@ -5,6 +5,7 @@ import {
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 import { shouldPreserveLocalPatientNarrative } from '@/services/repositories/patientEpisodeNarrativePolicy';
 import { buildMedicalHandoffSummary } from '@/domain/handoff/specialty';
+import { findActiveMovementLineageConflicts } from '@/application/census/movementReclassificationConcurrencyPolicy';
 
 const MOVEMENT_FIELDS = ['discharges', 'transfers', 'cma'] as const;
 const HANDOFF_NOTE_FIELDS = ['handoffNoteDayShift', 'handoffNoteNightShift'] as const;
@@ -15,6 +16,7 @@ type HandoffNoteField = (typeof HANDOFF_NOTE_FIELDS)[number];
 export type DailyRecordConflictPostMergeInvariantViolationType =
   | 'movement_missing_after_merge'
   | 'movement_tombstone_revived'
+  | 'movement_lineage_classified_twice'
   | 'duplicate_active_patient_after_merge'
   | 'handoff_note_missing_after_merge'
   | 'medical_handoff_entry_missing_after_merge'
@@ -136,6 +138,17 @@ const collectMovementInvariantViolations = ({
 
   return violations;
 };
+
+const collectMovementLineageInvariantViolations = (
+  record: DailyRecord
+): DailyRecordConflictPostMergeInvariantViolation[] =>
+  findActiveMovementLineageConflicts(record).map(conflict => ({
+    type: 'movement_lineage_classified_twice',
+    path: `movements.lineage.${conflict.lineageId}`,
+    message: `El mismo egreso quedo activo en más de una clasificación (${conflict.classifications.join(
+      ', '
+    )}).`,
+  }));
 
 const describePatient = (
   patient: DailyRecord['beds'][string] | undefined,
@@ -287,6 +300,7 @@ export const evaluateDailyRecordConflictPostMergeInvariants = ({
       local,
       resolved: normalizedRecord,
     }),
+    ...collectMovementLineageInvariantViolations(normalizedRecord),
     ...collectHandoffNoteInvariantViolations({
       remote,
       local,

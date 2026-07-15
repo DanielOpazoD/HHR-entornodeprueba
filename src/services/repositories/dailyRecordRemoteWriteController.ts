@@ -102,7 +102,8 @@ export const resolveRemoteWriteRecovery = async (
   record: DailyRecord,
   changedPaths: string[],
   error: unknown,
-  expectedVersion?: string
+  expectedVersion?: string,
+  allowConflictAutoMerge: boolean = true
 ): Promise<RemoteWriteRecoveryResult> => {
   const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
   const conflictSummary = (kind: DailyRecordConflictSummary['kind'], message: string) =>
@@ -119,7 +120,8 @@ export const resolveRemoteWriteRecovery = async (
       record,
       changedPaths,
       error,
-      conflictSummary
+      conflictSummary,
+      allowConflictAutoMerge
     );
   }
 

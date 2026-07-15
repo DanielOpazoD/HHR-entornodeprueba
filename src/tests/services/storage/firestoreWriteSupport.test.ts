@@ -68,6 +68,7 @@ import {
   createDeletedRecordRef,
   saveHistorySnapshot,
   saveRecordAtomically,
+  updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 
 describe('firestoreWriteSupport', () => {
@@ -407,6 +408,61 @@ describe('firestoreWriteSupport', () => {
 
       expect(guard).toHaveBeenCalledTimes(1);
       expect(tx.set).toHaveBeenCalledWith({ kind: 'docRef' }, { data: 'new' });
+    });
+  });
+
+  describe('updateRecordPartiallyAtomically', () => {
+    const makeTx = (snap: { exists: () => boolean; data?: () => Record<string, unknown> }) => ({
+      get: vi.fn().mockResolvedValue(snap),
+      set: vi.fn(),
+      update: vi.fn(),
+    });
+
+    it('checks the base and commits the movement patch plus history in one transaction', async () => {
+      const tx = makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: '2026-07-14T10:00:00.000Z', discharges: [] }),
+      });
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+
+      await updateRecordPartiallyAtomically(
+        { kind: 'docRef' } as never,
+        { discharges: [], cma: [{ id: 'cma-1' }] },
+        '2026-07-14T10:00:00.000Z',
+        'conflict',
+        'movement reclassification'
+      );
+
+      expect(tx.set).toHaveBeenCalledTimes(1);
+      expect(tx.update).toHaveBeenCalledWith(
+        { kind: 'docRef' },
+        { discharges: [], cma: [{ id: 'cma-1' }] }
+      );
+    });
+
+    it('rejects a stale reclassification before writing either movement list', async () => {
+      const tx = makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: '2026-07-14T10:00:01.000Z' }),
+      });
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+
+      await expect(
+        updateRecordPartiallyAtomically(
+          { kind: 'docRef' } as never,
+          { discharges: [], transfers: [{ id: 'transfer-1' }] },
+          '2026-07-14T10:00:00.000Z',
+          'conflict',
+          'movement reclassification'
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
     });
   });
 });

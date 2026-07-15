@@ -49,6 +49,7 @@ import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/ad
 import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
+import { isMovementReclassificationPatch } from '@/application/census/movementReclassificationConcurrencyPolicy';
 
 const runRemoteSaveIntegrityCheck = async (date: string, record: DailyRecord): Promise<void> => {
   if (!isFirestoreEnabled()) return;
@@ -300,6 +301,7 @@ export const updatePartialDetailed = async (
   }
   const patchedFields = Object.keys(mergedPatches).length;
   const semanticChangedPaths = Object.keys(command.patch);
+  const isReclassification = isMovementReclassificationPatch(command.patch);
   const syncContract = buildDailyRecordSyncContract(validatedRecord, {
     expectedVersion: current.lastUpdated,
     changedPaths: semanticChangedPaths,
@@ -327,6 +329,7 @@ export const updatePartialDetailed = async (
     remoteWrite: () =>
       updateRecordPartialToFirestore(command.date, mergedPatches, current.lastUpdated, {
         syncContract,
+        requireAtomicCas: isReclassification,
       }),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(
@@ -343,6 +346,7 @@ export const updatePartialDetailed = async (
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
     },
     expectedVersion: current.lastUpdated,
+    allowConflictAutoMerge: !isReclassification,
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);

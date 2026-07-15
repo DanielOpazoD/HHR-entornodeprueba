@@ -24,6 +24,8 @@ import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
+  /** Enforces the base version inside the same transaction as the multi-field patch. */
+  requireAtomicCas?: boolean;
 }
 
 export interface DailyRecordSaveWriteOptions {

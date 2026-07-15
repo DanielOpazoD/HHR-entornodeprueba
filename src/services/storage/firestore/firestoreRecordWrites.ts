@@ -22,6 +22,7 @@ import {
   createDeletedRecordRef,
   saveHistorySnapshot,
   saveRecordAtomically,
+  updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { ensureUserRoleClaim } from '@/services/auth/authClaimSyncService';
@@ -266,6 +267,24 @@ export const updateRecordPartial = async (
             buildAuthorityPatchSyncContract(options.syncContract, authorityPatch)
           );
         }
+        if (options.requireAtomicCas) {
+          return withRetry(
+            () =>
+              updateRecordPartiallyAtomically(
+                docRef,
+                asFirestoreUpdatePayload(sanitizedData),
+                expectedLastUpdated,
+                'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
+                'movement reclassification'
+              ),
+            {
+              onRetry: (err: unknown, attempt: number) =>
+                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+              shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+            }
+          );
+        }
+
         await saveHistorySnapshot(date);
 
         return withRetry(

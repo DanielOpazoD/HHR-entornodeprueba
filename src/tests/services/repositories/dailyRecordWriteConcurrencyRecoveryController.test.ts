@@ -70,4 +70,27 @@ describe('dailyRecordWriteConcurrencyRecoveryController', () => {
     expect(result.error).toBe(error);
     expect(result.decision.conflictSummary?.kind).toBe('concurrency');
   });
+
+  it('never auto-merges a stale movement reclassification', async () => {
+    const error = new Error('Concurrent reclassification');
+    const result = await resolveConcurrencyRemoteWriteRecovery(
+      '2026-04-15',
+      buildRecord('2026-04-15'),
+      ['discharges', 'cma'],
+      error,
+      (kind, message) => ({
+        kind,
+        sourceOfTruth: 'none',
+        localTimestamp: '2026-04-15T10:00:00.000Z',
+        changedPaths: ['discharges', 'cma'],
+        message,
+      }),
+      false
+    );
+
+    expect(result.status).toBe('throw');
+    expect(result.error).toBe(error);
+    expect(attemptConflictAutoMergeRecovery).not.toHaveBeenCalled();
+    expect(result.decision.observabilityTags).toContain('reclassification_conflict');
+  });
 });

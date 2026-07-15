@@ -369,4 +369,72 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       expectSyncContract('2026-02-18T10:10:00.000Z', ['cma', 'beds.NEO1'])
     );
   });
+
+  it('marks a movement reclassification for transactional CAS persistence', async () => {
+    const hydratedBase = buildRecord('2026-02-18');
+    hydratedBase.lastUpdated = '2026-02-18T10:20:00.000Z';
+    hydratedBase.discharges = [
+      {
+        id: 'discharge-1',
+        bedId: 'R1',
+        bedName: 'R1',
+        bedType: 'Cama',
+        patientName: 'Paciente reclasificado',
+        rut: '11.111.111-1',
+        diagnosis: 'Diagnostico',
+        status: 'Vivo',
+        dischargeType: 'Domicilio (Habitual)',
+        time: '10:15',
+      },
+    ];
+
+    await updatePartialDetailed(
+      '2026-02-18',
+      {
+        discharges: [
+          {
+            ...hydratedBase.discharges[0],
+            deletedAt: '2026-02-18T10:20:01.000Z',
+            deletedReason: 'converted_to_cma',
+          },
+        ],
+        cma: [
+          {
+            id: 'reclassified:discharge-1:cma',
+            bedName: 'R1',
+            originalBedId: 'R1',
+            patientName: 'Paciente reclasificado',
+            rut: '11.111.111-1',
+            age: '40a',
+            diagnosis: 'Diagnostico',
+            specialty: 'Cirugia',
+            interventionType: 'Cirugía Mayor Ambulatoria',
+            movementProvenance: {
+              source: 'reclassified',
+              lineageId: 'discharge-1',
+              classifiedAt: '2026-02-18T10:20:01.000Z',
+              previousMovementId: 'discharge-1',
+              previousClassification: 'discharge',
+            },
+          },
+        ],
+      },
+      { baseRecord: hydratedBase }
+    );
+
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      '2026-02-18',
+      expect.objectContaining({
+        discharges: expect.any(Array),
+        cma: expect.any(Array),
+      }),
+      '2026-02-18T10:20:00.000Z',
+      expect.objectContaining({
+        requireAtomicCas: true,
+        syncContract: expect.objectContaining({
+          changedPaths: ['discharges', 'cma'],
+        }),
+      })
+    );
+  });
 });

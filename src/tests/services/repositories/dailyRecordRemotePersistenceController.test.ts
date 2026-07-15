@@ -256,10 +256,52 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect.objectContaining({ date: '2026-05-23' }),
       ['beds.R1.patientName'],
       remoteError,
-      '2026-05-23T10:00:00.000Z'
+      '2026-05-23T10:00:00.000Z',
+      true
     );
     expect(state.consistencyState).toBe('unrecoverable');
     expect(state.blockingError).toBe(blockingError);
+  });
+
+  it('propagates the no-auto-merge policy for a reclassification conflict', async () => {
+    saveToIndexedDBMock.mockResolvedValue({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: ['2026-05-23'],
+    });
+    resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
+      status: 'throw',
+      error: new Error('reload required'),
+      decision: {
+        consistencyState: 'unrecoverable',
+        retryability: 'manual_review',
+        recoveryAction: 'block_and_surface',
+        observabilityTags: ['reclassification_conflict'],
+        userSafeMessage: 'Recarga el censo.',
+      },
+    });
+    const remoteError = new Error('concurrent reclassification');
+
+    await persistLocalAndAttemptRemoteSync({
+      date: '2026-05-23',
+      record: buildRecord('2026-05-23'),
+      changedPaths: ['discharges', 'cma'],
+      remoteState: createRemoteWriteState(),
+      remoteWrite: vi.fn().mockRejectedValue(remoteError),
+      onRemoteFailure: vi.fn(),
+      expectedVersion: '2026-05-23T10:00:00.000Z',
+      allowConflictAutoMerge: false,
+    });
+
+    expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith(
+      '2026-05-23',
+      expect.objectContaining({ date: '2026-05-23' }),
+      ['discharges', 'cma'],
+      remoteError,
+      '2026-05-23T10:00:00.000Z',
+      false
+    );
   });
 
   it('blocks remote writes when strict local persistence fails', async () => {

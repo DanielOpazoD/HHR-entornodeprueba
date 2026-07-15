@@ -17,8 +17,22 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
   record: DailyRecord,
   changedPaths: string[],
   error: unknown,
-  buildConflictSummary: ConflictSummaryBuilder
+  buildConflictSummary: ConflictSummaryBuilder,
+  allowAutoMerge: boolean = true
 ): Promise<RemoteWriteRecoveryResult> => {
+  if (!allowAutoMerge) {
+    return buildThrowUnrecoverableRecoveryResult({
+      error,
+      conflictSummary: buildConflictSummary(
+        'concurrency',
+        'El egreso ya fue reclasificado desde otra sesión; se requiere recargar antes de continuar.'
+      ),
+      observabilityTags: ['daily_record', 'write', 'reclassification_conflict'],
+      userSafeMessage:
+        'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
+    });
+  }
+
   const mergeResult = await attemptConflictAutoMergeRecovery(date, record, changedPaths);
   if (mergeResult.status === 'auto_merged') {
     return buildAutoMergedRecoveryResult(
