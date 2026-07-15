@@ -21,14 +21,21 @@ type PostedMessage = {
     facId?: string;
     practitionerId?: string;
     practitionerRoleId?: string;
+    isNursing?: boolean;
     identityVerified?: boolean;
   } | null;
 };
 
-const createHarness = async (href: string, role = 'Médico') => {
+const createHarness = async (
+  href: string,
+  role = 'Médico',
+  storedNursingContexts = new Map<string, string>(),
+  additionalSessionFields: Record<string, unknown> = {},
+  initiallyActive = true
+) => {
   const listeners = new Map<string, Array<(event: unknown) => unknown>>();
   const posted: PostedMessage[] = [];
-  let sessionActive = true;
+  let sessionActive = initiallyActive;
   const location = new URL(href);
 
   const addListener = (type: string, listener: (event: unknown) => unknown) => {
@@ -51,6 +58,7 @@ const createHarness = async (href: string, role = 'Médico') => {
               healthCarePractitionerRoleId: 2,
               role,
               fullName: 'Profesional Prueba',
+              ...additionalSessionFields,
             },
           }),
         }
@@ -60,8 +68,14 @@ const createHarness = async (href: string, role = 'Médico') => {
           json: async () => ({ ok: false }),
         };
 
+  const sessionStorage = {
+    getItem: (key: string) => storedNursingContexts.get(key) ?? null,
+    setItem: (key: string, value: string) => storedNursingContexts.set(key, value),
+    removeItem: (key: string) => storedNursingContexts.delete(key),
+  };
+
   const windowObject = {
-    location: { href: location.href, origin: location.origin },
+    location: { href: location.href, origin: location.origin, pathname: location.pathname },
     fetch: async (input: unknown) => {
       if (String(input) === '/api/auth/session') return sessionResponse();
       throw new Error(`Unexpected request: ${String(input)}`);
@@ -85,6 +99,7 @@ const createHarness = async (href: string, role = 'Médico') => {
     setTimeout,
     clearTimeout,
     window: windowObject,
+    sessionStorage,
     document: {
       hidden: false,
       addEventListener: addListener,
@@ -114,6 +129,9 @@ const createHarness = async (href: string, role = 'Médico') => {
   };
 
   return {
+    activateSession: () => {
+      sessionActive = true;
+    },
     expireSession: () => {
       sessionActive = false;
     },
@@ -157,7 +175,157 @@ describe('Ficha Medico session continuity', () => {
       apiOrigin: 'https://fichamedicoback.rayensalud.cl',
       listUrl: '',
       listSource: 'nursing',
+      isNursing: true,
       identityVerified: true,
+    });
+  });
+
+  it.each(['', 'Médico'])(
+    'treats the nursing route as authoritative when the session role label is %j',
+    async role => {
+      const harness = await createHarness(
+        'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+        role
+      );
+      const response = await harness.send({
+        type: 'RAYEN_FM_FETCHINFO_REQUEST',
+        reqId: 'route-nursing',
+      });
+
+      expect(response?.error).toBeNull();
+      expect(response?.info).toMatchObject({
+        listUrl: '',
+        listSource: 'nursing',
+        isNursing: true,
+      });
+    }
+  );
+
+  it('keeps the observed nursing context across full route reloads in the same tab session', async () => {
+    const storedNursingContexts = new Map<string, string>();
+    const nursingRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+      '',
+      storedNursingContexts
+    );
+    await nursingRoute.send({ type: 'RAYEN_FM_FETCHINFO_REQUEST', reqId: 'nursing-route' });
+
+    const reportsRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/reports',
+      '',
+      storedNursingContexts
+    );
+    const response = await reportsRoute.send({
+      type: 'RAYEN_FM_FETCHINFO_REQUEST',
+      reqId: 'reports-route',
+    });
+
+    expect(response?.error).toBeNull();
+    expect(response?.info).toMatchObject({
+      listUrl: '',
+      listSource: 'nursing',
+      isNursing: true,
+    });
+  });
+
+  it('clears the observed nursing context on the authoritative medical list', async () => {
+    const storedNursingContexts = new Map<string, string>();
+    const nursingRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+      '',
+      storedNursingContexts
+    );
+    await nursingRoute.send({ type: 'RAYEN_FM_FETCHINFO_REQUEST', reqId: 'nursing-first' });
+
+    const medicalRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list',
+      '',
+      storedNursingContexts
+    );
+    const response = await medicalRoute.send({
+      type: 'RAYEN_FM_FETCHINFO_REQUEST',
+      reqId: 'medical-list',
+    });
+
+    expect(response?.error).toBeNull();
+    expect(response?.info).toMatchObject({
+      listSource: 'medical',
+      isNursing: false,
+    });
+  });
+
+  it('does not keep a medical session in nursing mode after leaving the nursing route', async () => {
+    const storedNursingContexts = new Map<string, string>();
+    const nursingRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+      'Médico',
+      storedNursingContexts
+    );
+    await nursingRoute.send({ type: 'RAYEN_FM_FETCHINFO_REQUEST', reqId: 'medical-nursing-route' });
+
+    const reportsRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/reports',
+      'Médico',
+      storedNursingContexts
+    );
+    const response = await reportsRoute.send({
+      type: 'RAYEN_FM_FETCHINFO_REQUEST',
+      reqId: 'medical-reports',
+    });
+
+    expect(response?.error).toBeNull();
+    expect(response?.info).toMatchObject({
+      listSource: 'medical',
+      isNursing: false,
+    });
+  });
+
+  it('recognizes the alternate nursing role label outside the nursing list', async () => {
+    const harness = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/reports',
+      '',
+      new Map(),
+      { healthCarePractitionerRoleName: 'Enfermera(o)' }
+    );
+    const response = await harness.send({
+      type: 'RAYEN_FM_FETCHINFO_REQUEST',
+      reqId: 'alternate-role-label',
+    });
+
+    expect(response?.error).toBeNull();
+    expect(response?.info).toMatchObject({
+      listUrl: '',
+      listSource: 'nursing',
+      isNursing: true,
+    });
+  });
+
+  it('clears a persisted nursing context when a fresh document finds an expired session', async () => {
+    const storedNursingContexts = new Map<string, string>();
+    const nursingRoute = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+      '',
+      storedNursingContexts
+    );
+    await nursingRoute.send({ type: 'RAYEN_FM_FETCHINFO_REQUEST', reqId: 'prime-nursing' });
+
+    const reportsAfterLogout = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/reports',
+      '',
+      storedNursingContexts,
+      {},
+      false
+    );
+    reportsAfterLogout.activateSession();
+    const response = await reportsAfterLogout.send({
+      type: 'RAYEN_FM_FETCHINFO_REQUEST',
+      reqId: 'new-session',
+    });
+
+    expect(response?.error).toBeNull();
+    expect(response?.info).toMatchObject({
+      listSource: 'medical',
+      isNursing: false,
     });
   });
 

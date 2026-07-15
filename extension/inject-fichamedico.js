@@ -29,6 +29,9 @@
   const BACKEND_HINT = 'rayensalud.cl';
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
+  const NURSING_ROUTE_RE = /^\/dashboard\/encounter-list-nurse(?:\/|$)/;
+  const MEDICAL_LIST_ROUTE_RE = /^\/dashboard\/encounter-list\/?$/;
+  const NURSING_CONTEXT_KEY = 'hhr:fichamedico:nursing-context';
   let capturedAuth = null;
   let capturedListUrl = null;
   const normalization = globalThis.HhrFichaMedicoNormalization;
@@ -91,6 +94,47 @@
     capturedAuth = null;
     capturedListUrl = null;
     capturedApiOrigin = null;
+    try {
+      sessionStorage.removeItem(NURSING_CONTEXT_KEY);
+    } catch (_) {}
+  };
+
+  const readSessionRole = session => {
+    const candidates = [
+      session && session.role,
+      session && session.roleName,
+      session && session.profileName,
+      session && session.practitionerRoleName,
+      session && session.healthCarePractitionerRoleName,
+      session && session.healthCareRoleName,
+    ];
+    return String(candidates.find(value => typeof value === 'string' && value.trim()) || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const resolveNursingContext = ({ facilityId, practitionerId, practitionerRoleId, role }) => {
+    const identityKey = [facilityId, practitionerId, practitionerRoleId].join(':');
+    const routeIsNursing = NURSING_ROUTE_RE.test(window.location.pathname || '');
+    const routeIsMedicalList = MEDICAL_LIST_ROUTE_RE.test(window.location.pathname || '');
+    const roleIsNursing = /enfermer/i.test(role);
+    const roleIsMedical = /m[eé]dic/i.test(role);
+    try {
+      if ((routeIsMedicalList && !roleIsNursing) || (roleIsMedical && !routeIsNursing)) {
+        sessionStorage.removeItem(NURSING_CONTEXT_KEY);
+      } else if (roleIsNursing || (routeIsNursing && !roleIsMedical)) {
+        sessionStorage.setItem(NURSING_CONTEXT_KEY, identityKey);
+      }
+      return (
+        routeIsNursing ||
+        roleIsNursing ||
+        (!routeIsMedicalList &&
+          !roleIsMedical &&
+          sessionStorage.getItem(NURSING_CONTEXT_KEY) === identityKey)
+      );
+    } catch (_) {
+      return routeIsNursing || roleIsNursing;
+    }
   };
 
   const readSafeSessionIdentity = async () => {
@@ -117,6 +161,7 @@
       if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
         return null;
       }
+      const role = readSessionRole(session);
       if (capturedAuth && capturedAuth !== sessionToken) capturedListUrl = null;
       capturedAuth = sessionToken;
       capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
@@ -124,7 +169,8 @@
         facilityId,
         practitionerId,
         practitionerRoleId,
-        role: String(session.role || '').replace(/\s+/g, ' ').trim(),
+        role,
+        isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
         tokenMatchesCapturedAuth: sessionToken === String(capturedAuth || ''),
       };
@@ -141,9 +187,12 @@
     if (!identity || !identity.tokenMatchesCapturedAuth) {
       throw new Error('La sesión clínica cambió o venció. Inicia sesión nuevamente antes de continuar.');
     }
-    const isNurse = /enfermer/i.test(identity.role);
+    const isNurse = identity.isNursing === true;
     let base = null;
-    if (capturedListUrl) {
+    // A medical list URL may remain in memory after an SPA transition. Nursing views must always
+    // use their three work-list endpoints, never a stale /encounter/list/filter request.
+    if (isNurse) capturedListUrl = null;
+    if (capturedListUrl && !isNurse) {
       const candidate = new URL(capturedListUrl);
       if (!candidate.hostname.endsWith('.rayensalud.cl') || !candidate.pathname.includes(LIST_PATH)) {
         throw new Error('La lista clínica capturada no pertenece a Eloísa.');
@@ -365,6 +414,7 @@
                 practitionerId: safeIdentity.practitionerId,
                 practitionerRoleId: safeIdentity.practitionerRoleId,
                 role: safeIdentity.role,
+                isNursing: safeIdentity.isNursing,
                 fullName: safeIdentity.fullName,
                 identityVerified: true,
               }
