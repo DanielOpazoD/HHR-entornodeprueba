@@ -18,6 +18,7 @@
 // guard for the workflows that use them instead of attempting a forbidden late import.
 importScripts(
   'encounter-navigation.js',
+  'hhr-request-forms.js',
   'health-check.js',
   'gestion-camas-session.js',
   'gestion-camas-cudyr.js',
@@ -885,19 +886,11 @@ const handleDeviceReportSave = async args => {
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
 const FORM_CODIGO_KEEP = new Set(['INSTRUMENTO', 'VITAL_SIGNS']);
-const handleScalesReportRequest = async ({ encId }) => {
+const handleScalesReportRequest = async ({ encId, sender }) => {
   if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
-  }
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return { error: infoResult.error };
+  const info = infoResult.info;
   const url =
     `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
     `${encodeURIComponent(encId)}/1/0/${encodeURIComponent(info.practitionerId || '7941')}`;
@@ -915,6 +908,116 @@ const handleScalesReportRequest = async ({ encId }) => {
     return { ok: true, forms: kept };
   } catch (error) {
     return { error: 'Falló la descarga de escalas: ' + String((error && error.message) || error) };
+  }
+};
+
+// Patient header for the auto-filled request forms (imaging + laboratory). Read-only:
+// resolves the same patientHeaderData context the prescription flows use and formats the RUN.
+// Demographics are stable within a hospitalization: a short cache absorbs the burst of
+// parallel lookups (module + franja de paciente) without re-hitting Eloísa each time.
+const PATIENT_HEADER_CACHE_TTL_MS = 60_000;
+const patientHeaderCache = new Map();
+const handlePatientHeaderRequest = async ({ encId, sender }) => {
+  const cacheKey = String(encId || '');
+  const cached = patientHeaderCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < PATIENT_HEADER_CACHE_TTL_MS) return cached.payload;
+  const context = await getClinicalReportContext(encId, null, null, sender);
+  if (context.error) return context;
+  const patient = context.patient || {};
+  const payload = {
+    ok: true,
+    encId: cacheKey,
+    patient: {
+      ...patient,
+      formattedRun: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
+    },
+  };
+  patientHeaderCache.set(cacheKey, { at: Date.now(), payload });
+  if (patientHeaderCache.size > 60) {
+    const oldest = patientHeaderCache.keys().next().value;
+    patientHeaderCache.delete(oldest);
+  }
+  return payload;
+};
+
+// Census list for the shared patient picker of the Centro HHR: every patient-bound module
+// (vitales, laboratorio, imágenes) lets the user pick any hospitalized patient from here.
+const handleCensusListRequest = async ({ currentEncId, sender }) => {
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return infoResult;
+  const result = await fetchActiveHospitalizedPatients(infoResult.info);
+  if (result.error) return result;
+  return {
+    ok: true,
+    patients: (result.patients || []).map(patient => ({
+      encounterId: String(patient.encounterId),
+      // activeHospitalizedEncounters already assembles the display name.
+      name: String(patient.name || '').trim(),
+      run: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
+      bed: patient.bed || patient.room || '',
+      service: patient.service || '',
+      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
+    })),
+  };
+};
+
+// Fill an official imaging-request template (solicitud / encuesta de contraste / consentimiento)
+// with the patient header, the requesting physician and the user's interactive marks, then open
+// the standard print tab. Ported from HHR's imagingRequestPdfService (pdf-lib, Helvetica 10,
+// uppercase, % marks converted to bottom-left PDF coordinates).
+const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sender }) => {
+  const template = self.HhrRequestForms && self.HhrRequestForms.IMAGING_DOCUMENTS[String(doc || '')];
+  if (!template) return { error: 'Documento de imagenología desconocido.' };
+  const context = await getClinicalReportContext(encId, null, null, sender);
+  if (context.error) return context;
+  const patient = context.patient || {};
+  const formattedRun = self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || '');
+  const view = self.HhrRequestForms.buildPatientView(patient, formattedRun);
+  const physicianName = String(physician || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const safeMarks = (Array.isArray(marks) ? marks : [])
+    .slice(0, 80)
+    .map(mark => ({
+      x: Number(mark && mark.x),
+      y: Number(mark && mark.y),
+      text: mark && mark.text ? String(mark.text).slice(0, 80) : '',
+    }))
+    .filter(mark =>
+      Number.isFinite(mark.x) && Number.isFinite(mark.y) &&
+      mark.x >= 0 && mark.x <= 100 && mark.y >= 0 && mark.y <= 100
+    );
+  const library = self.PDFLib;
+  if (!library || !library.PDFDocument) return { error: 'pdf-lib no está disponible en la extensión.' };
+  try {
+    const templateResponse = await fetchWithTimeout(chrome.runtime.getURL(template.pdf));
+    if (!templateResponse.ok) return { error: 'No se pudo leer la plantilla del formulario.' };
+    const pdfDoc = await library.PDFDocument.load(await templateResponse.arrayBuffer());
+    const font = await pdfDoc.embedFont(library.StandardFonts.Helvetica);
+    const page = pdfDoc.getPage(0);
+    const drawField = ({ coord, text }) => {
+      const value = String(text || '').toUpperCase();
+      if (!value || !coord) return;
+      let size = 10;
+      if (coord.maxWidth) {
+        while (size > 5 && font.widthOfTextAtSize(value, size) > coord.maxWidth) size -= 0.5;
+      }
+      page.drawText(value, { x: coord.x, y: coord.y, size, font });
+    };
+    template.pdfFields(view, physicianName).forEach(drawField);
+    const pageWidth = page.getWidth();
+    const pageHeight = page.getHeight();
+    for (const mark of safeMarks) {
+      const xPos = pageWidth * (mark.x / 100);
+      const yPos = pageHeight * (1 - mark.y / 100);
+      if (mark.text) page.drawText(mark.text.toUpperCase(), { x: xPos, y: yPos - 3, size: 10, font });
+      else page.drawText('X', { x: xPos - 4, y: yPos - 4, size: 14, font });
+    }
+    const bytes = await pdfDoc.save();
+    return openPdfPrintDialog({
+      buffer: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      filename: template.id + '-imagenologia.pdf',
+    });
+  } catch (error) {
+    return { error: 'No se pudo generar el formulario: ' + String((error && error.message) || error) };
   }
 };
 
@@ -1172,7 +1275,35 @@ const handleClinicalPanelRequest = async ({ encId }) => {
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
 // the active groups already normalized by author; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
-const getFichaFetchInfo = async () => {
+// Prefer the tab that SENT the request: it is guaranteed to be alive and to run this same
+// extension version (a query over all fichamedico tabs can land on tabs whose content
+// scripts predate an extension reload → "Receiving end does not exist"). Concurrent callers
+// share one in-flight lookup so parallel module loads don't multiply session verifications.
+let fichaFetchInfoInflight = null;
+const getFichaFetchInfo = sender => {
+  if (fichaFetchInfoInflight) return fichaFetchInfoInflight;
+  fichaFetchInfoInflight = getFichaFetchInfoUncached(sender).finally(() => {
+    fichaFetchInfoInflight = null;
+  });
+  return fichaFetchInfoInflight;
+};
+
+const getFichaFetchInfoUncached = async sender => {
+  const senderTabId = sender && sender.tab && sender.tab.id;
+  if (senderTabId != null) {
+    try {
+      const direct = await withTimeout(
+        chrome.tabs.sendMessage(senderTabId, { type: 'RAYEN_FM_GET_FETCH_INFO' }),
+        TAB_MESSAGE_TIMEOUT_MS,
+        'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
+      );
+      if (direct && direct.info && direct.info.token && direct.info.apiOrigin) {
+        return { info: direct.info };
+      }
+    } catch (_error) {
+      // Fall through to the tab query below.
+    }
+  }
   const infoResp = await sendToMatchingTab(
     FICHAMEDICO_MATCH,
     { type: 'RAYEN_FM_GET_FETCH_INFO' },
@@ -1418,9 +1549,9 @@ const handlePrescriptionOptionsRequest = async ({ encId }) => {
   };
 };
 
-const getClinicalReportContext = async (encId, knownInfo, referenceDateTime) => {
+const getClinicalReportContext = async (encId, knownInfo, referenceDateTime, sender) => {
   if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
+  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo(sender);
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
   if (!info || !info.token || !info.apiOrigin || !info.practitionerId) {
@@ -2583,6 +2714,14 @@ const handleHandoffOptionsRequest = async ({ currentEncId }) => {
         latestHandoff: result.error
           ? null
           : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries, { kind: handoffKind }),
+        // Both lanes are shared reading: every profile sees the latest medical AND nursing
+        // handoff; writing stays restricted to the session's own lane.
+        latestMedical: result.error
+          ? null
+          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries, { kind: 'medical' }),
+        latestNursing: result.error
+          ? null
+          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries, { kind: 'nursing' }),
         handoffUnavailableReason: result.error || '',
         clinicalWriteProtection,
       };
@@ -4280,18 +4419,42 @@ const sweepExpiredLabBatches = async () => {
   if (expiredKeys.length) await chrome.storage.session.remove(expiredKeys);
 };
 
-const validateLabSenderEncounter = (sender, expectedEncounterId) => {
+// The lab flow used to demand that the requested encounter matched the SENDER TAB's route.
+// With the shared patient picker the user may consult any hospitalized patient, so the
+// binding is now: route match (fast path) OR membership in the active census. Patient-data
+// safety is preserved downstream by the RUN cross-check against Syslab's own response.
+const CENSUS_ALLOWLIST_TTL_MS = 5 * 60_000;
+let censusAllowlistCache = null;
+const encounterInActiveCensus = async (encId, sender) => {
+  const id = String(encId || '');
+  if (!/^\d+$/.test(id)) return false;
+  if (
+    censusAllowlistCache &&
+    Date.now() - censusAllowlistCache.at < CENSUS_ALLOWLIST_TTL_MS &&
+    censusAllowlistCache.ids.has(id)
+  ) {
+    return true;
+  }
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return false;
+  const rowResult = await fetchActiveEncounterRows(infoResult.info);
+  if (rowResult.error) return false;
+  const ids = new Set((rowResult.rows || []).map(row => String(row && row.id || '')));
+  censusAllowlistCache = { at: Date.now(), ids };
+  return ids.has(id);
+};
+
+const validateLabSenderEncounter = async (sender, expectedEncounterId) => {
   const senderEncounterId = resolveFichaEncounterId(
     sender && sender.tab && sender.tab.url || sender && sender.url
   );
-  if (!senderEncounterId || senderEncounterId !== String(expectedEncounterId || '')) {
-    return { error: 'La búsqueda de laboratorio no corresponde al episodio clínico abierto.' };
-  }
-  return null;
+  if (senderEncounterId && senderEncounterId === String(expectedEncounterId || '')) return null;
+  if (await encounterInActiveCensus(expectedEncounterId, sender)) return null;
+  return { error: 'El episodio solicitado no está en el censo de hospitalizados activo.' };
 };
 
 const handleLabSearchRequest = async ({ encId, sender }) => {
-  const senderError = validateLabSenderEncounter(sender, encId);
+  const senderError = await validateLabSenderEncounter(sender, encId);
   if (senderError) return senderError;
   const context = await getClinicalReportContext(encId);
   if (context.error) return context;
@@ -4377,7 +4540,7 @@ const selectedLabExams = (batch, examIds) => {
 const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
   const batchResult = await readLabBatch(batchId);
   if (batchResult.error) return batchResult;
-  const senderError = validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+  const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
   if (senderError) return senderError;
   const requestedIds = [...new Set((Array.isArray(examIds) ? examIds : []).map(String).filter(Boolean))];
   if (requestedIds.length > LAB_MAX_SELECTED_EXAMS) {
@@ -4433,7 +4596,7 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
 const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   const batchResult = await readLabBatch(batchId);
   if (batchResult.error) return batchResult;
-  const senderError = validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+  const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
   if (senderError) return senderError;
   const exams = selectedLabExams(batchResult.batch, [examId]);
   if (exams.length !== 1) {
@@ -4545,7 +4708,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return respond(handleDeviceReportSave({ encId: msg.encId, fecha: msg.fecha }), 'No se pudo guardar el reporte de dispositivos.');
   }
   if (msg && msg.type === 'RAYEN_SCALES_REPORT_REQUEST') {
-    return respond(handleScalesReportRequest({ encId: msg.encId }), 'No se pudo leer el reporte de escalas.');
+    return respond(handleScalesReportRequest({ encId: msg.encId, sender }), 'No se pudo leer el reporte de escalas.');
+  }
+  if (msg && msg.type === 'RAYEN_PATIENT_HEADER_REQUEST') {
+    return respond(handlePatientHeaderRequest({ encId: msg.encId, sender }), 'No se pudo identificar al paciente.');
+  }
+  if (msg && msg.type === 'RAYEN_CENSUS_LIST_REQUEST') {
+    return respond(
+      handleCensusListRequest({ currentEncId: msg.currentEncId, sender }),
+      'No se pudo leer el censo de hospitalizados.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_IMAGING_FORM_PRINT_REQUEST') {
+    return respond(
+      handleImagingFormPrintRequest({ encId: msg.encId, doc: msg.doc, physician: msg.physician, marks: msg.marks, sender }),
+      'No se pudo imprimir el formulario de imagenología.'
+    );
   }
   if (msg && msg.type === 'RAYEN_HISTORY_SCALES_REQUEST') {
     return respond(handleHistoryScalesRequest({ encId: msg.encId }), 'No se pudo leer el historial de escalas.');

@@ -142,7 +142,20 @@
     }
   };
 
-  const readSafeSessionIdentity = async () => {
+  // Concurrent callers share ONE in-flight verification. Without this, parallel module
+  // requests (vitales + identificación + franja de paciente) bump `sessionBindingRevision`
+  // against each other, the older call aborts with null and the user sees a spurious
+  // "la sesión clínica cambió o venció" even though the session is healthy.
+  let sessionIdentityInflight = null;
+  const readSafeSessionIdentity = () => {
+    if (sessionIdentityInflight) return sessionIdentityInflight;
+    sessionIdentityInflight = readSafeSessionIdentityUncached().finally(() => {
+      sessionIdentityInflight = null;
+    });
+    return sessionIdentityInflight;
+  };
+
+  const readSafeSessionIdentityUncached = async () => {
     const revision = ++sessionBindingRevision;
     try {
       const response = await origFetch('/api/auth/session', {

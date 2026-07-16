@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/hhr-ui.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');

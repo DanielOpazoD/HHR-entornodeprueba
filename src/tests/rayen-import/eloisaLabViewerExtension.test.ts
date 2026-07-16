@@ -372,7 +372,11 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain(
       'Syslab no confirmó que los informes correspondan al RUN solicitado'
     );
-    expect(background).toContain('senderEncounterId !== String(expectedEncounterId');
+    // The lab flow accepts the sender tab's own encounter (fast path) or any encounter present
+    // in the active hospitalized census (shared patient picker); anything else is rejected.
+    expect(background).toContain('senderEncounterId === String(expectedEncounterId');
+    expect(background).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
+    expect(background).toContain('no está en el censo de hospitalizados activo');
     expect(background).toContain(
       'handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender })'
     );
@@ -394,9 +398,13 @@ describe('native Eloisa laboratory viewer', () => {
     expect(bridge).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
     expect(content).toContain('hhr-ops-lab');
     expect(content).toContain("key: 'connection'");
-    expect(content).toContain("['scores', 'connection', 'lab'].includes(module)");
-    expect(content).toContain("else if (activeModule === 'lab') renderLabCenter(root, encId)");
-    expect(content).toContain('else renderConnectionCenter(root, encId)');
+    expect(content).toContain(
+      "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
+    );
+    expect(content).toContain(
+      "else if (activeModule === 'lab') renderLabCenter(root, targetEncId)"
+    );
+    expect(content).toContain('else renderConnectionCenter(root, targetEncId)');
     expect(content).toContain('Comparación');
     expect(content).toContain('Tendencias');
     expect(content).toContain('Por informe');
@@ -406,6 +414,6 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"lab-viewer.js"');
     expect(manifest).toContain('"syslab-bridge.js"');
     expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
-    expect(manifest).toContain('"version": "0.24.2"');
+    expect(manifest).toContain('"version": "0.30.0"');
   });
 });

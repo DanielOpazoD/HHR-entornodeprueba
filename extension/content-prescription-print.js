@@ -11,7 +11,10 @@
 
   const helper = globalThis.HhrPrescriptionPrint;
   const labHelper = globalThis.HhrLabViewer;
-  if (!helper || globalThis.__hhrPrescriptionPrintInjected) return;
+  const ui = globalThis.HhrUI;
+  const vitalsHelper = globalThis.HhrVitals;
+  const requestForms = globalThis.HhrRequestForms;
+  if (!helper || !ui || globalThis.__hhrPrescriptionPrintInjected) return;
   globalThis.__hhrPrescriptionPrintInjected = true;
 
   const BUTTON_ID = 'hhr-prescription-print-button';
@@ -34,6 +37,41 @@
 
   const currentRouteEncounterId = () => helper.resolveEncounterId(window.location.href) || '';
 
+  // Combines the free-text search with an optional service <select> (shown only when the
+  // census spans more than one service). Rows expose data-search and data-service.
+  const attachPatientListFilter = ({ toolbar, search, list, services }) => {
+    const unique = Array.from(new Set((services || []).filter(Boolean))).sort();
+    let serviceFilter = null;
+    if (unique.length > 1) {
+      serviceFilter = document.createElement('select');
+      serviceFilter.className = 'hhr-rx-filter';
+      serviceFilter.setAttribute('aria-label', 'Filtrar por servicio');
+      const all = document.createElement('option');
+      all.value = '';
+      all.textContent = 'Todos los servicios';
+      serviceFilter.appendChild(all);
+      unique.forEach(service => {
+        const option = document.createElement('option');
+        option.value = normalizedText(service);
+        option.textContent = service;
+        serviceFilter.appendChild(option);
+      });
+      search.insertAdjacentElement('afterend', serviceFilter);
+    }
+    const apply = () => {
+      const query = normalizedText(search.value);
+      const service = serviceFilter ? serviceFilter.value : '';
+      Array.from(list.children).forEach(row => {
+        const matchesQuery = !query || String(row.dataset.search || '').includes(query);
+        const matchesService = !service || String(row.dataset.service || '') === service;
+        row.hidden = !(matchesQuery && matchesService);
+      });
+    };
+    search.addEventListener('input', apply);
+    if (serviceFilter) serviceFilter.addEventListener('change', apply);
+    return apply;
+  };
+
   try {
     document.documentElement.setAttribute(
       'data-hhr-prescription-print-script',
@@ -44,6 +82,9 @@
   const retryableMessageTypes = new Set([
     'RAYEN_PRESCRIPTION_OPTIONS_REQUEST',
     'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST',
+    'RAYEN_SCALES_REPORT_REQUEST',
+    'RAYEN_PATIENT_HEADER_REQUEST',
+    'RAYEN_CENSUS_LIST_REQUEST',
   ]);
   const isTransientMessageChannelError = value =>
     /message channel closed|receiving end does not exist|asynchronous response|extension context invalidated/i
@@ -317,199 +358,318 @@
         outline: 3px solid rgba(20,151,139,.32); outline-offset: 1px;
       }
       #${BUTTON_ID} svg, #${INDICATIONS_BUTTON_ID} svg { width: 25px; height: 25px; fill: currentColor; }
-      #${OPERATIONS_BAR_ID} {
-        box-sizing: border-box; position: fixed; top: var(--hhr-ops-top, 70px); right: 18px; z-index: 2147483000;
-        height: 38px; display: flex; align-items: center; gap: 3px; padding: 3px 4px 3px 7px;
-        border: 1px solid #dce5e3; border-radius: 10px; color: #314240; background: rgba(255,255,255,.94);
-        box-shadow: 0 3px 10px rgba(38,65,62,.08);
-        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font-family: Roboto, Arial, sans-serif;
+      ${ui.tokenRule('#' + MODAL_ID)}
+      @keyframes hhr-modal-fade { from { opacity: 0; } }
+      @keyframes hhr-modal-pop { from { opacity: 0; transform: translateY(8px) scale(.988); } }
+      #${MODAL_ID} { position: fixed; inset: 0; z-index: 2147483646; font-family: var(--hhr-font); }
+      #${MODAL_ID} ::-webkit-scrollbar { width: 10px; height: 10px; }
+      #${MODAL_ID} ::-webkit-scrollbar-track { background: transparent; }
+      #${MODAL_ID} ::-webkit-scrollbar-thumb {
+        background: #c8d4d1; border: 3px solid transparent; background-clip: content-box; border-radius: 999px;
       }
-      #${OPERATIONS_BAR_ID} .hhr-ops-brand { display: flex; align-items: center; gap: 6px; padding-right: 4px; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-logo { width: 24px; height: 21px; object-fit: contain; flex: 0 0 auto; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy { display: grid; line-height: 1.05; white-space: nowrap; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy strong { color: #3f514e; font-size: 12px; font-weight: 600; letter-spacing: .01em; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy span { display: none; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session {
-        appearance: none; min-width: 30px; height: 30px; padding: 2px; border: 0; border-radius: 8px;
-        background: transparent; color: #52615f; cursor: pointer; position: relative; font: inherit;
+      #${MODAL_ID} ::-webkit-scrollbar-thumb:hover { background-color: #a9bab5; }
+      #${MODAL_ID} .hhr-rx-backdrop {
+        position: absolute; inset: 0; background: rgba(7,27,49,.44);
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        animation: hhr-modal-fade .18s ease;
       }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session:hover { background: #edf7f5; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session:focus-visible { outline: 3px solid rgba(15,130,120,.24); outline-offset: 2px; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-avatar {
-        width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
-        background: #e9efee; color: #5e6b69; font-size: 9px; font-weight: 700; letter-spacing: .02em;
-      }
-      #${OPERATIONS_BAR_ID} .hhr-ops-connection-dot {
-        position: absolute; right: 1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%;
-        border: 2px solid #fff; background: #a9b3b1;
-      }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-ready .hhr-ops-avatar { background: #e4f4f0; color: #0c746b; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-ready .hhr-ops-connection-dot { background: #28a66c; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-degraded .hhr-ops-connection-dot { background: #d8a72e; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-offline .hhr-ops-connection-dot { background: #c94c43; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-modules { display: flex; align-items: center; gap: 2px; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-module {
-        appearance: none; height: 30px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 4px;
-        border: 0; border-radius: 7px; background: transparent; color: #52615f; cursor: pointer;
-        font: inherit; font-size: 10.5px; font-weight: 600; box-shadow: none; white-space: nowrap;
-      }
-      #${OPERATIONS_BAR_ID} .hhr-ops-module:hover { background: #e9f5f3; color: #095f58; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-module:disabled { opacity: .42; cursor: not-allowed; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-module:focus-visible { outline: 3px solid rgba(15,130,120,.24); outline-offset: 2px; }
-      #${OPERATIONS_BAR_ID} .hhr-ops-module svg { width: 14px; height: 14px; fill: currentColor; }
-      #${MODAL_ID} { position: fixed; inset: 0; z-index: 2147483646; font-family: Roboto, Arial, sans-serif; }
-      #${MODAL_ID} .hhr-rx-backdrop { position: absolute; inset: 0; background: rgba(22,30,33,.46); }
       #${MODAL_ID} .hhr-rx-dialog {
         position: relative; width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 20px);
-        margin: max(10px, 2vh) auto; background: #fff; border-radius: 12px; overflow: hidden;
-        box-shadow: 0 18px 55px rgba(0,0,0,.28); color: #2f3437; display: flex; flex-direction: column;
+        margin: max(10px, 2vh) auto; background: #fff; border-radius: 14px; overflow: hidden;
+        box-shadow: 0 24px 70px rgba(7,27,49,.30), 0 2px 8px rgba(7,27,49,.10);
+        color: var(--hhr-ink-900); display: flex; flex-direction: column;
+        animation: hhr-modal-pop .22s cubic-bezier(.2,.8,.3,1);
       }
-      #${MODAL_ID} .hhr-rx-header { padding: 14px 18px 10px; border-bottom: 1px solid #e7eaeb; }
-      #${MODAL_ID} .hhr-rx-title { margin: 0; font-size: 20px; font-weight: 500; line-height: 1.2; }
-      #${MODAL_ID} .hhr-rx-subtitle { margin: 4px 0 0; color: #667176; font-size: 12.5px; line-height: 1.35; }
+      @media (prefers-reduced-motion: reduce) {
+        #${MODAL_ID} .hhr-rx-backdrop, #${MODAL_ID} .hhr-rx-dialog { animation: none; }
+      }
+      #${MODAL_ID} .hhr-rx-header { padding: 12px 16px 8px; border-bottom: 1px solid #e7ecea; }
+      #${MODAL_ID} .hhr-rx-title { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.2; color: var(--hhr-ink-900); letter-spacing: -.01em; }
+      #${MODAL_ID} .hhr-rx-subtitle { margin: 3px 0 0; color: var(--hhr-ink-500); font-size: 12px; line-height: 1.35; }
       #${MODAL_ID} .hhr-rx-close {
         position: absolute; top: 8px; right: 9px; width: 34px; height: 34px; border: 0;
         border-radius: 50%; background: transparent; color: #6b7478; cursor: pointer; font-size: 24px;
+        transition: background-color .15s ease, color .15s ease;
       }
-      #${MODAL_ID} .hhr-rx-close:hover { background: #f1f3f3; }
-      #${MODAL_ID} .hhr-rx-tabs { display: flex; gap: 4px; margin-top: 10px; padding: 3px; background: #f1f5f4; border-radius: 8px; }
+      #${MODAL_ID} .hhr-rx-close:hover { background: #eef2f1; color: #3c4a48; }
+      #${MODAL_ID} .hhr-rx-close:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-rx-tabs { display: flex; gap: 4px; margin-top: 8px; padding: 3px; background: #f0f4f3; border-radius: 9px; }
       #${MODAL_ID} .hhr-rx-tab {
-        flex: 1; min-height: 32px; border: 0; border-radius: 6px; background: transparent; color: #5c686c;
-        cursor: pointer; font: inherit; font-size: 13px; font-weight: 500;
+        flex: 1; min-height: 29px; border: 0; border-radius: 7px; background: transparent; color: #5c686c;
+        cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 550;
+        transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
       }
-      #${MODAL_ID} .hhr-rx-tab[aria-selected="true"] { background: #fff; color: #117f75; box-shadow: 0 1px 5px rgba(22,55,52,.13); }
+      #${MODAL_ID} .hhr-rx-tab[aria-selected="true"] { background: #fff; color: var(--hhr-teal-ink); font-weight: 650; box-shadow: 0 1px 4px rgba(16,42,67,.14); }
       #${MODAL_ID} .hhr-rx-tab:disabled { cursor: not-allowed; opacity: .42; }
-      #${MODAL_ID} .hhr-rx-body { padding: 10px 18px 12px; overflow: auto; min-height: 120px; }
-      #${MODAL_ID} .hhr-rx-status { color: #606b70; font-size: 13px; padding: 16px 0; text-align: center; }
+      #${MODAL_ID} .hhr-rx-tab:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-rx-tab-minor { flex: 0 0 auto; padding: 0 11px; color: #7b8785; font-size: 11.5px; font-weight: 500; }
+      #${MODAL_ID} .hhr-rx-tab-minor[aria-selected="true"] { color: var(--hhr-teal-ink); font-weight: 650; }
+      #${MODAL_ID} .hhr-rx-dialog-compact { width: min(480px, calc(100vw - 24px)); }
+      #${MODAL_ID} .hhr-rx-body { padding: 8px 16px 12px; overflow: auto; min-height: 120px; }
+      #${MODAL_ID} .hhr-rx-status { color: var(--hhr-ink-500); font-size: 12.5px; padding: 16px 0; text-align: center; }
       #${MODAL_ID} .hhr-rx-print-feedback {
-        margin: 0 0 12px; padding: 10px 12px; border: 1px solid #b9ded8; border-radius: 8px;
-        background: #eef9f7; color: #22645e; text-align: left;
+        margin: 0 0 10px; padding: 9px 12px; border: 0; border-left: 3px solid var(--hhr-green-600);
+        border-radius: 6px; background: #ecf8f3; color: #1d6a52; font-size: 12.5px; line-height: 1.45; text-align: left;
       }
       #${MODAL_ID} .hhr-rx-error {
-        color: #9b2c2c; background: #fff2f1; border: 1px solid #f1c5c2; border-radius: 8px;
-        padding: 12px 14px; font-size: 14px; line-height: 1.45;
+        margin: 0 0 10px; padding: 10px 12px; border: 0; border-left: 3px solid var(--hhr-red-600);
+        border-radius: 6px; background: #fdf1f0; color: var(--hhr-red-ink); font-size: 12.5px; line-height: 1.45;
       }
       #${MODAL_ID} .hhr-rx-patient-context {
         display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px;
-        padding: 8px 10px; border: 1px solid #d9e7e5; border-radius: 8px; background: #f7fbfa;
+        padding: 8px 11px; border: 1px solid #dbe8e5; border-radius: 9px; background: #f6fbfa;
       }
-      #${MODAL_ID} .hhr-rx-patient-context strong { color: #273b38; font-size: 14px; font-weight: 600; }
-      #${MODAL_ID} .hhr-rx-patient-context span { color: #64706f; font-size: 11.5px; line-height: 1.3; }
+      #${MODAL_ID} .hhr-rx-patient-context strong { color: var(--hhr-ink-900); font-size: 13px; font-weight: 650; }
+      #${MODAL_ID} .hhr-rx-patient-context span { color: var(--hhr-ink-500); font-size: 11.5px; line-height: 1.3; }
       #${MODAL_ID} .hhr-rx-sync-note {
-        margin: 0 0 7px; padding: 6px 9px; border-radius: 7px; background: #fff8e8;
-        color: #765b18; font-size: 11.5px; line-height: 1.35;
+        margin: 0 0 7px; padding: 6px 10px; border-left: 3px solid var(--hhr-amber-600); border-radius: 6px;
+        background: #fff8e8; color: #6f5716; font-size: 11.5px; line-height: 1.35;
       }
       #${MODAL_ID} .hhr-rx-list { display: grid; gap: 6px; }
       #${MODAL_ID} .hhr-rx-option {
         display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start; cursor: pointer;
-        border: 1px solid #dfe4e5; border-radius: 8px; padding: 8px 10px; background: #fff;
+        border: 1px solid #e0e7e5; border-radius: 9px; padding: 8px 11px; background: #fff;
+        transition: border-color .15s ease, background-color .15s ease;
       }
-      #${MODAL_ID} .hhr-rx-option:hover { border-color: #8cc9c3; background: #f7fbfa; }
-      #${MODAL_ID} .hhr-rx-option:has(input:checked) { border-color: #15978b; background: #f0faf8; }
+      #${MODAL_ID} .hhr-rx-option:hover { border-color: #9fd0ca; background: #f7fbfa; }
+      #${MODAL_ID} .hhr-rx-option:has(input:checked) { border-color: var(--hhr-teal-500); background: #effaf7; }
       #${MODAL_ID} .hhr-rx-option.is-disabled { cursor: not-allowed; opacity: .62; background: #f7f8f8; }
-      #${MODAL_ID} input[type="radio"], #${MODAL_ID} input[type="checkbox"] { width: 16px; height: 16px; margin: 1px 0 0; accent-color: #15978b; }
-      #${MODAL_ID} .hhr-rx-format-title { margin: 10px 0 5px; font-size: 12px; font-weight: 600; color: #4c565a; }
+      #${MODAL_ID} input[type="radio"], #${MODAL_ID} input[type="checkbox"] { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--hhr-teal-500); }
+      #${MODAL_ID} .hhr-rx-format-title {
+        margin: 12px 0 5px; font-size: 10.5px; font-weight: 700; color: #5d6b68;
+        text-transform: uppercase; letter-spacing: .05em;
+      }
       #${MODAL_ID} .hhr-rx-list > .hhr-rx-format-title { margin: 5px 0 0; }
       #${MODAL_ID} .hhr-rx-formats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
       #${MODAL_ID} .hhr-rx-format-option {
         display: grid; grid-template-columns: 18px 1fr; gap: 7px; align-items: start; cursor: pointer;
-        border: 1px solid #dfe4e5; border-radius: 8px; padding: 8px 9px; background: #fff;
+        border: 1px solid #e0e7e5; border-radius: 9px; padding: 8px 10px; background: #fff;
+        transition: border-color .15s ease, background-color .15s ease;
       }
-      #${MODAL_ID} .hhr-rx-format-option:has(input:checked) { border-color: #15978b; background: #f0faf8; }
-      #${MODAL_ID} .hhr-rx-date { display: block; font-size: 14px; font-weight: 500; line-height: 1.25; }
-      #${MODAL_ID} .hhr-rx-meta { display: block; margin-top: 2px; color: #697378; font-size: 11.5px; line-height: 1.3; }
-      #${MODAL_ID} .hhr-rx-bulk-toolbar { display: flex; gap: 9px; align-items: center; margin-bottom: 10px; }
+      #${MODAL_ID} .hhr-rx-format-option:hover { border-color: #9fd0ca; }
+      #${MODAL_ID} .hhr-rx-format-option:has(input:checked) { border-color: var(--hhr-teal-500); background: #effaf7; }
+      #${MODAL_ID} .hhr-rx-date { display: block; font-size: 13px; font-weight: 550; line-height: 1.25; color: var(--hhr-ink-900); }
+      #${MODAL_ID} .hhr-rx-meta { display: block; margin-top: 2px; color: var(--hhr-ink-500); font-size: 11.5px; line-height: 1.3; }
+      #${MODAL_ID} .hhr-rx-bulk-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
       #${MODAL_ID} .hhr-rx-search {
-        flex: 1; min-width: 0; height: 40px; border: 1px solid #cfd7d8; border-radius: 8px; padding: 0 12px;
-        color: #30383b; background: #fff; font: inherit; font-size: 14px;
+        flex: 1; min-width: 0; height: 36px; border: 1px solid #cfd7d8; border-radius: 8px; padding: 0 11px;
+        color: #30383b; background: #fff; font: inherit; font-size: 13px;
       }
       #${MODAL_ID} .hhr-rx-search:focus { border-color: #15978b; outline: 3px solid rgba(21,151,139,.14); }
-      #${MODAL_ID} .hhr-rx-mini-action { border: 0; background: transparent; color: #117f75; cursor: pointer; padding: 7px 6px; font: inherit; font-size: 13px; font-weight: 500; }
-      #${MODAL_ID} .hhr-rx-selection-summary { display: flex; justify-content: space-between; gap: 12px; margin: 4px 0 10px; color: #5d696d; font-size: 13px; }
-      #${MODAL_ID} .hhr-rx-patient-list { display: grid; gap: 8px; }
-      #${MODAL_ID} .hhr-rx-patient {
-        display: grid; grid-template-columns: 22px minmax(0,1fr); gap: 11px; align-items: start; border: 1px solid #dde3e4;
-        border-radius: 10px; padding: 12px 13px; background: #fff; cursor: pointer;
+      #${MODAL_ID} .hhr-rx-filter {
+        flex: 0 0 auto; max-width: 190px; height: 36px; border: 1px solid #cfd7d8; border-radius: 8px;
+        padding: 0 8px; color: #3a4649; background: #fff; font: inherit; font-size: 12.5px; cursor: pointer;
       }
-      #${MODAL_ID} .hhr-rx-patient:hover { border-color: #8cc9c3; background: #f8fcfb; }
-      #${MODAL_ID} .hhr-rx-patient:has(input:checked) { border-color: #15978b; background: #f0faf8; }
-      #${MODAL_ID} .hhr-rx-patient.is-disabled { cursor: default; background: #f7f8f8; opacity: .68; }
-      #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary { grid-template-columns: minmax(0,1fr); cursor: default; }
-      #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary:hover { border-color: #dde3e4; background: #fff; }
-      #${MODAL_ID} .hhr-rx-patient-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 15px; font-weight: 600; color: #30383b; }
-      #${MODAL_ID} .hhr-rx-bed { color: #117f75; }
-      #${MODAL_ID} .hhr-rx-badge { border-radius: 999px; padding: 2px 7px; color: #117f75; background: #dff4f0; font-size: 11px; font-weight: 600; }
-      #${MODAL_ID} .hhr-rx-prescribers { display: grid; gap: 3px; margin-top: 7px; color: #4f5a5e; font-size: 12px; line-height: 1.35; }
-      #${MODAL_ID} .hhr-rx-prescriber-time { color: #748085; }
-      #${MODAL_ID} .hhr-rx-braden-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 7px; color: #536064; font-size: 12px; }
-      #${MODAL_ID} .hhr-rx-braden-score { border-radius: 999px; padding: 2px 8px; color: #725400; background: #fff1bd; font-weight: 700; }
+      #${MODAL_ID} .hhr-rx-filter:focus { border-color: #15978b; outline: 3px solid rgba(21,151,139,.14); }
+      #${MODAL_ID} .hhr-rx-mini-action {
+        border: 0; border-radius: 7px; background: transparent; color: var(--hhr-teal-ink); cursor: pointer;
+        padding: 7px 8px; font: inherit; font-size: 12.5px; font-weight: 550; white-space: nowrap;
+        transition: background-color .15s ease;
+      }
+      #${MODAL_ID} .hhr-rx-mini-action:hover { background: var(--hhr-teal-050); }
+      #${MODAL_ID} .hhr-rx-mini-action:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-rx-selection-summary { display: flex; justify-content: space-between; gap: 12px; margin: 2px 0 8px; color: #5d696d; font-size: 12px; }
+      #${MODAL_ID} .hhr-rx-patient-list { display: block; border: 1px solid #dde3e4; border-radius: 10px; background: #fff; overflow: hidden; }
+      #${MODAL_ID} .hhr-rx-patient {
+        display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 10px; align-items: center;
+        border-bottom: 1px solid #eef2f1; padding: 7px 12px; background: #fff; cursor: pointer;
+      }
+      #${MODAL_ID} .hhr-rx-patient:last-child { border-bottom: 0; }
+      #${MODAL_ID} .hhr-rx-patient:hover { background: #f7fbfa; }
+      #${MODAL_ID} .hhr-rx-patient:has(input:checked) { background: #effaf7; box-shadow: inset 3px 0 0 #15978b; }
+      #${MODAL_ID} .hhr-rx-patient.is-disabled { cursor: default; background: #fafbfb; opacity: .62; }
+      #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary { grid-template-columns: minmax(0,1fr) auto; cursor: default; }
+      #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary:hover { background: #fff; }
+      #${MODAL_ID} .hhr-rx-patient-details { display: grid; gap: 1px; min-width: 0; }
+      #${MODAL_ID} .hhr-rx-patient-title {
+        display: flex; align-items: baseline; gap: 7px; min-width: 0; white-space: nowrap; overflow: hidden;
+        font-size: 12.5px; font-weight: 600; color: #30383b;
+      }
+      #${MODAL_ID} .hhr-rx-name { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+      #${MODAL_ID} .hhr-rx-bed {
+        flex: 0 0 auto; border-radius: 6px; padding: 1px 6px; color: #0b7c72; background: #e7f5f2;
+        font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+      }
+      #${MODAL_ID} .hhr-rx-badge { flex: 0 0 auto; border-radius: 999px; padding: 1px 7px; color: #117f75; background: #dff4f0; font-size: 10px; font-weight: 600; }
+      #${MODAL_ID} .hhr-rx-patient-title .hhr-rx-meta { flex: 0 1 auto; margin: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
+      #${MODAL_ID} .hhr-rx-prescribers {
+        display: block; min-width: 0; color: #5c6a68; font-size: 11px; line-height: 1.35;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      #${MODAL_ID} .hhr-rx-patient-stats { display: grid; justify-items: end; gap: 2px; white-space: nowrap; }
+      #${MODAL_ID} .hhr-rx-med-count { border-radius: 999px; padding: 2px 8px; color: #117f75; background: #dff4f0; font-size: 10.5px; font-weight: 700; }
+      #${MODAL_ID} .hhr-rx-stat-time { color: #7c8886; font-size: 10px; }
+      #${MODAL_ID} .hhr-rx-braden-line { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 1px; color: #536064; font-size: 11px; min-width: 0; }
+      #${MODAL_ID} .hhr-rx-braden-score { border-radius: 999px; padding: 1px 7px; color: #725400; background: #fff1bd; font-size: 10.5px; font-weight: 700; }
       #${MODAL_ID} .hhr-rx-braden-missing { color: #7b8589; font-style: italic; }
       #${MODAL_ID} .hhr-rx-footer {
-        padding: 10px 18px 12px; border-top: 1px solid #e7eaeb; display: flex;
-        justify-content: flex-end; gap: 10px; background: #fafbfb;
+        padding: 10px 16px; border-top: 1px solid #e7ecea; display: flex;
+        justify-content: flex-end; gap: 9px; background: #fafcfb;
       }
       #${MODAL_ID} .hhr-rx-action {
-        border-radius: 7px; min-height: 40px; padding: 8px 17px; font: inherit; font-size: 14px;
-        font-weight: 500; cursor: pointer; border: 1px solid #cbd1d3; background: #fff; color: #3e4649;
+        border-radius: 8px; min-height: 38px; padding: 7px 16px; font: inherit; font-size: 13px;
+        font-weight: 550; cursor: pointer; border: 1px solid #ccd6d3; background: #fff; color: #3e4a48;
+        transition: border-color .15s ease, background-color .15s ease, color .15s ease;
       }
-      #${MODAL_ID} .hhr-rx-action-primary { background: #15978b; border-color: #15978b; color: #fff; }
-      #${MODAL_ID} .hhr-rx-action-primary:hover { background: #117f75; }
+      #${MODAL_ID} .hhr-rx-action:hover { border-color: #9fc9c3; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-rx-action:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-rx-action-primary { background: var(--hhr-teal-500); border-color: var(--hhr-teal-500); color: #fff; font-weight: 650; }
+      #${MODAL_ID} .hhr-rx-action-primary:hover { background: #0f857a; border-color: #0f857a; color: #fff; }
       #${MODAL_ID} .hhr-rx-action:disabled { cursor: not-allowed; opacity: .55; }
       #${MODAL_ID} .hhr-center-dialog {
         width: min(1380px, calc(100vw - 28px)); height: min(790px, calc(100vh - 28px));
-        max-height: calc(100vh - 28px); margin: 14px auto; border-radius: 10px;
+        max-height: calc(100vh - 28px); margin: 14px auto; border-radius: 13px;
       }
       #${MODAL_ID} .hhr-center-header {
-        min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 56px 0 18px;
-        border-bottom: 1px solid #dde4e3; background: #fff;
+        min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 56px 0 16px;
+        border-bottom: 1px solid #e2e8e6; background: #fff;
       }
       #${MODAL_ID} .hhr-center-header img { width: 24px; height: 22px; object-fit: contain; }
-      #${MODAL_ID} .hhr-center-header strong { color: #30413f; font-size: 17px; font-weight: 600; }
-      #${MODAL_ID} .hhr-route-change-state { margin-left: auto; padding-right: 26px; color: #8a6714; font-size: 11px; font-weight: 600; }
+      #${MODAL_ID} .hhr-center-header strong { color: var(--hhr-ink-900); font-size: 15.5px; font-weight: 650; letter-spacing: -.01em; }
+      #${MODAL_ID} .hhr-center-regimen-print { margin-left: auto; min-height: 30px; font-size: 11px; }
+      #${MODAL_ID} .hhr-center-patientbar {
+        position: relative; display: flex; align-items: center; gap: 9px; min-height: 40px;
+        padding: 5px 16px; border-bottom: 1px solid #e2e8e6; background: #f6faf9;
+      }
+      #${MODAL_ID} .hhr-patientbar-tag {
+        flex: 0 0 auto; padding: 2px 8px; border-radius: 999px; background: #dff0ec;
+        color: var(--hhr-teal-ink); font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+      }
+      #${MODAL_ID} .hhr-patientbar-name { color: var(--hhr-ink-900); font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+      #${MODAL_ID} .hhr-patientbar-meta { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64716f; font-size: 11px; }
+      #${MODAL_ID} .hhr-patientbar-route {
+        flex: 0 0 auto; padding: 2px 8px; border-radius: 999px; background: #fff1d6;
+        color: var(--hhr-amber-ink); font-size: 10px; font-weight: 700;
+      }
+      #${MODAL_ID} .hhr-patientbar-change { flex: 0 0 auto; min-height: 28px; font-size: 11px; }
+      #${MODAL_ID} .hhr-patientbar-picker {
+        position: absolute; top: calc(100% + 4px); right: 12px; z-index: 6; width: min(440px, calc(100% - 24px));
+        padding: 9px; border: 1px solid #d8e1de; border-radius: 11px; background: #fff;
+        box-shadow: 0 16px 44px rgba(7,27,49,.22);
+      }
+      #${MODAL_ID} .hhr-patientbar-search { width: 100%; height: 34px; margin-bottom: 7px; }
+      #${MODAL_ID} .hhr-patientbar-list { max-height: 300px; overflow: auto; border: 1px solid #e8eeec; border-radius: 8px; }
+      #${MODAL_ID} .hhr-patientbar-option {
+        display: grid; grid-template-columns: auto minmax(0,1fr); gap: 2px 8px; align-items: center;
+        width: 100%; padding: 7px 10px; border: 0; border-bottom: 1px solid #eef2f1; background: #fff;
+        color: var(--hhr-ink-900); cursor: pointer; text-align: left; font: inherit;
+      }
+      #${MODAL_ID} .hhr-patientbar-option:last-child { border-bottom: 0; }
+      #${MODAL_ID} .hhr-patientbar-option .hhr-rx-bed { grid-row: 1 / span 2; align-self: center; }
+      #${MODAL_ID} .hhr-patientbar-option:hover { background: #f7fbfa; }
+      #${MODAL_ID} .hhr-patientbar-option.is-selected { background: #effaf7; box-shadow: inset 3px 0 0 var(--hhr-teal-500); }
+      #${MODAL_ID} .hhr-patientbar-option-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #${MODAL_ID} .hhr-patientbar-option-meta { grid-column: 2; color: #74807e; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #${MODAL_ID} .hhr-patientbar-empty { padding: 18px 10px; color: #697674; text-align: center; font-size: 12px; }
+      #${MODAL_ID} .hhr-flow-tabs { flex: 0 0 auto; min-width: 230px; margin: 0; }
+      #${MODAL_ID} .hhr-home-section-title {
+        margin: 14px 0 8px; color: #55635f; font-size: 10.5px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+      }
+      #${MODAL_ID} .hhr-home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
+      #${MODAL_ID} .hhr-home-card {
+        display: grid; gap: 5px; justify-items: start; padding: 13px 14px; border: 1px solid #e0e8e6;
+        border-radius: 12px; background: #fff; color: var(--hhr-ink-900); cursor: pointer; text-align: left;
+        font: inherit; box-shadow: 0 1px 2px rgba(16,42,67,.04);
+        transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+      }
+      #${MODAL_ID} .hhr-home-card:hover { border-color: #9fd0ca; box-shadow: 0 6px 18px rgba(16,42,67,.10); transform: translateY(-1px); }
+      #${MODAL_ID} .hhr-home-card:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(15,147,140,.28); }
+      #${MODAL_ID} .hhr-home-card strong { font-size: 13px; font-weight: 650; }
+      #${MODAL_ID} .hhr-home-card-icon {
+        display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+        background: #e8f4f1; color: var(--hhr-teal-ink);
+      }
+      #${MODAL_ID} .hhr-home-card-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+      #${MODAL_ID} .hhr-home-card-desc { color: #6b7876; font-size: 11px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-home-card.is-action .hhr-home-card-icon { background: #fff1d6; color: var(--hhr-amber-ink); }
+      #${MODAL_ID} .hhr-vitals-trend-card svg { display: block; width: 100%; height: auto; margin-top: 6px; }
+      #${MODAL_ID} .hhr-fav-list { display: grid; gap: 6px; margin-bottom: 4px; }
+      #${MODAL_ID} .hhr-fav-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; align-items: center; }
+      #${MODAL_ID} .hhr-fav-open {
+        display: grid; gap: 1px; min-width: 0; padding: 8px 11px; border: 1px solid #e0e7e5;
+        border-radius: 9px; background: #fff; color: var(--hhr-ink-900); cursor: pointer; text-align: left; font: inherit;
+        transition: border-color .15s ease, background-color .15s ease;
+      }
+      #${MODAL_ID} .hhr-fav-open:hover { border-color: #9fd0ca; background: #f7fbfa; }
+      #${MODAL_ID} .hhr-fav-open strong { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #${MODAL_ID} .hhr-fav-open span { color: #74807e; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #${MODAL_ID} .hhr-fav-remove {
+        width: 30px; height: 30px; border: 1px solid #e0e7e5; border-radius: 8px; background: #fff;
+        color: #8a3d38; cursor: pointer; font-size: 16px; line-height: 1;
+      }
+      #${MODAL_ID} .hhr-fav-remove:hover { border-color: #e0b3ae; background: #fdf3f2; }
+      #${MODAL_ID} .hhr-fav-form { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) auto; gap: 6px; }
+      #${MODAL_ID} .hhr-fav-form .hhr-rx-search { height: 34px; }
+      #${MODAL_ID} .hhr-fav-form .hhr-rx-action { min-height: 34px; padding: 5px 13px; }
+      #${MODAL_ID} .hhr-route-change-state { margin-left: 12px; padding-right: 26px; color: #8a6714; font-size: 11px; font-weight: 600; }
       #${MODAL_ID} .hhr-route-change-state.is-synced { color: #11766d; }
       #${MODAL_ID} .hhr-route-change-state.is-error,
       #${MODAL_ID} .hhr-route-change-state.is-uncertain { color: #9b2c2c; }
       #${MODAL_ID} .hhr-center-shell { display: grid; grid-template-columns: 92px minmax(0,1fr); min-height: 0; flex: 1; }
       #${MODAL_ID} .hhr-center-nav {
-        padding: 9px 7px; border-right: 1px solid #e0e6e5; background: #fbfcfc; display: grid;
-        align-content: start; gap: 4px;
+        padding: 9px 7px; border-right: 1px solid #e4eae8; background: #f8fafa; display: flex;
+        flex-direction: column; gap: 3px;
       }
+      #${MODAL_ID} .hhr-center-nav-session {
+        margin-top: auto; min-height: 52px; border-top: 1px solid #e4eae8; border-radius: 0;
+        color: #7a8886; font-size: 10px;
+      }
+      #${MODAL_ID} .hhr-center-nav-session svg { width: 17px; height: 17px; }
+      #${MODAL_ID} .hhr-center-nav-session[aria-current="page"] { border-left-color: var(--hhr-teal-500); background: #eef4f2; color: var(--hhr-teal-ink); }
       #${MODAL_ID} .hhr-center-nav-button {
-        appearance: none; min-height: 62px; border: 0; border-left: 3px solid transparent; border-radius: 0 7px 7px 0;
-        background: transparent; color: #4f5c5a; cursor: pointer; display: grid; place-items: center; align-content: center;
-        gap: 4px; font: inherit; font-size: 11px; font-weight: 500;
+        appearance: none; min-height: 58px; border: 0; border-left: 3px solid transparent; border-radius: 0 8px 8px 0;
+        background: transparent; color: #51605d; cursor: pointer; display: grid; place-items: center; align-content: center;
+        gap: 4px; font: inherit; font-size: 10.5px; font-weight: 550;
+        transition: background-color .15s ease, color .15s ease;
       }
-      #${MODAL_ID} .hhr-center-nav-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      #${MODAL_ID} .hhr-center-nav-button:hover { background: #edf7f5; color: #0d766d; }
-      #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: #15978b; background: #eaf6f4; color: #0b8177; font-weight: 700; }
+      #${MODAL_ID} .hhr-center-nav-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+      #${MODAL_ID} .hhr-center-nav-button:hover { background: #ecf5f3; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-center-nav-button:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); font-weight: 700; }
       #${MODAL_ID} .hhr-center-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; position: relative; }
       #${MODAL_ID} .hhr-center-toolbar {
-        display: flex; align-items: center; gap: 10px; min-height: 66px; padding: 10px 18px; border-bottom: 1px solid #e2e7e6;
+        display: flex; align-items: center; gap: 9px; min-height: 56px; padding: 8px 16px; border-bottom: 1px solid #e6ebe9;
       }
-      #${MODAL_ID} .hhr-center-heading { margin: 0 auto 0 0; color: #303b3a; font-size: 18px; font-weight: 600; white-space: nowrap; }
+      #${MODAL_ID} .hhr-center-heading { margin: 0 auto 0 0; color: var(--hhr-ink-900); font-size: 15.5px; font-weight: 650; white-space: nowrap; letter-spacing: -.01em; }
       #${MODAL_ID} .hhr-center-search, #${MODAL_ID} .hhr-center-select {
-        height: 36px; border: 1px solid #cfd9d7; border-radius: 6px; background: #fff; color: #33403e;
+        height: 34px; border: 1px solid #d2dcd9; border-radius: 8px; background: #fff; color: #33403e;
         padding: 0 10px; font: inherit; font-size: 12px;
       }
       #${MODAL_ID} .hhr-center-search { width: min(270px, 24vw); }
       #${MODAL_ID} .hhr-center-search:focus, #${MODAL_ID} .hhr-center-select:focus,
       #${MODAL_ID} .hhr-handoff-input:focus, #${MODAL_ID} .hhr-score-control:focus {
-        border-color: #15978b; outline: 2px solid rgba(21,151,139,.14);
+        border-color: var(--hhr-teal-500); outline: none; box-shadow: 0 0 0 3px rgba(15,147,140,.14);
       }
-      #${MODAL_ID} .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 0 18px 18px; }
-      #${MODAL_ID} .hhr-center-notice { margin: 12px 0; padding: 9px 11px; border-left: 3px solid #d7a424; background: #fffaf0; color: #665526; font-size: 12px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 0 16px 16px; }
+      #${MODAL_ID} .hhr-center-notice { margin: 10px 0; padding: 8px 11px; border-left: 3px solid var(--hhr-amber-600); border-radius: 6px; background: #fffaf0; color: #665526; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-center-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; color: #36413f; }
-      #${MODAL_ID} .hhr-center-table th { position: sticky; top: 0; z-index: 1; padding: 9px 8px; border-bottom: 1px solid #cfd9d7; background: #f4f7f6; color: #3e4b49; text-align: left; font-weight: 600; }
-      #${MODAL_ID} .hhr-center-table td { padding: 9px 8px; border-bottom: 1px solid #e3e8e7; vertical-align: top; overflow-wrap: anywhere; }
-      #${MODAL_ID} .hhr-center-table tbody tr:hover { background: #fbfdfd; }
-      #${MODAL_ID} .hhr-center-patient { display: block; color: #2f3a38; font-weight: 600; }
-      #${MODAL_ID} .hhr-center-meta { display: block; margin-top: 3px; color: #74807e; font-size: 10.5px; line-height: 1.35; }
-      #${MODAL_ID} .hhr-center-empty { padding: 32px 12px; color: #697674; text-align: center; font-size: 13px; }
-      #${MODAL_ID} .hhr-handoff-input { width: 100%; min-height: 58px; resize: vertical; box-sizing: border-box; padding: 7px 8px; border: 1px solid #d1dad8; border-radius: 6px; color: #303a38; background: #fff; font: inherit; font-size: 11.5px; line-height: 1.35; }
+      #${MODAL_ID} .hhr-center-table th {
+        position: sticky; top: 0; z-index: 1; padding: 7px 8px; border-bottom: 1px solid #d4dedb;
+        background: #f6f9f8; color: #55635f; text-align: left; font-size: 10.5px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em;
+      }
+      #${MODAL_ID} .hhr-center-table td { padding: 8px; border-bottom: 1px solid #ebefee; vertical-align: top; overflow-wrap: anywhere; }
+      #${MODAL_ID} .hhr-center-table tbody tr:hover { background: #f8fbfa; }
+      #${MODAL_ID} .hhr-center-patient { display: block; color: var(--hhr-ink-900); font-weight: 650; }
+      #${MODAL_ID} .hhr-center-meta { display: block; margin-top: 2px; color: #74807e; font-size: 10.5px; line-height: 1.35; }
+      #${MODAL_ID} .hhr-center-empty { padding: 32px 12px; color: var(--hhr-ink-500); text-align: center; font-size: 12.5px; }
+      #${MODAL_ID} .hhr-center-embed { display: flex; flex-direction: column; padding-top: 10px; }
+      #${MODAL_ID} .hhr-center-embed .hhr-rx-subtitle { margin: 0 0 8px; }
+      #${MODAL_ID} .hhr-center-embed .hhr-rx-body { padding: 0; overflow: visible; min-height: 0; }
+      #${MODAL_ID} .hhr-center-toolbar .hhr-rx-tabs { margin: 0 0 0 auto; flex: 0 1 340px; min-width: 240px; }
+      #${MODAL_ID} .hhr-center-main .hhr-rx-footer { flex: 0 0 auto; }
+      #${MODAL_ID} .hhr-handoff-input { width: 100%; min-height: 58px; resize: vertical; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d2dcd9; border-radius: 8px; color: #303a38; background: #fff; font: inherit; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-handoff-input:disabled { background: #f5f7f6; color: #818a88; }
       #${MODAL_ID} .hhr-handoff-tools { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 5px; }
       #${MODAL_ID} .hhr-char-count { color: #7a8583; font-size: 10px; }
-      #${MODAL_ID} .hhr-row-save { min-height: 28px; padding: 4px 10px; border: 1px solid #11877d; border-radius: 5px; background: #15978b; color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
+      #${MODAL_ID} .hhr-row-save {
+        min-height: 28px; padding: 4px 11px; border: 1px solid var(--hhr-teal-500); border-radius: 7px;
+        background: var(--hhr-teal-500); color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 650;
+        transition: background-color .15s ease;
+      }
+      #${MODAL_ID} .hhr-row-save:hover { background: #0f857a; }
+      #${MODAL_ID} .hhr-row-save:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
       #${MODAL_ID} .hhr-row-save:disabled { border-color: #ccd4d2; background: #e8edec; color: #85908e; cursor: not-allowed; }
       #${MODAL_ID} .hhr-protection-action { display: block; margin-top: 6px; padding-inline: 7px; white-space: nowrap; }
       #${MODAL_ID} .hhr-sync-state { display: inline-flex; align-items: flex-start; gap: 5px; color: #687572; font-size: 11px; line-height: 1.35; }
@@ -523,10 +683,13 @@
       #${MODAL_ID} .hhr-history { margin-top: 5px; }
       #${MODAL_ID} .hhr-history summary { color: #0f7c73; cursor: pointer; font-size: 11px; }
       #${MODAL_ID} .hhr-history ol { margin: 6px 0 0; padding-left: 18px; color: #5d6967; font-size: 10.5px; }
+      @keyframes hhr-panel-slide { from { opacity: 0; transform: translateX(18px); } }
       #${MODAL_ID} .hhr-score-form {
         position: absolute; inset: 0 0 0 auto; z-index: 3; width: min(560px, 92%); display: flex; flex-direction: column;
-        border-left: 1px solid #cfd9d7; background: #fff; box-shadow: -14px 0 34px rgba(24,46,43,.13);
+        border-left: 1px solid #d8e1de; background: #fff; box-shadow: -16px 0 38px rgba(7,27,49,.16);
+        animation: hhr-panel-slide .2s cubic-bezier(.2,.8,.3,1);
       }
+      @media (prefers-reduced-motion: reduce) { #${MODAL_ID} .hhr-score-form { animation: none; } }
       #${MODAL_ID} .hhr-score-form-header { display: flex; align-items: center; gap: 8px; min-height: 58px; padding: 0 16px; border-bottom: 1px solid #e0e6e5; }
       #${MODAL_ID} .hhr-score-form-header strong { margin-right: auto; font-size: 15px; }
       #${MODAL_ID} .hhr-score-form-close { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #66726f; cursor: pointer; font-size: 22px; }
@@ -537,27 +700,41 @@
       #${MODAL_ID} .hhr-score-control { width: 100%; min-height: 36px; box-sizing: border-box; border: 1px solid #cfd9d7; border-radius: 6px; padding: 7px 9px; background: #fff; color: #303b39; font: inherit; font-size: 11.5px; }
       #${MODAL_ID} .hhr-score-form-footer { display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 9px 16px; border-top: 1px solid #e0e6e5; background: #fafbfb; }
       #${MODAL_ID} .hhr-score-preview { margin-right: auto; color: #49605c; font-size: 12px; font-weight: 600; }
-      #${MODAL_ID} .hhr-center-action { min-height: 34px; padding: 5px 11px; border: 1px solid #cbd5d3; border-radius: 6px; background: #fff; color: #46514f; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
-      #${MODAL_ID} .hhr-center-action:hover { border-color: #98c8c3; color: #0d766d; }
-      #${MODAL_ID} .hhr-center-action-primary { border-color: #15978b; background: #15978b; color: #fff; }
+      #${MODAL_ID} .hhr-center-action {
+        min-height: 34px; padding: 5px 12px; border: 1px solid #ccd6d3; border-radius: 8px; background: #fff;
+        color: #46514f; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600;
+        transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+      }
+      #${MODAL_ID} .hhr-center-action:hover { border-color: #9fc9c3; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-center-action:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-center-action-primary { border-color: var(--hhr-teal-500); background: var(--hhr-teal-500); color: #fff; font-weight: 650; }
+      #${MODAL_ID} .hhr-center-action-primary:hover { border-color: #0f857a; background: #0f857a; color: #fff; }
       #${MODAL_ID} .hhr-center-action:disabled { opacity: .48; cursor: not-allowed; }
-      #${MODAL_ID} .hhr-lab-patient { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 12px 0; padding: 10px 12px; border: 1px solid #dbe4e2; border-radius: 8px; background: #f7faf9; color: #43504e; font-size: 11.5px; }
-      #${MODAL_ID} .hhr-lab-patient strong { color: #263533; font-size: 13px; }
-      #${MODAL_ID} .hhr-lab-status { margin-left: auto; color: #167a70; font-weight: 700; }
-      #${MODAL_ID} .hhr-lab-exam-list { display: grid; gap: 7px; }
-      #${MODAL_ID} .hhr-lab-exam-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid #dfe6e5; border-radius: 7px; background: #fff; }
-      #${MODAL_ID} .hhr-lab-exam-row:hover { border-color: #acd2ce; background: #fbfdfd; }
-      #${MODAL_ID} .hhr-lab-exam-row input { width: 17px; height: 17px; accent-color: #15978b; }
-      #${MODAL_ID} .hhr-lab-exam-title { color: #2f3d3b; font-size: 12px; font-weight: 700; }
-      #${MODAL_ID} .hhr-lab-exam-names { margin-top: 3px; color: #667370; font-size: 10.5px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-lab-patient { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 10px 0; padding: 9px 12px; border: 1px solid #dbe8e5; border-radius: 9px; background: #f6fbfa; color: #43504e; font-size: 11.5px; }
+      #${MODAL_ID} .hhr-lab-patient strong { color: var(--hhr-ink-900); font-size: 12.5px; font-weight: 650; }
+      #${MODAL_ID} .hhr-lab-status { margin-left: auto; color: var(--hhr-teal-ink); font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-exam-list { display: block; border: 1px solid #e0e7e5; border-radius: 10px; background: #fff; overflow: hidden; }
+      #${MODAL_ID} .hhr-lab-exam-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 8px 11px; border-bottom: 1px solid #eef2f1; background: #fff; }
+      #${MODAL_ID} .hhr-lab-exam-row:last-child { border-bottom: 0; }
+      #${MODAL_ID} .hhr-lab-exam-row:hover { background: #f7fbfa; }
+      #${MODAL_ID} .hhr-lab-exam-row:has(input:checked) { background: #effaf7; box-shadow: inset 3px 0 0 var(--hhr-teal-500); }
+      #${MODAL_ID} .hhr-lab-exam-row input { width: 16px; height: 16px; accent-color: var(--hhr-teal-500); }
+      #${MODAL_ID} .hhr-lab-exam-title { color: var(--hhr-ink-900); font-size: 12px; font-weight: 650; }
+      #${MODAL_ID} .hhr-lab-exam-names { margin-top: 2px; color: #667370; font-size: 10.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-lab-selection { color: #63706e; font-size: 11px; white-space: nowrap; }
-      #${MODAL_ID} .hhr-lab-results { margin-top: 14px; border-top: 1px solid #dfe6e5; padding-top: 13px; }
-      #${MODAL_ID} .hhr-lab-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-      #${MODAL_ID} .hhr-lab-stat { padding: 5px 8px; border-radius: 999px; background: #edf5f4; color: #3f5b57; font-size: 10.5px; font-weight: 700; }
-      #${MODAL_ID} .hhr-lab-stat.is-alert { background: #fff0ee; color: #a23d35; }
-      #${MODAL_ID} .hhr-lab-tabs { display: flex; gap: 4px; margin: 0 0 10px; border-bottom: 1px solid #dce4e2; }
-      #${MODAL_ID} .hhr-lab-tab { padding: 8px 11px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #586562; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
-      #${MODAL_ID} .hhr-lab-tab[aria-selected="true"] { border-bottom-color: #15978b; color: #0b7c72; }
+      #${MODAL_ID} .hhr-lab-results { margin-top: 12px; border-top: 1px solid #e6ebe9; padding-top: 12px; }
+      #${MODAL_ID} .hhr-lab-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 10px; }
+      #${MODAL_ID} .hhr-lab-stat { padding: 4px 9px; border-radius: 999px; background: #eef5f3; color: #3f5b57; font-size: 10.5px; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-stat.is-alert { background: #fdefec; color: var(--hhr-red-ink); }
+      #${MODAL_ID} .hhr-lab-tabs { display: flex; gap: 2px; margin: 0 0 10px; border-bottom: 1px solid #e0e7e5; }
+      #${MODAL_ID} .hhr-lab-tab {
+        padding: 7px 11px; border: 0; border-bottom: 2px solid transparent; background: transparent;
+        color: #586562; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600;
+        transition: color .15s ease, border-color .15s ease;
+      }
+      #${MODAL_ID} .hhr-lab-tab:hover { color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-lab-tab:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-lab-tab[aria-selected="true"] { border-bottom-color: var(--hhr-teal-500); color: var(--hhr-teal-ink); font-weight: 700; }
       #${MODAL_ID} .hhr-lab-comparison-wrap { overflow: auto; max-height: 410px; border: 1px solid #dde5e3; border-radius: 7px; }
       #${MODAL_ID} .hhr-lab-comparison { table-layout: auto; min-width: 760px; }
       #${MODAL_ID} .hhr-lab-comparison th:first-child, #${MODAL_ID} .hhr-lab-comparison td:first-child { position: sticky; left: 0; z-index: 2; min-width: 170px; background: #fff; }
@@ -573,40 +750,110 @@
       #${MODAL_ID} .hhr-lab-report { margin-bottom: 8px; border: 1px solid #dfe6e5; border-radius: 7px; overflow: hidden; }
       #${MODAL_ID} .hhr-lab-report summary { padding: 9px 11px; background: #f7f9f9; color: #34413f; cursor: pointer; font-size: 11.5px; font-weight: 700; }
       #${MODAL_ID} .hhr-lab-report table { margin: 0; }
-      #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 14px; }
-      #${MODAL_ID} .hhr-connection-card { border: 1px solid #dce5e3; border-radius: 10px; background: #fff; padding: 15px; }
-      #${MODAL_ID} .hhr-connection-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
-      #${MODAL_ID} .hhr-connection-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: #eef4f3; color: #53615f; font-weight: 700; font-size: 11px; }
-      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-icon { background: #e7f5f1; color: #0d766d; }
-      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-icon { background: #fff5df; color: #8a6714; }
-      #${MODAL_ID} .hhr-connection-card h3 { margin: 0; color: #303b39; font-size: 14px; font-weight: 600; }
-      #${MODAL_ID} .hhr-connection-status { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: #6b7775; font-size: 11px; }
+      #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 12px; }
+      #${MODAL_ID} .hhr-connection-card {
+        border: 1px solid #e0e8e6; border-radius: 12px; background: #fff; padding: 14px 15px;
+        box-shadow: 0 1px 2px rgba(16,42,67,.04);
+      }
+      #${MODAL_ID} .hhr-connection-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      #${MODAL_ID} .hhr-connection-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: #eef4f3; color: #53615f; font-weight: 700; font-size: 11px; }
+      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-icon { background: #e4f4ef; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-icon { background: #fff5df; color: var(--hhr-amber-ink); }
+      #${MODAL_ID} .hhr-connection-card h3 { margin: 0; color: var(--hhr-ink-900); font-size: 13.5px; font-weight: 650; }
+      #${MODAL_ID} .hhr-connection-status { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: #6b7775; font-size: 11px; font-weight: 600; }
       #${MODAL_ID} .hhr-connection-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #a9b3b1; }
-      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-status::before { background: #28a66c; }
-      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-status::before { background: #d8a72e; }
-      #${MODAL_ID} .hhr-connection-user { min-height: 40px; color: #34413f; font-size: 13px; font-weight: 600; }
-      #${MODAL_ID} .hhr-connection-detail { display: block; margin-top: 3px; color: #76817f; font-size: 11px; font-weight: 400; line-height: 1.35; }
-      #${MODAL_ID} .hhr-connection-actions { display: flex; align-items: center; gap: 7px; margin-top: 13px; }
-      #${MODAL_ID} .hhr-connection-privacy { margin-top: 14px; padding: 11px 12px; border: 1px solid #d8e7e4; border-radius: 8px; background: #f7fbfa; color: #52605e; font-size: 11.5px; line-height: 1.45; }
+      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-status { color: var(--hhr-green-ink); }
+      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-status::before { background: var(--hhr-green-600); }
+      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-status { color: var(--hhr-amber-ink); }
+      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-status::before { background: var(--hhr-amber-600); }
+      #${MODAL_ID} .hhr-connection-user { min-height: 40px; color: #34413f; font-size: 12.5px; font-weight: 650; }
+      #${MODAL_ID} .hhr-connection-detail { display: block; margin-top: 3px; color: #76817f; font-size: 11px; font-weight: 400; line-height: 1.4; }
+      #${MODAL_ID} .hhr-connection-actions { display: flex; align-items: center; gap: 7px; margin-top: 12px; }
+      #${MODAL_ID} .hhr-connection-privacy {
+        margin-top: 12px; padding: 10px 12px; border: 0; border-left: 3px solid var(--hhr-teal-600);
+        border-radius: 6px; background: #f4faf8; color: #52605e; font-size: 11.5px; line-height: 1.5;
+      }
       #${MODAL_ID} .hhr-connection-feedback { min-height: 18px; margin-top: 10px; color: #64716f; font-size: 11.5px; }
-      #${MODAL_ID} .hhr-connection-feedback.is-error { color: #9b2c2c; }
-      @media (max-width: 2200px) {
-        #${OPERATIONS_BAR_ID} .hhr-ops-module span { display: inline; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-module { padding: 0 3px; justify-content: center; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy { display: none; }
+      #${MODAL_ID} .hhr-connection-feedback.is-error { color: var(--hhr-red-ink); }
+      #${MODAL_ID} .hhr-imaging-tabs { flex: 0 1 430px; min-width: 300px; margin: 0 0 0 auto; }
+      #${MODAL_ID} .hhr-imaging-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; }
+      #${MODAL_ID} .hhr-imaging-physician { flex: 1 1 240px; min-width: 200px; }
+      #${MODAL_ID} .hhr-imaging-tools { display: flex; align-items: center; gap: 5px; }
+      #${MODAL_ID} .hhr-imaging-tool.is-active { border-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-imaging-hint { margin: 2px 0 10px; color: #74807e; font-size: 11px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-imaging-stage { display: flex; justify-content: center; padding: 4px 0 10px; }
+      #${MODAL_ID} .hhr-imaging-canvas {
+        position: relative; width: min(720px, 100%); border: 1px solid #dde5e3; border-radius: 8px;
+        background: #fff; box-shadow: 0 4px 18px rgba(16,42,67,.10); overflow: hidden;
+        cursor: crosshair; user-select: none;
       }
-      @media (max-width: 1180px) {
-        #${OPERATIONS_BAR_ID} { right: 12px; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy { display: none; }
+      #${MODAL_ID} .hhr-imaging-image { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+      #${MODAL_ID} .hhr-imaging-overlays { position: absolute; inset: 0; }
+      #${MODAL_ID} .hhr-imaging-overlay { position: absolute; color: #000; font-size: 12px; line-height: 1; white-space: nowrap; pointer-events: none; }
+      #${MODAL_ID} .hhr-imaging-overlay.is-bold { font-weight: 600; }
+      #${MODAL_ID} .hhr-imaging-overlay.is-small { font-size: 10px; }
+      #${MODAL_ID} .hhr-imaging-mark { position: absolute; transform: translate(-50%, -50%); color: #1d4ed8; font-size: 15px; font-weight: 700; pointer-events: none; }
+      #${MODAL_ID} .hhr-imaging-mark.is-text { transform: translate(0, -50%); font-size: 12px; text-transform: uppercase; }
+      #${MODAL_ID} .hhr-imaging-text-editor {
+        position: absolute; transform: translate(0, -50%); z-index: 2; width: 170px; padding: 2px 6px;
+        border: 1px solid var(--hhr-teal-500); border-radius: 4px; background: #fff; color: #1d3a4f;
+        font: 600 11px/1.3 var(--hhr-font); text-transform: uppercase; outline: none;
+        box-shadow: 0 3px 10px rgba(16,42,67,.18);
       }
-      @media (max-width: 820px) {
-        #${OPERATIONS_BAR_ID} { right: 10px; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-module { padding: 0 3px; font-size: 10px; }
+      #${MODAL_ID} .hhr-vitals-section-title {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+        margin: 14px 0 7px; color: #55635f; font-size: 10.5px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
       }
+      #${MODAL_ID} .hhr-vitals-section-title span:last-child { color: #7c8886; font-weight: 600; text-transform: none; letter-spacing: 0; }
+      #${MODAL_ID} .hhr-vitals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+      #${MODAL_ID} .hhr-vitals-tile {
+        display: grid; gap: 2px; padding: 9px 10px 8px; border: 1px solid #e0e8e6; border-radius: 10px;
+        background: #fbfdfc; text-align: center;
+      }
+      #${MODAL_ID} .hhr-vitals-label { color: #677573; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+      #${MODAL_ID} .hhr-vitals-value { color: var(--hhr-ink-900); font-size: 19px; font-weight: 700; line-height: 1.1; }
+      #${MODAL_ID} .hhr-vitals-unit { color: #8a9694; font-size: 9.5px; }
+      #${MODAL_ID} .hhr-vitals-tile.is-warn { border-color: #ecd39a; background: #fffaf0; }
+      #${MODAL_ID} .hhr-vitals-tile.is-warn .hhr-vitals-value { color: var(--hhr-amber-ink); }
+      #${MODAL_ID} .hhr-vitals-tile.is-alert { border-color: #e7b3ae; background: #fdf3f2; }
+      #${MODAL_ID} .hhr-vitals-tile.is-alert .hhr-vitals-value { color: var(--hhr-red-ink); }
+      #${MODAL_ID} .hhr-vitals-obs { margin: 8px 0 0; padding: 8px 11px; border: 1px solid #e0e8e6; border-radius: 8px; background: #fbfdfc; color: #4c5a58; font-size: 11.5px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-vitals-trends { margin-top: 10px; }
+      #${MODAL_ID} .hhr-vitals-table-wrap { border: 1px solid #e0e8e6; border-radius: 10px; overflow: auto; max-height: 380px; }
+      #${MODAL_ID} .hhr-vitals-table td { white-space: nowrap; }
+      #${MODAL_ID} .hhr-vitals-table td.is-warn { color: var(--hhr-amber-ink); font-weight: 700; }
+      #${MODAL_ID} .hhr-vitals-table td.is-alert { color: var(--hhr-red-ink); font-weight: 700; background: #fdf3f2; }
+      #${MODAL_ID} .hhr-vitals-day td { padding: 5px 8px; background: #f2f6f5; color: #55635f; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; }
+      #${MODAL_ID} .hhr-labreq-count { color: #64716f; font-size: 11.5px; white-space: nowrap; }
+      #${MODAL_ID} .hhr-labreq-meta { display: grid; gap: 6px; margin: 10px 0; }
+      #${MODAL_ID} .hhr-labreq-meta-group { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+      #${MODAL_ID} .hhr-labreq-meta-label { min-width: 84px; color: #55635f; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+      #${MODAL_ID} .hhr-labreq-chip {
+        display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid #d7e0de;
+        border-radius: 999px; background: #fff; color: #46534f; cursor: pointer; font-size: 11px; font-weight: 600;
+      }
+      #${MODAL_ID} .hhr-labreq-chip:has(input:checked) { border-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); }
+      #${MODAL_ID} .hhr-labreq-chip input { width: 13px; height: 13px; margin: 0; accent-color: var(--hhr-teal-500); }
+      #${MODAL_ID} .hhr-labreq-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      #${MODAL_ID} .hhr-labreq-column { display: grid; gap: 10px; align-content: start; }
+      #${MODAL_ID} .hhr-labreq-section { border: 1px solid #dfe7e5; border-radius: 9px; background: #fff; overflow: hidden; }
+      #${MODAL_ID} .hhr-labreq-section header {
+        padding: 5px 9px; border-bottom: 1px solid #e6ecea; background: #f6f9f8; color: #45524f;
+        font-size: 10.5px; font-weight: 700; text-align: center;
+      }
+      #${MODAL_ID} .hhr-labreq-section header small { display: block; color: #7c8886; font-size: 8.5px; font-weight: 600; }
+      #${MODAL_ID} .hhr-labreq-exam { display: flex; align-items: center; gap: 7px; padding: 3px 9px; cursor: pointer; color: #3d4a47; font-size: 10.5px; }
+      #${MODAL_ID} .hhr-labreq-exam:hover { background: #f7fbfa; }
+      #${MODAL_ID} .hhr-labreq-exam input { width: 14px; height: 14px; margin: 0; flex: 0 0 auto; }
+      #${MODAL_ID} .hhr-labreq-footer { display: flex; gap: 8px; margin-top: 12px; }
+      #${MODAL_ID} .hhr-labreq-footer input { flex: 1; }
+      @media (max-width: 900px) { #${MODAL_ID} .hhr-labreq-grid { grid-template-columns: 1fr; } }
       @media (max-width: 760px) {
         #${MODAL_ID} .hhr-center-dialog { width: calc(100vw - 16px); height: calc(100vh - 16px); max-height: calc(100vh - 16px); margin: 8px auto; }
         #${MODAL_ID} .hhr-center-shell { grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr); }
-        #${MODAL_ID} .hhr-center-nav { grid-template-columns: repeat(6,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
+        #${MODAL_ID} .hhr-center-nav { display: grid; grid-template-columns: repeat(8,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
+        #${MODAL_ID} .hhr-center-nav-session { margin-top: 0; border-top: 0; }
         #${MODAL_ID} .hhr-center-nav-button { min-height: 48px; border-left: 0; border-bottom: 2px solid transparent; border-radius: 5px; font-size: 9.5px; }
         #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: transparent; border-bottom-color: #15978b; }
         #${MODAL_ID} .hhr-center-toolbar { flex-wrap: wrap; min-height: auto; padding: 8px 10px; }
@@ -636,9 +883,6 @@
         #${MODAL_ID} .hhr-score-form { width: 100%; }
       }
       @media (max-width: 560px) {
-        #${OPERATIONS_BAR_ID} { top: auto; right: auto; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: calc(100vw - 32px); height: 38px; border-color: #0d6e66; background: #106f67; box-shadow: 0 8px 22px rgba(0,0,0,.24); }
-        #${OPERATIONS_BAR_ID} .hhr-ops-module { border-color: #fff; background: #fff; color: #0e766d; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-module:hover { border-color: #effaf8; background: #effaf8; color: #095f58; }
         #${MODAL_ID} .hhr-rx-dialog { margin: 16px auto; max-height: calc(100vh - 32px); }
         #${MODAL_ID} .hhr-rx-footer { flex-direction: column-reverse; }
         #${MODAL_ID} .hhr-rx-action { width: 100%; }
@@ -648,8 +892,7 @@
         #${MODAL_ID} .hhr-rx-header, #${MODAL_ID} .hhr-rx-body, #${MODAL_ID} .hhr-rx-footer { padding-left: 16px; padding-right: 16px; }
       }
       @media (forced-colors: active) {
-        #${OPERATIONS_BAR_ID}, #${MODAL_ID} .hhr-rx-dialog { border: 1px solid CanvasText; }
-        #${OPERATIONS_BAR_ID} .hhr-ops-module:focus-visible,
+        #${MODAL_ID} .hhr-rx-dialog { border: 1px solid CanvasText; }
         #${MODAL_ID} button:focus-visible, #${MODAL_ID} input:focus-visible,
         #${MODAL_ID} select:focus-visible, #${MODAL_ID} textarea:focus-visible {
           outline: 2px solid Highlight; outline-offset: 2px;
@@ -715,7 +958,7 @@
     root.querySelector('.hhr-rx-close').focus();
   };
 
-  const createModal = encId => {
+  const createModal = (encId, initialTab = '') => {
     encId = currentRouteEncounterId() || String(encId || '');
     const focusReturnTarget = document.activeElement;
     if (!closeModal()) return;
@@ -724,27 +967,29 @@
     const root = document.createElement('div');
     root.id = MODAL_ID;
     root.dataset.encounterId = hasCurrentPatient ? String(encId) : '';
-    root.innerHTML = `
-      <div class="hhr-rx-backdrop" aria-hidden="true"></div>
-      <section class="hhr-rx-dialog" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
-        <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
-        <header class="hhr-rx-header">
-          <h2 class="hhr-rx-title" id="hhr-rx-title">Centro de recetas</h2>
-          <p class="hhr-rx-subtitle">Elige qué recetas necesitas y abre un único diálogo de impresión.</p>
-          <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
-            <button class="hhr-rx-tab" id="hhr-rx-tab-current" type="button" role="tab" data-tab="current" aria-controls="hhr-rx-tabpanel" aria-selected="true">Paciente actual</button>
-            <button class="hhr-rx-tab" id="hhr-rx-tab-hospitalized" type="button" role="tab" data-tab="hospitalized" aria-controls="hhr-rx-tabpanel" aria-selected="false">Hospitalizados</button>
-          </div>
-        </header>
+    root.innerHTML = centerShellMarkup('recipes');
+    applyCenterShellLogo(root);
+    root.querySelector('.hhr-center-main').innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title">Recetas</h2>
+        <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
+          <button class="hhr-rx-tab" id="hhr-rx-tab-current" type="button" role="tab" data-tab="current" aria-controls="hhr-rx-tabpanel" aria-selected="true">Paciente actual</button>
+          <button class="hhr-rx-tab" id="hhr-rx-tab-hospitalized" type="button" role="tab" data-tab="hospitalized" aria-controls="hhr-rx-tabpanel" aria-selected="false">Hospitalizados</button>
+          <button class="hhr-rx-tab hhr-rx-tab-minor" id="hhr-rx-tab-indications" type="button" role="tab" data-tab="indications" aria-controls="hhr-rx-tabpanel" aria-selected="false">Indicaciones</button>
+        </div>
+      </div>
+      <div class="hhr-center-content hhr-center-embed">
+        <p class="hhr-rx-subtitle">Elige qué recetas necesitas y abre un único diálogo de impresión.</p>
         <div class="hhr-rx-body" id="hhr-rx-tabpanel" role="tabpanel" aria-labelledby="hhr-rx-tab-current"><div class="hhr-rx-status">Buscando recetas disponibles…</div></div>
-        <footer class="hhr-rx-footer">
-          <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
-          <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled>
-            Imprimir receta completa
-          </button>
-        </footer>
-      </section>
+      </div>
+      <footer class="hhr-rx-footer">
+        <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
+        <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled>
+          Imprimir receta completa
+        </button>
+      </footer>
     `;
+    wireCenterNavButtons(root, 'recipes', encId, focusReturnTarget);
     document.body.appendChild(root);
 
     const body = root.querySelector('.hhr-rx-body');
@@ -1097,18 +1342,21 @@
           patient.service,
           ...(patient.prescribers || []).map(item => item.professional),
         ].join(' '));
+        label.dataset.service = normalizedText(patient.service);
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.name = 'hhr-bulk-patient';
         input.value = patient.encounterId;
         input.disabled = !printable;
         const details = document.createElement('span');
+        details.className = 'hhr-rx-patient-details';
         const title = document.createElement('span');
         title.className = 'hhr-rx-patient-title';
         const bed = document.createElement('span');
         bed.className = 'hhr-rx-bed';
         bed.textContent = patient.bed || patient.room || 'Sin cama';
         const name = document.createElement('span');
+        name.className = 'hhr-rx-name';
         name.textContent = patient.name || 'Paciente sin nombre';
         title.append(bed, name);
         if (patient.isCurrent) {
@@ -1119,7 +1367,8 @@
         }
         const meta = document.createElement('span');
         meta.className = 'hhr-rx-meta';
-        meta.textContent = [patient.run, patient.service, patient.room].filter(Boolean).join(' · ');
+        meta.textContent = [patient.run, patient.service].filter(Boolean).join(' · ');
+        title.appendChild(meta);
         const prescribers = document.createElement('span');
         prescribers.className = 'hhr-rx-prescribers';
         if (patient.unavailableReason) {
@@ -1128,22 +1377,42 @@
         } else if (!patient.medicationCount) {
           prescribers.textContent = 'Sin fármacos activos';
         } else {
-          (patient.prescribers || []).forEach(item => {
-            const line = document.createElement('span');
-            const dateTime = helper.formatDateTimeLabel(item.validationDateTime);
-            line.textContent = item.professional + ' · ' + item.count +
-              (item.count === 1 ? ' fármaco' : ' fármacos');
-            if (dateTime) {
-              const time = document.createElement('span');
-              time.className = 'hhr-rx-prescriber-time';
-              time.textContent = ' · ' + dateTime;
-              line.appendChild(time);
-            }
-            prescribers.appendChild(line);
-          });
+          const items = patient.prescribers || [];
+          prescribers.textContent = items
+            .map(item => item.professional + ' (' + item.count + ')')
+            .join(' · ');
+          prescribers.title = items
+            .map(item => {
+              const dateTime = helper.formatDateTimeLabel(item.validationDateTime);
+              return item.professional + ' · ' + item.count +
+                (item.count === 1 ? ' fármaco' : ' fármacos') + (dateTime ? ' · ' + dateTime : '');
+            })
+            .join('\n');
         }
-        details.append(title, meta, prescribers);
+        details.append(title, prescribers);
         label.append(input, details);
+        if (printable) {
+          const stats = document.createElement('span');
+          stats.className = 'hhr-rx-patient-stats';
+          const medCount = document.createElement('span');
+          medCount.className = 'hhr-rx-med-count';
+          medCount.textContent = patient.medicationCount +
+            (patient.medicationCount === 1 ? ' fármaco' : ' fármacos');
+          stats.appendChild(medCount);
+          const latest = (patient.prescribers || [])
+            .map(item => item.validationDateTime)
+            .filter(Boolean)
+            .sort()
+            .pop();
+          const latestLabel = latest ? helper.formatDateTimeLabel(latest) : '';
+          if (latestLabel) {
+            const time = document.createElement('span');
+            time.className = 'hhr-rx-stat-time';
+            time.textContent = latestLabel;
+            stats.appendChild(time);
+          }
+          label.appendChild(stats);
+        }
         list.appendChild(label);
       });
       body.append(toolbar, selectionSummary, list);
@@ -1158,12 +1427,7 @@
         submit.disabled = count === 0;
         submit.textContent = count === 1 ? 'Imprimir 1 receta' : 'Imprimir ' + count + ' recetas';
       };
-      search.addEventListener('input', () => {
-        const query = normalizedText(search.value);
-        Array.from(list.children).forEach(row => {
-          row.hidden = Boolean(query) && !String(row.dataset.search || '').includes(query);
-        });
-      });
+      attachPatientListFilter({ toolbar, search, list, services: patients.map(patient => patient.service) });
       selectVisible.addEventListener('click', () => {
         visibleCheckboxes().forEach(input => { input.checked = true; });
         updateSelection();
@@ -1208,6 +1472,12 @@
     };
 
     const activateTab = tabName => {
+      if (tabName === 'indications') {
+        root.__hhrDismiss = null;
+        root.remove();
+        createHospitalizedDocumentsModal('indications', encId);
+        return;
+      }
       activeTab = tabName;
       viewGeneration += 1;
       const generation = viewGeneration;
@@ -1243,7 +1513,7 @@
       if (nextTab.dataset.tab !== activeTab) activateTab(nextTab.dataset.tab);
       nextTab.focus();
     }));
-    activateTab(hasCurrentPatient ? 'current' : 'hospitalized');
+    activateTab(initialTab === 'hospitalized' || !hasCurrentPatient ? 'hospitalized' : 'current');
   };
 
   const createHospitalizedDocumentsModal = (kind, encId) => {
@@ -1254,21 +1524,40 @@
     const root = document.createElement('div');
     root.id = MODAL_ID;
     root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
-    root.innerHTML = `
-      <div class="hhr-rx-backdrop" aria-hidden="true"></div>
-      <section class="hhr-rx-dialog" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
-        <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
-        <header class="hhr-rx-header">
-          <h2 class="hhr-rx-title" id="hhr-rx-title"></h2>
-          <p class="hhr-rx-subtitle"></p>
-        </header>
+    // Indicaciones vive como pestaña secundaria del módulo Recetas: el shell destaca Rx
+    // y la toolbar repite las pestañas para volver a los flujos de recetas sin fricción.
+    root.innerHTML = centerShellMarkup(isRegimen ? kind : 'recipes');
+    applyCenterShellLogo(root);
+    root.querySelector('.hhr-center-main').innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title"></h2>
+        ${isRegimen ? '' : `
+        <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
+          <button class="hhr-rx-tab" type="button" role="tab" data-tab="current" aria-selected="false">Paciente actual</button>
+          <button class="hhr-rx-tab" type="button" role="tab" data-tab="hospitalized" aria-selected="false">Hospitalizados</button>
+          <button class="hhr-rx-tab hhr-rx-tab-minor" type="button" role="tab" data-tab="indications" aria-selected="true">Indicaciones</button>
+        </div>`}
+      </div>
+      <div class="hhr-center-content hhr-center-embed">
+        <p class="hhr-rx-subtitle"></p>
         <div class="hhr-rx-body"><div class="hhr-rx-status">Buscando pacientes hospitalizados…</div></div>
-        <footer class="hhr-rx-footer">
-          <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
-          <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled></button>
-        </footer>
-      </section>
+      </div>
+      <footer class="hhr-rx-footer">
+        <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
+        <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled></button>
+      </footer>
     `;
+    wireCenterNavButtons(root, isRegimen ? kind : 'indications', encId, focusReturnTarget);
+    if (!isRegimen) {
+      root.querySelectorAll('.hhr-rx-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          if (tab.dataset.tab === 'indications') return;
+          root.__hhrDismiss = null;
+          root.remove();
+          createModal(encId, tab.dataset.tab);
+        });
+      });
+    }
     const title = root.querySelector('.hhr-rx-title');
     const subtitle = root.querySelector('.hhr-rx-subtitle');
     const body = root.querySelector('.hhr-rx-body');
@@ -1368,6 +1657,7 @@
           patient.regimen && patient.regimen.diet,
           patient.regimen && patient.regimen.observation,
         ].join(' '));
+        row.dataset.service = normalizedText(patient.service);
         if (!isRegimen) {
           const input = document.createElement('input');
           input.type = 'checkbox';
@@ -1377,12 +1667,14 @@
           row.appendChild(input);
         }
         const details = document.createElement('span');
+        details.className = 'hhr-rx-patient-details';
         const patientTitle = document.createElement('span');
         patientTitle.className = 'hhr-rx-patient-title';
         const bed = document.createElement('span');
         bed.className = 'hhr-rx-bed';
         bed.textContent = patient.bed || patient.room || 'Sin cama';
         const patientName = document.createElement('span');
+        patientName.className = 'hhr-rx-name';
         patientName.textContent = patient.name || 'Paciente sin nombre';
         patientTitle.append(bed, patientName);
         if (patient.isCurrent) {
@@ -1393,8 +1685,9 @@
         }
         const meta = document.createElement('span');
         meta.className = 'hhr-rx-meta';
-        meta.textContent = [patient.run, patient.service, patient.room].filter(Boolean).join(' · ');
-        details.append(patientTitle, meta);
+        meta.textContent = [patient.run, patient.service].filter(Boolean).join(' · ');
+        patientTitle.appendChild(meta);
+        details.append(patientTitle);
         if (isRegimen) {
           const regimenLine = document.createElement('span');
           regimenLine.className = 'hhr-rx-braden-line';
@@ -1465,12 +1758,7 @@
         submit.disabled = count === 0;
         submit.textContent = count === 1 ? 'Imprimir 1 paciente' : 'Imprimir ' + count + ' pacientes';
       };
-      search.addEventListener('input', () => {
-        const query = normalizedText(search.value);
-        Array.from(list.children).forEach(row => {
-          row.hidden = Boolean(query) && !String(row.dataset.search || '').includes(query);
-        });
-      });
+      attachPatientListFilter({ toolbar, search, list, services: patients.map(patient => patient.service) });
       if (!isRegimen) {
         selectVisible.addEventListener('click', () => {
           visibleInputs().forEach(input => { input.checked = true; });
@@ -1541,20 +1829,20 @@
   const centerNavMarkup = activeModule => {
     const items = [
       {
+        key: 'home', label: 'Inicio', title: 'Inicio · resumen y accesos directos',
+        icon: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
+      },
+      {
         key: 'recipes', label: 'Rx', title: 'Recetas',
         icon: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
       },
       {
-        key: 'regimen', label: 'Reg', title: 'Regímenes y BRADEN',
-        icon: '<path d="M4 19h16M5 15h14M7 15a5 5 0 0 1 10 0M12 8V5M10 5h4"/>',
-      },
-      {
-        key: 'indications', label: 'Ind', title: 'Indicaciones',
-        icon: '<path d="M6 3h9l3 3v15H6zM14 3v4h4M9 11h6M9 15h6"/>',
-      },
-      {
         key: 'handoff', label: 'Turno', title: 'Entrega de turno',
         icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11l2 2 3-4"/>',
+      },
+      {
+        key: 'vitals', label: 'Vitales', title: 'Signos vitales',
+        icon: '<path d="M3 12h4l2.5-6 5 12 2.5-6H21"/>',
       },
       {
         key: 'scores', label: 'Scores', title: 'Instrumentos',
@@ -1565,16 +1853,235 @@
         icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M8 15h8"/>',
       },
       {
-        key: 'connection', label: 'Con', title: 'Conexiones',
-        icon: '<path d="M8 12a4 4 0 0 1 4-4h3M16 12a4 4 0 0 1-4 4H9M10 12h4M18 5v4h-4M6 19v-4h4"/>',
+        key: 'imaging', label: 'MMRAD', title: 'Imágenes y radiología',
+        icon: '<circle cx="12" cy="12" r="3"/><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>',
       },
     ];
-    return items.map(item => `
-      <button class="hhr-center-nav-button" type="button" data-module="${item.key}"
+    const navButton = item => `
+      <button class="hhr-center-nav-button${item.session ? ' hhr-center-nav-session' : ''}" type="button" data-module="${item.key}"
         title="${item.title}" aria-label="${item.title}" ${item.key === activeModule ? 'aria-current="page"' : ''}>
         <svg viewBox="0 0 24 24" aria-hidden="true">${item.icon}</svg><span>${item.label}</span>
       </button>
-    `).join('');
+    `;
+    // Conexiones vive anclado al pie del riel, con estilo de configuración/inicio de sesión.
+    return items.map(navButton).join('') + navButton({
+      key: 'connection', label: 'Sesión', title: 'Conexiones y sesión', session: true,
+      icon: '<circle cx="12" cy="12" r="3"/><path d="M12 4.5V3M12 21v-1.5M19.5 12H21M3 12h1.5M17.3 6.7l1.1-1.1M5.6 18.4l1.1-1.1M17.3 17.3l1.1 1.1M5.6 5.6l1.1 1.1"/>',
+    });
+  };
+
+  // Shared header + nav rail of the Centro HHR shell. Every module view (recipes and
+  // hospitalized documents included) renders inside this frame.
+  const centerShellMarkup = activeModule => `
+    <div class="hhr-rx-backdrop" aria-hidden="true"></div>
+    <section class="hhr-rx-dialog hhr-center-dialog" role="dialog" aria-modal="true" aria-label="Centro HHR">
+      <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
+      <header class="hhr-center-header">
+        <img alt="" aria-hidden="true"><strong>Centro HHR</strong>
+      </header>
+      <div class="hhr-center-patientbar" hidden>
+        <span class="hhr-patientbar-tag">Paciente</span>
+        <strong class="hhr-patientbar-name">—</strong>
+        <span class="hhr-patientbar-meta"></span>
+        <span class="hhr-patientbar-route" hidden>Distinto al episodio abierto en Eloísa</span>
+        <button class="hhr-center-action hhr-center-action-primary hhr-patientbar-change" type="button" aria-expanded="false">Cambiar paciente ▾</button>
+        <div class="hhr-patientbar-picker" hidden>
+          <input class="hhr-rx-search hhr-patientbar-search" type="search"
+            placeholder="Buscar por paciente, RUN o cama" aria-label="Buscar paciente en el censo">
+          <div class="hhr-patientbar-list" role="listbox" aria-label="Pacientes hospitalizados"></div>
+        </div>
+      </div>
+      <div class="hhr-center-shell">
+        <nav class="hhr-center-nav" aria-label="Módulos clínicos">${centerNavMarkup(activeModule)}</nav>
+        <main class="hhr-center-main"></main>
+      </div>
+    </section>
+  `;
+
+  const applyCenterShellLogo = root => {
+    try {
+      root.querySelector('.hhr-center-header img').src = chrome.runtime.getURL('hhr-logo.svg');
+    } catch (_error) {
+      const img = root.querySelector('.hhr-center-header img');
+      if (img) img.remove();
+    }
+  };
+
+  // Remembered across openings so the brand button of the bar reopens where the user left off.
+  let lastCenterModule = 'home';
+
+  const openCenterModule = (module, encId, trigger) => {
+    if (module === 'recipes') createModal(encId);
+    else if (module === 'regimen' || module === 'indications') createHospitalizedDocumentsModal(module, encId);
+    else createOperationsCenterModal(module, encId, trigger);
+  };
+
+  const wireCenterNavButtons = (root, activeModule, encId, focusReturnTarget) => {
+    lastCenterModule = activeModule;
+    root.querySelectorAll('.hhr-center-nav-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.module;
+        if (target === activeModule) return;
+        if (!confirmClinicalTransition(root)) return;
+        root.__hhrDismiss = null;
+        root.remove();
+        openCenterModule(target, encId, focusReturnTarget);
+      });
+    });
+    const regimenButton = root.querySelector('.hhr-center-regimen-print');
+    if (regimenButton) {
+      regimenButton.addEventListener('click', () => {
+        if (!confirmClinicalTransition(root)) return;
+        root.__hhrDismiss = null;
+        root.remove();
+        createRegimenQuickDialog();
+      });
+    }
+  };
+
+  // Persistent patient context of the Centro HHR. Patient-bound modules (vitales, laboratorio,
+  // imágenes) show WHO they act on and let the user pick any hospitalized patient from the
+  // census; census-wide modules state that explicitly. Selecting a patient re-renders the
+  // active module bound to that encounter.
+  const PATIENT_BOUND_MODULES = new Set(['vitals', 'lab', 'imaging']);
+  const setupCenterPatientContext = (root, module, initialEncId, renderModule) => {
+    const bar = root.querySelector('.hhr-center-patientbar');
+    if (!bar) return;
+    const nameEl = bar.querySelector('.hhr-patientbar-name');
+    const metaEl = bar.querySelector('.hhr-patientbar-meta');
+    const routeBadge = bar.querySelector('.hhr-patientbar-route');
+    const changeButton = bar.querySelector('.hhr-patientbar-change');
+    const picker = bar.querySelector('.hhr-patientbar-picker');
+    const search = bar.querySelector('.hhr-patientbar-search');
+    const list = bar.querySelector('.hhr-patientbar-list');
+    if (module === 'connection' || module === 'home') return;
+    bar.hidden = false;
+    if (!PATIENT_BOUND_MODULES.has(module)) {
+      nameEl.textContent = 'Todos los hospitalizados';
+      metaEl.textContent = 'Este módulo trabaja sobre el censo completo.';
+      changeButton.hidden = true;
+      return;
+    }
+
+    let selected = /^\d+$/.test(String(initialEncId || '')) ? String(initialEncId) : '';
+    root.dataset.selectedEncounterId = selected;
+    let censusPatients = [];
+    let censusLoaded = false;
+
+    const refreshIdentity = async () => {
+      const routeEncId = currentRouteEncounterId();
+      routeBadge.hidden = !selected || !routeEncId || selected === routeEncId;
+      if (!selected) {
+        nameEl.textContent = 'Sin paciente seleccionado';
+        metaEl.textContent = 'Elige un paciente del censo para continuar.';
+        return;
+      }
+      nameEl.textContent = 'Identificando…';
+      metaEl.textContent = '';
+      const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: selected });
+      if (!root.isConnected || root.dataset.selectedEncounterId !== selected) return;
+      if (!response || response.error) {
+        nameEl.textContent = 'Paciente no identificado';
+        metaEl.textContent = String((response && response.error) || '');
+        return;
+      }
+      const patient = response.patient || {};
+      nameEl.textContent = patient.name || 'Paciente sin nombre';
+      metaEl.textContent = [
+        patient.formattedRun || patient.run,
+        [patient.bed, patient.service].filter(Boolean).join(' · '),
+        patient.age,
+        patient.diagnosis,
+      ].filter(Boolean).join('  ·  ');
+      metaEl.title = metaEl.textContent;
+    };
+
+    const renderList = () => {
+      list.innerHTML = '';
+      const query = normalizedText(search.value);
+      censusPatients
+        .filter(patient => !query ||
+          normalizedText([patient.name, patient.run, patient.bed, patient.service].join(' ')).includes(query))
+        .forEach(patient => {
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.className = 'hhr-patientbar-option' + (patient.encounterId === selected ? ' is-selected' : '');
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', String(patient.encounterId === selected));
+          const bed = document.createElement('span');
+          bed.className = 'hhr-rx-bed';
+          bed.textContent = patient.bed || '—';
+          const name = document.createElement('span');
+          name.className = 'hhr-patientbar-option-name';
+          name.textContent = patient.name || 'Paciente sin nombre';
+          const meta = document.createElement('span');
+          meta.className = 'hhr-patientbar-option-meta';
+          meta.textContent = [patient.run, patient.service, patient.isCurrent ? 'Episodio abierto' : '']
+            .filter(Boolean).join(' · ');
+          option.append(bed, name, meta);
+          option.addEventListener('click', () => {
+            closePicker();
+            if (patient.encounterId === selected) return;
+            selected = patient.encounterId;
+            root.dataset.selectedEncounterId = selected;
+            void refreshIdentity();
+            renderModule(selected);
+          });
+          list.appendChild(option);
+        });
+      if (!list.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'hhr-patientbar-empty';
+        empty.textContent = 'Sin coincidencias en el censo.';
+        list.appendChild(empty);
+      }
+    };
+
+    const closePicker = () => {
+      picker.hidden = true;
+      changeButton.setAttribute('aria-expanded', 'false');
+    };
+    const openPicker = async () => {
+      picker.hidden = false;
+      changeButton.setAttribute('aria-expanded', 'true');
+      search.value = '';
+      search.focus();
+      if (!censusLoaded) {
+        list.innerHTML = '<div class="hhr-patientbar-empty">Cargando censo…</div>';
+        const response = await sendMessage({
+          type: 'RAYEN_CENSUS_LIST_REQUEST',
+          currentEncId: currentRouteEncounterId(),
+        });
+        if (!root.isConnected || picker.hidden) return;
+        if (!response || response.error) {
+          list.innerHTML = '';
+          const failure = document.createElement('div');
+          failure.className = 'hhr-patientbar-empty';
+          failure.textContent = (response && response.error) || 'No se pudo leer el censo.';
+          list.appendChild(failure);
+          return;
+        }
+        censusPatients = Array.isArray(response.patients) ? response.patients : [];
+        censusLoaded = true;
+      }
+      renderList();
+    };
+    changeButton.addEventListener('click', () => {
+      if (picker.hidden) void openPicker();
+      else closePicker();
+    });
+    search.addEventListener('input', renderList);
+    root.addEventListener('click', event => {
+      if (!picker.hidden && !bar.contains(event.target)) closePicker();
+    });
+    bar.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !picker.hidden) {
+        event.stopPropagation();
+        closePicker();
+        changeButton.focus();
+      }
+    });
+    void refreshIdentity();
   };
 
   const renderHandoffCenter = (root, encId) => {
@@ -1641,7 +2148,7 @@
       identityNotice.className = 'hhr-center-notice';
       identityNotice.textContent = 'Sesión verificada: ' +
         [response.currentProfessionalRole, response.currentProfessional].filter(Boolean).join(' · ') +
-        '. Solo puedes registrar ' + handoffLabel.toLowerCase() + '.';
+        '. Ves las entregas médicas y de enfermería; solo puedes registrar ' + handoffLabel.toLowerCase() + '.';
       content.appendChild(identityNotice);
       (Array.isArray(response.nurseStations) ? response.nurseStations : []).forEach(item => {
         const option = document.createElement('option');
@@ -1663,8 +2170,8 @@
       const table = document.createElement('table');
       table.className = 'hhr-center-table hhr-handoff-table';
       table.innerHTML = `
-        <colgroup><col style="width:6%"><col style="width:19%"><col style="width:23%"><col style="width:13%"><col style="width:28%"><col style="width:11%"></colgroup>
-        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Última ${response.handoffKind === 'medical' ? 'entrega médica' : 'entrega de enfermería'}</th><th>Profesional</th><th>Nueva entrega</th><th>Estado</th></tr></thead><tbody></tbody>
+        <colgroup><col style="width:6%"><col style="width:15%"><col style="width:21%"><col style="width:21%"><col style="width:26%"><col style="width:11%"></colgroup>
+        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Entrega médica</th><th>Entrega enfermería</th><th>Nueva ${response.handoffKind === 'medical' ? 'entrega médica' : 'entrega de enfermería'}</th><th>Estado</th></tr></thead><tbody></tbody>
       `;
       const tbody = table.querySelector('tbody');
       patients.forEach(patient => {
@@ -1686,30 +2193,31 @@
         patientMeta.className = 'hhr-center-meta';
         patientMeta.textContent = [patient.run, patient.service].filter(Boolean).join(' · ');
         patientCell.append(patientName, patientMeta);
-        const latestCell = document.createElement('td');
-        latestCell.dataset.label = 'Última entrega';
-        const authorCell = document.createElement('td');
-        authorCell.dataset.label = 'Profesional';
-        const fillLatest = latest => {
-          latestCell.innerHTML = '';
-          authorCell.innerHTML = '';
+        const medicalCell = document.createElement('td');
+        medicalCell.dataset.label = 'Entrega médica';
+        const nursingCell = document.createElement('td');
+        nursingCell.dataset.label = 'Entrega enfermería';
+        const laneEmptyText = patient.handoffUnavailableReason ? 'No disponible' : 'Sin entrega registrada';
+        const fillLane = (cell, latest) => {
+          cell.innerHTML = '';
           if (!latest) {
-            latestCell.textContent = patient.handoffUnavailableReason ? 'No disponible' : 'Sin entrega registrada';
-            authorCell.textContent = '-';
+            cell.textContent = laneEmptyText;
             return;
           }
-          latestCell.textContent = latest.observation;
-          const time = document.createElement('span');
-          time.className = 'hhr-center-meta';
-          time.textContent = helper.formatDateTimeLabel(latest.dateTime);
-          latestCell.appendChild(time);
-          authorCell.textContent = latest.author || '-';
-          const signature = document.createElement('span');
-          signature.className = 'hhr-center-meta';
-          signature.textContent = latest.isSigned ? 'Firmado' : latest.requiresValidation ? 'Pendiente de validar' : 'Guardado';
-          authorCell.appendChild(signature);
+          cell.textContent = latest.observation;
+          const meta = document.createElement('span');
+          meta.className = 'hhr-center-meta';
+          meta.textContent = [
+            latest.author,
+            helper.formatDateTimeLabel(latest.dateTime),
+            latest.isSigned ? 'Firmado' : latest.requiresValidation ? 'Pendiente de validar' : 'Guardado',
+          ].filter(Boolean).join(' · ');
+          cell.appendChild(meta);
         };
-        fillLatest(patient.latestHandoff);
+        fillLane(medicalCell, patient.latestMedical || (response.handoffKind === 'medical' ? patient.latestHandoff : null));
+        fillLane(nursingCell, patient.latestNursing || (response.handoffKind === 'nursing' ? patient.latestHandoff : null));
+        const ownLaneCell = response.handoffKind === 'medical' ? medicalCell : nursingCell;
+        const fillLatest = latest => fillLane(ownLaneCell, latest);
         const editorCell = document.createElement('td');
         editorCell.dataset.label = 'Nueva entrega';
         const textarea = document.createElement('textarea');
@@ -1857,7 +2365,7 @@
           setSyncState(sync, 'Guardado en Eloísa · ' + persistedState, 'synced');
           finishRouteChangeWrite(root, 'synced');
         });
-        row.append(bedCell, patientCell, latestCell, authorCell, editorCell, statusCell);
+        row.append(bedCell, patientCell, medicalCell, nursingCell, editorCell, statusCell);
         tbody.appendChild(row);
       });
       content.appendChild(table);
@@ -2228,7 +2736,12 @@
                     riskScore: item.riskScore,
                   }))
                 : raw && raw.crdValue
-                  ? [{ total: raw.crdValue, dateTime: raw.crdDateTime, author: raw.author || '' }]
+                  ? [{
+                      total: raw.crdValue,
+                      dateTime: raw.crdDateTime,
+                      author: raw.author || '',
+                      authorRole: raw.authorRole || '',
+                    }]
                   : []
               : Array.isArray(raw) ? raw : [];
           const latest = history[0] || null;
@@ -2251,7 +2764,17 @@
           patientCell.append(name, meta);
           const valueCell = document.createElement('td'); valueCell.dataset.label = 'Último valor'; valueCell.textContent = values[2];
           const dateCell = document.createElement('td'); dateCell.dataset.label = 'Última aplicación'; dateCell.textContent = values[3];
-          const authorCell = document.createElement('td'); authorCell.dataset.label = 'Profesional'; authorCell.textContent = values[4];
+          const authorCell = document.createElement('td');
+          authorCell.dataset.label = 'Profesional';
+          authorCell.textContent = latest && (latest.author || latest.authorRole) && !unavailableReason
+            ? latest.author || latest.authorRole
+            : values[4];
+          if (!unavailableReason && latest && latest.author && latest.authorRole) {
+            const roleMeta = document.createElement('span');
+            roleMeta.className = 'hhr-center-meta';
+            roleMeta.textContent = latest.authorRole;
+            authorCell.appendChild(roleMeta);
+          }
           const historyCell = document.createElement('td');
           historyCell.dataset.label = 'Historia';
           const details = document.createElement('details'); details.className = 'hhr-history';
@@ -2597,14 +3120,18 @@
     }
     main.innerHTML = `
       <div class="hhr-center-toolbar">
-        <h2 class="hhr-center-heading">Laboratorio Syslab</h2>
+        <h2 class="hhr-center-heading">Laboratorio</h2>
+        <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de laboratorio">
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="true">Ver resultados</button>
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="false">Solicitar exámenes</button>
+        </div>
         <input class="hhr-center-search hhr-lab-filter" type="search" placeholder="Filtrar por fecha o examen" aria-label="Filtrar informes">
         <button class="hhr-center-action hhr-lab-select-all" type="button" disabled>Seleccionar todos</button>
         <button class="hhr-center-action hhr-center-action-primary hhr-lab-analyze" type="button" disabled>Analizar</button>
         <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
       </div>
       <div class="hhr-center-content">
-        <div class="hhr-lab-patient"><strong>Paciente actual</strong><span>Identificando desde Eloísa…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
+        <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
         <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
         <div class="hhr-lab-exam-list"></div>
         <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -2618,6 +3145,9 @@
     const selectAll = main.querySelector('.hhr-lab-select-all');
     const analyze = main.querySelector('.hhr-lab-analyze');
     const refresh = main.querySelector('.hhr-center-refresh');
+    main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
+      renderLabRequestView(root, encId)
+    );
     let batchId = '';
     let exams = [];
     let selected = new Set();
@@ -2716,6 +3246,16 @@
       exams = [];
       selected = new Set();
       invalidateLabAnalysis();
+      if (!/^\d+$/.test(String(encId || ''))) {
+        patientHost.querySelector('span').textContent =
+          'Selecciona un paciente con «Cambiar paciente» en la franja superior.';
+        status.textContent = 'Sin paciente seleccionado';
+        list.innerHTML = '';
+        results.innerHTML = '';
+        analyze.disabled = true;
+        selectAll.disabled = true;
+        return;
+      }
       status.textContent = 'Buscando exámenes en Syslab…';
       list.innerHTML = '<div class="hhr-center-empty">Consultando la sesión oficial de Syslab en la red local…</div>';
       results.innerHTML = '';
@@ -2820,6 +3360,614 @@
     const hours = Math.floor(minutes / 60);
     const rest = minutes % 60;
     return 'Vence en ' + hours + ' h' + (rest ? ' ' + rest + ' min' : '');
+  };
+
+  const fetchPatientHeaderView = async encId => {
+    const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId });
+    if (!response || response.error) {
+      return { error: (response && response.error) || 'No se pudo identificar al paciente.' };
+    }
+    const patient = response.patient || {};
+    return {
+      patient,
+      view: requestForms.buildPatientView(patient, patient.formattedRun),
+    };
+  };
+
+  // Inicio: resumen del Centro con accesos directos a cada módulo y a los documentos del
+  // censo (Reg+BRADEN vive aquí como acción de un clic).
+  const HOME_SHORTCUTS = [
+    { module: 'recipes', icon: 'recipes', title: 'Recetas', desc: 'Imprime recetas del paciente actual o de todos los hospitalizados.' },
+    { module: 'handoff', icon: 'handoff', title: 'Entrega de turno', desc: 'Entregas médicas y de enfermería, visibles para todo el equipo.' },
+    { module: 'vitals', icon: 'vitals', title: 'Signos vitales', desc: 'Última toma, historial y tendencias por paciente.' },
+    { module: 'scores', icon: 'scores', title: 'Scores', desc: 'CUDYR, Downton y Braden de todo el censo.' },
+    { module: 'lab', icon: 'lab', title: 'Laboratorio', desc: 'Resultados Syslab y solicitud de exámenes de sangre.' },
+    { module: 'imaging', icon: 'imaging', title: 'Imágenes · MMRAD', desc: 'Solicitud con formularios oficiales; informes en preparación.' },
+  ];
+
+  const renderHomeCenter = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    main.innerHTML = `
+      <div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Inicio</h2></div>
+      <div class="hhr-center-content">
+        <div class="hhr-home-section-title">Módulos</div>
+        <div class="hhr-home-grid">
+          ${HOME_SHORTCUTS.map(item => `
+            <button class="hhr-home-card" type="button" data-module="${item.module}">
+              <span class="hhr-home-card-icon">${ui.icons[item.icon]}</span>
+              <strong>${item.title}</strong>
+              <span class="hhr-home-card-desc">${item.desc}</span>
+            </button>
+          `).join('')}
+        </div>
+        <div class="hhr-home-section-title">Documentos del censo</div>
+        <div class="hhr-home-grid hhr-home-grid-actions">
+          <button class="hhr-home-card is-action hhr-home-regimen" type="button">
+            <span class="hhr-home-card-icon">${ui.icons.regimen}</span>
+            <strong>Reg + BRADEN</strong>
+            <span class="hhr-home-card-desc">PDF global con régimen vigente y escala BRADEN de todos los pacientes, en un clic.</span>
+          </button>
+          <button class="hhr-home-card is-action" type="button" data-module="indications">
+            <span class="hhr-home-card-icon">${ui.icons.indications}</span>
+            <strong>Indicaciones</strong>
+            <span class="hhr-home-card-desc">PDF único con las indicaciones oficiales de los pacientes que elijas.</span>
+          </button>
+        </div>
+      </div>
+    `;
+    main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
+      card.addEventListener('click', () => {
+        if (!confirmClinicalTransition(root)) return;
+        root.__hhrDismiss = null;
+        root.remove();
+        openCenterModule(card.dataset.module, encId, null);
+      });
+    });
+    main.querySelector('.hhr-home-regimen').addEventListener('click', () => {
+      if (!confirmClinicalTransition(root)) return;
+      root.__hhrDismiss = null;
+      root.remove();
+      createRegimenQuickDialog();
+    });
+  };
+
+  // MMRAD · Solicitud de Imágenes — port del panel de HHR: PNG oficial con overlays
+  // autocompletados en pantalla y marcado interactivo (cruces X / texto libre); al imprimir,
+  // el background rellena la plantilla PDF real con pdf-lib y abre el diálogo de impresión.
+  const renderImagingCenter = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    if (!requestForms) {
+      main.innerHTML = '<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Imágenes · MMRAD</h2></div>' +
+        '<div class="hhr-center-content"><div class="hhr-rx-error">Los formularios de solicitud no quedaron cargados. Recarga la extensión y la pestaña.</div></div>';
+      return;
+    }
+    const documents = requestForms.IMAGING_DOCUMENTS;
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Imágenes · MMRAD</h2>
+        <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de imágenes">
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar</button>
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="reports" aria-selected="false">Ver informes</button>
+        </div>
+      </div>
+      <div class="hhr-center-content">
+        <div class="hhr-rx-tabs hhr-imaging-tabs" role="tablist" aria-label="Documento">
+          ${Object.values(documents).map((doc, index) => `
+            <button class="hhr-rx-tab" type="button" role="tab" data-doc="${doc.id}" aria-selected="${index === 0}">${doc.title}</button>
+          `).join('')}
+        </div>
+        <div class="hhr-imaging-controls">
+          <input class="hhr-center-search hhr-imaging-physician" type="text" maxlength="120"
+            placeholder="Médico solicitante (nombre y apellido)" aria-label="Médico solicitante">
+          <div class="hhr-imaging-tools" role="group" aria-label="Herramientas de marcado">
+            <button class="hhr-center-action hhr-imaging-tool is-active" type="button" data-tool="cross" aria-pressed="true">✕ Cruz</button>
+            <button class="hhr-center-action hhr-imaging-tool" type="button" data-tool="text" aria-pressed="false">T Texto</button>
+            <button class="hhr-center-action hhr-imaging-undo" type="button">Deshacer</button>
+          </div>
+          <button class="hhr-center-action hhr-center-action-primary hhr-imaging-print" type="button" disabled>Imprimir</button>
+        </div>
+        <p class="hhr-imaging-hint">Los datos del paciente se completan solos. Haz clic sobre el formulario para marcar casillas con una cruz o agregar texto libre; lo que marques se imprime en el PDF oficial.</p>
+        <div class="hhr-imaging-stage">
+          <div class="hhr-imaging-canvas" role="img" aria-label="Vista previa del formulario">
+            <img class="hhr-imaging-image" alt="" draggable="false">
+            <div class="hhr-imaging-overlays"></div>
+          </div>
+        </div>
+        <div class="hhr-connection-feedback hhr-imaging-feedback" role="status" aria-live="polite"></div>
+      </div>
+    `;
+    const physicianInput = main.querySelector('.hhr-imaging-physician');
+    const printButton = main.querySelector('.hhr-imaging-print');
+    const undoButton = main.querySelector('.hhr-imaging-undo');
+    const canvas = main.querySelector('.hhr-imaging-canvas');
+    const image = main.querySelector('.hhr-imaging-image');
+    const overlaysHost = main.querySelector('.hhr-imaging-overlays');
+    const feedback = main.querySelector('.hhr-imaging-feedback');
+    const docTabs = Array.from(main.querySelectorAll('.hhr-imaging-tabs .hhr-rx-tab'));
+    const contentHost = main.querySelector('.hhr-center-content');
+    main.querySelector('.hhr-flow-tabs [data-flow="reports"]').addEventListener('click', event => {
+      main.querySelectorAll('.hhr-flow-tabs .hhr-rx-tab').forEach(tab =>
+        tab.setAttribute('aria-selected', String(tab === event.currentTarget)));
+      contentHost.innerHTML = `
+        <div class="hhr-connection-grid" style="padding-top:12px">
+          <section class="hhr-connection-card">
+            <div class="hhr-connection-card-header">
+              <span class="hhr-connection-icon">IMG</span>
+              <div><h3>Visualizar informes</h3><span class="hhr-connection-status">En preparación</span></div>
+            </div>
+            <div class="hhr-connection-user">Resultados de imagenología
+              <span class="hhr-connection-detail">La visualización de informes radiológicos dentro de este panel está en preparación. Por ahora revísalos en el visor habitual del servicio; la solicitud sigue disponible en la pestaña «Solicitar».</span>
+            </div>
+          </section>
+        </div>`;
+    });
+    main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
+      renderImagingCenter(root, encId)
+    );
+    if (!/^\d+$/.test(String(encId || ''))) {
+      main.querySelector('.hhr-center-content').innerHTML =
+        '<div class="hhr-center-empty">Selecciona un paciente con «Cambiar paciente» en la franja superior para autocompletar y solicitar imágenes.</div>';
+      return;
+    }
+
+    let selectedDoc = 'solicitud';
+    let toolMode = 'cross';
+    let patientView = null;
+    const marksByDoc = { solicitud: [], encuesta: [], consentimiento: [] };
+
+    const setFeedback = (message, error = false) => {
+      feedback.className = 'hhr-connection-feedback hhr-imaging-feedback' + (error ? ' is-error' : '');
+      setLiveRegion(feedback, message, error ? 'error' : '');
+    };
+
+    const renderOverlays = () => {
+      overlaysHost.innerHTML = '';
+      const doc = documents[selectedDoc];
+      if (patientView) {
+        doc.overlays(patientView, physicianInput.value.trim()).forEach(overlay => {
+          if (!overlay.text) return;
+          const node = document.createElement('div');
+          node.className = 'hhr-imaging-overlay' +
+            (overlay.bold ? ' is-bold' : '') + (overlay.small ? ' is-small' : '');
+          node.textContent = overlay.text;
+          node.style.left = overlay.left;
+          node.style.top = overlay.top;
+          overlaysHost.appendChild(node);
+        });
+      }
+      marksByDoc[selectedDoc].forEach(mark => {
+        const node = document.createElement('div');
+        node.className = 'hhr-imaging-mark' + (mark.text ? ' is-text' : '');
+        node.textContent = mark.text ? mark.text.toUpperCase() : 'X';
+        node.style.left = mark.x + '%';
+        node.style.top = mark.y + '%';
+        overlaysHost.appendChild(node);
+      });
+      undoButton.disabled = marksByDoc[selectedDoc].length === 0;
+    };
+
+    const renderDocument = () => {
+      const doc = documents[selectedDoc];
+      canvas.style.aspectRatio = doc.aspectRatio.replace(/\s/g, '');
+      try {
+        image.src = chrome.runtime.getURL(doc.image);
+      } catch (_error) {}
+      docTabs.forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.doc === selectedDoc)));
+      renderOverlays();
+    };
+
+    const openTextEditor = (x, y) => {
+      const editor = document.createElement('input');
+      editor.type = 'text';
+      editor.maxLength = 80;
+      editor.className = 'hhr-imaging-text-editor';
+      editor.style.left = x + '%';
+      editor.style.top = y + '%';
+      editor.setAttribute('aria-label', 'Texto libre sobre el formulario');
+      const commit = () => {
+        const text = editor.value.trim();
+        editor.remove();
+        if (text) {
+          marksByDoc[selectedDoc].push({ x, y, text });
+          renderOverlays();
+        }
+      };
+      editor.addEventListener('blur', commit);
+      editor.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); editor.blur(); }
+        if (event.key === 'Escape') { editor.value = ''; editor.blur(); }
+      });
+      overlaysHost.appendChild(editor);
+      editor.focus();
+    };
+
+    canvas.addEventListener('click', event => {
+      if (!patientView) return;
+      if (event.target.closest('.hhr-imaging-text-editor')) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
+      const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
+      if (toolMode === 'text') openTextEditor(x, y);
+      else {
+        marksByDoc[selectedDoc].push({ x, y });
+        renderOverlays();
+      }
+    });
+    main.querySelectorAll('.hhr-imaging-tool').forEach(button => {
+      button.addEventListener('click', () => {
+        toolMode = button.dataset.tool;
+        main.querySelectorAll('.hhr-imaging-tool').forEach(candidate => {
+          const active = candidate === button;
+          candidate.classList.toggle('is-active', active);
+          candidate.setAttribute('aria-pressed', String(active));
+        });
+      });
+    });
+    undoButton.addEventListener('click', () => {
+      marksByDoc[selectedDoc].pop();
+      renderOverlays();
+    });
+    docTabs.forEach(tab => tab.addEventListener('click', () => {
+      if (tab.dataset.doc === selectedDoc) return;
+      selectedDoc = tab.dataset.doc;
+      renderDocument();
+    }));
+    physicianInput.addEventListener('input', renderOverlays);
+
+    printButton.addEventListener('click', async () => {
+      printButton.disabled = true;
+      printButton.textContent = 'Generando PDF…';
+      setFeedback('Rellenando la plantilla oficial…');
+      const result = await sendMessage({
+        type: 'RAYEN_IMAGING_FORM_PRINT_REQUEST',
+        encId,
+        doc: selectedDoc,
+        physician: physicianInput.value.trim(),
+        marks: marksByDoc[selectedDoc],
+      });
+      if (!root.isConnected) return;
+      printButton.disabled = false;
+      printButton.textContent = 'Imprimir';
+      if (!result || result.error) {
+        setFeedback((result && result.error) || 'No se pudo generar el formulario.', true);
+        return;
+      }
+      setFeedback('Se abrió el PDF con el diálogo de impresión. Puedes seguir marcando e imprimir de nuevo.');
+    });
+
+    renderDocument();
+    fetchPatientHeaderView(encId).then(result => {
+      if (!root.isConnected || root.dataset.activeModule !== 'imaging') return;
+      if (result.error) {
+        setFeedback(result.error, true);
+        return;
+      }
+      patientView = result.view;
+      printButton.disabled = false;
+      renderDocument();
+    });
+  };
+
+  // Signos vitales — datos del formulario VITAL_SIGNS de Ficha Médico (mismo feed que las
+  // escalas). Tiles de última toma con umbrales de alerta idénticos a HHR, historial agrupado
+  // por día y gráficas de tendencia opcionales.
+  // Trend chart with real axes: min/mid/max gridlines with values on the left, first/last
+  // date-time under the baseline, and a <title> tooltip (value · timestamp) per point.
+  const vitalsSparklineSvg = points => {
+    const escSvg = value => String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const width = 320;
+    const height = 118;
+    const padL = 38;
+    const padR = 12;
+    const padT = 10;
+    const padB = 20;
+    const values = points.map(point => point.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+    const x = index => padL + (points.length > 1 ? ((width - padL - padR) / (points.length - 1)) * index : 0);
+    const y = value => padT + (height - padT - padB) * (1 - (value - min) / span);
+    const formatValue = value => (Number.isInteger(value) ? String(value) : value.toFixed(1));
+    const mid = (min + max) / 2;
+    const gridline = value => `
+      <line x1="${padL}" y1="${y(value).toFixed(1)}" x2="${width - padR}" y2="${y(value).toFixed(1)}"
+        stroke="#dbe4e1" stroke-width="1" stroke-dasharray="3 3"></line>
+      <text x="${padL - 5}" y="${(y(value) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#7c8886">${formatValue(value)}</text>`;
+    const line = points.map((point, index) => `${x(index).toFixed(1)},${y(point.value).toFixed(1)}`).join(' ');
+    const dots = points.map((point, index) => {
+      const fill = point.status === 'alert' ? '#c94c43' : point.status === 'warn' ? '#d8a72e' : '#0f938c';
+      return `<circle cx="${x(index).toFixed(1)}" cy="${y(point.value).toFixed(1)}" r="3" fill="${fill}">
+        <title>${escSvg(point.at)} · ${formatValue(point.value)}</title>
+      </circle>`;
+    }).join('');
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Tendencia">
+      ${gridline(max)}${max - min > 1 ? gridline(mid) : ''}${gridline(min)}
+      <polyline points="${line}" fill="none" stroke="#0f938c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+      ${dots}
+      <text x="${padL}" y="${height - 5}" font-size="8.5" fill="#7c8886">${escSvg(first.at)}</text>
+      <text x="${width - padR}" y="${height - 5}" text-anchor="end" font-size="8.5" fill="#7c8886">${escSvg(last.at)}</text>
+    </svg>`;
+  };
+
+  const renderVitalsCenter = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Signos vitales</h2>
+        <button class="hhr-center-action hhr-vitals-charts" type="button" aria-pressed="false" hidden>Ver gráficas</button>
+        <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
+      </div>
+      <div class="hhr-center-content"><div class="hhr-center-empty">Leyendo signos vitales desde Eloísa…</div></div>
+    `;
+    const content = main.querySelector('.hhr-center-content');
+    const chartsToggle = main.querySelector('.hhr-vitals-charts');
+    main.querySelector('.hhr-center-refresh').addEventListener('click', () => renderVitalsCenter(root, encId));
+    if (!vitalsHelper) {
+      content.innerHTML = '<div class="hhr-rx-error">El módulo de signos vitales no quedó cargado. Recarga la extensión y la pestaña.</div>';
+      return;
+    }
+    if (!/^\d+$/.test(String(encId || ''))) {
+      content.innerHTML = '<div class="hhr-center-empty">Selecciona un paciente con «Cambiar paciente» en la franja superior para revisar sus signos vitales.</div>';
+      return;
+    }
+
+    sendMessage({ type: 'RAYEN_SCALES_REPORT_REQUEST', encId }).then(response => {
+      if (!root.isConnected || root.dataset.activeModule !== 'vitals') return;
+      if (!response || response.error) {
+        content.innerHTML = '';
+        const error = document.createElement('div');
+        error.className = 'hhr-rx-error';
+        error.textContent = (response && response.error) || 'No se pudieron leer los signos vitales.';
+        content.appendChild(error);
+        return;
+      }
+      const records = vitalsHelper.parseVitalSigns(response.forms);
+      content.innerHTML = '';
+      if (!records.length) {
+        content.insertAdjacentHTML('beforeend',
+          '<div class="hhr-center-empty">No hay signos vitales registrados en este episodio.</div>');
+        return;
+      }
+      const metrics = vitalsHelper.VITAL_METRICS;
+      const latest = records[0];
+
+      const latestHead = document.createElement('div');
+      latestHead.className = 'hhr-vitals-section-title';
+      const latestTitle = document.createElement('span');
+      latestTitle.textContent = 'Última toma';
+      const latestMeta = document.createElement('span');
+      latestMeta.textContent = latest.recordedAt + (latest.author ? ' · ' + latest.author : '');
+      latestHead.append(latestTitle, latestMeta);
+      content.appendChild(latestHead);
+      const grid = document.createElement('div');
+      grid.className = 'hhr-vitals-grid';
+      metrics.forEach(metric => {
+        const text = metric.text(latest);
+        const tile = document.createElement('div');
+        tile.className = 'hhr-vitals-tile is-' + metric.status(latest);
+        tile.innerHTML = `<span class="hhr-vitals-label">${metric.label}</span>
+          <span class="hhr-vitals-value">${text || '–'}</span>
+          <span class="hhr-vitals-unit">${metric.unit}</span>`;
+        grid.appendChild(tile);
+      });
+      content.appendChild(grid);
+      if (latest.observations) {
+        const obs = document.createElement('div');
+        obs.className = 'hhr-vitals-obs';
+        obs.textContent = 'Observaciones: ' + latest.observations;
+        content.appendChild(obs);
+      }
+
+      const chartsHost = document.createElement('div');
+      chartsHost.className = 'hhr-lab-trends hhr-vitals-trends';
+      chartsHost.hidden = true;
+      content.appendChild(chartsHost);
+      const chartMetrics = metrics.filter(metric => metric.key !== 'insulin' && metric.key !== 'painEva');
+      const renderCharts = () => {
+        chartsHost.innerHTML = '';
+        const chronological = records.slice().reverse();
+        chartMetrics.forEach(metric => {
+          const points = chronological
+            .map(record => ({
+              value: metric.key === 'pa' ? record.systolic : metric.series(record),
+              status: metric.status(record),
+              at: record.recordedAt,
+            }))
+            .filter(point => point.value != null);
+          if (points.length < 2) return;
+          const card = document.createElement('div');
+          card.className = 'hhr-lab-trend-card hhr-vitals-trend-card';
+          const cardTitle = document.createElement('strong');
+          cardTitle.textContent = metric.label + (metric.unit ? ' · ' + metric.unit : '');
+          card.appendChild(cardTitle);
+          card.insertAdjacentHTML('beforeend', vitalsSparklineSvg(points));
+          const lastReading = points[points.length - 1];
+          const lastLine = document.createElement('div');
+          lastLine.className = 'hhr-lab-trend-labels';
+          lastLine.textContent = 'Último: ' + lastReading.value + (metric.unit ? ' ' + metric.unit : '') +
+            ' · ' + lastReading.at + ' · ' + points.length + ' tomas';
+          card.appendChild(lastLine);
+          chartsHost.appendChild(card);
+        });
+        if (!chartsHost.children.length) {
+          chartsHost.innerHTML = '<div class="hhr-center-empty">No hay suficientes tomas para graficar tendencias.</div>';
+        }
+      };
+      chartsToggle.hidden = false;
+      chartsToggle.addEventListener('click', () => {
+        const show = chartsHost.hidden;
+        chartsHost.hidden = !show;
+        if (show) renderCharts();
+        chartsToggle.setAttribute('aria-pressed', String(show));
+        chartsToggle.textContent = show ? 'Ocultar gráficas' : 'Ver gráficas';
+      });
+
+      const historyHead = document.createElement('div');
+      historyHead.className = 'hhr-vitals-section-title';
+      historyHead.innerHTML = `<span>Historial</span><span>${records.length} ${records.length === 1 ? 'toma' : 'tomas'}</span>`;
+      content.appendChild(historyHead);
+      const table = document.createElement('table');
+      table.className = 'hhr-center-table hhr-vitals-table';
+      table.innerHTML = `<thead><tr><th>Hora</th>${metrics.map(metric => `<th>${metric.label}</th>`).join('')}</tr></thead><tbody></tbody>`;
+      const tbody = table.querySelector('tbody');
+      let currentDay = '';
+      records.forEach(record => {
+        const day = record.recordedAt.slice(0, 10);
+        if (day !== currentDay) {
+          currentDay = day;
+          const dayRow = document.createElement('tr');
+          dayRow.className = 'hhr-vitals-day';
+          dayRow.innerHTML = `<td colspan="${metrics.length + 1}">${day}</td>`;
+          tbody.appendChild(dayRow);
+        }
+        const row = document.createElement('tr');
+        if (record.observations || record.author) {
+          row.title = [record.observations, record.author && 'Registró: ' + record.author]
+            .filter(Boolean).join('\n');
+        }
+        const timeCell = document.createElement('td');
+        timeCell.textContent = record.recordedAt.slice(11) || record.recordedAt;
+        row.appendChild(timeCell);
+        metrics.forEach(metric => {
+          const cell = document.createElement('td');
+          const status = metric.status(record);
+          if (status !== 'normal') cell.className = 'is-' + status;
+          cell.textContent = metric.text(record) || '·';
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
+      });
+      const tableWrap = document.createElement('div');
+      tableWrap.className = 'hhr-vitals-table-wrap';
+      tableWrap.appendChild(table);
+      content.appendChild(tableWrap);
+    });
+  };
+
+  // Solicitud de laboratorio — réplica del formulario oficial HHR (checkboxes por categoría),
+  // autocompletada con el paciente actual; imprime vía pestaña dedicada con window.print().
+  const renderLabRequestView = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    if (!requestForms) return;
+    const categories = requestForms.EXAM_CATEGORIES;
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Laboratorio</h2>
+        <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de laboratorio">
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="results" aria-selected="false">Ver resultados</button>
+          <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar exámenes</button>
+        </div>
+        <span class="hhr-labreq-count">0 exámenes seleccionados</span>
+        <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
+      </div>
+      <div class="hhr-center-content">
+        <div class="hhr-labreq-meta">
+          <div class="hhr-labreq-meta-group" role="radiogroup" aria-label="Procedencia">
+            <span class="hhr-labreq-meta-label">Procedencia</span>
+            ${requestForms.PROCEDENCIA_OPTIONS.map(option => `
+              <label class="hhr-labreq-chip"><input type="radio" name="hhr-labreq-procedencia" value="${option}" ${option === 'Hospitalización' ? 'checked' : ''}>${option}</label>
+            `).join('')}
+          </div>
+          <div class="hhr-labreq-meta-group" role="radiogroup" aria-label="Previsión">
+            <span class="hhr-labreq-meta-label">FONASA</span>
+            ${requestForms.FONASA_LEVELS.map(level => `
+              <label class="hhr-labreq-chip"><input type="radio" name="hhr-labreq-fonasa" value="${level}">${level}</label>
+            `).join('')}
+            <label class="hhr-labreq-chip"><input type="checkbox" class="hhr-labreq-prais">PRAIS</label>
+          </div>
+        </div>
+        <div class="hhr-labreq-grid">
+          ${requestForms.LAB_FORM_COLUMNS.map(column => `
+            <div class="hhr-labreq-column">
+              ${column.map(id => {
+                const category = categories.find(candidate => candidate.id === id);
+                return `
+                  <section class="hhr-labreq-section">
+                    <header>${category.name}${category.tube ? `<small>${category.tube}</small>` : ''}</header>
+                    ${category.exams.map(exam => `
+                      <label class="hhr-labreq-exam"><input type="checkbox" data-key="${category.id}|${exam.replace(/"/g, '&quot;')}">${exam}</label>
+                    `).join('')}
+                  </section>`;
+              }).join('')}
+            </div>
+          `).join('')}
+        </div>
+        <div class="hhr-labreq-footer">
+          <input class="hhr-center-search hhr-labreq-otros" type="text" maxlength="160" placeholder="Otros exámenes" aria-label="Otros exámenes">
+          <input class="hhr-center-search hhr-labreq-medico" type="text" maxlength="120" placeholder="Médico tratante" aria-label="Médico tratante">
+        </div>
+        <div class="hhr-connection-feedback hhr-labreq-feedback" role="status" aria-live="polite"></div>
+      </div>
+    `;
+    const counter = main.querySelector('.hhr-labreq-count');
+    const printButton = main.querySelector('.hhr-labreq-print');
+    const feedback = main.querySelector('.hhr-labreq-feedback');
+    let patientData = null;
+    let patientViewData = null;
+
+    main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () =>
+      renderLabCenter(root, encId)
+    );
+    const selectedKeys = () => Array.from(main.querySelectorAll('.hhr-labreq-exam input:checked'))
+      .map(input => input.dataset.key);
+    const updateCount = () => {
+      const count = selectedKeys().length;
+      counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
+      printButton.disabled = !patientData || count === 0;
+    };
+    main.querySelector('.hhr-labreq-grid').addEventListener('change', updateCount);
+
+    printButton.addEventListener('click', () => {
+      if (!patientData) return;
+      const fonasa = main.querySelector('input[name="hhr-labreq-fonasa"]:checked');
+      const procedencia = main.querySelector('input[name="hhr-labreq-procedencia"]:checked');
+      let logoUrl = '';
+      try { logoUrl = chrome.runtime.getURL('hhr-logo.svg'); } catch (_error) {}
+      const html = requestForms.buildLabRequestPrintHtml({
+        patient: {
+          name: patientData.name || '',
+          run: patientData.formattedRun || patientData.run || '',
+          birthDate: patientViewData ? patientViewData.nacimiento : '',
+        },
+        diagnosis: patientData.diagnosis || '',
+        ficha: '',
+        procedencia: procedencia ? procedencia.value : 'Hospitalización',
+        fonasaLevel: fonasa ? fonasa.value : '',
+        prais: main.querySelector('.hhr-labreq-prais').checked,
+        selected: selectedKeys(),
+        otros: main.querySelector('.hhr-labreq-otros').value.trim(),
+        medico: main.querySelector('.hhr-labreq-medico').value.trim(),
+        logoUrl,
+      });
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setLiveRegion(feedback, 'El navegador bloqueó la pestaña de impresión. Permite ventanas emergentes.', 'error');
+        return;
+      }
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setLiveRegion(feedback, 'Se abrió la solicitud con el diálogo de impresión.');
+    });
+
+    if (!/^\d+$/.test(String(encId || ''))) {
+      setLiveRegion(feedback,
+        'Selecciona un paciente con «Cambiar paciente» en la franja superior para autocompletar la solicitud.');
+      return;
+    }
+    fetchPatientHeaderView(encId).then(result => {
+      if (!root.isConnected) return;
+      if (result.error) {
+        setLiveRegion(feedback, result.error, 'error');
+        return;
+      }
+      patientData = result.patient;
+      patientViewData = result.view;
+      updateCount();
+    });
+    updateCount();
   };
 
   const renderConnectionCenter = (root, _encId) => {
@@ -2957,11 +4105,16 @@
     void load();
   };
 
+  const barPart = (bar, selector) => {
+    const root = bar && bar.__hhrRoot;
+    return root ? root.querySelector(selector) : null;
+  };
+
   let operationsConnectionCheckAt = 0;
   let operationsConnectionCheck = null;
   const refreshOperationsConnectionBadge = (bar, force = false, knownReport = null) => {
     if (!bar) return Promise.resolve(null);
-    const button = bar.querySelector('.hhr-ops-session');
+    const button = barPart(bar, '.hhr-ops-session');
     if (!button) return Promise.resolve(null);
     const apply = report => {
       if (!report || !bar.isConnected) return report;
@@ -2970,25 +4123,38 @@
       const identity = ficha.identity || {};
       const name = identity.fullName || 'Sesión HHR';
       const role = String(identity.role || '');
-      const handoffButton = bar.querySelector('.hhr-ops-handoff');
+      const handoffButton = barPart(bar, '.hhr-ops-handoff');
       if (handoffButton) {
         const handoffTitle = globalThis.HhrPrescriptionPrint.handoffLabelForIdentity(
           role,
           identity.practitionerRoleId
         );
-        handoffButton.title = handoffTitle;
+        handoffButton.dataset.tip = handoffTitle;
         handoffButton.setAttribute('aria-label', handoffTitle);
       }
+      const state = ficha.status !== 'ready'
+        ? 'is-offline'
+        : camas.status === 'ready' ? 'is-ready' : 'is-degraded';
+      button.classList.remove('is-ready', 'is-degraded', 'is-offline');
+      button.classList.add(state);
       button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
-      button.className = 'hhr-ops-session ' + (
-        ficha.status !== 'ready' ? 'is-offline' : camas.status === 'ready' ? 'is-ready' : 'is-degraded'
-      );
-      button.title = [
-        name,
+      const sessionName = button.querySelector('.session-name');
+      if (sessionName) sessionName.textContent = name;
+      const sessionState = button.querySelector('.session-state');
+      if (sessionState) {
+        sessionState.textContent = state === 'is-ready'
+          ? 'Conectado'
+          : state === 'is-degraded' ? 'Conexión parcial' : 'Sin conexión';
+      }
+      const details = [
         ficha.status === 'ready' ? 'Ficha Médico conectada' : 'Ficha Médico no conectada',
-        camas.status === 'ready' ? 'Gestión de Camas · ' + connectionTimeLabel(camas) : 'Gestión de Camas no conectada',
-      ].join(' · ');
-      button.setAttribute('aria-label', button.title);
+        camas.status === 'ready'
+          ? 'Gestión de Camas · ' + connectionTimeLabel(camas)
+          : 'Gestión de Camas no conectada',
+      ];
+      button.dataset.tip = name;
+      button.dataset.tipNote = details.join(' · ');
+      button.setAttribute('aria-label', [name, ...details].join(' · '));
       return report;
     };
     if (knownReport) {
@@ -3010,20 +4176,13 @@
     const focusReturnTarget = returnFocusTarget || document.activeElement;
     if (!closeModal()) return;
     ensureStyles();
-    const activeModule = ['scores', 'connection', 'lab'].includes(module) ? module : 'handoff';
+    const activeModule = ['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module) ? module : 'handoff';
     const root = document.createElement('div');
     root.id = MODAL_ID;
     root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
     root.dataset.activeModule = activeModule;
-    root.innerHTML = `
-      <div class="hhr-rx-backdrop" aria-hidden="true"></div>
-      <section class="hhr-rx-dialog hhr-center-dialog" role="dialog" aria-modal="true" aria-label="Centro HHR">
-        <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
-        <header class="hhr-center-header"><img alt="" aria-hidden="true"><strong>Centro HHR</strong></header>
-        <div class="hhr-center-shell"><nav class="hhr-center-nav" aria-label="Módulos clínicos">${centerNavMarkup(activeModule)}</nav><main class="hhr-center-main"></main></div>
-      </section>
-    `;
-    try { root.querySelector('.hhr-center-header img').src = chrome.runtime.getURL('hhr-logo.svg'); } catch (_error) { root.querySelector('.hhr-center-header img').remove(); }
+    root.innerHTML = centerShellMarkup(activeModule);
+    applyCenterShellLogo(root);
     getClinicalGuard(root);
     const dismiss = () => {
       if (!confirmClinicalTransition(root)) return false;
@@ -3044,24 +4203,20 @@
       }
       trapModalFocus(root, event);
     });
-    root.querySelectorAll('.hhr-center-nav-button').forEach(button => {
-      button.addEventListener('click', () => {
-        const target = button.dataset.module;
-        if (target === activeModule) return;
-        if (!confirmClinicalTransition(root)) return;
-        root.__hhrDismiss = null;
-        root.remove();
-        if (target === 'recipes') createModal(encId);
-        else if (target === 'regimen' || target === 'indications') createHospitalizedDocumentsModal(target, encId);
-        else createOperationsCenterModal(target, encId, focusReturnTarget);
-      });
-    });
+    wireCenterNavButtons(root, activeModule, encId, focusReturnTarget);
     document.body.appendChild(root);
     root.querySelector('.hhr-rx-close').focus();
-    if (activeModule === 'handoff') renderHandoffCenter(root, encId);
-    else if (activeModule === 'scores') renderScoresCenter(root, encId);
-    else if (activeModule === 'lab') renderLabCenter(root, encId);
-    else renderConnectionCenter(root, encId);
+    const renderModule = targetEncId => {
+      if (activeModule === 'handoff') renderHandoffCenter(root, targetEncId);
+      else if (activeModule === 'scores') renderScoresCenter(root, targetEncId);
+      else if (activeModule === 'lab') renderLabCenter(root, targetEncId);
+      else if (activeModule === 'imaging') renderImagingCenter(root, targetEncId);
+      else if (activeModule === 'vitals') renderVitalsCenter(root, targetEncId);
+      else if (activeModule === 'home') renderHomeCenter(root, targetEncId);
+      else renderConnectionCenter(root, targetEncId);
+    };
+    setupCenterPatientContext(root, activeModule, encId, renderModule);
+    renderModule(encId);
   };
 
   const findPharmaHeading = () => {
@@ -3151,6 +4306,302 @@
     bar.style.setProperty('--hhr-ops-top', Math.round(headerBottom + 5) + 'px');
   };
 
+  // Regímenes y BRADEN dejó de ser una sección completa: el valor está en el PDF global.
+  // Este diálogo compacto verifica el censo, muestra el resumen y lo imprime en un clic.
+  const createRegimenQuickDialog = () => {
+    const focusReturnTarget = document.activeElement;
+    if (!closeModal()) return;
+    ensureStyles();
+    const root = document.createElement('div');
+    root.id = MODAL_ID;
+    root.innerHTML = `
+      <div class="hhr-rx-backdrop" aria-hidden="true"></div>
+      <section class="hhr-rx-dialog hhr-rx-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
+        <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
+        <header class="hhr-rx-header">
+          <h2 class="hhr-rx-title" id="hhr-rx-title">Regímenes y BRADEN</h2>
+          <p class="hhr-rx-subtitle">PDF global con régimen vigente y escala BRADEN de todos los hospitalizados.</p>
+        </header>
+        <div class="hhr-rx-body"><div class="hhr-rx-status">Verificando censo…</div></div>
+        <footer class="hhr-rx-footer">
+          <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
+          <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled>Imprimir PDF global</button>
+        </footer>
+      </section>
+    `;
+    document.body.appendChild(root);
+    const body = root.querySelector('.hhr-rx-body');
+    const submit = root.querySelector('.hhr-rx-submit');
+    const cancel = root.querySelector('.hhr-rx-cancel');
+    const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
+    root.__hhrDismiss = dismiss;
+    cancel.addEventListener('click', dismiss);
+    root.querySelector('.hhr-rx-close').addEventListener('click', dismiss);
+    root.querySelector('.hhr-rx-backdrop').addEventListener('click', dismiss);
+    root.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      trapModalFocus(root, event);
+    });
+    root.querySelector('.hhr-rx-close').focus();
+
+    const renderError = message => {
+      body.innerHTML = '';
+      const error = document.createElement('div');
+      error.className = 'hhr-rx-error';
+      error.textContent = message;
+      body.appendChild(error);
+      submit.disabled = true;
+    };
+
+    sendMessage({ type: 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST', currentEncId: '' }).then(response => {
+      if (!root.isConnected) return;
+      if (!response || response.error) {
+        renderError((response && response.error) || 'No se pudo leer la lista de hospitalizados.');
+        return;
+      }
+      const patients = Array.isArray(response.patients) ? response.patients : [];
+      if (!patients.length) {
+        body.innerHTML = '<div class="hhr-rx-status">No hay pacientes hospitalizados disponibles.</div>';
+        return;
+      }
+      const regimenCount = Number.isFinite(Number(response.regimenCount))
+        ? Number(response.regimenCount)
+        : patients.filter(patient => patient.regimen).length;
+      const bradenCount = Number.isFinite(Number(response.bradenCount))
+        ? Number(response.bradenCount)
+        : patients.filter(patient => patient.braden).length;
+      body.innerHTML = '';
+      const summary = document.createElement('div');
+      summary.className = 'hhr-lab-summary';
+      [
+        patients.length + (patients.length === 1 ? ' paciente hospitalizado' : ' pacientes hospitalizados'),
+        regimenCount + ' con régimen vigente',
+        bradenCount + ' con BRADEN',
+      ].forEach(text => {
+        const stat = document.createElement('span');
+        stat.className = 'hhr-lab-stat';
+        stat.textContent = text;
+        summary.appendChild(stat);
+      });
+      body.appendChild(summary);
+      const blocked = Number(response.regimenErrorCount || 0) > 0 || Number(response.unavailableCount || 0) > 0;
+      if (blocked) {
+        const notice = document.createElement('div');
+        notice.className = 'hhr-center-notice';
+        notice.textContent = 'Faltan regímenes o resultados BRADEN por verificar. Cierra y reintenta antes de imprimir.';
+        body.appendChild(notice);
+      }
+      submit.disabled = blocked;
+      submit.onclick = async () => {
+        submit.disabled = true;
+        cancel.disabled = true;
+        submit.textContent = 'Preparando PDF…';
+        const result = await sendMessage({ type: 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST' });
+        if (!root.isConnected) return;
+        cancel.disabled = false;
+        if (!result || result.error) {
+          renderError((result && result.error) || 'No se pudo preparar el documento.');
+          submit.disabled = false;
+          submit.textContent = 'Reintentar impresión';
+          return;
+        }
+        let feedback = body.querySelector('.hhr-rx-print-feedback');
+        if (!feedback) {
+          feedback = document.createElement('div');
+          feedback.className = 'hhr-rx-status hhr-rx-print-feedback';
+          body.prepend(feedback);
+        }
+        setLiveRegion(feedback,
+          'Se abrió el régimen integrado de ' + result.count + ' pacientes: ' + result.regimenCount +
+          ' con régimen vigente y ' + result.bradenCount + ' con BRADEN disponible.');
+        cancel.textContent = 'Cerrar';
+        submit.disabled = false;
+        submit.textContent = 'Imprimir nuevamente';
+      };
+    });
+  };
+
+  // Favoritos: accesos rápidos a páginas web, persistidos localmente en el navegador.
+  const FAVORITES_STORAGE_KEY = 'hhrFavorites';
+  const readFavorites = () => new Promise(resolve => {
+    try {
+      chrome.storage.local.get(FAVORITES_STORAGE_KEY, stored => {
+        const list = stored && Array.isArray(stored[FAVORITES_STORAGE_KEY])
+          ? stored[FAVORITES_STORAGE_KEY]
+          : null;
+        resolve(list);
+      });
+    } catch (_error) {
+      resolve(null);
+    }
+  });
+  const writeFavorites = list => new Promise(resolve => {
+    try {
+      chrome.storage.local.set({ [FAVORITES_STORAGE_KEY]: list }, () => resolve(!chrome.runtime.lastError));
+    } catch (_error) {
+      resolve(false);
+    }
+  });
+  const normalizeFavoriteUrl = raw => {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    try {
+      const url = new URL(/^https?:\/\//i.test(value) ? value : 'https://' + value);
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    } catch (_error) {
+      return '';
+    }
+  };
+
+  const createFavoritesDialog = () => {
+    const focusReturnTarget = document.activeElement;
+    if (!closeModal()) return;
+    ensureStyles();
+    const root = document.createElement('div');
+    root.id = MODAL_ID;
+    root.innerHTML = `
+      <div class="hhr-rx-backdrop" aria-hidden="true"></div>
+      <section class="hhr-rx-dialog hhr-rx-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
+        <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
+        <header class="hhr-rx-header">
+          <h2 class="hhr-rx-title" id="hhr-rx-title">Favoritos</h2>
+          <p class="hhr-rx-subtitle">Accesos rápidos a páginas web. Se guardan solo en este navegador.</p>
+        </header>
+        <div class="hhr-rx-body">
+          <div class="hhr-fav-list"></div>
+          <div class="hhr-rx-format-title">Agregar favorito</div>
+          <div class="hhr-fav-form">
+            <input class="hhr-rx-search hhr-fav-name" type="text" maxlength="60" placeholder="Nombre" aria-label="Nombre del favorito">
+            <input class="hhr-rx-search hhr-fav-url" type="url" maxlength="300" placeholder="https://…" aria-label="URL del favorito">
+            <button class="hhr-rx-action hhr-rx-action-primary hhr-fav-add" type="button">Agregar</button>
+          </div>
+          <div class="hhr-connection-feedback hhr-fav-feedback" role="status" aria-live="polite"></div>
+        </div>
+        <footer class="hhr-rx-footer">
+          <button class="hhr-rx-action hhr-rx-cancel" type="button">Cerrar</button>
+        </footer>
+      </section>
+    `;
+    document.body.appendChild(root);
+    const list = root.querySelector('.hhr-fav-list');
+    const nameInput = root.querySelector('.hhr-fav-name');
+    const urlInput = root.querySelector('.hhr-fav-url');
+    const feedback = root.querySelector('.hhr-fav-feedback');
+    const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
+    root.__hhrDismiss = dismiss;
+    root.querySelector('.hhr-rx-cancel').addEventListener('click', dismiss);
+    root.querySelector('.hhr-rx-close').addEventListener('click', dismiss);
+    root.querySelector('.hhr-rx-backdrop').addEventListener('click', dismiss);
+    root.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      trapModalFocus(root, event);
+    });
+
+    let favorites = [];
+    const renderList = () => {
+      list.innerHTML = '';
+      if (!favorites.length) {
+        list.innerHTML = '<div class="hhr-center-empty">Aún no hay favoritos guardados.</div>';
+        return;
+      }
+      favorites.forEach((favorite, index) => {
+        const row = document.createElement('div');
+        row.className = 'hhr-fav-row';
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'hhr-fav-open';
+        const title = document.createElement('strong');
+        title.textContent = favorite.name || favorite.url;
+        const meta = document.createElement('span');
+        meta.textContent = favorite.url;
+        open.append(title, meta);
+        open.addEventListener('click', () => window.open(favorite.url, '_blank', 'noopener'));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'hhr-fav-remove';
+        remove.setAttribute('aria-label', 'Eliminar ' + (favorite.name || favorite.url));
+        remove.textContent = '×';
+        remove.addEventListener('click', async () => {
+          favorites.splice(index, 1);
+          await writeFavorites(favorites);
+          renderList();
+        });
+        row.append(open, remove);
+        list.appendChild(row);
+      });
+    };
+
+    root.querySelector('.hhr-fav-add').addEventListener('click', async () => {
+      const url = normalizeFavoriteUrl(urlInput.value);
+      if (!url) {
+        setLiveRegion(feedback, 'Ingresa una dirección web válida (http o https).', 'error');
+        return;
+      }
+      favorites.push({ name: nameInput.value.trim() || url.replace(/^https?:\/\//, ''), url });
+      const saved = await writeFavorites(favorites);
+      nameInput.value = '';
+      urlInput.value = '';
+      setLiveRegion(feedback, saved ? 'Favorito guardado.' : 'No se pudo guardar el favorito.', saved ? '' : 'error');
+      renderList();
+      nameInput.focus();
+    });
+
+    root.querySelector('.hhr-rx-close').focus();
+    readFavorites().then(stored => {
+      if (!root.isConnected) return;
+      favorites = stored || [{ name: 'HHR · Sistema Estadístico', url: 'https://testinghhr.netlify.app/' }];
+      if (!stored) void writeFavorites(favorites);
+      renderList();
+    });
+  };
+
+  const OPERATIONS_MODULES = [
+    {
+      key: 'recipes', label: 'Recetas', icon: 'recipes',
+      tip: 'Recetas médicas',
+      note: 'Imprime recetas del paciente actual o de todos los hospitalizados.',
+      aria: 'Abrir centro de recetas',
+    },
+    {
+      key: 'handoff', label: 'Turno', icon: 'handoff',
+      tip: 'Entrega de turno',
+      note: 'Registra y revisa la entrega de turno del servicio.',
+      aria: 'Entrega de turno',
+    },
+    {
+      key: 'vitals', label: 'Vitales', icon: 'vitals',
+      tip: 'Signos vitales',
+      note: 'Última toma, historial y tendencias del paciente actual.',
+      aria: 'Signos vitales',
+    },
+    {
+      key: 'scores', label: 'Scores', icon: 'scores',
+      tip: 'Scores de enfermería',
+      note: 'Instrumentos y escalas de evaluación por paciente.',
+      aria: 'Scores de enfermería',
+    },
+    {
+      key: 'lab', label: 'Lab', icon: 'lab',
+      tip: 'Laboratorio Syslab',
+      note: 'Resultados de exámenes con comparación y tendencias.',
+      aria: 'Exámenes de laboratorio',
+    },
+    {
+      key: 'imaging', label: 'MMRAD', icon: 'imaging',
+      tip: 'Imágenes · MMRAD',
+      note: 'Solicitud de imágenes con formularios oficiales y, próximamente, informes.',
+      aria: 'Imágenes y radiología',
+    },
+  ];
+
   const ensureOperationsBar = encId => {
     let bar = document.getElementById(OPERATIONS_BAR_ID);
     if (!bar) {
@@ -3159,75 +4610,62 @@
       bar.id = OPERATIONS_BAR_ID;
       bar.setAttribute('role', 'toolbar');
       bar.setAttribute('aria-label', 'Centro de operaciones del Hospital Hanga Roa');
-      bar.innerHTML = `
-        <div class="hhr-ops-brand" aria-label="Hospital Hanga Roa">
-          <img class="hhr-ops-logo" alt="" aria-hidden="true">
-          <span class="hhr-ops-brand-copy">
-            <strong>Centro HHR</strong>
-            <span>Operaciones clínicas</span>
-          </span>
-        </div>
-        <button class="hhr-ops-session is-degraded" type="button" aria-label="Comprobar conexiones" title="Comprobar conexiones">
-          <span class="hhr-ops-avatar" aria-hidden="true">HHR</span>
-          <span class="hhr-ops-connection-dot" aria-hidden="true"></span>
+      const shadow = bar.attachShadow({ mode: 'open' });
+      bar.__hhrRoot = shadow;
+      shadow.innerHTML = `
+        <style>${ui.barCss}</style>
+        <button class="brand" type="button" aria-label="Abrir Centro HHR"
+          data-tip="Centro HHR" data-tip-note="Abre el centro completo en el último módulo que usaste.">
+          <img class="brand-logo" alt="" aria-hidden="true">
+          <span class="brand-name">Centro HHR</span>
         </button>
-        <div class="hhr-ops-modules">
-          <button class="hhr-ops-module hhr-ops-recipes" type="button" aria-label="Abrir centro de recetas" title="Recetas">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M19 8H5c-1.66 0-3 1.34-3 3v4h4v4h12v-4h4v-4c0-1.66-1.34-3-3-3Zm-3 9H8v-5h8v5Zm3-5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM18 3H6v4h12V3Z"/>
-            </svg>
-            <span>Rx</span>
-          </button>
-          <button class="hhr-ops-module hhr-ops-regimens" type="button" aria-label="Imprimir regímenes y BRADEN" title="Regímenes y BRADEN">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 19h16v2H4v-2Zm8-16c4.42 0 8 3.58 8 8H4c0-4.08 3.05-7.44 7-7.94V2h2v1.06c3.95.5 7 3.86 7 7.94h-2c0-3.31-2.69-6-6-6s-6 2.69-6 6H4c0-4.42 3.58-8 8-8Zm-9 9h18v5H3v-5Z"/>
-            </svg>
-            <span>Reg</span>
-          </button>
-          <button class="hhr-ops-module hhr-ops-indications" type="button" aria-label="Imprimir indicaciones de hospitalizados" title="Indicaciones de hospitalizados">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6Zm1 7V3.5L20.5 9H15ZM8 13h8v2H8v-2Zm0 4h8v2H8v-2Zm0-8h4v2H8V9Z"/>
-            </svg>
-            <span>Ind</span>
-          </button>
-          <button class="hhr-ops-module hhr-ops-handoff" type="button" aria-label="Entrega de turno" title="Entrega de turno">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v2h11.1a6.9 6.9 0 0 1-.1-1c0-2.07.92-3.93 2.38-5.19A12.7 12.7 0 0 0 9 13Zm8.5 0a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm-.72 8.25-2.3-2.3 1.06-1.06 1.24 1.23 2.68-2.68 1.06 1.06-3.74 3.75Z"/>
-            </svg>
-            <span>Tur</span>
-          </button>
-          <button class="hhr-ops-module hhr-ops-scores" type="button" aria-label="Scores de enfermería" title="Scores de enfermería">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 21h18v-2H3v2Zm2-4h3V9H5v8Zm5 0h3V3h-3v14Zm5 0h3v-6h-3v6Zm4-11.5 1.4 1.4L23 4.3 21.7 3l-2.7 2.5Z"/>
-            </svg>
-            <span>Scr</span>
-          </button>
-          <button class="hhr-ops-module hhr-ops-lab" type="button" aria-label="Exámenes de laboratorio" title="Exámenes de laboratorio Syslab">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 2v2h1v5.59l-5.7 9.88A1.68 1.68 0 0 0 5.76 22h12.48a1.68 1.68 0 0 0 1.46-2.53L14 9.59V4h1V2H9Zm3 8.12L14.24 14H9.76L12 10.12ZM6.34 20l2.27-4h6.78l2.27 4H6.34Z"/>
-            </svg>
-            <span>Lab</span>
+        <span class="divider" aria-hidden="true"></span>
+        <div class="modules" role="group" aria-label="Módulos clínicos">
+          ${OPERATIONS_MODULES.map(module => `
+            <button class="module hhr-ops-${module.key}" type="button"
+              aria-label="${module.aria}" data-tip="${module.tip}" data-tip-note="${module.note}">
+              ${ui.icons[module.icon]}
+              <span>${module.label}</span>
+            </button>
+          `).join('')}
+          <button class="module module-icon hhr-ops-favorites" type="button" aria-label="Favoritos"
+            data-tip="Favoritos" data-tip-note="Tus páginas web frecuentes, siempre a un clic.">
+            ${ui.icons.star}
           </button>
         </div>
+        <span class="divider" aria-hidden="true"></span>
+        <button class="session hhr-ops-session is-degraded" type="button"
+          aria-label="Comprobar conexiones" data-tip="Conexiones"
+          data-tip-note="Estado de Ficha Médico y Gestión de Camas. Clic para administrar.">
+          <span class="avatar-wrap" aria-hidden="true">
+            <span class="avatar hhr-ops-avatar">HHR</span>
+            <span class="dot hhr-ops-connection-dot"></span>
+          </span>
+          <span class="session-copy" aria-hidden="true">
+            <span class="session-name">Conexiones</span>
+            <span class="session-state">Comprobando…</span>
+          </span>
+        </button>
+        <div class="tip" role="tooltip"><strong></strong><span></span></div>
       `;
       try {
-        bar.querySelector('.hhr-ops-logo').src = chrome.runtime.getURL('hhr-logo.svg');
+        shadow.querySelector('.brand-logo').src = chrome.runtime.getURL('hhr-logo.svg');
       } catch (_error) {
-        bar.querySelector('.hhr-ops-logo').remove();
+        shadow.querySelector('.brand-logo').remove();
       }
-      bar.querySelector('.hhr-ops-recipes').addEventListener('click', () =>
+      const brandButton = shadow.querySelector('.brand');
+      brandButton.addEventListener('click', () =>
+        openCenterModule(lastCenterModule, bar.dataset.encounterId, brandButton)
+      );
+      shadow.querySelector('.hhr-ops-recipes').addEventListener('click', () =>
         createModal(bar.dataset.encounterId)
       );
-      bar.querySelector('.hhr-ops-regimens').addEventListener('click', () =>
-        createHospitalizedDocumentsModal('regimen', bar.dataset.encounterId)
-      );
-      bar.querySelector('.hhr-ops-indications').addEventListener('click', () =>
-        createHospitalizedDocumentsModal('indications', bar.dataset.encounterId)
-      );
-      const sessionButton = bar.querySelector('.hhr-ops-session');
-      const handoffButton = bar.querySelector('.hhr-ops-handoff');
-      const scoresButton = bar.querySelector('.hhr-ops-scores');
-      const labButton = bar.querySelector('.hhr-ops-lab');
+      const sessionButton = shadow.querySelector('.hhr-ops-session');
+      const handoffButton = shadow.querySelector('.hhr-ops-handoff');
+      const vitalsButton = shadow.querySelector('.hhr-ops-vitals');
+      const scoresButton = shadow.querySelector('.hhr-ops-scores');
+      const labButton = shadow.querySelector('.hhr-ops-lab');
+      const imagingButton = shadow.querySelector('.hhr-ops-imaging');
       sessionButton.addEventListener('click', () =>
         createOperationsCenterModal('connection', bar.dataset.encounterId, sessionButton)
       );
@@ -3237,20 +4675,32 @@
       scoresButton.addEventListener('click', () =>
         createOperationsCenterModal('scores', bar.dataset.encounterId, scoresButton)
       );
-      labButton.addEventListener('click', () =>
-        createOperationsCenterModal('lab', bar.dataset.encounterId, labButton)
+      labButton.addEventListener('click', () => {
+        if (labButton.classList.contains('is-disabled')) return;
+        createOperationsCenterModal('lab', bar.dataset.encounterId, labButton);
+      });
+      imagingButton.addEventListener('click', () =>
+        createOperationsCenterModal('imaging', bar.dataset.encounterId, imagingButton)
       );
+      vitalsButton.addEventListener('click', () =>
+        createOperationsCenterModal('vitals', bar.dataset.encounterId, vitalsButton)
+      );
+      shadow.querySelector('.hhr-ops-favorites').addEventListener('click', () =>
+        createFavoritesDialog()
+      );
+      ui.enableBarTooltips(shadow, bar);
+      ui.enableRovingFocus(shadow);
       document.body.appendChild(bar);
     }
     bar.dataset.encounterId = encId || '';
-    const labButton = bar.querySelector('.hhr-ops-lab');
+    const labButton = barPart(bar, '.hhr-ops-lab');
     if (labButton) {
-      labButton.disabled = !encId || !labHelper;
-      labButton.title = !labHelper
-        ? 'Recarga la extensión para activar laboratorio'
-        : encId
-        ? 'Exámenes de laboratorio Syslab'
-        : 'Abre un episodio clínico para consultar laboratorio';
+      const labDisabled = !labHelper;
+      labButton.classList.toggle('is-disabled', labDisabled);
+      labButton.setAttribute('aria-disabled', String(labDisabled));
+      labButton.dataset.tipNote = labDisabled
+        ? 'Recarga la extensión para activar laboratorio.'
+        : 'Resultados de exámenes con comparación y tendencias.';
     }
     updateOperationsBarPosition(bar);
     void refreshOperationsConnectionBadge(bar);
