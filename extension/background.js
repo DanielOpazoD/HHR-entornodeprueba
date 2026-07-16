@@ -4299,7 +4299,14 @@ const handleLabDetailsRequest = async ({ batchId, examIds }) => {
     if (payload.success !== true) {
       return { error: payload.error || 'No se pudieron interpretar todos los informes seleccionados.' };
     }
-    details.push(...(Array.isArray(payload.data) ? payload.data : []));
+    const groupLinks = group.map(exam => exam.link);
+    const batchDetails = self.HhrLabViewer.validateDetailBatch(payload.data, groupLinks);
+    if (!batchDetails) {
+      return {
+        error: 'Syslab devolvió un lote incompleto o inconsistente. No se mostrará un análisis parcial.',
+      };
+    }
+    details.push(...batchDetails);
   }
   return { ok: true, analysis: self.HhrLabViewer.buildAnalysis(details, exams) };
 };

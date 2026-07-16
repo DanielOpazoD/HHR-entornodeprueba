@@ -93,6 +93,23 @@
     }))
     .sort((a, b) => parseDate(b.date, b.time) - parseDate(a.date, a.time));
 
+  const validateDetailBatch = (details, expectedLinks) => {
+    const links = (Array.isArray(expectedLinks) ? expectedLinks : []).map(String);
+    if (!links.length || new Set(links).size !== links.length || !Array.isArray(details)) return null;
+    if (details.length !== links.length) return null;
+    const expected = new Set(links);
+    const detailsByLink = new Map();
+    for (const detail of details) {
+      if (!detail || typeof detail !== 'object') return null;
+      const link = String(detail.url || '');
+      if (!expected.has(link) || detailsByLink.has(link) || !Array.isArray(detail.findings)) return null;
+      detailsByLink.set(link, detail);
+    }
+    return links.every(link => detailsByLink.has(link))
+      ? links.map(link => detailsByLink.get(link))
+      : null;
+  };
+
   const parseMeasurement = value => {
     const normalized = cleanText(value).replace(/\s/g, '').replace(',', '.');
     const match = normalized.match(/^([<>]=?|[≤≥])?([-+]?\d+(?:\.\d+)?)$/);
@@ -158,7 +175,13 @@
         ))
       )) return true;
     }
-    return /^(positivo|reactivo|detectado|presente|abundante)$/i.test(result);
+    const resultToken = comparisonToken(result);
+    const referenceToken = comparisonToken(finding && finding.refValue);
+    const qualitativeResult = /^(negativo|positivo|normal|ausente|presente|reactivo|no reactivo|detectado|no detectado|escasa|moderada|abundante|no se observa(?:n)?)$/;
+    const qualitativeReference = /^(negativo|normal|ausente|no reactivo|no detectado|escasa|no se observa(?:n)?)$/;
+    return qualitativeResult.test(resultToken) && qualitativeReference.test(referenceToken)
+      ? resultToken !== referenceToken
+      : false;
   };
 
   const analysisSort = (a, b) => {
@@ -294,5 +317,6 @@
     normalizeAnalysisName,
     normalizeRutBody,
     sanitizeExamList,
+    validateDetailBatch,
   };
 });

@@ -19,6 +19,10 @@ interface LabViewerApi {
   isAllowedSyslabLink: (value: string) => boolean;
   findingAlert: (finding: LabFinding) => boolean;
   sanitizeExamList: (value: unknown[]) => Array<{ id: string; link: string }>;
+  validateDetailBatch: (
+    details: Array<{ url: string; findings: LabFinding[]; error?: string }>,
+    expectedLinks: string[]
+  ) => Array<{ url: string; findings: LabFinding[]; error?: string }> | null;
   buildAnalysis: (
     details: Array<{ url: string; findings: LabFinding[] }>,
     exams: unknown[]
@@ -103,7 +107,38 @@ describe('native Eloisa laboratory viewer', () => {
     expect(labViewer.findingAlert(finding('<4', '3 - 5'))).toBe(false);
     expect(
       labViewer.findingAlert({ ...finding('POSITIVO', ''), analysis: 'PCR respiratorio' })
+    ).toBe(false);
+    expect(
+      labViewer.findingAlert({ ...finding('POSITIVO', 'NEGATIVO'), analysis: 'PCR respiratorio' })
     ).toBe(true);
+    expect(
+      labViewer.findingAlert({ ...finding('POSITIVO', 'POSITIVO'), analysis: 'Grupo RhD' })
+    ).toBe(false);
+  });
+
+  it('rejects incomplete or duplicated detail batches before analysis', () => {
+    const first = syslabLink('1');
+    const second = syslabLink('2');
+    const details = [
+      { url: second, findings: [] },
+      { url: first, findings: [], error: 'PDF sin texto interpretable' },
+    ];
+
+    expect(labViewer.validateDetailBatch(details, [first, second])).toEqual([
+      details[1],
+      details[0],
+    ]);
+    expect(labViewer.validateDetailBatch([details[0]], [first, second])).toBeNull();
+    expect(labViewer.validateDetailBatch([details[0], details[0]], [first, second])).toBeNull();
+    expect(
+      labViewer.validateDetailBatch(
+        [
+          { url: first, findings: [] },
+          { url: 'http://example.test/report', findings: [] },
+        ],
+        [first, second]
+      )
+    ).toBeNull();
   });
 
   it('does not rename individual findings from a ratio-like section', () => {
@@ -267,6 +302,7 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('límite seguro de 6 MB');
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
+    expect(background).toContain('validateDetailBatch');
     expect(background).toContain('RAYEN_LAB_PDF_OPEN_REQUEST');
     expect(background).toContain('print-pdf.html?job=');
     expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
