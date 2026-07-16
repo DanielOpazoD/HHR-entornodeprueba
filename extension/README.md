@@ -37,6 +37,10 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `inject-fichamedico.js` | MAIN world en Rayen: captura token, lee y **normaliza** al snapshot |
 | `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
+| `hhr-ui.js` | Design system de la extensión: tokens (paleta navy/teal), iconos de trazo, estilos de la barra (Shadow DOM), tooltips y foco por teclado |
+| `hhr-vitals.js` | Parser de formularios `VITAL_SIGNS` de Ficha Médico + umbrales de alerta (port de HHR) para el módulo de signos vitales |
+| `hhr-request-forms.js` | Formularios de solicitud (imágenes: overlays % + coordenadas PDF; laboratorio: catálogo de exámenes y HTML imprimible), port de HHR |
+| `forms/` | Plantillas oficiales: PNG de vista previa y PDF de solicitud de imagen, encuesta de contraste y consentimiento informado |
 | `prescription-print.js` | Reglas puras para episodio y agrupación de fármacos por profesional |
 | `prescription-pdf.js` | Genera recetas con RUN del prescriptor y fecha/hora de emisión; la compacta total conserva el folio oficial |
 | `jspdf.umd.min.js` | jsPDF vendorizado para generar el PDF dentro de la extensión |

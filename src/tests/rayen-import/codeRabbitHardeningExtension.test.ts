@@ -66,4 +66,39 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(readmeSource).toContain('metadatos mínimos de sesión');
     expect(readmeSource).toContain('identidad derivada');
   });
+
+  it('isolates Ficha lookups and patient caches by sender session', () => {
+    expect(backgroundSource).toContain(
+      'const getFichaFetchInfo = sender => getFichaFetchInfoUncached(sender)'
+    );
+    expect(backgroundSource).not.toContain('fichaFetchInfoInflight');
+    expect(backgroundSource).toContain('const fichaSessionCacheKey = async (info, sender) =>');
+    expect(backgroundSource).toContain("self.crypto.subtle.digest('SHA-256'");
+    expect(backgroundSource).toContain('const censusAllowlistCache = new Map()');
+    expect(backgroundSource).toContain('getClinicalReportContext(encId, null, null, sender)');
+  });
+
+  it('preserves selected patient context and rejects stale async renders', () => {
+    expect(contentSource).toContain(
+      'openCenterModule(target, root.dataset.selectedEncounterId || encId'
+    );
+    expect(contentSource).toContain('const requestedEncId = selected');
+    expect(contentSource).toContain('root.dataset.handoffRequestGeneration !== requestGeneration');
+    expect(contentSource).toContain('root.dataset.vitalsRequestGeneration !== requestGeneration');
+  });
+
+  it('protects request drafts and exposes imaging marking to keyboard users', () => {
+    expect(contentSource).toContain("clinicalWriteKey('request-draft-imaging', encId)");
+    expect(contentSource).toContain("clinicalWriteKey('request-draft-lab', encId)");
+    expect(contentSource).toContain('class="hhr-imaging-canvas" role="group" tabindex="0"');
+    expect(contentSource).toContain("event.key === 'Enter' || event.key === ' '");
+    expect(contentSource).toContain('selectedKeys().length + (othersInput.value.trim() ? 1 : 0)');
+    const textEditorKeys = contentSource.slice(
+      contentSource.indexOf("editor.addEventListener('keydown'"),
+      contentSource.indexOf('overlaysHost.appendChild(editor)')
+    );
+    expect(textEditorKeys).toContain('event.stopPropagation()');
+    expect(textEditorKeys).toContain('restoreCanvasFocus = true');
+    expect(contentSource).toContain('canvas.focus({ preventScroll: true })');
+  });
 });

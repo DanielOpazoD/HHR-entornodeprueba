@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.24.2",
+  "version": "0.30.0",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": ["tabs", "downloads", "storage"],
   "host_permissions": [
@@ -19,12 +19,20 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["hhr-logo.svg"],
+      "resources": [
+        "hhr-logo.svg",
+        "forms/consentimiento.pdf",
+        "forms/consentimiento.png",
+        "forms/encuesta-contraste.pdf",
+        "forms/encuesta_imagenologia.png",
+        "forms/solicitud-imagen.pdf",
+        "forms/solicitud_imagenologia.png"
+      ],
       "matches": ["https://fichamedico.rayensalud.cl/*"]
     },
     {
       "resources": ["pdf.min.mjs", "pdf.worker.min.mjs"],
-      "matches": ["http://10.4.69.90/syslab/*"]
+      "matches": ["http://10.4.69.90/*"]
     }
   ],
   "content_scripts": [
@@ -37,6 +45,9 @@
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
       "js": [
+        "hhr-ui.js",
+        "hhr-vitals.js",
+        "hhr-request-forms.js",
         "prescription-print.js",
         "lab-viewer.js",
         "exam-request-print.js",
