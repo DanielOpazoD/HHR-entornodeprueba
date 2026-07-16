@@ -27,16 +27,26 @@
   });
 
   const BACKEND_HINT = 'rayensalud.cl';
+  const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
+  const NURSING_ROUTE_RE = /^\/dashboard\/encounter-list-nurse(?:\/|$)/;
+  const MEDICAL_LIST_ROUTE_RE = /^\/dashboard\/encounter-list\/?$/;
+  const NURSING_CONTEXT_KEY = 'hhr:fichamedico:nursing-context';
   let capturedAuth = null;
   let capturedListUrl = null;
   const normalization = globalThis.HhrFichaMedicoNormalization;
   let capturedApiOrigin = null;
+  let sessionBindingRevision = 0;
 
   const rememberFromRequest = (url, authHeader) => {
     try {
       if (authHeader && String(url).includes(BACKEND_HINT)) {
-        capturedAuth = authHeader;
+        const nextAuth = String(authHeader);
+        if (capturedAuth && capturedAuth !== nextAuth) {
+          sessionBindingRevision += 1;
+          capturedListUrl = null;
+        }
+        capturedAuth = nextAuth;
         const parsed = new URL(String(url), window.location.origin);
         if (parsed.hostname === 'fichamedicoback.rayensalud.cl') capturedApiOrigin = parsed.origin;
       }
@@ -82,31 +92,97 @@
 
   // Read only the non-secret clinical identity fields required to authorize writes. The full
   // session object can contain credentials and identifiers that the extension does not need, so
-  // it is deliberately reduced here before crossing out of MAIN world.
+  // it is deliberately reduced here before crossing out of MAIN world. The token remains only in
+  // this page's memory and is refreshed from Eloísa's own session endpoint after full route loads.
+  const clearClinicalBinding = () => {
+    sessionBindingRevision += 1;
+    capturedAuth = null;
+    capturedListUrl = null;
+    capturedApiOrigin = null;
+    try {
+      sessionStorage.removeItem(NURSING_CONTEXT_KEY);
+    } catch (_) {}
+  };
+
+  const readSessionRole = session => {
+    const candidates = [
+      session && session.role,
+      session && session.roleName,
+      session && session.profileName,
+      session && session.practitionerRoleName,
+      session && session.healthCarePractitionerRoleName,
+      session && session.healthCareRoleName,
+    ];
+    return String(candidates.find(value => typeof value === 'string' && value.trim()) || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const resolveNursingContext = ({ facilityId, practitionerId, practitionerRoleId, role }) => {
+    const identityKey = [facilityId, practitionerId, practitionerRoleId].join(':');
+    const routeIsNursing = NURSING_ROUTE_RE.test(window.location.pathname || '');
+    const routeIsMedicalList = MEDICAL_LIST_ROUTE_RE.test(window.location.pathname || '');
+    const roleIsNursing = /enfermer/i.test(role);
+    const roleIsMedical = /m[eé]dic/i.test(role);
+    try {
+      if ((routeIsMedicalList && !roleIsNursing) || (roleIsMedical && !routeIsNursing)) {
+        sessionStorage.removeItem(NURSING_CONTEXT_KEY);
+      } else if (roleIsNursing || (routeIsNursing && !roleIsMedical)) {
+        sessionStorage.setItem(NURSING_CONTEXT_KEY, identityKey);
+      }
+      return (
+        routeIsNursing ||
+        roleIsNursing ||
+        (!routeIsMedicalList &&
+          !roleIsMedical &&
+          sessionStorage.getItem(NURSING_CONTEXT_KEY) === identityKey)
+      );
+    } catch (_) {
+      return routeIsNursing || roleIsNursing;
+    }
+  };
+
   const readSafeSessionIdentity = async () => {
+    const revision = ++sessionBindingRevision;
     try {
       const response = await origFetch('/api/auth/session', {
         credentials: 'same-origin',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
       });
-      if (!response.ok) return null;
+      if (revision !== sessionBindingRevision) return null;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) clearClinicalBinding();
+        return null;
+      }
       const payload = await response.json();
+      if (revision !== sessionBindingRevision) return null;
       const session = payload && payload.ok !== false ? payload.session : null;
-      if (!session) return null;
+      const sessionToken = String((session && session.token) || '');
+      if (!session || !sessionToken) {
+        clearClinicalBinding();
+        return null;
+      }
       const facilityId = String(session.facilityId || '');
       const practitionerId = String(session.healthCarePractitionerId || '');
       const practitionerRoleId = String(session.healthCarePractitionerRoleId || '');
       if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
         return null;
       }
+      const role = readSessionRole(session);
+      const previousAuth = capturedAuth;
+      const tokenMatchesCapturedAuth = !previousAuth || previousAuth === sessionToken;
+      if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
+      capturedAuth = sessionToken;
+      capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
       return {
         facilityId,
         practitionerId,
         practitionerRoleId,
-        role: String(session.role || '').replace(/\s+/g, ' ').trim(),
+        role,
+        isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        tokenMatchesCapturedAuth: Boolean(session.token) && String(session.token) === String(capturedAuth || ''),
+        tokenMatchesCapturedAuth,
       };
     } catch (_) {
       return null;
@@ -114,16 +190,19 @@
   };
 
   const getVerifiedClinicalContext = async () => {
-    if (!capturedAuth || !capturedApiOrigin) {
-      throw new Error('Recarga Eloísa para vincular la sesión clínica actual.');
-    }
     const identity = await readSafeSessionIdentity();
-    if (!identity || !identity.tokenMatchesCapturedAuth) {
-      throw new Error('La sesión clínica cambió o no pudo verificarse. Recarga Eloísa antes de continuar.');
+    if (!capturedAuth || !capturedApiOrigin) {
+      throw new Error('La sesión clínica de Eloísa no está disponible. Inicia sesión y reintenta.');
     }
-    const isNurse = /enfermer/i.test(identity.role);
+    if (!identity || !identity.tokenMatchesCapturedAuth) {
+      throw new Error('La sesión clínica cambió o venció. Inicia sesión nuevamente antes de continuar.');
+    }
+    const isNurse = identity.isNursing === true;
     let base = null;
-    if (capturedListUrl) {
+    // A medical list URL may remain in memory after an SPA transition. Nursing views must always
+    // use their three work-list endpoints, never a stale /encounter/list/filter request.
+    if (isNurse) capturedListUrl = null;
+    if (capturedListUrl && !isNurse) {
       const candidate = new URL(capturedListUrl);
       if (!candidate.hostname.endsWith('.rayensalud.cl') || !candidate.pathname.includes(LIST_PATH)) {
         throw new Error('La lista clínica capturada no pertenece a Eloísa.');
@@ -139,7 +218,7 @@
       }
     }
     if (!base && !isNurse) {
-      throw new Error('Abre o recarga la lista de pacientes para vincular la sesión clínica actual.');
+      base = new URL(LIST_PATH, capturedApiOrigin);
     }
     if (base) {
       base.searchParams.set('facilityId', identity.facilityId);
@@ -148,6 +227,20 @@
     }
     return { base, identity, apiOrigin: capturedApiOrigin, listSource: base ? 'medical' : 'nursing' };
   };
+
+  // Prime and revalidate the in-memory binding whenever the SPA changes route or the tab becomes
+  // active again. No token is persisted by the extension and Eloísa remains the authority on
+  // expiration; a 401/403 clears the binding immediately.
+  const refreshSessionBinding = () => {
+    void readSafeSessionIdentity();
+  };
+  window.addEventListener('hhr:fichamedico-locationchange', refreshSessionBinding);
+  window.addEventListener('pageshow', refreshSessionBinding);
+  window.addEventListener('focus', refreshSessionBinding);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshSessionBinding();
+  });
+  refreshSessionBinding();
 
   const realDate = iso => {
     if (!iso) return undefined;
@@ -287,6 +380,31 @@
       return;
     }
 
+    if (data.type === 'RAYEN_FM_SESSION_STATUS_REQUEST') {
+      const identity = await readSafeSessionIdentity();
+      const ready = Boolean(identity && capturedAuth && capturedApiOrigin);
+      window.postMessage(
+        {
+          type: 'RAYEN_FM_SESSION_STATUS_RESULT',
+          reqId: data.reqId,
+          ready,
+          identity: ready
+            ? {
+                fullName: identity.fullName,
+                role: identity.role,
+                practitionerId: identity.practitionerId,
+                practitionerRoleId: identity.practitionerRoleId,
+              }
+            : null,
+          message: ready
+            ? 'Ficha Médico disponible. Sesión clínica vigente.'
+            : 'La sesión clínica de Ficha Médico no está disponible.',
+        },
+        window.location.origin
+      );
+      return;
+    }
+
     // Hand the captured token + backend origin + facility to the background so IT can download
     // the per-patient "Resumen diario paciente" PDF (which carries the invasive-devices table)
     // bypassing CORS. Token crosses into the extension's own context, never leaves the machine.
@@ -314,6 +432,7 @@
                 practitionerId: safeIdentity.practitionerId,
                 practitionerRoleId: safeIdentity.practitionerRoleId,
                 role: safeIdentity.role,
+                isNursing: safeIdentity.isNursing,
                 fullName: safeIdentity.fullName,
                 identityVerified: true,
               }

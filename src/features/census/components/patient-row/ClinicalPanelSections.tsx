@@ -114,6 +114,14 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
       <span className="block font-semibold text-slate-700">{entry.title}</span>
       {entry.text && <span className="block text-[11px] text-slate-500">{entry.text}</span>}
     </span>
+    {!muted && entry.kind === 'pharma' && entry.validitySource === 'daily-validation' && (
+      <span
+        className="shrink-0 rounded bg-emerald-50 px-1 py-px text-[8px] font-bold uppercase text-emerald-700 ring-1 ring-emerald-200"
+        title={`Vigente por validación diaria del tratamiento${entry.prescribedAt ? ` · indicada el ${formatWhen(entry.prescribedAt)}` : ''}`}
+      >
+        Vigente
+      </span>
+    )}
     {muted && (
       <span
         className={clsx(

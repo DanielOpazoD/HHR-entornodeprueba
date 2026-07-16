@@ -20,7 +20,8 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
   bridge del módulo rayen-import  → preview / auto → aplica al DailyRecord
 ```
 
-- El **token HSP nunca sale** del mundo principal de Rayen; solo viaja el snapshot ya normalizado.
+- El snapshot de censo cruza hacia HHR ya normalizado. Los tokens necesarios para reportes CORS se
+  reducen a una sesión temporal de la extensión y nunca se persisten en disco ni se envían a HHR.
 - La lectura usa `filterType=3` (sin médico + Servicio Todos = censo completo) + `filterType=2`
   (egresos), `patientHeaderData/{encId}` y el diagnóstico principal activo por paciente. Marca
   `isComplete=true` y entrega el código CIE-10 cuando Ficha Médico lo informa.
@@ -47,6 +48,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
+| `gestion-camas-session.js` | Valida y reduce la sesión temporal de Gestión de Camas, incluida su expiración |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
 
 ## Instalar (modo desarrollador)
@@ -59,7 +61,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 ## Usar
 
-1. Ten **abierta y con sesión iniciada** la pestaña de Rayen Ficha Médico (la lista de pacientes).
+1. Ten **abierta y con sesión iniciada** una pestaña de Rayen Ficha Médico, en cualquiera de sus rutas.
 2. En el HHR (`localhost:3000` o `testinghhr.netlify.app`), abre el censo y pulsa
    **"Importar desde Rayen"**.
 3. Según el modo (Configuración → Integraciones): se abre el **preview** para confirmar, o —en
@@ -67,8 +69,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 4. En una fila sincronizada, el icono de enlace externo abre el episodio exacto en Ficha Médico.
    Reutiliza una pestaña existente cuando está disponible; esta acción es solo navegación y no escribe
    datos en Rayen.
-5. La barra Eloísa muestra la versión del puente y la disponibilidad independiente de Ficha Médico y
-   Gestión de Camas. El diagnóstico se ejecuta al abrir/recuperar foco y antes de sincronizar.
+5. El Centro HHR muestra la identidad de Ficha Médico y la disponibilidad independiente de Gestión de
+   Camas. Esta última se conecta desde una ventana oficial de Rayen; su contraseña nunca pasa por la
+   extensión y, una vez capturado el token temporal, la ventana se cierra automáticamente.
 6. El botón de panel clínico de cada paciente sincronizado abre una vista en vivo con mundos
    Médico/Enfermería, entregas de turno, indicaciones y cuidados de enfermería.
 
@@ -78,8 +81,20 @@ En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Ce
 oficial del Hospital Hanga Roa. La barra detecta la altura real del encabezado de Eloísa y se ubica en el
 extremo derecho de la primera franja gris, sin cubrir la segunda fila de navegación. Es compacta y su
 contenedor modular permite incorporar nuevas herramientas. Incluye **Recetas**, **Regímenes**,
-**Indicaciones**, **Entrega de turno** y **Scores**. En pantallas
+**Indicaciones**, **Entrega de turno**, **Scores** y **Conexiones**. En pantallas
 pequeñas se convierte en un control flotante para no cubrir la navegación.
+
+### Conexión temporal con Gestión de Camas
+
+El módulo **Conexiones** permite abrir `hospitalizado.rayensalud.cl` en una ventana oficial y
+temporal. El usuario autentica directamente en Rayen —idealmente mediante el gestor de contraseñas de
+Chrome— y la extensión conserva en `chrome.storage.session` un registro temporal con el token de acceso
+y los metadatos mínimos de sesión necesarios para validarlo y mostrar su estado (`apiBase`,
+establecimiento, fechas de captura/verificación, expiración e identidad derivada). Si el token incluye
+expiración, el panel muestra su vigencia y advierte cuando está por vencer. La ventana creada por
+la extensión se cierra al detectar la sesión; Ficha Médico puede quedar como única pestaña Rayen abierta.
+El token temporal permite consultar egresos definitivos y el informe de Alta Administrativa hasta su
+vencimiento, incluso si Gestión de Camas ya fue cerrada. **Olvidar** elimina la sesión de la extensión.
 
 Cuando la vista tiene un episodio activo, **Recetas** abre primero **Paciente actual**. Desde listas,
 paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja deshabilitada la pestaña

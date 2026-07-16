@@ -265,6 +265,11 @@ describe('extension clinical write protocol', () => {
     expect(handoffWrite).toContain('let postAcknowledged = false;');
     expect(handoffWrite).toContain('postAcknowledged = true;');
     expect(handoffWrite).toContain('if (!postAcknowledged) return false;');
+    expect(handoffWrite).toContain(
+      'const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);'
+    );
+    expect(handoffWrite).toContain('encounterEventTypeId: handoffEventTypeId');
+    expect(handoffWrite).not.toContain('encounterEventTypeId: 2');
     expect(handoffWrite.indexOf('postAcknowledged = true;')).toBeLessThan(
       handoffWrite.indexOf('if (!postAcknowledged) return false;')
     );

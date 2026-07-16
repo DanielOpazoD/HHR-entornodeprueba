@@ -327,6 +327,24 @@
       #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy { display: grid; line-height: 1.05; white-space: nowrap; }
       #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy strong { color: #3f514e; font-size: 12px; font-weight: 600; letter-spacing: .01em; }
       #${OPERATIONS_BAR_ID} .hhr-ops-brand-copy span { display: none; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session {
+        appearance: none; min-width: 30px; height: 30px; padding: 2px; border: 0; border-radius: 8px;
+        background: transparent; color: #52615f; cursor: pointer; position: relative; font: inherit;
+      }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session:hover { background: #edf7f5; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session:focus-visible { outline: 3px solid rgba(15,130,120,.24); outline-offset: 2px; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-avatar {
+        width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+        background: #e9efee; color: #5e6b69; font-size: 9px; font-weight: 700; letter-spacing: .02em;
+      }
+      #${OPERATIONS_BAR_ID} .hhr-ops-connection-dot {
+        position: absolute; right: 1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%;
+        border: 2px solid #fff; background: #a9b3b1;
+      }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-ready .hhr-ops-avatar { background: #e4f4f0; color: #0c746b; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-ready .hhr-ops-connection-dot { background: #28a66c; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-degraded .hhr-ops-connection-dot { background: #d8a72e; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-session.is-offline .hhr-ops-connection-dot { background: #c94c43; }
       #${OPERATIONS_BAR_ID} .hhr-ops-modules { display: flex; align-items: center; gap: 2px; }
       #${OPERATIONS_BAR_ID} .hhr-ops-module {
         appearance: none; height: 30px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 4px;
@@ -520,6 +538,23 @@
       #${MODAL_ID} .hhr-center-action:hover { border-color: #98c8c3; color: #0d766d; }
       #${MODAL_ID} .hhr-center-action-primary { border-color: #15978b; background: #15978b; color: #fff; }
       #${MODAL_ID} .hhr-center-action:disabled { opacity: .48; cursor: not-allowed; }
+      #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 14px; }
+      #${MODAL_ID} .hhr-connection-card { border: 1px solid #dce5e3; border-radius: 10px; background: #fff; padding: 15px; }
+      #${MODAL_ID} .hhr-connection-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+      #${MODAL_ID} .hhr-connection-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: #eef4f3; color: #53615f; font-weight: 700; font-size: 11px; }
+      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-icon { background: #e7f5f1; color: #0d766d; }
+      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-icon { background: #fff5df; color: #8a6714; }
+      #${MODAL_ID} .hhr-connection-card h3 { margin: 0; color: #303b39; font-size: 14px; font-weight: 600; }
+      #${MODAL_ID} .hhr-connection-status { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: #6b7775; font-size: 11px; }
+      #${MODAL_ID} .hhr-connection-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #a9b3b1; }
+      #${MODAL_ID} .hhr-connection-card.is-ready .hhr-connection-status::before { background: #28a66c; }
+      #${MODAL_ID} .hhr-connection-card.is-stale .hhr-connection-status::before { background: #d8a72e; }
+      #${MODAL_ID} .hhr-connection-user { min-height: 40px; color: #34413f; font-size: 13px; font-weight: 600; }
+      #${MODAL_ID} .hhr-connection-detail { display: block; margin-top: 3px; color: #76817f; font-size: 11px; font-weight: 400; line-height: 1.35; }
+      #${MODAL_ID} .hhr-connection-actions { display: flex; align-items: center; gap: 7px; margin-top: 13px; }
+      #${MODAL_ID} .hhr-connection-privacy { margin-top: 14px; padding: 11px 12px; border: 1px solid #d8e7e4; border-radius: 8px; background: #f7fbfa; color: #52605e; font-size: 11.5px; line-height: 1.45; }
+      #${MODAL_ID} .hhr-connection-feedback { min-height: 18px; margin-top: 10px; color: #64716f; font-size: 11.5px; }
+      #${MODAL_ID} .hhr-connection-feedback.is-error { color: #9b2c2c; }
       @media (max-width: 2200px) {
         #${OPERATIONS_BAR_ID} .hhr-ops-module span { display: inline; }
         #${OPERATIONS_BAR_ID} .hhr-ops-module { padding: 0 3px; justify-content: center; }
@@ -536,13 +571,14 @@
       @media (max-width: 760px) {
         #${MODAL_ID} .hhr-center-dialog { width: calc(100vw - 16px); height: calc(100vh - 16px); max-height: calc(100vh - 16px); margin: 8px auto; }
         #${MODAL_ID} .hhr-center-shell { grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr); }
-        #${MODAL_ID} .hhr-center-nav { grid-template-columns: repeat(5,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
+        #${MODAL_ID} .hhr-center-nav { grid-template-columns: repeat(6,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
         #${MODAL_ID} .hhr-center-nav-button { min-height: 48px; border-left: 0; border-bottom: 2px solid transparent; border-radius: 5px; font-size: 9.5px; }
         #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: transparent; border-bottom-color: #15978b; }
         #${MODAL_ID} .hhr-center-toolbar { flex-wrap: wrap; min-height: auto; padding: 8px 10px; }
         #${MODAL_ID} .hhr-center-heading { flex-basis: 100%; }
         #${MODAL_ID} .hhr-center-search { width: 100%; flex: 1 1 160px; }
         #${MODAL_ID} .hhr-center-content { padding: 0 10px 12px; }
+        #${MODAL_ID} .hhr-connection-grid { grid-template-columns: 1fr; }
         #${MODAL_ID} .hhr-center-table { min-width: 0; display: block; }
         #${MODAL_ID} .hhr-center-table colgroup, #${MODAL_ID} .hhr-center-table thead { display: none; }
         #${MODAL_ID} .hhr-center-table tbody { display: grid; gap: 9px; padding-top: 9px; }
@@ -1489,6 +1525,10 @@
         key: 'scores', label: 'Scores', title: 'Instrumentos',
         icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2M14 7l2-2 2 2 4-4"/>',
       },
+      {
+        key: 'connection', label: 'Con', title: 'Conexiones',
+        icon: '<path d="M8 12a4 4 0 0 1 4-4h3M16 12a4 4 0 0 1-4 4H9M10 12h4M18 5v4h-4M6 19v-4h4"/>',
+      },
     ];
     return items.map(item => `
       <button class="hhr-center-nav-button" type="button" data-module="${item.key}"
@@ -1553,6 +1593,17 @@
         content.appendChild(error);
         return;
       }
+      const handoffLabel = response.handoffLabel || 'Entrega de turno';
+      main.querySelector('.hhr-center-heading').textContent = handoffLabel;
+      const nursingLane = response.handoffKind === 'nursing';
+      station.hidden = !nursingLane;
+      printButton.hidden = !response.canPrint;
+      const identityNotice = document.createElement('div');
+      identityNotice.className = 'hhr-center-notice';
+      identityNotice.textContent = 'Sesión verificada: ' +
+        [response.currentProfessionalRole, response.currentProfessional].filter(Boolean).join(' · ') +
+        '. Solo puedes registrar ' + handoffLabel.toLowerCase() + '.';
+      content.appendChild(identityNotice);
       (Array.isArray(response.nurseStations) ? response.nurseStations : []).forEach(item => {
         const option = document.createElement('option');
         option.value = item.id;
@@ -1574,7 +1625,7 @@
       table.className = 'hhr-center-table hhr-handoff-table';
       table.innerHTML = `
         <colgroup><col style="width:6%"><col style="width:19%"><col style="width:23%"><col style="width:13%"><col style="width:28%"><col style="width:11%"></colgroup>
-        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Última entrega</th><th>Profesional</th><th>Entrega actual</th><th>Estado</th></tr></thead><tbody></tbody>
+        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Última ${response.handoffKind === 'medical' ? 'entrega médica' : 'entrega de enfermería'}</th><th>Profesional</th><th>Nueva entrega</th><th>Estado</th></tr></thead><tbody></tbody>
       `;
       const tbody = table.querySelector('tbody');
       patients.forEach(patient => {
@@ -1625,7 +1676,7 @@
         const textarea = document.createElement('textarea');
         textarea.className = 'hhr-handoff-input';
         textarea.maxLength = 255;
-        textarea.placeholder = 'Nueva entrega (máx. 255 caracteres)';
+        textarea.placeholder = (response.handoffKind === 'medical' ? 'Nueva entrega médica' : 'Nueva entrega de enfermería') + ' (máx. 255 caracteres)';
         textarea.disabled = !response.canWrite || Boolean(patient.handoffUnavailableReason) || Boolean(uncertainWrite);
         const editorTools = document.createElement('div');
         editorTools.className = 'hhr-handoff-tools';
@@ -2042,7 +2093,27 @@
             setClinicalGuardState(root, 'dirty', scoreKey, false);
             setControlsDisabled(true);
             if (instrument === 'CUDYR') {
-              patient.scores.CUDYR = { crdValue: String(result.record.total), crdDateTime: result.record.dateTime };
+              const savedHistoryEntry = {
+                category: String(result.record.total),
+                recordedAt: result.record.dateTime,
+                author: response.currentProfessional || '',
+                authorRole: 'Enfermería',
+                dependencyScore: result.record.dependency,
+                riskScore: result.record.risk,
+                items: [],
+              };
+              patient.scores.CUDYR = {
+                crdValue: savedHistoryEntry.category,
+                crdDateTime: savedHistoryEntry.recordedAt,
+                author: savedHistoryEntry.author,
+                authorRole: savedHistoryEntry.authorRole,
+                source: 'ficha_medico',
+                history: [savedHistoryEntry].concat(
+                  patient.scores.CUDYR && Array.isArray(patient.scores.CUDYR.history)
+                    ? patient.scores.CUDYR.history
+                    : []
+                ).slice(0, 20),
+              };
             } else {
               patient.scores[instrument] = [result.record].concat(patient.scores[instrument] || []).slice(0, 8);
             }
@@ -2089,7 +2160,7 @@
         if (selector.value === 'CUDYR') {
           const notice = document.createElement('div');
           notice.className = 'hhr-center-notice';
-          notice.textContent = response.cudyrUnavailableReason || 'CUDYR: Eloísa expone el último valor y fecha, pero no un historial consultable.';
+          notice.textContent = globalThis.HhrPrescriptionPrint.cudyrSourceNotice(response);
           content.appendChild(notice);
         }
         const table = document.createElement('table');
@@ -2108,7 +2179,18 @@
           const history = unavailableReason
             ? []
             : instrument === 'CUDYR'
-              ? raw && raw.crdValue ? [{ total: raw.crdValue, dateTime: raw.crdDateTime, author: '' }] : []
+              ? raw && Array.isArray(raw.history) && raw.history.length
+                ? raw.history.map(item => ({
+                    total: item.category,
+                    dateTime: item.recordedAt,
+                    author: item.author || '',
+                    authorRole: item.authorRole || '',
+                    dependencyScore: item.dependencyScore,
+                    riskScore: item.riskScore,
+                  }))
+                : raw && raw.crdValue
+                  ? [{ total: raw.crdValue, dateTime: raw.crdDateTime, author: raw.author || '' }]
+                  : []
               : Array.isArray(raw) ? raw : [];
           const latest = history[0] || null;
           const uncertainWrite = hydrateClinicalWriteProtection(scoreKey, persistedProtection);
@@ -2140,19 +2222,23 @@
             : unavailableReason
             ? 'Lectura no disponible'
             : instrument === 'CUDYR'
-              ? 'Solo último valor'
+              ? history.length + (history.length === 1 ? ' categorización' : ' categorizaciones')
               : history.length + (history.length === 1 ? ' visible' : ' visibles') + ' · máx. 8/120 días';
           if (uncertainWrite) details.title = uncertainWrite.error || 'La escritura permanece protegida hasta confirmar su estado en Eloísa.';
           else if (unavailableReason) details.title = unavailableReason;
           details.appendChild(summary);
-          if (!unavailableReason && instrument !== 'CUDYR' && history.length) {
+          if (!unavailableReason && history.length) {
             const list = document.createElement('ol');
             history.forEach(item => {
               const li = document.createElement('li');
               li.textContent = String(item.total) +
                 (item.severity ? ' · ' + item.severity : '') + ' · ' +
                 helper.formatDateTimeLabel(item.dateTime) +
-                (item.author ? ' · ' + item.author : '');
+                (item.author ? ' · ' + item.author : '') +
+                (item.authorRole ? ' (' + item.authorRole + ')' : '') +
+                (item.dependencyScore != null && item.riskScore != null
+                  ? ' · Dependencia ' + item.dependencyScore + ' / Riesgo ' + item.riskScore
+                  : '');
               list.appendChild(li);
             });
             details.appendChild(list);
@@ -2228,11 +2314,213 @@
     });
   };
 
+  const connectionInitials = value => {
+    const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'HHR';
+    return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  };
+
+  const connectionTimeLabel = source => {
+    if (source && source.remainingSeconds == null) return 'Vigencia controlada por Rayen';
+    const seconds = Number(source && source.remainingSeconds);
+    if (!Number.isFinite(seconds)) return 'Vigencia controlada por Rayen';
+    if (seconds <= 0) return 'Sesión vencida';
+    const minutes = Math.max(1, Math.ceil(seconds / 60));
+    if (minutes < 60) return 'Vence en ' + minutes + (minutes === 1 ? ' minuto' : ' minutos');
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return 'Vence en ' + hours + ' h' + (rest ? ' ' + rest + ' min' : '');
+  };
+
+  const renderConnectionCenter = (root, _encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Conexiones</h2>
+        <button class="hhr-center-action hhr-connection-refresh" type="button">Comprobar</button>
+      </div>
+      <div class="hhr-center-content">
+        <div class="hhr-connection-grid">
+          <section class="hhr-connection-card hhr-connection-ficha">
+            <div class="hhr-connection-card-header"><span class="hhr-connection-icon">FM</span><div><h3>Ficha Médico</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
+            <div class="hhr-connection-user">Sesión clínica<span class="hhr-connection-detail">Leyendo identidad vigente…</span></div>
+          </section>
+          <section class="hhr-connection-card hhr-connection-camas">
+            <div class="hhr-connection-card-header"><span class="hhr-connection-icon">GC</span><div><h3>Gestión de Camas</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
+            <div class="hhr-connection-user">Cuenta Rayen<span class="hhr-connection-detail">Necesaria para egresos, Alta Administrativa e historial CUDYR.</span></div>
+            <div class="hhr-connection-actions">
+              <button class="hhr-center-action hhr-center-action-primary hhr-connection-connect" type="button">Conectar</button>
+              <button class="hhr-center-action hhr-connection-forget" type="button" hidden>Olvidar</button>
+            </div>
+          </section>
+        </div>
+        <div class="hhr-connection-privacy"><strong>Acceso protegido.</strong> La contraseña se ingresa únicamente en la página oficial de Rayen. La extensión conserva temporalmente el token de acceso durante esta sesión de Chrome y lo elimina al olvidar la conexión, recargar la extensión o cerrar el navegador.</div>
+        <div class="hhr-connection-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+      </div>
+    `;
+    const fichaCard = main.querySelector('.hhr-connection-ficha');
+    const camasCard = main.querySelector('.hhr-connection-camas');
+    const connect = main.querySelector('.hhr-connection-connect');
+    const forget = main.querySelector('.hhr-connection-forget');
+    const refresh = main.querySelector('.hhr-connection-refresh');
+    const feedback = main.querySelector('.hhr-connection-feedback');
+    let pollingGeneration = 0;
+    let shouldRenewSession = false;
+
+    const setFeedback = (message, error = false) => {
+      feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
+      setLiveRegion(feedback, message, error ? 'error' : '');
+    };
+
+    const renderSource = (card, source, fallbackName) => {
+      const ready = source && source.status === 'ready';
+      const stale = source && source.status === 'stale';
+      card.className = card.className.replace(/\s+is-(?:ready|stale|missing)/g, '') +
+        (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
+      card.querySelector('.hhr-connection-status').textContent = ready
+        ? 'Conectado'
+        : stale
+          ? source && source.remainingSeconds != null && Number(source.remainingSeconds) === 0
+            ? 'Sesión vencida'
+            : 'Requiere comprobación'
+          : 'No conectado';
+      const identity = source && source.identity || {};
+      const name = identity.fullName || identity.username || fallbackName;
+      const user = card.querySelector('.hhr-connection-user');
+      user.childNodes[0].nodeValue = name || 'Cuenta no identificada';
+      const role = identity.role || '';
+      user.querySelector('.hhr-connection-detail').textContent = ready
+        ? [role, connectionTimeLabel(source)].filter(Boolean).join(' · ')
+        : String(source && source.message || 'Inicia sesión para continuar.');
+    };
+
+    const load = async () => {
+      refresh.disabled = true;
+      const report = await sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' });
+      refresh.disabled = false;
+      if (!root.isConnected) return null;
+      if (!report || report.error) {
+        setFeedback((report && report.error) || 'No se pudo comprobar la conexión.', true);
+        return null;
+      }
+      const ficha = report.fichaMedico || {};
+      const camas = report.gestionCamas || {};
+      const fichaName = ficha.identity && ficha.identity.fullName || 'Sesión de Ficha Médico';
+      renderSource(fichaCard, ficha, fichaName);
+      renderSource(camasCard, camas, 'Cuenta autenticada en Gestión de Camas');
+      shouldRenewSession = camas.connectionSource === 'session';
+      connect.textContent = camas.status === 'ready' ? 'Renovar' : 'Conectar';
+      forget.hidden = camas.status !== 'ready' && camas.status !== 'stale';
+      refreshOperationsConnectionBadge(document.getElementById(OPERATIONS_BAR_ID), true, report);
+      return report;
+    };
+
+    const pollUntilConnected = generation => {
+      let attempts = 0;
+      const poll = async () => {
+        if (!root.isConnected || generation !== pollingGeneration) return;
+        const report = await load();
+        if (report && report.gestionCamas && report.gestionCamas.status === 'ready') {
+          connect.disabled = false;
+          setFeedback('Gestión de Camas quedó conectada. Puedes continuar trabajando solo en Ficha Médico.');
+          return;
+        }
+        attempts += 1;
+        if (attempts >= 120) {
+          connect.disabled = false;
+          setFeedback('No se detectó una sesión. Completa el acceso en la ventana oficial y vuelve a comprobar.', true);
+          return;
+        }
+        window.setTimeout(poll, 1000);
+      };
+      window.setTimeout(poll, 700);
+    };
+
+    refresh.addEventListener('click', () => { void load(); });
+    connect.addEventListener('click', async () => {
+      connect.disabled = true;
+      setFeedback('Abriendo la página oficial de Gestión de Camas…');
+      const response = await sendMessage({
+        type: 'RAYEN_GC_CONNECT_REQUEST',
+        renew: shouldRenewSession,
+      });
+      if (!response || response.error) {
+        connect.disabled = false;
+        setFeedback((response && response.error) || 'No se pudo abrir Gestión de Camas.', true);
+        return;
+      }
+      setFeedback(response.message || 'Completa el acceso en la ventana oficial de Rayen.');
+      pollingGeneration += 1;
+      pollUntilConnected(pollingGeneration);
+    });
+    forget.addEventListener('click', async () => {
+      pollingGeneration += 1;
+      const response = await sendMessage({ type: 'RAYEN_GC_DISCONNECT_REQUEST' });
+      connect.disabled = false;
+      if (!response || response.error) {
+        setFeedback((response && response.error) || 'No se pudo olvidar la conexión.', true);
+        return;
+      }
+      setFeedback('La sesión temporal de Gestión de Camas fue eliminada de la extensión.');
+      await load();
+    });
+    void load();
+  };
+
+  let operationsConnectionCheckAt = 0;
+  let operationsConnectionCheck = null;
+  const refreshOperationsConnectionBadge = (bar, force = false, knownReport = null) => {
+    if (!bar) return Promise.resolve(null);
+    const button = bar.querySelector('.hhr-ops-session');
+    if (!button) return Promise.resolve(null);
+    const apply = report => {
+      if (!report || !bar.isConnected) return report;
+      const ficha = report.fichaMedico || {};
+      const camas = report.gestionCamas || {};
+      const identity = ficha.identity || {};
+      const name = identity.fullName || 'Sesión HHR';
+      const role = String(identity.role || '');
+      const handoffButton = bar.querySelector('.hhr-ops-handoff');
+      if (handoffButton) {
+        const handoffTitle = globalThis.HhrPrescriptionPrint.handoffLabelForIdentity(
+          role,
+          identity.practitionerRoleId
+        );
+        handoffButton.title = handoffTitle;
+        handoffButton.setAttribute('aria-label', handoffTitle);
+      }
+      button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
+      button.className = 'hhr-ops-session ' + (
+        ficha.status !== 'ready' ? 'is-offline' : camas.status === 'ready' ? 'is-ready' : 'is-degraded'
+      );
+      button.title = [
+        name,
+        ficha.status === 'ready' ? 'Ficha Médico conectada' : 'Ficha Médico no conectada',
+        camas.status === 'ready' ? 'Gestión de Camas · ' + connectionTimeLabel(camas) : 'Gestión de Camas no conectada',
+      ].join(' · ');
+      button.setAttribute('aria-label', button.title);
+      return report;
+    };
+    if (knownReport) {
+      operationsConnectionCheckAt = Date.now();
+      return Promise.resolve(apply(knownReport));
+    }
+    if (!force && Date.now() - operationsConnectionCheckAt < 30 * 1000) return Promise.resolve(null);
+    if (operationsConnectionCheck) return operationsConnectionCheck;
+    operationsConnectionCheck = sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' })
+      .then(report => apply(report && !report.error ? report : null))
+      .finally(() => {
+        operationsConnectionCheckAt = Date.now();
+        operationsConnectionCheck = null;
+      });
+    return operationsConnectionCheck;
+  };
+
   const createOperationsCenterModal = (module, encId, returnFocusTarget = null) => {
     const focusReturnTarget = returnFocusTarget || document.activeElement;
     if (!closeModal()) return;
     ensureStyles();
-    const activeModule = module === 'scores' ? 'scores' : 'handoff';
+    const activeModule = module === 'scores' || module === 'connection' ? module : 'handoff';
     const root = document.createElement('div');
     root.id = MODAL_ID;
     root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
@@ -2281,7 +2569,8 @@
     document.body.appendChild(root);
     root.querySelector('.hhr-rx-close').focus();
     if (activeModule === 'handoff') renderHandoffCenter(root, encId);
-    else renderScoresCenter(root, encId);
+    else if (activeModule === 'scores') renderScoresCenter(root, encId);
+    else renderConnectionCenter(root, encId);
   };
 
   const findPharmaHeading = () => {
@@ -2387,6 +2676,10 @@
             <span>Operaciones clínicas</span>
           </span>
         </div>
+        <button class="hhr-ops-session is-degraded" type="button" aria-label="Comprobar conexiones" title="Comprobar conexiones">
+          <span class="hhr-ops-avatar" aria-hidden="true">HHR</span>
+          <span class="hhr-ops-connection-dot" aria-hidden="true"></span>
+        </button>
         <div class="hhr-ops-modules">
           <button class="hhr-ops-module hhr-ops-recipes" type="button" aria-label="Abrir centro de recetas" title="Recetas">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2434,8 +2727,12 @@
       bar.querySelector('.hhr-ops-indications').addEventListener('click', () =>
         createHospitalizedDocumentsModal('indications', bar.dataset.encounterId)
       );
+      const sessionButton = bar.querySelector('.hhr-ops-session');
       const handoffButton = bar.querySelector('.hhr-ops-handoff');
       const scoresButton = bar.querySelector('.hhr-ops-scores');
+      sessionButton.addEventListener('click', () =>
+        createOperationsCenterModal('connection', bar.dataset.encounterId, sessionButton)
+      );
       handoffButton.addEventListener('click', () =>
         createOperationsCenterModal('handoff', bar.dataset.encounterId, handoffButton)
       );
@@ -2446,6 +2743,7 @@
     }
     bar.dataset.encounterId = encId || '';
     updateOperationsBarPosition(bar);
+    void refreshOperationsConnectionBadge(bar);
   };
 
   const ensureButton = () => {

@@ -83,7 +83,7 @@ describe('runClinicalFill', () => {
     expect(Object.keys(patch)).toEqual(['beds.H1C2.evaluationScores']);
     expect(patch['beds.H1C2.evaluationScores']).toMatchObject({
       braden: { total: 17 },
-      cudyr: { category: 'D3', source: 'Eloísa (Rayen)' },
+      cudyr: { category: 'D3', source: 'Eloísa · Ficha Médico' },
     });
   });
 

@@ -60,6 +60,19 @@ const timeKey = (raw: string): number => {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
+const CARE_METADATA_LABELS: Record<string, string> = {
+  assignedcareactivity: 'Cuidado asignado',
+  careactivity: 'Actividad de cuidado',
+  nursingcareactivity: 'Cuidado de enfermería',
+};
+
+const localizedCareMetadata = (value: unknown): string => {
+  const raw = str(value);
+  if (!raw) return '';
+  const key = raw.replace(/[^a-z]/gi, '').toLowerCase();
+  return CARE_METADATA_LABELS[key] ?? raw;
+};
+
 const careStatus = (body: RawRow, header: RawRow): ClinicalPanelCareActionStatus => {
   if (flag(body.isSuspended) || flag(header.isSuspended)) return 'suspended';
   if (marker(body.doNotExecute)) return 'not-performed';
@@ -84,13 +97,16 @@ export const parseClinicalCareDays = (headers: unknown[]): ClinicalPanelCareDay[
           .find(Boolean) ?? '';
       const bucket = byDay.get(day) ?? [];
       const activity = str(body.activity);
+      const detailParts = [activity, str(body.tag)]
+        .map(localizedCareMetadata)
+        .filter(value => value && value !== title);
+      const sourceId = str(body.entryGuid) || str(body.activityId) || 'care';
       bucket.push({
-        id: str(body.entryGuid) || str(body.activityId) || `care-${seq++}`,
+        // Eloisa can reuse the all-zero GUID for every scheduled execution of an activity.
+        // Keep the source identifier for traceability and add a local ordinal for React identity.
+        id: `${sourceId}-${seq++}`,
         title,
-        detail:
-          activity === title
-            ? str(body.tag)
-            : [activity, str(body.tag)].filter(Boolean).join(' · '),
+        detail: [...new Set(detailParts)].join(' · '),
         schedule: str(body.hoursRangeActi) || str(body.hoursRange) || str(header.label),
         author: toTitleCaseName(str(body.user)),
         performedAt,

@@ -20,8 +20,8 @@ describe('movement provenance presentation', () => {
     });
 
     expect(presentation).toEqual({
-      label: 'Rayen',
-      title: `Confirmado por Gestión de Camas mediante Eloísa · Enfermera Uno · ${localStamp(classifiedAt)}`,
+      label: 'Egreso estad.',
+      title: `Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa · Enfermera Uno · ${localStamp(classifiedAt)}`,
       tone: 'teal',
       icon: 'verified',
     });
