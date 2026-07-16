@@ -4160,9 +4160,58 @@ const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
 const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
 const LAB_DETAILS_BATCH_SIZE = 3;
 const LAB_MAX_SELECTED_EXAMS = 24;
+const LAB_MAX_JSON_BYTES = 2 * 1024 * 1024;
+const LAB_MAX_PDF_BYTES = 6 * 1024 * 1024;
+
+const readResponseBytesWithLimit = async (response, maxBytes, timeoutMs, timeoutMessage) => {
+  const declaredLength = Number(response.headers && response.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    if (response.body && typeof response.body.cancel === 'function') {
+      await response.body.cancel().catch(() => {});
+    }
+    throw new Error('La respuesta del scraper supera el límite seguro permitido.');
+  }
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    const fallback = await withTimeout(response.arrayBuffer(), timeoutMs, timeoutMessage);
+    if (fallback.byteLength > maxBytes) {
+      throw new Error('La respuesta del scraper supera el límite seguro permitido.');
+    }
+    return new Uint8Array(fallback);
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  const readAll = async () => {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        throw new Error('La respuesta del scraper supera el límite seguro permitido.');
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
+  };
+
+  try {
+    return await withTimeout(readAll(), timeoutMs, timeoutMessage);
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  }
+};
 
 const fetchSyslabJson = async (path, options, timeoutMs) => {
   let response;
+  const startedAt = Date.now();
   try {
     response = await fetchWithTimeout(
       SYSLAB_LOCAL_ORIGIN + path,
@@ -4184,9 +4233,16 @@ const fetchSyslabJson = async (path, options, timeoutMs) => {
       String((error && error.message) || error)
     );
   }
+  const remainingMs = Math.max(1, timeoutMs - (Date.now() - startedAt));
+  const bytes = await readResponseBytesWithLimit(
+    response,
+    LAB_MAX_JSON_BYTES,
+    remainingMs,
+    'Syslab demoró demasiado en completar la respuesta.'
+  );
   let payload = null;
   try {
-    payload = await response.json();
+    payload = JSON.parse(new TextDecoder().decode(bytes));
   } catch (_error) {}
   if (!response.ok) {
     throw new Error((payload && payload.error) || 'El scraper Syslab respondió HTTP ' + response.status + '.');
@@ -4356,6 +4412,7 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
     return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
   }
   let response;
+  const startedAt = Date.now();
   try {
     response = await fetchWithTimeout(
       SYSLAB_LOCAL_ORIGIN + '/api/exams/pdf?batchId=' +
@@ -4369,12 +4426,23 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
     return { error: 'No se pudo obtener el PDF desde el scraper local: ' + String((error && error.message) || error) };
   }
   if (!response.ok) return { error: 'El scraper respondió HTTP ' + response.status + ' al solicitar el PDF.' };
-  const buffer = await response.arrayBuffer();
-  if (!buffer.byteLength || buffer.byteLength > 6 * 1024 * 1024) {
+  let bytes;
+  try {
+    bytes = await readResponseBytesWithLimit(
+      response,
+      LAB_MAX_PDF_BYTES,
+      Math.max(1, 25_000 - (Date.now() - startedAt)),
+      'Syslab demoró demasiado en completar el PDF.'
+    );
+  } catch (error) {
+    return { error: String((error && error.message) || error) };
+  }
+  if (!bytes.byteLength) {
     return { error: 'El informe PDF está vacío o supera el límite seguro de 6 MB.' };
   }
-  const signature = String.fromCharCode.apply(null, new Uint8Array(buffer).slice(0, 4));
+  const signature = String.fromCharCode.apply(null, bytes.slice(0, 4));
   if (signature !== '%PDF') return { error: 'El scraper no devolvió un PDF válido.' };
+  const buffer = bytes.buffer;
   const jobId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-pdf-print-${jobId}`]: {

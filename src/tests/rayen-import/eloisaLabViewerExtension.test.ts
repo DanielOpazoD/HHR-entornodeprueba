@@ -319,6 +319,11 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('Puedes analizar como máximo 24 informes por operación.');
     expect(background).toContain('25_000');
     expect(background).toContain('límite seguro de 6 MB');
+    expect(background).toContain('readResponseBytesWithLimit');
+    expect(background).toContain('LAB_MAX_JSON_BYTES = 2 * 1024 * 1024');
+    expect(background).toContain('LAB_MAX_PDF_BYTES = 6 * 1024 * 1024');
+    expect(background).toContain('await reader.cancel()');
+    expect(background).toContain('await response.body.cancel()');
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');

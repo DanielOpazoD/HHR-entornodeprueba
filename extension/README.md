@@ -98,6 +98,8 @@ convierte en un control flotante para no cubrir la navegación.
 - El scraper entrega un identificador de lote opaco y metadatos sin URLs internas. La extensión guarda
   solamente ese identificador y los IDs de orden en `chrome.storage.session`; el lote caduca a los
   15 minutos y nunca persiste resultados de laboratorio.
+- JSON y PDF se leen en streaming con un límite total de tiempo y tamaño (2 MB y 6 MB,
+  respectivamente); una respuesta lenta o sobredimensionada se cancela antes de reservarla completa.
 - El scraper debe confirmar el cuerpo del RUN tanto en la respuesta como en cada orden; cualquier
   discrepancia bloquea el lote completo para evitar presentar exámenes de otro paciente. La misma
   validación se repite al extraer cada PDF y cualquier informe fallido cancela el análisis completo.
