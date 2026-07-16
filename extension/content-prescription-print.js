@@ -10,6 +10,7 @@
   'use strict';
 
   const helper = globalThis.HhrPrescriptionPrint;
+  const labHelper = globalThis.HhrLabViewer;
   if (!helper || globalThis.__hhrPrescriptionPrintInjected) return;
   globalThis.__hhrPrescriptionPrintInjected = true;
 
@@ -18,6 +19,7 @@
   const OPERATIONS_BAR_ID = 'hhr-clinical-operations-bar';
   const MODAL_ID = 'hhr-prescription-print-modal';
   const STYLE_ID = 'hhr-prescription-print-styles';
+  const LAB_MAX_SELECTED_EXAMS = 24;
   const uncertainClinicalWrites = new Map();
 
   const getActiveUncertainWrite = key => uncertainClinicalWrites.get(key) || null;
@@ -352,6 +354,7 @@
         font: inherit; font-size: 10.5px; font-weight: 600; box-shadow: none; white-space: nowrap;
       }
       #${OPERATIONS_BAR_ID} .hhr-ops-module:hover { background: #e9f5f3; color: #095f58; }
+      #${OPERATIONS_BAR_ID} .hhr-ops-module:disabled { opacity: .42; cursor: not-allowed; }
       #${OPERATIONS_BAR_ID} .hhr-ops-module:focus-visible { outline: 3px solid rgba(15,130,120,.24); outline-offset: 2px; }
       #${OPERATIONS_BAR_ID} .hhr-ops-module svg { width: 14px; height: 14px; fill: currentColor; }
       #${MODAL_ID} { position: fixed; inset: 0; z-index: 2147483646; font-family: Roboto, Arial, sans-serif; }
@@ -538,6 +541,38 @@
       #${MODAL_ID} .hhr-center-action:hover { border-color: #98c8c3; color: #0d766d; }
       #${MODAL_ID} .hhr-center-action-primary { border-color: #15978b; background: #15978b; color: #fff; }
       #${MODAL_ID} .hhr-center-action:disabled { opacity: .48; cursor: not-allowed; }
+      #${MODAL_ID} .hhr-lab-patient { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 12px 0; padding: 10px 12px; border: 1px solid #dbe4e2; border-radius: 8px; background: #f7faf9; color: #43504e; font-size: 11.5px; }
+      #${MODAL_ID} .hhr-lab-patient strong { color: #263533; font-size: 13px; }
+      #${MODAL_ID} .hhr-lab-status { margin-left: auto; color: #167a70; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-exam-list { display: grid; gap: 7px; }
+      #${MODAL_ID} .hhr-lab-exam-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid #dfe6e5; border-radius: 7px; background: #fff; }
+      #${MODAL_ID} .hhr-lab-exam-row:hover { border-color: #acd2ce; background: #fbfdfd; }
+      #${MODAL_ID} .hhr-lab-exam-row input { width: 17px; height: 17px; accent-color: #15978b; }
+      #${MODAL_ID} .hhr-lab-exam-title { color: #2f3d3b; font-size: 12px; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-exam-names { margin-top: 3px; color: #667370; font-size: 10.5px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-lab-selection { color: #63706e; font-size: 11px; white-space: nowrap; }
+      #${MODAL_ID} .hhr-lab-results { margin-top: 14px; border-top: 1px solid #dfe6e5; padding-top: 13px; }
+      #${MODAL_ID} .hhr-lab-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+      #${MODAL_ID} .hhr-lab-stat { padding: 5px 8px; border-radius: 999px; background: #edf5f4; color: #3f5b57; font-size: 10.5px; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-stat.is-alert { background: #fff0ee; color: #a23d35; }
+      #${MODAL_ID} .hhr-lab-tabs { display: flex; gap: 4px; margin: 0 0 10px; border-bottom: 1px solid #dce4e2; }
+      #${MODAL_ID} .hhr-lab-tab { padding: 8px 11px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #586562; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
+      #${MODAL_ID} .hhr-lab-tab[aria-selected="true"] { border-bottom-color: #15978b; color: #0b7c72; }
+      #${MODAL_ID} .hhr-lab-comparison-wrap { overflow: auto; max-height: 410px; border: 1px solid #dde5e3; border-radius: 7px; }
+      #${MODAL_ID} .hhr-lab-comparison { table-layout: auto; min-width: 760px; }
+      #${MODAL_ID} .hhr-lab-comparison th:first-child, #${MODAL_ID} .hhr-lab-comparison td:first-child { position: sticky; left: 0; z-index: 2; min-width: 170px; background: #fff; }
+      #${MODAL_ID} .hhr-lab-comparison th:first-child { z-index: 3; background: #f4f7f6; }
+      #${MODAL_ID} .hhr-lab-value { min-width: 112px; white-space: nowrap; }
+      #${MODAL_ID} .hhr-lab-value.is-alert { background: #fff2f0; color: #a43730; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-ref { display: block; margin-top: 2px; color: #7b8784; font-size: 9px; font-weight: 400; }
+      #${MODAL_ID} .hhr-lab-trends { display: grid; grid-template-columns: repeat(auto-fit,minmax(330px,1fr)); gap: 10px; }
+      #${MODAL_ID} .hhr-lab-trend-card { padding: 10px; border: 1px solid #dde5e3; border-radius: 8px; background: #fff; }
+      #${MODAL_ID} .hhr-lab-trend-card strong { color: #33423f; font-size: 12px; }
+      #${MODAL_ID} .hhr-lab-trend-card svg { display: block; width: 100%; height: 130px; margin-top: 6px; overflow: visible; }
+      #${MODAL_ID} .hhr-lab-trend-labels { display: flex; justify-content: space-between; gap: 4px; color: #76827f; font-size: 8.5px; }
+      #${MODAL_ID} .hhr-lab-report { margin-bottom: 8px; border: 1px solid #dfe6e5; border-radius: 7px; overflow: hidden; }
+      #${MODAL_ID} .hhr-lab-report summary { padding: 9px 11px; background: #f7f9f9; color: #34413f; cursor: pointer; font-size: 11.5px; font-weight: 700; }
+      #${MODAL_ID} .hhr-lab-report table { margin: 0; }
       #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 14px; }
       #${MODAL_ID} .hhr-connection-card { border: 1px solid #dce5e3; border-radius: 10px; background: #fff; padding: 15px; }
       #${MODAL_ID} .hhr-connection-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
@@ -1526,6 +1561,10 @@
         icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2M14 7l2-2 2 2 4-4"/>',
       },
       {
+        key: 'lab', label: 'Lab', title: 'Exámenes de laboratorio',
+        icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M8 15h8"/>',
+      },
+      {
         key: 'connection', label: 'Con', title: 'Conexiones',
         icon: '<path d="M8 12a4 4 0 0 1 4-4h3M16 12a4 4 0 0 1-4 4H9M10 12h4M18 5v4h-4M6 19v-4h4"/>',
       },
@@ -2314,6 +2353,457 @@
     });
   };
 
+  const copyText = async text => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  };
+
+  const appendLabTrendChart = (container, trend) => {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(namespace, 'svg');
+    svg.setAttribute('viewBox', '0 0 420 130');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Tendencia de ' + trend.analysis);
+    const values = trend.points.map(point => Number(point.value));
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const spread = maxValue - minValue || Math.max(Math.abs(maxValue) * 0.1, 1);
+    const xFor = index => 24 + (trend.points.length === 1 ? 0 : index * (372 / (trend.points.length - 1)));
+    const yFor = value => 108 - ((value - minValue) / spread) * 82;
+    const baseline = document.createElementNS(namespace, 'line');
+    baseline.setAttribute('x1', '24');
+    baseline.setAttribute('x2', '396');
+    baseline.setAttribute('y1', '108');
+    baseline.setAttribute('y2', '108');
+    baseline.setAttribute('stroke', '#d6dfdd');
+    svg.appendChild(baseline);
+    const polyline = document.createElementNS(namespace, 'polyline');
+    polyline.setAttribute('points', trend.points.map((point, index) => `${xFor(index)},${yFor(point.value)}`).join(' '));
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', '#15978b');
+    polyline.setAttribute('stroke-width', '2');
+    svg.appendChild(polyline);
+    trend.points.forEach((point, index) => {
+      const circle = document.createElementNS(namespace, 'circle');
+      circle.setAttribute('cx', String(xFor(index)));
+      circle.setAttribute('cy', String(yFor(point.value)));
+      circle.setAttribute('r', point.alert ? '4.5' : '3.5');
+      circle.setAttribute('fill', point.alert ? '#c94c43' : '#15978b');
+      const title = document.createElementNS(namespace, 'title');
+      title.textContent = `${point.label}: ${point.value}${trend.unit ? ' ' + trend.unit : ''}`;
+      circle.appendChild(title);
+      svg.appendChild(circle);
+      const label = document.createElementNS(namespace, 'text');
+      label.setAttribute('x', String(xFor(index)));
+      label.setAttribute('y', String(Math.max(12, yFor(point.value) - 8)));
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '9');
+      label.setAttribute('fill', point.alert ? '#a43730' : '#43514e');
+      label.textContent = String(point.value);
+      svg.appendChild(label);
+    });
+    container.appendChild(svg);
+    const labels = document.createElement('div');
+    labels.className = 'hhr-lab-trend-labels';
+    trend.points.forEach(point => {
+      const label = document.createElement('span');
+      label.textContent = point.label.replace(/\s+\d{1,2}:\d{2}(?::\d{2})?$/, '');
+      labels.appendChild(label);
+    });
+    container.appendChild(labels);
+  };
+
+  const renderLabAnalysis = (host, analysis, activeTab, onTabChange) => {
+    host.innerHTML = '';
+    const summary = document.createElement('div');
+    summary.className = 'hhr-lab-summary';
+    const statValues = [
+      [`${analysis.summary.reportCount} informes`, ''],
+      [`${analysis.summary.findingCount} resultados`, ''],
+      [`${analysis.summary.alertCount} fuera de rango / alertas`, analysis.summary.alertCount ? ' is-alert' : ''],
+    ];
+    statValues.forEach(item => {
+      const stat = document.createElement('span');
+      stat.className = 'hhr-lab-stat' + item[1];
+      stat.textContent = item[0];
+      summary.appendChild(stat);
+    });
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'hhr-center-action';
+    copy.textContent = 'Copiar tabla';
+    copy.addEventListener('click', async () => {
+      try {
+        await copyText(labHelper.comparisonClipboard(analysis));
+        copy.textContent = 'Copiada';
+      } catch (_error) {
+        copy.textContent = 'No se pudo copiar';
+      }
+      window.setTimeout(() => { if (copy.isConnected) copy.textContent = 'Copiar tabla'; }, 1800);
+    });
+    summary.appendChild(copy);
+    host.appendChild(summary);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'hhr-lab-tabs';
+    tabs.setAttribute('role', 'tablist');
+    [
+      ['comparison', 'Comparación'],
+      ['trends', 'Tendencias'],
+      ['reports', 'Por informe'],
+    ].forEach(item => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'hhr-lab-tab';
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-selected', String(activeTab === item[0]));
+      button.textContent = item[1];
+      button.addEventListener('click', () => onTabChange(item[0]));
+      tabs.appendChild(button);
+    });
+    host.appendChild(tabs);
+
+    if (activeTab === 'comparison') {
+      const wrap = document.createElement('div');
+      wrap.className = 'hhr-lab-comparison-wrap';
+      const table = document.createElement('table');
+      table.className = 'hhr-center-table hhr-lab-comparison';
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['Variable', ...analysis.columns.map(column => column.label)].forEach(labelText => {
+        const th = document.createElement('th');
+        th.textContent = labelText;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      analysis.comparison.forEach(row => {
+        const tr = document.createElement('tr');
+        const name = document.createElement('td');
+        const strong = document.createElement('strong');
+        strong.textContent = row.analysis;
+        const section = document.createElement('span');
+        section.className = 'hhr-center-meta';
+        section.textContent = row.section;
+        name.append(strong, section);
+        tr.appendChild(name);
+        analysis.columns.forEach(column => {
+          const td = document.createElement('td');
+          td.className = 'hhr-lab-value';
+          const finding = row.values && row.values[column.key];
+          if (!finding) {
+            td.textContent = '—';
+          } else {
+            if (finding.alert) td.classList.add('is-alert');
+            td.append(document.createTextNode(finding.result + (finding.unit ? ' ' + finding.unit : '')));
+            if (finding.refValue) {
+              const ref = document.createElement('span');
+              ref.className = 'hhr-lab-ref';
+              ref.textContent = 'Ref. ' + finding.refValue;
+              td.appendChild(ref);
+            }
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      host.appendChild(wrap);
+      return;
+    }
+
+    if (activeTab === 'trends') {
+      if (!analysis.trends.length) {
+        const empty = document.createElement('div');
+        empty.className = 'hhr-center-empty';
+        empty.textContent = 'Se necesitan al menos dos valores numéricos del mismo analito para mostrar tendencias.';
+        host.appendChild(empty);
+        return;
+      }
+      const trends = document.createElement('div');
+      trends.className = 'hhr-lab-trends';
+      analysis.trends.forEach(trend => {
+        const card = document.createElement('article');
+        card.className = 'hhr-lab-trend-card';
+        const title = document.createElement('strong');
+        title.textContent = trend.analysis + (trend.unit ? ' · ' + trend.unit : '');
+        card.appendChild(title);
+        appendLabTrendChart(card, trend);
+        trends.appendChild(card);
+      });
+      host.appendChild(trends);
+      return;
+    }
+
+    analysis.reports.forEach((report, reportIndex) => {
+      const details = document.createElement('details');
+      details.className = 'hhr-lab-report';
+      details.open = reportIndex === 0;
+      const reportSummary = document.createElement('summary');
+      reportSummary.textContent = `${report.label} · ${report.findings.length} resultados` +
+        (report.examNames.length ? ' · ' + report.examNames.join(', ') : '');
+      details.appendChild(reportSummary);
+      if (report.error) {
+        const error = document.createElement('div');
+        error.className = 'hhr-rx-error';
+        error.textContent = report.error;
+        details.appendChild(error);
+      }
+      const table = document.createElement('table');
+      table.className = 'hhr-center-table';
+      const tbody = document.createElement('tbody');
+      report.findings.forEach(finding => {
+        const tr = document.createElement('tr');
+        const name = document.createElement('td');
+        name.dataset.label = 'Examen';
+        name.textContent = finding.analysis;
+        const value = document.createElement('td');
+        value.dataset.label = 'Resultado';
+        value.className = 'hhr-lab-value' + (finding.alert ? ' is-alert' : '');
+        value.textContent = finding.result + (finding.unit ? ' ' + finding.unit : '');
+        const reference = document.createElement('td');
+        reference.dataset.label = 'Referencia';
+        reference.textContent = finding.refValue || '—';
+        const section = document.createElement('td');
+        section.dataset.label = 'Sección';
+        section.textContent = finding.section;
+        tr.append(name, value, reference, section);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      details.appendChild(table);
+      host.appendChild(details);
+    });
+  };
+
+  const renderLabCenter = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    if (!labHelper) {
+      main.innerHTML = '<div class="hhr-rx-error">El visor de laboratorio no quedó cargado. Recarga la extensión y la pestaña de Eloísa.</div>';
+      return;
+    }
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Laboratorio Syslab</h2>
+        <input class="hhr-center-search hhr-lab-filter" type="search" placeholder="Filtrar por fecha o examen" aria-label="Filtrar informes">
+        <button class="hhr-center-action hhr-lab-select-all" type="button" disabled>Seleccionar todos</button>
+        <button class="hhr-center-action hhr-center-action-primary hhr-lab-analyze" type="button" disabled>Analizar</button>
+        <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
+      </div>
+      <div class="hhr-center-content">
+        <div class="hhr-lab-patient"><strong>Paciente actual</strong><span>Identificando desde Eloísa…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
+        <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
+        <div class="hhr-lab-exam-list"></div>
+        <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
+      </div>
+    `;
+    const patientHost = main.querySelector('.hhr-lab-patient');
+    const status = main.querySelector('.hhr-lab-selection');
+    const list = main.querySelector('.hhr-lab-exam-list');
+    const results = main.querySelector('.hhr-lab-results');
+    const filter = main.querySelector('.hhr-lab-filter');
+    const selectAll = main.querySelector('.hhr-lab-select-all');
+    const analyze = main.querySelector('.hhr-lab-analyze');
+    const refresh = main.querySelector('.hhr-center-refresh');
+    let batchId = '';
+    let exams = [];
+    let selected = new Set();
+    let analysis = null;
+    let activeTab = 'comparison';
+    let requestGeneration = 0;
+    let isAnalyzing = false;
+
+    const invalidateLabAnalysis = () => {
+      analysis = null;
+      activeTab = 'comparison';
+      results.innerHTML = '';
+    };
+
+    const visibleExams = () => {
+      const query = normalizedText(filter.value);
+      return exams.filter(exam => !query || normalizedText([
+        exam.date, exam.time, exam.origin, ...(exam.exams || []),
+      ].join(' ')).includes(query));
+    };
+    const updateSelection = () => {
+      const visible = visibleExams();
+      if (!isAnalyzing) {
+        status.textContent = exams.length
+          ? `${selected.size} de ${exams.length} informes seleccionados · máximo ${LAB_MAX_SELECTED_EXAMS}`
+          : 'No hay informes disponibles para este paciente.';
+        analyze.textContent = selected.size ? `Analizar ${selected.size}` : 'Analizar';
+      }
+      analyze.disabled = isAnalyzing || selected.size === 0;
+      selectAll.disabled = isAnalyzing || visible.length === 0;
+      selectAll.textContent = visible.length && visible.every(exam => selected.has(exam.id))
+        ? 'Quitar visibles' : 'Seleccionar visibles';
+    };
+    const renderList = () => {
+      list.innerHTML = '';
+      const visible = visibleExams();
+      if (!visible.length) {
+        const empty = document.createElement('div');
+        empty.className = 'hhr-center-empty';
+        empty.textContent = exams.length ? 'Ningún informe coincide con el filtro.' : 'Syslab no informó exámenes.';
+        list.appendChild(empty);
+        updateSelection();
+        return;
+      }
+      visible.forEach(exam => {
+        const row = document.createElement('label');
+        row.className = 'hhr-lab-exam-row';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selected.has(exam.id);
+        checkbox.disabled = isAnalyzing || (!checkbox.checked && selected.size >= LAB_MAX_SELECTED_EXAMS);
+        checkbox.addEventListener('change', () => {
+          const selectionBefore = selected.has(exam.id);
+          if (checkbox.checked && selected.size < LAB_MAX_SELECTED_EXAMS) selected.add(exam.id);
+          else if (!checkbox.checked) selected.delete(exam.id);
+          if (selected.has(exam.id) !== selectionBefore) invalidateLabAnalysis();
+          renderList();
+        });
+        const copy = document.createElement('span');
+        const title = document.createElement('span');
+        title.className = 'hhr-lab-exam-title';
+        title.textContent = `${exam.date}${exam.time ? ' · ' + exam.time : ''}${exam.origin ? ' · ' + exam.origin : ''}`;
+        const names = document.createElement('span');
+        names.className = 'hhr-lab-exam-names';
+        names.textContent = (exam.exams || []).join(' · ') || 'Informe de laboratorio';
+        copy.append(title, names);
+        const pdf = document.createElement('button');
+        pdf.type = 'button';
+        pdf.className = 'hhr-center-action';
+        pdf.textContent = 'PDF';
+        pdf.disabled = isAnalyzing;
+        pdf.addEventListener('click', async event => {
+          event.preventDefault();
+          event.stopPropagation();
+          pdf.disabled = true;
+          const response = await sendMessage({ type: 'RAYEN_LAB_PDF_OPEN_REQUEST', batchId, examId: exam.id });
+          pdf.disabled = false;
+          if (!response || response.error) status.textContent = (response && response.error) || 'No se pudo abrir el PDF.';
+        });
+        row.append(checkbox, copy, pdf);
+        list.appendChild(row);
+      });
+      updateSelection();
+    };
+    const showAnalysis = () => {
+      if (!analysis) return;
+      renderLabAnalysis(results, analysis, activeTab, nextTab => {
+        activeTab = nextTab;
+        showAnalysis();
+      });
+    };
+    const load = async () => {
+      const generation = ++requestGeneration;
+      isAnalyzing = false;
+      batchId = '';
+      exams = [];
+      selected = new Set();
+      invalidateLabAnalysis();
+      status.textContent = 'Buscando exámenes en Syslab…';
+      list.innerHTML = '<div class="hhr-center-empty">Consultando la sesión oficial de Syslab en la red local…</div>';
+      results.innerHTML = '';
+      analyze.disabled = true;
+      selectAll.disabled = true;
+      filter.disabled = true;
+      refresh.disabled = true;
+      const response = await sendMessage({ type: 'RAYEN_LAB_SEARCH_REQUEST', encId: encId || '' });
+      if (!root.isConnected || root.dataset.activeModule !== 'lab' || generation !== requestGeneration) return;
+      filter.disabled = false;
+      refresh.disabled = false;
+      if (!response || response.error) {
+        status.textContent = 'Syslab no disponible';
+        list.innerHTML = '';
+        const error = document.createElement('div');
+        error.className = 'hhr-rx-error';
+        error.textContent = (response && response.error) || 'No se pudo consultar laboratorio.';
+        list.appendChild(error);
+        return;
+      }
+      batchId = response.batchId;
+      exams = Array.isArray(response.exams) ? response.exams : [];
+      selected = new Set(exams.slice(0, 6).map(exam => exam.id));
+      analysis = null;
+      patientHost.innerHTML = '';
+      const patientName = document.createElement('strong');
+      patientName.textContent = response.patient && response.patient.name || 'Paciente actual';
+      const patientMeta = document.createElement('span');
+      patientMeta.textContent = [
+        response.patient && response.patient.run,
+        response.patient && response.patient.bed ? 'Cama ' + response.patient.bed : '',
+        response.patient && response.patient.service,
+      ].filter(Boolean).join(' · ');
+      const connection = document.createElement('span');
+      connection.className = 'hhr-lab-status';
+      connection.textContent = 'Syslab conectado directamente';
+      patientHost.append(patientName, patientMeta, connection);
+      renderList();
+    };
+    filter.addEventListener('input', renderList);
+    selectAll.addEventListener('click', () => {
+      const visible = visibleExams();
+      const selectionBefore = [...selected].sort().join('|');
+      const shouldSelect = !visible.every(exam => selected.has(exam.id));
+      visible.forEach(exam => {
+        if (shouldSelect && selected.size < LAB_MAX_SELECTED_EXAMS) selected.add(exam.id);
+        else if (!shouldSelect) selected.delete(exam.id);
+      });
+      if ([...selected].sort().join('|') !== selectionBefore) invalidateLabAnalysis();
+      renderList();
+    });
+    analyze.addEventListener('click', async () => {
+      const generation = ++requestGeneration;
+      const requestBatchId = batchId;
+      const requestExamIds = [...selected].sort();
+      isAnalyzing = true;
+      filter.disabled = true;
+      refresh.disabled = true;
+      renderList();
+      analyze.textContent = 'Leyendo y organizando informes…';
+      status.textContent = 'Extrayendo resultados desde los PDF seleccionados. Cada bloque tiene un límite de 25 segundos.';
+      const response = await sendMessage({
+        type: 'RAYEN_LAB_DETAILS_REQUEST',
+        batchId: requestBatchId,
+        examIds: requestExamIds,
+      });
+      const currentExamIds = [...selected].sort();
+      if (!root.isConnected || root.dataset.activeModule !== 'lab' || generation !== requestGeneration ||
+          requestBatchId !== batchId || requestExamIds.join('|') !== currentExamIds.join('|')) return;
+      isAnalyzing = false;
+      filter.disabled = false;
+      refresh.disabled = false;
+      if (!response || response.error) {
+        renderList();
+        status.textContent = (response && response.error) || 'No se pudieron analizar los informes.';
+        analyze.textContent = `Reintentar ${selected.size}`;
+        return;
+      }
+      analysis = response.analysis;
+      activeTab = 'comparison';
+      updateSelection();
+      showAnalysis();
+      results.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    refresh.addEventListener('click', load);
+    load();
+  };
+
   const connectionInitials = value => {
     const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return 'HHR';
@@ -2520,7 +3010,7 @@
     const focusReturnTarget = returnFocusTarget || document.activeElement;
     if (!closeModal()) return;
     ensureStyles();
-    const activeModule = module === 'scores' || module === 'connection' ? module : 'handoff';
+    const activeModule = ['scores', 'connection', 'lab'].includes(module) ? module : 'handoff';
     const root = document.createElement('div');
     root.id = MODAL_ID;
     root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
@@ -2570,6 +3060,7 @@
     root.querySelector('.hhr-rx-close').focus();
     if (activeModule === 'handoff') renderHandoffCenter(root, encId);
     else if (activeModule === 'scores') renderScoresCenter(root, encId);
+    else if (activeModule === 'lab') renderLabCenter(root, encId);
     else renderConnectionCenter(root, encId);
   };
 
@@ -2711,6 +3202,12 @@
             </svg>
             <span>Scr</span>
           </button>
+          <button class="hhr-ops-module hhr-ops-lab" type="button" aria-label="Exámenes de laboratorio" title="Exámenes de laboratorio Syslab">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 2v2h1v5.59l-5.7 9.88A1.68 1.68 0 0 0 5.76 22h12.48a1.68 1.68 0 0 0 1.46-2.53L14 9.59V4h1V2H9Zm3 8.12L14.24 14H9.76L12 10.12ZM6.34 20l2.27-4h6.78l2.27 4H6.34Z"/>
+            </svg>
+            <span>Lab</span>
+          </button>
         </div>
       `;
       try {
@@ -2730,6 +3227,7 @@
       const sessionButton = bar.querySelector('.hhr-ops-session');
       const handoffButton = bar.querySelector('.hhr-ops-handoff');
       const scoresButton = bar.querySelector('.hhr-ops-scores');
+      const labButton = bar.querySelector('.hhr-ops-lab');
       sessionButton.addEventListener('click', () =>
         createOperationsCenterModal('connection', bar.dataset.encounterId, sessionButton)
       );
@@ -2739,9 +3237,21 @@
       scoresButton.addEventListener('click', () =>
         createOperationsCenterModal('scores', bar.dataset.encounterId, scoresButton)
       );
+      labButton.addEventListener('click', () =>
+        createOperationsCenterModal('lab', bar.dataset.encounterId, labButton)
+      );
       document.body.appendChild(bar);
     }
     bar.dataset.encounterId = encId || '';
+    const labButton = bar.querySelector('.hhr-ops-lab');
+    if (labButton) {
+      labButton.disabled = !encId || !labHelper;
+      labButton.title = !labHelper
+        ? 'Recarga la extensión para activar laboratorio'
+        : encId
+        ? 'Exámenes de laboratorio Syslab'
+        : 'Abre un episodio clínico para consultar laboratorio';
+    }
     updateOperationsBarPosition(bar);
     void refreshOperationsConnectionBadge(bar);
   };

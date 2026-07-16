@@ -50,6 +50,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 | `gestion-camas-session.js` | Valida y reduce la sesión temporal de Gestión de Camas, incluida su expiración |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
+| `lab-viewer.js` | Parser clínico y organización pura de comparación, alertas y tendencias |
+| `syslab-bridge.js` | Navega la sesión oficial de Syslab y extrae/valida informes dentro de la red local |
+| `pdf.min.mjs`, `pdf.worker.min.mjs` | PDF.js vendorizado para extraer el texto de informes sin servicios auxiliares |
 
 ## Instalar (modo desarrollador)
 
@@ -81,8 +84,41 @@ En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Ce
 oficial del Hospital Hanga Roa. La barra detecta la altura real del encabezado de Eloísa y se ubica en el
 extremo derecho de la primera franja gris, sin cubrir la segunda fila de navegación. Es compacta y su
 contenedor modular permite incorporar nuevas herramientas. Incluye **Recetas**, **Regímenes**,
-**Indicaciones**, **Entrega de turno**, **Scores** y **Conexiones**. En pantallas
-pequeñas se convierte en un control flotante para no cubrir la navegación.
+**Indicaciones**, **Entrega de turno**, **Scores**, **Conexiones** y **Lab**. En pantallas pequeñas se
+convierte en un control flotante para no cubrir la navegación.
+
+### Visor de exámenes de laboratorio
+
+- **Lab** está disponible al abrir un episodio clínico. Obtiene el RUN del encabezado oficial de
+  Eloísa y consulta directamente `http://10.4.69.90/syslab/` desde el equipo conectado a la red
+  local. No requiere levantar un scraper ni otro servicio.
+- La búsqueda muestra los informes por fecha, hora, origen y examen. Permite filtrar, seleccionar
+  varios, abrir el PDF autenticado y analizar hasta 24 informes por operación.
+- El análisis conserva las capacidades centrales del visor HHR: tabla longitudinal por variable,
+  referencias y alertas fuera de rango, tendencias numéricas con cada valor rotulado, vista completa
+  por informe y copia tabulada para uso clínico.
+- La primera consulta abre la ventana oficial de Syslab. El usuario inicia sesión directamente allí
+  —puede usar el gestor de contraseñas de Chrome— y vuelve a pulsar **Actualizar**. La extensión no
+  lee, guarda ni distribuye la contraseña.
+- Las rutas internas permanecen únicamente en `chrome.storage.session`, ligadas al episodio, RUN y
+  lote temporal de 15 minutos; la interfaz recibe solo metadatos e IDs de orden y nunca persiste
+  resultados de laboratorio.
+- Cada informe se lee con la sesión oficial, con límite de 6 MB y tiempo total. PDF.js extrae el texto
+  localmente y el parser HHR organiza variables, referencias, alertas y tendencias.
+- La extensión confirma el cuerpo del RUN tanto en la lista como en cada informe; cualquier
+  discrepancia o informe fallido cancela el lote completo para evitar presentar datos parciales o de
+  otro paciente.
+- El portal institucional actualmente está publicado por Syslab mediante HTTP dentro de la LAN. La
+  extensión usa exactamente esa ruta oficial y no expone los datos fuera del equipo, pero HTTP no
+  aporta cifrado frente a otros actores de la red. Debe utilizarse solo en la red clínica controlada;
+  habilitar HTTPS en Syslab sigue siendo la corrección de infraestructura recomendada.
+
+En la sección **Solicitud de examen** de un episodio médico o de enfermería se agrega además
+**Imprimir selección (2–3 órdenes)**. La acción vuelve a solicitar cada Jasper oficial, extrae y valida sus
+campos clínicos y genera una solicitud nueva y compacta: identificación, diagnóstico y establecimiento
+aparecen una sola vez, mientras cada folio, código y examen conserva su trazabilidad. Los profesionales
+se deduplican y cada folio permanece identificado en su bloque. Los botones individuales de Eloísa permanecen
+disponibles y ninguna orden ni estado clínico se modifica.
 
 ### Conexión temporal con Gestión de Camas
 

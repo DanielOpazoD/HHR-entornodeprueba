@@ -10,14 +10,14 @@
   };
 
   if (!storageKey) {
-    fail('No se encontró la receta solicitada. Cierra esta pestaña y vuelve a intentarlo.');
+    fail('No se encontró el documento PDF solicitado. Cierra esta pestaña y vuelve a intentarlo.');
     return;
   }
 
   chrome.storage.session.get(storageKey).then(result => {
     const job = result && result[storageKey];
     if (!job || !job.base64) {
-      fail('La receta ya no está disponible. Cierra esta pestaña y vuelve a intentarlo.');
+      fail('El documento PDF ya no está disponible. Cierra esta pestaña y vuelve a intentarlo.');
       return;
     }
     const binary = atob(job.base64);
@@ -27,6 +27,6 @@
     chrome.storage.session.remove(storageKey).catch(() => {});
     location.replace(pdfUrl);
   }).catch(error => {
-    fail('No se pudo abrir la receta: ' + String((error && error.message) || error));
+    fail('No se pudo abrir el documento PDF: ' + String((error && error.message) || error));
   });
 })();

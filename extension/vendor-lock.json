@@ -21,6 +21,20 @@
       "version": "0.20.3",
       "license": "Apache-2.0",
       "sha256": "cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41"
+    },
+    {
+      "file": "pdf.min.mjs",
+      "package": "pdfjs-dist",
+      "version": "5.6.205",
+      "license": "Apache-2.0",
+      "sha256": "2221020ea508479dcc1221f36f2731656339230097c69ba1f78802832c0ad685"
+    },
+    {
+      "file": "pdf.worker.min.mjs",
+      "package": "pdfjs-dist",
+      "version": "5.6.205",
+      "license": "Apache-2.0",
+      "sha256": "51a2fd1ea47f1a9b0814e65e0c336c739c54957795ee774e8f93cb81e8028dd1"
     }
   ]
 }

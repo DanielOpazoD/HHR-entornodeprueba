@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.23.1",
+  "version": "0.24.2",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": ["tabs", "downloads", "storage"],
   "host_permissions": [
@@ -10,6 +10,7 @@
     "https://formulariosclinicosback.rayensalud.cl/*",
     "https://hospitalizado.rayensalud.cl/*",
     "https://hospbackend.rayensalud.cl/*",
+    "http://10.4.69.90/syslab/*",
     "http://localhost/*",
     "https://testinghhr.netlify.app/*"
   ],
@@ -20,6 +21,10 @@
     {
       "resources": ["hhr-logo.svg"],
       "matches": ["https://fichamedico.rayensalud.cl/*"]
+    },
+    {
+      "resources": ["pdf.min.mjs", "pdf.worker.min.mjs"],
+      "matches": ["http://10.4.69.90/syslab/*"]
     }
   ],
   "content_scripts": [
@@ -31,7 +36,14 @@
     },
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
-      "js": ["prescription-print.js", "content-fichamedico.js", "content-prescription-print.js"],
+      "js": [
+        "prescription-print.js",
+        "lab-viewer.js",
+        "exam-request-print.js",
+        "content-fichamedico.js",
+        "content-exam-request-print.js",
+        "content-prescription-print.js"
+      ],
       "run_at": "document_start"
     },
     {
@@ -44,6 +56,11 @@
       "matches": ["https://hospitalizado.rayensalud.cl/*"],
       "js": ["content-gestioncamas.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["http://10.4.69.90/syslab/*"],
+      "js": ["lab-viewer.js", "syslab-bridge.js"],
+      "run_at": "document_idle"
     },
     {
       "matches": ["http://localhost/*", "https://testinghhr.netlify.app/*"],
