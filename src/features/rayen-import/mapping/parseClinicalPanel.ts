@@ -23,67 +23,25 @@ import type {
   RayenClinicalPanelCarePlan,
   RayenClinicalPanelEvent,
 } from '../bridge/clinicalPanelBridge';
-import { parseClinicalCareDays, type ClinicalPanelCareDay } from './parseClinicalCarePlan';
+import type {
+  ClinicalPanel,
+  ClinicalPanelEntry,
+  ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './clinicalPanelTypes';
+import { parseClinicalCareDays } from './parseClinicalCarePlan';
 import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
 import { projectValidatedMedicationDays } from './projectValidatedMedicationDays';
 import { toTitleCaseName } from './rayenToPatientData';
 
-export type ClinicalPanelEntryKind =
-  | 'evolution'
-  | 'shift-change'
-  | 'pharma'
-  | 'free-indication'
-  | 'diet'
-  | 'rest';
-
-/** Bucket for the Evoluciones sub-tabs, derived from the practitioner ROLE. */
-export type EvolutionProfession = 'medical' | 'nursing' | 'other';
-
-export interface ClinicalPanelEntry {
-  /** Stable within one parse — source id when the row has one, positional otherwise. */
-  id: string;
-  kind: ClinicalPanelEntryKind;
-  /** Short heading: "Evolución", the drug descriptor, "Régimen"… */
-  title: string;
-  /** The clinical body (notes / posology / observation). */
-  text: string;
-  /** The person who signed it ('' when the source row carries no name parts). */
-  author: string;
-  /** The practitioner role label (Médico, Enfermera(o)…, '' when unknown/numeric). */
-  role: string;
-  /** Evolutions/shift-change only: sub-tab bucket. */
-  profession?: EvolutionProfession;
-  publishedAt: string;
-  archived: boolean;
-  /** Pharma/free indications only: explicitly suspended in Ficha Médico. */
-  suspended: boolean;
-  /** Pharma only: course explicitly completed in the current medication plan. */
-  finalized?: boolean;
-  /** Pharma only: original prescription timestamp when a later daily validation keeps it current. */
-  prescribedAt?: string;
-  /** Why this drug is present on this day's sheet. */
-  validitySource?: 'indication' | 'daily-validation';
-  /** Pharma/free indications only: source flag retained for compatibility; not shown in the UI. */
-  isNew: boolean;
-  /** Evolutions only: struck-through (annulled) note. */
-  crossedOut: boolean;
-}
-
-/** One calendar day of the indication sheet. */
-export interface ClinicalPanelIndicationDay {
-  /** Grouping key, YYYY-MM-DD ('' when the source date was unparseable). */
-  day: string;
-  /** Display label, DD-MM-YYYY. */
-  label: string;
-  active: ClinicalPanelEntry[];
-  suspended: ClinicalPanelEntry[];
-}
-
-export interface ClinicalPanel {
-  evolutions: ClinicalPanelEntry[];
-  indicationDays: ClinicalPanelIndicationDay[];
-  careDays: ClinicalPanelCareDay[];
-}
+export type {
+  ClinicalPanel,
+  ClinicalPanelEntry,
+  ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './clinicalPanelTypes';
 
 type RawRow = Record<string, unknown>;
 

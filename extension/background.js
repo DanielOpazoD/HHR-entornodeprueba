@@ -294,7 +294,10 @@ const handleGestionCamasDocumentReady = async sender => {
   return { connectionAttemptId: '' };
 };
 
-const requestLiveGestionCamasSession = async () => {
+const requestLiveGestionCamasSession = async ({
+  verificationTimeoutMs = BACKEND_REQUEST_TIMEOUT_MS,
+  tabTimeoutMs = TAB_MESSAGE_TIMEOUT_MS,
+} = {}) => {
   const tabs = self.HhrExtensionHealth.orderTabs(
     await chrome.tabs.query({ url: GESTIONCAMAS_MATCH })
   );
@@ -315,14 +318,14 @@ const requestLiveGestionCamasSession = async () => {
           type: 'RAYEN_GC_GET_FETCH_INFO',
           connectionAttemptId,
         }),
-        TAB_MESSAGE_TIMEOUT_MS,
+        tabTimeoutMs,
         'La pestaña de Gestión de Camas no respondió dentro del tiempo esperado.'
       );
       if (response && response.info) {
         const candidate = await persistGestionCamasSession(response.info, {
           sourceTabId: tab.id,
         });
-        const verified = await verifyGestionCamasSession(candidate);
+        const verified = await verifyGestionCamasSession(candidate, verificationTimeoutMs);
         if (verified.record) return { record: verified.record };
         if (verified.changed) {
           const replacement = await readGestionCamasSession();
@@ -367,13 +370,20 @@ const classifyGestionCamasRejection = async (response, record) => {
   return '';
 };
 
-const verifyGestionCamasSession = async record => {
+const verifyGestionCamasSession = async (
+  record,
+  timeoutMs = BACKEND_REQUEST_TIMEOUT_MS
+) => {
   if (!record || !record.facId) return { error: 'La sesión no informa el establecimiento.' };
   const url =
     `${record.apiBase}/facility/${record.facId}/encounter` +
     `?facId=0&prefferedIdentifierCode=${GESTION_CAMAS_SESSION_PROBE_RUN}&prefferedPeridentId=2`;
   try {
-    const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
+    const response = await fetchWithTimeout(
+      url,
+      { headers: { Authorization: record.token } },
+      timeoutMs
+    );
     if (response.ok) {
       const verified = await markGestionCamasSessionVerified(record);
       return verified ? { record: verified } : { changed: true };
@@ -395,7 +405,10 @@ const handleGestionCamasHealth = async () => {
   if (!gestionCamasSession.isUsable(record)) {
     record = await clearUnusableGestionCamasSession();
     if (!gestionCamasSession.isUsable(record)) {
-      const live = await requestLiveGestionCamasSession();
+      const live = await requestLiveGestionCamasSession({
+        verificationTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+        tabTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+      });
       if (!live.record) {
         return {
           ...gestionCamasSession.publicStatus(null),
@@ -408,7 +421,7 @@ const handleGestionCamasHealth = async () => {
   if (gestionCamasSession.isVerificationFresh(record)) {
     return gestionCamasSession.publicStatus(record);
   }
-  const verified = await verifyGestionCamasSession(record);
+  const verified = await verifyGestionCamasSession(record, HEALTH_PROBE_TIMEOUT_MS);
   if (verified.record) return gestionCamasSession.publicStatus(verified.record);
   if (verified.changed) return gestionCamasSession.publicStatus(await readGestionCamasSession());
   const status = gestionCamasSession.publicStatus(record);
@@ -611,19 +624,33 @@ const handleExtensionHealth = async () => {
   };
 };
 
-const GESTION_CAMAS_PHI_FIELDS = new Set([
-  'patient', 'firstName', 'firstGivenName', 'nextGivenNames', 'lastName', 'firstFamilyName',
-  'secondFamilyName', 'name', 'fullName', 'motherName', 'fatherName', 'identifier', 'run', 'rut',
-  'preferredIdentifierCode', 'prefferedIdentifierCode', 'birthDate', 'address', 'phone', 'email',
-]);
+const GESTION_CAMAS_EGRESO_METADATA_FIELDS = [
+  'id',
+  'endPeriod',
+  'dateDischarge',
+  'isDead',
+  'hasMedicalDischarge',
+  'hasNurseDischarge',
+  'hasNursingDischarge',
+  'hasAdministrativeDischarge',
+  'dischargeDestination',
+  'dischargeDestinationName',
+  'destinationSystemName',
+  'dischargeReasonName',
+  'dischargeTypeName',
+  'bedDestination',
+  'destinationBed',
+];
 
 const pickGestionCamasEncounterMetadata = value => {
   const result = {};
   if (!value || typeof value !== 'object') return result;
-  for (const key of Object.keys(value)) {
-    if (GESTION_CAMAS_PHI_FIELDS.has(key)) continue;
+  for (const key of GESTION_CAMAS_EGRESO_METADATA_FIELDS) {
     const field = value[key];
-    if (field === null || (typeof field !== 'object' && typeof field !== 'function')) result[key] = field;
+    if (field !== undefined && field !== null &&
+        typeof field !== 'object' && typeof field !== 'function') {
+      result[key] = field;
+    }
   }
   return result;
 };
@@ -1065,7 +1092,12 @@ const handleClinicalPanelRequest = async ({ encId }) => {
       { label: 'plan de cuidados', result: careResult },
       { label: 'medicamentos activos', result: activeMedicationResult },
       { label: 'medicamentos inactivos', result: suspendedMedicationResult },
+      { label: 'validación diaria del tratamiento', result: validationResult },
     ]);
+    const validationSource = sources[4];
+    if (validationSource && validationSource.error) {
+      throw new Error('validación diaria del tratamiento: ' + validationSource.error);
+    }
   } catch (error) {
     return {
       error:
@@ -1074,7 +1106,13 @@ const handleClinicalPanelRequest = async ({ encId }) => {
     };
   }
 
-  const [rawHistory, carePayload, activeMedicationStates, suspendedMedicationStates] = sources;
+  const [
+    rawHistory,
+    carePayload,
+    activeMedicationStates,
+    suspendedMedicationStates,
+    validationSource,
+  ] = sources;
 
   const events = [];
   for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
@@ -1096,10 +1134,7 @@ const handleClinicalPanelRequest = async ({ encId }) => {
     if (hasContent) events.push(slim);
   }
 
-  const currentValidation =
-    validationResult.status === 'fulfilled' && !validationResult.value.error
-      ? validationResult.value.validation
-      : null;
+  const currentValidation = validationSource && validationSource.validation || null;
   const currentValidationDatetime =
     currentValidation && typeof currentValidation === 'object'
       ? currentValidation.creationDatetime
@@ -2395,9 +2430,9 @@ const handleHandoffOptionsRequest = async ({ currentEncId }) => {
       /^\d+$/.test(String(info.practitionerRoleId || '')) && handoffKind && handoffEventTypeId
   );
   if (!identityReady) return { error: 'No se pudo verificar un rol médico o de enfermería en la sesión.' };
-  const claimsResult = handoffKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
+  const claimsResult = await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  const canViewHandoff = handoffKind === 'medical' || hasFichaClaim(claimsResult, 'Ver_Cambio_Turno');
+  const canViewHandoff = hasFichaClaim(claimsResult, 'Ver_Cambio_Turno');
   if (!canViewHandoff) {
     return { error: 'El perfil no tiene permiso para ver entregas de turno.' };
   }
@@ -2421,7 +2456,7 @@ const handleHandoffOptionsRequest = async ({ currentEncId }) => {
       };
     }),
   ]);
-  const canWrite = handoffKind === 'medical' || hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno');
+  const canWrite = hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno');
   const batchId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-handoff-batch-${batchId}`]: {
@@ -2489,9 +2524,9 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   }
   const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
   if (activeEncounter.error) return activeEncounter;
-  const claimsResult = handoffKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
+  const claimsResult = await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  const canWriteHandoff = handoffKind === 'medical' || (
+  const canWriteHandoff = (
     hasFichaClaim(claimsResult, 'Ver_Cambio_Turno') &&
     hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')
   );
@@ -3692,12 +3727,10 @@ const handleClinicalWriteRecoveryRequest = async ({
     const encId = recoveryEncId;
     const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
     if (activeEncounter.error) return activeEncounter;
-    const claimsResult = recoveryKind === 'handoff' && sessionHandoffKind === 'medical'
-      ? { claims: [] }
-      : await fetchFichaClaims(info);
+    const claimsResult = await fetchFichaClaims(info);
     if (claimsResult.error) return claimsResult;
     if (recoveryKind === 'handoff') {
-      if (sessionHandoffKind !== 'medical' && !hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
+      if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
         return { error: 'El perfil no tiene permiso para verificar entregas de turno.' };
       }
     } else {

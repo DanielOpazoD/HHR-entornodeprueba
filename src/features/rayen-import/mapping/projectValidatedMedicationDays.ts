@@ -1,4 +1,4 @@
-import type { ClinicalPanelEntry } from './parseClinicalPanel';
+import type { ClinicalPanelEntry } from './clinicalPanelTypes';
 import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
 
 type MedicationState = Record<string, unknown>;

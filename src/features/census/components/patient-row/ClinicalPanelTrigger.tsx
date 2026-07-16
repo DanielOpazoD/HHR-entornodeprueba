@@ -34,7 +34,8 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
     ? resolveClinicalPanelNavigation(document, panelKey)
     : { previous: null, next: null };
 
-  const navigatePanel = (target: HTMLButtonElement | null): void => {
+  const navigatePanel = (direction: 'previous' | 'next'): void => {
+    const target = resolveClinicalPanelNavigation(document, panelKey)[direction];
     if (!target) return;
     setIsOpen(false);
     target.click();
@@ -107,8 +108,8 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           clinicalEpisodeId={episode}
           canNavigatePrevious={navigation.previous !== null}
           canNavigateNext={navigation.next !== null}
-          onNavigatePrevious={() => navigatePanel(navigation.previous)}
-          onNavigateNext={() => navigatePanel(navigation.next)}
+          onNavigatePrevious={() => navigatePanel('previous')}
+          onNavigateNext={() => navigatePanel('next')}
           onClose={() => setIsOpen(false)}
         />
       )}

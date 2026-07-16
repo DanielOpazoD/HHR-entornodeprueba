@@ -88,8 +88,10 @@ pequeñas se convierte en un control flotante para no cubrir la navegación.
 
 El módulo **Conexiones** permite abrir `hospitalizado.rayensalud.cl` en una ventana oficial y
 temporal. El usuario autentica directamente en Rayen —idealmente mediante el gestor de contraseñas de
-Chrome— y la extensión conserva únicamente el token de acceso en `chrome.storage.session`. Si el token
-incluye expiración, el panel muestra su vigencia y advierte cuando está por vencer. La ventana creada por
+Chrome— y la extensión conserva en `chrome.storage.session` un registro temporal con el token de acceso
+y los metadatos mínimos de sesión necesarios para validarlo y mostrar su estado (`apiBase`,
+establecimiento, fechas de captura/verificación, expiración e identidad derivada). Si el token incluye
+expiración, el panel muestra su vigencia y advierte cuando está por vencer. La ventana creada por
 la extensión se cierra al detectar la sesión; Ficha Médico puede quedar como única pestaña Rayen abierta.
 El token temporal permite consultar egresos definitivos y el informe de Alta Administrativa hasta su
 vencimiento, incluso si Gestión de Camas ya fue cerrada. **Olvidar** elimina la sesión de la extensión.

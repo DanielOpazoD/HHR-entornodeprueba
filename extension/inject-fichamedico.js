@@ -36,12 +36,16 @@
   let capturedListUrl = null;
   const normalization = globalThis.HhrFichaMedicoNormalization;
   let capturedApiOrigin = null;
+  let sessionBindingRevision = 0;
 
   const rememberFromRequest = (url, authHeader) => {
     try {
       if (authHeader && String(url).includes(BACKEND_HINT)) {
         const nextAuth = String(authHeader);
-        if (capturedAuth && capturedAuth !== nextAuth) capturedListUrl = null;
+        if (capturedAuth && capturedAuth !== nextAuth) {
+          sessionBindingRevision += 1;
+          capturedListUrl = null;
+        }
         capturedAuth = nextAuth;
         const parsed = new URL(String(url), window.location.origin);
         if (parsed.hostname === 'fichamedicoback.rayensalud.cl') capturedApiOrigin = parsed.origin;
@@ -91,6 +95,7 @@
   // it is deliberately reduced here before crossing out of MAIN world. The token remains only in
   // this page's memory and is refreshed from Eloísa's own session endpoint after full route loads.
   const clearClinicalBinding = () => {
+    sessionBindingRevision += 1;
     capturedAuth = null;
     capturedListUrl = null;
     capturedApiOrigin = null;
@@ -138,17 +143,20 @@
   };
 
   const readSafeSessionIdentity = async () => {
+    const revision = ++sessionBindingRevision;
     try {
       const response = await origFetch('/api/auth/session', {
         credentials: 'same-origin',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
       });
+      if (revision !== sessionBindingRevision) return null;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) clearClinicalBinding();
         return null;
       }
       const payload = await response.json();
+      if (revision !== sessionBindingRevision) return null;
       const session = payload && payload.ok !== false ? payload.session : null;
       const sessionToken = String((session && session.token) || '');
       if (!session || !sessionToken) {
@@ -162,7 +170,9 @@
         return null;
       }
       const role = readSessionRole(session);
-      if (capturedAuth && capturedAuth !== sessionToken) capturedListUrl = null;
+      const previousAuth = capturedAuth;
+      const tokenMatchesCapturedAuth = !previousAuth || previousAuth === sessionToken;
+      if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
       capturedAuth = sessionToken;
       capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
       return {
@@ -172,7 +182,7 @@
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        tokenMatchesCapturedAuth: sessionToken === String(capturedAuth || ''),
+        tokenMatchesCapturedAuth,
       };
     } catch (_) {
       return null;

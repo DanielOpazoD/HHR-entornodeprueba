@@ -71,4 +71,24 @@ describe('extension health helpers', () => {
 
     expect(sendMessage.mock.calls[0]?.[1]).toEqual({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
   });
+
+  it('keeps the diagnostic from the highest-priority unavailable tab', async () => {
+    const sendMessage = vi
+      .fn()
+      .mockResolvedValueOnce({ ready: false, message: 'La sesión activa venció.' })
+      .mockResolvedValueOnce({ ready: false, message: 'Recarga una pestaña antigua.' });
+
+    await expect(
+      health.probeTabs({
+        tabs: [
+          { id: 1, active: true, lastAccessed: 200 },
+          { id: 2, active: false, lastAccessed: 100 },
+        ],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'stale', message: 'La sesión activa venció.' });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
 });

@@ -125,8 +125,7 @@ const createHarness = async (
   });
 
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
 
   const send = async (data: PostedMessage) => {
     const callbacks = listeners.get('message') || [];

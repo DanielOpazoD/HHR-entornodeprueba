@@ -182,7 +182,7 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('CLOSING_WINDOW_STORAGE_KEY');
     expect(backgroundSource).toContain('clearUnusableGestionCamasSession');
     expect(backgroundSource).toContain(
-      'const verified = await verifyGestionCamasSession(candidate)'
+      'const verified = await verifyGestionCamasSession(candidate, verificationTimeoutMs)'
     );
     expect(backgroundSource).toContain('if (verified.record) return { record: verified.record }');
     expect(backgroundSource).toContain('isClosingGestionCamasWindow(closing, windowId)');

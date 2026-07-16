@@ -2456,6 +2456,7 @@
     forget.addEventListener('click', async () => {
       pollingGeneration += 1;
       const response = await sendMessage({ type: 'RAYEN_GC_DISCONNECT_REQUEST' });
+      connect.disabled = false;
       if (!response || response.error) {
         setFeedback((response && response.error) || 'No se pudo olvidar la conexión.', true);
         return;
