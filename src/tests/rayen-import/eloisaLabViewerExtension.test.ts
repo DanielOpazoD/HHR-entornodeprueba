@@ -280,6 +280,6 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain('Por informe');
     expect(content).toContain('requestGeneration');
     expect(manifest).toContain('"lab-viewer.js"');
-    expect(manifest).toContain('"version": "0.23.2"');
+    expect(manifest).toContain('"version": "0.24.1"');
   });
 });
