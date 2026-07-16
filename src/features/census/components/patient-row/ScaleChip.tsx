@@ -168,12 +168,12 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onFocus={show}
       onBlur={hide}
       className={clsx(
-        'flex w-full items-stretch overflow-hidden rounded-md border bg-white text-[10px] leading-tight',
+        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded-md border bg-white text-[10px] leading-tight',
         countdownUrgent ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
       )}
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
-      <span className="flex shrink-0 items-center gap-1 px-1.5 py-0.5 font-semibold text-slate-600">
+      <span className="flex min-w-0 items-center gap-1 px-1.5 py-0.5 font-semibold text-slate-600">
         <Icon size={10} strokeWidth={2.5} className={HUE_ICON[hue]} aria-hidden />
         {label}
       </span>
@@ -206,6 +206,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
           {countdown}
         </span>
       )}
+      {countdown == null && <span aria-hidden className="border-l border-slate-200" />}
       {anchor && <StickyNote note={note} anchor={anchor} />}
     </span>
   );

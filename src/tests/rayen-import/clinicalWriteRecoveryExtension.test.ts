@@ -81,6 +81,8 @@ const loadRecovery = () => {
     const getFichaFetchInfo = async () => ({ info: {
       identityVerified: true, role: 'Enfermera(o)', practitionerRoleId: '2'
     } });
+    const resolveSessionHandoffKind = info =>
+      /enfermer/i.test(String(info && info.role || '')) ? 'nursing' : 'medical';
     const verifyEncounterStillHospitalized = async () => ({ ok: true, encounter: {} });
     const fetchFichaClaims = async () => ({ claims: [] });
     const hasFichaClaim = () => true;

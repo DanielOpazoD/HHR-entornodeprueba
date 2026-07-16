@@ -43,13 +43,14 @@ const panelResult = {
           POSOLOGY: '2 g cada 24 h',
           PUBLISH_DATETIME: '2026-07-13T08:00:00',
           IS_NEW: true,
-          SUSPENDED: false,
+          SUSPENDED: true,
         },
         {
           MRE_ID: 8,
           DESCRIPTOR: 'AMOXICILINA 500 mg',
           PUBLISH_DATETIME: '2026-07-13T08:30:00',
           SUSPENDED: false,
+          FINALIZED: true,
         },
       ],
       patientFreeIndicationResume: [],
@@ -137,5 +138,29 @@ describe('ClinicalPanelDrawer', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Evolución médica estable.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+  });
+
+  it('exposes enabled lateral patient navigation in the drawer header', async () => {
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        canNavigatePrevious
+        canNavigateNext
+        onNavigatePrevious={onPrevious}
+        onNavigateNext={onNext}
+        onClose={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al paciente anterior' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al paciente siguiente' }));
+
+    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 });

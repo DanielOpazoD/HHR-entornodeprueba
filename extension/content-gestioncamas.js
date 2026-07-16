@@ -14,6 +14,30 @@
   } catch (_) {}
 
   const LOOKUP_TIMEOUT_MS = 45000;
+  let connectionAttemptRevision = 0;
+
+  const applyConnectionAttempt = (connectionAttemptId, rehydrated = false) => {
+    connectionAttemptRevision += 1;
+    window.postMessage(
+      {
+        type: 'RAYEN_GC_CONNECTION_ATTEMPT',
+        connectionAttemptId: String(connectionAttemptId || ''),
+        rehydrated: Boolean(rehydrated),
+      },
+      window.location.origin
+    );
+  };
+
+  // Login redirects create a new MAIN-world document. Rehydrate the pending generation before
+  // that document is asked for credentials, otherwise its captures would look stale.
+  try {
+    const requestedRevision = connectionAttemptRevision;
+    chrome.runtime.sendMessage({ type: 'RAYEN_GC_DOCUMENT_READY' }, response => {
+      if (chrome.runtime.lastError) return;
+      if (connectionAttemptRevision !== requestedRevision) return;
+      applyConnectionAttempt(response && response.connectionAttemptId, true);
+    });
+  } catch (_error) {}
 
   const lookupViaMainWorld = runs =>
     new Promise(resolve => {
@@ -46,7 +70,7 @@
 
   // Ask the MAIN world for the captured auth token + API base so the background can download
   // reports (see inject-gestioncamas.js). Generic request/response over window.postMessage.
-  const getFetchInfoViaMainWorld = () =>
+  const getFetchInfoViaMainWorld = connectionAttemptId =>
     new Promise(resolve => {
       const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
@@ -55,7 +79,11 @@
         const d = event.data;
         if (!d || d.type !== 'RAYEN_GC_FETCHINFO_RESULT' || d.reqId !== reqId) return;
         cleanup();
-        resolve(d.error ? { error: d.error } : { info: d.info });
+        resolve(
+          d.error
+            ? { error: d.error }
+            : { info: { ...d.info, connectionAttemptId } }
+        );
       };
       const cleanup = () => {
         if (settled) return;
@@ -63,13 +91,29 @@
         window.removeEventListener('message', onMessage);
       };
       window.addEventListener('message', onMessage);
-      window.postMessage({ type: 'RAYEN_GC_FETCHINFO_REQUEST', reqId }, window.location.origin);
+      window.postMessage(
+        { type: 'RAYEN_GC_FETCHINFO_REQUEST', reqId, connectionAttemptId },
+        window.location.origin
+      );
       setTimeout(() => {
         if (settled) return;
         cleanup();
         resolve({ error: 'Tiempo de espera agotado obteniendo el token de Gestión de Camas.' });
       }, LOOKUP_TIMEOUT_MS);
     });
+
+  // Persist only the short-lived access token in chrome.storage.session through the worker.
+  // The password remains exclusively in Rayen's official login page.
+  window.addEventListener('message', event => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (!data || data.type !== 'RAYEN_GC_SESSION_CAPTURED' || !data.info) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'RAYEN_GC_SESSION_CAPTURED', info: data.info }, () => {
+        void chrome.runtime.lastError;
+      });
+    } catch (_error) {}
+  });
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
@@ -81,8 +125,13 @@
       return true; // keep the message channel open for the async response
     }
     if (msg && msg.type === 'RAYEN_GC_GET_FETCH_INFO') {
-      getFetchInfoViaMainWorld().then(sendResponse);
+      getFetchInfoViaMainWorld(String(msg.connectionAttemptId || '')).then(sendResponse);
       return true;
+    }
+    if (msg && msg.type === 'RAYEN_GC_SET_CONNECTION_ATTEMPT') {
+      applyConnectionAttempt(msg.connectionAttemptId, msg.rehydrated === true);
+      sendResponse({ ok: true });
+      return false;
     }
     return undefined;
   });

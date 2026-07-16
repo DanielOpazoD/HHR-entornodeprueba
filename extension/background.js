@@ -19,6 +19,8 @@
 importScripts(
   'encounter-navigation.js',
   'health-check.js',
+  'gestion-camas-session.js',
+  'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'prescription-print.js',
   'lab-viewer.js',
@@ -39,6 +41,8 @@ const EXTENSION_PROTOCOL_VERSION = 3;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;
+const GESTION_CAMAS_LOGIN_URL = 'https://hospitalizado.rayensalud.cl/';
+const GESTION_CAMAS_SESSION_PROBE_RUN = '000000000';
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
   const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -85,7 +89,7 @@ const sendHealthProbe = (tabId, message) => withTimeout(
 const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
   const tabs = await chrome.tabs.query({ url: urlMatch });
   if (!tabs.length) return { error: noTabError };
-  const ordered = tabs.slice().sort((a, b) => Number(b.active) - Number(a.active));
+  const ordered = self.HhrExtensionHealth.orderTabs(tabs);
   let lastError = 'Sin respuesta de la pestaña.';
   for (const tab of ordered) {
     try {
@@ -94,12 +98,469 @@ const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) =
         TAB_MESSAGE_TIMEOUT_MS,
         'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
       );
-      if (response) return response;
+      if (response && !response.error) return response;
+      if (response && response.error) lastError = String(response.error);
     } catch (error) {
       lastError = String((error && error.message) || error);
     }
   }
   return { error: noAnswerError + ' Detalle: ' + lastError };
+};
+
+const gestionCamasSession = self.HhrGestionCamasSession;
+
+const readGestionCamasSession = async () => {
+  const result = await chrome.storage.session.get(gestionCamasSession.SESSION_STORAGE_KEY);
+  return result && result[gestionCamasSession.SESSION_STORAGE_KEY] || null;
+};
+
+const readPendingGestionCamasConnection = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.PENDING_WINDOW_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.PENDING_WINDOW_STORAGE_KEY]) || null;
+};
+
+const readGestionCamasConnectionControl = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]) || null;
+};
+
+const readClosingGestionCamasWindow = async () => {
+  const result = await chrome.storage.session.get(
+    gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY
+  );
+  return (result && result[gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY]) || null;
+};
+
+const isClosingGestionCamasWindow = (record, windowId, now = Date.now()) =>
+  Boolean(
+    record &&
+      Number(record.windowId) === Number(windowId) &&
+      Number(record.authorizedAt) > now - 60_000
+  );
+
+const sameGestionCamasSession = (left, right) => Boolean(
+  left && right &&
+  left.token === right.token &&
+  left.apiBase === right.apiBase &&
+  left.facId === right.facId &&
+  Number(left.sourceTabId) === Number(right.sourceTabId) &&
+  String(left.connectionAttemptId || '') === String(right.connectionAttemptId || '')
+);
+
+let gestionCamasSessionMutation = Promise.resolve();
+const mutateGestionCamasSession = task => {
+  const operation = gestionCamasSessionMutation.then(task, task);
+  gestionCamasSessionMutation = operation.catch(() => {});
+  return operation;
+};
+
+const clearGestionCamasSession = async expectedRecord => mutateGestionCamasSession(async () => {
+  if (expectedRecord) {
+    const current = await readGestionCamasSession();
+    if (!sameGestionCamasSession(current, expectedRecord)) return false;
+  }
+  await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
+  return true;
+});
+
+const clearUnusableGestionCamasSession = async () =>
+  mutateGestionCamasSession(async () => {
+    const current = await readGestionCamasSession();
+    if (!current || gestionCamasSession.isUsable(current)) return current;
+    await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
+    return null;
+  });
+
+const persistGestionCamasSession = async (info, { sourceTabId } = {}) =>
+  mutateGestionCamasSession(async () => {
+    const record = gestionCamasSession.buildSessionRecord(info);
+    if (!record || !record.facId) {
+      throw new Error('Gestión de Camas entregó una sesión sin establecimiento verificable.');
+    }
+    const normalizedSourceTabId = Number(sourceTabId);
+    if (!Number.isInteger(normalizedSourceTabId) || normalizedSourceTabId < 0) {
+      throw new Error('Gestión de Camas entregó una sesión sin pestaña de origen verificable.');
+    }
+    const current = await readGestionCamasSession();
+    const pending = await readPendingGestionCamasConnection();
+    const control = await readGestionCamasConnectionControl();
+    const suppliedAttemptId = String(info && info.connectionAttemptId || '');
+    const matchesPendingAttempt = Boolean(
+      pending &&
+      Number(pending.tabId) === normalizedSourceTabId &&
+      String(pending.attemptId) === suppliedAttemptId
+    );
+    const matchesCurrentBinding = Boolean(
+      current &&
+      Number(current.sourceTabId) === normalizedSourceTabId &&
+      String(current.connectionAttemptId || '') === suppliedAttemptId
+    );
+    const acceptsInitialUnscopedCapture = Boolean(
+      !current && !pending && !suppliedAttemptId && !(control && control.blocked)
+    );
+    if (!matchesPendingAttempt && !matchesCurrentBinding && !acceptsInitialUnscopedCapture) {
+      throw new Error('La captura pertenece a un intento de conexión anterior.');
+    }
+
+    record.sourceTabId = normalizedSourceTabId;
+    record.connectionAttemptId = suppliedAttemptId;
+    await chrome.storage.session.set({ [gestionCamasSession.SESSION_STORAGE_KEY]: record });
+    return record;
+  });
+
+const markGestionCamasSessionVerified = async record => {
+  let completedPopup = null;
+  const verified = await mutateGestionCamasSession(async () => {
+    const current = await readGestionCamasSession();
+    if (!sameGestionCamasSession(current, record)) return null;
+    const next = { ...current, lastVerifiedAt: Date.now() };
+    await chrome.storage.session.set({ [gestionCamasSession.SESSION_STORAGE_KEY]: next });
+    const pending = await readPendingGestionCamasConnection();
+    if (
+      pending &&
+      next.connectionAttemptId &&
+      String(pending.attemptId) === String(next.connectionAttemptId) &&
+      Number(pending.tabId) === Number(next.sourceTabId)
+    ) {
+      await chrome.storage.session.remove(gestionCamasSession.PENDING_WINDOW_STORAGE_KEY);
+      if (pending.closeOnVerify) {
+        completedPopup = {
+          windowId: Number(pending.windowId),
+          attemptId: String(pending.attemptId),
+        };
+        await chrome.storage.session.set({
+          [gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY]: {
+            ...completedPopup,
+            authorizedAt: Date.now(),
+          },
+        });
+      }
+    }
+    return next;
+  });
+  if (completedPopup && Number.isInteger(completedPopup.windowId)) {
+    setTimeout(() => {
+      mutateGestionCamasSession(async () => {
+        const closing = await readClosingGestionCamasWindow();
+        if (
+          !closing ||
+          Number(closing.windowId) !== completedPopup.windowId ||
+          String(closing.attemptId) !== completedPopup.attemptId
+        ) {
+          return false;
+        }
+        const pending = await readPendingGestionCamasConnection();
+        return !(
+          pending &&
+          Number(pending.windowId) === completedPopup.windowId &&
+          String(pending.attemptId) !== completedPopup.attemptId
+        );
+      }).then(canClose => {
+        if (canClose) chrome.windows.remove(completedPopup.windowId).catch(() => {});
+      });
+    }, 450);
+    setTimeout(() => {
+      mutateGestionCamasSession(async () => {
+        const closing = await readClosingGestionCamasWindow();
+        if (
+          closing &&
+          Number(closing.windowId) === completedPopup.windowId &&
+          String(closing.attemptId) === completedPopup.attemptId
+        ) {
+          await chrome.storage.session.remove(gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY);
+        }
+      });
+    }, 60_000);
+  }
+  return verified;
+};
+
+const captureGestionCamasSession = async (info, sender) => {
+  const record = await persistGestionCamasSession(info, { sourceTabId: sender?.tab?.id });
+  return { ok: true, connection: gestionCamasSession.publicStatus(record) };
+};
+
+const handleGestionCamasDocumentReady = async sender => {
+  const sourceTabId = Number(sender?.tab?.id);
+  if (!Number.isInteger(sourceTabId)) return { connectionAttemptId: '' };
+  const control = await readGestionCamasConnectionControl();
+  if (control && control.blocked) return { connectionAttemptId: '' };
+  const pending = await readPendingGestionCamasConnection();
+  if (pending && Number(pending.tabId) === sourceTabId) {
+    return { connectionAttemptId: String(pending.attemptId || '') };
+  }
+  const current = await readGestionCamasSession();
+  if (current && Number(current.sourceTabId) === sourceTabId) {
+    return { connectionAttemptId: String(current.connectionAttemptId || '') };
+  }
+  return { connectionAttemptId: '' };
+};
+
+const requestLiveGestionCamasSession = async ({
+  verificationTimeoutMs = BACKEND_REQUEST_TIMEOUT_MS,
+  tabTimeoutMs = TAB_MESSAGE_TIMEOUT_MS,
+} = {}) => {
+  const tabs = self.HhrExtensionHealth.orderTabs(
+    await chrome.tabs.query({ url: GESTIONCAMAS_MATCH })
+  );
+  if (!tabs.length) return { error: 'Gestión de Camas no está abierta.' };
+  const pending = await readPendingGestionCamasConnection();
+  const current = await readGestionCamasSession();
+  let lastError = 'Gestión de Camas está abierta, pero su sesión todavía no está disponible.';
+  for (const tab of tabs) {
+    try {
+      const connectionAttemptId =
+        pending && Number(pending.tabId) === Number(tab.id)
+          ? String(pending.attemptId || '')
+          : current && Number(current.sourceTabId) === Number(tab.id)
+            ? String(current.connectionAttemptId || '')
+            : '';
+      const response = await withTimeout(
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'RAYEN_GC_GET_FETCH_INFO',
+          connectionAttemptId,
+        }),
+        tabTimeoutMs,
+        'La pestaña de Gestión de Camas no respondió dentro del tiempo esperado.'
+      );
+      if (response && response.info) {
+        const candidate = await persistGestionCamasSession(response.info, {
+          sourceTabId: tab.id,
+        });
+        const verified = await verifyGestionCamasSession(candidate, verificationTimeoutMs);
+        if (verified.record) return { record: verified.record };
+        if (verified.changed) {
+          const replacement = await readGestionCamasSession();
+          if (gestionCamasSession.isUsable(replacement)) return { record: replacement };
+        }
+        await clearGestionCamasSession(candidate);
+        lastError = verified.error || 'La credencial capturada no pudo verificarse.';
+        continue;
+      }
+      if (response && response.error) lastError = String(response.error);
+    } catch (error) {
+      lastError = String((error && error.message) || error);
+    }
+  }
+  return { error: lastError };
+};
+
+const resolveGestionCamasSession = async ({ allowLive = true } = {}) => {
+  let record = await readGestionCamasSession();
+  if (!gestionCamasSession.isUsable(record)) {
+    if (record) await clearGestionCamasSession(record);
+    if (!allowLive) return { error: 'Gestión de Camas no está conectada.' };
+    const live = await requestLiveGestionCamasSession();
+    if (!live.record) return live;
+    record = live.record;
+  }
+  if (gestionCamasSession.isVerificationFresh(record)) return { record };
+  const verified = await verifyGestionCamasSession(record);
+  if (verified.record) return verified;
+  if (verified.changed) {
+    return { error: 'La sesión cambió durante la comprobación. Reintenta la operación.' };
+  }
+  return { error: verified.error || 'No se pudo comprobar la sesión de Gestión de Camas.' };
+};
+
+const classifyGestionCamasRejection = async (response, record) => {
+  if (!response) return '';
+  if (response.status === 401) {
+    return await clearGestionCamasSession(record) ? 'expired' : 'changed';
+  }
+  if (response.status === 403) return 'forbidden';
+  return '';
+};
+
+const verifyGestionCamasSession = async (
+  record,
+  timeoutMs = BACKEND_REQUEST_TIMEOUT_MS
+) => {
+  if (!record || !record.facId) return { error: 'La sesión no informa el establecimiento.' };
+  const url =
+    `${record.apiBase}/facility/${record.facId}/encounter` +
+    `?facId=0&prefferedIdentifierCode=${GESTION_CAMAS_SESSION_PROBE_RUN}&prefferedPeridentId=2`;
+  try {
+    const response = await fetchWithTimeout(
+      url,
+      { headers: { Authorization: record.token } },
+      timeoutMs
+    );
+    if (response.ok) {
+      const verified = await markGestionCamasSessionVerified(record);
+      return verified ? { record: verified } : { changed: true };
+    }
+    const rejection = await classifyGestionCamasRejection(response, record);
+    if (rejection === 'changed') return { changed: true };
+    if (rejection === 'expired') return { error: 'La sesión de Gestión de Camas venció.' };
+    if (rejection === 'forbidden') {
+      return { error: 'Rayen rechazó la comprobación por permisos; la sesión no se marcó como vigente.' };
+    }
+    return { error: 'Rayen respondió HTTP ' + response.status + ' al comprobar la sesión.' };
+  } catch (error) {
+    return { error: 'No se pudo comprobar la sesión: ' + String((error && error.message) || error) };
+  }
+};
+
+const handleGestionCamasHealth = async () => {
+  let record = await readGestionCamasSession();
+  if (!gestionCamasSession.isUsable(record)) {
+    record = await clearUnusableGestionCamasSession();
+    if (!gestionCamasSession.isUsable(record)) {
+      const live = await requestLiveGestionCamasSession({
+        verificationTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+        tabTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+      });
+      if (!live.record) {
+        return {
+          ...gestionCamasSession.publicStatus(null),
+          message: live.error || 'Gestión de Camas no está conectada.',
+        };
+      }
+      record = live.record;
+    }
+  }
+  if (gestionCamasSession.isVerificationFresh(record)) {
+    return gestionCamasSession.publicStatus(record);
+  }
+  const verified = await verifyGestionCamasSession(record, HEALTH_PROBE_TIMEOUT_MS);
+  if (verified.record) return gestionCamasSession.publicStatus(verified.record);
+  if (verified.changed) return gestionCamasSession.publicStatus(await readGestionCamasSession());
+  const status = gestionCamasSession.publicStatus(record);
+  return {
+    ...status,
+    status: 'stale',
+    message: verified.error || status.message,
+  };
+};
+
+const setGestionCamasConnectionAttempt = async (
+  tabId,
+  connectionAttemptId,
+  { rehydrated = false } = {}
+) => {
+  let lastError = 'La pestaña de Gestión de Camas no confirmó el intento de conexión.';
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await mutateGestionCamasSession(async () => {
+      const pending = await readPendingGestionCamasConnection();
+      if (
+        !pending ||
+        Number(pending.tabId) !== Number(tabId) ||
+        String(pending.attemptId || '') !== String(connectionAttemptId || '')
+      ) {
+        return { replaced: true };
+      }
+      try {
+        const response = await withTimeout(
+          chrome.tabs.sendMessage(tabId, {
+            type: 'RAYEN_GC_SET_CONNECTION_ATTEMPT',
+            connectionAttemptId,
+            rehydrated,
+          }),
+          HEALTH_PROBE_TIMEOUT_MS,
+          'La pestaña no respondió al preparar la conexión.'
+        );
+        return { ok: Boolean(response && response.ok) };
+      } catch (error) {
+        return { error: String((error && error.message) || error) };
+      }
+    });
+    if (result.replaced) {
+      throw new Error('El intento de conexión fue reemplazado por uno más reciente.');
+    }
+    if (result.ok) return;
+    if (result.error) lastError = result.error;
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  throw new Error(lastError);
+};
+
+const beginGestionCamasConnectionAttempt = async ({ windowId, tabId, closeOnVerify, renew }) => {
+  const pending = {
+    windowId,
+    tabId,
+    closeOnVerify: Boolean(closeOnVerify),
+    attemptId: crypto.randomUUID(),
+    createdAt: Date.now(),
+  };
+  const accepted = await mutateGestionCamasSession(async () => {
+    const closing = await readClosingGestionCamasWindow();
+    if (isClosingGestionCamasWindow(closing, windowId)) return false;
+    if (closing && Number(closing.authorizedAt) <= Date.now() - 60_000) {
+      await chrome.storage.session.remove(gestionCamasSession.CLOSING_WINDOW_STORAGE_KEY);
+    }
+    await chrome.storage.session.set({
+      [gestionCamasSession.PENDING_WINDOW_STORAGE_KEY]: pending,
+      [gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]: {
+        blocked: false,
+        updatedAt: Date.now(),
+      },
+    });
+    if (renew) await chrome.storage.session.remove(gestionCamasSession.SESSION_STORAGE_KEY);
+    return true;
+  });
+  if (!accepted) return null;
+  await setGestionCamasConnectionAttempt(tabId, pending.attemptId, {
+    rehydrated: Boolean(closeOnVerify),
+  });
+  return pending;
+};
+
+const handleConnectGestionCamas = async ({ renew = false } = {}) => {
+  const tabs = await chrome.tabs.query({ url: GESTIONCAMAS_MATCH });
+  const existing = self.HhrExtensionHealth.orderTabs(tabs)[0];
+  if (existing && existing.id != null) {
+    const pending = await beginGestionCamasConnectionAttempt({
+      windowId: existing.windowId,
+      tabId: existing.id,
+      closeOnVerify: false,
+      renew,
+    });
+    if (pending) {
+      await chrome.tabs.update(existing.id, { active: true });
+      if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
+      return { ok: true, reused: true, message: 'Completa el acceso en la ventana oficial de Gestión de Camas.' };
+    }
+  }
+  const popup = await chrome.windows.create({
+    url: GESTION_CAMAS_LOGIN_URL,
+    type: 'popup',
+    focused: true,
+    width: 520,
+    height: 720,
+  });
+  const popupTab = popup && Array.isArray(popup.tabs) ? popup.tabs[0] : null;
+  if (popup && popup.id != null && popupTab && popupTab.id != null) {
+    await beginGestionCamasConnectionAttempt({
+      windowId: popup.id,
+      tabId: popupTab.id,
+      closeOnVerify: true,
+      renew,
+    });
+  } else if (renew) {
+    await clearGestionCamasSession();
+  }
+  return { ok: true, reused: false, message: 'Inicia sesión en la ventana oficial de Gestión de Camas.' };
+};
+
+const handleDisconnectGestionCamas = async () => {
+  await mutateGestionCamasSession(async () => {
+    await chrome.storage.session.remove([
+      gestionCamasSession.SESSION_STORAGE_KEY,
+      gestionCamasSession.PENDING_WINDOW_STORAGE_KEY,
+    ]);
+    await chrome.storage.session.set({
+      [gestionCamasSession.CONNECTION_CONTROL_STORAGE_KEY]: {
+        blocked: true,
+        updatedAt: Date.now(),
+      },
+    });
+  });
+  return { ok: true, connection: gestionCamasSession.publicStatus(null) };
 };
 
 const handleSnapshotRequest = () =>
@@ -157,14 +618,7 @@ const handleExtensionHealth = async () => {
         staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
       })
     ),
-    chrome.tabs.query({ url: GESTIONCAMAS_MATCH }).then(tabs =>
-      self.HhrExtensionHealth.probeTabs({
-        tabs,
-        sendMessage: sendHealthProbe,
-        missingMessage: 'Gestión de Camas no está abierta.',
-        staleMessage: 'Recarga Gestión de Camas para activar la extensión.',
-      })
-    ),
+    handleGestionCamasHealth(),
   ]);
 
   return {
@@ -176,13 +630,85 @@ const handleExtensionHealth = async () => {
   };
 };
 
-const handleEgresoLookup = runs =>
-  sendToMatchingTab(
-    GESTIONCAMAS_MATCH,
-    { type: 'RAYEN_GC_LOOKUP', runs },
-    'No hay una pestaña de Gestión de Camas (hospitalizado.rayensalud.cl) abierta. Ábrela e inicia sesión.',
-    'No se pudo consultar Gestión de Camas. Recarga esa pestaña (Cmd+R) para activar la extensión y reintenta.'
-  );
+const GESTION_CAMAS_EGRESO_METADATA_FIELDS = [
+  'id',
+  'endPeriod',
+  'dateDischarge',
+  'isDead',
+  'hasMedicalDischarge',
+  'hasNurseDischarge',
+  'hasNursingDischarge',
+  'hasAdministrativeDischarge',
+  'dischargeDestination',
+  'dischargeDestinationName',
+  'destinationSystemName',
+  'dischargeReasonName',
+  'dischargeTypeName',
+  'bedDestination',
+  'destinationBed',
+];
+
+const pickGestionCamasEncounterMetadata = value => {
+  const result = {};
+  if (!value || typeof value !== 'object') return result;
+  for (const key of GESTION_CAMAS_EGRESO_METADATA_FIELDS) {
+    const field = value[key];
+    if (field !== undefined && field !== null &&
+        typeof field !== 'object' && typeof field !== 'function') {
+      result[key] = field;
+    }
+  }
+  return result;
+};
+
+const handleEgresoLookup = async runs => {
+  const session = await resolveGestionCamasSession();
+  if (!session.record) {
+    return { error: session.error || 'Conecta Gestión de Camas para consultar egresos.' };
+  }
+  const record = session.record;
+  if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
+  const results = [];
+  for (const sourceRun of Array.isArray(runs) ? runs : []) {
+    const run = String(sourceRun || '').replace(/[^0-9kK]/g, '');
+    if (!run) continue;
+    const url =
+      `${record.apiBase}/facility/${record.facId}/encounter` +
+      `?facId=0&prefferedIdentifierCode=${encodeURIComponent(run)}&prefferedPeridentId=2`;
+    try {
+      const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
+      if (!response.ok) {
+        const rejection = await classifyGestionCamasRejection(response, record);
+        results.push({
+          run,
+          error: rejection === 'changed'
+            ? 'La sesión cambió durante la consulta. Reintenta la operación.'
+            : rejection === 'expired'
+            ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+            : rejection === 'forbidden'
+              ? 'Gestión de Camas rechazó esta consulta por permisos.'
+            : 'HTTP ' + response.status,
+        });
+        if (rejection === 'expired' || rejection === 'changed') break;
+        continue;
+      }
+      const payload = await response.json();
+      const verified = await markGestionCamasSessionVerified(record);
+      if (!verified) {
+        results.push({
+          run,
+          error: 'La sesión cambió durante la consulta. Reintenta la operación.',
+        });
+        break;
+      }
+      const item = Array.isArray(payload) ? payload[0] : payload;
+      results.push({ run, egreso: item ? pickGestionCamasEncounterMetadata(item) : null });
+    } catch (error) {
+      results.push({ run, error: String((error && error.message) || error) });
+    }
+  }
+  return { results };
+};
 
 // Base64-encode an ArrayBuffer in chunks (btoa chokes on huge apply() arg lists).
 const bufferToBase64 = buffer => {
@@ -202,25 +728,33 @@ const bufferToBase64 = buffer => {
 // blocks a page fetch.
 const fetchReportBuffer = async ({ dateStart, dateEnd }) => {
   if (!dateStart || !dateEnd) return { error: 'Faltan fechas para el reporte.' };
-  const infoResp = await sendToMatchingTab(
-    GESTIONCAMAS_MATCH,
-    { type: 'RAYEN_GC_GET_FETCH_INFO' },
-    'No hay una pestaña de Gestión de Camas (hospitalizado.rayensalud.cl) abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Gestión de Camas. Recarga esa pestaña (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiBase) {
-    return { error: 'Sin token de Gestión de Camas. Recarga esa pestaña e inicia sesión.' };
-  }
+  const session = await resolveGestionCamasSession();
+  if (!session.record) return { error: session.error || 'Conecta Gestión de Camas y reintenta.' };
+  const info = session.record;
   const url =
     `${info.apiBase}/report/${REPORT_FILE}` +
     `?fac_id=${encodeURIComponent(info.facId)}` +
     `&start_datetime=${encodeURIComponent(dateStart)}&end_datetime=${encodeURIComponent(dateEnd)}`;
   try {
     const res = await fetchWithTimeout(url, { headers: { Authorization: info.token } });
-    if (!res.ok) return { error: 'El servidor de reportes respondió HTTP ' + res.status + '.' };
-    return { buffer: await res.arrayBuffer() };
+    if (!res.ok) {
+      const rejection = await classifyGestionCamasRejection(res, info);
+      return {
+        error: rejection === 'changed'
+          ? 'La sesión cambió durante la descarga. Reintenta la operación.'
+          : rejection === 'expired'
+          ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+          : rejection === 'forbidden'
+            ? 'La sesión es válida, pero no tiene permiso para descargar este reporte.'
+          : 'El servidor de reportes respondió HTTP ' + res.status + '.',
+      };
+    }
+    const buffer = await res.arrayBuffer();
+    const verified = await markGestionCamasSessionVerified(info);
+    if (!verified) {
+      return { error: 'La sesión cambió durante la descarga. Reintenta la operación.' };
+    }
+    return { buffer };
   } catch (error) {
     return { error: 'Falló la descarga del reporte: ' + String((error && error.message) || error) };
   }
@@ -466,7 +1000,7 @@ const CLINICAL_PANEL_RESUMES = {
   ],
   patientPharmaIndicationResume: [
     'DESCRIPTOR', 'VIRTUAL_MEDICAL_PRODUCT', 'POSOLOGY', 'ROUTE_ADMINISTRATION',
-    'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'IS_NEW', 'IS_DISCHARGE',
+    'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'FINALIZED', 'IS_NEW', 'IS_DISCHARGE',
     'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME', 'MRE_ID', 'ARCHIVED',
     'IS_EXTERNAL', 'is_external', 'ALL_MEDICATION', 'allMedication',
   ],
@@ -512,6 +1046,9 @@ const slimMedicationStates = payload =>
     'archived',
     'finalized',
     'programmingEndDatetime',
+    'programmingEndDateTime',
+    'endDateTime',
+    'deletedDateTime',
   ]);
 
 const fetchFichaJson = (url, token) =>
@@ -545,12 +1082,13 @@ const handleClinicalPanelRequest = async ({ encId }) => {
   const careUrl = `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
   const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}`;
 
-  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult] =
+  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult, validationResult] =
     await Promise.allSettled([
       fetchFichaJson(historyUrl, info.token),
       fetchFichaJson(careUrl, info.token),
       fetchMedicationStates(medicationBase, false, info.token),
       fetchMedicationStates(medicationBase, true, info.token),
+      fetchTreatmentValidation(encId, info),
     ]);
 
   let sources;
@@ -560,7 +1098,12 @@ const handleClinicalPanelRequest = async ({ encId }) => {
       { label: 'plan de cuidados', result: careResult },
       { label: 'medicamentos activos', result: activeMedicationResult },
       { label: 'medicamentos inactivos', result: suspendedMedicationResult },
+      { label: 'validación diaria del tratamiento', result: validationResult },
     ]);
+    const validationSource = sources[4];
+    if (validationSource && validationSource.error) {
+      throw new Error('validación diaria del tratamiento: ' + validationSource.error);
+    }
   } catch (error) {
     return {
       error:
@@ -569,19 +1112,49 @@ const handleClinicalPanelRequest = async ({ encId }) => {
     };
   }
 
-  const [rawHistory, carePayload, activeMedicationStates, suspendedMedicationStates] = sources;
+  const [
+    rawHistory,
+    carePayload,
+    activeMedicationStates,
+    suspendedMedicationStates,
+    validationSource,
+  ] = sources;
 
   const events = [];
   for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
     if (!ev) continue;
     const slim = { publishDatetime: ev.publishDatetime || '' };
-    let hasContent = false;
+    const validator = ev.healthCarePractitionerValidator;
+    if (validator && typeof validator === 'object') {
+      slim.validationDatetime =
+        validator.creationDatetime || validator.stringTimestamp || validator.timestamp || '';
+    } else if (typeof validator === 'string' && validator.trim()) {
+      slim.validationDatetime = ev.publishDatetime || '';
+    }
+    let hasContent = Boolean(slim.validationDatetime);
     for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
       const picked = pickFields(ev[resume], fields);
       slim[resume] = picked;
       if (picked.length > 0) hasContent = true;
     }
     if (hasContent) events.push(slim);
+  }
+
+  const currentValidation = validationSource && validationSource.validation || null;
+  const currentValidationDatetime =
+    currentValidation && typeof currentValidation === 'object'
+      ? currentValidation.creationDatetime
+        || currentValidation.stringTimestamp
+        || currentValidation.timestamp
+        || ''
+      : '';
+  if (currentValidationDatetime
+    && !events.some(event => event.validationDatetime === currentValidationDatetime)) {
+    events.push({
+      publishDatetime: currentValidationDatetime,
+      validationDatetime: currentValidationDatetime,
+      ...Object.fromEntries(Object.keys(CLINICAL_PANEL_RESUMES).map(resume => [resume, []])),
+    });
   }
 
   return {
@@ -1839,35 +2412,51 @@ const fetchNurseStations = async info => {
   }
 };
 
+const resolveSessionHandoffKind = info => self.HhrPrescriptionPrint.resolveHandoffKind(
+  info && info.role,
+  info && info.practitionerRoleId
+);
+
+const handoffPresentation = kind => kind === 'medical'
+  ? { label: 'Entrega de turno médica', role: 'Médico' }
+  : { label: 'Entrega de turno de enfermería', role: 'Enfermería' };
+
+const handoffClinicalWriteKey = (kind, encId) => kind === 'medical'
+  ? 'handoff:medical:' + String(encId || '')
+  : 'handoff:' + String(encId || '');
+
 const handleHandoffOptionsRequest = async ({ currentEncId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const handoffKind = resolveSessionHandoffKind(info);
+  const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && handoffKind && handoffEventTypeId
   );
-  if (!identityReady) return { error: 'No se pudo verificar la identidad y rol de enfermería de la sesión.' };
+  if (!identityReady) return { error: 'No se pudo verificar un rol médico o de enfermería en la sesión.' };
   const claimsResult = await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
+  const canViewHandoff = hasFichaClaim(claimsResult, 'Ver_Cambio_Turno');
+  if (!canViewHandoff) {
     return { error: 'El perfil no tiene permiso para ver entregas de turno.' };
   }
   const patientResult = await fetchActiveHospitalizedPatients(info);
   if (patientResult.error) return patientResult;
   const [nurseStations, summaries] = await Promise.all([
-    fetchNurseStations(info),
+    handoffKind === 'nursing' ? fetchNurseStations(info) : Promise.resolve([]),
     mapWithConcurrency(patientResult.patients, 4, async patient => {
       const [result, clinicalWriteProtection] = await Promise.all([
         fetchShiftChangeEntries(patient.encounterId, info),
-        serializeClinicalWriteProtection('handoff:' + String(patient.encounterId)),
+        serializeClinicalWriteProtection(handoffClinicalWriteKey(handoffKind, patient.encounterId)),
       ]);
       return {
         ...patient,
         isCurrent: String(patient.encounterId) === String(currentEncId || ''),
         latestHandoff: result.error
           ? null
-          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries),
+          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries, { kind: handoffKind }),
         handoffUnavailableReason: result.error || '',
         clinicalWriteProtection,
       };
@@ -1879,15 +2468,22 @@ const handleHandoffOptionsRequest = async ({ currentEncId }) => {
     [`hhr-handoff-batch-${batchId}`]: {
       allowedEncounterIds: summaries.map(patient => patient.encounterId),
       createdAt: Date.now(),
+      handoffKind,
+      practitionerRoleId: String(info.practitionerRoleId),
     },
   });
+  const presentation = handoffPresentation(handoffKind);
   return {
     ok: true,
     batchId,
     patients: summaries,
     nurseStations,
     canWrite,
+    canPrint: handoffKind === 'nursing',
+    handoffKind,
+    handoffLabel: presentation.label,
     currentProfessional: info.fullName || '',
+    currentProfessionalRole: presentation.role,
     writeBlockedReason: canWrite
       ? ''
       : 'El perfil no tiene permiso para ingresar entregas de turno.',
@@ -1907,7 +2503,7 @@ const readHandoffBatch = async (batchId, encId) => {
   if (!(Array.isArray(batch.allowedEncounterIds) ? batch.allowedEncounterIds : []).map(String).includes(String(encId))) {
     return { error: 'El paciente no pertenece a esta lista de hospitalizados.' };
   }
-  return { ok: true };
+  return { ok: true, batch };
 };
 
 const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeGuard) => {
@@ -1921,17 +2517,26 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const handoffKind = resolveSessionHandoffKind(info);
+  const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && handoffKind && handoffEventTypeId
   );
-  if (!identityReady) return { error: 'No se pudo verificar la identidad de enfermería. Recarga Eloísa.' };
+  if (!identityReady) return { error: 'No se pudo verificar el rol clínico. Recarga Eloísa.' };
+  if (batch.batch.handoffKind !== handoffKind ||
+      String(batch.batch.practitionerRoleId) !== String(info.practitionerRoleId)) {
+    return { error: 'El rol de la sesión cambió. Actualiza la entrega de turno antes de guardar.' };
+  }
   const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
   if (activeEncounter.error) return activeEncounter;
   const claimsResult = await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno') ||
-      !hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')) {
+  const canWriteHandoff = (
+    hasFichaClaim(claimsResult, 'Ver_Cambio_Turno') &&
+    hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')
+  );
+  if (!canWriteHandoff) {
     return { error: 'El perfil no tiene permiso para ingresar entregas de turno.' };
   }
 
@@ -1942,7 +2547,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
     };
   }
   const baselineEntries = baselineResult.entries.filter(entry =>
-    entry && (!entry.encounterEventTypeId || Number(entry.encounterEventTypeId) === 2)
+    entry && self.HhrPrescriptionPrint.entryMatchesHandoffKind(entry, handoffKind)
   );
   const handoffEntryKey = entry => clinicalRecordKey(
     'handoff',
@@ -1985,7 +2590,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
           healthCarePractitionerId: Number(info.practitionerId),
           healthCarePractitionerRoleId: Number(info.practitionerRoleId),
           observation: safeObservation,
-          encounterEventTypeId: 2,
+          encounterEventTypeId: handoffEventTypeId,
         }),
       }
     );
@@ -2014,7 +2619,8 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
     if (refreshed.error) continue;
     const matches = refreshed.entries.filter(entry => {
       if (!postAcknowledged) return false;
-      if (!entry || Number(entry.encounterEventTypeId || 0) !== 2) return false;
+      if (!entry) return false;
+      if (!self.HhrPrescriptionPrint.entryMatchesHandoffKind(entry, handoffKind)) return false;
       if (createdId && String(entry.id || '') !== createdId) return false;
       if (createdGuid && String(entry.guid || '') !== createdGuid) return false;
       if (baselineKeys.has(handoffEntryKey(entry))) return false;
@@ -2030,7 +2636,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
         authorMatches;
     });
     if (matches.length === 1) {
-      const verified = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches);
+      const verified = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches, { kind: handoffKind });
       return { ok: true, verified: true, record: verified };
     }
   }
@@ -2041,17 +2647,22 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   };
 };
 
-const handleHandoffSaveRequest = args => withClinicalWriteLock(
-  'handoff:' + String(args && args.encId || ''),
-  writeGuard => performHandoffSaveRequest(args || {}, writeGuard)
-);
+const handleHandoffSaveRequest = async args => {
+  const request = args || {};
+  const batch = await readHandoffBatch(request.batchId, request.encId);
+  if (batch.error) return batch;
+  return withClinicalWriteLock(
+    handoffClinicalWriteKey(batch.batch.handoffKind, request.encId),
+    writeGuard => performHandoffSaveRequest(request, writeGuard)
+  );
+};
 
 const handleHandoffReportRequest = async ({ nurseStationId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
   if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
-      !/enfermer/i.test(String(info.role || ''))) {
+      resolveSessionHandoffKind(info) !== 'nursing') {
     return { error: 'No se pudo verificar la identidad necesaria para el reporte de turno.' };
   }
   const claimsResult = await fetchFichaClaims(info);
@@ -2101,6 +2712,19 @@ const fetchCudyrCategories = async info => {
           encId: String(row.id),
           crdValue: String(row.crdValue || '').trim(),
           crdDateTime: String(row.crdDateTime || '').trim(),
+          author: '',
+          authorRole: '',
+          source: 'ficha_medico',
+          history: row.crdValue && row.crdDateTime ? [{
+            id: '',
+            category: String(row.crdValue || '').trim(),
+            recordedAt: String(row.crdDateTime || '').trim(),
+            author: '',
+            authorRole: '',
+            dependencyScore: null,
+            riskScore: null,
+            items: [],
+          }] : [],
         });
       }
     } catch (_error) {}
@@ -2109,6 +2733,110 @@ const fetchCudyrCategories = async info => {
     return { error: 'Eloísa no permitió verificar las tres listas CUDYR; los valores podrían estar incompletos.' };
   }
   return { items: [...byEnc.values()] };
+};
+
+const fetchGestionCamasCudyrCategories = async () => {
+  const session = await resolveGestionCamasSession();
+  if (!session.record) {
+    return { error: session.error || 'Conecta Gestión de Camas para consultar el historial CUDYR.' };
+  }
+  const info = session.record;
+  if (!/^\d+$/.test(String(info.facId || ''))) {
+    return { error: 'Gestión de Camas no informó el establecimiento para consultar CUDYR.' };
+  }
+  const requestUrls = [
+    `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/beds`,
+    `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${Date.now()}`,
+    `${info.apiBase}/formCategorizationOfRisk?tid=${Date.now()}`,
+  ];
+  const requests = requestUrls.map(url => fetchWithTimeout(url, {
+    headers: { Authorization: info.token, Accept: 'application/json' },
+    credentials: 'omit',
+    cache: 'no-store',
+  }));
+  try {
+    const [bedsResult, practitionersResult, definitionsResult] = await Promise.allSettled(requests);
+    if (bedsResult.status === 'rejected') {
+      throw bedsResult.reason;
+    }
+    if (!bedsResult.value.ok) {
+      const unauthorized = await handleGestionCamasUnauthorized(bedsResult.value);
+      return {
+        error: unauthorized
+          ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+          : 'Gestión de Camas respondió HTTP ' + bedsResult.value.status + ' al consultar CUDYR.',
+      };
+    }
+    const beds = await bedsResult.value.json();
+    const warnings = [];
+    const readOptionalMetadata = async (result, label) => {
+      if (result.status === 'rejected') {
+        warnings.push(`No se pudo consultar ${label}; el historial se conserva sin esos metadatos.`);
+        return [];
+      }
+      if (!result.value.ok) {
+        warnings.push(
+          `Gestión de Camas respondió HTTP ${result.value.status} al consultar ${label}; ` +
+          'el historial se conserva sin esos metadatos.'
+        );
+        return [];
+      }
+      try {
+        return await result.value.json();
+      } catch (_error) {
+        warnings.push(`Gestión de Camas entregó ${label} inválidos; el historial se conserva sin esos metadatos.`);
+        return [];
+      }
+    };
+    const [practitioners, definitions] = await Promise.all([
+      readOptionalMetadata(practitionersResult, 'los autores CUDYR'),
+      readOptionalMetadata(definitionsResult, 'las definiciones CUDYR'),
+    ]);
+    const items = self.HhrGestionCamasCudyr.buildSnapshot({ beds, practitioners, definitions });
+    return {
+      items,
+      source: 'gestion_camas',
+      historyAvailable: true,
+      warning: warnings.join(' '),
+    };
+  } catch (error) {
+    return { error: 'No se pudo leer el historial CUDYR de Gestión de Camas: ' +
+      String((error && error.message) || error) };
+  }
+};
+
+const resolveCudyrCategories = async info => {
+  const [official, fallback] = await Promise.all([
+    fetchGestionCamasCudyrCategories(),
+    info ? fetchCudyrCategories(info) : Promise.resolve({ error: '' }),
+  ]);
+  if (official.error) {
+    if (!info || fallback.error) {
+      return { error: [official.error, fallback.error].filter(Boolean).join(' ') };
+    }
+    return {
+      ...fallback,
+      source: 'ficha_medico',
+      historyAvailable: false,
+      warning: official.error,
+    };
+  }
+  if (!info || fallback.error) {
+    return {
+      ...official,
+      warning: [official.warning, fallback.error].filter(Boolean).join(' '),
+    };
+  }
+  const mergedItems = self.HhrGestionCamasCudyr.mergeEncounterSnapshots(
+    official.items,
+    fallback.items
+  );
+  const fallbackCount = mergedItems.length - official.items.length;
+  return {
+    ...official,
+    items: mergedItems,
+    source: fallbackCount > 0 ? 'gestion_camas+ficha_medico' : 'gestion_camas',
+  };
 };
 
 const fetchCudyrDefinitions = async info => {
@@ -2289,19 +3017,20 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const clinicalRoleKind = resolveSessionHandoffKind(info);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && clinicalRoleKind
   );
-  if (!identityReady) return { error: 'No se pudo verificar una sesión activa de enfermería.' };
-  const claimsResult = await fetchFichaClaims(info);
+  if (!identityReady) return { error: 'No se pudo verificar una sesión médica o de enfermería.' };
+  const claimsResult = clinicalRoleKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
+  if (clinicalRoleKind !== 'medical' && !hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
     return { error: 'El perfil no tiene permiso para ver instrumentos de evaluación.' };
   }
   const patientResult = await fetchActiveHospitalizedPatients(info);
   if (patientResult.error) return patientResult;
-  const cudyrResult = await fetchCudyrCategories(info);
+  const cudyrResult = await resolveCudyrCategories(info);
   const cudyrByEncounter = new Map((cudyrResult.error ? [] : cudyrResult.items)
     .map(item => [String(item.encId), item]));
   const patients = await mapWithConcurrency(patientResult.patients, 3, async patient => {
@@ -2342,7 +3071,8 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
       scoreProtections: Object.fromEntries(protectionEntries),
     };
   });
-  const canWriteEvaluation = hasFichaClaim(claimsResult, 'Ingresar_Instrumento_Evaluacion');
+  const canWriteEvaluation = clinicalRoleKind === 'nursing' &&
+    hasFichaClaim(claimsResult, 'Ingresar_Instrumento_Evaluacion');
   const batchId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-scores-batch-${batchId}`]: {
@@ -2367,7 +3097,9 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
     },
     currentProfessional: info.fullName || '',
     writeBlockedReason: canWriteEvaluation ? '' : 'El perfil no tiene permiso para ingresar instrumentos de evaluación.',
-    cudyrHistoryAvailable: false,
+    cudyrHistoryAvailable: Boolean(cudyrResult.historyAvailable),
+    cudyrSource: cudyrResult.source || '',
+    cudyrWarning: cudyrResult.warning || '',
     cudyrUnavailableReason: cudyrResult.error || '',
   };
 };
@@ -2843,12 +3575,18 @@ const signClinicalWriteRecoveryReview = async (review, token, generationId) => {
 
 const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }) => {
   if (kind === 'handoff') {
+    const handoffKind = resolveSessionHandoffKind(info);
+    if (!handoffKind) return { error: 'No se pudo verificar un rol médico o de enfermería en la sesión.' };
     const refreshed = await fetchShiftChangeEntries(encId, info);
     if (refreshed.error) return refreshed;
-    const latest = self.HhrPrescriptionPrint.deriveLatestShiftChange(refreshed.entries);
+    const latest = self.HhrPrescriptionPrint.deriveLatestShiftChange(
+      refreshed.entries,
+      { kind: handoffKind }
+    );
     return {
       review: {
         kind: 'handoff',
+        handoffKind,
         present: Boolean(latest),
         value: String(latest && latest.observation || ''),
         dateTime: String(latest && latest.dateTime || ''),
@@ -2907,9 +3645,13 @@ const handleClinicalWriteRecoveryRequest = async ({
   const normalizedGenerationId = String(generationId || '');
   const normalizedPhase = String(phase || '');
   const normalizedRecoveryToken = String(recoveryToken || '');
-  const match = normalizedKey.match(/^(handoff):(\d+)$/) ||
-    normalizedKey.match(/^(score):(\d+):(CUDYR|BRADEN|DOWNTON)$/);
-  if (!match || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
+  const handoffMatch = normalizedKey.match(/^handoff(?::(medical))?:(\d+)$/);
+  const scoreMatch = normalizedKey.match(/^score:(\d+):(CUDYR|BRADEN|DOWNTON)$/);
+  const recoveryKind = handoffMatch ? 'handoff' : scoreMatch ? 'score' : '';
+  const recoveryEncId = handoffMatch ? handoffMatch[2] : scoreMatch ? scoreMatch[1] : '';
+  const recoveryInstrument = scoreMatch ? scoreMatch[2] : '';
+  const requiredHandoffKind = handoffMatch ? handoffMatch[1] || 'nursing' : '';
+  if (!recoveryKind || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
       !['preview', 'confirm'].includes(normalizedPhase) ||
       normalizedPhase === 'confirm' && !/^[a-f0-9-]{20,}$/i.test(normalizedRecoveryToken)) {
     return { error: 'La solicitud para liberar la protección clínica no es válida.' };
@@ -2976,16 +3718,24 @@ const handleClinicalWriteRecoveryRequest = async ({
     const infoResult = await getFichaFetchInfo();
     if (infoResult.error) return infoResult;
     const info = infoResult.info;
-    if (!info.identityVerified || !/enfermer/i.test(String(info.role || '')) ||
-        !/^\d+$/.test(String(info.practitionerRoleId || ''))) {
-      return { error: 'No se pudo verificar una sesión activa de enfermería.' };
+    const sessionHandoffKind = resolveSessionHandoffKind(info);
+    const roleMatchesRecovery = recoveryKind === 'handoff'
+      ? sessionHandoffKind === requiredHandoffKind
+      : sessionHandoffKind === 'nursing';
+    if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
+        !roleMatchesRecovery) {
+      return {
+        error: recoveryKind === 'handoff'
+          ? 'No se pudo verificar una sesión médica o de enfermería.'
+          : 'No se pudo verificar una sesión activa de enfermería.',
+      };
     }
-    const encId = match[2];
+    const encId = recoveryEncId;
     const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
     if (activeEncounter.error) return activeEncounter;
     const claimsResult = await fetchFichaClaims(info);
     if (claimsResult.error) return claimsResult;
-    if (match[1] === 'handoff') {
+    if (recoveryKind === 'handoff') {
       if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
         return { error: 'El perfil no tiene permiso para verificar entregas de turno.' };
       }
@@ -2995,9 +3745,9 @@ const handleClinicalWriteRecoveryRequest = async ({
       }
     }
     const reviewResult = await readClinicalWriteRecoveryReview({
-      kind: match[1],
+      kind: recoveryKind,
       encId,
-      instrument: match[3] || '',
+      instrument: recoveryInstrument,
       info,
     });
     if (reviewResult.error) return reviewResult;
@@ -3262,49 +4012,20 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
   return downloadPdfBuffer({ buffer: result.buffer, filename: `Indicaciones_${encId}.pdf` });
 };
 
-// Fetch the CUDYR (CRD) composite result of every patient from Ficha Médico's nurse worklists
-// (con novedad + sin novedad + egresados). Rayen only exposes the aggregate `crdValue` (e.g. "D3")
-// + `crdDateTime` per encounter, not the 14 variables — so that composite is all HHR can sync.
 const handleCudyrCategoriesRequest = async () => {
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
+  const infoResult = await getFichaFetchInfo();
+  if (infoResult.error) {
+    const official = await fetchGestionCamasCudyrCategories();
+    return official.error
+      ? { error: official.error + ' ' + infoResult.error }
+      : {
+          ok: true,
+          ...official,
+          warning: [official.warning, infoResult.error].filter(Boolean).join(' '),
+        };
   }
-  const facId = String(info.facId || '').trim();
-  if (!/^\d+$/.test(facId)) {
-    return { error: 'No se pudo verificar el establecimiento activo de Ficha Médico.' };
-  }
-  const byEnc = new Map();
-  try {
-    for (const list of NURSING_WORKLISTS) {
-      const url = `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(facId)}`;
-      const res = await fetchWithTimeout(url, {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-      });
-      if (!res.ok) continue;
-      const rows = await res.json();
-      for (const row of Array.isArray(rows) ? rows : []) {
-        if (row && row.id != null) {
-          byEnc.set(String(row.id), {
-            encId: String(row.id),
-            crdValue: row.crdValue || '',
-            crdDateTime: row.crdDateTime || '',
-          });
-        }
-      }
-    }
-    return { ok: true, items: [...byEnc.values()] };
-  } catch (error) {
-    return { error: 'Falló la lectura de CUDYR: ' + String((error && error.message) || error) };
-  }
+  const result = await resolveCudyrCategories(infoResult.info);
+  return result.error ? result : { ok: true, ...result };
 };
 
 // Port 3000 is commonly occupied by the local HHR/Vite app in this checkout.
@@ -3509,11 +4230,32 @@ const respondAsync = (promise, sendResponse, fallbackMessage) => {
   return true;
 };
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const respond = (promise, fallbackMessage = 'La operación de la extensión no pudo completarse.') =>
     respondAsync(promise, sendResponse, fallbackMessage);
   if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_REQUEST') {
     return respond(handleExtensionHealth(), 'No se pudo verificar el estado de la extensión.');
+  }
+  if (msg && msg.type === 'RAYEN_GC_SESSION_CAPTURED') {
+    return respond(
+      captureGestionCamasSession(msg.info, sender),
+      'No se pudo conservar la sesión temporal de Gestión de Camas.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_GC_DOCUMENT_READY') {
+    return respond(
+      handleGestionCamasDocumentReady(sender),
+      'No se pudo restaurar el intento de conexión de Gestión de Camas.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_GC_CONNECT_REQUEST') {
+    return respond(
+      handleConnectGestionCamas({ renew: msg.renew === true }),
+      'No se pudo abrir Gestión de Camas.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_GC_DISCONNECT_REQUEST') {
+    return respond(handleDisconnectGestionCamas(), 'No se pudo olvidar la conexión de Gestión de Camas.');
   }
   if (msg && msg.type === 'RAYEN_SNAPSHOT_REQUEST') {
     return respond(handleSnapshotRequest(), 'No se pudo leer el censo de Ficha Médico.');

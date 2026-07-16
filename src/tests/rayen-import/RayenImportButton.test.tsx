@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
+import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
@@ -58,7 +59,7 @@ describe('RayenImportButton', () => {
       connection: 'ready',
       report: {
         version: '0.6.0',
-        protocolVersion: 2,
+        protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
         gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
@@ -150,7 +151,7 @@ describe('RayenImportButton', () => {
       connection: 'degraded',
       report: {
         version: '0.6.0',
-        protocolVersion: 2,
+        protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
         gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
@@ -183,7 +184,7 @@ describe('RayenImportButton', () => {
       connection: 'blocked',
       report: {
         version: '0.6.0',
-        protocolVersion: 2,
+        protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'missing', message: 'Abre Ficha Médico e inicia sesión.' },
         gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },

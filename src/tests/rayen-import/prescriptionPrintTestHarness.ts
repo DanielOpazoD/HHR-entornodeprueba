@@ -110,10 +110,20 @@ export const prescriptionPrint = (
         dateTime: string;
         author: string;
       };
-      deriveLatestShiftChange: (entries: unknown) => null | {
+      resolveHandoffKind: (role: unknown, practitionerRoleId: unknown) => string;
+      handoffLabelForIdentity: (role: unknown, practitionerRoleId: unknown) => string;
+      cudyrSourceNotice: (response: Record<string, unknown>) => string;
+      handoffEncounterEventTypeId: (kind: string) => number;
+      entryMatchesHandoffKind: (entry: unknown, kind: string) => boolean;
+      deriveLatestShiftChange: (
+        entries: unknown,
+        options?: { kind?: string }
+      ) => null | {
         observation: string;
         dateTime: string;
         author: string;
+        authorRole: string;
+        handoffKind: string;
         isSigned: boolean;
       };
       calculateCudyrCategory: (fields: Array<{ typeId: number; value: number }>) => {

@@ -44,8 +44,11 @@ export const resolveMovementProvenancePresentation = (
   }
   if (provenance.source === 'gestion_camas') {
     return {
-      label: 'Rayen',
-      title: withDetails('Confirmado por Gestión de Camas mediante Eloísa', provenance),
+      label: 'Egreso estad.',
+      title: withDetails(
+        'Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa',
+        provenance
+      ),
       tone: 'teal',
       icon: 'verified',
     };

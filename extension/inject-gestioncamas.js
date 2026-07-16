@@ -23,39 +23,107 @@
 
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   let capturedAuth = null;
+  let capturedAuthConnectionAttemptId = '';
+  let activeConnectionAttemptId = '';
+  let lastAnnouncedSessionKey = null;
+
+  const announceCapturedSession = (auth, connectionAttemptId, attempt = 0) => {
+    setTimeout(() => {
+      const base = apiBase();
+      const facId = facilityId();
+      if ((!base || !/^\d+$/.test(facId)) && attempt < 8) {
+        announceCapturedSession(auth, connectionAttemptId, attempt + 1);
+        return;
+      }
+      const sessionKey = [auth, base, facId, connectionAttemptId].join('|');
+      if (!base || !/^\d+$/.test(facId) || auth !== capturedAuth ||
+          sessionKey === lastAnnouncedSessionKey) return;
+      lastAnnouncedSessionKey = sessionKey;
+      window.postMessage(
+        {
+          type: 'RAYEN_GC_SESSION_CAPTURED',
+          info: { token: auth, apiBase: base, facId, connectionAttemptId },
+        },
+        window.location.origin
+      );
+    }, attempt === 0 ? 40 : 250);
+  };
 
   const remember = (url, auth) => {
     try {
-      if (auth && String(url).includes(BACKEND_HINT)) capturedAuth = auth;
+      if (auth && String(url).includes(BACKEND_HINT)) {
+        capturedAuth = auth;
+        capturedAuthConnectionAttemptId = activeConnectionAttemptId;
+        return true;
+      }
     } catch (_) {}
+    return false;
+  };
+
+  const announceSuccessfulCapture = (url, auth, connectionAttemptId) => {
+    if (!auth || auth !== capturedAuth || !String(url).includes(BACKEND_HINT)) return;
+    // A generic backend response proves only that the credential was accepted for that route.
+    // The background worker verifies the selected facility with its dedicated probe.
+    announceCapturedSession(auth, connectionAttemptId);
   };
 
   // --- Wrap fetch (the app attaches the token here for backend calls) ---
   const origFetch = window.fetch;
   window.fetch = function (input, init) {
+    let observed = null;
     try {
       const url = typeof input === 'string' ? input : input && input.url;
       const headers = (init && init.headers) || (input && input.headers);
       let auth;
       if (headers instanceof Headers) auth = headers.get('Authorization');
       else if (headers) auth = headers['Authorization'] || headers['authorization'];
-      remember(url, auth);
+      if (remember(url, auth)) {
+        observed = { url, auth, connectionAttemptId: activeConnectionAttemptId };
+      }
     } catch (_) {}
-    return origFetch.apply(this, arguments);
+    const request = origFetch.apply(this, arguments);
+    if (!observed) return request;
+    return request.then(response => {
+      if (response && response.ok) {
+        announceSuccessfulCapture(observed.url, observed.auth, observed.connectionAttemptId);
+      }
+      return response;
+    });
   };
 
   // --- Wrap XHR too, for robustness ---
   const origOpen = XMLHttpRequest.prototype.open;
   const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+  const origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (method, url) {
     this.__gcUrl = url;
+    this.__gcAuth = null;
+    this.__gcConnectionAttemptId = '';
     return origOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.setRequestHeader = function (key, value) {
     try {
-      if (String(key).toLowerCase() === 'authorization') remember(this.__gcUrl, value);
+      if (String(key).toLowerCase() === 'authorization') {
+        this.__gcAuth = value;
+        this.__gcConnectionAttemptId = activeConnectionAttemptId;
+        remember(this.__gcUrl, value);
+      }
     } catch (_) {}
     return origSetHeader.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function () {
+    if (this.__gcUrl && this.__gcAuth) {
+      this.addEventListener('loadend', () => {
+        if (this.status >= 200 && this.status < 300) {
+          announceSuccessfulCapture(
+            this.__gcUrl,
+            this.__gcAuth,
+            this.__gcConnectionAttemptId
+          );
+        }
+      }, { once: true });
+    }
+    return origSend.apply(this, arguments);
   };
 
   // --- Config read from the app (non-sensitive) ---
@@ -68,9 +136,9 @@
   };
   const facilityId = () => {
     try {
-      return localStorage.getItem('FAC_ID') || '1342';
+      return localStorage.getItem('FAC_ID') || '';
     } catch (_) {
-      return '1342';
+      return '';
     }
   };
   const normalizeRun = run => String(run || '').replace(/[^0-9kK]/g, '');
@@ -145,6 +213,18 @@
     const reply = (type, extra) =>
       window.postMessage({ type, reqId: d.reqId, ...extra }, window.location.origin);
 
+    if (d.type === 'RAYEN_GC_CONNECTION_ATTEMPT') {
+      activeConnectionAttemptId = String(d.connectionAttemptId || '');
+      if (d.rehydrated === true && activeConnectionAttemptId && capturedAuth) {
+        // A new document may issue its bootstrap request before the isolated bridge returns.
+        // Re-announce only on document rehydration; same-document renewals must wait for a new
+        // observed credential. The background still performs the facility-bound verification.
+        capturedAuthConnectionAttemptId = activeConnectionAttemptId;
+        announceCapturedSession(capturedAuth, capturedAuthConnectionAttemptId);
+      }
+      return;
+    }
+
     if (d.type === 'RAYEN_GC_LOOKUP_REQUEST') {
       try {
         reply('RAYEN_GC_LOOKUP_RESULT', { results: await lookupEgresos(d.runs) });
@@ -158,6 +238,16 @@
     // the captured token + API base to the background service worker, which downloads it
     // (host_permissions bypass CORS) and returns the bytes to HHR. Token stays in-extension.
     if (d.type === 'RAYEN_GC_FETCHINFO_REQUEST') {
+      const requestedAttemptId = String(d.connectionAttemptId || '');
+      if (
+        requestedAttemptId !== activeConnectionAttemptId ||
+        requestedAttemptId !== capturedAuthConnectionAttemptId
+      ) {
+        reply('RAYEN_GC_FETCHINFO_RESULT', {
+          error: 'El intento de conexión cambió antes de leer la sesión.',
+        });
+        return;
+      }
       reply(
         'RAYEN_GC_FETCHINFO_RESULT',
         capturedAuth

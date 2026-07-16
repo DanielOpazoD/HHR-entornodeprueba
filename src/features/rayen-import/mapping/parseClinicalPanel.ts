@@ -23,78 +23,30 @@ import type {
   RayenClinicalPanelCarePlan,
   RayenClinicalPanelEvent,
 } from '../bridge/clinicalPanelBridge';
-import { parseClinicalCareDays, type ClinicalPanelCareDay } from './parseClinicalCarePlan';
+import type {
+  ClinicalPanel,
+  ClinicalPanelEntry,
+  ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './clinicalPanelTypes';
+import { parseClinicalCareDays } from './parseClinicalCarePlan';
+import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
+import { projectValidatedMedicationDays } from './projectValidatedMedicationDays';
 import { toTitleCaseName } from './rayenToPatientData';
 
-export type ClinicalPanelEntryKind =
-  | 'evolution'
-  | 'shift-change'
-  | 'pharma'
-  | 'free-indication'
-  | 'diet'
-  | 'rest';
-
-/** Bucket for the Evoluciones sub-tabs, derived from the practitioner ROLE. */
-export type EvolutionProfession = 'medical' | 'nursing' | 'other';
-
-export interface ClinicalPanelEntry {
-  /** Stable within one parse — source id when the row has one, positional otherwise. */
-  id: string;
-  kind: ClinicalPanelEntryKind;
-  /** Short heading: "Evolución", the drug descriptor, "Régimen"… */
-  title: string;
-  /** The clinical body (notes / posology / observation). */
-  text: string;
-  /** The person who signed it ('' when the source row carries no name parts). */
-  author: string;
-  /** The practitioner role label (Médico, Enfermera(o)…, '' when unknown/numeric). */
-  role: string;
-  /** Evolutions/shift-change only: sub-tab bucket. */
-  profession?: EvolutionProfession;
-  publishedAt: string;
-  archived: boolean;
-  /** Pharma/free indications only: explicitly suspended in Ficha Médico. */
-  suspended: boolean;
-  /** Pharma only: course explicitly completed in the current medication plan. */
-  finalized?: boolean;
-  /** Pharma/free indications only: source flag retained for compatibility; not shown in the UI. */
-  isNew: boolean;
-  /** Evolutions only: struck-through (annulled) note. */
-  crossedOut: boolean;
-}
-
-/** One calendar day of the indication sheet. */
-export interface ClinicalPanelIndicationDay {
-  /** Grouping key, YYYY-MM-DD ('' when the source date was unparseable). */
-  day: string;
-  /** Display label, DD-MM-YYYY. */
-  label: string;
-  active: ClinicalPanelEntry[];
-  suspended: ClinicalPanelEntry[];
-}
-
-export interface ClinicalPanel {
-  evolutions: ClinicalPanelEntry[];
-  indicationDays: ClinicalPanelIndicationDay[];
-  careDays: ClinicalPanelCareDay[];
-}
+export type {
+  ClinicalPanel,
+  ClinicalPanelEntry,
+  ClinicalPanelEntryKind,
+  ClinicalPanelIndicationDay,
+  EvolutionProfession,
+} from './clinicalPanelTypes';
 
 type RawRow = Record<string, unknown>;
 
 const str = (value: unknown): string =>
   value === null || value === undefined ? '' : String(value).trim();
-
-/** Ficha Médico flags arrive as booleans, 0/1 or "S"/"N" depending on the resume — accept them all. */
-const flag = (value: unknown): boolean => {
-  if (value === true || value === 1) return true;
-  const s = str(value).toLowerCase();
-  return s === 'true' || s === '1' || s === 's' || s === 'si' || s === 'sí';
-};
-
-const timeKey = (publishedAt: string): number => {
-  const t = Date.parse(publishedAt);
-  return Number.isNaN(t) ? 0 : t;
-};
 
 const rows = (value: unknown): RawRow[] =>
   Array.isArray(value) ? value.filter((r): r is RawRow => !!r && typeof r === 'object') : [];
@@ -128,16 +80,6 @@ const classifyProfession = (role: string): EvolutionProfession => {
   if (NURSING_ROLE.test(role)) return 'nursing';
   if (MEDICAL_ROLE.test(role)) return 'medical';
   return 'other';
-};
-
-/** YYYY-MM-DD day key of a publish datetime ('' when unparseable). */
-const dayKey = (publishedAt: string): string => {
-  const iso = publishedAt.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const t = Date.parse(publishedAt);
-  if (Number.isNaN(t)) return '';
-  const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const dayLabel = (day: string): string => {
@@ -197,14 +139,19 @@ export const parseClinicalPanel = (
 ): ClinicalPanel => {
   const evolutions: ClinicalPanelEntry[] = [];
   const indications: ClinicalPanelEntry[] = [];
+  const treatmentValidations: string[] = [];
   const medicationStates = new Map(
     rows(carePlan.medicationStates).map(row => [str(row.id), row] as const)
   );
+  const medicationValidationCandidates = new Map<string, ClinicalPanelEntry[]>();
+  const sourceMedicationDays = new Set<string>();
   let seq = 0;
 
   for (const event of Array.isArray(events) ? events : []) {
     if (!event) continue;
     const eventDate = str(event.publishDatetime);
+    const validationDatetime = str(event.validationDatetime);
+    if (dayKey(validationDatetime)) treatmentValidations.push(validationDatetime);
 
     for (const r of rows(event.evolutionResume)) {
       const text = str(r.OBE_NOTES);
@@ -251,9 +198,12 @@ export const parseClinicalPanel = (
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
-      const currentState = medicationStates.get(str(r.MRE_ID));
-      indications.push({
-        id: str(r.MRE_ID) || `pharma-${seq++}`,
+      const prescribedAt = str(r.PUBLISH_DATETIME) || eventDate;
+      const medicationId = str(r.MRE_ID) || `pharma-${seq++}`;
+      const prescriptionDay = dayKey(prescribedAt);
+      if (prescriptionDay) sourceMedicationDays.add(`${medicationId}:${prescriptionDay}`);
+      const medication: ClinicalPanelEntry = {
+        id: medicationId,
         kind: 'pharma',
         title,
         text: joinParts(
@@ -263,13 +213,31 @@ export const parseClinicalPanel = (
         ),
         author: toTitleCaseName(str(r.HCP_NAME)),
         role: roleLabel(r.HCP_ROLE),
-        publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
-        archived: currentState ? flag(currentState.archived) : flag(r.ARCHIVED),
-        suspended: currentState ? flag(currentState.suspended) : flag(r.SUSPENDED),
-        finalized: currentState ? flag(currentState.finalized) : false,
+        publishedAt: prescribedAt,
+        archived: flag(r.ARCHIVED),
+        suspended: flag(r.SUSPENDED),
+        finalized: flag(r.FINALIZED),
+        prescribedAt,
+        validitySource: 'indication',
         isNew: flag(r.IS_NEW),
         crossedOut: false,
-      });
+      };
+      indications.push(medication);
+
+      // Current care-plan flags describe the state now, not the state on an earlier validation
+      // day. Keep every historically active version: Eloísa can update posology under the same
+      // medication id, and each validation must use the newest version that already existed then.
+      // A dated end marker, when Eloísa supplies one, remains the effective upper bound.
+      if (!flag(r.SUSPENDED) && !flag(r.ARCHIVED) && !flag(r.FINALIZED)) {
+        const candidates = medicationValidationCandidates.get(medicationId) ?? [];
+        candidates.push({
+          ...medication,
+          archived: false,
+          suspended: false,
+          finalized: false,
+        });
+        medicationValidationCandidates.set(medicationId, candidates);
+      }
     }
 
     for (const r of rows(event.patientFreeIndicationResume)) {
@@ -326,6 +294,15 @@ export const parseClinicalPanel = (
       });
     }
   }
+
+  indications.push(
+    ...projectValidatedMedicationDays({
+      treatmentValidations,
+      candidatesByMedicationId: medicationValidationCandidates,
+      sourceMedicationDays,
+      medicationStates,
+    })
+  );
 
   return {
     evolutions: evolutions.sort(byNewestFirst),

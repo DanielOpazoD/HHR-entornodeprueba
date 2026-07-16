@@ -1055,11 +1055,77 @@
     return active[0] || null;
   };
 
-  var deriveLatestShiftChange = function (entries) {
+  var resolveHandoffKind = function (role, practitionerRoleId) {
+    var roleName = String(role || '').trim();
+    var normalizedRole = roleName.toLowerCase().replace(/\s+/g, ' ');
+    var nameKind = /^(m[eé]dico|m[eé]dico cirujano|cirujano)$/.test(normalizedRole)
+      ? 'medical'
+      : /^enfermer(?:a|o|a\(o\)|o\(a\))?$/.test(normalizedRole)
+        ? 'nursing'
+        : '';
+    var rawRoleId = String(practitionerRoleId == null ? '' : practitionerRoleId).trim();
+    var roleId = Number(rawRoleId);
+    var idKind = roleId === 1 ? 'medical' : roleId === 2 ? 'nursing' : '';
+    if (rawRoleId) return idKind && (!roleName || nameKind === idKind) ? idKind : '';
+    return nameKind;
+  };
+
+  var handoffEncounterEventTypeId = function (kind) {
+    if (kind === 'medical') return 1;
+    if (kind === 'nursing') return 2;
+    return 0;
+  };
+
+  var handoffLabelForIdentity = function (role, practitionerRoleId) {
+    var kind = resolveHandoffKind(role, practitionerRoleId);
+    return kind === 'nursing'
+      ? 'Entrega de turno de enfermería'
+      : kind === 'medical'
+        ? 'Entrega de turno médica'
+        : 'Entrega de turno según rol clínico';
+  };
+
+  var cudyrSourceNotice = function (response) {
+    var result = response && typeof response === 'object' ? response : {};
+    var warning = String(result.cudyrWarning || '').trim();
+    var base = result.cudyrUnavailableReason
+      ? String(result.cudyrUnavailableReason)
+      : result.cudyrSource === 'gestion_camas+ficha_medico'
+        ? 'CUDYR desde Gestión de Camas cuando existe historial oficial; los pacientes ausentes se completan con el último valor de Ficha Médico.'
+        : result.cudyrHistoryAvailable
+          ? 'CUDYR desde la Lista de trabajo de Gestión de Camas: categoría, fecha/hora, autor e historial oficial.'
+          : 'CUDYR en modo de respaldo desde Ficha Médico: solo está disponible el último valor.' +
+            (warning ? '' : ' Conecta Gestión de Camas para ver el historial oficial.');
+    return [base, warning].filter(Boolean).join(' ');
+  };
+
+  var shiftChangeKind = function (row) {
+    if (!row || typeof row !== 'object') return '';
+    var rawEventTypeId = row.encounterEventTypeId;
+    if (rawEventTypeId !== undefined && rawEventTypeId !== null && String(rawEventTypeId).trim()) {
+      var eventTypeId = Number(rawEventTypeId);
+      if (eventTypeId === 1) return 'medical';
+      if (eventTypeId === 2) return 'nursing';
+      return '';
+    }
+    var roleName = row.authorHealthCarePractitionerRoleName || row.healthCarePractitionerRoleName ||
+      row.HCPR_NAME || row.roleName || '';
+    var roleId = row.authorHealthCarePractitionerRoleId || row.healthCarePractitionerRoleId ||
+      row.HCPR_ID || row.roleId || '';
+    return resolveHandoffKind(roleName, roleId);
+  };
+
+  var entryMatchesHandoffKind = function (row, kind) {
+    if (!kind) return true;
+    return shiftChangeKind(row) === kind;
+  };
+
+  var deriveLatestShiftChange = function (entries, options) {
     var rows = Array.isArray(entries) ? entries : entries && typeof entries === 'object' ? [entries] : [];
+    var kind = options && options.kind || 'nursing';
     var active = rows
       .filter(function (row) {
-        return row && Number(row.encounterEventTypeId || 0) === 2 &&
+        return row && entryMatchesHandoffKind(row, kind) &&
           !isTrueFlag(row.archived || row.ARCHIVED) && !isTrueFlag(row.deleted || row.DELETED);
       })
       .map(function (row) {
@@ -1074,6 +1140,11 @@
           author: normalizedAuthor(
             row.authorHealthCarePractitionerName || row.HCP_LEGAL || row.HCP_NAME || ''
           ),
+          authorRole: String(
+            row.authorHealthCarePractitionerRoleName || row.healthCarePractitionerRoleName ||
+              row.HCPR_NAME || ''
+          ).replace(/\s+/g, ' ').trim(),
+          handoffKind: shiftChangeKind(row),
           isSigned: isTrueFlag(row.isSigned),
           requiresValidation: isTrueFlag(row.requiresValidation),
         };
@@ -1211,6 +1282,11 @@
     deriveScaleHistory: deriveScaleHistory,
     deriveLatestBraden: deriveLatestBraden,
     deriveLatestNutritionOrder: deriveLatestNutritionOrder,
+    resolveHandoffKind: resolveHandoffKind,
+    handoffLabelForIdentity: handoffLabelForIdentity,
+    cudyrSourceNotice: cudyrSourceNotice,
+    handoffEncounterEventTypeId: handoffEncounterEventTypeId,
+    entryMatchesHandoffKind: entryMatchesHandoffKind,
     deriveLatestShiftChange: deriveLatestShiftChange,
     calculateCudyrCategory: calculateCudyrCategory,
     buildPrescriptionFilename: buildPrescriptionFilename,

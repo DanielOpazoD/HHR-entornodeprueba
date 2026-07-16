@@ -271,10 +271,15 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('print-pdf.html?job=');
     expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
     expect(content).toContain('hhr-ops-lab');
+    expect(content).toContain("key: 'connection'");
+    expect(content).toContain("['scores', 'connection', 'lab'].includes(module)");
+    expect(content).toContain("else if (activeModule === 'lab') renderLabCenter(root, encId)");
+    expect(content).toContain('else renderConnectionCenter(root, encId)');
     expect(content).toContain('Comparación');
     expect(content).toContain('Tendencias');
     expect(content).toContain('Por informe');
     expect(content).toContain('requestGeneration');
     expect(manifest).toContain('"lab-viewer.js"');
+    expect(manifest).toContain('"version": "0.23.2"');
   });
 });

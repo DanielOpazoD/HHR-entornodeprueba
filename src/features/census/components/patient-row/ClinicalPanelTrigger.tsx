@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { BookOpenText, ExternalLink, Loader2 } from 'lucide-react';
 
 import { useNotification } from '@/context/UIContext';
+import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { requestRayenEncounterNavigation } from '@/features/rayen-import';
 import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
 
@@ -28,6 +29,17 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   const { success, error: notifyError } = useNotification();
   const episode = (clinicalEpisodeId || '').trim();
   if (!episode || !patientName.trim()) return null;
+  const panelKey = `${bedId}:${episode}`;
+  const navigation = isOpen
+    ? resolveClinicalPanelNavigation(document, panelKey)
+    : { previous: null, next: null };
+
+  const navigatePanel = (direction: 'previous' | 'next'): void => {
+    const target = resolveClinicalPanelNavigation(document, panelKey)[direction];
+    if (!target) return;
+    setIsOpen(false);
+    target.click();
+  };
 
   const handleOpenEncounter = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -61,6 +73,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         <button
           type="button"
           data-testid={`clinical-panel-trigger-${bedId}`}
+          data-clinical-panel-key={panelKey}
           onClick={event => {
             event.stopPropagation();
             setIsOpen(true);
@@ -93,6 +106,10 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           bedId={bedId}
           patientName={patientName}
           clinicalEpisodeId={episode}
+          canNavigatePrevious={navigation.previous !== null}
+          canNavigateNext={navigation.next !== null}
+          onNavigatePrevious={() => navigatePanel('previous')}
+          onNavigateNext={() => navigatePanel('next')}
           onClose={() => setIsOpen(false)}
         />
       )}
