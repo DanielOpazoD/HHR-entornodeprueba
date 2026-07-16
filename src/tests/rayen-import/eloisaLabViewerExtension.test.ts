@@ -17,17 +17,16 @@ interface LabFinding {
 interface LabViewerApi {
   normalizeRutBody: (value: string) => string;
   examRowsMatchRut: (exams: unknown[], expectedRutBody: string) => boolean;
-  isAllowedSyslabLink: (value: string) => boolean;
   findingAlert: (finding: LabFinding) => boolean;
-  sanitizeExamList: (value: unknown[]) => Array<{ id: string; link: string }>;
+  sanitizeExamList: (value: unknown[]) => Array<{ id: string }>;
   validateDetailBatch: (
-    details: Array<{ url: string; rutBody: string; findings: LabFinding[]; error?: string }>,
-    expectedLinks: string[],
+    details: Array<{ examId: string; rutBody: string; findings: LabFinding[]; error?: string }>,
+    expectedExamIds: string[],
     expectedRutBody: string
-  ) => Array<{ url: string; rutBody: string; findings: LabFinding[]; error?: string }> | null;
+  ) => Array<{ examId: string; rutBody: string; findings: LabFinding[]; error?: string }> | null;
   comparisonClipboard: (analysis: ReturnType<LabViewerApi['buildAnalysis']>) => string;
   buildAnalysis: (
-    details: Array<{ url: string; findings: LabFinding[] }>,
+    details: Array<{ examId: string; findings: LabFinding[] }>,
     exams: unknown[]
   ) => {
     columns: Array<{ key: string }>;
@@ -41,37 +40,16 @@ interface LabViewerApi {
 }
 
 const labViewer = (globalThis as unknown as { HhrLabViewer: LabViewerApi }).HhrLabViewer;
-const syslabLink = (id: string) =>
-  `http://10.4.69.90/syslab/detalleexamenes.php?id=${id}&user=session`;
-
 describe('native Eloisa laboratory viewer', () => {
   it('uses only the numeric RUT body expected by Syslab', () => {
     expect(labViewer.normalizeRutBody('17.752.753-2')).toBe('17752753');
     expect(labViewer.normalizeRutBody(' 10.096.004-4 ')).toBe('10096004');
   });
 
-  it('rejects report links outside the private Syslab report route', () => {
-    expect(labViewer.isAllowedSyslabLink(syslabLink('43092446'))).toBe(true);
-    expect(labViewer.isAllowedSyslabLink('http://10.4.69.90/admin/export.php')).toBe(false);
-    expect(
-      labViewer.isAllowedSyslabLink('http://10.4.69.90/syslab/archive/detalleexamenes.php?id=1')
-    ).toBe(false);
-    expect(
-      labViewer.isAllowedSyslabLink(
-        'http://embedded-user@10.4.69.90/syslab/detalleexamenes.php?id=1'
-      )
-    ).toBe(false);
-    expect(labViewer.isAllowedSyslabLink('https://evil.example/syslab/detalleexamenes.php')).toBe(
-      false
-    );
-    expect(labViewer.isAllowedSyslabLink('file:///etc/passwd')).toBe(false);
-  });
-
   it('filters malformed search rows before creating a patient-bound selection', () => {
     const exams = labViewer.sanitizeExamList([
       {
         id: '43092446',
-        link: syslabLink('43092446'),
         date: '02/05/2026',
         time: '06:09:55',
         patientName: 'Paciente Uno',
@@ -80,15 +58,12 @@ describe('native Eloisa laboratory viewer', () => {
       },
       {
         id: 'not-an-id',
-        link: 'http://example.test/report',
         date: '02/05/2026',
         exams: [],
       },
     ]);
 
-    expect(exams).toEqual([
-      expect.objectContaining({ id: '43092446', link: syslabLink('43092446') }),
-    ]);
+    expect(exams).toEqual([expect.objectContaining({ id: '43092446' })]);
   });
 
   it('requires every Syslab search row to carry the requested RUN', () => {
@@ -105,7 +80,6 @@ describe('native Eloisa laboratory viewer', () => {
   it('keeps the 100 newest valid reports when Syslab returns a larger history', () => {
     const history = Array.from({ length: 101 }, (_, index) => ({
       id: String(index + 1),
-      link: syslabLink(String(index + 1)),
       date: index === 100 ? '02/05/2026' : '01/05/2026',
       time: '08:00:00',
       exams: ['HEMOGRAMA'],
@@ -147,11 +121,11 @@ describe('native Eloisa laboratory viewer', () => {
   });
 
   it('rejects incomplete or duplicated detail batches before analysis', () => {
-    const first = syslabLink('1');
-    const second = syslabLink('2');
+    const first = '1';
+    const second = '2';
     const details = [
-      { url: second, rutBody: '17752753', findings: [] },
-      { url: first, rutBody: '17752753', findings: [] },
+      { examId: second, rutBody: '17752753', findings: [] },
+      { examId: first, rutBody: '17752753', findings: [] },
     ];
 
     expect(labViewer.validateDetailBatch(details, [first, second], '17752753')).toEqual([
@@ -165,8 +139,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(
       labViewer.validateDetailBatch(
         [
-          { url: first, rutBody: '17752753', findings: [] },
-          { url: 'http://example.test/report', rutBody: '17752753', findings: [] },
+          { examId: first, rutBody: '17752753', findings: [] },
+          { examId: 'not-selected', rutBody: '17752753', findings: [] },
         ],
         [first, second],
         '17752753'
@@ -191,7 +165,6 @@ describe('native Eloisa laboratory viewer', () => {
   it('does not rename individual findings from a ratio-like section', () => {
     const exam = {
       id: '1',
-      link: syslabLink('1'),
       date: '01/05/2026',
       time: '08:00:00',
       patientName: 'Paciente Uno',
@@ -201,7 +174,7 @@ describe('native Eloisa laboratory viewer', () => {
     const analysis = labViewer.buildAnalysis(
       [
         {
-          url: exam.link,
+          examId: exam.id,
           findings: [
             {
               section: 'ALBUMINURIA / CREATININURIA',
@@ -233,7 +206,6 @@ describe('native Eloisa laboratory viewer', () => {
     const exams = [
       {
         id: '1',
-        link: syslabLink('1'),
         date: '01/05/2026',
         time: '08:00:00',
         patientName: 'Paciente Uno',
@@ -242,7 +214,6 @@ describe('native Eloisa laboratory viewer', () => {
       },
       {
         id: '2',
-        link: syslabLink('2'),
         date: '02/05/2026',
         time: '08:00:00',
         patientName: 'Paciente Uno',
@@ -252,7 +223,7 @@ describe('native Eloisa laboratory viewer', () => {
     ];
     const details = [
       {
-        url: exams[0].link,
+        examId: exams[0].id,
         findings: [
           { section: 'SANGRE', analysis: 'pH', result: '7,40', unit: '', refValue: '7,35 - 7,45' },
           { section: 'ORINA', analysis: 'pH', result: '6,0', unit: '', refValue: '5,0 - 8,0' },
@@ -266,7 +237,7 @@ describe('native Eloisa laboratory viewer', () => {
         ],
       },
       {
-        url: exams[1].link,
+        examId: exams[1].id,
         findings: [
           { section: 'SANGRE', analysis: 'pH', result: '7,41', unit: '', refValue: '7,35 - 7,45' },
           { section: 'ORINA', analysis: 'pH', result: '6,5', unit: '', refValue: '5,0 - 8,0' },
@@ -295,7 +266,6 @@ describe('native Eloisa laboratory viewer', () => {
     const exams = [
       {
         id: '1',
-        link: syslabLink('1'),
         date: '01/05/2026',
         time: '08:00:00',
         patientName: 'Paciente Uno',
@@ -304,7 +274,6 @@ describe('native Eloisa laboratory viewer', () => {
       },
       {
         id: '2',
-        link: syslabLink('2'),
         date: '02/05/2026',
         time: '08:00:00',
         patientName: 'Paciente Uno',
@@ -313,7 +282,7 @@ describe('native Eloisa laboratory viewer', () => {
       },
     ];
     const details = exams.map((exam, index) => ({
-      url: exam.link,
+      examId: exam.id,
       findings: [
         {
           section: 'HEMOGRAMA',
@@ -353,7 +322,9 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');
-    expect(background).toContain('rutBody: batchResult.batch.rutBody');
+    expect(background).toContain('batchId: batchResult.batch.scraperBatchId');
+    expect(background).toContain('examIds: group.map(exam => exam.id)');
+    expect(background).not.toContain('exam.link');
     expect(background).toContain('validateLabSenderEncounter');
     expect(background).toContain('examRowsMatchRut(payload.data, rutBody)');
     expect(background).toContain(

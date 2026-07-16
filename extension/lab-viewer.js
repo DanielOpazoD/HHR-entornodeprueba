@@ -9,8 +9,6 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
   'use strict';
 
-  const SYSLAB_ORIGIN = 'http://10.4.69.90';
-  const SYSLAB_PATH_PREFIX = '/syslab/';
   const IMPORTANT_ANALYSES = [
     'Recuento Leucocitos', 'Hemoglobina', 'Hematocrito', 'VCM', 'HCM',
     'Recuento de Plaquetas', 'Segmentados', 'Linfocitos', 'Proteina C Reactiva',
@@ -57,16 +55,6 @@
     return name;
   };
 
-  const isAllowedSyslabLink = value => {
-    try {
-      const url = new URL(String(value || ''));
-      return url.origin === SYSLAB_ORIGIN && !url.username && !url.password &&
-        url.pathname.toLowerCase() === (SYSLAB_PATH_PREFIX + 'detalleexamenes.php');
-    } catch (_error) {
-      return false;
-    }
-  };
-
   const parseDate = (date, time) => {
     const match = cleanText(date).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (!match) return 0;
@@ -80,10 +68,9 @@
   };
 
   const sanitizeExamList = exams => (Array.isArray(exams) ? exams : [])
-    .filter(exam => exam && /^\d+$/.test(String(exam.id || '')) && isAllowedSyslabLink(exam.link))
+    .filter(exam => exam && /^\d+$/.test(String(exam.id || '')))
     .map(exam => ({
       id: String(exam.id),
-      link: String(exam.link),
       date: cleanText(exam.date),
       time: cleanText(exam.time),
       patientName: cleanText(exam.patientName),
@@ -100,32 +87,32 @@
     );
   };
 
-  const validateDetailBatch = (details, expectedLinks, expectedRutBody) => {
-    const links = (Array.isArray(expectedLinks) ? expectedLinks : []).map(String);
+  const validateDetailBatch = (details, expectedExamIds, expectedRutBody) => {
+    const examIds = (Array.isArray(expectedExamIds) ? expectedExamIds : []).map(String);
     const expectedRut = normalizeRutBody(expectedRutBody);
     if (
-      !links.length ||
-      new Set(links).size !== links.length ||
+      !examIds.length ||
+      new Set(examIds).size !== examIds.length ||
       !/^\d{5,9}$/.test(expectedRut) ||
       !Array.isArray(details)
     ) return null;
-    if (details.length !== links.length) return null;
-    const expected = new Set(links);
-    const detailsByLink = new Map();
+    if (details.length !== examIds.length) return null;
+    const expected = new Set(examIds);
+    const detailsByExamId = new Map();
     for (const detail of details) {
       if (!detail || typeof detail !== 'object') return null;
-      const link = String(detail.url || '');
+      const examId = String(detail.examId || '');
       if (
-        !expected.has(link) ||
-        detailsByLink.has(link) ||
+        !expected.has(examId) ||
+        detailsByExamId.has(examId) ||
         normalizeRutBody(detail.rutBody) !== expectedRut ||
         cleanText(detail.error) ||
         !Array.isArray(detail.findings)
       ) return null;
-      detailsByLink.set(link, detail);
+      detailsByExamId.set(examId, detail);
     }
-    return links.every(link => detailsByLink.has(link))
-      ? links.map(link => detailsByLink.get(link))
+    return examIds.every(examId => detailsByExamId.has(examId))
+      ? examIds.map(examId => detailsByExamId.get(examId))
       : null;
   };
 
@@ -234,11 +221,11 @@
 
   const buildAnalysis = (details, exams) => {
     const safeExams = sanitizeExamList(exams);
-    const examByLink = new Map(safeExams.map(exam => [exam.link, exam]));
+    const examById = new Map(safeExams.map(exam => [exam.id, exam]));
     const reports = [];
     for (const detail of Array.isArray(details) ? details : []) {
-      if (!detail || !isAllowedSyslabLink(detail.url)) continue;
-      const exam = examByLink.get(String(detail.url));
+      if (!detail) continue;
+      const exam = examById.get(String(detail.examId || ''));
       if (!exam) continue;
       const findings = (Array.isArray(detail.findings) ? detail.findings : [])
         .map(sanitizeFinding).filter(Boolean).slice(0, 500);
@@ -328,12 +315,10 @@
   };
 
   return {
-    SYSLAB_ORIGIN,
     buildAnalysis,
     comparisonClipboard,
     examRowsMatchRut,
     findingAlert,
-    isAllowedSyslabLink,
     normalizeAnalysisName,
     normalizeRutBody,
     sanitizeExamList,

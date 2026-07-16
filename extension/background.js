@@ -4234,6 +4234,7 @@ const handleLabSearchRequest = async ({ encId, sender }) => {
     return { error: payload.error || 'Syslab no pudo buscar los exámenes del paciente.' };
   }
   if (
+    !/^[0-9a-f-]{36}$/i.test(String(payload.batchId || '')) ||
     self.HhrLabViewer.normalizeRutBody(payload.rutBody) !== rutBody ||
     !self.HhrLabViewer.examRowsMatchRut(payload.data, rutBody)
   ) {
@@ -4248,6 +4249,7 @@ const handleLabSearchRequest = async ({ encId, sender }) => {
     [LAB_BATCH_PREFIX + batchId]: {
       encounterId: String(encId),
       rutBody,
+      scraperBatchId: String(payload.batchId),
       createdAt: Date.now(),
       exams,
     },
@@ -4315,8 +4317,8 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          links: group.map(exam => exam.link),
-          rutBody: batchResult.batch.rutBody,
+          batchId: batchResult.batch.scraperBatchId,
+          examIds: group.map(exam => exam.id),
         }),
       },
       25_000
@@ -4324,12 +4326,13 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
     if (payload.success !== true) {
       return { error: payload.error || 'No se pudieron interpretar todos los informes seleccionados.' };
     }
-    const groupLinks = group.map(exam => exam.link);
+    const groupExamIds = group.map(exam => exam.id);
     const responseRutBody = self.HhrLabViewer.normalizeRutBody(payload.rutBody);
-    const batchDetails = responseRutBody === batchResult.batch.rutBody
+    const batchDetails = responseRutBody === batchResult.batch.rutBody &&
+      payload.batchId === batchResult.batch.scraperBatchId
       ? self.HhrLabViewer.validateDetailBatch(
           payload.data,
-          groupLinks,
+          groupExamIds,
           batchResult.batch.rutBody
         )
       : null;
@@ -4349,13 +4352,15 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   const senderError = validateLabSenderEncounter(sender, batchResult.batch.encounterId);
   if (senderError) return senderError;
   const exams = selectedLabExams(batchResult.batch, [examId]);
-  if (exams.length !== 1 || !self.HhrLabViewer.isAllowedSyslabLink(exams[0].link)) {
+  if (exams.length !== 1) {
     return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
   }
   let response;
   try {
     response = await fetchWithTimeout(
-      SYSLAB_LOCAL_ORIGIN + '/api/exams/pdf?link=' + encodeURIComponent(exams[0].link),
+      SYSLAB_LOCAL_ORIGIN + '/api/exams/pdf?batchId=' +
+        encodeURIComponent(batchResult.batch.scraperBatchId) +
+        '&examId=' + encodeURIComponent(exams[0].id),
       { headers: { Accept: 'application/pdf' }, credentials: 'omit', cache: 'no-store' },
       25_000,
       'Syslab demoró demasiado en preparar el PDF.'
