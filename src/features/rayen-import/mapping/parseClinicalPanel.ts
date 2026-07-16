@@ -24,6 +24,8 @@ import type {
   RayenClinicalPanelEvent,
 } from '../bridge/clinicalPanelBridge';
 import { parseClinicalCareDays, type ClinicalPanelCareDay } from './parseClinicalCarePlan';
+import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
+import { projectValidatedMedicationDays } from './projectValidatedMedicationDays';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelEntryKind =
@@ -88,18 +90,6 @@ type RawRow = Record<string, unknown>;
 const str = (value: unknown): string =>
   value === null || value === undefined ? '' : String(value).trim();
 
-/** Ficha Médico flags arrive as booleans, 0/1 or "S"/"N" depending on the resume — accept them all. */
-const flag = (value: unknown): boolean => {
-  if (value === true || value === 1) return true;
-  const s = str(value).toLowerCase();
-  return s === 'true' || s === '1' || s === 's' || s === 'si' || s === 'sí';
-};
-
-const timeKey = (publishedAt: string): number => {
-  const t = Date.parse(publishedAt);
-  return Number.isNaN(t) ? 0 : t;
-};
-
 const rows = (value: unknown): RawRow[] =>
   Array.isArray(value) ? value.filter((r): r is RawRow => !!r && typeof r === 'object') : [];
 
@@ -132,16 +122,6 @@ const classifyProfession = (role: string): EvolutionProfession => {
   if (NURSING_ROLE.test(role)) return 'nursing';
   if (MEDICAL_ROLE.test(role)) return 'medical';
   return 'other';
-};
-
-/** YYYY-MM-DD day key of a publish datetime ('' when unparseable). */
-const dayKey = (publishedAt: string): string => {
-  const iso = publishedAt.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const t = Date.parse(publishedAt);
-  if (Number.isNaN(t)) return '';
-  const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const dayLabel = (day: string): string => {
@@ -206,16 +186,7 @@ export const parseClinicalPanel = (
     rows(carePlan.medicationStates).map(row => [str(row.id), row] as const)
   );
   const medicationValidationCandidates = new Map<string, ClinicalPanelEntry[]>();
-  const medicationInactiveAt = new Map<string, string>();
   const sourceMedicationDays = new Set<string>();
-  const setMedicationInactiveAt = (medicationId: string, value: unknown): void => {
-    const candidate = str(value);
-    if (timeKey(candidate) <= 0) return;
-    const current = medicationInactiveAt.get(medicationId);
-    if (!current || timeKey(candidate) < timeKey(current)) {
-      medicationInactiveAt.set(medicationId, candidate);
-    }
-  };
   let seq = 0;
 
   for (const event of Array.isArray(events) ? events : []) {
@@ -366,65 +337,14 @@ export const parseClinicalPanel = (
     }
   }
 
-  // A treatment validation renews the daily clinical validity of every medication that remains
-  // active in the current plan and was already prescribed on that date. Eloisa keeps the original
-  // prescription timestamp on the medication row, so without this projection a four-day antibiotic
-  // appears only on day one even when the treatment has been validated every day.
-  for (const [medicationId, state] of medicationStates) {
-    [
-      state.programmingEndDatetime,
-      state.programmingEndDateTime,
-      state.endDateTime,
-      state.deletedDateTime,
-    ].forEach(value => setMedicationInactiveAt(medicationId, value));
-  }
-  const validationByDay = new Map<string, string>();
-  for (const validationDatetime of treatmentValidations) {
-    const validationDay = dayKey(validationDatetime);
-    if (!validationDay) continue;
-    const current = validationByDay.get(validationDay);
-    if (!current || timeKey(validationDatetime) > timeKey(current)) {
-      validationByDay.set(validationDay, validationDatetime);
-    }
-  }
-  for (const [validationDay, validationDatetime] of validationByDay) {
-    for (const [medicationId, candidates] of medicationValidationCandidates) {
-      const medication = candidates.reduce<ClinicalPanelEntry | null>((selected, candidate) => {
-        const candidateTime = timeKey(candidate.prescribedAt ?? candidate.publishedAt);
-        if (candidateTime <= 0 || candidateTime > timeKey(validationDatetime)) return selected;
-        if (!selected || candidateTime > timeKey(selected.prescribedAt ?? selected.publishedAt)) {
-          return candidate;
-        }
-        return selected;
-      }, null);
-      if (!medication) continue;
-      const prescribedAt = medication.prescribedAt ?? medication.publishedAt;
-      const prescribedDay = dayKey(prescribedAt);
-      if (!prescribedDay || prescribedDay > validationDay) continue;
-      if (sourceMedicationDays.has(`${medicationId}:${validationDay}`)) continue;
-      const inactiveAt = medicationInactiveAt.get(medicationId);
-      if (inactiveAt && timeKey(validationDatetime) >= timeKey(inactiveAt)) continue;
-      const currentState = medicationStates.get(medicationId);
-      if (!currentState) continue;
-      const isCurrentlyInactive =
-        currentState &&
-        (flag(currentState.suspended) ||
-          flag(currentState.archived) ||
-          flag(currentState.finalized));
-      // An undated current inactive flag cannot prove on which earlier validation the treatment
-      // stopped. Fail closed for every synthetic day instead of inventing historical vigencia.
-      if (!inactiveAt && isCurrentlyInactive) continue;
-      indications.push({
-        ...medication,
-        publishedAt: validationDatetime,
-        prescribedAt,
-        archived: false,
-        suspended: false,
-        finalized: false,
-        validitySource: 'daily-validation',
-      });
-    }
-  }
+  indications.push(
+    ...projectValidatedMedicationDays({
+      treatmentValidations,
+      candidatesByMedicationId: medicationValidationCandidates,
+      sourceMedicationDays,
+      medicationStates,
+    })
+  );
 
   return {
     evolutions: evolutions.sort(byNewestFirst),
