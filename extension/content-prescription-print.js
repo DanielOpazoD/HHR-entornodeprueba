@@ -2604,7 +2604,7 @@
         <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
       </div>
       <div class="hhr-center-content">
-        <div class="hhr-lab-patient"><strong>Paciente actual</strong><span>Identificando desde Eloísa…</span><span class="hhr-lab-status">Conectando a localhost:3001</span></div>
+        <div class="hhr-lab-patient"><strong>Paciente actual</strong><span>Identificando desde Eloísa…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
         <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
         <div class="hhr-lab-exam-list"></div>
         <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -2717,7 +2717,7 @@
       selected = new Set();
       invalidateLabAnalysis();
       status.textContent = 'Buscando exámenes en Syslab…';
-      list.innerHTML = '<div class="hhr-center-empty">El scraper local está autenticando y consultando laboratorio…</div>';
+      list.innerHTML = '<div class="hhr-center-empty">Consultando la sesión oficial de Syslab en la red local…</div>';
       results.innerHTML = '';
       analyze.disabled = true;
       selectAll.disabled = true;
@@ -2751,7 +2751,7 @@
       ].filter(Boolean).join(' · ');
       const connection = document.createElement('span');
       connection.className = 'hhr-lab-status';
-      connection.textContent = 'Syslab local conectado';
+      connection.textContent = 'Syslab conectado directamente';
       patientHost.append(patientName, patientMeta, connection);
       renderList();
     };

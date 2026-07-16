@@ -16,6 +16,8 @@ interface LabFinding {
 
 interface LabViewerApi {
   normalizeRutBody: (value: string) => string;
+  extractRutBodyFromReportText: (value: string) => string;
+  parseReportText: (value: string) => LabFinding[];
   examRowsMatchRut: (exams: unknown[], expectedRutBody: string) => boolean;
   findingAlert: (finding: LabFinding) => boolean;
   sanitizeExamList: (value: unknown[]) => Array<{ id: string }>;
@@ -44,6 +46,36 @@ describe('native Eloisa laboratory viewer', () => {
   it('uses only the numeric RUT body expected by Syslab', () => {
     expect(labViewer.normalizeRutBody('17.752.753-2')).toBe('17752753');
     expect(labViewer.normalizeRutBody(' 10.096.004-4 ')).toBe('10096004');
+  });
+
+  it('parses the Syslab report text locally and extracts its patient RUN', () => {
+    const report = [
+      'HOSPITAL DE HANGA ROA',
+      'Nombre : Paciente Uno',
+      'Rut/Fic : 17.752.753-2',
+      'BIOQUIMICA',
+      'Glicemia : 138 mg/dL 70 - 100',
+      'Exceso de base : -5 mmol/L -2 - 2',
+      'INR : 1,1 0,8 - 1,2',
+      'PCR respiratorio : POSITIVO',
+    ].join('\n');
+
+    expect(labViewer.extractRutBodyFromReportText(report)).toBe('17752753');
+    expect(labViewer.parseReportText(report)).toEqual([
+      expect.objectContaining({ analysis: 'Glicemia', result: '138', unit: 'mg/dL' }),
+      expect.objectContaining({
+        analysis: 'Exceso de base',
+        result: '-5',
+        unit: 'mmol/L',
+        refValue: '-2 - 2',
+      }),
+      expect.objectContaining({ analysis: 'INR', result: '1,1', unit: '', refValue: '0,8 - 1,2' }),
+      expect.objectContaining({
+        analysis: 'PCR respiratorio',
+        result: 'POSITIVO',
+        qualitative: true,
+      }),
+    ]);
   });
 
   it('filters malformed search rows before creating a patient-bound selection', () => {
@@ -308,30 +340,35 @@ describe('native Eloisa laboratory viewer', () => {
     ]);
   });
 
-  it('wires local-only requests through expiring background batches and exposes Lab in the bar', () => {
+  it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const content = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
+    const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
 
-    expect(background).toContain("SYSLAB_LOCAL_ORIGIN = 'http://localhost:3001'");
+    expect(background).toContain("SYSLAB_BASE_URL = 'http://10.4.69.90/syslab/'");
+    expect(background).not.toContain('localhost:3001');
     expect(background).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
     expect(background).toContain('sweepExpiredLabBatches');
     expect(background).toContain('Puedes analizar como máximo 24 informes por operación.');
-    expect(background).toContain('25_000');
-    expect(background).toContain('límite seguro de 6 MB');
-    expect(background).toContain('readResponseBytesWithLimit');
-    expect(background).toContain('LAB_MAX_JSON_BYTES = 2 * 1024 * 1024');
-    expect(background).toContain('LAB_MAX_PDF_BYTES = 6 * 1024 * 1024');
-    expect(background).toContain('await reader.cancel()');
-    expect(background).toContain('await response.body.cancel()');
+    expect(background).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
+    expect(background).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
+    expect(background).toContain('searchSyslabDirectly');
+    expect(background).toContain("SYSLAB_TAB_STORAGE_KEY = 'hhr-syslab-owned-tab'");
+    expect(background).toContain('chrome.tabs.get(owned.tabId)');
+    expect(background).not.toContain('chrome.tabs.query({ url: SYSLAB_MATCH })');
+    expect(background).toContain('previousBridgeId');
+    expect(background).toContain('response.bridgeId !== previousBridgeId');
+    expect(background).toContain('RAYEN_SYSLAB_READ_DETAILS');
+    expect(background).toContain('linksByExamId');
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');
-    expect(background).toContain('batchId: batchResult.batch.scraperBatchId');
-    expect(background).toContain('examIds: group.map(exam => exam.id)');
-    expect(background).not.toContain('exam.link');
+    expect(background).toContain('linksByExamId');
+    expect(background).toContain('const reportRequests = exams.map(exam => ({');
+    expect(background).toContain('exams: reportRequests');
     expect(background).toContain('validateLabSenderEncounter');
-    expect(background).toContain('examRowsMatchRut(payload.data, rutBody)');
+    expect(background).toContain('examRowsMatchRut(payload.exams, rutBody)');
     expect(background).toContain(
       'Syslab no confirmó que los informes correspondan al RUN solicitado'
     );
@@ -343,8 +380,18 @@ describe('native Eloisa laboratory viewer', () => {
       'handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId, sender })'
     );
     expect(background).toContain('RAYEN_LAB_PDF_OPEN_REQUEST');
+    expect(background).toContain('base64: validation.pdfBase64');
     expect(background).toContain('print-pdf.html?job=');
     expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
+    expect(bridge).toContain("SYSLAB_ORIGIN = 'http://10.4.69.90'");
+    expect(bridge).toContain("credentials: 'include'");
+    expect(bridge).toContain('MAX_BODY_BYTES = 6 * 1024 * 1024');
+    expect(bridge).toContain("import(chrome.runtime.getURL('pdf.min.mjs'))");
+    expect(bridge).toContain('BRIDGE_ID = crypto.randomUUID()');
+    expect(bridge).toContain('extractRutBodyFromReportText');
+    expect(bridge).toContain('includeValidatedPdf: true');
+    expect(bridge).toContain('pdfBase64: detail.pdfBase64');
+    expect(bridge).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
     expect(content).toContain('hhr-ops-lab');
     expect(content).toContain("key: 'connection'");
     expect(content).toContain("['scores', 'connection', 'lab'].includes(module)");
@@ -357,6 +404,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain('invalidateLabAnalysis');
     expect(content).toContain("batchId = ''");
     expect(manifest).toContain('"lab-viewer.js"');
-    expect(manifest).toContain('"version": "0.24.1"');
+    expect(manifest).toContain('"syslab-bridge.js"');
+    expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
+    expect(manifest).toContain('"version": "0.24.2"');
   });
 });

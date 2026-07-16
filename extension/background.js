@@ -4154,100 +4154,119 @@ const handleCudyrCategoriesRequest = async () => {
   return result.error ? result : { ok: true, ...result };
 };
 
-// Port 3000 is commonly occupied by the local HHR/Vite app in this checkout.
-const SYSLAB_LOCAL_ORIGIN = 'http://localhost:3001';
+const SYSLAB_BASE_URL = 'http://10.4.69.90/syslab/';
+const SYSLAB_TAB_STORAGE_KEY = 'hhr-syslab-owned-tab';
 const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
 const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
-const LAB_DETAILS_BATCH_SIZE = 3;
 const LAB_MAX_SELECTED_EXAMS = 24;
-const LAB_MAX_JSON_BYTES = 2 * 1024 * 1024;
-const LAB_MAX_PDF_BYTES = 6 * 1024 * 1024;
+const LAB_BRIDGE_TIMEOUT_MS = 35_000;
+const LAB_REPORT_TIMEOUT_MS = 90_000;
+const LAB_DETAILS_TIMEOUT_MS = 600_000;
 
-const readResponseBytesWithLimit = async (response, maxBytes, timeoutMs, timeoutMessage) => {
-  const declaredLength = Number(response.headers && response.headers.get('content-length'));
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    if (response.body && typeof response.body.cancel === 'function') {
-      await response.body.cancel().catch(() => {});
+const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+const sendToSyslabTab = async (tabId, message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) =>
+  withTimeout(
+    chrome.tabs.sendMessage(tabId, message),
+    timeoutMs,
+    'Syslab demoró demasiado en responder.'
+  );
+
+const waitForSyslabBridge = async (
+  tabId,
+  { timeoutMs = LAB_BRIDGE_TIMEOUT_MS, previousBridgeId = '' } = {}
+) => {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = 'La ventana oficial de Syslab todavía no está disponible.';
+  while (Date.now() < deadline) {
+    try {
+      const response = await sendToSyslabTab(tabId, { type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
+      if (
+        response && response.bridgeId &&
+        (!previousBridgeId || response.bridgeId !== previousBridgeId)
+      ) return response;
+    } catch (error) {
+      lastError = String((error && error.message) || error);
     }
-    throw new Error('La respuesta del scraper supera el límite seguro permitido.');
+    await delay(350);
   }
-  if (!response.body || typeof response.body.getReader !== 'function') {
-    const fallback = await withTimeout(response.arrayBuffer(), timeoutMs, timeoutMessage);
-    if (fallback.byteLength > maxBytes) {
-      throw new Error('La respuesta del scraper supera el límite seguro permitido.');
-    }
-    return new Uint8Array(fallback);
-  }
+  throw new Error(lastError);
+};
 
-  const reader = response.body.getReader();
-  const chunks = [];
-  let total = 0;
-  const readAll = async () => {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        throw new Error('La respuesta del scraper supera el límite seguro permitido.');
-      }
-      chunks.push(value);
-    }
-    const bytes = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return bytes;
-  };
-
-  try {
-    return await withTimeout(readAll(), timeoutMs, timeoutMessage);
-  } catch (error) {
-    await reader.cancel().catch(() => {});
-    throw error;
+const focusSyslabTab = async tab => {
+  if (!tab || !Number.isInteger(tab.id)) return;
+  await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
+  if (Number.isInteger(tab.windowId)) {
+    await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   }
 };
 
-const fetchSyslabJson = async (path, options, timeoutMs) => {
-  let response;
-  const startedAt = Date.now();
+const resolveSyslabTab = async ({ resetToBase = false } = {}) => {
+  const stored = await chrome.storage.session.get(SYSLAB_TAB_STORAGE_KEY);
+  const owned = stored && stored[SYSLAB_TAB_STORAGE_KEY];
+  let tab = null;
+  if (owned && Number.isInteger(owned.tabId)) {
+    tab = await chrome.tabs.get(owned.tabId).catch(() => null);
+    if (!tab || !String(tab.url || '').startsWith(SYSLAB_BASE_URL)) {
+      tab = null;
+      await chrome.storage.session.remove(SYSLAB_TAB_STORAGE_KEY);
+    }
+  }
+  let previousBridgeId = '';
+  if (!tab) {
+    tab = await chrome.tabs.create({ url: SYSLAB_BASE_URL, active: true });
+    await chrome.storage.session.set({
+      [SYSLAB_TAB_STORAGE_KEY]: { tabId: tab.id, createdAt: Date.now() },
+    });
+  } else if (resetToBase) {
+    try {
+      const previous = await sendToSyslabTab(tab.id, { type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
+      previousBridgeId = String(previous && previous.bridgeId || '');
+    } catch (_error) {}
+    tab = await chrome.tabs.update(tab.id, { url: SYSLAB_BASE_URL, active: false });
+  }
+  if (!tab || !Number.isInteger(tab.id)) throw new Error('No se pudo abrir la ventana oficial de Syslab.');
+  const status = await waitForSyslabBridge(tab.id, { previousBridgeId });
+  return { tab, status };
+};
+
+const waitAfterSyslabNavigation = async (tabId, previousBridgeId) => {
+  await delay(250);
+  return waitForSyslabBridge(tabId, { previousBridgeId });
+};
+
+const searchSyslabDirectly = async rutBody => {
+  let session;
   try {
-    response = await fetchWithTimeout(
-      SYSLAB_LOCAL_ORIGIN + path,
-      {
-        ...(options || {}),
-        headers: {
-          Accept: 'application/json',
-          ...((options && options.headers) || {}),
-        },
-        credentials: 'omit',
-        cache: 'no-store',
-      },
-      timeoutMs,
-      'Syslab demoró demasiado en responder. Comprueba el scraper local y reintenta.'
-    );
+    session = await resolveSyslabTab({ resetToBase: true });
   } catch (error) {
     throw new Error(
-      'No se pudo conectar con el scraper Syslab en localhost:3001. ' +
-      String((error && error.message) || error)
+      'No se pudo acceder a Syslab en la red local: ' + String((error && error.message) || error)
     );
   }
-  const remainingMs = Math.max(1, timeoutMs - (Date.now() - startedAt));
-  const bytes = await readResponseBytesWithLimit(
-    response,
-    LAB_MAX_JSON_BYTES,
-    remainingMs,
-    'Syslab demoró demasiado en completar la respuesta.'
-  );
-  let payload = null;
-  try {
-    payload = JSON.parse(new TextDecoder().decode(bytes));
-  } catch (_error) {}
-  if (!response.ok) {
-    throw new Error((payload && payload.error) || 'El scraper Syslab respondió HTTP ' + response.status + '.');
+  if (session.status.loginRequired) {
+    await focusSyslabTab(session.tab);
+    throw new Error('Inicia sesión en la ventana oficial de Syslab y vuelve a pulsar Actualizar.');
   }
-  return payload || {};
+  const prepare = await sendToSyslabTab(session.tab.id, { type: 'RAYEN_SYSLAB_PREPARE_SEARCH' });
+  if (!prepare || prepare.error) throw new Error(prepare && prepare.error || 'No se pudo abrir la búsqueda por RUT.');
+  if (prepare.navigated) {
+    await waitAfterSyslabNavigation(session.tab.id, prepare.bridgeId);
+  }
+  const submit = await sendToSyslabTab(session.tab.id, {
+    type: 'RAYEN_SYSLAB_SUBMIT_SEARCH',
+    rutBody,
+  });
+  if (!submit || submit.error) throw new Error(submit && submit.error || 'No se pudo consultar el RUN en Syslab.');
+  if (submit.navigated) {
+    await waitAfterSyslabNavigation(session.tab.id, submit.bridgeId);
+  }
+  const result = await sendToSyslabTab(session.tab.id, {
+    type: 'RAYEN_SYSLAB_READ_RESULTS',
+    rutBody,
+  });
+  if (!result || result.error) throw new Error(result && result.error || 'Syslab no entregó resultados interpretables.');
+  return { tab: session.tab, payload: result };
 };
 
 const sweepExpiredLabBatches = async () => {
@@ -4281,33 +4300,36 @@ const handleLabSearchRequest = async ({ encId, sender }) => {
     return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
   }
 
-  const health = await fetchSyslabJson('/health', {}, 6_000);
-  if (!health || health.status !== 'ok') {
-    return { error: 'El scraper local respondió, pero no informó un estado saludable.' };
+  let search;
+  try {
+    search = await searchSyslabDirectly(rutBody);
+  } catch (error) {
+    return { error: String((error && error.message) || error) };
   }
-  const payload = await fetchSyslabJson('/api/exams?rut=' + encodeURIComponent(rutBody), {}, 25_000);
-  if (payload.success !== true) {
-    return { error: payload.error || 'Syslab no pudo buscar los exámenes del paciente.' };
-  }
+  const payload = search.payload;
   if (
-    !/^[0-9a-f-]{36}$/i.test(String(payload.batchId || '')) ||
     self.HhrLabViewer.normalizeRutBody(payload.rutBody) !== rutBody ||
-    !self.HhrLabViewer.examRowsMatchRut(payload.data, rutBody)
+    !self.HhrLabViewer.examRowsMatchRut(payload.exams, rutBody)
   ) {
     return {
       error: 'Syslab no confirmó que los informes correspondan al RUN solicitado. No se mostrarán datos.',
     };
   }
-  const exams = self.HhrLabViewer.sanitizeExamList(payload.data);
+  const rawExams = Array.isArray(payload.exams) ? payload.exams : [];
+  const exams = self.HhrLabViewer.sanitizeExamList(rawExams);
+  const linksByExamId = Object.fromEntries(rawExams.map(exam => [String(exam.id), String(exam.link || '')]));
+  if (exams.some(exam => !linksByExamId[exam.id])) {
+    return { error: 'Syslab entregó uno o más informes sin una ruta interna válida.' };
+  }
   const batchId = crypto.randomUUID();
   await sweepExpiredLabBatches();
   await chrome.storage.session.set({
     [LAB_BATCH_PREFIX + batchId]: {
       encounterId: String(encId),
       rutBody,
-      scraperBatchId: String(payload.batchId),
       createdAt: Date.now(),
       exams,
+      linksByExamId,
     },
   });
   return {
@@ -4364,40 +4386,46 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
   const exams = selectedLabExams(batchResult.batch, requestedIds);
   if (!exams.length) return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
 
-  const details = [];
-  for (let index = 0; index < exams.length; index += LAB_DETAILS_BATCH_SIZE) {
-    const group = exams.slice(index, index + LAB_DETAILS_BATCH_SIZE);
-    const payload = await fetchSyslabJson(
-      '/api/exams/details',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          batchId: batchResult.batch.scraperBatchId,
-          examIds: group.map(exam => exam.id),
-        }),
-      },
-      25_000
-    );
-    if (payload.success !== true) {
-      return { error: payload.error || 'No se pudieron interpretar todos los informes seleccionados.' };
-    }
-    const groupExamIds = group.map(exam => exam.id);
-    const responseRutBody = self.HhrLabViewer.normalizeRutBody(payload.rutBody);
-    const batchDetails = responseRutBody === batchResult.batch.rutBody &&
-      payload.batchId === batchResult.batch.scraperBatchId
-      ? self.HhrLabViewer.validateDetailBatch(
-          payload.data,
-          groupExamIds,
-          batchResult.batch.rutBody
-        )
-      : null;
-    if (!batchDetails) {
-      return {
-        error: 'Syslab devolvió un lote incompleto o inconsistente. No se mostrará un análisis parcial.',
-      };
-    }
-    details.push(...batchDetails);
+  let session;
+  try {
+    session = await resolveSyslabTab();
+  } catch (error) {
+    return { error: 'La sesión oficial de Syslab no está disponible: ' + String((error && error.message) || error) };
+  }
+  if (session.status.loginRequired) {
+    await focusSyslabTab(session.tab);
+    return { error: 'La sesión de Syslab venció. Inicia sesión y actualiza nuevamente el visor.' };
+  }
+  const reportRequests = exams.map(exam => ({
+    id: exam.id,
+    link: batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exam.id],
+  }));
+  if (reportRequests.some(exam => !exam.link)) {
+    return { error: 'La búsqueda vigente no contiene todas las rutas de informe requeridas.' };
+  }
+  let payload;
+  try {
+    payload = await sendToSyslabTab(session.tab.id, {
+      type: 'RAYEN_SYSLAB_READ_DETAILS',
+      rutBody: batchResult.batch.rutBody,
+      exams: reportRequests,
+    }, LAB_DETAILS_TIMEOUT_MS);
+  } catch (error) {
+    return { error: 'No se pudieron interpretar los informes en Syslab: ' + String((error && error.message) || error) };
+  }
+  const details = payload && !payload.error &&
+    self.HhrLabViewer.normalizeRutBody(payload.rutBody) === batchResult.batch.rutBody
+    ? self.HhrLabViewer.validateDetailBatch(
+        payload.details,
+        exams.map(exam => exam.id),
+        batchResult.batch.rutBody
+      )
+    : null;
+  if (!details) {
+    return {
+      error: payload && payload.error ||
+        'Syslab devolvió un lote incompleto o inconsistente. No se mostrará un análisis parcial.',
+    };
   }
   return { ok: true, analysis: self.HhrLabViewer.buildAnalysis(details, exams) };
 };
@@ -4411,42 +4439,40 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   if (exams.length !== 1) {
     return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
   }
-  let response;
-  const startedAt = Date.now();
+  const link = batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exams[0].id];
+  if (!link) return { error: 'La ruta interna del informe ya no está disponible.' };
+  let session;
   try {
-    response = await fetchWithTimeout(
-      SYSLAB_LOCAL_ORIGIN + '/api/exams/pdf?batchId=' +
-        encodeURIComponent(batchResult.batch.scraperBatchId) +
-        '&examId=' + encodeURIComponent(exams[0].id),
-      { headers: { Accept: 'application/pdf' }, credentials: 'omit', cache: 'no-store' },
-      25_000,
-      'Syslab demoró demasiado en preparar el PDF.'
-    );
+    session = await resolveSyslabTab();
   } catch (error) {
-    return { error: 'No se pudo obtener el PDF desde el scraper local: ' + String((error && error.message) || error) };
+    return { error: 'La sesión oficial de Syslab no está disponible: ' + String((error && error.message) || error) };
   }
-  if (!response.ok) return { error: 'El scraper respondió HTTP ' + response.status + ' al solicitar el PDF.' };
-  let bytes;
+  if (session.status.loginRequired) {
+    await focusSyslabTab(session.tab);
+    return { error: 'La sesión de Syslab venció. Inicia sesión y actualiza nuevamente el visor.' };
+  }
+  let validation;
   try {
-    bytes = await readResponseBytesWithLimit(
-      response,
-      LAB_MAX_PDF_BYTES,
-      Math.max(1, 25_000 - (Date.now() - startedAt)),
-      'Syslab demoró demasiado en completar el PDF.'
-    );
+    validation = await sendToSyslabTab(session.tab.id, {
+      type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
+      rutBody: batchResult.batch.rutBody,
+      examId: exams[0].id,
+      link,
+    }, LAB_REPORT_TIMEOUT_MS);
   } catch (error) {
-    return { error: String((error && error.message) || error) };
+    return { error: 'No se pudo validar el informe en Syslab: ' + String((error && error.message) || error) };
   }
-  if (!bytes.byteLength) {
-    return { error: 'El informe PDF está vacío o supera el límite seguro de 6 MB.' };
+  if (
+    !validation || validation.error ||
+    self.HhrLabViewer.normalizeRutBody(validation.rutBody) !== batchResult.batch.rutBody ||
+    !String(validation.pdfBase64 || '')
+  ) {
+    return { error: validation && validation.error || 'El informe no corresponde al RUN solicitado.' };
   }
-  const signature = String.fromCharCode.apply(null, bytes.slice(0, 4));
-  if (signature !== '%PDF') return { error: 'El scraper no devolvió un PDF válido.' };
-  const buffer = bytes.buffer;
   const jobId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-pdf-print-${jobId}`]: {
-      base64: bufferToBase64(buffer),
+      base64: validation.pdfBase64,
       filename: `Laboratorio_${exams[0].id}.pdf`,
       createdAt: Date.now(),
     },

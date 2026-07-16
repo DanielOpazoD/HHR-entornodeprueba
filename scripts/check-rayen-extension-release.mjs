@@ -85,6 +85,7 @@ const allowedHosts = new Set([
   'https://formulariosclinicosback.rayensalud.cl/*',
   'https://hospitalizado.rayensalud.cl/*',
   'https://hospbackend.rayensalud.cl/*',
+  'http://10.4.69.90/syslab/*',
   'http://localhost/*',
   'https://testinghhr.netlify.app/*',
 ]);

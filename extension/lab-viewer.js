@@ -219,6 +219,121 @@
     return finding;
   };
 
+  const REPORT_SKIP_PATTERNS = [
+    /^HOSPITAL\s+DE\s+/i,
+    /^Laboratorio\s+Cl[íi]nico/i,
+    /^Nombre\s*:/i,
+    /^Rut\/?Fic\s*:/i,
+    /^Fecha\s+de\s+Nac/i,
+    /^Procedencia\s*:/i,
+    /^Fecha\s+y\s+Hora/i,
+    /^Fecha\s+de\s+impresi[óo]n/i,
+    /^E\s+X\s+A\s+M\s+E\s+N\s+E\s+S\s*$/,
+    /^Director\s+T[ée]cnico/i,
+    /^Resultado\s+Via\s+WEB/i,
+    /^Resultado\s+Unidad\s+Valor\s+de\s+Referencia/i,
+    /^Nota\s*:/i,
+    /^Valores?\s+(de\s+)?[Rr]eferencia/i,
+    /^Ni[ñn]os?(\s*\/\s*Ni[ñn]as?)?\s+\d/i,
+    /^Adultos\s+[<>]/i,
+    /^Para\s+valores/i,
+    /^se\s+recomienda/i,
+    /^_+$/,
+    /^TM\s+[A-ZÁÉÍÓÚÑ]/,
+  ];
+  const REPORT_SECTION_REGEX = /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s\+\-\/\#\.]{2,60}$/;
+  const REPORT_NUMERIC_REGEX =
+    /^(.+?)\s*:\s*\|?\s*((?:[<>]=?|[≤≥])?\s*[+-]?\s*[\d.,]+)(.*)$/;
+  const REPORT_QUALITATIVE_REGEX =
+    /^(.+?)\s*:\s*(NEGATIVO|POSITIVO|NORMAL|AUSENTE|PRESENTE|REACTIVO|NO\s+REACTIVO|DETECTADO|NO\s+DETECTADO|ESCASA|MODERADA|ABUNDANTE|NO\s+SE\s+OBSERVA(?:N)?)\s*$/i;
+  const REPORT_NON_ANALYTIC_PATTERNS = [
+    /^Edad$/i,
+    /^Valor\s+de\s+referencia$/i,
+    /^Profilaxis\s+trombosis\s+venosa$/i,
+    /^Prevenci[oó]n\s+tromb\.\s+recidivante\s+y\s+tratamiento$/i,
+    /^Profilaxis\s+arteriales\s+y\s+v[aá]lvulas\s+cardiacas$/i,
+    /^Equipo\s+analizador$/i,
+    /^Hombres?$/i,
+    /^Mujeres(\s+.+)?$/i,
+    /^Ni[ñn]os?(\s+.+)?$/i,
+    /^Ni[ñn]as?(\s+.+)?$/i,
+    /^Adultos?(\s+.+)?$/i,
+    /^Embarazadas?(\s+.+)?$/i,
+    /^Reci[ée]n\s+nacidos?(\s+.+)?$/i,
+    /^Lactantes?(\s+.+)?$/i,
+  ];
+
+  const extractRutBodyFromReportText = text => {
+    const line = String(text || '').split(/\r?\n/)
+      .find(value => /^\s*Rut\/?Fic\s*:/i.test(value));
+    if (!line) return '';
+    const match = line.replace(/^\s*Rut\/?Fic\s*:/i, '').match(/\d[\d.]*/);
+    return match ? match[0].replace(/\D/g, '') : '';
+  };
+
+  const splitReportUnitAndReference = rest => {
+    const cleaned = String(rest || '').replace(/^\s*\|+\s*|\s*\|+\s*$/g, '').trim();
+    if (!cleaned) return { unit: '', refValue: '' };
+    const rangeSuffix = cleaned.match(
+      /(?:^|\s)((?:(?:[<>]=?|[≤≥])\s*)?[+-]?\d+(?:[.,]\d+)?\s*[-–]\s*[+-]?\d+(?:[.,]\d+)?|(?:[<>]=?|[≤≥])\s*[+-]?\d+(?:[.,]\d+)?)\s*$/
+    );
+    if (rangeSuffix && Number.isInteger(rangeSuffix.index)) {
+      const refValue = rangeSuffix[1].trim();
+      const unit = cleaned.slice(0, rangeSuffix.index).trim();
+      return { unit, refValue };
+    }
+    return {
+      unit: cleaned,
+      refValue: '',
+    };
+  };
+
+  const parseReportText = text => {
+    const parsedData = [];
+    let currentSection = 'GENERAL';
+    for (let line of String(text || '').split(/\r?\n/)) {
+      line = line.trim();
+      if (line.length < 3 || REPORT_SKIP_PATTERNS.some(pattern => pattern.test(line))) continue;
+      if (!line.includes(':') && REPORT_SECTION_REGEX.test(line)) {
+        currentSection = line.replace(/\s+/g, ' ').trim();
+        continue;
+      }
+      let match = line.match(REPORT_QUALITATIVE_REGEX);
+      if (match) {
+        const analysis = normalizeAnalysisName(match[1].trim(), currentSection);
+        if (
+          analysis.length < 2 || analysis.length > 60 || analysis.includes(':') ||
+          REPORT_NON_ANALYTIC_PATTERNS.some(pattern => pattern.test(analysis))
+        ) continue;
+        parsedData.push({
+          section: currentSection,
+          analysis,
+          result: match[2].trim().toUpperCase(),
+          unit: '',
+          refValue: '',
+          qualitative: true,
+        });
+        continue;
+      }
+      match = line.match(REPORT_NUMERIC_REGEX);
+      if (!match) continue;
+      const analysis = normalizeAnalysisName(match[1].trim(), currentSection);
+      if (
+        analysis.length < 2 || analysis.length > 60 || analysis.includes(':') ||
+        REPORT_NON_ANALYTIC_PATTERNS.some(pattern => pattern.test(analysis))
+      ) continue;
+      const split = splitReportUnitAndReference(match[3]);
+      parsedData.push({
+        section: currentSection,
+        analysis,
+        result: match[2].replace(/\s+/g, ''),
+        unit: split.unit,
+        refValue: split.refValue,
+      });
+    }
+    return parsedData;
+  };
+
   const buildAnalysis = (details, exams) => {
     const safeExams = sanitizeExamList(exams);
     const examById = new Map(safeExams.map(exam => [exam.id, exam]));
@@ -319,8 +434,10 @@
     comparisonClipboard,
     examRowsMatchRut,
     findingAlert,
+    extractRutBodyFromReportText,
     normalizeAnalysisName,
     normalizeRutBody,
+    parseReportText,
     sanitizeExamList,
     validateDetailBatch,
   };

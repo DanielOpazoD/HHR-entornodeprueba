@@ -50,7 +50,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 | `gestion-camas-session.js` | Valida y reduce la sesión temporal de Gestión de Camas, incluida su expiración |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
-| `lab-viewer.js` | Contratos de lotes opacos y organización pura de comparación, alertas y tendencias |
+| `lab-viewer.js` | Parser clínico y organización pura de comparación, alertas y tendencias |
+| `syslab-bridge.js` | Navega la sesión oficial de Syslab y extrae/valida informes dentro de la red local |
+| `pdf.min.mjs`, `pdf.worker.min.mjs` | PDF.js vendorizado para extraer el texto de informes sin servicios auxiliares |
 
 ## Instalar (modo desarrollador)
 
@@ -88,26 +90,28 @@ convierte en un control flotante para no cubrir la navegación.
 ### Visor de exámenes de laboratorio
 
 - **Lab** está disponible al abrir un episodio clínico. Obtiene el RUN del encabezado oficial de
-  Eloísa y consulta el scraper local en `http://localhost:3001`; la extensión no guarda ni contiene
-  credenciales de Syslab.
+  Eloísa y consulta directamente `http://10.4.69.90/syslab/` desde el equipo conectado a la red
+  local. No requiere levantar un scraper ni otro servicio.
 - La búsqueda muestra los informes por fecha, hora, origen y examen. Permite filtrar, seleccionar
   varios, abrir el PDF autenticado y analizar hasta 24 informes por operación.
 - El análisis conserva las capacidades centrales del visor HHR: tabla longitudinal por variable,
   referencias y alertas fuera de rango, tendencias numéricas con cada valor rotulado, vista completa
   por informe y copia tabulada para uso clínico.
-- El scraper entrega un identificador de lote opaco y metadatos sin URLs internas. La extensión guarda
-  solamente ese identificador y los IDs de orden en `chrome.storage.session`; el lote caduca a los
-  15 minutos y nunca persiste resultados de laboratorio.
-- JSON y PDF se leen en streaming con un límite total de tiempo y tamaño (2 MB y 6 MB,
-  respectivamente); una respuesta lenta o sobredimensionada se cancela antes de reservarla completa.
-- El scraper debe confirmar el cuerpo del RUN tanto en la respuesta como en cada orden; cualquier
-  discrepancia bloquea el lote completo para evitar presentar exámenes de otro paciente. La misma
-  validación se repite al extraer cada PDF y cualquier informe fallido cancela el análisis completo.
-- Para usarlo, configura `PORT=3001`, `SYSLAB_USER`, `SYSLAB_PASS` y
-  `SYSLAB_ALLOWED_EXTENSION_IDS` con el ID visible en `chrome://extensions`, e inicia el
-  servicio Syslab Scraper con `node server.js` antes de
-  abrir **Lab**. Se reserva ese puerto porque el HHR local suele ocupar `3000`. El scraper es quien
-  autentica y navega el portal interno mediante Playwright.
+- La primera consulta abre la ventana oficial de Syslab. El usuario inicia sesión directamente allí
+  —puede usar el gestor de contraseñas de Chrome— y vuelve a pulsar **Actualizar**. La extensión no
+  lee, guarda ni distribuye la contraseña.
+- Las rutas internas permanecen únicamente en `chrome.storage.session`, ligadas al episodio, RUN y
+  lote temporal de 15 minutos; la interfaz recibe solo metadatos e IDs de orden y nunca persiste
+  resultados de laboratorio.
+- Cada informe se lee con la sesión oficial, con límite de 6 MB y tiempo total. PDF.js extrae el texto
+  localmente y el parser HHR organiza variables, referencias, alertas y tendencias.
+- La extensión confirma el cuerpo del RUN tanto en la lista como en cada informe; cualquier
+  discrepancia o informe fallido cancela el lote completo para evitar presentar datos parciales o de
+  otro paciente.
+- El portal institucional actualmente está publicado por Syslab mediante HTTP dentro de la LAN. La
+  extensión usa exactamente esa ruta oficial y no expone los datos fuera del equipo, pero HTTP no
+  aporta cifrado frente a otros actores de la red. Debe utilizarse solo en la red clínica controlada;
+  habilitar HTTPS en Syslab sigue siendo la corrección de infraestructura recomendada.
 
 En la sección **Solicitud de examen** de un episodio médico o de enfermería se agrega además
 **Imprimir selección (2–3 órdenes)**. La acción vuelve a solicitar cada Jasper oficial, extrae y valida sus
