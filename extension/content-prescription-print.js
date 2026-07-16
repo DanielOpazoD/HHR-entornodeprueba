@@ -787,6 +787,7 @@
         background: #fff; box-shadow: 0 4px 18px rgba(16,42,67,.10); overflow: hidden;
         cursor: crosshair; user-select: none;
       }
+      #${MODAL_ID} .hhr-imaging-canvas:focus-visible { outline: 3px solid rgba(15,147,140,.38); outline-offset: 3px; }
       #${MODAL_ID} .hhr-imaging-image { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
       #${MODAL_ID} .hhr-imaging-overlays { position: absolute; inset: 0; }
       #${MODAL_ID} .hhr-imaging-overlay { position: absolute; color: #000; font-size: 12px; line-height: 1; white-space: nowrap; pointer-events: none; }
@@ -794,6 +795,15 @@
       #${MODAL_ID} .hhr-imaging-overlay.is-small { font-size: 10px; }
       #${MODAL_ID} .hhr-imaging-mark { position: absolute; transform: translate(-50%, -50%); color: #1d4ed8; font-size: 15px; font-weight: 700; pointer-events: none; }
       #${MODAL_ID} .hhr-imaging-mark.is-text { transform: translate(0, -50%); font-size: 12px; text-transform: uppercase; }
+      #${MODAL_ID} .hhr-imaging-keyboard-cursor {
+        position: absolute; z-index: 3; width: 18px; height: 18px; transform: translate(-50%, -50%);
+        border: 2px solid var(--hhr-teal-600); border-radius: 50%; background: rgba(255,255,255,.72);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.8); pointer-events: none;
+      }
+      #${MODAL_ID} .hhr-imaging-keyboard-cursor::before,
+      #${MODAL_ID} .hhr-imaging-keyboard-cursor::after { content: ''; position: absolute; background: var(--hhr-teal-600); }
+      #${MODAL_ID} .hhr-imaging-keyboard-cursor::before { left: 7px; top: -5px; width: 2px; height: 24px; }
+      #${MODAL_ID} .hhr-imaging-keyboard-cursor::after { left: -5px; top: 7px; width: 24px; height: 2px; }
       #${MODAL_ID} .hhr-imaging-text-editor {
         position: absolute; transform: translate(0, -50%); z-index: 2; width: 170px; padding: 2px 6px;
         border: 1px solid var(--hhr-teal-500); border-radius: 4px; background: #fff; color: #1d3a4f;
@@ -818,6 +828,8 @@
       #${MODAL_ID} .hhr-vitals-tile.is-warn .hhr-vitals-value { color: var(--hhr-amber-ink); }
       #${MODAL_ID} .hhr-vitals-tile.is-alert { border-color: #e7b3ae; background: #fdf3f2; }
       #${MODAL_ID} .hhr-vitals-tile.is-alert .hhr-vitals-value { color: var(--hhr-red-ink); }
+      #${MODAL_ID} .hhr-vitals-tile.is-ungraded { border-style: dashed; background: #f7f9f8; }
+      #${MODAL_ID} .hhr-vitals-tile.is-ungraded .hhr-vitals-value { color: #5f6d6a; }
       #${MODAL_ID} .hhr-vitals-obs { margin: 8px 0 0; padding: 8px 11px; border: 1px solid #e0e8e6; border-radius: 8px; background: #fbfdfc; color: #4c5a58; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-vitals-trends { margin-top: 10px; }
       #${MODAL_ID} .hhr-vitals-table-wrap { border: 1px solid #e0e8e6; border-radius: 10px; overflow: auto; max-height: 380px; }
@@ -1925,7 +1937,7 @@
         if (!confirmClinicalTransition(root)) return;
         root.__hhrDismiss = null;
         root.remove();
-        openCenterModule(target, encId, focusReturnTarget);
+        openCenterModule(target, root.dataset.selectedEncounterId || encId, focusReturnTarget);
       });
     });
     const regimenButton = root.querySelector('.hhr-center-regimen-print');
@@ -1969,17 +1981,18 @@
     let censusLoaded = false;
 
     const refreshIdentity = async () => {
+      const requestedEncId = selected;
       const routeEncId = currentRouteEncounterId();
-      routeBadge.hidden = !selected || !routeEncId || selected === routeEncId;
-      if (!selected) {
+      routeBadge.hidden = !requestedEncId || !routeEncId || requestedEncId === routeEncId;
+      if (!requestedEncId) {
         nameEl.textContent = 'Sin paciente seleccionado';
         metaEl.textContent = 'Elige un paciente del censo para continuar.';
         return;
       }
       nameEl.textContent = 'Identificando…';
       metaEl.textContent = '';
-      const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: selected });
-      if (!root.isConnected || root.dataset.selectedEncounterId !== selected) return;
+      const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: requestedEncId });
+      if (!root.isConnected || root.dataset.selectedEncounterId !== requestedEncId) return;
       if (!response || response.error) {
         nameEl.textContent = 'Paciente no identificado';
         metaEl.textContent = String((response && response.error) || '');
@@ -2020,8 +2033,12 @@
             .filter(Boolean).join(' · ');
           option.append(bed, name, meta);
           option.addEventListener('click', () => {
+            if (patient.encounterId === selected) {
+              closePicker();
+              return;
+            }
+            if (!confirmClinicalTransition(root)) return;
             closePicker();
-            if (patient.encounterId === selected) return;
             selected = patient.encounterId;
             root.dataset.selectedEncounterId = selected;
             void refreshIdentity();
@@ -2085,6 +2102,8 @@
   };
 
   const renderHandoffCenter = (root, encId) => {
+    const requestGeneration = String(Number(root.dataset.handoffRequestGeneration || 0) + 1);
+    root.dataset.handoffRequestGeneration = requestGeneration;
     const main = root.querySelector('.hhr-center-main');
     main.innerHTML = `
       <div class="hhr-center-toolbar">
@@ -2130,7 +2149,11 @@
     });
 
     sendMessage({ type: 'RAYEN_HANDOFF_OPTIONS_REQUEST', currentEncId: encId || '' }).then(response => {
-      if (!root.isConnected || root.dataset.activeModule !== 'handoff') return;
+      if (
+        !root.isConnected ||
+        root.dataset.activeModule !== 'handoff' ||
+        root.dataset.handoffRequestGeneration !== requestGeneration
+      ) return;
       content.innerHTML = '';
       if (!response || response.error) {
         const error = document.createElement('div');
@@ -3466,9 +3489,11 @@
           </div>
           <button class="hhr-center-action hhr-center-action-primary hhr-imaging-print" type="button" disabled>Imprimir</button>
         </div>
-        <p class="hhr-imaging-hint">Los datos del paciente se completan solos. Haz clic sobre el formulario para marcar casillas con una cruz o agregar texto libre; lo que marques se imprime en el PDF oficial.</p>
+        <p class="hhr-imaging-hint" id="hhr-imaging-keyboard-hint">Los datos del paciente se completan solos. Haz clic sobre el formulario o usa las flechas para mover el cursor y Enter para marcar; lo que agregues se imprime en el PDF oficial.</p>
         <div class="hhr-imaging-stage">
-          <div class="hhr-imaging-canvas" role="img" aria-label="Vista previa del formulario">
+          <div class="hhr-imaging-canvas" role="group" tabindex="0"
+            aria-describedby="hhr-imaging-keyboard-hint"
+            aria-label="Vista previa del formulario. Usa las flechas para mover el cursor y Enter para marcar.">
             <img class="hhr-imaging-image" alt="" draggable="false">
             <div class="hhr-imaging-overlays"></div>
           </div>
@@ -3486,6 +3511,7 @@
     const docTabs = Array.from(main.querySelectorAll('.hhr-imaging-tabs .hhr-rx-tab'));
     const contentHost = main.querySelector('.hhr-center-content');
     main.querySelector('.hhr-flow-tabs [data-flow="reports"]').addEventListener('click', event => {
+      if (!confirmClinicalTransition(root)) return;
       main.querySelectorAll('.hhr-flow-tabs .hhr-rx-tab').forEach(tab =>
         tab.setAttribute('aria-selected', String(tab === event.currentTarget)));
       contentHost.innerHTML = `
@@ -3514,6 +3540,14 @@
     let toolMode = 'cross';
     let patientView = null;
     const marksByDoc = { solicitud: [], encuesta: [], consentimiento: [] };
+    const imagingDraftKey = clinicalWriteKey('request-draft-imaging', encId);
+    const keyboardPoint = { x: 50, y: 50 };
+    let keyboardActive = false;
+
+    const updateDraftState = () => {
+      const hasMarks = Object.values(marksByDoc).some(marks => marks.length > 0);
+      setClinicalGuardState(root, 'dirty', imagingDraftKey, hasMarks || Boolean(physicianInput.value.trim()));
+    };
 
     const setFeedback = (message, error = false) => {
       feedback.className = 'hhr-connection-feedback hhr-imaging-feedback' + (error ? ' is-error' : '');
@@ -3543,6 +3577,14 @@
         node.style.top = mark.y + '%';
         overlaysHost.appendChild(node);
       });
+      if (keyboardActive) {
+        const cursor = document.createElement('div');
+        cursor.className = 'hhr-imaging-keyboard-cursor';
+        cursor.style.left = keyboardPoint.x + '%';
+        cursor.style.top = keyboardPoint.y + '%';
+        cursor.setAttribute('aria-hidden', 'true');
+        overlaysHost.appendChild(cursor);
+      }
       undoButton.disabled = marksByDoc[selectedDoc].length === 0;
     };
 
@@ -3558,6 +3600,7 @@
 
     const openTextEditor = (x, y) => {
       const editor = document.createElement('input');
+      let restoreCanvasFocus = false;
       editor.type = 'text';
       editor.maxLength = 80;
       editor.className = 'hhr-imaging-text-editor';
@@ -3569,13 +3612,27 @@
         editor.remove();
         if (text) {
           marksByDoc[selectedDoc].push({ x, y, text });
-          renderOverlays();
+          updateDraftState();
+        }
+        if (!restoreCanvasFocus) keyboardActive = false;
+        renderOverlays();
+        if (restoreCanvasFocus && canvas.isConnected) {
+          window.setTimeout(() => canvas.focus({ preventScroll: true }), 0);
         }
       };
       editor.addEventListener('blur', commit);
       editor.addEventListener('keydown', event => {
-        if (event.key === 'Enter') { event.preventDefault(); editor.blur(); }
-        if (event.key === 'Escape') { editor.value = ''; editor.blur(); }
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          restoreCanvasFocus = true;
+          editor.blur();
+        }
+        if (event.key === 'Escape') {
+          editor.value = '';
+          restoreCanvasFocus = true;
+          editor.blur();
+        }
       });
       overlaysHost.appendChild(editor);
       editor.focus();
@@ -3590,8 +3647,42 @@
       if (toolMode === 'text') openTextEditor(x, y);
       else {
         marksByDoc[selectedDoc].push({ x, y });
+        updateDraftState();
         renderOverlays();
       }
+    });
+    canvas.addEventListener('focus', () => {
+      keyboardActive = true;
+      renderOverlays();
+    });
+    canvas.addEventListener('blur', event => {
+      if (
+        event.relatedTarget &&
+        typeof event.relatedTarget.closest === 'function' &&
+        event.relatedTarget.closest('.hhr-imaging-text-editor')
+      ) return;
+      keyboardActive = false;
+      renderOverlays();
+    });
+    canvas.addEventListener('keydown', event => {
+      const step = event.shiftKey ? 5 : 1;
+      if (event.key === 'ArrowLeft') keyboardPoint.x = Math.max(0, keyboardPoint.x - step);
+      else if (event.key === 'ArrowRight') keyboardPoint.x = Math.min(100, keyboardPoint.x + step);
+      else if (event.key === 'ArrowUp') keyboardPoint.y = Math.max(0, keyboardPoint.y - step);
+      else if (event.key === 'ArrowDown') keyboardPoint.y = Math.min(100, keyboardPoint.y + step);
+      else if ((event.key === 'Enter' || event.key === ' ') && patientView) {
+        event.preventDefault();
+        if (toolMode === 'text') openTextEditor(keyboardPoint.x, keyboardPoint.y);
+        else {
+          marksByDoc[selectedDoc].push({ x: keyboardPoint.x, y: keyboardPoint.y });
+          updateDraftState();
+          renderOverlays();
+        }
+        return;
+      } else return;
+      event.preventDefault();
+      keyboardActive = true;
+      renderOverlays();
     });
     main.querySelectorAll('.hhr-imaging-tool').forEach(button => {
       button.addEventListener('click', () => {
@@ -3605,6 +3696,7 @@
     });
     undoButton.addEventListener('click', () => {
       marksByDoc[selectedDoc].pop();
+      updateDraftState();
       renderOverlays();
     });
     docTabs.forEach(tab => tab.addEventListener('click', () => {
@@ -3612,7 +3704,10 @@
       selectedDoc = tab.dataset.doc;
       renderDocument();
     }));
-    physicianInput.addEventListener('input', renderOverlays);
+    physicianInput.addEventListener('input', () => {
+      updateDraftState();
+      renderOverlays();
+    });
 
     printButton.addEventListener('click', async () => {
       printButton.disabled = true;
@@ -3649,8 +3744,8 @@
   };
 
   // Signos vitales — datos del formulario VITAL_SIGNS de Ficha Médico (mismo feed que las
-  // escalas). Tiles de última toma con umbrales de alerta idénticos a HHR, historial agrupado
-  // por día y gráficas de tendencia opcionales.
+  // escalas). Los umbrales HHR se aplican solo a adultos confirmados; en pacientes pediátricos
+  // o sin fecha de nacimiento se muestran los valores sin clasificarlos con rangos de adulto.
   // Trend chart with real axes: min/mid/max gridlines with values on the left, first/last
   // date-time under the baseline, and a <title> tooltip (value · timestamp) per point.
   const vitalsSparklineSvg = points => {
@@ -3676,7 +3771,11 @@
       <text x="${padL - 5}" y="${(y(value) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#7c8886">${formatValue(value)}</text>`;
     const line = points.map((point, index) => `${x(index).toFixed(1)},${y(point.value).toFixed(1)}`).join(' ');
     const dots = points.map((point, index) => {
-      const fill = point.status === 'alert' ? '#c94c43' : point.status === 'warn' ? '#d8a72e' : '#0f938c';
+      const fill = point.status === 'alert'
+        ? '#c94c43'
+        : point.status === 'warn'
+          ? '#d8a72e'
+          : point.status === 'ungraded' ? '#7c8886' : '#0f938c';
       return `<circle cx="${x(index).toFixed(1)}" cy="${y(point.value).toFixed(1)}" r="3" fill="${fill}">
         <title>${escSvg(point.at)} · ${formatValue(point.value)}</title>
       </circle>`;
@@ -3693,6 +3792,9 @@
   };
 
   const renderVitalsCenter = (root, encId) => {
+    const requestedEncId = String(encId || '');
+    const requestGeneration = String(Number(root.dataset.vitalsRequestGeneration || 0) + 1);
+    root.dataset.vitalsRequestGeneration = requestGeneration;
     const main = root.querySelector('.hhr-center-main');
     main.innerHTML = `
       <div class="hhr-center-toolbar">
@@ -3714,8 +3816,16 @@
       return;
     }
 
-    sendMessage({ type: 'RAYEN_SCALES_REPORT_REQUEST', encId }).then(response => {
-      if (!root.isConnected || root.dataset.activeModule !== 'vitals') return;
+    Promise.all([
+      sendMessage({ type: 'RAYEN_SCALES_REPORT_REQUEST', encId: requestedEncId }),
+      sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: requestedEncId }),
+    ]).then(([response, patientResponse]) => {
+      if (
+        !root.isConnected ||
+        root.dataset.activeModule !== 'vitals' ||
+        root.dataset.selectedEncounterId !== requestedEncId ||
+        root.dataset.vitalsRequestGeneration !== requestGeneration
+      ) return;
       if (!response || response.error) {
         content.innerHTML = '';
         const error = document.createElement('div');
@@ -3733,6 +3843,33 @@
       }
       const metrics = vitalsHelper.VITAL_METRICS;
       const latest = records[0];
+      const birthDate = patientResponse && !patientResponse.error
+        ? patientResponse.patient && patientResponse.patient.birthDate
+        : '';
+      const cohortForRecord = record => {
+        const parts = String(record && record.recordedDate || '').split('-').map(Number);
+        if (parts.length !== 3 || parts.some(value => !value)) return 'unknown';
+        const referenceDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (
+          referenceDate.getFullYear() !== parts[0] ||
+          referenceDate.getMonth() !== parts[1] - 1 ||
+          referenceDate.getDate() !== parts[2]
+        ) return 'unknown';
+        return vitalsHelper.ageCohort(birthDate, referenceDate);
+      };
+      const cohort = cohortForRecord(latest);
+      const hasUngradedHistory = records.some(record => cohortForRecord(record) !== 'adult');
+
+      if (hasUngradedHistory) {
+        const notice = document.createElement('div');
+        notice.className = 'hhr-center-notice';
+        notice.textContent = cohort === 'pediatric'
+          ? 'Paciente pediátrico: umbrales no evaluados; no se aplican rangos de adulto.'
+          : cohort === 'unknown'
+            ? 'Edad no verificable: umbrales no evaluados. Actualiza para reintentar la identificación.'
+            : 'Las tomas previas a los 18 años o sin fecha verificable se muestran como no evaluadas.';
+        content.appendChild(notice);
+      }
 
       const latestHead = document.createElement('div');
       latestHead.className = 'hhr-vitals-section-title';
@@ -3747,7 +3884,7 @@
       metrics.forEach(metric => {
         const text = metric.text(latest);
         const tile = document.createElement('div');
-        tile.className = 'hhr-vitals-tile is-' + metric.status(latest);
+        tile.className = 'hhr-vitals-tile is-' + metric.status(latest, cohort);
         tile.innerHTML = `<span class="hhr-vitals-label">${metric.label}</span>
           <span class="hhr-vitals-value">${text || '–'}</span>
           <span class="hhr-vitals-unit">${metric.unit}</span>`;
@@ -3773,7 +3910,7 @@
           const points = chronological
             .map(record => ({
               value: metric.key === 'pa' ? record.systolic : metric.series(record),
-              status: metric.status(record),
+              status: metric.status(record, cohortForRecord(record)),
               at: record.recordedAt,
             }))
             .filter(point => point.value != null);
@@ -3833,7 +3970,7 @@
         row.appendChild(timeCell);
         metrics.forEach(metric => {
           const cell = document.createElement('td');
-          const status = metric.status(record);
+          const status = metric.status(record, cohortForRecord(record));
           if (status !== 'normal') cell.className = 'is-' + status;
           cell.textContent = metric.text(record) || '·';
           row.appendChild(cell);
@@ -3905,20 +4042,41 @@
     const counter = main.querySelector('.hhr-labreq-count');
     const printButton = main.querySelector('.hhr-labreq-print');
     const feedback = main.querySelector('.hhr-labreq-feedback');
+    const othersInput = main.querySelector('.hhr-labreq-otros');
     let patientData = null;
     let patientViewData = null;
+    const labDraftKey = clinicalWriteKey('request-draft-lab', encId);
 
-    main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () =>
-      renderLabCenter(root, encId)
-    );
+    main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () => {
+      if (!confirmClinicalTransition(root)) return;
+      renderLabCenter(root, encId);
+    });
     const selectedKeys = () => Array.from(main.querySelectorAll('.hhr-labreq-exam input:checked'))
       .map(input => input.dataset.key);
     const updateCount = () => {
-      const count = selectedKeys().length;
+      const count = selectedKeys().length + (othersInput.value.trim() ? 1 : 0);
       counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
       printButton.disabled = !patientData || count === 0;
     };
-    main.querySelector('.hhr-labreq-grid').addEventListener('change', updateCount);
+    const updateDraftState = () => {
+      const procedencia = main.querySelector('input[name="hhr-labreq-procedencia"]:checked');
+      const hasDraft = selectedKeys().length > 0 || Boolean(
+        othersInput.value.trim() ||
+        main.querySelector('.hhr-labreq-medico').value.trim() ||
+        main.querySelector('input[name="hhr-labreq-fonasa"]:checked') ||
+        main.querySelector('.hhr-labreq-prais').checked ||
+        (procedencia && procedencia.value !== 'Hospitalización')
+      );
+      setClinicalGuardState(root, 'dirty', labDraftKey, hasDraft);
+    };
+    main.querySelector('.hhr-center-content').addEventListener('change', () => {
+      updateCount();
+      updateDraftState();
+    });
+    main.querySelector('.hhr-center-content').addEventListener('input', () => {
+      updateCount();
+      updateDraftState();
+    });
 
     printButton.addEventListener('click', () => {
       if (!patientData) return;

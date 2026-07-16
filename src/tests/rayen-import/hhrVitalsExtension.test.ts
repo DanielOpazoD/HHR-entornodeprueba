@@ -9,7 +9,12 @@ import '../../../extension/hhr-vitals.js';
 
 type VitalsApi = {
   parseVitalSigns: (raw: unknown) => Array<Record<string, unknown>>;
-  statusFor: (metric: string, value: number | null) => 'normal' | 'warn' | 'alert';
+  statusFor: (
+    metric: string,
+    value: number | null,
+    cohort?: 'adult' | 'pediatric' | 'unknown'
+  ) => 'normal' | 'warn' | 'alert' | 'ungraded';
+  ageCohort: (birthDate?: string, referenceDate?: Date) => 'adult' | 'pediatric' | 'unknown';
   VITAL_METRICS: Array<{ key: string; label: string }>;
 };
 
@@ -112,6 +117,7 @@ describe('extension vital signs parser', () => {
     ]);
     // 13:00 UTC → 07:00 Rapa Nui (−06:00 in July).
     expect(record.recordedAt).toBe('16-07-2026 07:00');
+    expect(record.recordedDate).toBe('2026-07-16');
   });
 });
 
@@ -143,6 +149,17 @@ describe('extension vital signs thresholds (HHR parity)', () => {
     expect(vitals.statusFor('hgt', 400)).toBe('alert');
     expect(vitals.statusFor('hgt', null)).toBe('normal');
     expect(vitals.statusFor('insulin', 99)).toBe('normal');
+  });
+
+  it('never applies adult thresholds to pediatric or unknown-age patients', () => {
+    expect(vitals.statusFor('heartRate', 130, 'pediatric')).toBe('ungraded');
+    expect(vitals.statusFor('spo2', 89, 'unknown')).toBe('ungraded');
+    expect(vitals.ageCohort('2000-07-16', new Date(2026, 6, 16))).toBe('adult');
+    expect(vitals.ageCohort('16-07-2000', new Date(2026, 6, 16))).toBe('adult');
+    expect(vitals.ageCohort('2012-07-16', new Date(2026, 6, 16))).toBe('pediatric');
+    expect(vitals.ageCohort('2008-07-16', new Date(2026, 6, 15))).toBe('pediatric');
+    expect(vitals.ageCohort('2008-07-16', new Date(2026, 6, 16))).toBe('adult');
+    expect(vitals.ageCohort('2012-02-30', new Date(2026, 6, 16))).toBe('unknown');
   });
 
   it('exposes the eight census metrics in HHR order', () => {

@@ -127,7 +127,7 @@
       const clinicalStamp = get(TIME_IDS);
       const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
       const record = {
-        recordedDate: when.iso,
+        recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
         recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
         systolic: num(get(FIELD_IDS.systolic)),
         diastolic: num(get(FIELD_IDS.diastolic)),
@@ -169,23 +169,48 @@
     painEva: v => (v >= 7 ? 'alert' : v >= 4 ? 'warn' : 'normal'),
     hgt: v => band(v, 54, 70, 180, 400),
   };
-  /** 'normal' | 'warn' | 'alert' for a reading; unknown metrics and blanks are 'normal'. */
-  const statusFor = (metric, value) => {
+  /** Screening status for a reading; non-adult cohorts are explicit 'ungraded'. */
+  const statusFor = (metric, value, cohort = 'adult') => {
+    if (cohort !== 'adult') return 'ungraded';
     if (value == null || !STATUS_FN[metric]) return 'normal';
     return STATUS_FN[metric](value);
   };
 
+  const ageCohort = (birthDate, referenceDate = new Date()) => {
+    const parts = String(birthDate || '').slice(0, 10).split('-');
+    if (parts.length !== 3) return 'unknown';
+    const [year, month, day] = parts[0].length === 4 && parts[2].length === 2
+      ? parts.map(Number)
+      : parts[0].length === 2 && parts[2].length === 4
+        ? [Number(parts[2]), Number(parts[1]), Number(parts[0])]
+        : [];
+    if (!year || !month || !day) return 'unknown';
+    const birth = new Date(year, month - 1, day);
+    if (
+      Number.isNaN(referenceDate.getTime()) ||
+      birth.getFullYear() !== year ||
+      birth.getMonth() !== month - 1 ||
+      birth.getDate() !== day
+    ) return 'unknown';
+    let age = referenceDate.getFullYear() - year;
+    if (
+      referenceDate.getMonth() < month - 1 ||
+      (referenceDate.getMonth() === month - 1 && referenceDate.getDate() < day)
+    ) age -= 1;
+    return age >= 18 ? 'adult' : age >= 0 ? 'pediatric' : 'unknown';
+  };
+
   /** Column/tile catalog: key, short label, unit, how to read the value from a record. */
   const VITAL_METRICS = [
-    { key: 'pa', label: 'PA', unit: 'mmHg', text: r => (r.systolic != null ? r.systolic + (r.diastolic != null ? '/' + r.diastolic : '') : ''), status: r => statusFor('systolic', r.systolic), series: r => r.systolic },
-    { key: 'heartRate', label: 'FC', unit: 'lpm', text: r => (r.heartRate != null ? String(r.heartRate) : ''), status: r => statusFor('heartRate', r.heartRate), series: r => r.heartRate },
-    { key: 'spo2', label: 'SatO₂', unit: '%', text: r => (r.spo2 != null ? String(r.spo2) : ''), status: r => statusFor('spo2', r.spo2), series: r => r.spo2 },
-    { key: 'temperature', label: 'T°', unit: '°C', text: r => (r.temperature != null ? String(r.temperature) : ''), status: r => statusFor('temperature', r.temperature), series: r => r.temperature },
-    { key: 'respiratoryRate', label: 'FR', unit: 'rpm', text: r => (r.respiratoryRate != null ? String(r.respiratoryRate) : ''), status: r => statusFor('respiratoryRate', r.respiratoryRate), series: r => r.respiratoryRate },
-    { key: 'painEva', label: 'EVA', unit: '', text: r => (r.painEva != null ? String(r.painEva) : ''), status: r => statusFor('painEva', r.painEva), series: r => r.painEva },
-    { key: 'hgt', label: 'HGT', unit: 'mg/dL', text: r => (r.hgt != null ? String(r.hgt) : ''), status: r => statusFor('hgt', r.hgt), series: r => r.hgt },
+    { key: 'pa', label: 'PA', unit: 'mmHg', text: r => (r.systolic != null ? r.systolic + (r.diastolic != null ? '/' + r.diastolic : '') : ''), status: (r, cohort) => statusFor('systolic', r.systolic, cohort), series: r => r.systolic },
+    { key: 'heartRate', label: 'FC', unit: 'lpm', text: r => (r.heartRate != null ? String(r.heartRate) : ''), status: (r, cohort) => statusFor('heartRate', r.heartRate, cohort), series: r => r.heartRate },
+    { key: 'spo2', label: 'SatO₂', unit: '%', text: r => (r.spo2 != null ? String(r.spo2) : ''), status: (r, cohort) => statusFor('spo2', r.spo2, cohort), series: r => r.spo2 },
+    { key: 'temperature', label: 'T°', unit: '°C', text: r => (r.temperature != null ? String(r.temperature) : ''), status: (r, cohort) => statusFor('temperature', r.temperature, cohort), series: r => r.temperature },
+    { key: 'respiratoryRate', label: 'FR', unit: 'rpm', text: r => (r.respiratoryRate != null ? String(r.respiratoryRate) : ''), status: (r, cohort) => statusFor('respiratoryRate', r.respiratoryRate, cohort), series: r => r.respiratoryRate },
+    { key: 'painEva', label: 'EVA', unit: '', text: r => (r.painEva != null ? String(r.painEva) : ''), status: (r, cohort) => statusFor('painEva', r.painEva, cohort), series: r => r.painEva },
+    { key: 'hgt', label: 'HGT', unit: 'mg/dL', text: r => (r.hgt != null ? String(r.hgt) : ''), status: (r, cohort) => statusFor('hgt', r.hgt, cohort), series: r => r.hgt },
     { key: 'insulin', label: 'Ins/Cuad', unit: 'UI', text: r => (r.insulinUnits != null ? r.insulinUnits + (r.insulinQuadrant ? ' ' + r.insulinQuadrant : '') : (r.insulinQuadrant || '')), status: () => 'normal', series: () => null },
   ];
 
-  globalThis.HhrVitals = { parseVitalSigns, statusFor, VITAL_METRICS };
+  globalThis.HhrVitals = { parseVitalSigns, statusFor, ageCohort, VITAL_METRICS };
 })();

@@ -26,11 +26,19 @@
   const calculateAge = birthDate => {
     if (!birthDate) return '';
     const parts = String(birthDate).includes('-') ? String(birthDate).slice(0, 10).split('-') : [];
-    let birth;
-    if (parts.length === 3 && parts[0].length === 4) birth = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
-    else if (parts.length === 3 && parts[2].length === 4) birth = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    else return '';
-    if (Number.isNaN(birth.getTime())) return '';
+    if (parts.length !== 3) return '';
+    const [year, month, day] = parts[0].length === 4
+      ? parts.map(Number)
+      : parts[2].length === 4
+        ? [Number(parts[2]), Number(parts[1]), Number(parts[0])]
+        : [];
+    if (!year || !month || !day) return '';
+    const birth = new Date(year, month - 1, day);
+    if (
+      birth.getFullYear() !== year ||
+      birth.getMonth() !== month - 1 ||
+      birth.getDate() !== day
+    ) return '';
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();

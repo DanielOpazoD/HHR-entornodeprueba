@@ -917,16 +917,36 @@ const handleScalesReportRequest = async ({ encId, sender }) => {
 // parallel lookups (module + franja de paciente) without re-hitting Eloísa each time.
 const PATIENT_HEADER_CACHE_TTL_MS = 60_000;
 const patientHeaderCache = new Map();
+const fichaSessionCacheKey = async (info, sender) => {
+  const material = [
+    info && info.apiOrigin,
+    info && info.token,
+    info && info.facId,
+    info && info.practitionerId,
+    info && info.practitionerRoleId,
+    info && info.role,
+  ].map(value => String(value || '').trim()).join('\u0000');
+  const digest = await self.crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
+  const fingerprint = Array.from(new Uint8Array(digest).slice(0, 16))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+  const senderTabId = sender && sender.tab && sender.tab.id;
+  return `${senderTabId == null ? 'fallback' : senderTabId}:${fingerprint}`;
+};
 const handlePatientHeaderRequest = async ({ encId, sender }) => {
-  const cacheKey = String(encId || '');
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return infoResult;
+  const encounterId = String(encId || '');
+  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
+  const cacheKey = `${sessionKey}:${encounterId}`;
   const cached = patientHeaderCache.get(cacheKey);
   if (cached && Date.now() - cached.at < PATIENT_HEADER_CACHE_TTL_MS) return cached.payload;
-  const context = await getClinicalReportContext(encId, null, null, sender);
+  const context = await getClinicalReportContext(encounterId, infoResult.info);
   if (context.error) return context;
   const patient = context.patient || {};
   const payload = {
     ok: true,
-    encId: cacheKey,
+    encId: encounterId,
     patient: {
       ...patient,
       formattedRun: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
@@ -1276,20 +1296,19 @@ const handleClinicalPanelRequest = async ({ encId }) => {
 // the active groups already normalized by author; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
 // Prefer the tab that SENT the request: it is guaranteed to be alive and to run this same
-// extension version (a query over all fichamedico tabs can land on tabs whose content
-// scripts predate an extension reload → "Receiving end does not exist"). Concurrent callers
-// share one in-flight lookup so parallel module loads don't multiply session verifications.
-let fichaFetchInfoInflight = null;
-const getFichaFetchInfo = sender => {
-  if (fichaFetchInfoInflight) return fichaFetchInfoInflight;
-  fichaFetchInfoInflight = getFichaFetchInfoUncached(sender).finally(() => {
-    fichaFetchInfoInflight = null;
-  });
-  return fichaFetchInfoInflight;
+// extension version. Session verification is deduplicated inside that page/document; the
+// background must not reuse a promise across a login, role transition or sender context.
+const fichaSenderTabId = sender => {
+  const tabId = sender && sender.tab && sender.tab.id;
+  const tabUrl = String(sender && sender.tab && sender.tab.url || sender && sender.url || '');
+  return tabId != null && tabUrl.startsWith('https://fichamedico.rayensalud.cl/')
+    ? tabId
+    : null;
 };
+const getFichaFetchInfo = sender => getFichaFetchInfoUncached(sender);
 
 const getFichaFetchInfoUncached = async sender => {
-  const senderTabId = sender && sender.tab && sender.tab.id;
+  const senderTabId = fichaSenderTabId(sender);
   if (senderTabId != null) {
     try {
       const direct = await withTimeout(
@@ -1300,9 +1319,11 @@ const getFichaFetchInfoUncached = async sender => {
       if (direct && direct.info && direct.info.token && direct.info.apiOrigin) {
         return { info: direct.info };
       }
-    } catch (_error) {
-      // Fall through to the tab query below.
-    }
+      return { error: direct && direct.error || 'La pestaña emisora no entregó una sesión clínica válida.' };
+    } catch (_error) {}
+    return {
+      error: 'No se pudo verificar la sesión de la pestaña emisora. Recárgala e inicia sesión nuevamente.',
+    };
   }
   const infoResp = await sendToMatchingTab(
     FICHAMEDICO_MATCH,
@@ -4424,23 +4445,29 @@ const sweepExpiredLabBatches = async () => {
 // binding is now: route match (fast path) OR membership in the active census. Patient-data
 // safety is preserved downstream by the RUN cross-check against Syslab's own response.
 const CENSUS_ALLOWLIST_TTL_MS = 5 * 60_000;
-let censusAllowlistCache = null;
+const censusAllowlistCache = new Map();
 const encounterInActiveCensus = async (encId, sender) => {
   const id = String(encId || '');
   if (!/^\d+$/.test(id)) return false;
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return false;
+  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
+  const cached = censusAllowlistCache.get(sessionKey);
   if (
-    censusAllowlistCache &&
-    Date.now() - censusAllowlistCache.at < CENSUS_ALLOWLIST_TTL_MS &&
-    censusAllowlistCache.ids.has(id)
+    cached &&
+    Date.now() - cached.at < CENSUS_ALLOWLIST_TTL_MS &&
+    cached.ids.has(id)
   ) {
     return true;
   }
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return false;
   const rowResult = await fetchActiveEncounterRows(infoResult.info);
   if (rowResult.error) return false;
   const ids = new Set((rowResult.rows || []).map(row => String(row && row.id || '')));
-  censusAllowlistCache = { at: Date.now(), ids };
+  censusAllowlistCache.set(sessionKey, { at: Date.now(), ids });
+  if (censusAllowlistCache.size > 12) {
+    const oldest = censusAllowlistCache.keys().next().value;
+    censusAllowlistCache.delete(oldest);
+  }
   return ids.has(id);
 };
 
@@ -4456,7 +4483,7 @@ const validateLabSenderEncounter = async (sender, expectedEncounterId) => {
 const handleLabSearchRequest = async ({ encId, sender }) => {
   const senderError = await validateLabSenderEncounter(sender, encId);
   if (senderError) return senderError;
-  const context = await getClinicalReportContext(encId);
+  const context = await getClinicalReportContext(encId, null, null, sender);
   if (context.error) return context;
   const rutBody = self.HhrLabViewer.normalizeRutBody(context.patient && context.patient.run);
   if (!/^\d{5,9}$/.test(rutBody)) {

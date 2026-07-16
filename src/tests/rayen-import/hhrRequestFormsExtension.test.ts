@@ -3,7 +3,7 @@
  * patient-view derivation, the imaging documents' overlay/PDF field maps (HHR parity)
  * and the printable laboratory request HTML (selection marks + escaping).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/hhr-request-forms.js';
 
@@ -37,6 +37,10 @@ type RequestFormsApi = {
 const forms = (globalThis as { HhrRequestForms?: RequestFormsApi })
   .HhrRequestForms as RequestFormsApi;
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('extension request forms · patient view', () => {
   it('splits names like HHR (4+ words → last two are surnames)', () => {
     expect(forms.splitPatientName('Jose Mario Solar Rebeco')).toEqual([
@@ -53,6 +57,21 @@ describe('extension request forms · patient view', () => {
     expect(forms.formatDateCL('12-09-1958')).toBe('12-09-1958');
     expect(forms.calculateAge('1958-09-12')).toMatch(/^\d+ años$/);
     expect(forms.calculateAge('')).toBe('');
+  });
+
+  it('keeps the birthday boundary in local time west of UTC', () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'Pacific/Easter';
+    try {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-16T02:00:00.000Z'));
+      expect(forms.calculateAge('2000-07-16')).toBe('25 años');
+      expect(forms.calculateAge('16-07-2000')).toBe('25 años');
+      expect(forms.calculateAge('2000-02-30')).toBe('');
+    } finally {
+      if (originalTz === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTz;
+    }
   });
 
   it('builds the normalized view used by overlays and PDF fields', () => {

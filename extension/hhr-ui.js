@@ -269,7 +269,9 @@
   const enableRovingFocus = root => {
     root.addEventListener('keydown', event => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const items = Array.from(root.querySelectorAll('button:not(:disabled)'));
+      const items = Array.from(
+        root.querySelectorAll('button:not(:disabled):not(.is-disabled)')
+      );
       const index = items.indexOf(root.activeElement);
       if (index === -1 || items.length < 2) return;
       event.preventDefault();
