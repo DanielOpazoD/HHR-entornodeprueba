@@ -81,7 +81,6 @@
 
   const sanitizeExamList = exams => (Array.isArray(exams) ? exams : [])
     .filter(exam => exam && /^\d+$/.test(String(exam.id || '')) && isAllowedSyslabLink(exam.link))
-    .slice(0, 100)
     .map(exam => ({
       id: String(exam.id),
       link: String(exam.link),
@@ -91,7 +90,8 @@
       origin: cleanText(exam.origin),
       exams: (Array.isArray(exam.exams) ? exam.exams : []).slice(0, 80).map(cleanText).filter(Boolean),
     }))
-    .sort((a, b) => parseDate(b.date, b.time) - parseDate(a.date, a.time));
+    .sort((a, b) => parseDate(b.date, b.time) - parseDate(a.date, a.time))
+    .slice(0, 100);
 
   const validateDetailBatch = (details, expectedLinks) => {
     const links = (Array.isArray(expectedLinks) ? expectedLinks : []).map(String);

@@ -4205,7 +4205,19 @@ const sweepExpiredLabBatches = async () => {
   if (expiredKeys.length) await chrome.storage.session.remove(expiredKeys);
 };
 
-const handleLabSearchRequest = async ({ encId }) => {
+const validateLabSenderEncounter = (sender, expectedEncounterId) => {
+  const senderEncounterId = resolveFichaEncounterId(
+    sender && sender.tab && sender.tab.url || sender && sender.url
+  );
+  if (!senderEncounterId || senderEncounterId !== String(expectedEncounterId || '')) {
+    return { error: 'La búsqueda de laboratorio no corresponde al episodio clínico abierto.' };
+  }
+  return null;
+};
+
+const handleLabSearchRequest = async ({ encId, sender }) => {
+  const senderError = validateLabSenderEncounter(sender, encId);
+  if (senderError) return senderError;
   const context = await getClinicalReportContext(encId);
   if (context.error) return context;
   const rutBody = self.HhrLabViewer.normalizeRutBody(context.patient && context.patient.run);
@@ -4274,9 +4286,11 @@ const selectedLabExams = (batch, examIds) => {
   return exams.length === ids.length && exams.length > 0 ? exams : [];
 };
 
-const handleLabDetailsRequest = async ({ batchId, examIds }) => {
+const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
   const batchResult = await readLabBatch(batchId);
   if (batchResult.error) return batchResult;
+  const senderError = validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+  if (senderError) return senderError;
   const requestedIds = [...new Set((Array.isArray(examIds) ? examIds : []).map(String).filter(Boolean))];
   if (requestedIds.length > LAB_MAX_SELECTED_EXAMS) {
     return { error: 'Puedes analizar como máximo 24 informes por operación.' };
@@ -4311,9 +4325,11 @@ const handleLabDetailsRequest = async ({ batchId, examIds }) => {
   return { ok: true, analysis: self.HhrLabViewer.buildAnalysis(details, exams) };
 };
 
-const handleLabPdfOpenRequest = async ({ batchId, examId }) => {
+const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   const batchResult = await readLabBatch(batchId);
   if (batchResult.error) return batchResult;
+  const senderError = validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+  if (senderError) return senderError;
   const exams = selectedLabExams(batchResult.batch, [examId]);
   if (exams.length !== 1 || !self.HhrLabViewer.isAllowedSyslabLink(exams[0].link)) {
     return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
@@ -4421,17 +4437,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return respond(handleClinicalPanelRequest({ encId: msg.encId }), 'No se pudo cargar el panel clínico.');
   }
   if (msg && msg.type === 'RAYEN_LAB_SEARCH_REQUEST') {
-    return respond(handleLabSearchRequest({ encId: msg.encId }), 'No se pudieron buscar los exámenes de laboratorio.');
+    return respond(
+      handleLabSearchRequest({ encId: msg.encId, sender }),
+      'No se pudieron buscar los exámenes de laboratorio.'
+    );
   }
   if (msg && msg.type === 'RAYEN_LAB_DETAILS_REQUEST') {
     return respond(
-      handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds }),
+      handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender }),
       'No se pudieron analizar los informes de laboratorio.'
     );
   }
   if (msg && msg.type === 'RAYEN_LAB_PDF_OPEN_REQUEST') {
     return respond(
-      handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId }),
+      handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId, sender }),
       'No se pudo abrir el informe de laboratorio.'
     );
   }

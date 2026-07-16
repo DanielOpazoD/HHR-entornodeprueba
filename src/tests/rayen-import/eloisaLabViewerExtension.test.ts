@@ -88,6 +88,22 @@ describe('native Eloisa laboratory viewer', () => {
     ]);
   });
 
+  it('keeps the 100 newest valid reports when Syslab returns a larger history', () => {
+    const history = Array.from({ length: 101 }, (_, index) => ({
+      id: String(index + 1),
+      link: syslabLink(String(index + 1)),
+      date: index === 100 ? '02/05/2026' : '01/05/2026',
+      time: '08:00:00',
+      exams: ['HEMOGRAMA'],
+    }));
+
+    const exams = labViewer.sanitizeExamList(history);
+
+    expect(exams).toHaveLength(100);
+    expect(exams[0]).toEqual(expect.objectContaining({ id: '101' }));
+    expect(exams.some(exam => exam.id === '100')).toBe(false);
+  });
+
   it('marks numeric ranges, one-sided bounds and qualitative alerts', () => {
     const finding = (result: string, refValue: string): LabFinding => ({
       section: 'BIOQUIMICA',
@@ -303,6 +319,14 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');
+    expect(background).toContain('validateLabSenderEncounter');
+    expect(background).toContain('senderEncounterId !== String(expectedEncounterId');
+    expect(background).toContain(
+      'handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender })'
+    );
+    expect(background).toContain(
+      'handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId, sender })'
+    );
     expect(background).toContain('RAYEN_LAB_PDF_OPEN_REQUEST');
     expect(background).toContain('print-pdf.html?job=');
     expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
