@@ -2626,6 +2626,12 @@
     let requestGeneration = 0;
     let isAnalyzing = false;
 
+    const invalidateLabAnalysis = () => {
+      analysis = null;
+      activeTab = 'comparison';
+      results.innerHTML = '';
+    };
+
     const visibleExams = () => {
       const query = normalizedText(filter.value);
       return exams.filter(exam => !query || normalizedText([
@@ -2664,8 +2670,10 @@
         checkbox.checked = selected.has(exam.id);
         checkbox.disabled = isAnalyzing || (!checkbox.checked && selected.size >= LAB_MAX_SELECTED_EXAMS);
         checkbox.addEventListener('change', () => {
+          const selectionBefore = selected.has(exam.id);
           if (checkbox.checked && selected.size < LAB_MAX_SELECTED_EXAMS) selected.add(exam.id);
           else if (!checkbox.checked) selected.delete(exam.id);
+          if (selected.has(exam.id) !== selectionBefore) invalidateLabAnalysis();
           renderList();
         });
         const copy = document.createElement('span');
@@ -2704,6 +2712,10 @@
     const load = async () => {
       const generation = ++requestGeneration;
       isAnalyzing = false;
+      batchId = '';
+      exams = [];
+      selected = new Set();
+      invalidateLabAnalysis();
       status.textContent = 'Buscando exámenes en Syslab…';
       list.innerHTML = '<div class="hhr-center-empty">El scraper local está autenticando y consultando laboratorio…</div>';
       results.innerHTML = '';
@@ -2746,11 +2758,13 @@
     filter.addEventListener('input', renderList);
     selectAll.addEventListener('click', () => {
       const visible = visibleExams();
+      const selectionBefore = [...selected].sort().join('|');
       const shouldSelect = !visible.every(exam => selected.has(exam.id));
       visible.forEach(exam => {
         if (shouldSelect && selected.size < LAB_MAX_SELECTED_EXAMS) selected.add(exam.id);
         else if (!shouldSelect) selected.delete(exam.id);
       });
+      if ([...selected].sort().join('|') !== selectionBefore) invalidateLabAnalysis();
       renderList();
     });
     analyze.addEventListener('click', async () => {

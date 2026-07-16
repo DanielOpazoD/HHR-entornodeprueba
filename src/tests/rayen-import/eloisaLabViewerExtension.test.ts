@@ -16,6 +16,7 @@ interface LabFinding {
 
 interface LabViewerApi {
   normalizeRutBody: (value: string) => string;
+  examRowsMatchRut: (exams: unknown[], expectedRutBody: string) => boolean;
   isAllowedSyslabLink: (value: string) => boolean;
   findingAlert: (finding: LabFinding) => boolean;
   sanitizeExamList: (value: unknown[]) => Array<{ id: string; link: string }>;
@@ -86,6 +87,17 @@ describe('native Eloisa laboratory viewer', () => {
     expect(exams).toEqual([
       expect.objectContaining({ id: '43092446', link: syslabLink('43092446') }),
     ]);
+  });
+
+  it('requires every Syslab search row to carry the requested RUN', () => {
+    const rows = [
+      { id: '1', rutBody: '17.752.753-2' },
+      { id: '2', rutBody: '17752753' },
+    ];
+
+    expect(labViewer.examRowsMatchRut(rows, '17752753')).toBe(true);
+    expect(labViewer.examRowsMatchRut([{ id: '1', rutBody: '10096004' }], '17752753')).toBe(false);
+    expect(labViewer.examRowsMatchRut([{ id: '1' }], '17752753')).toBe(false);
   });
 
   it('keeps the 100 newest valid reports when Syslab returns a larger history', () => {
@@ -320,6 +332,10 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');
     expect(background).toContain('validateLabSenderEncounter');
+    expect(background).toContain('examRowsMatchRut(payload.data, rutBody)');
+    expect(background).toContain(
+      'Syslab no confirmó que los informes correspondan al RUN solicitado'
+    );
     expect(background).toContain('senderEncounterId !== String(expectedEncounterId');
     expect(background).toContain(
       'handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender })'
@@ -339,6 +355,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain('Tendencias');
     expect(content).toContain('Por informe');
     expect(content).toContain('requestGeneration');
+    expect(content).toContain('invalidateLabAnalysis');
+    expect(content).toContain("batchId = ''");
     expect(manifest).toContain('"lab-viewer.js"');
     expect(manifest).toContain('"version": "0.24.1"');
   });

@@ -4233,6 +4233,14 @@ const handleLabSearchRequest = async ({ encId, sender }) => {
   if (payload.success !== true) {
     return { error: payload.error || 'Syslab no pudo buscar los exámenes del paciente.' };
   }
+  if (
+    self.HhrLabViewer.normalizeRutBody(payload.rutBody) !== rutBody ||
+    !self.HhrLabViewer.examRowsMatchRut(payload.data, rutBody)
+  ) {
+    return {
+      error: 'Syslab no confirmó que los informes correspondan al RUN solicitado. No se mostrarán datos.',
+    };
+  }
   const exams = self.HhrLabViewer.sanitizeExamList(payload.data);
   const batchId = crypto.randomUUID();
   await sweepExpiredLabBatches();

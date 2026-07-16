@@ -93,6 +93,13 @@
     .sort((a, b) => parseDate(b.date, b.time) - parseDate(a.date, a.time))
     .slice(0, 100);
 
+  const examRowsMatchRut = (exams, expectedRutBody) => {
+    const expected = normalizeRutBody(expectedRutBody);
+    return /^\d{5,9}$/.test(expected) && Array.isArray(exams) && exams.every(exam =>
+      exam && normalizeRutBody(exam.rutBody) === expected
+    );
+  };
+
   const validateDetailBatch = (details, expectedLinks) => {
     const links = (Array.isArray(expectedLinks) ? expectedLinks : []).map(String);
     if (!links.length || new Set(links).size !== links.length || !Array.isArray(details)) return null;
@@ -312,6 +319,7 @@
     SYSLAB_ORIGIN,
     buildAnalysis,
     comparisonClipboard,
+    examRowsMatchRut,
     findingAlert,
     isAllowedSyslabLink,
     normalizeAnalysisName,
