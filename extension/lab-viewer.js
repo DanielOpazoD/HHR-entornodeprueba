@@ -100,16 +100,28 @@
     );
   };
 
-  const validateDetailBatch = (details, expectedLinks) => {
+  const validateDetailBatch = (details, expectedLinks, expectedRutBody) => {
     const links = (Array.isArray(expectedLinks) ? expectedLinks : []).map(String);
-    if (!links.length || new Set(links).size !== links.length || !Array.isArray(details)) return null;
+    const expectedRut = normalizeRutBody(expectedRutBody);
+    if (
+      !links.length ||
+      new Set(links).size !== links.length ||
+      !/^\d{5,9}$/.test(expectedRut) ||
+      !Array.isArray(details)
+    ) return null;
     if (details.length !== links.length) return null;
     const expected = new Set(links);
     const detailsByLink = new Map();
     for (const detail of details) {
       if (!detail || typeof detail !== 'object') return null;
       const link = String(detail.url || '');
-      if (!expected.has(link) || detailsByLink.has(link) || !Array.isArray(detail.findings)) return null;
+      if (
+        !expected.has(link) ||
+        detailsByLink.has(link) ||
+        normalizeRutBody(detail.rutBody) !== expectedRut ||
+        cleanText(detail.error) ||
+        !Array.isArray(detail.findings)
+      ) return null;
       detailsByLink.set(link, detail);
     }
     return links.every(link => detailsByLink.has(link))
@@ -305,7 +317,7 @@
     const lines = [['Variable', ...analysis.columns.map(column => column.label)].join('\t')];
     for (const row of Array.isArray(analysis.comparison) ? analysis.comparison : []) {
       lines.push([
-        row.analysis,
+        [row.analysis, row.section, row.unit].filter(Boolean).join(' · '),
         ...analysis.columns.map(column => {
           const finding = row.values && row.values[column.key];
           return finding ? `${finding.result}${finding.unit ? ' ' + finding.unit : ''}` : '--';

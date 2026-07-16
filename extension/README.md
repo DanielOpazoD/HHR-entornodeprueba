@@ -99,7 +99,8 @@ convierte en un control flotante para no cubrir la navegación.
   `http://10.4.69.90/syslab/detalleexamenes.php`. La lista autorizada queda ligada a la búsqueda en
   `chrome.storage.session`, caduca a los 15 minutos y nunca persiste resultados de laboratorio.
 - El scraper debe confirmar el cuerpo del RUN tanto en la respuesta como en cada orden; cualquier
-  discrepancia bloquea el lote completo para evitar presentar exámenes de otro paciente.
+  discrepancia bloquea el lote completo para evitar presentar exámenes de otro paciente. La misma
+  validación se repite al extraer cada PDF y cualquier informe fallido cancela el análisis completo.
 - Para usarlo, configura `PORT=3001` e inicia el servicio Syslab Scraper con `node server.js` antes de
   abrir **Lab**. Se reserva ese puerto porque el HHR local suele ocupar `3000`. El scraper es quien
   autentica y navega el portal interno mediante Playwright.

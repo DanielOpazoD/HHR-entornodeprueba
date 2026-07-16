@@ -4314,7 +4314,10 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ links: group.map(exam => exam.link) }),
+        body: JSON.stringify({
+          links: group.map(exam => exam.link),
+          rutBody: batchResult.batch.rutBody,
+        }),
       },
       25_000
     );
@@ -4322,7 +4325,14 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
       return { error: payload.error || 'No se pudieron interpretar todos los informes seleccionados.' };
     }
     const groupLinks = group.map(exam => exam.link);
-    const batchDetails = self.HhrLabViewer.validateDetailBatch(payload.data, groupLinks);
+    const responseRutBody = self.HhrLabViewer.normalizeRutBody(payload.rutBody);
+    const batchDetails = responseRutBody === batchResult.batch.rutBody
+      ? self.HhrLabViewer.validateDetailBatch(
+          payload.data,
+          groupLinks,
+          batchResult.batch.rutBody
+        )
+      : null;
     if (!batchDetails) {
       return {
         error: 'Syslab devolvió un lote incompleto o inconsistente. No se mostrará un análisis parcial.',

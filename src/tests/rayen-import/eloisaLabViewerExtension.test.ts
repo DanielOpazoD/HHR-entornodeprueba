@@ -21,9 +21,11 @@ interface LabViewerApi {
   findingAlert: (finding: LabFinding) => boolean;
   sanitizeExamList: (value: unknown[]) => Array<{ id: string; link: string }>;
   validateDetailBatch: (
-    details: Array<{ url: string; findings: LabFinding[]; error?: string }>,
-    expectedLinks: string[]
-  ) => Array<{ url: string; findings: LabFinding[]; error?: string }> | null;
+    details: Array<{ url: string; rutBody: string; findings: LabFinding[]; error?: string }>,
+    expectedLinks: string[],
+    expectedRutBody: string
+  ) => Array<{ url: string; rutBody: string; findings: LabFinding[]; error?: string }> | null;
+  comparisonClipboard: (analysis: ReturnType<LabViewerApi['buildAnalysis']>) => string;
   buildAnalysis: (
     details: Array<{ url: string; findings: LabFinding[] }>,
     exams: unknown[]
@@ -148,23 +150,40 @@ describe('native Eloisa laboratory viewer', () => {
     const first = syslabLink('1');
     const second = syslabLink('2');
     const details = [
-      { url: second, findings: [] },
-      { url: first, findings: [], error: 'PDF sin texto interpretable' },
+      { url: second, rutBody: '17752753', findings: [] },
+      { url: first, rutBody: '17752753', findings: [] },
     ];
 
-    expect(labViewer.validateDetailBatch(details, [first, second])).toEqual([
+    expect(labViewer.validateDetailBatch(details, [first, second], '17752753')).toEqual([
       details[1],
       details[0],
     ]);
-    expect(labViewer.validateDetailBatch([details[0]], [first, second])).toBeNull();
-    expect(labViewer.validateDetailBatch([details[0], details[0]], [first, second])).toBeNull();
+    expect(labViewer.validateDetailBatch([details[0]], [first, second], '17752753')).toBeNull();
+    expect(
+      labViewer.validateDetailBatch([details[0], details[0]], [first, second], '17752753')
+    ).toBeNull();
     expect(
       labViewer.validateDetailBatch(
         [
-          { url: first, findings: [] },
-          { url: 'http://example.test/report', findings: [] },
+          { url: first, rutBody: '17752753', findings: [] },
+          { url: 'http://example.test/report', rutBody: '17752753', findings: [] },
         ],
-        [first, second]
+        [first, second],
+        '17752753'
+      )
+    ).toBeNull();
+    expect(
+      labViewer.validateDetailBatch(
+        [details[1], { ...details[0], rutBody: '10096004' }],
+        [first, second],
+        '17752753'
+      )
+    ).toBeNull();
+    expect(
+      labViewer.validateDetailBatch(
+        [details[1], { ...details[0], error: 'PDF sin texto interpretable' }],
+        [first, second],
+        '17752753'
       )
     ).toBeNull();
   });
@@ -267,6 +286,9 @@ describe('native Eloisa laboratory viewer', () => {
     expect(analysis.comparison.filter(row => row.analysis === 'pH')).toHaveLength(2);
     expect(analysis.trends.filter(trend => trend.analysis === 'pH')).toHaveLength(2);
     expect(analysis.trends.some(trend => trend.analysis === 'Troponina')).toBe(false);
+    const clipboard = labViewer.comparisonClipboard(analysis);
+    expect(clipboard).toContain('pH · SANGRE');
+    expect(clipboard).toContain('pH · ORINA');
   });
 
   it('organizes selected reports into comparison, alerts and numeric trends', () => {
@@ -331,6 +353,7 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
     expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
     expect(background).toContain('validateDetailBatch');
+    expect(background).toContain('rutBody: batchResult.batch.rutBody');
     expect(background).toContain('validateLabSenderEncounter');
     expect(background).toContain('examRowsMatchRut(payload.data, rutBody)');
     expect(background).toContain(
