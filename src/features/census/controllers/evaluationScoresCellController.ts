@@ -42,7 +42,7 @@ export interface DowntonCellModel {
   countdownLabel: string | null;
 }
 
-/** CUDYR (CRD) composite result imported from Ficha Médico — only the category, no breakdown. */
+/** CUDYR (CRD) result imported from the official Gestión de Camas work list. */
 export interface CudyrCellModel {
   entry: ImportedCudyr;
   category: string;

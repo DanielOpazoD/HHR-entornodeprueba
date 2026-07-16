@@ -20,6 +20,7 @@ importScripts(
   'encounter-navigation.js',
   'health-check.js',
   'gestion-camas-session.js',
+  'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'prescription-print.js',
   'xlsx.full.min.js',
@@ -966,7 +967,7 @@ const CLINICAL_PANEL_RESUMES = {
   ],
   patientPharmaIndicationResume: [
     'DESCRIPTOR', 'VIRTUAL_MEDICAL_PRODUCT', 'POSOLOGY', 'ROUTE_ADMINISTRATION',
-    'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'IS_NEW', 'IS_DISCHARGE',
+    'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'FINALIZED', 'IS_NEW', 'IS_DISCHARGE',
     'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME', 'MRE_ID', 'ARCHIVED',
     'IS_EXTERNAL', 'is_external', 'ALL_MEDICATION', 'allMedication',
   ],
@@ -1012,6 +1013,9 @@ const slimMedicationStates = payload =>
     'archived',
     'finalized',
     'programmingEndDatetime',
+    'programmingEndDateTime',
+    'endDateTime',
+    'deletedDateTime',
   ]);
 
 const fetchFichaJson = (url, token) =>
@@ -1045,12 +1049,13 @@ const handleClinicalPanelRequest = async ({ encId }) => {
   const careUrl = `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
   const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}`;
 
-  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult] =
+  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult, validationResult] =
     await Promise.allSettled([
       fetchFichaJson(historyUrl, info.token),
       fetchFichaJson(careUrl, info.token),
       fetchMedicationStates(medicationBase, false, info.token),
       fetchMedicationStates(medicationBase, true, info.token),
+      fetchTreatmentValidation(encId, info),
     ]);
 
   let sources;
@@ -1075,13 +1080,40 @@ const handleClinicalPanelRequest = async ({ encId }) => {
   for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
     if (!ev) continue;
     const slim = { publishDatetime: ev.publishDatetime || '' };
-    let hasContent = false;
+    const validator = ev.healthCarePractitionerValidator;
+    if (validator && typeof validator === 'object') {
+      slim.validationDatetime =
+        validator.creationDatetime || validator.stringTimestamp || validator.timestamp || '';
+    } else if (typeof validator === 'string' && validator.trim()) {
+      slim.validationDatetime = ev.publishDatetime || '';
+    }
+    let hasContent = Boolean(slim.validationDatetime);
     for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
       const picked = pickFields(ev[resume], fields);
       slim[resume] = picked;
       if (picked.length > 0) hasContent = true;
     }
     if (hasContent) events.push(slim);
+  }
+
+  const currentValidation =
+    validationResult.status === 'fulfilled' && !validationResult.value.error
+      ? validationResult.value.validation
+      : null;
+  const currentValidationDatetime =
+    currentValidation && typeof currentValidation === 'object'
+      ? currentValidation.creationDatetime
+        || currentValidation.stringTimestamp
+        || currentValidation.timestamp
+        || ''
+      : '';
+  if (currentValidationDatetime
+    && !events.some(event => event.validationDatetime === currentValidationDatetime)) {
+    events.push({
+      publishDatetime: currentValidationDatetime,
+      validationDatetime: currentValidationDatetime,
+      ...Object.fromEntries(Object.keys(CLINICAL_PANEL_RESUMES).map(resume => [resume, []])),
+    });
   }
 
   return {
@@ -2339,55 +2371,78 @@ const fetchNurseStations = async info => {
   }
 };
 
+const resolveSessionHandoffKind = info => self.HhrPrescriptionPrint.resolveHandoffKind(
+  info && info.role,
+  info && info.practitionerRoleId
+);
+
+const handoffPresentation = kind => kind === 'medical'
+  ? { label: 'Entrega de turno médica', role: 'Médico' }
+  : { label: 'Entrega de turno de enfermería', role: 'Enfermería' };
+
+const handoffClinicalWriteKey = (kind, encId) => kind === 'medical'
+  ? 'handoff:medical:' + String(encId || '')
+  : 'handoff:' + String(encId || '');
+
 const handleHandoffOptionsRequest = async ({ currentEncId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const handoffKind = resolveSessionHandoffKind(info);
+  const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && handoffKind && handoffEventTypeId
   );
-  if (!identityReady) return { error: 'No se pudo verificar la identidad y rol de enfermería de la sesión.' };
-  const claimsResult = await fetchFichaClaims(info);
+  if (!identityReady) return { error: 'No se pudo verificar un rol médico o de enfermería en la sesión.' };
+  const claimsResult = handoffKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
+  const canViewHandoff = handoffKind === 'medical' || hasFichaClaim(claimsResult, 'Ver_Cambio_Turno');
+  if (!canViewHandoff) {
     return { error: 'El perfil no tiene permiso para ver entregas de turno.' };
   }
   const patientResult = await fetchActiveHospitalizedPatients(info);
   if (patientResult.error) return patientResult;
   const [nurseStations, summaries] = await Promise.all([
-    fetchNurseStations(info),
+    handoffKind === 'nursing' ? fetchNurseStations(info) : Promise.resolve([]),
     mapWithConcurrency(patientResult.patients, 4, async patient => {
       const [result, clinicalWriteProtection] = await Promise.all([
         fetchShiftChangeEntries(patient.encounterId, info),
-        serializeClinicalWriteProtection('handoff:' + String(patient.encounterId)),
+        serializeClinicalWriteProtection(handoffClinicalWriteKey(handoffKind, patient.encounterId)),
       ]);
       return {
         ...patient,
         isCurrent: String(patient.encounterId) === String(currentEncId || ''),
         latestHandoff: result.error
           ? null
-          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries),
+          : self.HhrPrescriptionPrint.deriveLatestShiftChange(result.entries, { kind: handoffKind }),
         handoffUnavailableReason: result.error || '',
         clinicalWriteProtection,
       };
     }),
   ]);
-  const canWrite = hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno');
+  const canWrite = handoffKind === 'medical' || hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno');
   const batchId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-handoff-batch-${batchId}`]: {
       allowedEncounterIds: summaries.map(patient => patient.encounterId),
       createdAt: Date.now(),
+      handoffKind,
+      practitionerRoleId: String(info.practitionerRoleId),
     },
   });
+  const presentation = handoffPresentation(handoffKind);
   return {
     ok: true,
     batchId,
     patients: summaries,
     nurseStations,
     canWrite,
+    canPrint: handoffKind === 'nursing',
+    handoffKind,
+    handoffLabel: presentation.label,
     currentProfessional: info.fullName || '',
+    currentProfessionalRole: presentation.role,
     writeBlockedReason: canWrite
       ? ''
       : 'El perfil no tiene permiso para ingresar entregas de turno.',
@@ -2407,7 +2462,7 @@ const readHandoffBatch = async (batchId, encId) => {
   if (!(Array.isArray(batch.allowedEncounterIds) ? batch.allowedEncounterIds : []).map(String).includes(String(encId))) {
     return { error: 'El paciente no pertenece a esta lista de hospitalizados.' };
   }
-  return { ok: true };
+  return { ok: true, batch };
 };
 
 const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeGuard) => {
@@ -2421,17 +2476,26 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const handoffKind = resolveSessionHandoffKind(info);
+  const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && handoffKind && handoffEventTypeId
   );
-  if (!identityReady) return { error: 'No se pudo verificar la identidad de enfermería. Recarga Eloísa.' };
+  if (!identityReady) return { error: 'No se pudo verificar el rol clínico. Recarga Eloísa.' };
+  if (batch.batch.handoffKind !== handoffKind ||
+      String(batch.batch.practitionerRoleId) !== String(info.practitionerRoleId)) {
+    return { error: 'El rol de la sesión cambió. Actualiza la entrega de turno antes de guardar.' };
+  }
   const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
   if (activeEncounter.error) return activeEncounter;
-  const claimsResult = await fetchFichaClaims(info);
+  const claimsResult = handoffKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno') ||
-      !hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')) {
+  const canWriteHandoff = handoffKind === 'medical' || (
+    hasFichaClaim(claimsResult, 'Ver_Cambio_Turno') &&
+    hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')
+  );
+  if (!canWriteHandoff) {
     return { error: 'El perfil no tiene permiso para ingresar entregas de turno.' };
   }
 
@@ -2442,7 +2506,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
     };
   }
   const baselineEntries = baselineResult.entries.filter(entry =>
-    entry && (!entry.encounterEventTypeId || Number(entry.encounterEventTypeId) === 2)
+    entry && self.HhrPrescriptionPrint.entryMatchesHandoffKind(entry, handoffKind)
   );
   const handoffEntryKey = entry => clinicalRecordKey(
     'handoff',
@@ -2485,7 +2549,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
           healthCarePractitionerId: Number(info.practitionerId),
           healthCarePractitionerRoleId: Number(info.practitionerRoleId),
           observation: safeObservation,
-          encounterEventTypeId: 2,
+          encounterEventTypeId: handoffEventTypeId,
         }),
       }
     );
@@ -2514,7 +2578,8 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
     if (refreshed.error) continue;
     const matches = refreshed.entries.filter(entry => {
       if (!postAcknowledged) return false;
-      if (!entry || Number(entry.encounterEventTypeId || 0) !== 2) return false;
+      if (!entry) return false;
+      if (!self.HhrPrescriptionPrint.entryMatchesHandoffKind(entry, handoffKind)) return false;
       if (createdId && String(entry.id || '') !== createdId) return false;
       if (createdGuid && String(entry.guid || '') !== createdGuid) return false;
       if (baselineKeys.has(handoffEntryKey(entry))) return false;
@@ -2530,7 +2595,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
         authorMatches;
     });
     if (matches.length === 1) {
-      const verified = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches);
+      const verified = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches, { kind: handoffKind });
       return { ok: true, verified: true, record: verified };
     }
   }
@@ -2541,17 +2606,22 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
   };
 };
 
-const handleHandoffSaveRequest = args => withClinicalWriteLock(
-  'handoff:' + String(args && args.encId || ''),
-  writeGuard => performHandoffSaveRequest(args || {}, writeGuard)
-);
+const handleHandoffSaveRequest = async args => {
+  const request = args || {};
+  const batch = await readHandoffBatch(request.batchId, request.encId);
+  if (batch.error) return batch;
+  return withClinicalWriteLock(
+    handoffClinicalWriteKey(batch.batch.handoffKind, request.encId),
+    writeGuard => performHandoffSaveRequest(request, writeGuard)
+  );
+};
 
 const handleHandoffReportRequest = async ({ nurseStationId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
   if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
-      !/enfermer/i.test(String(info.role || ''))) {
+      resolveSessionHandoffKind(info) !== 'nursing') {
     return { error: 'No se pudo verificar la identidad necesaria para el reporte de turno.' };
   }
   const claimsResult = await fetchFichaClaims(info);
@@ -2601,6 +2671,19 @@ const fetchCudyrCategories = async info => {
           encId: String(row.id),
           crdValue: String(row.crdValue || '').trim(),
           crdDateTime: String(row.crdDateTime || '').trim(),
+          author: '',
+          authorRole: '',
+          source: 'ficha_medico',
+          history: row.crdValue && row.crdDateTime ? [{
+            id: '',
+            category: String(row.crdValue || '').trim(),
+            recordedAt: String(row.crdDateTime || '').trim(),
+            author: '',
+            authorRole: '',
+            dependencyScore: null,
+            riskScore: null,
+            items: [],
+          }] : [],
         });
       }
     } catch (_error) {}
@@ -2609,6 +2692,110 @@ const fetchCudyrCategories = async info => {
     return { error: 'Eloísa no permitió verificar las tres listas CUDYR; los valores podrían estar incompletos.' };
   }
   return { items: [...byEnc.values()] };
+};
+
+const fetchGestionCamasCudyrCategories = async () => {
+  const session = await resolveGestionCamasSession();
+  if (!session.record) {
+    return { error: session.error || 'Conecta Gestión de Camas para consultar el historial CUDYR.' };
+  }
+  const info = session.record;
+  if (!/^\d+$/.test(String(info.facId || ''))) {
+    return { error: 'Gestión de Camas no informó el establecimiento para consultar CUDYR.' };
+  }
+  const requestUrls = [
+    `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/beds`,
+    `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${Date.now()}`,
+    `${info.apiBase}/formCategorizationOfRisk?tid=${Date.now()}`,
+  ];
+  const requests = requestUrls.map(url => fetchWithTimeout(url, {
+    headers: { Authorization: info.token, Accept: 'application/json' },
+    credentials: 'omit',
+    cache: 'no-store',
+  }));
+  try {
+    const [bedsResult, practitionersResult, definitionsResult] = await Promise.allSettled(requests);
+    if (bedsResult.status === 'rejected') {
+      throw bedsResult.reason;
+    }
+    if (!bedsResult.value.ok) {
+      const unauthorized = await handleGestionCamasUnauthorized(bedsResult.value);
+      return {
+        error: unauthorized
+          ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
+          : 'Gestión de Camas respondió HTTP ' + bedsResult.value.status + ' al consultar CUDYR.',
+      };
+    }
+    const beds = await bedsResult.value.json();
+    const warnings = [];
+    const readOptionalMetadata = async (result, label) => {
+      if (result.status === 'rejected') {
+        warnings.push(`No se pudo consultar ${label}; el historial se conserva sin esos metadatos.`);
+        return [];
+      }
+      if (!result.value.ok) {
+        warnings.push(
+          `Gestión de Camas respondió HTTP ${result.value.status} al consultar ${label}; ` +
+          'el historial se conserva sin esos metadatos.'
+        );
+        return [];
+      }
+      try {
+        return await result.value.json();
+      } catch (_error) {
+        warnings.push(`Gestión de Camas entregó ${label} inválidos; el historial se conserva sin esos metadatos.`);
+        return [];
+      }
+    };
+    const [practitioners, definitions] = await Promise.all([
+      readOptionalMetadata(practitionersResult, 'los autores CUDYR'),
+      readOptionalMetadata(definitionsResult, 'las definiciones CUDYR'),
+    ]);
+    const items = self.HhrGestionCamasCudyr.buildSnapshot({ beds, practitioners, definitions });
+    return {
+      items,
+      source: 'gestion_camas',
+      historyAvailable: true,
+      warning: warnings.join(' '),
+    };
+  } catch (error) {
+    return { error: 'No se pudo leer el historial CUDYR de Gestión de Camas: ' +
+      String((error && error.message) || error) };
+  }
+};
+
+const resolveCudyrCategories = async info => {
+  const [official, fallback] = await Promise.all([
+    fetchGestionCamasCudyrCategories(),
+    info ? fetchCudyrCategories(info) : Promise.resolve({ error: '' }),
+  ]);
+  if (official.error) {
+    if (!info || fallback.error) {
+      return { error: [official.error, fallback.error].filter(Boolean).join(' ') };
+    }
+    return {
+      ...fallback,
+      source: 'ficha_medico',
+      historyAvailable: false,
+      warning: official.error,
+    };
+  }
+  if (!info || fallback.error) {
+    return {
+      ...official,
+      warning: [official.warning, fallback.error].filter(Boolean).join(' '),
+    };
+  }
+  const mergedItems = self.HhrGestionCamasCudyr.mergeEncounterSnapshots(
+    official.items,
+    fallback.items
+  );
+  const fallbackCount = mergedItems.length - official.items.length;
+  return {
+    ...official,
+    items: mergedItems,
+    source: fallbackCount > 0 ? 'gestion_camas+ficha_medico' : 'gestion_camas',
+  };
 };
 
 const fetchCudyrDefinitions = async info => {
@@ -2789,19 +2976,20 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
   const infoResult = await getFichaFetchInfo();
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
+  const clinicalRoleKind = resolveSessionHandoffKind(info);
   const identityReady = Boolean(
     info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-      /^\d+$/.test(String(info.practitionerRoleId || '')) && /enfermer/i.test(String(info.role || ''))
+      /^\d+$/.test(String(info.practitionerRoleId || '')) && clinicalRoleKind
   );
-  if (!identityReady) return { error: 'No se pudo verificar una sesión activa de enfermería.' };
-  const claimsResult = await fetchFichaClaims(info);
+  if (!identityReady) return { error: 'No se pudo verificar una sesión médica o de enfermería.' };
+  const claimsResult = clinicalRoleKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
   if (claimsResult.error) return claimsResult;
-  if (!hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
+  if (clinicalRoleKind !== 'medical' && !hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
     return { error: 'El perfil no tiene permiso para ver instrumentos de evaluación.' };
   }
   const patientResult = await fetchActiveHospitalizedPatients(info);
   if (patientResult.error) return patientResult;
-  const cudyrResult = await fetchCudyrCategories(info);
+  const cudyrResult = await resolveCudyrCategories(info);
   const cudyrByEncounter = new Map((cudyrResult.error ? [] : cudyrResult.items)
     .map(item => [String(item.encId), item]));
   const patients = await mapWithConcurrency(patientResult.patients, 3, async patient => {
@@ -2842,7 +3030,8 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
       scoreProtections: Object.fromEntries(protectionEntries),
     };
   });
-  const canWriteEvaluation = hasFichaClaim(claimsResult, 'Ingresar_Instrumento_Evaluacion');
+  const canWriteEvaluation = clinicalRoleKind === 'nursing' &&
+    hasFichaClaim(claimsResult, 'Ingresar_Instrumento_Evaluacion');
   const batchId = crypto.randomUUID();
   await chrome.storage.session.set({
     [`hhr-scores-batch-${batchId}`]: {
@@ -2867,7 +3056,9 @@ const handleScoresOptionsRequest = async ({ currentEncId }) => {
     },
     currentProfessional: info.fullName || '',
     writeBlockedReason: canWriteEvaluation ? '' : 'El perfil no tiene permiso para ingresar instrumentos de evaluación.',
-    cudyrHistoryAvailable: false,
+    cudyrHistoryAvailable: Boolean(cudyrResult.historyAvailable),
+    cudyrSource: cudyrResult.source || '',
+    cudyrWarning: cudyrResult.warning || '',
     cudyrUnavailableReason: cudyrResult.error || '',
   };
 };
@@ -3343,12 +3534,18 @@ const signClinicalWriteRecoveryReview = async (review, token, generationId) => {
 
 const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }) => {
   if (kind === 'handoff') {
+    const handoffKind = resolveSessionHandoffKind(info);
+    if (!handoffKind) return { error: 'No se pudo verificar un rol médico o de enfermería en la sesión.' };
     const refreshed = await fetchShiftChangeEntries(encId, info);
     if (refreshed.error) return refreshed;
-    const latest = self.HhrPrescriptionPrint.deriveLatestShiftChange(refreshed.entries);
+    const latest = self.HhrPrescriptionPrint.deriveLatestShiftChange(
+      refreshed.entries,
+      { kind: handoffKind }
+    );
     return {
       review: {
         kind: 'handoff',
+        handoffKind,
         present: Boolean(latest),
         value: String(latest && latest.observation || ''),
         dateTime: String(latest && latest.dateTime || ''),
@@ -3407,9 +3604,13 @@ const handleClinicalWriteRecoveryRequest = async ({
   const normalizedGenerationId = String(generationId || '');
   const normalizedPhase = String(phase || '');
   const normalizedRecoveryToken = String(recoveryToken || '');
-  const match = normalizedKey.match(/^(handoff):(\d+)$/) ||
-    normalizedKey.match(/^(score):(\d+):(CUDYR|BRADEN|DOWNTON)$/);
-  if (!match || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
+  const handoffMatch = normalizedKey.match(/^handoff(?::(medical))?:(\d+)$/);
+  const scoreMatch = normalizedKey.match(/^score:(\d+):(CUDYR|BRADEN|DOWNTON)$/);
+  const recoveryKind = handoffMatch ? 'handoff' : scoreMatch ? 'score' : '';
+  const recoveryEncId = handoffMatch ? handoffMatch[2] : scoreMatch ? scoreMatch[1] : '';
+  const recoveryInstrument = scoreMatch ? scoreMatch[2] : '';
+  const requiredHandoffKind = handoffMatch ? handoffMatch[1] || 'nursing' : '';
+  if (!recoveryKind || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
       !['preview', 'confirm'].includes(normalizedPhase) ||
       normalizedPhase === 'confirm' && !/^[a-f0-9-]{20,}$/i.test(normalizedRecoveryToken)) {
     return { error: 'La solicitud para liberar la protección clínica no es válida.' };
@@ -3476,17 +3677,27 @@ const handleClinicalWriteRecoveryRequest = async ({
     const infoResult = await getFichaFetchInfo();
     if (infoResult.error) return infoResult;
     const info = infoResult.info;
-    if (!info.identityVerified || !/enfermer/i.test(String(info.role || '')) ||
-        !/^\d+$/.test(String(info.practitionerRoleId || ''))) {
-      return { error: 'No se pudo verificar una sesión activa de enfermería.' };
+    const sessionHandoffKind = resolveSessionHandoffKind(info);
+    const roleMatchesRecovery = recoveryKind === 'handoff'
+      ? sessionHandoffKind === requiredHandoffKind
+      : sessionHandoffKind === 'nursing';
+    if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
+        !roleMatchesRecovery) {
+      return {
+        error: recoveryKind === 'handoff'
+          ? 'No se pudo verificar una sesión médica o de enfermería.'
+          : 'No se pudo verificar una sesión activa de enfermería.',
+      };
     }
-    const encId = match[2];
+    const encId = recoveryEncId;
     const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
     if (activeEncounter.error) return activeEncounter;
-    const claimsResult = await fetchFichaClaims(info);
+    const claimsResult = recoveryKind === 'handoff' && sessionHandoffKind === 'medical'
+      ? { claims: [] }
+      : await fetchFichaClaims(info);
     if (claimsResult.error) return claimsResult;
-    if (match[1] === 'handoff') {
-      if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
+    if (recoveryKind === 'handoff') {
+      if (sessionHandoffKind !== 'medical' && !hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
         return { error: 'El perfil no tiene permiso para verificar entregas de turno.' };
       }
     } else {
@@ -3495,9 +3706,9 @@ const handleClinicalWriteRecoveryRequest = async ({
       }
     }
     const reviewResult = await readClinicalWriteRecoveryReview({
-      kind: match[1],
+      kind: recoveryKind,
       encId,
-      instrument: match[3] || '',
+      instrument: recoveryInstrument,
       info,
     });
     if (reviewResult.error) return reviewResult;
@@ -3762,49 +3973,20 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
   return downloadPdfBuffer({ buffer: result.buffer, filename: `Indicaciones_${encId}.pdf` });
 };
 
-// Fetch the CUDYR (CRD) composite result of every patient from Ficha Médico's nurse worklists
-// (con novedad + sin novedad + egresados). Rayen only exposes the aggregate `crdValue` (e.g. "D3")
-// + `crdDateTime` per encounter, not the 14 variables — so that composite is all HHR can sync.
 const handleCudyrCategoriesRequest = async () => {
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
+  const infoResult = await getFichaFetchInfo();
+  if (infoResult.error) {
+    const official = await fetchGestionCamasCudyrCategories();
+    return official.error
+      ? { error: official.error + ' ' + infoResult.error }
+      : {
+          ok: true,
+          ...official,
+          warning: [official.warning, infoResult.error].filter(Boolean).join(' '),
+        };
   }
-  const facId = String(info.facId || '').trim();
-  if (!/^\d+$/.test(facId)) {
-    return { error: 'No se pudo verificar el establecimiento activo de Ficha Médico.' };
-  }
-  const byEnc = new Map();
-  try {
-    for (const list of NURSING_WORKLISTS) {
-      const url = `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(facId)}`;
-      const res = await fetchWithTimeout(url, {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-      });
-      if (!res.ok) continue;
-      const rows = await res.json();
-      for (const row of Array.isArray(rows) ? rows : []) {
-        if (row && row.id != null) {
-          byEnc.set(String(row.id), {
-            encId: String(row.id),
-            crdValue: row.crdValue || '',
-            crdDateTime: row.crdDateTime || '',
-          });
-        }
-      }
-    }
-    return { ok: true, items: [...byEnc.values()] };
-  } catch (error) {
-    return { error: 'Falló la lectura de CUDYR: ' + String((error && error.message) || error) };
-  }
+  const result = await resolveCudyrCategories(infoResult.info);
+  return result.error ? result : { ok: true, ...result };
 };
 
 const respondAsync = (promise, sendResponse, fallbackMessage) => {

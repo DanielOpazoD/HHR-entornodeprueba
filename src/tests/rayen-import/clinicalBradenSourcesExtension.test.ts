@@ -49,9 +49,7 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('does not render or enable registration from a partial scale read', () => {
     expect(contentSource).toMatch(/const history = unavailableReason\s*\?\s*\[\]/);
-    expect(contentSource).toContain(
-      "if (!unavailableReason && instrument !== 'CUDYR' && history.length)"
-    );
+    expect(contentSource).toContain('if (!unavailableReason && history.length)');
     expect(contentSource).toContain(
       'action.disabled = !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
     );

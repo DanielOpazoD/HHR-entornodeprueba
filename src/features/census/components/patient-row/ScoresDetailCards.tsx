@@ -14,6 +14,17 @@ import type {
 } from '@/features/census/controllers/evaluationScoresCellController';
 import { CUDYR_BAND, NEUTRAL_TOKENS, formatIsoDay, tokensFor } from './scoresDetailTokens';
 
+const formatCudyrTime = (value?: string): string => {
+  const epoch = Date.parse(value ?? '');
+  if (Number.isNaN(epoch)) return '';
+  return new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'Pacific/Easter',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(epoch));
+};
+
 /** Small reapplication pill: green "en Nd", red "Reaplicar hoy"/"vencida". */
 const ReapplyPill: React.FC<{ label: string; urgent: boolean }> = ({ label, urgent }) => (
   <span
@@ -149,8 +160,21 @@ export const CudyrCard: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => {
       value={cudyr.category}
       valueClass={t.number}
       accentClass={t.accent}
-      badge={<Badge className={t.chip}>Importado</Badge>}
+      badge={
+        <Badge className={t.chip}>
+          {cudyr.entry.source.includes('Gestión de Camas') ? 'Gestión de Camas' : 'Ficha Médico'}
+        </Badge>
+      }
       recordedDate={cudyr.entry.recordedDate}
+      footer={
+        cudyr.entry.author || cudyr.entry.authorRole || cudyr.entry.recordedAt ? (
+          <div className="text-[10px] text-slate-500">
+            {[formatCudyrTime(cudyr.entry.recordedAt), cudyr.entry.author, cudyr.entry.authorRole]
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+        ) : undefined
+      }
     />
   );
 };

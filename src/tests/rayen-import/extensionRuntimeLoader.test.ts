@@ -33,7 +33,7 @@ describe('extension heavy runtime loading', () => {
     expect(scripts).toContain('content-prescription-print.js');
   });
 
-  it('keeps nursing clinical writes tied to the verified session role', () => {
+  it('keeps clinical writes tied to a verified nursing or medical session role', () => {
     const identityGuards = [
       ...backgroundSource.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2}\);/g),
     ].map(match => match[1]);
@@ -41,10 +41,12 @@ describe('extension heavy runtime loading', () => {
     expect(identityGuards).toHaveLength(3);
     identityGuards.forEach(guard => {
       expect(guard).toContain('info.identityVerified');
-      expect(guard).toContain("/enfermer/i.test(String(info.role || ''))");
       expect(guard).not.toContain('info.isNursing');
       expect(guard).not.toContain('info.listSource');
     });
+    expect(identityGuards.filter(guard => guard.includes('&& handoffKind'))).toHaveLength(2);
+    expect(identityGuards.some(guard => guard.includes('&& clinicalRoleKind'))).toBe(true);
+    expect(backgroundSource).toContain('batch.batch.handoffKind !== handoffKind');
   });
 
   it('registers PDF and spreadsheet vendors during classic MV3 worker startup', () => {
@@ -108,7 +110,7 @@ describe('extension heavy runtime loading', () => {
       clearTimeout,
       chrome: {
         runtime: {
-          getManifest: () => ({ version: '0.22.0' }),
+          getManifest: () => ({ version: '0.23.1' }),
           getURL: (value: string) => `chrome-extension://test/${value}`,
           onMessage: { addListener: () => undefined },
         },

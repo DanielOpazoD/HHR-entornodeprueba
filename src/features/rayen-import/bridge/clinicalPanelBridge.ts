@@ -14,6 +14,8 @@ export const RAYEN_CLINICAL_PANEL_RESULT_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_RESULT
  */
 export interface RayenClinicalPanelEvent {
   publishDatetime: string;
+  /** Treatment validation timestamp for this history event, when Eloisa supplied one. */
+  validationDatetime?: string;
   evolutionResume: unknown[];
   shiftChangeResume: unknown[];
   patientPharmaIndicationResume: unknown[];

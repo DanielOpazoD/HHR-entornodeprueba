@@ -8,10 +8,11 @@ describe('buildImportedCudyr', () => {
       { crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' },
       '2026-07-10'
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       category: 'D3',
       recordedDate: '2026-07-10',
-      source: CUDYR_IMPORT_SOURCE,
+      recordedAt: '2026-07-10T23:12:04.74+00:00',
+      source: 'Eloísa · Ficha Médico',
     });
   });
 
@@ -49,5 +50,43 @@ describe('buildImportedCudyr', () => {
 
   it('returns null when the datetime is unparseable', () => {
     expect(buildImportedCudyr({ crdValue: 'D3', crdDateTime: 'nope' }, '2026-07-10')).toBeNull();
+  });
+
+  it('selects the matching historical day and keeps attributable Gestión de Camas provenance', () => {
+    const result = buildImportedCudyr(
+      {
+        crdValue: 'C2',
+        crdDateTime: '2026-07-15T06:54:00+00:00',
+        source: 'gestion_camas',
+        history: [
+          {
+            category: 'C2',
+            recordedAt: '2026-07-15T06:54:00+00:00',
+            author: 'Constanza Guajardo',
+            authorRole: 'Enfermería',
+          },
+          {
+            category: 'D3',
+            recordedAt: '2026-07-11T05:15:00+00:00',
+            author: 'Camila Leiva',
+            authorRole: 'Enfermería',
+            dependencyScore: 5,
+            riskScore: 4,
+          },
+        ],
+      },
+      '2026-07-10'
+    );
+
+    expect(result).toMatchObject({
+      category: 'D3',
+      recordedDate: '2026-07-10',
+      author: 'Camila Leiva',
+      authorRole: 'Enfermería',
+      dependencyScore: 5,
+      riskScore: 4,
+      source: CUDYR_IMPORT_SOURCE,
+    });
+    expect(result?.history).toHaveLength(1);
   });
 });

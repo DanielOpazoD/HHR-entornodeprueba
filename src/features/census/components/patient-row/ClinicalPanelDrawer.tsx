@@ -15,7 +15,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Loader2, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
 import {
   parseClinicalPanel,
   requestClinicalPanel,
@@ -28,6 +28,10 @@ interface ClinicalPanelDrawerProps {
   bedId: string;
   patientName: string;
   clinicalEpisodeId: string;
+  canNavigatePrevious?: boolean;
+  canNavigateNext?: boolean;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
   onClose: () => void;
 }
 
@@ -57,6 +61,10 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   bedId,
   patientName,
   clinicalEpisodeId,
+  canNavigatePrevious = false,
+  canNavigateNext = false,
+  onNavigatePrevious,
+  onNavigateNext,
   onClose,
 }) => {
   const [state, setState] = useState<PanelState>({ phase: 'loading' });
@@ -156,6 +164,28 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <p className="text-[10px] text-slate-400">
               Cama {bedId} · Eloísa en vivo · no se guarda en HHR
             </p>
+          </div>
+          <div className="flex shrink-0 items-center rounded-md border border-slate-200 bg-slate-50 p-0.5">
+            <button
+              type="button"
+              onClick={onNavigatePrevious}
+              disabled={!canNavigatePrevious}
+              className="rounded p-1 text-slate-500 hover:bg-white hover:text-medical-700 disabled:cursor-not-allowed disabled:text-slate-300"
+              title="Paciente anterior"
+              aria-label="Ir al paciente anterior"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={onNavigateNext}
+              disabled={!canNavigateNext}
+              className="rounded p-1 text-slate-500 hover:bg-white hover:text-medical-700 disabled:cursor-not-allowed disabled:text-slate-300"
+              title="Paciente siguiente"
+              aria-label="Ir al paciente siguiente"
+            >
+              <ChevronRight size={15} />
+            </button>
           </div>
           <button
             type="button"

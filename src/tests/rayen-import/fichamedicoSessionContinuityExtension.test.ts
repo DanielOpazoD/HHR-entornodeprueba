@@ -14,6 +14,12 @@ type PostedMessage = {
   ready?: boolean;
   message?: string;
   error?: string | null;
+  identity?: {
+    fullName?: string;
+    role?: string;
+    practitionerId?: string;
+    practitionerRoleId?: string;
+  } | null;
   info?: {
     apiOrigin?: string;
     listUrl?: string;
@@ -140,6 +146,26 @@ const createHarness = async (
 };
 
 describe('Ficha Medico session continuity', () => {
+  it('exposes the verified practitioner role id in the safe health identity', async () => {
+    const harness = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list/141119',
+      'Médico',
+      new Map(),
+      { healthCarePractitionerRoleId: 1 }
+    );
+    const response = await harness.send({
+      type: 'RAYEN_FM_SESSION_STATUS_REQUEST',
+      reqId: 'health-identity',
+    });
+
+    expect(response?.ready).toBe(true);
+    expect(response?.identity).toMatchObject({
+      role: 'Médico',
+      practitionerId: '7936',
+      practitionerRoleId: '1',
+    });
+  });
+
   it.each([
     'https://fichamedico.rayensalud.cl/dashboard/encounter-list',
     'https://fichamedico.rayensalud.cl/dashboard/care-plan-execute',

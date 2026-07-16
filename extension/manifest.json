@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.22.0",
+  "version": "0.23.1",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": ["tabs", "downloads", "storage"],
   "host_permissions": [

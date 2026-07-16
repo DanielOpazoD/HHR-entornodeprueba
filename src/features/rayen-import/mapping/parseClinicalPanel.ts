@@ -57,6 +57,10 @@ export interface ClinicalPanelEntry {
   suspended: boolean;
   /** Pharma only: course explicitly completed in the current medication plan. */
   finalized?: boolean;
+  /** Pharma only: original prescription timestamp when a later daily validation keeps it current. */
+  prescribedAt?: string;
+  /** Why this drug is present on this day's sheet. */
+  validitySource?: 'indication' | 'daily-validation';
   /** Pharma/free indications only: source flag retained for compatibility; not shown in the UI. */
   isNew: boolean;
   /** Evolutions only: struck-through (annulled) note. */
@@ -197,14 +201,28 @@ export const parseClinicalPanel = (
 ): ClinicalPanel => {
   const evolutions: ClinicalPanelEntry[] = [];
   const indications: ClinicalPanelEntry[] = [];
+  const treatmentValidations: string[] = [];
   const medicationStates = new Map(
     rows(carePlan.medicationStates).map(row => [str(row.id), row] as const)
   );
+  const medicationValidationCandidates = new Map<string, ClinicalPanelEntry[]>();
+  const medicationInactiveAt = new Map<string, string>();
+  const sourceMedicationDays = new Set<string>();
+  const setMedicationInactiveAt = (medicationId: string, value: unknown): void => {
+    const candidate = str(value);
+    if (timeKey(candidate) <= 0) return;
+    const current = medicationInactiveAt.get(medicationId);
+    if (!current || timeKey(candidate) < timeKey(current)) {
+      medicationInactiveAt.set(medicationId, candidate);
+    }
+  };
   let seq = 0;
 
   for (const event of Array.isArray(events) ? events : []) {
     if (!event) continue;
     const eventDate = str(event.publishDatetime);
+    const validationDatetime = str(event.validationDatetime);
+    if (dayKey(validationDatetime)) treatmentValidations.push(validationDatetime);
 
     for (const r of rows(event.evolutionResume)) {
       const text = str(r.OBE_NOTES);
@@ -251,9 +269,12 @@ export const parseClinicalPanel = (
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
-      const currentState = medicationStates.get(str(r.MRE_ID));
-      indications.push({
-        id: str(r.MRE_ID) || `pharma-${seq++}`,
+      const prescribedAt = str(r.PUBLISH_DATETIME) || eventDate;
+      const medicationId = str(r.MRE_ID) || `pharma-${seq++}`;
+      const prescriptionDay = dayKey(prescribedAt);
+      if (prescriptionDay) sourceMedicationDays.add(`${medicationId}:${prescriptionDay}`);
+      const medication: ClinicalPanelEntry = {
+        id: medicationId,
         kind: 'pharma',
         title,
         text: joinParts(
@@ -263,13 +284,31 @@ export const parseClinicalPanel = (
         ),
         author: toTitleCaseName(str(r.HCP_NAME)),
         role: roleLabel(r.HCP_ROLE),
-        publishedAt: str(r.PUBLISH_DATETIME) || eventDate,
-        archived: currentState ? flag(currentState.archived) : flag(r.ARCHIVED),
-        suspended: currentState ? flag(currentState.suspended) : flag(r.SUSPENDED),
-        finalized: currentState ? flag(currentState.finalized) : false,
+        publishedAt: prescribedAt,
+        archived: flag(r.ARCHIVED),
+        suspended: flag(r.SUSPENDED),
+        finalized: flag(r.FINALIZED),
+        prescribedAt,
+        validitySource: 'indication',
         isNew: flag(r.IS_NEW),
         crossedOut: false,
-      });
+      };
+      indications.push(medication);
+
+      // Current care-plan flags describe the state now, not the state on an earlier validation
+      // day. Keep every historically active version: Eloísa can update posology under the same
+      // medication id, and each validation must use the newest version that already existed then.
+      // A dated end marker, when Eloísa supplies one, remains the effective upper bound.
+      if (!flag(r.SUSPENDED) && !flag(r.ARCHIVED) && !flag(r.FINALIZED)) {
+        const candidates = medicationValidationCandidates.get(medicationId) ?? [];
+        candidates.push({
+          ...medication,
+          archived: false,
+          suspended: false,
+          finalized: false,
+        });
+        medicationValidationCandidates.set(medicationId, candidates);
+      }
     }
 
     for (const r of rows(event.patientFreeIndicationResume)) {
@@ -323,6 +362,66 @@ export const parseClinicalPanel = (
         suspended: false,
         isNew: false,
         crossedOut: false,
+      });
+    }
+  }
+
+  // A treatment validation renews the daily clinical validity of every medication that remains
+  // active in the current plan and was already prescribed on that date. Eloisa keeps the original
+  // prescription timestamp on the medication row, so without this projection a four-day antibiotic
+  // appears only on day one even when the treatment has been validated every day.
+  for (const [medicationId, state] of medicationStates) {
+    [
+      state.programmingEndDatetime,
+      state.programmingEndDateTime,
+      state.endDateTime,
+      state.deletedDateTime,
+    ].forEach(value => setMedicationInactiveAt(medicationId, value));
+  }
+  const validationByDay = new Map<string, string>();
+  for (const validationDatetime of treatmentValidations) {
+    const validationDay = dayKey(validationDatetime);
+    if (!validationDay) continue;
+    const current = validationByDay.get(validationDay);
+    if (!current || timeKey(validationDatetime) > timeKey(current)) {
+      validationByDay.set(validationDay, validationDatetime);
+    }
+  }
+  for (const [validationDay, validationDatetime] of validationByDay) {
+    for (const [medicationId, candidates] of medicationValidationCandidates) {
+      const medication = candidates.reduce<ClinicalPanelEntry | null>((selected, candidate) => {
+        const candidateTime = timeKey(candidate.prescribedAt ?? candidate.publishedAt);
+        if (candidateTime <= 0 || candidateTime > timeKey(validationDatetime)) return selected;
+        if (!selected || candidateTime > timeKey(selected.prescribedAt ?? selected.publishedAt)) {
+          return candidate;
+        }
+        return selected;
+      }, null);
+      if (!medication) continue;
+      const prescribedAt = medication.prescribedAt ?? medication.publishedAt;
+      const prescribedDay = dayKey(prescribedAt);
+      if (!prescribedDay || prescribedDay > validationDay) continue;
+      if (sourceMedicationDays.has(`${medicationId}:${validationDay}`)) continue;
+      const inactiveAt = medicationInactiveAt.get(medicationId);
+      if (inactiveAt && timeKey(validationDatetime) >= timeKey(inactiveAt)) continue;
+      const currentState = medicationStates.get(medicationId);
+      if (!currentState) continue;
+      const isCurrentlyInactive =
+        currentState &&
+        (flag(currentState.suspended) ||
+          flag(currentState.archived) ||
+          flag(currentState.finalized));
+      // An undated current inactive flag cannot prove on which earlier validation the treatment
+      // stopped. Fail closed for every synthetic day instead of inventing historical vigencia.
+      if (!inactiveAt && isCurrentlyInactive) continue;
+      indications.push({
+        ...medication,
+        publishedAt: validationDatetime,
+        prescribedAt,
+        archived: false,
+        suspended: false,
+        finalized: false,
+        validitySource: 'daily-validation',
       });
     }
   }

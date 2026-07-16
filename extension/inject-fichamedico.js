@@ -383,6 +383,7 @@
                 fullName: identity.fullName,
                 role: identity.role,
                 practitionerId: identity.practitionerId,
+                practitionerRoleId: identity.practitionerRoleId,
               }
             : null,
           message: ready

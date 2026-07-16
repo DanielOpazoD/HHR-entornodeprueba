@@ -117,36 +117,117 @@ describe('extension prescription operations', () => {
     expect(history.map(item => item.total).sort()).toEqual([12, 16]);
   });
 
-  it('selects the latest nursing handoff and calculates the official CUDYR category', () => {
-    const handoff = prescriptionPrint.deriveLatestShiftChange([
-      {
-        id: 1,
-        encounterEventTypeId: 2,
-        observation: 'Paciente estable',
-        startDateTime: '2026-07-14T19:00:00-06:00',
-        authorHealthCarePractitionerName: 'Valeria Salfate',
-        isSigned: true,
-      },
-      {
-        id: 2,
-        encounterEventTypeId: 2,
-        observation: 'Sin novedades durante la noche',
-        startDateTime: '2026-07-15T07:00:00-06:00',
-        authorHealthCarePractitionerName: 'Camila Rojas',
-      },
-      {
-        id: 3,
-        encounterEventTypeId: 1,
-        observation: 'Nota médica',
-        startDateTime: '2026-07-15T08:00:00-06:00',
-      },
-    ]);
+  it('partitions medical and nursing handoffs by the official event type and calculates CUDYR', () => {
+    const handoff = prescriptionPrint.deriveLatestShiftChange(
+      [
+        {
+          id: 1,
+          encounterEventTypeId: 2,
+          observation: 'Paciente estable',
+          startDateTime: '2026-07-14T19:00:00-06:00',
+          authorHealthCarePractitionerName: 'Valeria Salfate',
+          authorHealthCarePractitionerRoleId: 2,
+          isSigned: true,
+        },
+        {
+          id: 2,
+          encounterEventTypeId: 2,
+          observation: 'Sin novedades durante la noche',
+          startDateTime: '2026-07-15T07:00:00-06:00',
+          authorHealthCarePractitionerName: 'Camila Rojas',
+          authorHealthCarePractitionerRoleId: 2,
+        },
+        {
+          id: 4,
+          encounterEventTypeId: 1,
+          observation: 'Evolución médica más reciente',
+          startDateTime: '2026-07-15T09:00:00-06:00',
+          authorHealthCarePractitionerName: 'Daniel Opazo',
+          authorHealthCarePractitionerRoleId: 1,
+        },
+        {
+          id: 3,
+          encounterEventTypeId: 1,
+          observation: 'Nota médica',
+          startDateTime: '2026-07-15T08:00:00-06:00',
+        },
+      ],
+      { kind: 'nursing' }
+    );
 
     expect(handoff).toMatchObject({
       observation: 'Sin novedades durante la noche',
       author: 'Camila Rojas',
       isSigned: false,
+      handoffKind: 'nursing',
     });
+    expect(prescriptionPrint.resolveHandoffKind('Médico', '1')).toBe('medical');
+    expect(prescriptionPrint.resolveHandoffKind('Enfermera', '2')).toBe('nursing');
+    expect(prescriptionPrint.resolveHandoffKind('Tecnólogo Médico', '3')).toBe('');
+    expect(prescriptionPrint.resolveHandoffKind('Paramédico', '3')).toBe('');
+    expect(prescriptionPrint.resolveHandoffKind('Cirujano Dentista', '1')).toBe('');
+    expect(prescriptionPrint.resolveHandoffKind('Médico', '3')).toBe('');
+    expect(prescriptionPrint.resolveHandoffKind('Enfermera', '7')).toBe('');
+    expect(prescriptionPrint.resolveHandoffKind('Médico', '')).toBe('medical');
+    expect(prescriptionPrint.handoffLabelForIdentity('Médico', '1')).toBe(
+      'Entrega de turno médica'
+    );
+    expect(prescriptionPrint.handoffLabelForIdentity('Enfermera', '2')).toBe(
+      'Entrega de turno de enfermería'
+    );
+    expect(prescriptionPrint.handoffLabelForIdentity('Tecnólogo Médico', '3')).toBe(
+      'Entrega de turno según rol clínico'
+    );
+    expect(prescriptionPrint.handoffLabelForIdentity('Cirujano Dentista', '1')).toBe(
+      'Entrega de turno según rol clínico'
+    );
+    expect(prescriptionPrint.handoffLabelForIdentity('Médico', '3')).toBe(
+      'Entrega de turno según rol clínico'
+    );
+    expect(
+      prescriptionPrint.cudyrSourceNotice({
+        cudyrSource: 'gestion_camas+ficha_medico',
+        cudyrHistoryAvailable: true,
+        cudyrWarning: 'No fue posible atribuir todos los autores.',
+      })
+    ).toContain('No fue posible atribuir todos los autores.');
+    expect(
+      prescriptionPrint.cudyrSourceNotice({
+        cudyrSource: 'gestion_camas',
+        cudyrHistoryAvailable: true,
+        cudyrWarning: 'Definiciones incompletas.',
+      })
+    ).toContain('Definiciones incompletas.');
+    expect(prescriptionPrint.handoffEncounterEventTypeId('medical')).toBe(1);
+    expect(prescriptionPrint.handoffEncounterEventTypeId('nursing')).toBe(2);
+    expect(
+      prescriptionPrint.deriveLatestShiftChange(
+        [
+          {
+            id: 4,
+            encounterEventTypeId: 1,
+            observation: 'Evolución médica más reciente',
+            startDateTime: '2026-07-15T09:00:00-06:00',
+            authorHealthCarePractitionerRoleId: 1,
+          },
+        ],
+        { kind: 'medical' }
+      )?.observation
+    ).toBe('Evolución médica más reciente');
+    expect(
+      prescriptionPrint.deriveLatestShiftChange(
+        [
+          {
+            id: 5,
+            encounterEventTypeId: 3,
+            observation: 'Otro evento clínico',
+            startDateTime: '2026-07-15T10:00:00-06:00',
+            authorHealthCarePractitionerRoleId: 1,
+          },
+        ],
+        { kind: 'medical' }
+      )
+    ).toBeNull();
     expect(
       prescriptionPrint.calculateCudyrCategory([
         { typeId: 1, value: 3 },

@@ -34,11 +34,26 @@ export const RAYEN_HISTORY_SCALES_RESULT_TYPE = 'HHR_RAYEN_HISTORY_SCALES_RESULT
 export const RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST';
 export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT';
 
-/** One patient's CUDYR (CRD) composite result from a Ficha Médico nurse worklist. */
+export interface RayenCudyrHistoryEntry {
+  id?: string;
+  category: string;
+  recordedAt: string;
+  author?: string;
+  authorRole?: string;
+  dependencyScore?: number | null;
+  riskScore?: number | null;
+  items?: Array<{ fieldId: string; label: string; typeId: number; value: string }>;
+}
+
+/** One patient's official CUDYR history, with a Ficha Médico latest-value fallback. */
 export interface RayenCudyrCategory {
   encId: string;
   crdValue: string;
   crdDateTime: string;
+  author?: string;
+  authorRole?: string;
+  source?: 'gestion_camas' | 'ficha_medico';
+  history?: RayenCudyrHistoryEntry[];
 }
 
 /**

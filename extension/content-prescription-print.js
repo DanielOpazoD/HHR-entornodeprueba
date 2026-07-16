@@ -1593,6 +1593,17 @@
         content.appendChild(error);
         return;
       }
+      const handoffLabel = response.handoffLabel || 'Entrega de turno';
+      main.querySelector('.hhr-center-heading').textContent = handoffLabel;
+      const nursingLane = response.handoffKind === 'nursing';
+      station.hidden = !nursingLane;
+      printButton.hidden = !response.canPrint;
+      const identityNotice = document.createElement('div');
+      identityNotice.className = 'hhr-center-notice';
+      identityNotice.textContent = 'Sesión verificada: ' +
+        [response.currentProfessionalRole, response.currentProfessional].filter(Boolean).join(' · ') +
+        '. Solo puedes registrar ' + handoffLabel.toLowerCase() + '.';
+      content.appendChild(identityNotice);
       (Array.isArray(response.nurseStations) ? response.nurseStations : []).forEach(item => {
         const option = document.createElement('option');
         option.value = item.id;
@@ -1614,7 +1625,7 @@
       table.className = 'hhr-center-table hhr-handoff-table';
       table.innerHTML = `
         <colgroup><col style="width:6%"><col style="width:19%"><col style="width:23%"><col style="width:13%"><col style="width:28%"><col style="width:11%"></colgroup>
-        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Última entrega</th><th>Profesional</th><th>Entrega actual</th><th>Estado</th></tr></thead><tbody></tbody>
+        <thead><tr><th>Cama</th><th>Paciente / RUN</th><th>Última ${response.handoffKind === 'medical' ? 'entrega médica' : 'entrega de enfermería'}</th><th>Profesional</th><th>Nueva entrega</th><th>Estado</th></tr></thead><tbody></tbody>
       `;
       const tbody = table.querySelector('tbody');
       patients.forEach(patient => {
@@ -1665,7 +1676,7 @@
         const textarea = document.createElement('textarea');
         textarea.className = 'hhr-handoff-input';
         textarea.maxLength = 255;
-        textarea.placeholder = 'Nueva entrega (máx. 255 caracteres)';
+        textarea.placeholder = (response.handoffKind === 'medical' ? 'Nueva entrega médica' : 'Nueva entrega de enfermería') + ' (máx. 255 caracteres)';
         textarea.disabled = !response.canWrite || Boolean(patient.handoffUnavailableReason) || Boolean(uncertainWrite);
         const editorTools = document.createElement('div');
         editorTools.className = 'hhr-handoff-tools';
@@ -2082,7 +2093,27 @@
             setClinicalGuardState(root, 'dirty', scoreKey, false);
             setControlsDisabled(true);
             if (instrument === 'CUDYR') {
-              patient.scores.CUDYR = { crdValue: String(result.record.total), crdDateTime: result.record.dateTime };
+              const savedHistoryEntry = {
+                category: String(result.record.total),
+                recordedAt: result.record.dateTime,
+                author: response.currentProfessional || '',
+                authorRole: 'Enfermería',
+                dependencyScore: result.record.dependency,
+                riskScore: result.record.risk,
+                items: [],
+              };
+              patient.scores.CUDYR = {
+                crdValue: savedHistoryEntry.category,
+                crdDateTime: savedHistoryEntry.recordedAt,
+                author: savedHistoryEntry.author,
+                authorRole: savedHistoryEntry.authorRole,
+                source: 'ficha_medico',
+                history: [savedHistoryEntry].concat(
+                  patient.scores.CUDYR && Array.isArray(patient.scores.CUDYR.history)
+                    ? patient.scores.CUDYR.history
+                    : []
+                ).slice(0, 20),
+              };
             } else {
               patient.scores[instrument] = [result.record].concat(patient.scores[instrument] || []).slice(0, 8);
             }
@@ -2129,7 +2160,7 @@
         if (selector.value === 'CUDYR') {
           const notice = document.createElement('div');
           notice.className = 'hhr-center-notice';
-          notice.textContent = response.cudyrUnavailableReason || 'CUDYR: Eloísa expone el último valor y fecha, pero no un historial consultable.';
+          notice.textContent = globalThis.HhrPrescriptionPrint.cudyrSourceNotice(response);
           content.appendChild(notice);
         }
         const table = document.createElement('table');
@@ -2148,7 +2179,18 @@
           const history = unavailableReason
             ? []
             : instrument === 'CUDYR'
-              ? raw && raw.crdValue ? [{ total: raw.crdValue, dateTime: raw.crdDateTime, author: '' }] : []
+              ? raw && Array.isArray(raw.history) && raw.history.length
+                ? raw.history.map(item => ({
+                    total: item.category,
+                    dateTime: item.recordedAt,
+                    author: item.author || '',
+                    authorRole: item.authorRole || '',
+                    dependencyScore: item.dependencyScore,
+                    riskScore: item.riskScore,
+                  }))
+                : raw && raw.crdValue
+                  ? [{ total: raw.crdValue, dateTime: raw.crdDateTime, author: raw.author || '' }]
+                  : []
               : Array.isArray(raw) ? raw : [];
           const latest = history[0] || null;
           const uncertainWrite = hydrateClinicalWriteProtection(scoreKey, persistedProtection);
@@ -2180,19 +2222,23 @@
             : unavailableReason
             ? 'Lectura no disponible'
             : instrument === 'CUDYR'
-              ? 'Solo último valor'
+              ? history.length + (history.length === 1 ? ' categorización' : ' categorizaciones')
               : history.length + (history.length === 1 ? ' visible' : ' visibles') + ' · máx. 8/120 días';
           if (uncertainWrite) details.title = uncertainWrite.error || 'La escritura permanece protegida hasta confirmar su estado en Eloísa.';
           else if (unavailableReason) details.title = unavailableReason;
           details.appendChild(summary);
-          if (!unavailableReason && instrument !== 'CUDYR' && history.length) {
+          if (!unavailableReason && history.length) {
             const list = document.createElement('ol');
             history.forEach(item => {
               const li = document.createElement('li');
               li.textContent = String(item.total) +
                 (item.severity ? ' · ' + item.severity : '') + ' · ' +
                 helper.formatDateTimeLabel(item.dateTime) +
-                (item.author ? ' · ' + item.author : '');
+                (item.author ? ' · ' + item.author : '') +
+                (item.authorRole ? ' (' + item.authorRole + ')' : '') +
+                (item.dependencyScore != null && item.riskScore != null
+                  ? ' · Dependencia ' + item.dependencyScore + ' / Riesgo ' + item.riskScore
+                  : '');
               list.appendChild(li);
             });
             details.appendChild(list);
@@ -2301,7 +2347,7 @@
           </section>
           <section class="hhr-connection-card hhr-connection-camas">
             <div class="hhr-connection-card-header"><span class="hhr-connection-icon">GC</span><div><h3>Gestión de Camas</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
-            <div class="hhr-connection-user">Cuenta Rayen<span class="hhr-connection-detail">Necesaria para egresos confirmados y Alta Administrativa.</span></div>
+            <div class="hhr-connection-user">Cuenta Rayen<span class="hhr-connection-detail">Necesaria para egresos, Alta Administrativa e historial CUDYR.</span></div>
             <div class="hhr-connection-actions">
               <button class="hhr-center-action hhr-center-action-primary hhr-connection-connect" type="button">Conectar</button>
               <button class="hhr-center-action hhr-connection-forget" type="button" hidden>Olvidar</button>
@@ -2432,6 +2478,16 @@
       const camas = report.gestionCamas || {};
       const identity = ficha.identity || {};
       const name = identity.fullName || 'Sesión HHR';
+      const role = String(identity.role || '');
+      const handoffButton = bar.querySelector('.hhr-ops-handoff');
+      if (handoffButton) {
+        const handoffTitle = globalThis.HhrPrescriptionPrint.handoffLabelForIdentity(
+          role,
+          identity.practitionerRoleId
+        );
+        handoffButton.title = handoffTitle;
+        handoffButton.setAttribute('aria-label', handoffTitle);
+      }
       button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
       button.className = 'hhr-ops-session ' + (
         ficha.status !== 'ready' ? 'is-offline' : camas.status === 'ready' ? 'is-ready' : 'is-degraded'
