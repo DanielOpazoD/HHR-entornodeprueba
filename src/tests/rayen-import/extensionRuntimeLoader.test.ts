@@ -30,6 +30,8 @@ describe('extension heavy runtime loading', () => {
     expect(fichaEntries.every(entry => entry.run_at === 'document_start')).toBe(true);
     expect(scripts).toContain('inject-fichamedico.js');
     expect(scripts).toContain('content-fichamedico.js');
+    expect(scripts).toContain('exam-request-print.js');
+    expect(scripts).toContain('content-exam-request-print.js');
     expect(scripts).toContain('content-prescription-print.js');
   });
 
@@ -62,6 +64,8 @@ describe('extension heavy runtime loading', () => {
     const context = vm.createContext({
       HhrPrescriptionPdf: {},
       HhrPdfPrint: {},
+      HhrExamRequestPrintUi: {},
+      HhrExamRequestPdf: {},
       XLSX: {},
       RayenReportParser: {},
     });
@@ -142,6 +146,10 @@ describe('extension heavy runtime loading', () => {
     expect(
       (context as unknown as { HhrPrescriptionPdf?: unknown }).HhrPrescriptionPdf
     ).toBeDefined();
+    expect(
+      (context as unknown as { HhrExamRequestPrintUi?: unknown }).HhrExamRequestPrintUi
+    ).toBeDefined();
+    expect((context as unknown as { HhrExamRequestPdf?: unknown }).HhrExamRequestPdf).toBeDefined();
     expect((context as unknown as { HhrPdfPrint?: unknown }).HhrPdfPrint).toBeDefined();
     expect((context as unknown as { XLSX?: unknown }).XLSX).toBeDefined();
     expect(backgroundSource).toContain("header.birthDate || ''");

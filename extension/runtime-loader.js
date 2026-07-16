@@ -17,7 +17,14 @@
   var ensurePdf = function () {
     requireGroup(
       'PDF',
-      function () { return Boolean(root.HhrPrescriptionPdf && root.HhrPdfPrint); }
+      function () {
+        return Boolean(
+          root.HhrPrescriptionPdf &&
+          root.HhrPdfPrint &&
+          root.HhrExamRequestPrintUi &&
+          root.HhrExamRequestPdf
+        );
+      }
     );
   };
 

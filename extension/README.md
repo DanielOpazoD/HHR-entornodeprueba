@@ -102,6 +102,13 @@ convierte en un control flotante para no cubrir la navegación.
   abrir **Lab**. Se reserva ese puerto porque el HHR local suele ocupar `3000`. El scraper es quien
   autentica y navega el portal interno mediante Playwright.
 
+En la sección **Solicitud de examen** de un episodio médico o de enfermería se agrega además
+**Imprimir selección (2–3 órdenes)**. La acción vuelve a solicitar cada Jasper oficial, extrae y valida sus
+campos clínicos y genera una solicitud nueva y compacta: identificación, diagnóstico y establecimiento
+aparecen una sola vez, mientras cada folio, código y examen conserva su trazabilidad. Los profesionales
+se deduplican y cada folio permanece identificado en su bloque. Los botones individuales de Eloísa permanecen
+disponibles y ninguna orden ni estado clínico se modifica.
+
 ### Conexión temporal con Gestión de Camas
 
 El módulo **Conexiones** permite abrir `hospitalizado.rayensalud.cl` en una ventana oficial y

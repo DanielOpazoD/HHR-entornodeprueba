@@ -24,11 +24,13 @@ importScripts(
   'clinical-panel-fetch.js',
   'prescription-print.js',
   'lab-viewer.js',
+  'exam-request-print.js',
   'xlsx.full.min.js',
   'report-parser.js',
   'jspdf.umd.min.js',
   'pdf-lib.min.js',
   'prescription-pdf.js',
+  'exam-request-pdf.js',
   'pdf-print.js',
   'runtime-loader.js',
 );
@@ -1499,6 +1501,130 @@ const fetchOfficialPdf = async ({ url, token, label }) => {
   } catch (error) {
     return { error: 'Falló la conexión con Eloísa: ' + String((error && error.message) || error) };
   }
+};
+
+const resolveFichaEncounterId = rawUrl => {
+  try {
+    const parsed = new URL(String(rawUrl || ''));
+    if (parsed.hostname !== 'fichamedico.rayensalud.cl') return '';
+    const match = parsed.pathname.match(
+      /^\/dashboard\/encounter-list(?:-nurse)?\/(\d+)\/?$/
+    );
+    return match ? match[1] : '';
+  } catch (_error) {
+    return '';
+  }
+};
+
+const buildExamRequestReportUrl = ({ apiOrigin, encId, diteId }) => {
+  if (!/^\d+$/.test(String(encId || '')) || !/^\d+$/.test(String(diteId || ''))) return '';
+  try {
+    const url = new URL('/api/report/Orden_Examen_Hospitalario.pdf', apiOrigin);
+    if (url.hostname !== 'fichamedicoback.rayensalud.cl') return '';
+    url.searchParams.set('dite_id', String(diteId));
+    url.searchParams.set('enc_id', String(encId));
+    url.searchParams.set('userLocale', 'es');
+    return url.toString();
+  } catch (_error) {
+    return '';
+  }
+};
+
+const compactClinicalText = (value, maxLength = 140) => String(value || '')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, maxLength);
+
+const normalizedClinicalIdentity = value => compactClinicalText(value, 180)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9k]+/g, '');
+
+const handleExamRequestCombinePrint = async ({ encId, diteIds, requests, sender }) => {
+  self.HhrExtensionRuntime.ensurePdf();
+  const senderEncounterId = resolveFichaEncounterId(
+    sender && sender.tab && sender.tab.url || sender && sender.url
+  );
+  if (!senderEncounterId || senderEncounterId !== String(encId || '')) {
+    return { error: 'La selección no corresponde al episodio clínico abierto.' };
+  }
+  const selected = Array.from(new Set(Array.isArray(diteIds) ? diteIds.map(String) : []))
+    .filter(diteId => /^\d+$/.test(diteId));
+  if (selected.length < 2 || selected.length > 3) {
+    return { error: 'Selecciona entre 2 y 3 órdenes de laboratorio.' };
+  }
+  const visibleGroups = new Map(
+    (Array.isArray(requests) ? requests : [])
+      .filter(request => selected.includes(String(request && request.orderId || '')))
+      .map(request => [
+        String(request.orderId),
+        compactClinicalText(request.group, 100) || 'Solicitud de laboratorio',
+      ])
+  );
+
+  const response = await getFichaFetchInfo();
+  if (response.error) return response;
+  const token = response.info.token;
+  const [generated, clinicalContext] = await Promise.all([
+    mapWithConcurrency(selected, 2, async diteId => {
+      const url = buildExamRequestReportUrl({
+        apiOrigin: response.info.apiOrigin,
+        encId,
+        diteId,
+      });
+      if (!url) return { diteId, error: 'No se pudo construir el reporte oficial.' };
+      const result = await fetchOfficialPdf({
+        url,
+        token,
+        label: 'la orden ' + diteId,
+      });
+      return result.buffer ? { diteId, buffer: result.buffer } : { diteId, error: result.error };
+    }),
+    getClinicalReportContext(encId, response.info),
+  ]);
+  const failed = generated.filter(item => item.error);
+  if (failed.length) {
+    return {
+      error: 'No se abrió un PDF parcial. Falló la orden ' + failed[0].diteId + ': ' + failed[0].error,
+    };
+  }
+
+  if (clinicalContext.error) return clinicalContext;
+
+  let officialRequests;
+  try {
+    officialRequests = await Promise.all(generated.map(async item => {
+      const content = await self.HhrExamRequestPrintUi.extractOfficialExamRequestContent(item.buffer);
+      if (!content) throw new Error('La orden ' + item.diteId + ' no entregó todos sus campos oficiales.');
+      if (content.orderId !== item.diteId) {
+        throw new Error('El folio oficial no coincide con la orden ' + item.diteId + '.');
+      }
+      return { ...content, group: visibleGroups.get(item.diteId) || 'Solicitud de laboratorio' };
+    }));
+  } catch (error) {
+    return { error: 'No se pudieron integrar las solicitudes: ' + String((error && error.message) || error) };
+  }
+  const officialPatientRun = normalizedClinicalIdentity(officialRequests[0].patient.run);
+  const currentPatientRun = normalizedClinicalIdentity(clinicalContext.patient && clinicalContext.patient.run);
+  if (!officialPatientRun || officialPatientRun !== currentPatientRun) {
+    return { error: 'Las solicitudes oficiales no corresponden al paciente del episodio abierto.' };
+  }
+
+  let compactBuffer;
+  try {
+    compactBuffer = self.HhrExamRequestPdf.generateIntegratedExamRequestPdf({
+      requests: officialRequests,
+      encounterId: String(encId),
+    });
+  } catch (error) {
+    return { error: 'No se pudo generar la solicitud integrada: ' + String((error && error.message) || error) };
+  }
+  const opened = await openPdfPrintDialog({
+    buffer: compactBuffer,
+    filename: `Solicitud_Examenes_${encId}_${selected.join('-')}.pdf`,
+  });
+  return opened.error ? opened : { ...opened, count: selected.length };
 };
 
 const fetchPrescriptionReportBuffer = async ({ encId, info: knownInfo }) => {
@@ -4318,6 +4444,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }),
       sendResponse,
       'No se pudo generar la receta.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST') {
+    return respond(
+      handleExamRequestCombinePrint({
+        encId: msg.encId,
+        diteIds: msg.diteIds,
+        requests: msg.requests,
+        sender,
+      }),
+      'No se pudieron combinar las solicitudes de laboratorio.'
     );
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST') {
