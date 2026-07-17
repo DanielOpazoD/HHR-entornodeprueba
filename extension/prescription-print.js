@@ -890,16 +890,45 @@
         lines: safeLines.map(function (line) { return { x0: line.x0, x1: line.x1, y: line.y }; }),
       };
     };
+    var normalizedRun = function (value) {
+      return String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
+    };
+    var runFromItems = function (items) {
+      var safeItems = Array.isArray(items) ? items : [];
+      var label = safeItems.find(function (item) {
+        return /^RUN\s*:?/i.test(normalizedPdfText(item && item.text).trim());
+      });
+      if (!label) return '';
+      var inline = normalizedPdfText(label.text).trim()
+        .match(/^RUN\s*:?\s*([0-9.]+-[0-9K])$/i);
+      if (inline) return normalizedRun(inline[1]);
+      var candidate = safeItems
+        .filter(function (item) {
+          return item !== label && Number(item.x) > Number(label.x) &&
+            Math.abs(Number(item.y) - Number(label.y)) <= 2;
+        })
+        .sort(function (left, right) { return Number(left.x) - Number(right.x); })
+        .map(function (item) { return normalizedRun(item.text); })
+        .find(function (value) { return /^[0-9]{6,8}[0-9K]$/.test(value); });
+      return candidate || '';
+    };
     var recipeParts = [partFromPage(pageItems, 48, recipeTopY)];
     var control = null;
     var recipeEndPageIndex = recipePageIndex;
-    var isPrescriptionContinuation = function (items) {
+    var recipePatientRun = runFromItems(pageItems);
+    var hasNoConflictingPatientRun = function (items) {
+      var pageRun = runFromItems(items);
+      return Boolean(recipePatientRun && (!pageRun || pageRun === recipePatientRun));
+    };
+    var isPrescriptionContinuation = function (items, part) {
       var safeItems = Array.isArray(items) ? items : [];
       var texts = safeItems.map(function (item) { return normalizedPdfText(item.text); });
       var hasMedication = texts.some(function (text) { return /^\(\*\)/.test(text); });
       var hasTableHeader = texts.some(function (text) { return /^Medicamento$/i.test(text); }) &&
         texts.some(function (text) { return /^Posolog[ií]a e indicaciones$/i.test(text); });
-      return hasMedication || hasTableHeader;
+      var hasPrescriptionLines = Array.isArray(part && part.lines) && part.lines.length > 0;
+      return Boolean(hasNoConflictingPatientRun(safeItems) &&
+        (hasTableHeader || (hasMedication && hasPrescriptionLines)));
     };
     for (var continuationIndex = recipePageIndex + 1; continuationIndex < pages.length; continuationIndex += 1) {
       var continuationItems = pages[continuationIndex];
@@ -921,14 +950,16 @@
         continuationLowerBound,
         continuationHeaderBottom
       );
-      var confirmedContinuation = Boolean(controlTitle) ||
-        isPrescriptionContinuation(continuationItems);
-      if (!confirmedContinuation) break;
-      if (continuationPart.items.length || continuationPart.lines.length) {
+      var confirmedContinuation = isPrescriptionContinuation(
+        continuationItems,
+        continuationPart
+      );
+      if (confirmedContinuation &&
+          (continuationPart.items.length || continuationPart.lines.length)) {
         recipeParts.push(continuationPart);
         recipeEndPageIndex = continuationIndex;
       }
-      if (controlTitle) {
+      if (controlTitle && hasNoConflictingPatientRun(continuationItems)) {
         control = {
           pageIndex: continuationIndex,
           headerItems: continuationItems.filter(function (item) {
@@ -939,6 +970,7 @@
         };
         break;
       }
+      if (!confirmedContinuation) break;
     }
     return {
       pageCount: pages.length,

@@ -48,12 +48,14 @@
 
   // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
   // the user opens a row action so the captured PDF can later be bound to that patient.
-  document.addEventListener('click', event => {
+  const rememberDischargePatientFromEvent = event => {
     const target = event.target instanceof Element ? event.target : null;
     const row = target && target.closest('tr,[role="row"]');
-    const patientRun = row ? runFromText(row.textContent) : '';
-    if (patientRun) lastDischargePatientRun = patientRun;
-  }, true);
+    if (!row) return;
+    lastDischargePatientRun = runFromText(row.textContent);
+  };
+  document.addEventListener('click', rememberDischargePatientFromEvent, true);
+  document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
 
   window.addEventListener('message', event => {
     if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
@@ -86,6 +88,12 @@
 
   const requestCorrectedDischargePrint = async (nativeItem, item) => {
     if (activeEpicrisisPrintReqId) return;
+    if (!lastDischargePatientRun) {
+      window.alert(
+        'No se pudo identificar al paciente de esta alta. Cierra el menú, vuelve a abrirlo desde su fila y reintenta.'
+      );
+      return;
+    }
     const reqId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : 'epicrisis-' + Date.now() + '-' + Math.random().toString(16).slice(2);

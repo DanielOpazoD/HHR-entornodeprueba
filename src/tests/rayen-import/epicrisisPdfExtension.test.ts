@@ -220,7 +220,10 @@ describe('epicrisis PDF extension', () => {
     expect(extractor).not.toContain('Number.POSITIVE_INFINITY');
     expect(extractor).not.toContain('recipeParts.length > 1 && !control');
     expect(extractor).toContain('recipeEndPageIndex: recipeEndPageIndex');
-    expect(extractor).toContain('isPrescriptionContinuation(continuationItems)');
+    expect(extractor).toContain('!pageRun || pageRun === recipePatientRun');
+    expect(extractor).toContain('hasNoConflictingPatientRun(safeItems)');
+    expect(extractor).toContain('controlTitle && hasNoConflictingPatientRun(continuationItems)');
+    expect(extractor).toContain('hasMedication && hasPrescriptionLines');
     expect(extractor).toContain('if (!confirmedContinuation) break;');
     expect(extractor).not.toContain('hasMedicationDate');
   });

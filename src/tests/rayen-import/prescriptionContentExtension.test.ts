@@ -266,6 +266,7 @@ describe('extension prescription print content flow', () => {
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     document.body.innerHTML = `
       <table><tbody><tr><td>Paciente prueba · RUN: 15.066.726-7</td><td><button id="open-actions">⋮</button></td></tr></tbody></table>
+      <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run">⋮</button></td></tr></tbody></table>
       <div role="menu"><button id="native-print-1" type="button">Imprimir Alta Médica</button></div>
       <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
       <div role="menu" hidden><button id="native-print-3" type="button">Imprimir Alta Médica</button></div>
@@ -286,6 +287,7 @@ describe('extension prescription print content flow', () => {
     };
     const nativePrint = document.querySelector('[role="menu"] button') as HTMLButtonElement;
     nativePrint.addEventListener('click', () => undefined);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     let captureArmCount = 0;
     window.addEventListener('message', event => {
       if (event.data?.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') return;
@@ -304,7 +306,7 @@ describe('extension prescription print content flow', () => {
     });
 
     vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
-    (document.getElementById('open-actions') as HTMLButtonElement).click();
+    (document.getElementById('open-actions') as HTMLButtonElement).focus();
     const corrected = await vi.waitFor(() => {
       const element = document.getElementById('hhr-corrected-discharge-print');
       expect(element?.textContent).toContain('Imprimir alta corregida');
@@ -329,5 +331,11 @@ describe('extension prescription print content flow', () => {
       expect(correctedMessages[0]?.patientRun).toBe('15.066.726-7');
       expect(captureArmCount).toBe(1);
     });
+    (document.getElementById('open-actions-without-run') as HTMLButtonElement).focus();
+    corrected.click();
+    expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No se pudo identificar al paciente')
+    );
+    expect(captureArmCount).toBe(1);
   });
 });
