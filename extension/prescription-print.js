@@ -840,6 +840,64 @@
     };
   };
 
+  var extractOfficialEpicrisisLayout = async function (buffer) {
+    var streams = await inflatePdfStreams(buffer);
+    var pages = pdfTextItems(streams);
+    if (!pages.length) return null;
+    var normalize = function (value) {
+      return normalizedPdfText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+    };
+    var recipePageIndex = -1;
+    var recipeTitle = null;
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+      var candidate = pages[pageIndex].find(function (item) {
+        return normalize(item.text) === 'RECETA DE ALTA';
+      });
+      if (candidate) {
+        recipePageIndex = pageIndex;
+        recipeTitle = candidate;
+        break;
+      }
+    }
+    if (recipePageIndex < 0 || !recipeTitle) return null;
+    var headerDate = pages[recipePageIndex].find(function (item) {
+      return /^Fecha Ingreso:?$/i.test(normalizedPdfText(item.text));
+    });
+    var titleItems = pages.map(function (items) {
+      return items.find(function (item) { return normalize(item.text) === 'EPICRISIS'; }) || null;
+    });
+    if (!headerDate || !titleItems[recipePageIndex]) return null;
+    var headerBottomY = Math.max(0, headerDate.y - 22);
+    // Keep this boundary tight: the last free-text discharge indication can otherwise be
+    // mistaken for recipe content because Jasper places it immediately above the title.
+    var recipeTopY = recipeTitle.y + 3;
+    var pageItems = pages[recipePageIndex];
+    var isPageNumber = function (item) {
+      return /^P[aá]g\.?(?:ina)?\s*\d+\s*(?:de|\/)?\s*\d+$/i.test(normalizedPdfText(item.text));
+    };
+    return {
+      pageCount: pages.length,
+      recipePageIndex: recipePageIndex,
+      recipeTitleY: recipeTitle.y,
+      headerBottomY: headerBottomY,
+      headerItems: pageItems.filter(function (item) {
+        return item.y >= headerBottomY && !isPageNumber(item);
+      }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+      recipeItems: pageItems.filter(function (item) {
+        return item.y >= 48 && item.y <= recipeTopY && !isPageNumber(item);
+      }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+      recipeLines: (Array.isArray(pageItems.horizontalLines) ? pageItems.horizontalLines : [])
+        .filter(function (line) { return line.y >= 48 && line.y <= recipeTopY; })
+        .map(function (line) { return { x0: line.x0, x1: line.x1, y: line.y }; }),
+      titleItems: titleItems.map(function (item) {
+        return item ? { x: item.x, y: item.y } : null;
+      }),
+    };
+  };
+
   var derivePrescriptionDates = function (events) {
     var byDate = new Map();
     for (var i = 0; i < (Array.isArray(events) ? events.length : 0); i += 1) {
@@ -1311,6 +1369,7 @@
     applyProfessionalValidationDates: applyProfessionalValidationDates,
     extractOfficialPrescriptionMetadata: extractOfficialPrescriptionMetadata,
     extractOfficialPrescriptionContent: extractOfficialPrescriptionContent,
+    extractOfficialEpicrisisLayout: extractOfficialEpicrisisLayout,
     buildClinicalReportUrl: buildClinicalReportUrl,
     buildPrescriptionReportUrl: buildPrescriptionReportUrl,
     buildIndicationsReportUrl: buildIndicationsReportUrl,

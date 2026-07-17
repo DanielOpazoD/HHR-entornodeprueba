@@ -250,4 +250,68 @@ describe('extension prescription print content flow', () => {
     expect(contentSource).toContain('hhr-ops-connection-dot');
     expect(contentSource).not.toMatch(/type=["']password["']/i);
   });
+
+  it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {
+    vi.stubGlobal(
+      'MutationObserver',
+      class extends NativeMutationObserver {
+        constructor(callback: MutationCallback) {
+          super(callback);
+          contentObservers.add(this);
+        }
+      }
+    );
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+    document.body.innerHTML =
+      '<div role="menu"><button type="button">Imprimir Alta Médica</button></div>';
+    const messages: Array<{ type?: string }> = [];
+    (globalThis as typeof globalThis & { chrome: unknown }).chrome = {
+      runtime: {
+        getManifest: () => ({ version: '0.30.0' }),
+        getURL: (value: string) => `chrome-extension://test/${value}`,
+        get lastError() {
+          return undefined;
+        },
+        sendMessage: (message: { type?: string }, callback: (response: unknown) => void) => {
+          messages.push(message);
+          callback({ ok: true });
+        },
+      },
+    };
+    const nativePrint = document.querySelector('button') as HTMLButtonElement;
+    nativePrint.addEventListener('click', () => undefined);
+    window.addEventListener(
+      'message',
+      event => {
+        if (event.data?.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') return;
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            source: window,
+            origin: window.location.origin,
+            data: {
+              type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+              reqId: event.data.reqId,
+              pdfBase64: 'JVBERi0xLjQ=',
+            },
+          })
+        );
+      },
+      { once: true }
+    );
+
+    vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    const corrected = await vi.waitFor(() => {
+      const element = document.getElementById('hhr-corrected-discharge-print');
+      expect(element?.textContent).toContain('Imprimir alta corregida');
+      return element as HTMLButtonElement;
+    });
+    corrected.click();
+    await vi.waitFor(() => {
+      expect(
+        messages.some(message => message.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST')
+      ).toBe(true);
+    });
+  });
 });

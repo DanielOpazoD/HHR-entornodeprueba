@@ -31,6 +31,7 @@ importScripts(
   'jspdf.umd.min.js',
   'pdf-lib.min.js',
   'prescription-pdf.js',
+  'epicrisis-pdf.js',
   'exam-request-pdf.js',
   'pdf-print.js',
   'runtime-loader.js',
@@ -722,6 +723,15 @@ const bufferToBase64 = buffer => {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+};
+
+const base64ToArrayBuffer = value => {
+  const text = String(value || '').replace(/\s/g, '');
+  if (!text || !/^[A-Za-z0-9+/]+={0,2}$/.test(text)) throw new Error('El PDF de alta recibido no es válido.');
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
 };
 
 // Fetch the report .xls bytes for a date range. Dates are ISO (YYYY-MM-DD); the server's params
@@ -1888,6 +1898,28 @@ const openPdfPrintDialog = async ({ buffer, filename }) => {
     return { ok: true, printTabId: tab && tab.id };
   } catch (error) {
     return { error: 'No se pudo abrir el diálogo de impresión: ' + String((error && error.message) || error) };
+  }
+};
+
+const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64 }) => {
+  try {
+    if (String(pdfBase64 || '').length > 20 * 1024 * 1024) {
+      return { error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.' };
+    }
+    const source = base64ToArrayBuffer(pdfBase64);
+    const signature = new TextDecoder('latin1').decode(new Uint8Array(source).slice(0, 5));
+    if (signature !== '%PDF-') return { error: 'Eloísa no entregó un PDF de alta válido.' };
+    const formatter = self.HhrEpicrisisPdf;
+    if (!formatter || typeof formatter.correctEpicrisisPrescriptionPages !== 'function') {
+      return { error: 'El corrector de receta de alta no está disponible. Recarga la extensión.' };
+    }
+    const corrected = await formatter.correctEpicrisisPrescriptionPages(source, self.HhrPrescriptionPrint, self.PDFLib);
+    return openPdfPrintDialog({
+      buffer: corrected,
+      filename: 'Alta_medica_receta_separada.pdf',
+    });
+  } catch (error) {
+    return { error: 'No se pudo corregir el formato de la receta de alta: ' + String((error && error.message) || error) };
   }
 };
 
@@ -4885,6 +4917,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }),
       sendResponse,
       'No se pudo generar la receta.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST') {
+    return respond(
+      handleCorrectedEpicrisisPrintRequest({ pdfBase64: msg.pdfBase64 }),
+      'No se pudo preparar el alta médica corregida.'
     );
   }
   if (msg && msg.type === 'RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST') {

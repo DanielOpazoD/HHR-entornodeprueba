@@ -37,6 +37,52 @@
   const normalization = globalThis.HhrFichaMedicoNormalization;
   let capturedApiOrigin = null;
   let sessionBindingRevision = 0;
+  let epicrisisCapture = null;
+  let suppressedEpicrisisUrl = '';
+  let suppressedEpicrisisUntil = 0;
+
+  const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+  const originalWindowOpen = window.open.bind(window);
+  const originalAnchorClick = HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = function (value) {
+    if (epicrisisCapture && Date.now() < epicrisisCapture.expiresAt &&
+        value instanceof Blob && /application\/pdf/i.test(String(value.type || ''))) {
+      const capture = epicrisisCapture;
+      epicrisisCapture = null;
+      const placeholder = 'about:blank#hhr-epicrisis-' + encodeURIComponent(capture.reqId);
+      capture.placeholder = placeholder;
+      suppressedEpicrisisUrl = placeholder;
+      suppressedEpicrisisUntil = Date.now() + 5_000;
+      value.arrayBuffer().then(buffer => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(offset, offset + 0x8000));
+        }
+        window.postMessage({
+          type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+          reqId: capture.reqId,
+          pdfBase64: btoa(binary),
+        }, window.location.origin);
+      }).catch(error => {
+        window.postMessage({
+          type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+          reqId: capture.reqId,
+          error: 'No se pudo leer el PDF oficial: ' + String((error && error.message) || error),
+        }, window.location.origin);
+      });
+      return placeholder;
+    }
+    return originalCreateObjectURL(value);
+  };
+  window.open = function (url) {
+    if (Date.now() < suppressedEpicrisisUntil && String(url || '') === suppressedEpicrisisUrl) return null;
+    return originalWindowOpen.apply(window, arguments);
+  };
+  HTMLAnchorElement.prototype.click = function () {
+    if (Date.now() < suppressedEpicrisisUntil && String(this.href || '') === suppressedEpicrisisUrl) return;
+    return originalAnchorClick.apply(this, arguments);
+  };
 
   const rememberFromRequest = (url, authHeader) => {
     try {
@@ -390,6 +436,22 @@
     if (event.source !== window) return;
     const data = event.data;
     if (!data) return;
+
+    if (data.type === 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') {
+      const reqId = String(data.reqId || '');
+      if (!/^[a-z0-9-]{8,80}$/i.test(reqId)) return;
+      epicrisisCapture = { reqId, expiresAt: Date.now() + 30_000, placeholder: '' };
+      window.setTimeout(() => {
+        if (!epicrisisCapture || epicrisisCapture.reqId !== reqId) return;
+        epicrisisCapture = null;
+        window.postMessage({
+          type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+          reqId,
+          error: 'Eloísa no generó el PDF de alta dentro del tiempo esperado.',
+        }, window.location.origin);
+      }, 30_100);
+      return;
+    }
 
     if (data.type === 'RAYEN_EXT_READ_REQUEST') {
       const reqId = data.reqId;
