@@ -62,6 +62,8 @@ const createMockCudyrLogicReturn = (record: DailyRecord | null, overrides = {}) 
     avgRisk: 0,
   },
   isEditingLocked: false,
+  isCompletionLocked: false,
+  persistedCompletion: { eligibleCount: 0, completedCount: 0, isComplete: false },
   pendingCudyrChangeCount: 0,
   isSavingCudyrChanges: false,
   handleScoreChange: vi.fn(),
@@ -105,6 +107,31 @@ describe('CudyrView Component', () => {
 
     expect(screen.getByText('R1')).toBeInTheDocument();
     expect(screen.getByText('JUAN TEST')).toBeInTheDocument();
+  });
+
+  it('shows official CUDYR professional and registration time in the imported tooltip', () => {
+    const record = DataFactory.createMockDailyRecord('2026-07-16');
+    record.beds['R1'] = DataFactory.createMockPatient('R1', {
+      patientName: 'PACIENTE IMPORTADO',
+      evaluationScores: {
+        cudyr: {
+          category: 'C2',
+          recordedDate: '2026-07-16',
+          recordedAt: '2026-07-17T07:00:00.000Z',
+          author: 'Constanza Guajardo',
+          authorRole: 'Enfermería',
+          source: 'Eloísa · Gestión de Camas',
+          items: [],
+        },
+      },
+    });
+    mockUseCudyrLogic.mockReturnValue(createMockCudyrLogicReturn(record));
+
+    render(<CudyrView />);
+
+    const provenance = screen.getByText('Importado Eloísa ⓘ');
+    expect(provenance).toHaveAttribute('title', expect.stringContaining('Constanza Guajardo'));
+    expect(provenance).toHaveAttribute('title', expect.stringContaining('Registrado:'));
   });
 
   it('calculates occupied and categorized counts correctly', () => {
@@ -342,5 +369,84 @@ describe('CudyrView Component', () => {
     expect(screen.getAllByRole('spinbutton').every(input => input.hasAttribute('disabled'))).toBe(
       true
     );
+  });
+
+  it('shows the synchronized completion owner and keeps the completed sheet read-only', () => {
+    const record = DataFactory.createMockDailyRecord('2026-07-16', {
+      cudyrUpdatedAt: '2026-07-17T01:05:00.000Z',
+      cudyrUpdatedBy: 'Enfermera Noche',
+      cudyrCompletedAt: '2026-07-17T01:05:00.000Z',
+      cudyrCompletedBy: 'Enfermera Noche',
+      cudyrLocked: true,
+    });
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      patientName: 'PACIENTE COMPLETO',
+      cudyr: DataFactory.createMockCudyr({ changeClothes: 1 }),
+    });
+    mockUseCudyrLogic.mockReturnValue(
+      createMockCudyrLogicReturn(record, {
+        isEditingLocked: true,
+        isCompletionLocked: true,
+        persistedCompletion: { eligibleCount: 1, completedCount: 1, isComplete: true },
+        stats: { total: 1, occupiedCount: 1, categorizedCount: 1 },
+      })
+    );
+
+    render(<CudyrView />);
+
+    expect(screen.getByTestId('cudyr-completion-lock-notice')).toHaveTextContent(
+      /turno noche 2026-07-16/i
+    );
+    expect(screen.getByText(/Completado por Enfermera Noche/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('spinbutton').every(input => input.hasAttribute('disabled'))).toBe(
+      true
+    );
+  });
+
+  it('shows the legacy notice when an older completed record has no atomic attribution', () => {
+    const record = DataFactory.createMockDailyRecord('2026-07-16', {
+      cudyrLocked: true,
+      cudyrLockedAt: '2026-07-17T01:05:00.000Z',
+      cudyrLockedBy: 'usuario-enfermeria-legado',
+    });
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      patientName: 'PACIENTE LEGADO COMPLETO',
+      cudyr: DataFactory.createMockCudyr(),
+    });
+    mockUseCudyrLogic.mockReturnValue(
+      createMockCudyrLogicReturn(record, {
+        isEditingLocked: true,
+        isCompletionLocked: true,
+        persistedCompletion: { eligibleCount: 1, completedCount: 1, isComplete: true },
+      })
+    );
+
+    render(<CudyrView />);
+
+    expect(screen.getByTestId('cudyr-legacy-lock-notice')).toHaveTextContent(
+      /completo sin cierre atribuido/i
+    );
+    expect(screen.queryByText(/Completado por/i)).not.toBeInTheDocument();
+  });
+
+  it('labels an incomplete legacy manual lock without claiming synchronized completion', () => {
+    const record = DataFactory.createMockDailyRecord('2026-07-16', {
+      cudyrLocked: true,
+      cudyrLockedAt: '2026-07-17T01:05:00.000Z',
+      cudyrLockedBy: 'usuario-legado',
+    });
+    mockUseCudyrLogic.mockReturnValue(
+      createMockCudyrLogicReturn(record, {
+        isEditingLocked: true,
+        isCompletionLocked: true,
+        persistedCompletion: { eligibleCount: 2, completedCount: 1, isComplete: false },
+      })
+    );
+
+    render(<CudyrView />);
+
+    expect(screen.getByTestId('cudyr-legacy-lock-notice')).toHaveTextContent(/1 de 2/i);
+    expect(screen.queryByTestId('cudyr-completion-lock-notice')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Completado por/i)).not.toBeInTheDocument();
   });
 });

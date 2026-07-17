@@ -177,6 +177,80 @@ describe('cudyrSummary', () => {
       expect(summary.categorizedCount).toBeGreaterThan(0);
     });
 
+    it('counts an official imported CUDYR as categorized without manual grid scores', () => {
+      const importedRecord: DailyRecord = {
+        ...mockRecord,
+        beds: {
+          R1: {
+            bedId: 'R1',
+            patientName: 'Paciente importado',
+            rut: '12345678-9',
+            isBlocked: false,
+            admissionDate: '2024-12-31',
+            admissionTime: '18:00',
+            evaluationScores: {
+              cudyr: {
+                category: 'C2',
+                recordedDate: '2025-01-01',
+                source: 'Eloísa · Gestión de Camas',
+              },
+            },
+          } as unknown as BedValue,
+        } as DailyRecord['beds'],
+      };
+
+      const summary = buildDailyCudyrSummary(importedRecord);
+
+      expect(summary).toMatchObject({ occupiedCount: 1, categorizedCount: 1, utiTotal: 1 });
+      expect(summary.counts.uti.C2).toBe(1);
+      expect(collectDailyCudyrPatients(importedRecord)[0]?.category).toBe('C2');
+    });
+
+    it('does not count an imported CUDYR owned by a different census day', () => {
+      const staleRecord = {
+        ...mockRecord,
+        beds: {
+          R1: {
+            ...mockRecord.beds.R1,
+            cudyr: undefined,
+            evaluationScores: {
+              cudyr: {
+                category: 'C2',
+                recordedDate: '2025-01-02',
+                source: 'Eloísa · Gestión de Camas',
+              },
+            },
+          },
+        },
+      } as DailyRecord;
+
+      expect(buildDailyCudyrSummary(staleRecord)).toMatchObject({
+        occupiedCount: 1,
+        categorizedCount: 0,
+      });
+    });
+
+    it('rejects inherited object names as imported CUDYR categories', () => {
+      const malformedRecord = {
+        ...mockRecord,
+        beds: {
+          R1: {
+            ...mockRecord.beds.R1,
+            cudyr: undefined,
+            evaluationScores: {
+              cudyr: {
+                category: 'constructor',
+                recordedDate: '2025-01-01',
+                source: 'Eloísa · Gestión de Camas',
+              },
+            },
+          },
+        },
+      } as DailyRecord;
+
+      expect(buildDailyCudyrSummary(malformedRecord).categorizedCount).toBe(0);
+    });
+
     it('should separate UTI and MEDIA counts', () => {
       const summary = buildDailyCudyrSummary(mockRecord);
       expect(summary.utiTotal + summary.mediaTotal).toBe(summary.categorizedCount);

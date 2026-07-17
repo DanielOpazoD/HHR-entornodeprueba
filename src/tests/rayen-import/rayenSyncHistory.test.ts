@@ -86,8 +86,34 @@ describe('rayen sync history', () => {
       completed: 3,
       errors: 1,
       sourceErrors: 3,
+      issues: [
+        { bedId: 'R1', source: 'patch', reason: 'write_failed' },
+        { bedId: '*', source: 'patch', reason: 'write_failed' },
+      ],
       completedAt: '2026-07-14T10:04:00.000Z',
     });
+  });
+
+  it('persists a sanitized actionable reason instead of the raw concurrency error', () => {
+    const coverage = buildRayenSyncCoverage(
+      9,
+      [
+        {
+          bedId: 'R2',
+          source: 'patch',
+          message:
+            'ConcurrencyError: El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+        },
+      ],
+      '2026-07-17T07:02:25.000Z'
+    );
+
+    expect(coverage).toMatchObject({
+      completed: 8,
+      errors: 1,
+      issues: [{ bedId: 'R2', source: 'patch', reason: 'concurrent_write' }],
+    });
+    expect(JSON.stringify(coverage)).not.toContain('modificado por otro usuario');
   });
 
   it('finalizes as complete or partial while updating the same event', () => {

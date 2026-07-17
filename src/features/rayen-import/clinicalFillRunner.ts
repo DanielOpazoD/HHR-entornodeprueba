@@ -28,8 +28,9 @@ import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
 import { parseVitalSigns } from './mapping/parseVitalSigns';
 import { mergeReportVitals } from './domain/mergeReportVitals';
-import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
+import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
+import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 
 export interface ClinicalFillDeps {
   fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
@@ -48,10 +49,29 @@ export interface ClinicalFillDeps {
    */
   fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
   fetchCudyrCategories: () => Promise<{ items: RayenCudyrCategory[]; error?: string }>;
+  /** Persist a CUDYR on its owning prior census when synchronization is run from D + 1. */
+  applyHistoricalCudyr?: (
+    encId: string,
+    censusDay: string,
+    cudyr: ImportedCudyr
+  ) => Promise<HistoricalCudyrApplyResult>;
   /** Apply one patient's granular patch. Throwing marks that patient as failed, nothing else. */
-  applyPatch: (patch: DailyRecordPatch) => Promise<void>;
+  applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   now: () => Date;
   createId: () => string;
+}
+
+export interface ClinicalFillPatchTarget {
+  censusDate: string;
+  bedId: string;
+  clinicalEpisodeId: string;
+}
+
+export interface HistoricalCudyrApplyResult {
+  persisted: boolean;
+  changed: boolean;
+  /** False when the episode did not exist in that historical census, so no archive was expected. */
+  applicable?: boolean;
 }
 
 export interface ClinicalFillError {
@@ -91,11 +111,30 @@ export const runClinicalFill = async (
   const summary: ClinicalFillSummary = { total: eligible.length, patched: 0, errors: [] };
   if (eligible.length === 0) return summary;
 
+  // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
+  // writes share one census version and can otherwise conflict with another write from this same
+  // synchronization, producing a false "modified by another user" result.
+  let writeQueue: Promise<void> = Promise.resolve();
+  const enqueueWrite = <T>(operation: () => Promise<T>): Promise<T> => {
+    const pending = writeQueue.then(operation);
+    writeQueue = pending.then(
+      () => undefined,
+      () => undefined
+    );
+    return pending;
+  };
+
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
   const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = deps
     .fetchCudyrCategories()
-    .then(({ items }) => ({ map: new Map(items.map(item => [item.encId, item])), ok: true }))
+    .then(({ items, error }) => {
+      if (error) {
+        summary.errors.push({ bedId: '*', source: 'cudyr', message: error });
+        return { map: new Map<string, RayenCudyrCategory>(), ok: false };
+      }
+      return { map: new Map(items.map(item => [item.encId, item])), ok: true };
+    })
     .catch(error => {
       summary.errors.push({ bedId: '*', source: 'cudyr', message: message(error) });
       return { map: new Map<string, RayenCudyrCategory>(), ok: false };
@@ -111,6 +150,7 @@ export const runClinicalFill = async (
     const encId = patient.clinicalEpisodeId;
     if (!encId) return;
     let merged = patient;
+    let historicalCudyrPatched = false;
 
     try {
       const { base64 } = await deps.fetchDeviceReport(encId, fecha);
@@ -135,7 +175,14 @@ export const runClinicalFill = async (
       deps.fetchHistoryScales(encId),
       deps.fetchScalesForms(encId),
     ]);
-    const forms = formsResult.status === 'fulfilled' ? formsResult.value.forms : [];
+    const formsReadError =
+      formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
+    if (formsReadError) {
+      summary.errors.push({ bedId, source: 'scales', message: formsReadError });
+      summary.errors.push({ bedId, source: 'vitals', message: formsReadError });
+    }
+    const forms =
+      formsResult.status === 'fulfilled' && !formsReadError ? formsResult.value.forms : [];
 
     try {
       // Union BOTH scale sources — neither is complete on its own.
@@ -153,10 +200,9 @@ export const runClinicalFill = async (
     try {
       // Latest vitals come from the same encounter-form-entry forms (VITAL_SIGNS). Independent of
       // scales: a failure here never blocks them.
-      const vitals = parseVitalSigns(forms);
-      if (vitals.length > 0) {
-        // ALL available vitals (past AND future relative to `fecha`) — see mergeReportVitals.
-        merged = mergeReportVitals(merged, vitals);
+      if (formsResult.status === 'fulfilled' && !formsReadError) {
+        const vitals = parseVitalSigns(forms);
+        merged = mergeReportVitals(merged, vitals, fecha);
       }
     } catch (error) {
       summary.errors.push({ bedId, source: 'vitals', message: message(error) });
@@ -166,15 +212,41 @@ export const runClinicalFill = async (
       const { map, ok } = await cudyrPromise;
       const cudyrRow = map.get(encId);
       const importedCudyr = cudyrRow ? buildImportedCudyr(cudyrRow, fecha) : null;
+      const priorCensusDay = previousCensusIsoDay(fecha);
+      const priorCudyr = cudyrRow ? buildImportedCudyr(cudyrRow, priorCensusDay) : null;
+      let priorCudyrPersisted = !priorCudyr;
+      if (priorCudyr && deps.applyHistoricalCudyr) {
+        try {
+          const historicalResult = await enqueueWrite(() =>
+            deps.applyHistoricalCudyr!(encId, priorCensusDay, priorCudyr)
+          );
+          const historicalNotApplicable = historicalResult.applicable === false;
+          priorCudyrPersisted = historicalResult.persisted || historicalNotApplicable;
+          historicalCudyrPatched = historicalResult.changed;
+          if (!historicalResult.persisted && !historicalNotApplicable) {
+            summary.errors.push({
+              bedId,
+              source: 'cudyr',
+              message: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`,
+            });
+          }
+        } catch (error) {
+          summary.errors.push({
+            bedId,
+            source: 'cudyr',
+            message: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}: ${message(error)}`,
+          });
+        }
+      }
       const existingCudyr = merged.evaluationScores?.cudyr;
       if (importedCudyr) {
         merged = {
           ...merged,
           evaluationScores: { ...merged.evaluationScores, cudyr: importedCudyr },
         };
-      } else if (ok && existingCudyr && existingCudyr.recordedDate !== fecha) {
-        // CUDYR is a DAILY assessment: an authoritative read with no categorization for this census
-        // day removes a stale copy carried over from another day (e.g. the pre-fix as-of behavior).
+      } else if (ok && existingCudyr && priorCudyrPersisted) {
+        // An authoritative read with no CUDYR owned by this census removes any stale local copy.
+        // This also migrates pre-fix records whose stored recordedDate incorrectly matched D + 1.
         const { cudyr: _removed, ...rest } = merged.evaluationScores ?? {};
         merged = { ...merged, evaluationScores: rest };
       }
@@ -182,7 +254,10 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId, source: 'cudyr', message: message(error) });
     }
 
-    if (merged === patient) return;
+    if (merged === patient) {
+      if (historicalCudyrPatched) summary.patched += 1;
+      return;
+    }
 
     // Granular patch: only the clinical-fill fields, so a concurrent census edit/confirm on other
     // fields is never clobbered and the full-record freshness guard is never involved.
@@ -201,7 +276,13 @@ export const runClinicalFill = async (
     if (Object.keys(patch).length === 0) return;
 
     try {
-      await deps.applyPatch(patch);
+      await enqueueWrite(() =>
+        deps.applyPatch(patch, {
+          censusDate: fecha,
+          bedId,
+          clinicalEpisodeId: encId,
+        })
+      );
       summary.patched += 1;
     } catch (error) {
       summary.errors.push({ bedId, source: 'patch', message: message(error) });

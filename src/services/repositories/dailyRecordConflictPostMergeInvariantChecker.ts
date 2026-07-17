@@ -6,10 +6,11 @@ import {
 import { shouldPreserveLocalPatientNarrative } from '@/services/repositories/patientEpisodeNarrativePolicy';
 import { buildMedicalHandoffSummary } from '@/domain/handoff/specialty';
 import { findActiveMovementLineageConflicts } from '@/application/census/movementReclassificationConcurrencyPolicy';
+import { finalizeCudyrCompletion } from '@/domain/cudyr/cudyrCompletion';
+import { collectClosedCudyrInvariantViolations } from '@/services/repositories/dailyRecordCudyrPostMergeInvariantChecker';
 
 const MOVEMENT_FIELDS = ['discharges', 'transfers', 'cma'] as const;
 const HANDOFF_NOTE_FIELDS = ['handoffNoteDayShift', 'handoffNoteNightShift'] as const;
-
 type MovementField = (typeof MOVEMENT_FIELDS)[number];
 type HandoffNoteField = (typeof HANDOFF_NOTE_FIELDS)[number];
 
@@ -20,7 +21,8 @@ export type DailyRecordConflictPostMergeInvariantViolationType =
   | 'duplicate_active_patient_after_merge'
   | 'handoff_note_missing_after_merge'
   | 'medical_handoff_entry_missing_after_merge'
-  | 'medical_handoff_entry_cross_episode_after_merge';
+  | 'medical_handoff_entry_cross_episode_after_merge'
+  | 'cudyr_changed_after_remote_completion';
 
 export interface DailyRecordConflictPostMergeInvariantViolation {
   type: DailyRecordConflictPostMergeInvariantViolationType;
@@ -311,11 +313,18 @@ export const evaluateDailyRecordConflictPostMergeInvariants = ({
       local,
       resolved: normalizedRecord,
     }),
+    ...collectClosedCudyrInvariantViolations({
+      remote,
+      resolved: normalizedRecord,
+    }),
     ...collectClinicalConsistencyInvariantViolations(clinicalConsistency),
   ];
+  const finalizedRecord = finalizeCudyrCompletion(normalizedRecord, {
+    normalizeIntroducedLock: !remote.cudyrLocked && normalizedRecord.cudyrLocked === true,
+  });
 
   return {
-    record: normalizedRecord,
+    record: finalizedRecord,
     status: violations.length > 0 ? 'blocked' : 'ok',
     violations,
   };

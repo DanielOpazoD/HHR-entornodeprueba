@@ -17,6 +17,8 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
     stats,
     cudyrSummary,
     isEditingLocked,
+    isCompletionLocked,
+    persistedCompletion,
     pendingCudyrChangeCount,
     isSavingCudyrChanges,
     handleScoreChange,
@@ -33,6 +35,17 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
       </div>
     );
   }
+
+  const isCalculatedComplete = Boolean(persistedCompletion?.isComplete);
+  const completionTimestamp = record.cudyrCompletedAt;
+  const completionOwner = record.cudyrCompletedBy;
+  const hasConfirmedCompletion = Boolean(
+    isCalculatedComplete &&
+    record.cudyrLocked &&
+    completionTimestamp &&
+    !Number.isNaN(Date.parse(completionTimestamp)) &&
+    completionOwner?.trim()
+  );
 
   const responsibleNurses = resolveNightShiftNurses(record).filter(n => n && n.trim() !== '');
   const shellModel = buildCudyrViewShellModel({
@@ -85,10 +98,42 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
             categorizedCount={stats.categorizedCount}
             currentDate={record.date}
             updatedAt={record.cudyrUpdatedAt}
+            updatedBy={record.cudyrUpdatedBy}
+            completedAt={hasConfirmedCompletion ? completionTimestamp : undefined}
+            completedBy={hasConfirmedCompletion ? completionOwner : undefined}
+            isCompletionLocked={hasConfirmedCompletion}
+            completedCount={persistedCompletion?.completedCount ?? 0}
+            eligibleCount={persistedCompletion?.eligibleCount ?? 0}
             categoryCounts={cudyrSummary?.counts}
             currentRecord={record}
           />
         </div>
+
+        {isCompletionLocked && hasConfirmedCompletion && (
+          <div
+            className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 print:hidden"
+            data-testid="cudyr-completion-lock-notice"
+          >
+            <strong>CUDYR cerrado.</strong> Los resultados del turno noche {record.date} están
+            sincronizados y en modo lectura para enfermería.
+          </div>
+        )}
+
+        {isCompletionLocked && !hasConfirmedCompletion && (
+          <div
+            className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 print:hidden"
+            data-testid="cudyr-legacy-lock-notice"
+          >
+            <strong>
+              {isCalculatedComplete
+                ? 'CUDYR completo sin cierre atribuido (registro legado).'
+                : 'CUDYR bloqueado incompleto (registro legado).'}
+            </strong>{' '}
+            La planilla permanece en solo lectura y registra{' '}
+            {persistedCompletion?.completedCount ?? 0} de {persistedCompletion?.eligibleCount ?? 0}{' '}
+            pacientes elegibles completos.
+          </div>
+        )}
 
         <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full text-left text-xs border-collapse border border-slate-300 min-w-[900px] print:table-auto print:min-w-0 print:text-[7px]">
@@ -203,6 +248,7 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                     <CudyrRow
                       bed={bed}
                       patient={patient}
+                      censusDate={record.date}
                       onScoreChange={handleScoreChange}
                       readOnly={isEditingLocked || patientEligibility.isBlocked}
                       eligibilityBlocked={patientEligibility.isBlocked}
@@ -212,6 +258,7 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                       <CudyrRow
                         bed={{ ...bed, id: `${bed.id}-crib`, name: `${bed.name} (CC)` }}
                         patient={cribPatient}
+                        censusDate={record.date}
                         onScoreChange={(_, field, value) =>
                           handleCribScoreChange(bed.id, field, value)
                         }

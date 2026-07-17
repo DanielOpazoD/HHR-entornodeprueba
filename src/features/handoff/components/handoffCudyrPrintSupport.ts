@@ -1,10 +1,11 @@
 import { BEDS } from '@/constants/beds';
-import { getCategorization } from '@/features/cudyr/public';
+import { getCategorization, getCategoryColor } from '@/features/cudyr/public';
 import { buildDailyCudyrSummary } from '@/services/cudyr/cudyrSummary';
 import type { DailyRecord } from '@/application/shared/dailyRecordContracts';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import { resolveNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
 import { isCudyrPatientEligible } from '@/features/cudyr/public';
+import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 
 export const CUDYR_DEPENDENCY_COLUMNS = [
   'Cuidados Cambio Ropa',
@@ -70,11 +71,40 @@ export const resolveHandoffCudyrPrintDisplay = (
     admissionTime?: string;
     isBlocked?: boolean;
     cudyr?: Partial<CudyrScore>;
+    evaluationScores?: {
+      cudyr?: {
+        category?: string;
+        recordedDate?: string;
+        recordedAt?: string;
+        dependencyScore?: number | null;
+        riskScore?: number | null;
+      };
+    };
   } | null
 ) => {
   const isEligible = isCudyrPatientEligible(recordDate, patient);
-  const visibleScores = isEligible ? patient?.cudyr : undefined;
-  const categorization = resolveCategorizationDisplay((visibleScores || {}) as Partial<CudyrScore>);
+  const importedCudyr = patient?.evaluationScores?.cudyr;
+  const importedCategory = String(importedCudyr?.category || '')
+    .trim()
+    .toUpperCase();
+  const hasValidImportedCudyr =
+    isEligible &&
+    importedCudyrBelongsToCensus(importedCudyr, recordDate) &&
+    /^[A-D][1-3]$/.test(importedCategory);
+  const visibleScores = isEligible && !hasValidImportedCudyr ? patient?.cudyr : undefined;
+  const manualCategorization = resolveCategorizationDisplay(
+    (visibleScores || {}) as Partial<CudyrScore>
+  );
+  const categorization = hasValidImportedCudyr
+    ? {
+        ...manualCategorization,
+        finalCat: importedCategory,
+        riskCat: importedCategory.charAt(0),
+        depCat: importedCategory.charAt(1),
+        badgeColor: getCategoryColor(importedCategory.charAt(0)),
+        isCategorized: true,
+      }
+    : manualCategorization;
 
   return {
     isEligible,

@@ -11,6 +11,7 @@ import {
   isCudyrPatientEligible,
   resolveCudyrNightApplicationDate,
 } from '@/domain/cudyr/cudyrEligibility';
+import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 import {
   HANDOFF_PDF_PAGE_LAYOUT,
   getHandoffPdfTableMargin,
@@ -103,7 +104,20 @@ export const addCudyrTable = (
 
       const isEligible = isCudyrPatientEligible(record.date, rowPatient);
       const score = isEligible ? rowPatient.cudyr : undefined;
-      const { depScore, riskScore, finalCat } = getCategorization(score);
+      const calculated = getCategorization(score);
+      const candidateImported = isEligible ? rowPatient.evaluationScores?.cudyr : undefined;
+      const normalizedImportedCategory = String(candidateImported?.category || '')
+        .trim()
+        .toUpperCase();
+      const imported =
+        importedCudyrBelongsToCensus(candidateImported, record.date) &&
+        /^[A-D][1-3]$/.test(normalizedImportedCategory)
+          ? { ...candidateImported, category: normalizedImportedCategory }
+          : undefined;
+      const displayedScore = imported ? undefined : score;
+      const depScore = imported ? (imported.dependencyScore ?? '-') : calculated.depScore;
+      const riskScore = imported ? (imported.riskScore ?? '-') : calculated.riskScore;
+      const finalCat = imported?.category || calculated.finalCat;
       const nameParts = rowPatient.patientName.split(' ');
       const shortNameBase =
         nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];
@@ -113,20 +127,20 @@ export const addCudyrTable = (
         bedName,
         shortName,
         rowPatient.rut || '-',
-        renderPdfCudyrScore(score?.changeClothes),
-        renderPdfCudyrScore(score?.mobilization),
-        renderPdfCudyrScore(score?.feeding),
-        renderPdfCudyrScore(score?.elimination),
-        renderPdfCudyrScore(score?.psychosocial),
-        renderPdfCudyrScore(score?.surveillance),
-        renderPdfCudyrScore(score?.vitalSigns),
-        renderPdfCudyrScore(score?.fluidBalance),
-        renderPdfCudyrScore(score?.oxygenTherapy),
-        renderPdfCudyrScore(score?.airway),
-        renderPdfCudyrScore(score?.proInterventions),
-        renderPdfCudyrScore(score?.skinCare),
-        renderPdfCudyrScore(score?.pharmacology),
-        renderPdfCudyrScore(score?.invasiveElements),
+        renderPdfCudyrScore(displayedScore?.changeClothes),
+        renderPdfCudyrScore(displayedScore?.mobilization),
+        renderPdfCudyrScore(displayedScore?.feeding),
+        renderPdfCudyrScore(displayedScore?.elimination),
+        renderPdfCudyrScore(displayedScore?.psychosocial),
+        renderPdfCudyrScore(displayedScore?.surveillance),
+        renderPdfCudyrScore(displayedScore?.vitalSigns),
+        renderPdfCudyrScore(displayedScore?.fluidBalance),
+        renderPdfCudyrScore(displayedScore?.oxygenTherapy),
+        renderPdfCudyrScore(displayedScore?.airway),
+        renderPdfCudyrScore(displayedScore?.proInterventions),
+        renderPdfCudyrScore(displayedScore?.skinCare),
+        renderPdfCudyrScore(displayedScore?.pharmacology),
+        renderPdfCudyrScore(displayedScore?.invasiveElements),
         isEligible ? depScore : '-',
         isEligible ? riskScore : '-',
         finalCat || '-',

@@ -1,8 +1,14 @@
 import { useCallback } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import { runClinicalFill, type ClinicalFillSummary } from '../clinicalFillRunner';
+import {
+  runClinicalFill,
+  type ClinicalFillSummary,
+  type ClinicalFillPatchTarget,
+  type HistoricalCudyrApplyResult,
+} from '../clinicalFillRunner';
 import { beginRayenFill, endRayenFill, reportRayenFillProgress } from './useRayenFillStatus';
 import { toIsoReportDate } from './reportDateHelpers';
 import {
@@ -13,7 +19,12 @@ import {
 } from '../bridge/rayenImportBridge';
 
 interface UseRayenClinicalFillInput {
-  patchDailyRecord: (patch: DailyRecordPatch) => Promise<unknown>;
+  patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
+  applyHistoricalCudyr: (
+    encId: string,
+    censusDay: string,
+    cudyr: ImportedCudyr
+  ) => Promise<HistoricalCudyrApplyResult>;
   completeRun: (record: DailyRecord, summary: ClinicalFillSummary) => Promise<void>;
   onSettled: () => void;
   createId: () => string;
@@ -22,6 +33,7 @@ interface UseRayenClinicalFillInput {
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   patchDailyRecord,
+  applyHistoricalCudyr,
   completeRun,
   onSettled,
   createId,
@@ -58,9 +70,10 @@ export const useRayenClinicalFill = ({
             fetchHistoryScales: requestHistoryScales,
             fetchScalesForms: requestScalesReport,
             fetchCudyrCategories: () => requestCudyrCategories(15000),
-            applyPatch: async patch => {
-              await patchDailyRecord(patch);
+            applyPatch: async (patch, target) => {
+              await patchDailyRecord(patch, target);
             },
+            applyHistoricalCudyr,
             now: () => new Date(),
             createId,
           },
@@ -89,5 +102,5 @@ export const useRayenClinicalFill = ({
       }
       onSettled();
     },
-    [completeRun, createId, onSettled, patchDailyRecord]
+    [applyHistoricalCudyr, completeRun, createId, onSettled, patchDailyRecord]
   );

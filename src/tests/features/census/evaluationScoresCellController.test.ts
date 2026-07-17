@@ -129,6 +129,46 @@ describe('buildScoresCellModel — Downton and history', () => {
     expect(model.braden).toBeNull();
   });
 
+  it('hides a stale or zero CUDYR that does not belong to the selected census', () => {
+    const stale = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          cudyr: { category: 'C1', recordedDate: '2026-07-15', source: 'Eloísa' },
+        },
+      }),
+      '2026-07-16'
+    );
+    const zero = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          cudyr: { category: '0', recordedDate: '2026-07-16', source: 'Eloísa' },
+        },
+      }),
+      '2026-07-16'
+    );
+
+    expect(stale.cudyr).toBeNull();
+    expect(zero.cudyr).toBeNull();
+  });
+
+  it('hides a legacy CUDYR misdated as 16-jul when its 08:37 timestamp belongs to census 15-jul', () => {
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          cudyr: {
+            category: 'C1',
+            recordedDate: '2026-07-16',
+            recordedAt: '2026-07-16T14:37:00+00:00',
+            source: 'Eloísa',
+          },
+        },
+      }),
+      '2026-07-16'
+    );
+
+    expect(model.cudyr).toBeNull();
+  });
+
   it('exposes the unified history and handles a patient without scores', () => {
     const history = [entry({ encounterEventId: 2 }), entry({ encounterEventId: 1 })];
     const withHistory = buildScoresCellModel(

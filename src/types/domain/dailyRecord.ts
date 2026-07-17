@@ -102,4 +102,14 @@ export interface DailyRecord {
   cudyrLockedBy?: string;
   /** ISO timestamp when the last CUDYR score or closure was saved */
   cudyrUpdatedAt?: string;
+  /** Human-readable identity responsible for the most recent confirmed CUDYR save */
+  cudyrUpdatedBy?: string;
+  /** User ID responsible for the most recent confirmed CUDYR save */
+  cudyrUpdatedById?: string;
+  /** Nursing-night date that owns the completed CUDYR */
+  cudyrShiftDate?: string;
+  /** ISO timestamp when every eligible CUDYR row was completed */
+  cudyrCompletedAt?: string;
+  /** Human-readable identity responsible for completing the CUDYR */
+  cudyrCompletedBy?: string;
 }

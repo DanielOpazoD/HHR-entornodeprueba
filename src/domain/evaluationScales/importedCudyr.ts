@@ -2,11 +2,10 @@
  * Builds the daily imported CUDYR (CRD) result. Gestión de Camas is preferred because it exposes
  * the official history, author and 14-item breakdown; Ficha Médico supplies a latest-value fallback.
  *
- * The CUDYR categorization is a DAILY assessment (per Daniel): the one recorded on 10-07 belongs to
- * the 10-07 census and must NOT carry over to the 11-07 census. So `crdDateTime` — resolved to its
- * Rapa Nui calendar day (Pacific/Easter, handles -06/-05 DST) — must EQUAL the census day being
- * synced. To fill a past day, sync while standing on that census day (the fill already asks with the
- * census date). "S/C" (sin categorizar) and blanks yield null.
+ * The CUDYR categorization belongs to the night shift that started on the census day. A result
+ * recorded in Rapa Nui between 00:01 and 11:59 on D + 1 therefore belongs to census D. The moment
+ * when HHR later synchronizes the result never changes that owning date. "S/C" (sin categorizar)
+ * and blanks yield null.
  */
 
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -18,6 +17,57 @@ const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
   day: '2-digit',
 });
+const rapaNuiDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: RAPA_NUI_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+export const previousCensusIsoDay = (isoDay: string): string => {
+  const [year, month, day] = isoDay.split('-').map(Number);
+  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+  return previous.toISOString().slice(0, 10);
+};
+
+/** Resolves the census/night-shift date that owns an official CUDYR application. */
+export const resolveCudyrOwningCensusDay = (recordedAt: string): string | null => {
+  const epoch = Date.parse(recordedAt);
+  if (Number.isNaN(epoch)) return null;
+  const instant = new Date(epoch);
+  const parts = Object.fromEntries(
+    rapaNuiDateTimeFormatter
+      .formatToParts(instant)
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, part.value])
+  );
+  const recordedDate = rapaNuiDayFormatter.format(instant);
+  const secondsAfterMidnight =
+    Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second);
+  return secondsAfterMidnight >= 60 && secondsAfterMidnight < 12 * 3600
+    ? previousCensusIsoDay(recordedDate)
+    : recordedDate;
+};
+
+/**
+ * Checks ownership from the source timestamp whenever it is available. This also repairs the
+ * interpretation of legacy snapshots whose `recordedDate` stored the calendar application day
+ * instead of the night-shift census day.
+ */
+export const importedCudyrBelongsToCensus = (
+  cudyr: Partial<Pick<ImportedCudyr, 'recordedDate' | 'recordedAt'>> | null | undefined,
+  censusIsoDay: string
+): boolean => {
+  if (!cudyr) return false;
+  if (cudyr.recordedAt) {
+    return resolveCudyrOwningCensusDay(cudyr.recordedAt) === censusIsoDay;
+  }
+  return (cudyr.recordedDate ?? null) === censusIsoDay;
+};
 
 /** Provenance label shown for the preferred official source. */
 export const CUDYR_IMPORT_SOURCE = 'Eloísa · Gestión de Camas';
@@ -45,8 +95,7 @@ export interface CudyrCategoryInput {
 }
 
 /**
- * The imported CUDYR result if (and only if) the patient was categorized ON `censusIsoDay`
- * (Rapa Nui). Daily assessment: it never carries over to other days.
+ * The imported CUDYR result if (and only if) its owning night shift matches `censusIsoDay`.
  */
 export const buildImportedCudyr = (
   input: CudyrCategoryInput,
@@ -62,24 +111,27 @@ export const buildImportedCudyr = (
     .map(entry => {
       const category = (entry.category ?? '').trim();
       const epoch = Date.parse(entry.recordedAt ?? '');
-      if (!category || /^s\/?c$/i.test(category) || Number.isNaN(epoch)) return null;
+      if (!/^[A-D][1-3]$/i.test(category) || Number.isNaN(epoch)) return null;
+      const owningCensusDate = resolveCudyrOwningCensusDay(entry.recordedAt);
+      if (!owningCensusDate) return null;
       return {
         ...entry,
-        category,
+        category: category.toUpperCase(),
         epoch,
         recordedDate: rapaNuiDayFormatter.format(new Date(epoch)),
+        owningCensusDate,
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
     .sort((a, b) => b.epoch - a.epoch);
-  const selected = candidates.find(entry => entry.recordedDate === censusIsoDay);
+  const selected = candidates.find(entry => entry.owningCensusDate === censusIsoDay);
   if (!selected) return null;
   const history = candidates
-    .filter(entry => entry.recordedDate <= censusIsoDay)
-    .map(({ epoch: _epoch, ...entry }) => entry);
+    .filter(entry => entry.owningCensusDate <= censusIsoDay)
+    .map(({ epoch: _epoch, owningCensusDate: _owningCensusDate, ...entry }) => entry);
   return {
     category: selected.category,
-    recordedDate: selected.recordedDate,
+    recordedDate: selected.owningCensusDate,
     recordedAt: selected.recordedAt,
     author: selected.author,
     authorRole: selected.authorRole,

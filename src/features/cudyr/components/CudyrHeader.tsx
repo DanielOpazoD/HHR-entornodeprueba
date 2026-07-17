@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { ArrowLeft, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { PdfViewerModal } from '@/components/shared/PdfViewerModal';
 import { formatTimeHHMM } from '@/utils/dateDisplayUtils';
@@ -53,6 +53,12 @@ interface CudyrHeaderProps {
   categorizedCount: number;
   currentDate?: string;
   updatedAt?: string;
+  updatedBy?: string;
+  completedAt?: string;
+  completedBy?: string;
+  isCompletionLocked?: boolean;
+  completedCount?: number;
+  eligibleCount?: number;
   /** Category counts by bed type (UTI + Media combined for display). */
   categoryCounts?: CategoryCounts;
   currentRecord?: DailyRecordCudyrExportState | null;
@@ -78,6 +84,12 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
   categorizedCount,
   currentDate,
   updatedAt,
+  updatedBy,
+  completedAt,
+  completedBy,
+  isCompletionLocked = false,
+  completedCount = 0,
+  eligibleCount = 0,
   categoryCounts,
   currentRecord,
 }) => {
@@ -142,7 +154,7 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
           Instrumento CUDYR
           {currentDate && (
             <span className="ml-2 text-slate-500 font-semibold">
-              {formatHeaderDate(currentDate)}
+              · Turno noche {formatHeaderDate(currentDate)}
             </span>
           )}
         </h2>
@@ -254,10 +266,22 @@ export const CudyrHeader: React.FC<CudyrHeaderProps> = ({
             className="flex flex-1 flex-wrap items-center justify-end gap-2"
             data-testid="cudyr-actions"
           >
+            {isCompletionLocked && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                <CheckCircle2 size={11} />
+                Completo {completedCount}/{eligibleCount}
+              </span>
+            )}
             {/* Last modified */}
             {updatedAt && (
-              <span className="text-[10px] text-slate-400" title={`Última modificación CUDYR`}>
+              <span className="text-[10px] text-slate-500" title="Última modificación CUDYR">
                 Últ. mod. {formatTimeHHMM(updatedAt)}
+                {updatedBy ? ` · ${updatedBy}` : ''}
+              </span>
+            )}
+            {completedAt && completedBy && (
+              <span className="text-[10px] font-semibold text-emerald-700">
+                Completado por {completedBy} · {formatTimeHHMM(completedAt)}
               </span>
             )}
           </div>

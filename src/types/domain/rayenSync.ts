@@ -6,6 +6,24 @@ export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
+export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'cudyr' | 'patch';
+
+export type RayenSyncIssueReason =
+  | 'concurrent_write'
+  | 'source_unavailable'
+  | 'source_timeout'
+  | 'historical_archive_failed'
+  | 'sync_already_running'
+  | 'write_failed'
+  | 'unexpected';
+
+/** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */
+export interface RayenSyncCoverageIssue {
+  bedId: string;
+  source: RayenSyncIssueSource;
+  reason: RayenSyncIssueReason;
+}
+
 export type RayenSyncFailureReason =
   | 'extension_unavailable'
   | 'extension_incompatible'
@@ -23,6 +41,8 @@ export interface RayenSyncCoverage {
   errors: number;
   /** Total source/patch errors, including global source failures. */
   sourceErrors: number;
+  /** Actionable, privacy-safe diagnostics for recent synchronization runs. */
+  issues?: RayenSyncCoverageIssue[];
   completedAt: string;
 }
 

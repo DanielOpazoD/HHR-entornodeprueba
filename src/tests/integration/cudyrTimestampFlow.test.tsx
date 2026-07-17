@@ -38,6 +38,7 @@ describe('CUDYR timestamp flow', () => {
     expect(patch).not.toBeNull();
 
     const updatedRecord = applyPatches(record, patch!);
+    updatedRecord.cudyrUpdatedBy = 'Enfermera Noche';
 
     const { container } = render(
       <>
@@ -55,5 +56,6 @@ describe('CUDYR timestamp flow', () => {
     expect(updatedRecord.cudyrUpdatedAt).toBe('2026-03-23T10:15:00.000Z');
     expect(screen.getByText(/Últ\. mod\./i)).toBeInTheDocument();
     expect(container).toHaveTextContent('Fecha y hora de corte de aplicación: 24-03-2026, 1:00 AM');
+    expect(container).toHaveTextContent('Registro CUDYR: Enfermera Noche');
   });
 });

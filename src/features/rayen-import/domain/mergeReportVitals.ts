@@ -4,9 +4,8 @@
  * detail view can show several days). Self-contained like `mergeReportScales`. Ficha Médico is the
  * source of truth, so it replaces both fields.
  *
- * Range: ALL available measurements are synced — both BEFORE and AFTER the census day being synced.
- * A late sync of a past census still picks up later readings, so the vitals are never artificially
- * cut off at the census day.
+ * Range: only measurements on or before the census day are synced. A late sync of a past census
+ * must not leak future readings into that historical clinical snapshot.
  */
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
@@ -27,11 +26,30 @@ const hasCoreVital = (record: PatientVitalSigns): boolean =>
 
 export const mergeReportVitals = (
   patient: PatientData,
-  records: PatientVitalSigns[]
+  records: PatientVitalSigns[],
+  censusIsoDay: string
 ): PatientData => {
-  if (records.length === 0) return patient;
-  // `records` arrive most-recent-first; keep ALL of them (past AND future), capped for doc size.
-  const history = records.slice(0, MAX_VITALS_HISTORY);
+  const eligible = records.filter(record => record.recordedDate <= censusIsoDay);
+  if (eligible.length === 0) {
+    const retainedHistory = (patient.vitalSignsHistory ?? [])
+      .filter(record => record.recordedDate <= censusIsoDay)
+      .slice(0, MAX_VITALS_HISTORY);
+    const retainedGlance = retainedHistory.find(hasCoreVital) ?? retainedHistory[0];
+    const existingGlanceIsValid =
+      patient.vitalSigns != null && patient.vitalSigns.recordedDate <= censusIsoDay;
+    if (
+      retainedHistory.length === (patient.vitalSignsHistory?.length ?? 0) &&
+      (patient.vitalSigns == null || existingGlanceIsValid)
+    ) {
+      return patient;
+    }
+    const sanitized = { ...patient, vitalSignsHistory: retainedHistory };
+    if (retainedGlance) return { ...sanitized, vitalSigns: retainedGlance };
+    delete sanitized.vitalSigns;
+    return sanitized;
+  }
+  // `records` arrive most-recent-first; retain only readings available by the selected census day.
+  const history = eligible.slice(0, MAX_VITALS_HISTORY);
   // The census cell shows the newest reading that carries a CORE vital (PA/FC/Sat/T°), so an HGT- or
   // insulin-only later measurement never leaves the cell blank. The full history (HGT/insulin rows
   // included) still feeds the detail modal.

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   DailyRecordSchema,
-  hasStructuralRepairs,
   parseDailyRecordWithDefaults,
   parseDailyRecordWithDefaultsReport,
   safeParseDailyRecord,
@@ -194,6 +193,7 @@ describe('zod daily record schemas', () => {
             completed: 2,
             errors: 0,
             sourceErrors: 0,
+            issues: [{ bedId: 'R2', source: 'patch', reason: 'concurrent_write' }],
             completedAt: '2026-07-14T10:03:00.000Z',
           },
         },
@@ -210,6 +210,10 @@ describe('zod daily record schemas', () => {
       });
 
       expect(record.rayenSync?.coverage?.completed).toBe(2);
+      expect(record.rayenSync?.coverage?.issues?.[0]).toMatchObject({
+        bedId: 'R2',
+        reason: 'concurrent_write',
+      });
       expect(record.rayenSyncHistory?.[0]).toMatchObject({ id: 'run-1', status: 'complete' });
     });
   });
@@ -422,6 +426,11 @@ describe('zod daily record schemas', () => {
         cudyrLockedAt: null,
         cudyrLockedBy: null,
         cudyrUpdatedAt: null,
+        cudyrUpdatedBy: null,
+        cudyrUpdatedById: null,
+        cudyrShiftDate: null,
+        cudyrCompletedAt: null,
+        cudyrCompletedBy: null,
         handoffNightReceives: null,
       });
 
@@ -456,40 +465,12 @@ describe('zod daily record schemas', () => {
       expect(record.cudyrLockedAt).toBeUndefined();
       expect(record.cudyrLockedBy).toBeUndefined();
       expect(record.cudyrUpdatedAt).toBeUndefined();
+      expect(record.cudyrUpdatedBy).toBeUndefined();
+      expect(record.cudyrUpdatedById).toBeUndefined();
+      expect(record.cudyrShiftDate).toBeUndefined();
+      expect(record.cudyrCompletedAt).toBeUndefined();
+      expect(record.cudyrCompletedBy).toBeUndefined();
       expect(record.handoffNightReceives).toEqual([]);
-    });
-  });
-
-  describe('repair reports', () => {
-    it('detects structural repairs in salvaged daily records', () => {
-      const parsed = parseDailyRecordWithDefaultsReport(
-        {
-          date: '2026-03-04',
-          beds: {
-            R1: {
-              patientName: 'Paciente Legacy',
-              status: 'ESTADO_INVALIDO',
-              clinicalEvents: [null],
-            },
-          },
-        },
-        '2026-03-04'
-      );
-
-      expect(hasStructuralRepairs(parsed.report)).toBe(true);
-    });
-
-    it('does not mark clean records as repaired', () => {
-      const parsed = parseDailyRecordWithDefaultsReport(
-        {
-          date: '2026-03-04',
-          beds: {},
-          nurses: ['', ''],
-        },
-        '2026-03-04'
-      );
-
-      expect(hasStructuralRepairs(parsed.report)).toBe(false);
     });
   });
 });

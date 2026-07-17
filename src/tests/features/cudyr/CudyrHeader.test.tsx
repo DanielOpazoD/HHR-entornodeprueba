@@ -30,7 +30,7 @@ describe('CudyrHeader', () => {
     render(<CudyrHeader occupiedCount={10} categorizedCount={8} currentDate="2026-03-07" />);
 
     expect(screen.getByText('Instrumento CUDYR')).toBeInTheDocument();
-    expect(screen.getByText('07-03-2026')).toBeInTheDocument();
+    expect(screen.getByText(/Turno noche 07-03-2026/)).toBeInTheDocument();
   });
 
   it('uses explicit monthly export wording tied to the current cutoff date', () => {
