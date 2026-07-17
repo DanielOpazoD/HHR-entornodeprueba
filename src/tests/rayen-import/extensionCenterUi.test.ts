@@ -85,4 +85,13 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).not.toContain('Seleccionar visibles');
     expect(contentSource).not.toContain('Quitar visibles');
   });
+
+  it('keeps the route-independent favorites dialog open during route reconciliation', () => {
+    const favoritesDialog = contentSource.slice(
+      contentSource.indexOf('const createFavoritesDialog'),
+      contentSource.indexOf('const OPERATIONS_MODULES')
+    );
+    expect(favoritesDialog).toContain("root.dataset.routeIndependent = 'true'");
+    expect(contentSource).toContain("modal && modal.dataset.routeIndependent !== 'true' &&");
+  });
 });

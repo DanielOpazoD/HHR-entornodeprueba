@@ -1489,10 +1489,17 @@
           return;
         }
         const skipped = Array.isArray(result.skipped) ? result.skipped.length : 0;
+        const compactFallbackCount = Array.isArray(result.compactFallbacks)
+          ? result.compactFallbacks.length
+          : 0;
         showSuccess(
           'Se abrió un PDF con ' + result.count + (result.count === 1 ? ' receta' : ' recetas') +
           ' y el diálogo de impresión.' +
           (skipped ? ' No se pudieron incluir ' + skipped + (skipped === 1 ? ' paciente.' : ' pacientes.') : '') +
+          (compactFallbackCount
+            ? ' ' + compactFallbackCount + (compactFallbackCount === 1 ? ' receta conservó' : ' recetas conservaron') +
+              ' el formato oficial para evitar omitir contenido clínico.'
+            : '') +
           ' Puedes ajustar la selección e imprimir nuevamente.',
           updateSelection
         );
@@ -4757,6 +4764,7 @@
         </footer>
       </section>
     `;
+    root.dataset.routeIndependent = 'true';
     document.body.appendChild(root);
     const list = root.querySelector('.hhr-fav-list');
     const nameInput = root.querySelector('.hhr-fav-name');
@@ -4985,7 +4993,8 @@
     const existingIndications = document.getElementById(INDICATIONS_BUTTON_ID);
     const expectedEncounterId = encId || '';
     const modal = document.getElementById(MODAL_ID);
-    if (modal && modal.dataset.encounterId !== expectedEncounterId) {
+    if (modal && modal.dataset.routeIndependent !== 'true' &&
+        modal.dataset.encounterId !== expectedEncounterId) {
       if (modal.dataset.routeStale === 'true') {
         // A clinical write was already in flight when the route changed. Keep its frozen
         // result panel visible until the user reviews the confirmation and closes it.

@@ -103,4 +103,22 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(textEditorKeys).toContain('restoreCanvasFocus = true');
     expect(contentSource).toContain('canvas.focus({ preventScroll: true })');
   });
+
+  it('keeps prescription batches reusable for the verified Ficha session', () => {
+    const prescriptionBatch = backgroundSource.slice(
+      backgroundSource.indexOf('const handleHospitalizedPrescriptionOptionsRequest'),
+      backgroundSource.indexOf("// Keep Eloisa's official Jasper prescription")
+    );
+    expect(prescriptionBatch).toContain('const sessionKey = await fichaSessionCacheKey');
+    expect(prescriptionBatch).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
+    expect(prescriptionBatch).not.toContain('30 * 60 * 1000');
+    expect(prescriptionBatch).toContain('[storageKey]: { ...batch, lastUsedAt: Date.now() }');
+    expect(backgroundSource).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
+    expect(backgroundSource).toContain('await sweepPrescriptionBatches()');
+    expect(backgroundSource).toContain("allowOfficialFallback: format === 'compact'");
+    expect(backgroundSource).toContain('compactFallbackReason');
+    expect(backgroundSource).toContain('officialResult.buffer.slice(0)');
+    expect(fichaSource).toContain('expiresAt: sessionExpiryTimestamp(session, payload)');
+    expect(contentSource).toContain('el formato oficial para evitar omitir contenido clínico');
+  });
 });

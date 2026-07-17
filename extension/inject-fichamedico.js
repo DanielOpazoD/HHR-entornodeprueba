@@ -155,6 +155,17 @@
     return sessionIdentityInflight;
   };
 
+  const sessionExpiryTimestamp = (session, payload) => {
+    const value = session && (
+      session.expiresAt || session.expires || session.expirationDateTime || session.expiration
+    ) || payload && (payload.expiresAt || payload.expires);
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value > 10_000_000_000 ? Math.round(value) : Math.round(value * 1000);
+    }
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const readSafeSessionIdentityUncached = async () => {
     const revision = ++sessionBindingRevision;
     try {
@@ -195,6 +206,7 @@
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
+        expiresAt: sessionExpiryTimestamp(session, payload),
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
@@ -447,6 +459,7 @@
                 role: safeIdentity.role,
                 isNursing: safeIdentity.isNursing,
                 fullName: safeIdentity.fullName,
+                expiresAt: safeIdentity.expiresAt,
                 identityVerified: true,
               }
             : null,

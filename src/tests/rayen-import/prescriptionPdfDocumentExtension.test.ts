@@ -163,6 +163,31 @@ describe('extension prescription operations', () => {
     ).toBe('/Print');
   });
 
+  it('keeps every patient when merging a nine-prescription compact batch', async () => {
+    const sources = Array.from({ length: 9 }, (_, index) =>
+      prescriptionPdf.generateProfessionalPrescriptionPdf(
+        {
+          patient: { name: `Paciente compacto ${index + 1}` },
+          professional: 'Elena Díaz',
+          validationDate: '2026-07-16',
+          emissionDateTime: '16-07-2026 10:00',
+          printFormat: 'compact',
+          medications: [{ medication: `Medicamento ${index + 1}`, posology: '1 al día' }],
+        },
+        jsPDF
+      )
+    );
+
+    const merged = await pdfPrint.mergePdfBuffers(sources, PDFLib);
+    const loaded = await PDFDocument.load(merged);
+    const text = (await extractPageText(merged)).join(' ');
+
+    expect(loaded.getPageCount()).toBe(9);
+    for (let index = 1; index <= 9; index += 1) {
+      expect(text).toContain(`Paciente compacto ${index}`);
+    }
+  });
+
   it('rejects oversized merge inputs before allocating the combined PDF', async () => {
     const source = prescriptionPdf.generateProfessionalPrescriptionPdf(
       {

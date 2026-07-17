@@ -227,6 +227,88 @@ describe('extension prescription operations', () => {
     ]);
   });
 
+  it('extracts the horizontal-only Jasper variant with its footer on a second page', async () => {
+    const document = new jsPDF({ unit: 'pt', format: 'letter', compress: true });
+    document.text('Fecha impresión', 434, 30);
+    document.text('16-07-2026  18:56', 500, 30);
+    document.text('Dirección', 20, 56);
+    document.text('Simón Paoa N°S/N', 100, 56);
+    document.text('Folio: A68E762F', 500, 80);
+    document.text('Nombres:', 20, 110);
+    document.text('Paciente Prueba', 70, 110);
+    document.text('RUN:', 20, 130);
+    document.text('8.932.066-6', 90, 130);
+    document.text('Sexo:', 180, 130);
+    document.text('Mujer', 220, 130);
+    document.text('Edad:', 310, 130);
+    document.text('59 año(s)', 350, 130);
+    document.text('Cama:', 20, 150);
+    document.text('H6C1', 70, 150);
+    document.text('Sala:', 190, 150);
+    document.text('Habitacion 6', 240, 150);
+    document.text('Servicio:', 364, 150);
+    document.text('Área Médico Quirúrgica', 414, 150);
+    document.text('Diagnóstico(s):', 20, 175);
+    document.text('Dolor agudo', 100, 175);
+    document.text('Medicamento', 20, 205);
+    document.text('Posología e indicaciones', 310, 205);
+    document.text('Despacho Farmacia', 500, 205);
+    document.line(20, 210, 590, 210);
+    document.text('Matriz de solución inyectable', 20, 220);
+    document.text('Administrar lentamente, vía endovenosa', 310, 220);
+    document.text('16-07-2026 11:10', 20, 252);
+    // This template can place the timestamp baseline less than two points from the row border.
+    document.line(20, 253.5, 590, 253.5);
+    document.addPage();
+    // Continuation pages repeat demographics but not the table header. The institutional
+    // separator must not be mistaken for the first medication row's upper border.
+    document.line(20, 64, 590, 64);
+    document.text('Nombres:', 20, 110);
+    document.text('Paciente Prueba', 70, 110);
+    document.text('RUN:', 20, 130);
+    document.text('8.932.066-6', 90, 130);
+    document.text('Cama:', 20, 150);
+    document.text('H6C1', 70, 150);
+    document.text('Sala:', 190, 150);
+    document.text('Habitacion 6', 240, 150);
+    document.text('Servicio:', 364, 150);
+    document.text('Área Médico Quirúrgica', 414, 150);
+    document.text('Clopidogrel 75 mg Comprimidos, vía oral', 20, 220);
+    document.text('1 comprimido al día', 310, 220);
+    document.text('16-07-2026 11:15', 20, 252);
+    document.line(20, 260, 590, 260);
+    document.text('Prescriptor:', 20, 380);
+    document.text('Elena Diaz', 99, 380);
+    document.text('RUN:', 20, 400);
+    document.text('19.525.925-9', 99, 400);
+    document.text('Fecha:', 427, 380);
+    document.text('16-07-2026', 473, 380);
+    document.text('Impreso por', 20, 740);
+    document.text('Profesional Prueba', 71, 740);
+
+    const content = await prescriptionPrint.extractOfficialPrescriptionContent(
+      document.output('arraybuffer')
+    );
+
+    expect(content?.medications).toEqual([
+      expect.objectContaining({
+        medication: 'Matriz de solución inyectable',
+        posology: 'Administrar lentamente, vía endovenosa',
+        dateTime: '16-07-2026 11:10',
+      }),
+      expect.objectContaining({
+        medication: 'Clopidogrel 75 mg Comprimidos, vía oral',
+        posology: '1 comprimido al día',
+        dateTime: '16-07-2026 11:15',
+      }),
+    ]);
+    expect(content).toMatchObject({
+      professional: 'Elena Diaz',
+      professionalRun: '19.525.925-9',
+      printedBy: 'Profesional Prueba',
+    });
+  });
+
   it('fails closed when an official-looking PDF does not prove any medication row', async () => {
     const document = new jsPDF({ unit: 'pt', format: 'letter', compress: true });
     document.text('Nombres:', 20, 110);

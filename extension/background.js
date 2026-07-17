@@ -1891,7 +1891,7 @@ const openPdfPrintDialog = async ({ buffer, filename }) => {
   }
 };
 
-const createCompletePrescriptionPdf = async ({ encId, printFormat, info }) => {
+const createCompletePrescriptionPdf = async ({ encId, printFormat, info, allowOfficialFallback = false }) => {
   const format = printFormat === 'compact' ? 'compact' : 'standard';
   const officialResult = await fetchPrescriptionReportBuffer({ encId, info });
   if (officialResult.error) return officialResult;
@@ -1903,20 +1903,29 @@ const createCompletePrescriptionPdf = async ({ encId, printFormat, info }) => {
   }
 
   self.HhrExtensionRuntime.ensurePdf();
+  const compactFailure = message => allowOfficialFallback
+    ? { buffer: officialResult.buffer, compactFallbackReason: message }
+    : { error: message };
 
   let officialContent;
   try {
     officialContent = await self.HhrPrescriptionPrint.extractOfficialPrescriptionContent(
-      officialResult.buffer
+      // Keep the fetched PDF untouched for the official fallback. A PDF parser may
+      // transfer/detach the ArrayBuffer it receives while loading the document.
+      officialResult.buffer.slice(0)
     );
   } catch (error) {
-    return { error: 'No se pudo compactar la receta oficial: ' + String((error && error.message) || error) };
+    return compactFailure(
+      'No se pudo compactar la receta oficial: ' + String((error && error.message) || error)
+    );
   }
   if (!officialContent || !officialContent.folio || !officialContent.emissionDateTime) {
-    return { error: 'La receta oficial no informó todo el contenido necesario para su versión compacta.' };
+    return compactFailure(
+      'La receta oficial no informó todo el contenido necesario para su versión compacta.'
+    );
   }
   if (!officialContent.medications.length) {
-    return { error: 'La receta oficial no contiene fármacos para compactar.' };
+    return compactFailure('La receta oficial no contiene fármacos para compactar.');
   }
 
   try {
@@ -1941,7 +1950,9 @@ const createCompletePrescriptionPdf = async ({ encId, printFormat, info }) => {
       ),
     };
   } catch (error) {
-    return { error: 'No se pudo generar la receta compacta: ' + String((error && error.message) || error) };
+    return compactFailure(
+      'No se pudo generar la receta compacta: ' + String((error && error.message) || error)
+    );
   }
 };
 
@@ -4125,8 +4136,34 @@ const handleClinicalWriteRecoveryRequest = async ({
   }
 };
 
-const handleHospitalizedPrescriptionOptionsRequest = async ({ currentEncId }) => {
-  const infoResult = await getFichaFetchInfo();
+const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-';
+const PRESCRIPTION_BATCH_LIMIT = 24;
+const sweepPrescriptionBatches = async (now = Date.now()) => {
+  const stored = await chrome.storage.session.get(null);
+  const entries = Object.entries(stored || {})
+    .filter(([key]) => key.startsWith(PRESCRIPTION_BATCH_PREFIX));
+  const expiredKeys = entries
+    .filter(([, batch]) => {
+      const expiresAt = Number(batch && batch.expiresAt || 0);
+      return !batch || !batch.sessionKey || !Number.isFinite(Number(batch.createdAt)) ||
+        expiresAt > 0 && now >= expiresAt;
+    })
+    .map(([key]) => key);
+  const expired = new Set(expiredKeys);
+  const overflowKeys = entries
+    .filter(([key]) => !expired.has(key))
+    .sort((left, right) =>
+      Number(right[1].lastUsedAt || right[1].createdAt || 0) -
+      Number(left[1].lastUsedAt || left[1].createdAt || 0)
+    )
+    .slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT - 1))
+    .map(([key]) => key);
+  const removable = [...expiredKeys, ...overflowKeys];
+  if (removable.length) await chrome.storage.session.remove(removable);
+};
+
+const handleHospitalizedPrescriptionOptionsRequest = async ({ currentEncId, sender }) => {
+  const infoResult = await getFichaFetchInfo(sender);
   if (infoResult.error) return infoResult;
   let patientResult = await fetchActiveHospitalizedPatients(infoResult.info);
   if (patientResult.error) {
@@ -4158,11 +4195,16 @@ const handleHospitalizedPrescriptionOptionsRequest = async ({ currentEncId }) =>
   const printableIds = summaries
     .filter(patient => patient.medicationCount > 0 && !patient.unavailableReason)
     .map(patient => patient.encounterId);
+  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
+  const expiresAt = Number(infoResult.info && infoResult.info.expiresAt);
+  await sweepPrescriptionBatches();
   const batchId = crypto.randomUUID();
   await chrome.storage.session.set({
-    [`hhr-prescription-batch-${batchId}`]: {
+    [`${PRESCRIPTION_BATCH_PREFIX}${batchId}`]: {
       allowedEncounterIds: printableIds,
       createdAt: Date.now(),
+      sessionKey,
+      expiresAt: Number.isFinite(expiresAt) && expiresAt > 0 ? expiresAt : null,
     },
   });
   return {
@@ -4173,16 +4215,23 @@ const handleHospitalizedPrescriptionOptionsRequest = async ({ currentEncId }) =>
   };
 };
 
-const handleHospitalizedPrescriptionPrintRequest = async ({ batchId, encIds, printFormat }) => {
+const handleHospitalizedPrescriptionPrintRequest = async ({ batchId, encIds, printFormat, sender }) => {
   self.HhrExtensionRuntime.ensurePdf();
   if (!/^[a-f0-9-]{20,}$/i.test(String(batchId || ''))) {
     return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
   }
-  const storageKey = `hhr-prescription-batch-${batchId}`;
+  const storageKey = `${PRESCRIPTION_BATCH_PREFIX}${batchId}`;
   const stored = await chrome.storage.session.get(storageKey);
   const batch = stored && stored[storageKey];
-  if (!batch || Date.now() - Number(batch.createdAt || 0) > 30 * 60 * 1000) {
+  if (!batch) {
     return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
+  }
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return infoResult;
+  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
+  if (!self.HhrPrescriptionPrint.isPrescriptionBatchSessionValid(batch, sessionKey, Date.now())) {
+    await chrome.storage.session.remove(storageKey);
+    return { error: 'La sesión clínica cambió o venció. Actualiza la lista y vuelve a intentarlo.' };
   }
   const allowed = new Set(Array.isArray(batch.allowedEncounterIds) ? batch.allowedEncounterIds : []);
   const selected = Array.from(new Set(Array.isArray(encIds) ? encIds.map(String) : []))
@@ -4190,17 +4239,25 @@ const handleHospitalizedPrescriptionPrintRequest = async ({ batchId, encIds, pri
   if (selected.length === 0) return { error: 'Selecciona al menos un paciente con receta disponible.' };
   if (selected.length > 120) return { error: 'La selección supera el máximo seguro de 120 pacientes.' };
 
-  const infoResult = await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
   const activeSelection = await verifySelectedEncountersStillHospitalized(selected, infoResult.info);
   if (activeSelection.error) return activeSelection;
   const format = printFormat === 'compact' ? 'compact' : 'standard';
   const generated = await mapWithConcurrency(selected, 2, async encId => {
-    const result = await createCompletePrescriptionPdf({ encId, printFormat: format, info: infoResult.info });
-    return result.error ? { encId, error: result.error } : { encId, buffer: result.buffer };
+    const result = await createCompletePrescriptionPdf({
+      encId,
+      printFormat: format,
+      info: infoResult.info,
+      allowOfficialFallback: format === 'compact',
+    });
+    return result.error
+      ? { encId, error: result.error }
+      : { encId, buffer: result.buffer, compactFallbackReason: result.compactFallbackReason || '' };
   });
   const completed = generated.filter(item => item.buffer);
   const skipped = generated.filter(item => item.error).map(item => ({ encId: item.encId, error: item.error }));
+  const compactFallbacks = completed
+    .filter(item => item.compactFallbackReason)
+    .map(item => ({ encId: item.encId, reason: item.compactFallbackReason }));
   if (completed.length === 0) {
     return { error: 'No se pudo generar ninguna de las recetas seleccionadas.', skipped };
   }
@@ -4220,8 +4277,10 @@ const handleHospitalizedPrescriptionPrintRequest = async ({ batchId, encIds, pri
     ),
   });
   if (opened.error) return opened;
-  await chrome.storage.session.remove(storageKey);
-  return { ...opened, count: completed.length, skipped };
+  await chrome.storage.session.set({
+    [storageKey]: { ...batch, lastUsedAt: Date.now() },
+  });
+  return { ...opened, count: completed.length, skipped, compactFallbacks };
 };
 
 // Keep Eloisa's official Jasper prescription as the source of truth for the complete option and
@@ -4841,7 +4900,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg && msg.type === 'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST') {
     return respondAsync(
-      handleHospitalizedPrescriptionOptionsRequest({ currentEncId: msg.currentEncId }),
+      handleHospitalizedPrescriptionOptionsRequest({ currentEncId: msg.currentEncId, sender }),
       sendResponse,
       'No se pudieron revisar las recetas de pacientes hospitalizados.'
     );
@@ -4852,6 +4911,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         batchId: msg.batchId,
         encIds: msg.encIds,
         printFormat: msg.printFormat,
+        sender,
       }),
       sendResponse,
       'No se pudo generar la impresión de pacientes hospitalizados.'

@@ -637,6 +637,21 @@
       var tableBoundaryYs = Array.from(boundaryGroups.values())
         .filter(function (group) {
           var tolerance = 5;
+          // Rayen serves two official Jasper layouts. The newer one draws each column as a
+          // separate segment; the older one draws one continuous horizontal row border and no
+          // vertical separators. Both geometries prove the same medication-row ownership.
+          var hasContinuousTableLine = group.lines.some(function (line) {
+            return line.x0 <= medicationHeader.x + tolerance &&
+              line.x1 >= dispatchHeader.x + 50;
+          });
+          var coveredUntil = group.lines
+            .slice()
+            .sort(function (a, b) { return a.x0 - b.x0 || a.x1 - b.x1; })
+            .reduce(function (rightEdge, line) {
+              if (line.x0 > rightEdge + tolerance || line.x1 <= rightEdge) return rightEdge;
+              return Math.max(rightEdge, line.x1);
+            }, medicationHeader.x);
+          var hasJoinedTableLine = coveredUntil >= dispatchHeader.x + 50;
           var hasMedicationCell = group.lines.some(function (line) {
             return Math.abs(line.x0 - medicationHeader.x) <= tolerance &&
               Math.abs(line.x1 - posologyHeader.x) <= tolerance;
@@ -648,7 +663,8 @@
           var hasDispatchCell = group.lines.some(function (line) {
             return Math.abs(line.x0 - dispatchHeader.x) <= tolerance && line.x1 - line.x0 >= 50;
           });
-          return hasMedicationCell && hasPosologyCell && hasDispatchCell;
+          return hasContinuousTableLine || hasJoinedTableLine ||
+            hasMedicationCell && hasPosologyCell && hasDispatchCell;
         })
         .map(function (group) { return group.y; });
       timestamps.forEach(function (timestamp) {
@@ -659,13 +675,18 @@
           .filter(function (candidateY) { return candidateY > timestamp.y + 2; })
           .sort(function (a, b) { return a - b; })[0];
         var lowerBoundary = tableBoundaryYs
-          .filter(function (candidateY) { return candidateY < timestamp.y - 2; })
+          // In the horizontal-only Jasper variant the timestamp baseline can sit less than
+          // two PDF points above its row border. Keep a small half-point separation so the
+          // real lower border is retained without accepting a line crossing the timestamp.
+          .filter(function (candidateY) { return candidateY < timestamp.y - 0.5; })
           .sort(function (a, b) { return b - a; })[0];
         // Jasper draws the lower border of every medication row. Those real table lines,
         // not timestamp midpoints, keep independently wrapped rows from crossing owners.
         // A continued page may omit only the first row's top border; its nearest official
         // metadata label is then the outer cap, while the lower border remains mandatory.
-        var upperBoundary = Number.isFinite(upperTableBoundary) ? upperTableBoundary : upperStructural;
+        var upperBoundary = [upperTableBoundary, upperStructural]
+          .filter(Number.isFinite)
+          .sort(function (a, b) { return a - b; })[0];
         if (!Number.isFinite(upperBoundary) || !Number.isFinite(lowerBoundary) ||
             upperBoundary <= timestamp.y || lowerBoundary >= timestamp.y ||
             upperBoundary - lowerBoundary > 120) {
@@ -713,14 +734,12 @@
         });
       });
     });
-    var medicationRouteMarkers = items.filter(function (item) {
-      return item.x < 300 && /\bv[ií]a\b/i.test(normalizedPdfText(item.text));
-    }).length;
     if (!extractionComplete || !diagnosisLabel ||
         !recognizedTimestampCount ||
-        medications.length !== recognizedTimestampCount || medicationRouteMarkers !== medications.length ||
+        medications.length !== recognizedTimestampCount ||
         medications.some(function (medication) {
-          return !/\bv[ií]a\b/i.test(medication.medication) || !normalizedPdfText(medication.posology);
+          return !/\bv[ií]a\b/i.test(medication.medication + ' ' + medication.posology) ||
+            !normalizedPdfText(medication.posology);
         })) {
       return null;
     }
@@ -1237,6 +1256,12 @@
     };
   };
 
+  var isPrescriptionBatchSessionValid = function (batch, sessionKey, now) {
+    if (!batch || !sessionKey || String(batch.sessionKey || '') !== String(sessionKey)) return false;
+    var expiresAt = Number(batch.expiresAt || 0);
+    return !(expiresAt > 0 && Number(now == null ? Date.now() : now) >= expiresAt);
+  };
+
   var buildBatchPrescriptionFilename = function (count, printFormat, date) {
     var safeCount = Math.max(1, Number(count) || 1);
     var safeDate = toIsoDate(date) || new Date().toISOString().slice(0, 10);
@@ -1292,6 +1317,7 @@
     buildPrescriptionFilename: buildPrescriptionFilename,
     activeHospitalizedEncounters: activeHospitalizedEncounters,
     buildHospitalizedPrescriptionSummary: buildHospitalizedPrescriptionSummary,
+    isPrescriptionBatchSessionValid: isPrescriptionBatchSessionValid,
     buildBatchPrescriptionFilename: buildBatchPrescriptionFilename,
     buildBatchIndicationsFilename: buildBatchIndicationsFilename,
     buildRegimenFilename: buildRegimenFilename,
