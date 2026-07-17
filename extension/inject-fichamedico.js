@@ -40,9 +40,18 @@
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
 
-  const originalCreateObjectURL = URL.createObjectURL.bind(URL);
-  const originalWindowOpen = window.open.bind(window);
-  const originalAnchorClick = HTMLAnchorElement.prototype.click;
+  const originalCreateObjectURL = typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL.bind(URL)
+    : null;
+  const originalWindowOpen = typeof window.open === 'function'
+    ? window.open.bind(window)
+    : null;
+  const anchorPrototype = typeof HTMLAnchorElement !== 'undefined'
+    ? HTMLAnchorElement.prototype
+    : null;
+  const originalAnchorClick = anchorPrototype && typeof anchorPrototype.click === 'function'
+    ? anchorPrototype.click
+    : null;
   const MAX_EPICRISIS_BASE64_LENGTH = 20 * 1024 * 1024;
   const publishEpicrisisCapture = (capture, value) => {
     if (!capture || !value) return;
@@ -85,6 +94,9 @@
     return true;
   };
   URL.createObjectURL = function (value) {
+    if (!originalCreateObjectURL) {
+      throw new TypeError('URL.createObjectURL no está disponible en este entorno.');
+    }
     if (epicrisisCapture && Date.now() < epicrisisCapture.expiresAt &&
         value instanceof Blob && /application\/pdf/i.test(String(value.type || ''))) {
       const url = originalCreateObjectURL(value);
@@ -103,12 +115,14 @@
   };
   window.open = function (url) {
     if (consumeEpicrisisCandidate(url)) return null;
-    return originalWindowOpen.apply(window, arguments);
+    return originalWindowOpen ? originalWindowOpen.apply(window, arguments) : null;
   };
-  HTMLAnchorElement.prototype.click = function () {
-    if (consumeEpicrisisCandidate(this.href)) return;
-    return originalAnchorClick.apply(this, arguments);
-  };
+  if (anchorPrototype) {
+    anchorPrototype.click = function () {
+      if (consumeEpicrisisCandidate(this.href)) return;
+      if (originalAnchorClick) return originalAnchorClick.apply(this, arguments);
+    };
+  }
 
   const rememberFromRequest = (url, authHeader) => {
     try {
