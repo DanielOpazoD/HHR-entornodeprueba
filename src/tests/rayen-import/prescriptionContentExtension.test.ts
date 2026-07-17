@@ -265,9 +265,9 @@ describe('extension prescription print content flow', () => {
       .fn()
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     document.body.innerHTML = `
-      <table><tbody><tr><td>Paciente prueba · RUN: 15.066.726-7</td><td><button id="open-actions">⋮</button></td></tr></tbody></table>
-      <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run">⋮</button></td></tr></tbody></table>
-      <div role="menu"><button id="native-print-1" type="button">Imprimir Alta Médica</button></div>
+      <table><tbody><tr><td>Paciente prueba · RUN: 15.066.726-7</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
+      <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run" aria-expanded="false">⋮</button></td></tr></tbody></table>
+      <div role="menu"><button id="native-print-1" type="button"><span class="MuiListItemIcon-root"><svg data-testid="LocalPrintshopRoundedIcon"></svg></span><span class="MuiListItemText-primary">Imprimir Alta Médica</span></button></div>
       <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
       <div role="menu" hidden><button id="native-print-3" type="button">Imprimir Alta Médica</button></div>
     `;
@@ -310,6 +310,7 @@ describe('extension prescription print content flow', () => {
     const corrected = await vi.waitFor(() => {
       const element = document.getElementById('hhr-corrected-discharge-print');
       expect(element?.textContent).toContain('Imprimir alta corregida');
+      expect(element?.querySelector('[data-testid="LocalPrintshopRoundedIcon"]')).not.toBeNull();
       const correctedItems = Array.from(
         document.querySelectorAll<HTMLElement>('[data-hhr-corrected-discharge-print="true"]')
       );
@@ -331,6 +332,14 @@ describe('extension prescription print content flow', () => {
       expect(correctedMessages[0]?.patientRun).toBe('15.066.726-7');
       expect(captureArmCount).toBe(1);
     });
+    (document.getElementById('open-actions') as HTMLButtonElement).setAttribute(
+      'aria-expanded',
+      'false'
+    );
+    (document.getElementById('open-actions-without-run') as HTMLButtonElement).setAttribute(
+      'aria-expanded',
+      'true'
+    );
     (document.getElementById('open-actions-without-run') as HTMLButtonElement).focus();
     corrected.click();
     expect(alertSpy).toHaveBeenCalledWith(

@@ -57,6 +57,25 @@
   document.addEventListener('click', rememberDischargePatientFromEvent, true);
   document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
 
+  const dischargePatientFromOpenMenu = () => {
+    const expandedActions = Array.from(
+      document.querySelectorAll('button[aria-expanded="true"],[role="button"][aria-expanded="true"]')
+    );
+    for (const action of expandedActions) {
+      const row = action.closest('tr,[role="row"]');
+      if (row) return { found: true, patientRun: runFromText(row.textContent) };
+    }
+    return { found: false, patientRun: '' };
+  };
+
+  const setCorrectedDischargeItemLabel = (item, label) => {
+    const labelNode = item.querySelector(
+      '.MuiListItemText-primary,.MuiListItemText-root span,p'
+    );
+    if (labelNode) labelNode.textContent = label;
+    else item.textContent = label;
+  };
+
   window.addEventListener('message', event => {
     if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
     const data = event.data || {};
@@ -88,7 +107,11 @@
 
   const requestCorrectedDischargePrint = async (nativeItem, item) => {
     if (activeEpicrisisPrintReqId) return;
-    if (!lastDischargePatientRun) {
+    const openMenuPatient = dischargePatientFromOpenMenu();
+    const expectedPatientRun = openMenuPatient.found
+      ? openMenuPatient.patientRun
+      : lastDischargePatientRun;
+    if (!expectedPatientRun) {
       window.alert(
         'No se pudo identificar al paciente de esta alta. Cierra el menú, vuelve a abrirlo desde su fila y reintenta.'
       );
@@ -97,10 +120,9 @@
     const reqId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : 'epicrisis-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-    const expectedPatientRun = lastDischargePatientRun;
+    lastDischargePatientRun = expectedPatientRun;
     activeEpicrisisPrintReqId = reqId;
-    const originalLabel = item.textContent;
-    item.textContent = 'Preparando alta corregida…';
+    setCorrectedDischargeItemLabel(item, 'Preparando alta corregida…');
     item.setAttribute('aria-busy', 'true');
     item.setAttribute('aria-disabled', 'true');
     item.style.pointerEvents = 'none';
@@ -125,7 +147,7 @@
     } finally {
       window.postMessage({ type: 'RAYEN_EPICRISIS_PDF_CAPTURE_CANCEL', reqId }, window.location.origin);
       if (activeEpicrisisPrintReqId === reqId) activeEpicrisisPrintReqId = '';
-      item.textContent = originalLabel;
+      setCorrectedDischargeItemLabel(item, 'Imprimir alta corregida');
       item.removeAttribute('aria-busy');
       item.removeAttribute('aria-disabled');
       item.style.pointerEvents = '';
@@ -141,7 +163,7 @@
       if (!document.getElementById(EPICRISIS_MENU_ITEM_ID)) item.id = EPICRISIS_MENU_ITEM_ID;
       item.dataset.hhrCorrectedDischargePrint = 'true';
       item.removeAttribute('data-state');
-      item.textContent = 'Imprimir alta corregida';
+      setCorrectedDischargeItemLabel(item, 'Imprimir alta corregida');
       item.setAttribute('aria-label', 'Imprimir alta médica con receta en página nueva');
       item.addEventListener('click', event => {
         event.preventDefault();

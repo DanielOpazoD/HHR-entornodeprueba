@@ -43,8 +43,17 @@
   const originalCreateObjectURL = URL.createObjectURL.bind(URL);
   const originalWindowOpen = window.open.bind(window);
   const originalAnchorClick = HTMLAnchorElement.prototype.click;
+  const MAX_EPICRISIS_BASE64_LENGTH = 20 * 1024 * 1024;
   const publishEpicrisisCapture = (capture, value) => {
     if (!capture || !value) return;
+    if (Math.ceil(Number(value.size || 0) / 3) * 4 > MAX_EPICRISIS_BASE64_LENGTH) {
+      window.postMessage({
+        type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+        reqId: capture.reqId,
+        error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.',
+      }, window.location.origin);
+      return;
+    }
     value.arrayBuffer().then(buffer => {
       const bytes = new Uint8Array(buffer);
       let binary = '';

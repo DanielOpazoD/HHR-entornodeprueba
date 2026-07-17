@@ -1903,6 +1903,10 @@ const openPdfPrintDialog = async ({ buffer, filename }) => {
 
 const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) => {
   try {
+    const normalizedPatientRun = String(patientRun || '').toUpperCase().replace(/[^0-9K]/g, '');
+    if (!/^[0-9]{6,8}[0-9K]$/.test(normalizedPatientRun)) {
+      return { error: 'No se pudo validar el RUN del paciente seleccionado.' };
+    }
     if (String(pdfBase64 || '').length > 20 * 1024 * 1024) {
       return { error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.' };
     }
@@ -1917,7 +1921,7 @@ const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) =
       source,
       self.HhrPrescriptionPrint,
       self.PDFLib,
-      { expectedPatientRun: String(patientRun || '') }
+      { expectedPatientRun: normalizedPatientRun }
     );
     return openPdfPrintDialog({
       buffer: corrected,

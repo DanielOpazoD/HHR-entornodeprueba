@@ -62,7 +62,8 @@ describe('epicrisis PDF extension', () => {
           correctEpicrisisPrescriptionPages: (
             buffer: Uint8Array,
             inputHelper: typeof helper,
-            pdfLibrary: typeof import('pdf-lib')
+            pdfLibrary: typeof import('pdf-lib'),
+            options: { expectedPatientRun: string }
           ) => Promise<Uint8Array>;
         };
       }
@@ -70,7 +71,8 @@ describe('epicrisis PDF extension', () => {
     const corrected = await api.correctEpicrisisPrescriptionPages(
       await source.save(),
       helper,
-      await import('pdf-lib')
+      await import('pdf-lib'),
+      { expectedPatientRun: '15.066.726-7' }
     );
     const result = await PDFDocument.load(corrected);
     expect(result.getPageCount()).toBe(4);

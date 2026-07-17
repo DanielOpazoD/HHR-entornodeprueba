@@ -126,11 +126,11 @@
     var layout = await helper.extractOfficialEpicrisisLayout(buffer);
     if (!layout) throw new Error('No se encontró una receta de alta separable en el PDF oficial.');
     var expectedPatientRun = normalizedRun(options && options.expectedPatientRun);
-    if (expectedPatientRun && !isValidNormalizedRun(expectedPatientRun)) {
+    if (!isValidNormalizedRun(expectedPatientRun)) {
       throw new Error('El RUN del paciente seleccionado no es válido.');
     }
     var headerPatientRun = headerRun(layout.headerItems);
-    if (expectedPatientRun && headerPatientRun !== expectedPatientRun) {
+    if (headerPatientRun !== expectedPatientRun) {
       throw new Error('El PDF generado por Eloísa no corresponde al paciente seleccionado.');
     }
     var library = pdfLibrary || root.PDFLib;
