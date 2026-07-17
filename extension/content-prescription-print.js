@@ -42,8 +42,20 @@
   let lastDischargePatientRun = '';
 
   const runFromText = value => {
-    const match = String(value || '').match(/\bRUN\s*:?\s*([0-9.\-Kk]+)/i);
+    const match = String(value || '').match(/RUN\s*:?\s*([0-9.\-Kk]+)/i);
     return match ? match[1].trim() : '';
+  };
+
+  const runFromPatientRow = row => {
+    if (!row) return '';
+    const labeledRun = Array.from(row.querySelectorAll('[aria-label]')).find(element =>
+      /^RUN\s*:?/i.test(String(element.textContent || '').trim())
+    );
+    if (labeledRun) return String(labeledRun.getAttribute('aria-label') || '').trim();
+    const visibleRun = Array.from(row.querySelectorAll('p,span,div')).find(element =>
+      /^RUN\s*:?/i.test(String(element.textContent || '').trim())
+    );
+    return runFromText(visibleRun ? visibleRun.textContent : row.textContent);
   };
 
   // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
@@ -52,7 +64,7 @@
     const target = event.target instanceof Element ? event.target : null;
     const row = target && target.closest('tr,[role="row"]');
     if (!row) return;
-    lastDischargePatientRun = runFromText(row.textContent);
+    lastDischargePatientRun = runFromPatientRow(row);
   };
   document.addEventListener('click', rememberDischargePatientFromEvent, true);
   document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
@@ -63,7 +75,7 @@
     );
     for (const action of expandedActions) {
       const row = action.closest('tr,[role="row"]');
-      if (row) return { found: true, patientRun: runFromText(row.textContent) };
+      if (row) return { found: true, patientRun: runFromPatientRow(row) };
     }
     return { found: false, patientRun: '' };
   };

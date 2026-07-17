@@ -265,7 +265,7 @@ describe('extension prescription print content flow', () => {
       .fn()
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     document.body.innerHTML = `
-      <table><tbody><tr><td>Paciente prueba · RUN: 15.066.726-7</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
+      <table><tbody><tr><td><span>Paciente prueba · Alta médica</span><p aria-label="15.066.726-7">RUN : 15.066.726-7</p></td><td>80 a</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
       <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run" aria-expanded="false">⋮</button></td></tr></tbody></table>
       <div role="menu"><button id="native-print-1" type="button"><span class="MuiListItemIcon-root"><svg data-testid="LocalPrintshopRoundedIcon"></svg></span><span class="MuiListItemText-primary">Imprimir Alta Médica</span></button></div>
       <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
