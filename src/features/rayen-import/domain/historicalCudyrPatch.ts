@@ -1,6 +1,6 @@
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 
 export interface HistoricalCudyrPatchResolution {
   matched: boolean;

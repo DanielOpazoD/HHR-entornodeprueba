@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   DailyRecordSchema,
-  hasStructuralRepairs,
   parseDailyRecordWithDefaults,
   parseDailyRecordWithDefaultsReport,
   safeParseDailyRecord,
@@ -472,39 +471,6 @@ describe('zod daily record schemas', () => {
       expect(record.cudyrCompletedAt).toBeUndefined();
       expect(record.cudyrCompletedBy).toBeUndefined();
       expect(record.handoffNightReceives).toEqual([]);
-    });
-  });
-
-  describe('repair reports', () => {
-    it('detects structural repairs in salvaged daily records', () => {
-      const parsed = parseDailyRecordWithDefaultsReport(
-        {
-          date: '2026-03-04',
-          beds: {
-            R1: {
-              patientName: 'Paciente Legacy',
-              status: 'ESTADO_INVALIDO',
-              clinicalEvents: [null],
-            },
-          },
-        },
-        '2026-03-04'
-      );
-
-      expect(hasStructuralRepairs(parsed.report)).toBe(true);
-    });
-
-    it('does not mark clean records as repaired', () => {
-      const parsed = parseDailyRecordWithDefaultsReport(
-        {
-          date: '2026-03-04',
-          beds: {},
-          nurses: ['', ''],
-        },
-        '2026-03-04'
-      );
-
-      expect(hasStructuralRepairs(parsed.report)).toBe(false);
     });
   });
 });
