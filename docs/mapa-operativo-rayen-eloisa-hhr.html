@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Mapa operativo Rayen · Eloísa · HHR</title>
+  <style>
+    :root {
+      --navy-950: #071b31;
+      --navy-900: #102a43;
+      --navy-800: #173f5f;
+      --blue-700: #1f5d84;
+      --teal-700: #007c83;
+      --teal-600: #07959a;
+      --teal-050: #eefafa;
+      --slate-900: #172b3a;
+      --slate-700: #435b6b;
+      --slate-500: #718697;
+      --slate-300: #cbd6de;
+      --slate-200: #dce5eb;
+      --slate-100: #edf2f5;
+      --slate-050: #f7f9fb;
+      --amber-700: #a65d00;
+      --amber-100: #fff4df;
+      --red-700: #a43838;
+      --red-100: #fff0f0;
+      --green-700: #14765e;
+      --green-100: #eaf8f3;
+      --white: #fff;
+      --sidebar: 272px;
+      --shadow: 0 10px 30px rgba(16, 42, 67, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--slate-900);
+      background: var(--white);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    a { color: var(--blue-700); }
+    code, pre, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    code { font-size: .92em; }
+    button, input { font: inherit; }
+    svg { max-width: 100%; }
+
+    .skip-link {
+      position: fixed;
+      left: 16px;
+      top: -60px;
+      z-index: 100;
+      background: var(--white);
+      color: var(--navy-900);
+      padding: 10px 14px;
+      border-radius: 6px;
+      transition: top .2s ease;
+    }
+    .skip-link:focus { top: 16px; }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: var(--sidebar);
+      overflow-y: auto;
+      color: #d9eaf4;
+      background: var(--navy-950);
+      border-right: 1px solid rgba(255,255,255,.08);
+      z-index: 20;
+    }
+    .sidebar-head {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .sidebar-head strong {
+      display: block;
+      color: var(--white);
+      font-size: 18px;
+      letter-spacing: -.02em;
+    }
+    .sidebar-head span {
+      display: block;
+      margin-top: 5px;
+      color: #8fcfd2;
+      font-size: 12px;
+    }
+    .nav-search { padding: 16px 18px 8px; }
+    .nav-search input {
+      width: 100%;
+      padding: 9px 11px;
+      color: var(--white);
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 6px;
+      outline: none;
+      font-size: 13px;
+    }
+    .nav-search input:focus { border-color: #6fc8cc; }
+    .nav-search input::placeholder { color: #9bb2c2; }
+    nav { padding: 8px 10px 30px; }
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 39px;
+      margin: 2px 0;
+      padding: 9px 12px;
+      color: #d9eaf4;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    nav a:hover, nav a:focus-visible, nav a.active {
+      color: var(--white);
+      background: rgba(35, 142, 164, .24);
+      border-left-color: #49c0c5;
+    }
+    nav a span:first-child { width: 20px; text-align: center; color: #88c9ce; }
+    .sidebar-foot {
+      padding: 18px 24px 24px;
+      color: #97aebe;
+      font-size: 11px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+
+    main {
+      margin-left: var(--sidebar);
+      min-width: 0;
+    }
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 28px;
+      padding: 32px 44px 24px;
+      border-bottom: 1px solid var(--slate-200);
+      background: var(--white);
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy-900);
+      font-size: clamp(28px, 3vw, 42px);
+      line-height: 1.12;
+      letter-spacing: -.04em;
+    }
+    .lede {
+      max-width: 820px;
+      margin: 12px 0 0;
+      color: var(--slate-700);
+      font-size: 16px;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      min-width: 300px;
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .meta div { padding: 10px 12px; border-right: 1px solid var(--slate-200); }
+    .meta div:nth-child(2n) { border-right: 0; }
+    .meta div:nth-child(-n+2) { border-bottom: 1px solid var(--slate-200); }
+    .meta dt { color: var(--slate-500); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .meta dd { margin: 3px 0 0; color: var(--navy-900); font-size: 12px; font-weight: 700; }
+
+    section {
+      padding: 44px;
+      border-bottom: 1px solid var(--slate-200);
+      scroll-margin-top: 10px;
+    }
+    section:nth-of-type(even) { background: var(--slate-050); }
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    h2 {
+      margin: 0;
+      color: var(--navy-900);
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: -.025em;
+    }
+    h3 {
+      margin: 26px 0 12px;
+      color: var(--navy-800);
+      font-size: 17px;
+      line-height: 1.35;
+    }
+    p { margin: 0 0 14px; }
+    ul, ol { margin: 10px 0 18px; padding-left: 22px; }
+    li + li { margin-top: 7px; }
+    .section-note { max-width: 640px; margin: 0; color: var(--slate-700); }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      white-space: nowrap;
+      border: 1px solid;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .01em;
+    }
+    .confirmed { color: var(--green-700); background: var(--green-100); border-color: #acdcca; }
+    .inferred { color: var(--blue-700); background: #edf6fb; border-color: #bed8e8; }
+    .pending { color: var(--amber-700); background: var(--amber-100); border-color: #eed29d; }
+    .historical { color: #67517d; background: #f6f0fb; border-color: #d9c8e8; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 1px;
+      background: var(--slate-200);
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .legend article { padding: 16px; background: var(--white); }
+    .legend p { margin: 8px 0 0; color: var(--slate-700); font-size: 12px; }
+
+    .callout {
+      margin: 18px 0;
+      padding: 15px 17px;
+      border-left: 4px solid var(--teal-700);
+      background: var(--teal-050);
+    }
+    .callout.warning { border-left-color: #d38a1b; background: var(--amber-100); }
+    .callout.danger { border-left-color: var(--red-700); background: var(--red-100); }
+    .callout strong { color: var(--navy-900); }
+    .callout p:last-child { margin-bottom: 0; }
+
+    .architecture {
+      padding: 22px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .architecture svg { display: block; min-width: 900px; width: 100%; height: auto; }
+    .flow-caption { margin: 12px 0 0; color: var(--slate-500); font-size: 12px; }
+
+    .cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .open-panel { padding: 22px 0; border-top: 3px solid var(--teal-700); }
+    .open-panel h3 { margin-top: 0; }
+    .open-panel p { color: var(--slate-700); }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--slate-200); background: var(--white); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 11px 13px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--slate-200); }
+    th { color: var(--navy-900); background: #edf3f7; font-size: 11px; text-transform: uppercase; letter-spacing: .045em; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child { color: var(--navy-800); font-weight: 650; }
+    .compact th, .compact td { padding: 8px 10px; }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      gap: 0 14px;
+      margin: 20px 0;
+    }
+    .sequence .n {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      color: var(--white);
+      background: var(--teal-700);
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .sequence article { padding: 2px 0 22px; border-left: 1px solid var(--slate-300); }
+    .sequence article:last-child { border-left-color: transparent; }
+    .sequence h3 { margin: 0 0 5px; }
+    .sequence p { color: var(--slate-700); }
+
+    .protocol {
+      padding: 15px;
+      background: var(--navy-950);
+      color: #d8e8f1;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .protocol .muted { color: #8fc0d2; }
+
+    .file-map code { white-space: nowrap; }
+    .file-map td:last-child { color: var(--slate-700); }
+
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      position: relative;
+      padding: 10px 12px 10px 40px;
+      margin: 0;
+      border-bottom: 1px solid var(--slate-200);
+      background: var(--white);
+    }
+    .checklist li::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 13px;
+      height: 13px;
+      border: 1.5px solid var(--teal-700);
+      border-radius: 2px;
+    }
+
+    .search-hidden { display: none !important; }
+    .footer {
+      margin-left: var(--sidebar);
+      padding: 28px 44px 40px;
+      color: var(--slate-500);
+      background: var(--navy-950);
+      font-size: 12px;
+    }
+    .footer strong { color: var(--white); }
+
+    @media (max-width: 1050px) {
+      :root { --sidebar: 228px; }
+      .page-header { flex-direction: column; }
+      .meta { width: 100%; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .cols-2 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .sidebar { position: static; width: 100%; max-height: none; }
+      .sidebar-head { padding: 20px; }
+      .nav-search, nav, .sidebar-foot { display: none; }
+      main, .footer { margin-left: 0; }
+      .page-header, section { padding: 28px 20px; }
+      .legend { grid-template-columns: 1fr; }
+      .meta { min-width: 0; grid-template-columns: 1fr; }
+      .meta div { border-right: 0; border-bottom: 1px solid var(--slate-200); }
+      .meta div:last-child { border-bottom: 0; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      .footer { padding: 26px 20px; }
+    }
+    @media print {
+      .sidebar { display: none; }
+      main, .footer { margin-left: 0; }
+      .page-header, section { padding: 24px; }
+      section { break-inside: avoid; }
+      .architecture { box-shadow: none; }
+      .status { border-color: currentColor; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#resumen">Saltar al contenido</a>
+
+  <aside class="sidebar" aria-label="Índice del documento">
+    <div class="sidebar-head">
+      <strong>Rayen · Eloísa · HHR</strong>
+      <span>Manual operativo para continuidad con IA</span>
+    </div>
+    <div class="nav-search">
+      <label for="section-search" class="mono" style="font-size:11px;color:#9bb2c2">FILTRAR SECCIONES</label>
+      <input id="section-search" type="search" placeholder="Ej. laboratorio, egreso…" autocomplete="off">
+    </div>
+    <nav>
+      <a href="#resumen"><span>01</span><span>Resumen y alcance</span></a>
+      <a href="#arquitectura"><span>02</span><span>Arquitectura</span></a>
+      <a href="#fichamedico"><span>03</span><span>Ficha Médico</span></a>
+      <a href="#hospitalizado"><span>04</span><span>Hospitalizado</span></a>
+      <a href="#centro-hhr"><span>05</span><span>Centro HHR</span></a>
+      <a href="#laboratorio"><span>06</span><span>Laboratorio Syslab</span></a>
+      <a href="#sincronizacion"><span>07</span><span>Sincronización HHR</span></a>
+      <a href="#contratos"><span>08</span><span>Contratos y mensajes</span></a>
+      <a href="#datos"><span>09</span><span>Modelo de datos</span></a>
+      <a href="#seguridad"><span>10</span><span>Seguridad</span></a>
+      <a href="#navegacion-ia"><span>11</span><span>Runbook para IA</span></a>
+      <a href="#archivos"><span>12</span><span>Mapa de archivos</span></a>
+      <a href="#pruebas"><span>13</span><span>Pruebas y gates</span></a>
+      <a href="#pendientes"><span>14</span><span>Pendientes</span></a>
+      <a href="#evidencia"><span>15</span><span>Evidencia</span></a>
+    </nav>
+    <div class="sidebar-foot">Documento sin pacientes, RUN, tokens, credenciales ni resultados clínicos reales.</div>
+  </aside>
+
+  <main id="main">
+    <header class="page-header">
+      <div>
+        <h1>Mapa operativo Rayen · Eloísa · HHR</h1>
+        <p class="lede">Inventario funcional, técnico y visual de Ficha Médico, Hospitalizado, la extensión nativa y su sincronización con HHR. Diseñado para que otra IA pueda orientarse, navegar y mejorar el sistema sin perder reglas clínicas ni límites de seguridad.</p>
+      </div>
+      <dl class="meta">
+        <div><dt>Corte</dt><dd>15 julio 2026</dd></div>
+        <div><dt>Extensión</dt><dd>MV3 · v0.24.2</dd></div>
+        <div><dt>Rama revisada</dt><dd>codex/eloisa-lab-viewer</dd></div>
+        <div><dt>Estado</dt><dd>Documento técnico vivo</dd></div>
+      </dl>
+    </header>
+
+    <section id="resumen" data-title="Resumen y alcance evidencia confirmado inferido">
+      <div class="section-head">
+        <div><h2>1. Resumen y alcance</h2></div>
+        <p class="section-note">Este documento describe lo observado en las aplicaciones, lo implementado en el repositorio y las reglas explícitas que conectan Rayen con HHR.</p>
+      </div>
+
+      <div class="legend" aria-label="Niveles de evidencia">
+        <article><span class="status confirmed">Confirmado</span><p>Visible en sesión autenticada actual o respaldado directamente por código y pruebas.</p></article>
+        <article><span class="status inferred">Inferido</span><p>Conclusión técnica razonable desde assets, rutas o comportamiento, pero no contrato oficial.</p></article>
+        <article><span class="status pending">Pendiente de validar</span><p>Necesita caso clínico controlado, datos reales no sensibles o acceso al entorno institucional.</p></article>
+        <article><span class="status historical">Evidencia histórica</span><p>Observación previa y fechada. Puede cambiar y debe revalidarse antes de decidir.</p></article>
+      </div>
+
+      <div class="cols-2" style="margin-top:28px">
+        <article class="open-panel">
+          <h3>Qué es cada superficie</h3>
+          <ul>
+            <li><strong>Ficha Médico</strong>: ficha clínica hospitalaria, listas de encuentros, episodios, indicaciones, registros médicos y de enfermería.</li>
+            <li><strong>Hospitalizado / Gestión de Camas</strong>: ocupación y estados de camas, solicitudes de ingreso, egresos administrativos, listas de trabajo e informes.</li>
+            <li><strong>Extensión Centro HHR</strong>: capa MV3 que agrega herramientas clínicas, reutiliza sesiones oficiales y sirve de puente controlado hacia HHR.</li>
+            <li><strong>HHR</strong>: censo local y sistema de continuidad hospitalaria que reconcilia datos de Eloísa, exige revisión y persiste con la sesión Firebase del usuario.</li>
+            <li><strong>Syslab</strong>: portal interno de laboratorio consultado directamente desde la LAN para el visor de exámenes.</li>
+          </ul>
+        </article>
+        <article class="open-panel">
+          <h3>Principios que no deben romperse</h3>
+          <ul>
+            <li>La ausencia en Ficha Médico <strong>no es autoridad de egreso</strong>.</li>
+            <li>Una cama ocupada en HHR nunca debe sobrescribirse silenciosamente.</li>
+            <li>El modo por defecto es <strong>preview con confirmación humana</strong>.</li>
+            <li>Tokens y datos clínicos temporales deben minimizarse y no persistirse innecesariamente.</li>
+            <li>Las escrituras clínicas solo se declaran exitosas después de releer y verificar Eloísa.</li>
+            <li>La navegación entre pacientes invalida acciones ligadas al episodio anterior.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout warning">
+        <strong>Alcance epistemológico.</strong> No existe documentación oficial completa de Rayen dentro del repositorio. Los nombres de endpoints y estructuras son contratos observados por la integración; pueden cambiar sin aviso. Toda mejora debe fallar de forma conservadora y conservar una ruta de validación en sesión real.
+      </div>
+    </section>
+
+    <section id="arquitectura" data-title="Arquitectura manifest service worker relays MAIN ISOLATED HHR Firebase Syslab">
+      <div class="section-head">
+        <div><h2>2. Arquitectura de extremo a extremo</h2></div>
+        <span class="status confirmed">Confirmado por código</span>
+      </div>
+
+      <div class="architecture">
+        <svg viewBox="0 0 1240 520" role="img" aria-labelledby="arch-title arch-desc">
+          <title id="arch-title">Arquitectura Rayen, extensión HHR y Syslab</title>
+          <desc id="arch-desc">Ficha Médico y Hospitalizado entregan información a un service worker de Chrome. El worker conecta con el Centro HHR, la aplicación HHR y Syslab local.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#007c83"/></marker>
+            <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#718697"/></marker>
+          </defs>
+          <style>
+            .box{fill:#fff;stroke:#8da5b5;stroke-width:1.5}.box-strong{fill:#eefafa;stroke:#007c83;stroke-width:2}.box-dark{fill:#102a43;stroke:#102a43}.label{font:700 18px Inter, sans-serif;fill:#102a43}.label-light{font:700 18px Inter, sans-serif;fill:#fff}.sub{font:12px Inter, sans-serif;fill:#435b6b}.sub-light{font:12px Inter, sans-serif;fill:#d9eaf4}.line{fill:none;stroke:#007c83;stroke-width:2;marker-end:url(#arrow)}.dash{fill:none;stroke:#718697;stroke-width:1.6;stroke-dasharray:6 5;marker-end:url(#arrow-muted)}.caption{font:11px Inter, sans-serif;fill:#435b6b}
+          </style>
+          <rect class="box" x="30" y="40" width="220" height="110" rx="6"/><text class="label" x="140" y="78" text-anchor="middle">Ficha Médico</text><text class="sub" x="140" y="103" text-anchor="middle">Next.js · rutas /dashboard</text><text class="sub" x="140" y="123" text-anchor="middle">sesión HSP + API clínica</text>
+          <rect class="box" x="30" y="205" width="220" height="110" rx="6"/><text class="label" x="140" y="243" text-anchor="middle">Hospitalizado</text><text class="sub" x="140" y="268" text-anchor="middle">SPA hash · #/bed</text><text class="sub" x="140" y="288" text-anchor="middle">token + hospbackend</text>
+          <rect class="box" x="30" y="370" width="220" height="110" rx="6"/><text class="label" x="140" y="408" text-anchor="middle">Syslab LAN</text><text class="sub" x="140" y="433" text-anchor="middle">portal HTTP institucional</text><text class="sub" x="140" y="453" text-anchor="middle">PDF + HTML autenticado</text>
+
+          <rect class="box-strong" x="340" y="40" width="235" height="110" rx="6"/><text class="label" x="458" y="76" text-anchor="middle">MAIN world</text><text class="sub" x="458" y="101" text-anchor="middle">captura fetch/XHR</text><text class="sub" x="458" y="121" text-anchor="middle">normaliza + verifica identidad</text>
+          <rect class="box-strong" x="340" y="205" width="235" height="110" rx="6"/><text class="label" x="458" y="241" text-anchor="middle">ISOLATED relays</text><text class="sub" x="458" y="266" text-anchor="middle">window.postMessage</text><text class="sub" x="458" y="286" text-anchor="middle">chrome.runtime messaging</text>
+          <rect class="box-strong" x="340" y="370" width="235" height="110" rx="6"/><text class="label" x="458" y="406" text-anchor="middle">Syslab bridge</text><text class="sub" x="458" y="431" text-anchor="middle">sesión oficial del navegador</text><text class="sub" x="458" y="451" text-anchor="middle">PDF.js + validación RUN</text>
+
+          <rect class="box-dark" x="665" y="155" width="240" height="210" rx="8"/><text class="label-light" x="785" y="198" text-anchor="middle">Service worker MV3</text><text class="sub-light" x="785" y="228" text-anchor="middle">orquesta pestañas y permisos host</text><text class="sub-light" x="785" y="250" text-anchor="middle">descarga y parsea reportes</text><text class="sub-light" x="785" y="272" text-anchor="middle">protege escrituras verificadas</text><text class="sub-light" x="785" y="294" text-anchor="middle">mantiene sesión GC temporal</text><text class="sub-light" x="785" y="316" text-anchor="middle">genera/combina PDF y XLS</text><text class="sub-light" x="785" y="338" text-anchor="middle">health + navegación segura</text>
+
+          <rect class="box-strong" x="995" y="55" width="215" height="120" rx="6"/><text class="label" x="1103" y="92" text-anchor="middle">Centro HHR</text><text class="sub" x="1103" y="117" text-anchor="middle">UI insertada en Ficha Médico</text><text class="sub" x="1103" y="137" text-anchor="middle">módulos + acciones contextuales</text>
+          <rect class="box-strong" x="995" y="220" width="215" height="120" rx="6"/><text class="label" x="1103" y="257" text-anchor="middle">HHR web</text><text class="sub" x="1103" y="282" text-anchor="middle">preview + reconciliación</text><text class="sub" x="1103" y="302" text-anchor="middle">DailyRecord + Firestore</text>
+          <rect class="box" x="995" y="385" width="215" height="95" rx="6"/><text class="label" x="1103" y="421" text-anchor="middle">Persistencia local</text><text class="sub" x="1103" y="446" text-anchor="middle">session/local storage mínimos</text>
+
+          <path class="line" d="M250 95 H340"/><path class="line" d="M250 260 H340"/><path class="line" d="M250 425 H340"/>
+          <path class="line" d="M575 95 C620 95 620 210 665 210"/><path class="line" d="M575 260 H665"/><path class="line" d="M575 425 C620 425 620 315 665 315"/>
+          <path class="line" d="M905 210 C950 210 950 115 995 115"/><path class="line" d="M905 280 H995"/><path class="dash" d="M905 330 C950 330 950 432 995 432"/>
+          <path class="dash" d="M1103 220 V175"/><path class="dash" d="M1103 340 V385"/>
+          <text class="caption" x="278" y="82">captura sesión</text><text class="caption" x="276" y="247">captura token</text><text class="caption" x="276" y="412">lee informes</text>
+          <text class="caption" x="930" y="268">snapshot / consultas</text><text class="caption" x="1058" y="201">misma pestaña</text>
+        </svg>
+        <p class="flow-caption">Línea continua: intercambio operativo. Línea punteada: navegación o persistencia auxiliar. La extensión no escribe directamente en Firestore; HHR persiste con la identidad Firebase del usuario.</p>
+      </div>
+
+      <h3>Separación de mundos de Chrome</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Capa</th><th>Responsabilidad</th><th>Por qué existe</th></tr></thead>
+          <tbody>
+            <tr><td>MAIN world</td><td>Envuelve <code>fetch</code>/XHR de la aplicación, obtiene el token ya usado por Rayen, detecta cambios SPA y consulta APIs con la identidad vigente.</td><td>Es la única capa que comparte el contexto JavaScript de la aplicación anfitriona.</td></tr>
+            <tr><td>ISOLATED world</td><td>Inserta UI, valida eventos, cruza mensajes hacia <code>chrome.runtime</code> y evita depender de globals de la página.</td><td>Entrega aislamiento de la extensión y acceso seguro a APIs de Chrome.</td></tr>
+            <tr><td>Service worker</td><td>Centraliza host permissions, pestañas, generación de reportes, sesiones temporales y verificación de escrituras.</td><td>Evita dispersar privilegios y mantiene contratos testeables.</td></tr>
+            <tr><td>HHR page bridge</td><td>Traduce eventos <code>window.postMessage</code> de la app a mensajes de extensión.</td><td>Desacopla el frontend HHR de la API Chrome y permite detectar ausencia de extensión.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="fichamedico" data-title="Ficha Médico Next.js encounter list nursing medical routes session token census filters clinical episode">
+      <div class="section-head">
+        <div><h2>3. Ficha Médico</h2><p class="section-note">Superficie principal donde vive el Centro HHR y desde la cual se obtiene el censo clínico normalizado.</p></div>
+        <span class="status confirmed">Sesión observada</span>
+      </div>
+
+      <div class="cols-2">
+        <article class="open-panel">
+          <h3>Huella frontend actual</h3>
+          <ul>
+            <li>Aplicación Next.js con chunks bajo <code>/_next/static/</code> y App Router.</li>
+            <li>Idioma del documento: español.</li>
+            <li>Rutas de trabajo conocidas: <code>/dashboard/encounter-list</code>, variante de enfermería <code>/dashboard/encounter-list-nurse</code> y episodio como último segmento numérico.</li>
+            <li>La extensión observa <code>pushState</code>/<code>replaceState</code>, <code>pageshow</code>, foco y visibilidad para revalidar sesión y contexto.</li>
+          </ul>
+        </article>
+        <article class="open-panel">
+          <h3>Flujo visible de la lista</h3>
+          <ul>
+            <li>Vistas confirmadas: pacientes sin médico, interconsultas, pacientes propios y pacientes egresados de alta.</li>
+            <li>Filtros visibles: nombre/RUN y servicio.</li>
+            <li>La barra Centro HHR se inserta en la franja superior, ajusta su posición al encabezado real y se vuelve flotante en pantallas pequeñas.</li>
+            <li>En una ruta sin episodio, Lab queda deshabilitado y las operaciones masivas siguen disponibles.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Lectura del censo</h3>
+      <div class="sequence">
+        <div class="n">1</div><article><h3>Vincular sesión</h3><p><code>/api/auth/session</code> entrega una identidad clínica reducida: establecimiento, profesional, rol e identidad visible. Si el token cambia o la sesión expira, se invalida la vinculación anterior.</p></article>
+        <div class="n">2</div><article><h3>Resolver contexto médico o de enfermería</h3><p>La ruta y el rol determinan qué lista consultar. Una URL médica antigua nunca debe reutilizarse después de pasar a enfermería.</p></article>
+        <div class="n">3</div><article><h3>Obtener encuentros</h3><p>En contexto médico se usa <code>filterType=3</code> para censo activo completo y <code>filterType=2</code> como señal de egresados. En enfermería se unen y deduplican las listas <code>noveltyNurseList</code>, <code>uneventfulNurseList</code> e <code>incomeNurseList</code>.</p></article>
+        <div class="n">4</div><article><h3>Enriquecer por episodio</h3><p>Se consulta encabezado/demografía y diagnóstico principal activo, con techo de seis operaciones concurrentes para no generar ráfagas contra Ficha Médico.</p></article>
+        <div class="n">5</div><article><h3>Normalizar</h3><p>La extensión produce un <code>RayenCensusSnapshot</code> desacoplado del JSON crudo, con episodio, RUN, nombres separados, nacimiento, sexo/género, servicio, habitación, cama, ingreso, diagnóstico/CIE-10 y señales clínicas.</p></article>
+      </div>
+
+      <div class="callout">
+        <strong>Regla de completitud.</strong> <code>isComplete=true</code> solo es válido después de ensamblar el censo completo. Si el snapshot es parcial, HHR no puede inferir nada desde ausencias.
+      </div>
+
+      <h3>Acciones contextuales dentro del episodio</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Contexto</th><th>Acción</th><th>Comportamiento esperado</th></tr></thead>
+          <tbody>
+            <tr><td>Barra global</td><td>Centro HHR</td><td>Abre Recetas, Regímenes, Indicaciones, Entrega de turno, Scores, Lab y Conexiones.</td></tr>
+            <tr><td>Gestión de cuidados</td><td>Indicaciones</td><td>Solicita y abre el informe general oficial del episodio.</td></tr>
+            <tr><td>Gestión de cuidados</td><td>Receta médica</td><td>Abre receta oficial completa, compacta o selección por prescriptor/fármaco externo.</td></tr>
+            <tr><td>Solicitud de examen</td><td>Imprimir selección</td><td>Combina 2–3 órdenes oficiales en un documento compacto preservando folios y códigos.</td></tr>
+            <tr><td>Cambio de episodio</td><td>Invalidar modal</td><td>Congela o bloquea acciones ligadas al paciente anterior; obliga a reabrir desde el episodio actual.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="hospitalizado" data-title="Hospitalizado Gestión de Camas hash SPA bed work list reports alta administrativa token session">
+      <div class="section-head">
+        <div><h2>4. Hospitalizado · Gestión de Camas</h2><p class="section-note">Segunda sesión Rayen, usada como autoridad administrativa y fuente de reportes hospitalarios.</p></div>
+        <span class="status confirmed">Sesión observada</span>
+      </div>
+
+      <div class="cols-2">
+        <article class="open-panel">
+          <h3>Huella frontend actual</h3>
+          <ul>
+            <li>SPA con router hash y raíz <code>#app</code>.</li>
+            <li>Bundles visibles: <code>/manifest.js</code>, <code>/vendor.js</code> y <code>/app.js</code>.</li>
+            <li>Rutas confirmadas: <code>#/bed</code>, <code>#/work_list</code> y <code>#/reports</code>.</li>
+            <li>Navegación visible: Gestión de camas, Lista de trabajo, Mantenedor e Informes.</li>
+          </ul>
+        </article>
+        <article class="open-panel">
+          <h3>Funciones visibles</h3>
+          <ul>
+            <li>Resumen de camas por estados: disponibles, reservadas, ocupadas, altas médicas, altas de enfermería y bloqueadas.</li>
+            <li>Acciones como bloquear cama y registrar solicitud de ingreso.</li>
+            <li>La extensión no debe automatizar estas acciones; hoy usa Hospitalizado como fuente autorizada de sesión, lookup e informes.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Conexión temporal desde Centro HHR</h3>
+      <ol>
+        <li>El usuario abre una ventana oficial de Hospitalizado desde <strong>Conexiones</strong>.</li>
+        <li>El login ocurre directamente en Rayen; la extensión no recibe la contraseña.</li>
+        <li>El script MAIN observa el token que la propia app agrega a sus requests y lo vincula a un <code>connectionAttemptId</code>.</li>
+        <li>El relé entrega al service worker token, base API, establecimiento y metadatos mínimos.</li>
+        <li>La sesión reducida queda en <code>chrome.storage.session</code> y la ventana temporal puede cerrarse.</li>
+        <li><strong>Olvidar</strong> borra la sesión. Una expiración o identidad incompatible debe degradar el estado a no conectado.</li>
+      </ol>
+
+      <div class="callout danger">
+        <strong>Autoridad administrativa.</strong> Solo el informe masivo “Lista de Pacientes con Alta Administrativa” puede crear en HHR un alta, traslado o CMA estadístico. Alta médica, cierre de enfermería o desaparición del listado son señales, nunca orden para vaciar una cama.
+      </div>
+
+      <h3>Usos de Hospitalizado dentro de la integración</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Uso</th><th>Salida</th><th>Regla</th></tr></thead>
+          <tbody>
+            <tr><td>Lookup de egreso por RUN</td><td>Confirmación puntual de estado administrativo.</td><td>Se usa para casos ausentes o sincronización tardía; debe degradar sin inventar.</td></tr>
+            <tr><td>Informe Alta Administrativa</td><td>Filas parseadas por encabezado, no por índice fijo.</td><td>Campos conocidos: identificación, paciente, cama, servicio, edad, destino, motivo, fecha/hora y diagnóstico.</td></tr>
+            <tr><td>Ventana D a D+1</td><td>Informe para día del censo y siguiente día insular.</td><td>Compensa desfase observado sin volver a desplazar el sello impreso por zona horaria.</td></tr>
+            <tr><td>Estado de conexión</td><td>ready / stale / missing + vigencia e identidad.</td><td>No expone contraseña; el token no cruza hacia la página HHR.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="centro-hhr" data-title="Centro HHR recetas regimenes indicaciones entrega turno scores CUDYR Braden Downton conexiones PDF">
+      <div class="section-head">
+        <div><h2>5. Centro HHR · módulos y flujos</h2><p class="section-note">Capa visual nativa insertada en Ficha Médico. Se compone como un centro modular, no como una aplicación separada.</p></div>
+        <span class="status confirmed">Implementado</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Módulo</th><th>Alcance funcional</th><th>Escritura</th><th>Fallos seguros</th></tr></thead>
+          <tbody>
+            <tr><td>Recetas</td><td>Paciente actual u hospitalizados; oficial completa, compacta, por prescriptor y receta externa por <code>MRE_ID</code>; combina múltiples pacientes en un PDF.</td><td>No modifica receta.</td><td>Sin fármacos activos o sin permiso: visible pero no seleccionable. Selección expira a 30 min.</td></tr>
+            <tr><td>Regímenes + BRADEN</td><td>Tabla global con cama, paciente, régimen/observación, fecha y último BRADEN reconciliado desde historial y formularios.</td><td>Solo lectura/impresión.</td><td>Una lectura fallida bloquea el lote completo para evitar documento parcial.</td></tr>
+            <tr><td>Indicaciones</td><td>Selección de uno, varios, visibles o todos; conserva el Jasper oficial por paciente y los une.</td><td>Solo lectura/impresión.</td><td>Revalida selección y hospitalización antes de imprimir; caduca a 30 min.</td></tr>
+            <tr><td>Entrega de turno</td><td>Tabla global, última entrega, fecha/hora, profesional y estado; impresión de reporte oficial por estación.</td><td>Sí, hasta 255 caracteres.</td><td>Solo dice “Guardado en Eloísa” tras releer el registro exacto.</td></tr>
+            <tr><td>Scores</td><td>CUDYR, Downton y Braden; último valor, última aplicación, historial cuando el servicio lo expone y formulario dinámico.</td><td>Sí, con permiso clínico.</td><td>Protección persistente anti-repetición; recuperación explícita y doble GET concordante.</td></tr>
+            <tr><td>Lab</td><td>Búsqueda y análisis de informes Syslab del episodio actual.</td><td>No modifica Syslab.</td><td>RUN debe coincidir en lista e informes; un fallo cancela todo el lote.</td></tr>
+            <tr><td>Conexiones</td><td>Salud de Ficha Médico y vinculación temporal de Gestión de Camas.</td><td>Solo sesión/olvido.</td><td>Estados separados: una fuente puede estar lista y la otra no.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Detalles de receta</h3>
+      <ul>
+        <li>La receta completa sigue siendo el Jasper oficial <code>Reporte_Receta_Medica.pdf</code>.</li>
+        <li>El formato compacto total deriva del mismo PDF y preserva encabezado, orden/hora, despacho, prescriptor, RUN del profesional, fecha, folio e “impreso por”.</li>
+        <li>La receta por profesional agrupa fármacos activos por autor y deduplica por <code>MRE_ID</code>; no inventa un folio.</li>
+        <li>La validación por profesional se cruza con el historial del episodio y mantiene un respaldo temporal cuando corresponde.</li>
+        <li>Las recetas externas se separan por medicamento activo; no contaminan el PDF oficial combinado.</li>
+      </ul>
+
+      <h3>Protocolo de escrituras clínicas</h3>
+      <div class="protocol" role="region" aria-label="Secuencia de escritura clínica">
+        <span class="muted">UI</span> → solicitar opciones y permiso vigente<br>
+        <span class="muted">UI</span> → enviar comando con episodio, instrumento y payload validado<br>
+        <span class="muted">Worker</span> → registrar generación protegida y ejecutar escritura oficial<br>
+        <span class="muted">Worker</span> → GET de verificación exacta en Eloísa<br>
+        <span class="muted">UI</span> ← resultado verificado | ambiguo | rechazado<br>
+        <span class="muted">UI</span> → ACK solo después de presentar el resultado<br>
+        <span class="muted">Recuperación</span> → espera mínima + revisión explícita + segundo GET concordante
+      </div>
+
+      <div class="callout warning">
+        <strong>No confundir éxito HTTP con éxito clínico.</strong> Un 2xx o una respuesta ambigua no basta. El estado “Sincronizado en Eloísa” exige lectura posterior verificable y concordancia con la generación protegida.
+      </div>
+    </section>
+
+    <section id="laboratorio" data-title="Laboratorio Syslab visor examenes PDF parser tendencias alertas referencias RUN local LAN direct">
+      <div class="section-head">
+        <div><h2>6. Laboratorio Syslab</h2><p class="section-note">Nuevo módulo nativo de la extensión que traslada las capacidades centrales del visor HHR a Ficha Médico, sin scraper externo.</p></div>
+        <span class="status confirmed">PR #85</span>
+      </div>
+
+      <div class="cols-2">
+        <article class="open-panel">
+          <h3>Entrada y búsqueda</h3>
+          <ul>
+            <li>Solo disponible con episodio numérico activo.</li>
+            <li>Obtiene RUN e identidad desde el encabezado oficial de Eloísa.</li>
+            <li>Abre el portal oficial <code>http://10.4.69.90/syslab/</code> para login realizado por el usuario.</li>
+            <li>Lista informes por fecha, hora, origen y exámenes; permite filtrar y seleccionar hasta 24 por análisis.</li>
+            <li>Puede abrir el PDF autenticado sin sacar el documento de la sesión local.</li>
+          </ul>
+        </article>
+        <article class="open-panel">
+          <h3>Salida clínica</h3>
+          <ul>
+            <li>Tabla longitudinal de variables por fecha.</li>
+            <li>Unidades, referencias y alertas numéricas o cualitativas fuera de rango.</li>
+            <li>Tendencias numéricas con cada valor rotulado; máximo de 24 tendencias prioritarias.</li>
+            <li>Vista completa por informe y copia tabulada al portapapeles.</li>
+            <li>Normalización de alias frecuentes: leucocitos, plaquetas, PCR, nitrógeno ureico, HCO3, T4L, triglicéridos y HbA1c.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Pipeline directo en la extensión</h3>
+      <div class="sequence">
+        <div class="n">1</div><article><h3>Buscar por RUN</h3><p><code>syslab-bridge.js</code> navega la sesión oficial y extrae órdenes. La lista se sanea, ordena y limita.</p></article>
+        <div class="n">2</div><article><h3>Validar identidad</h3><p>El cuerpo del RUN debe coincidir en todas las filas y luego dentro de cada informe. No se acepta un lote mixto.</p></article>
+        <div class="n">3</div><article><h3>Obtener detalle</h3><p>Se procesan tres informes en paralelo, con timeout de 30 s por request y límite de 6 MB por cuerpo.</p></article>
+        <div class="n">4</div><article><h3>Extraer y parsear</h3><p>Si llega PDF, PDF.js extrae texto localmente. Si llega HTML, el bridge resuelve el contenido o PDF anidado. El parser detecta secciones y hallazgos numéricos/cualitativos.</p></article>
+        <div class="n">5</div><article><h3>Construir análisis</h3><p><code>lab-viewer.js</code> genera columnas, comparación, tendencias, informes y resumen de conteos. Cualquier detalle faltante, duplicado, con error o RUN distinto invalida el lote.</p></article>
+      </div>
+
+      <div class="callout danger">
+        <strong>Riesgo de infraestructura conocido.</strong> Syslab se sirve por HTTP dentro de la LAN. La extensión mantiene el tráfico dentro del equipo/red clínica y no envía resultados a HHR, pero HTTP no cifra frente a otros actores de la red. HTTPS en Syslab sigue siendo la corrección recomendada.
+      </div>
+
+      <h3>Diferencias frente al módulo laboratorio de HHR</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspecto</th><th>HHR original</th><th>Extensión nativa</th></tr></thead>
+          <tbody>
+            <tr><td>Transporte</td><td>Servicio/proxy configurable desde la app.</td><td>Sesión oficial de Syslab y content script en la LAN.</td></tr>
+            <tr><td>UI</td><td>React, TanStack Query, gráficos y componentes del feature.</td><td>DOM/CSS nativo dentro de Centro HHR.</td></tr>
+            <tr><td>Persistencia</td><td>Puede exportar Excel y persistir en Firestore según flujo HHR.</td><td>No persiste resultados; sesión y lote temporales.</td></tr>
+            <tr><td>Parser</td><td>Controllers TypeScript más amplios, incluida microbiología/orina.</td><td>Núcleo UMD compacto: comparación, referencias, alertas, tendencias y fallback PDF.</td></tr>
+            <tr><td>Gobernanza</td><td>API pública del feature y boundary estático.</td><td>Recursos declarados en manifest, vendors bloqueados por hash y release check MV3.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sincronizacion" data-title="Sincronización HHR preview auto DailyRecord Firestore reconciliation admissions updates moves discharges conflicts CMA">
+      <div class="section-head">
+        <div><h2>7. Sincronización con HHR</h2><p class="section-note">La extensión produce evidencia; HHR decide, reconcilia y persiste. Esa separación es deliberada.</p></div>
+        <span class="status confirmed">Contrato implementado</span>
+      </div>
+
+      <h3>Flujo principal</h3>
+      <div class="sequence">
+        <div class="n">1</div><article><h3>Health handshake</h3><p>HHR pregunta si la extensión, Ficha Médico y Gestión de Camas están disponibles. Los estados son independientes: <em>ready</em>, <em>stale</em> o <em>missing</em>.</p></article>
+        <div class="n">2</div><article><h3>Snapshot</h3><p>El botón <strong>Sincronizar Eloísa</strong> solicita el censo. La extensión responde con el contrato normalizado o un error sanitizado.</p></article>
+        <div class="n">3</div><article><h3>Planificar diff</h3><p>HHR cruza por <code>clinicalEpisodeId</code> y, como fallback, por RUN. Produce ingresos, actualizaciones, movimientos de cama, egresos, conflictos y pendientes administrativos.</p></article>
+        <div class="n">4</div><article><h3>Conciliar autoridad de egreso</h3><p>Se solicita el informe de Gestión de Camas para D a D+1 y se aplican reglas de fecha insular, traslado, fallecimiento y CMA.</p></article>
+        <div class="n">5</div><article><h3>Preview o automático</h3><p><code>preview</code> es el default y requiere confirmación. <code>auto</code> solo aplica sin revisión si no hay conflictos, altas pendientes, egresos desconocidos ni correcciones de días previos.</p></article>
+        <div class="n">6</div><article><h3>Aplicar defensivamente</h3><p>Siempre parte del registro más fresco. Una cama ocupada no se pisa; la operación se omite y queda reportada. Los movimientos históricos son idempotentes.</p></article>
+        <div class="n">7</div><article><h3>Persistir con autoridad HHR</h3><p>La app guarda mediante sus casos de uso y sesión Firebase, pasa validación Zod y usa la cola/outbox con políticas de retries, conflicto y telemetría.</p></article>
+        <div class="n">8</div><article><h3>Enriquecimiento clínico</h3><p>Después del censo puede consultar signos vitales, dispositivos, escalas/CUDYR y panel clínico. Es bajo demanda o efímero según el dato; nunca debe disfrazar un fallo parcial como vacío.</p></article>
+      </div>
+
+      <h3>Resultado de reconciliación</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operación</th><th>Significado</th><th>Protección</th></tr></thead>
+          <tbody>
+            <tr><td>admissions</td><td>Encuentro nuevo con cama mapeable y posterior o igual al día de censo.</td><td>Rechaza colisión con cama local o con otro encuentro Rayen.</td></tr>
+            <tr><td>updates</td><td>Mismo episodio/RUN y misma cama, con cambios de campos clínico-demográficos permitidos.</td><td>No reemplaza datos fuera del contrato de importación.</td></tr>
+            <tr><td>moves</td><td>Paciente ya conocido pasa a otra cama dentro del censo.</td><td>Valida destino libre; no equivale a traslado interhospitalario.</td></tr>
+            <tr><td>discharges</td><td>Alta/traslado/CMA/fallecimiento con autoridad administrativa.</td><td>No se crea solo por ausencia o alta clínica.</td></tr>
+            <tr><td>conflicts</td><td>Cama imposible, duplicidad, fecha inválida, fuente no disponible o choque de ocupación.</td><td>Fuerza preview y queda visible al usuario.</td></tr>
+            <tr><td>reportEgresos</td><td>Egresos oficiales de pacientes no representados previamente en HHR.</td><td>Se agregan de forma trazable; correcciones históricas requieren confirmación.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Reglas de camas y CMA</h3>
+      <ul>
+        <li><code>Habitacion N</code> + <code>Cn</code> se mapea a <code>H{N}C{n}</code>.</li>
+        <li><code>Recuperacion k</code> o <code>Rk</code> se mapea a cama UTI <code>Rk</code>.</li>
+        <li><code>Neo k</code> se mapea a <code>NEOk</code>.</li>
+        <li>CMA es un <strong>tipo de egreso</strong>, no una cama paralela. <code>CMAR1</code> ocupa <code>R1</code>; <code>CMAN1</code> ocupa <code>NEO1</code>.</li>
+        <li>La clasificación CMA requiere origen exacto CMA, ingreso y egreso el mismo día y ausencia de traslado/fallecimiento que determine otra categoría.</li>
+      </ul>
+
+      <div class="callout">
+        <strong>Trazabilidad sin PHI.</strong> <code>rayenSyncHistory</code> conserva actor, tiempos, salud de fuentes y agregados del diff/cobertura. No guarda nombres, RUN, diagnósticos ni errores crudos; mantiene como máximo 20 eventos por día.
+      </div>
+    </section>
+
+    <section id="contratos" data-title="Contratos mensajes postMessage chrome runtime protocol events health snapshot clinical panel egreso lab">
+      <div class="section-head">
+        <div><h2>8. Contratos y mensajes</h2><p class="section-note">Índice práctico para rastrear un flujo desde la UI hasta el worker y de vuelta.</p></div>
+      </div>
+
+      <h3>HHR page ↔ extensión</h3>
+      <div class="table-wrap compact">
+        <table>
+          <thead><tr><th>Request</th><th>Result</th><th>Uso</th></tr></thead>
+          <tbody>
+            <tr><td><code>HHR_RAYEN_EXTENSION_HEALTH_REQUEST</code></td><td><code>…HEALTH_RESULT</code></td><td>Capacidades y salud sin información clínica.</td></tr>
+            <tr><td><code>HHR_RAYEN_REQUEST_SNAPSHOT</code></td><td><code>…CENSUS_SNAPSHOT</code> / <code>…IMPORT_ERROR</code></td><td>Censo completo normalizado.</td></tr>
+            <tr><td><code>HHR_RAYEN_OPEN_ENCOUNTER_REQUEST</code></td><td><code>…OPEN_ENCOUNTER_RESULT</code></td><td>Navegar al episodio exacto; reusar pestaña.</td></tr>
+            <tr><td><code>HHR_RAYEN_EGRESO_LOOKUP_REQUEST</code></td><td><code>…EGRESO_LOOKUP_RESULT</code></td><td>Consulta puntual de egresos por RUN.</td></tr>
+            <tr><td><code>HHR_RAYEN_EGRESO_REPORT_REQUEST</code></td><td><code>…EGRESO_REPORT_RESULT</code></td><td>Informe masivo de Alta Administrativa.</td></tr>
+            <tr><td><code>HHR_RAYEN_DEVICE_REPORT_REQUEST</code></td><td><code>…DEVICE_REPORT_RESULT</code></td><td>PDF de resumen diario para dispositivos invasivos.</td></tr>
+            <tr><td><code>HHR_RAYEN_SCALES_REPORT_REQUEST</code></td><td><code>…SCALES_REPORT_RESULT</code></td><td>Formularios y escalas resumidas.</td></tr>
+            <tr><td><code>HHR_RAYEN_HISTORY_SCALES_REQUEST</code></td><td><code>…HISTORY_SCALES_RESULT</code></td><td>Historial de instrumentos cuando existe.</td></tr>
+            <tr><td><code>HHR_RAYEN_CLINICAL_PANEL_REQUEST</code></td><td><code>…CLINICAL_PANEL_RESULT</code></td><td>Historial, fármacos y plan de cuidados bajo demanda.</td></tr>
+            <tr><td><code>HHR_RAYEN_CUDYR_CATEGORIES_REQUEST</code></td><td><code>…CUDYR_CATEGORIES_RESULT</code></td><td>Catálogo/mapeo para importar categoría CUDYR.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Centro HHR ↔ service worker</h3>
+      <p>Familias principales implementadas en <code>background.js</code>:</p>
+      <div class="protocol">
+        RAYEN_PRESCRIPTION_* · RAYEN_HOSPITALIZED_PRESCRIPTION_*<br>
+        RAYEN_INDICATIONS_* · RAYEN_HOSPITALIZED_INDICATIONS_*<br>
+        RAYEN_HOSPITALIZED_REGIMEN_* · RAYEN_HANDOFF_*<br>
+        RAYEN_SCORES_* · RAYEN_SCORE_FORM_REQUEST · RAYEN_SCORE_SAVE_REQUEST<br>
+        RAYEN_CLINICAL_WRITE_ACK · RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST<br>
+        RAYEN_LAB_SEARCH_REQUEST · RAYEN_LAB_DETAILS_REQUEST · RAYEN_LAB_PDF_OPEN_REQUEST<br>
+        RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST<br>
+        RAYEN_GC_CONNECT_REQUEST · RAYEN_GC_SESSION_CAPTURED · RAYEN_GC_DISCONNECT_REQUEST
+      </div>
+
+      <h3>Reglas del protocolo</h3>
+      <ul>
+        <li>Cada request asíncrono debe llevar <code>reqId</code> o una identidad/generación equivalente.</li>
+        <li>Todo listener debe comprobar <code>event.source === window</code> y, cuando corresponde, el origen.</li>
+        <li>Los objetos que cruzan mundos se reducen a la forma mínima necesaria.</li>
+        <li>Los timeouts terminan en error explícito, no en colección vacía que parezca válida.</li>
+        <li>Las rutas de episodio aceptan solo IDs numéricos y preservan variante médica/enfermería.</li>
+      </ul>
+    </section>
+
+    <section id="datos" data-title="Modelo datos snapshot fields patient DailyRecord ephemeral storage session local PHI">
+      <div class="section-head">
+        <div><h2>9. Modelo de datos y vida útil</h2><p class="section-note">Qué cruza cada frontera, dónde vive y cuánto dura.</p></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Dato</th><th>Origen → destino</th><th>Persistencia</th><th>Notas</th></tr></thead>
+          <tbody>
+            <tr><td>RayenCensusSnapshot</td><td>Ficha Médico → worker → HHR</td><td>Solo hasta aplicar; HHR persiste campos autorizados en DailyRecord.</td><td>Contrato desacoplado del JSON crudo.</td></tr>
+            <tr><td>Token Ficha Médico</td><td>MAIN → extensión</td><td>Memoria de pestaña/worker; no disco.</td><td>Se vincula y revalida contra sesión e identidad.</td></tr>
+            <tr><td>Token Gestión de Camas</td><td>MAIN → worker</td><td><code>chrome.storage.session</code>.</td><td>Temporal, con expiración/metadatos; olvidar lo elimina.</td></tr>
+            <tr><td>Panel clínico</td><td>Rayen → worker → HHR drawer</td><td>Efímero.</td><td>Se consulta solo al abrir; no se incorpora automáticamente al censo.</td></tr>
+            <tr><td>Lote Syslab</td><td>Syslab tab → worker/UI</td><td>Rutas internas temporales ligadas a episodio/RUN; 15 min.</td><td>La UI recibe metadatos e IDs; resultados no se guardan.</td></tr>
+            <tr><td>Protección de escritura</td><td>Worker local</td><td><code>chrome.storage.local</code>.</td><td>Clave SHA-256 sin episodio, RUN, observación, respuestas ni resultado clínico.</td></tr>
+            <tr><td>Historial sync HHR</td><td>HHR</td><td>DailyRecord/Firestore.</td><td>Solo actor, tiempos, fuentes y conteos; sin PHI.</td></tr>
+            <tr><td>Modo preview/auto</td><td>Configuración HHR</td><td><code>localStorage</code> del dispositivo.</td><td>Default preview; todavía no es app-wide.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Campos del snapshot normalizado</h3>
+      <p class="mono" style="color:var(--navy-800)">encounterId · run · firstGivenName · nextGivenNames · firstFamilyName · secondFamilyName · birthDate · administrativeSex · gender · service · room · bed · admissionDatetime · diagnosis · diagnosisCode · diagnosisDescription · hasMedicalDischarge · hasNurseDischarge · dischargeDatetime · isDead · isIsolated · isGes</p>
+    </section>
+
+    <section id="seguridad" data-title="Seguridad privacy tokens credentials permissions fail closed clinical writes HTTP Syslab CSP">
+      <div class="section-head">
+        <div><h2>10. Seguridad, privacidad y límites</h2><p class="section-note">Controles existentes y amenazas que una IA debe tener presentes al modificar la extensión.</p></div>
+      </div>
+
+      <div class="cols-2">
+        <article class="open-panel">
+          <h3>Controles existentes</h3>
+          <ul>
+            <li>Host permissions limitadas a superficies Rayen, Syslab, localhost y HHR testing.</li>
+            <li>Token vinculado a identidad; 401/403 invalida sesión.</li>
+            <li>Validación de episodio numérico y origen oficial antes de navegar o consultar.</li>
+            <li>Selecciones por lotes con expiración y revalidación.</li>
+            <li>Bloqueo fail-closed de documentos parciales y lotes Syslab incompletos.</li>
+            <li>Vendors PDF/XLS vendorizados, versionados y verificados por SHA-256.</li>
+            <li>Historial operativo y errores sanitizados sin PHI.</li>
+          </ul>
+        </article>
+        <article class="open-panel">
+          <h3>Riesgos que siguen abiertos</h3>
+          <ul>
+            <li>Cambios silenciosos de endpoints o formas JSON de Rayen.</li>
+            <li>Rutas SPA o cabeceras visuales que cambien y desplacen la barra.</li>
+            <li>Syslab sobre HTTP en LAN.</li>
+            <li>Tokens de sesión con vida mayor a la UI que los originó.</li>
+            <li>Ambigüedad temporal de egresos entre día local y fecha impresa.</li>
+            <li>Controles clínicos visibles para un rol sin autorización efectiva.</li>
+            <li>Reintentos que dupliquen una escritura si se debilita el protocolo ACK/recovery.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Huella pública histórica separada</h3>
+      <p><span class="status historical">26 junio 2026</span> Una revisión pasiva anterior observó que la raíz de Ficha Médico redirigía a autenticación y presentaba CSP; también confirmó que el ecosistema Rayen/Eloísa mezcla tecnologías y subdominios. Esa evidencia es contextual, no reemplaza la inspección autenticada actual y no debe reutilizarse como afirmación permanente.</p>
+
+      <div class="callout warning">
+        <strong>Política para pruebas.</strong> Usar lectura y cuentas/casos dummy autorizados. No probar escrituras destructivas, altas, bloqueos de cama, eliminación ni cambios clínicos sobre pacientes reales. Para verificar una escritura, usar el flujo oficial, payload controlado y trazabilidad completa.
+      </div>
+    </section>
+
+    <section id="navegacion-ia" data-title="Runbook IA navigate improve extension workflow safe checklist route patient episode debugging">
+      <div class="section-head">
+        <div><h2>11. Runbook para otra IA</h2><p class="section-note">Secuencia recomendada para navegar, diagnosticar o mejorar sin perder contexto clínico.</p></div>
+      </div>
+
+      <h3>A. Orientación inicial</h3>
+      <ol>
+        <li>Leer <code>extension/README.md</code>, <code>extension/manifest.json</code> y este documento.</li>
+        <li>Confirmar rama/worktree activo, versión del manifest y que la extensión cargada corresponde a esa carpeta.</li>
+        <li>Verificar las tres fuentes por separado: Ficha Médico, Gestión de Camas y Syslab.</li>
+        <li>Clasificar la tarea: UI insertada, bridge, worker, parser, sincronización HHR o infraestructura.</li>
+        <li>Determinar si el flujo es solo lectura o escritura clínica; las escrituras requieren controles adicionales.</li>
+      </ol>
+
+      <h3>B. Navegación de Ficha Médico</h3>
+      <ul class="checklist">
+        <li>En lista médica, identificar si se está en <code>/dashboard/encounter-list</code>; en enfermería, preservar <code>encounter-list-nurse</code>.</li>
+        <li>No inferir episodio desde texto visual; usar el segmento numérico validado de la URL.</li>
+        <li>En rutas sin episodio, esperar que Lab y acciones de paciente actual estén deshabilitadas.</li>
+        <li>Después de transición SPA, comprobar que el modal anterior quedó invalidado antes de actuar.</li>
+        <li>Usar atributos estables de la extensión: <code>#hhr-clinical-operations-bar</code>, labels ARIA y <code>data-encounter-id</code>.</li>
+        <li>No depender del orden de botones de Rayen ni de nombres de clases minificadas.</li>
+      </ul>
+
+      <h3>C. Diagnóstico por síntoma</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Síntoma</th><th>Primera verificación</th><th>Siguiente evidencia</th></tr></thead>
+          <tbody>
+            <tr><td>No aparece Centro HHR</td><td>Manifest cargado, URL incluida y pestaña recargada.</td><td>Atributo <code>data-rayen-relay</code>, errores de content script, release check.</td></tr>
+            <tr><td>Centro visible, sesión no disponible</td><td><code>/api/auth/session</code> y health ping.</td><td>Token capturado, identidad concordante, 401/403, cambio de rol/ruta.</td></tr>
+            <tr><td>Sync devuelve cero pacientes</td><td>No aceptar cero como éxito sin revisar lista/rol.</td><td>Fuente médica vs enfermería, listas consultadas, <code>isComplete</code> y shape.</td></tr>
+            <tr><td>Alta no aplicada</td><td>Informe de Alta Administrativa conectado.</td><td>Ventana D/D+1, RUN, sello fecha/hora, cama y clasificación.</td></tr>
+            <tr><td>Receta o lote falla</td><td>Permiso, hospitalización vigente y selección no expirada.</td><td>Jasper individual, parser PDF, folios y fallo parcial.</td></tr>
+            <tr><td>Score queda ambiguo</td><td>No repetir el guardado.</td><td>Protección local, challenge de recuperación, dos GET concordantes.</td></tr>
+            <tr><td>Lab pide login</td><td>Autenticar directamente en la ventana oficial Syslab.</td><td>Origen/path correctos, bridge activo, RUN de lista e informe.</td></tr>
+            <tr><td>Lab muestra menos variables</td><td>Comparar findings directos vs texto PDF.</td><td>Secciones saltadas, alias, regex numérico/cualitativo y fallback PDF.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>D. Norma para implementar mejoras</h3>
+      <ol>
+        <li>Escribir primero el contrato puro: forma de entrada, salida, validación y errores.</li>
+        <li>Mantener la lógica clínica testeable fuera de <code>background.js</code> cuando sea posible.</li>
+        <li>Agregar el mínimo permiso de host/recurso y registrarlo en manifest.</li>
+        <li>Crear UI con semántica, ARIA, foco restaurable y estados loading/empty/error/partial.</li>
+        <li>Invalidar el estado al cambiar episodio, sesión o identidad.</li>
+        <li>Probar shape inesperado, timeout, 401/403, duplicados, datos parciales y navegación rápida.</li>
+        <li>Ejecutar release check, tests focalizados y prueba visual autenticada antes del PR.</li>
+      </ol>
+    </section>
+
+    <section id="archivos" data-title="Mapa archivos extension background content inject lab viewer report parser rayen import HHR">
+      <div class="section-head">
+        <div><h2>12. Mapa de archivos</h2><p class="section-note">Puntos de entrada para navegar el repositorio con intención.</p></div>
+      </div>
+
+      <div class="table-wrap file-map">
+        <table>
+          <thead><tr><th>Archivo / área</th><th>Responsabilidad</th></tr></thead>
+          <tbody>
+            <tr><td><code>extension/manifest.json</code></td><td>Permisos MV3, hosts, worlds, content scripts y recursos accesibles.</td></tr>
+            <tr><td><code>extension/background.js</code></td><td>Orquestación privilegiada, APIs Rayen, reportes, sesiones, PDF/XLS y escrituras verificadas.</td></tr>
+            <tr><td><code>extension/inject-fichamedico.js</code></td><td>Captura sesión HSP, detecta contexto médico/enfermería y construye snapshot.</td></tr>
+            <tr><td><code>extension/content-fichamedico.js</code></td><td>Relé MAIN ↔ worker para lectura y health.</td></tr>
+            <tr><td><code>extension/content-prescription-print.js</code></td><td>Centro HHR, UI global/contextual, recetas, documentos, turno, scores, lab y conexiones.</td></tr>
+            <tr><td><code>extension/inject-gestioncamas.js</code></td><td>Captura token de Hospitalizado y lookup en MAIN world.</td></tr>
+            <tr><td><code>extension/content-gestioncamas.js</code></td><td>Relé, rehidratación de intento de conexión y sesión temporal.</td></tr>
+            <tr><td><code>extension/gestion-camas-session.js</code></td><td>Validación, reducción, vigencia y metadatos de sesión GC.</td></tr>
+            <tr><td><code>extension/report-parser.js</code></td><td>Parser del XLS de Alta Administrativa por nombres de encabezado.</td></tr>
+            <tr><td><code>extension/prescription-print.js</code></td><td>Reglas puras de episodios, fármacos, agrupación y etiquetas de entrega.</td></tr>
+            <tr><td><code>extension/prescription-pdf.js</code></td><td>Generación de recetas compactas/por prescriptor.</td></tr>
+            <tr><td><code>extension/exam-request-print.js</code></td><td>Contrato y normalización de solicitudes de examen seleccionadas.</td></tr>
+            <tr><td><code>extension/lab-viewer.js</code></td><td>Parser puro, normalización, alertas, comparación y tendencias de laboratorio.</td></tr>
+            <tr><td><code>extension/syslab-bridge.js</code></td><td>Sesión Syslab, búsqueda, descarga, PDF.js, límites y verificación RUN.</td></tr>
+            <tr><td><code>extension/clinical-panel-fetch.js</code></td><td>Paginación y política fail-closed para estados farmacológicos/panel.</td></tr>
+            <tr><td><code>extension/encounter-navigation.js</code></td><td>Ruta segura y reutilización de pestaña por episodio.</td></tr>
+            <tr><td><code>extension/health-check.js</code></td><td>Orden de pestañas y estados missing/stale/ready.</td></tr>
+            <tr><td><code>extension/content-hhr.js</code></td><td>Puente HHR page ↔ worker.</td></tr>
+            <tr><td><code>src/features/rayen-import/</code></td><td>Contratos, bridge, reconciliación, preview, apply, audit y enriquecimiento clínico.</td></tr>
+            <tr><td><code>src/services/storage/sync/</code></td><td>Outbox, puertos, retries, conflicto, transport Firestore y telemetría.</td></tr>
+            <tr><td><code>src/features/laboratory/</code></td><td>Visor HHR original y referencia funcional del parser/visualización.</td></tr>
+            <tr><td><code>scripts/check-rayen-extension-release.mjs</code></td><td>Gate de release MV3, vendors, integridad y recursos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="pruebas" data-title="Pruebas gates release check vitest typecheck manual visual authenticated test extension">
+      <div class="section-head">
+        <div><h2>13. Pruebas y gates</h2><p class="section-note">La extensión tiene pruebas unitarias específicas y un gate estructural de release.</p></div>
+      </div>
+
+      <div class="cols-2">
+        <article class="open-panel">
+          <h3>Comandos mínimos</h3>
+          <div class="protocol">
+            npm run check:rayen-extension-release<br>
+            npm run typecheck<br>
+            npx vitest run src/tests/rayen-import/<br>
+            npx vitest run src/tests/services/laboratory/ src/tests/features/laboratory/<br>
+            npm run test:e2e:laboratory-smoke
+          </div>
+        </article>
+        <article class="open-panel">
+          <h3>Qué valida el release check</h3>
+          <ul>
+            <li>Manifest V3 y archivos declarados.</li>
+            <li>Host permissions y recursos accesibles.</li>
+            <li>Sintaxis de scripts operativos.</li>
+            <li>Versiones/licencias/hashes SHA-256 de vendors.</li>
+            <li>Registro temprano de PDF/XLS compatible con service worker MV3.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Matriz manual autenticada</h3>
+      <ul class="checklist">
+        <li>Lista médica: Centro HHR visible, Lab deshabilitado sin episodio y health listo.</li>
+        <li>Lista enfermería: contexto correcto sin reutilizar URL/token médico obsoleto.</li>
+        <li>Episodio: cambio rápido entre dos IDs invalida el modal previo.</li>
+        <li>Gestión de Camas: conectar, cerrar ventana temporal, consultar informe y olvidar sesión.</li>
+        <li>PDF: receta oficial, compacta, por profesional, externa y lote hospitalizados.</li>
+        <li>Solicitud: selección 2–3 órdenes, folios preservados y cero modificación clínica.</li>
+        <li>Turno/score: usar caso dummy autorizado y confirmar relectura/ACK/recovery.</li>
+        <li>Syslab: login oficial, búsqueda, selección múltiple, PDF, alertas, tendencias y rechazo de RUN distinto.</li>
+        <li>HHR: preview, conflicto de cama, alta administrativa, corrección histórica e idempotencia.</li>
+      </ul>
+    </section>
+
+    <section id="pendientes" data-title="Pendientes roadmap validation CMA egresado UI microbiology parity HTTPS observability settings">
+      <div class="section-head">
+        <div><h2>14. Pendientes y mejoras responsables</h2><p class="section-note">Trabajo de alto valor que aún requiere validación o una iteración separada.</p></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Prioridad</th><th>Pendiente</th><th>Criterio de cierre</th><th>Evidencia</th></tr></thead>
+          <tbody>
+            <tr><td>P0</td><td>HTTPS para Syslab institucional.</td><td>Portal y PDFs servidos con TLS válido dentro de la red.</td><td><span class="status pending">Infraestructura</span></td></tr>
+            <tr><td>P1</td><td>Paridad clínica de microbiología/orina entre HHR y extensión.</td><td>Fixtures dorados y mismas agrupaciones/alertas en ambos visores.</td><td><span class="status pending">Por comparar</span></td></tr>
+            <tr><td>P1</td><td>Validar representación real de CMA en encounter API.</td><td>Caso controlado confirma servicio, habitación y cama exactos.</td><td><span class="status pending">Datos reales</span></td></tr>
+            <tr><td>P1</td><td>Validar variantes de egresado, traslado y fallecimiento.</td><td>Casos controlados cruzados con informe de Alta Administrativa.</td><td><span class="status pending">Datos reales</span></td></tr>
+            <tr><td>P2</td><td>Extraer más lógica pura desde <code>background.js</code>.</td><td>Handlers delegan en módulos testeables y el worker reduce complejidad.</td><td><span class="status inferred">Deuda técnica</span></td></tr>
+            <tr><td>P2</td><td>Setting preview/auto compartido.</td><td>Política central por establecimiento/rol, no solo localStorage.</td><td><span class="status pending">Diseño</span></td></tr>
+            <tr><td>P2</td><td>Observabilidad local sin PHI.</td><td>Contadores de timeout, shape drift, sesión stale y fallos por módulo exportables.</td><td><span class="status inferred">Propuesta</span></td></tr>
+            <tr><td>P3</td><td>Contrato visual del Centro HHR.</td><td>Snapshots desktop/compacto y reglas de inserción resilientes a cambios de header.</td><td><span class="status inferred">Propuesta</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="evidencia" data-title="Evidencia sources dates code browser memory confirmed historical">
+      <div class="section-head">
+        <div><h2>15. Matriz de evidencia</h2><p class="section-note">De dónde sale cada afirmación y cómo revalidarla.</p></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Fuente</th><th>Aporta</th><th>Nivel</th></tr></thead>
+          <tbody>
+            <tr><td>EV-01</td><td>Sesión autenticada Ficha Médico · 15/07/2026</td><td>Rutas, controles visibles, Next.js, chunks y barra Centro HHR.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-02</td><td>Sesión autenticada Hospitalizado · 15/07/2026</td><td>Hash routes, navegación, estados de camas y acciones visibles.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-03</td><td><code>extension/manifest.json</code></td><td>Versión, permisos, hosts, worlds y scripts.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-04</td><td><code>extension/README.md</code> + scripts</td><td>Flujos Centro HHR, sesiones, recetas, documentos, scores, laboratorio y limitaciones.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-05</td><td><code>src/features/rayen-import/</code></td><td>Contrato snapshot, reconciliación, reglas de egreso, preview/auto y audit.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-06</td><td><code>src/services/storage/sync/</code></td><td>Boundary del outbox, políticas y telemetría.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-07</td><td><code>extension/lab-viewer.js</code> + <code>syslab-bridge.js</code></td><td>Parser, límites, validación RUN, comparación y tendencias.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-08</td><td>Auditoría pasiva Rayen/Eloísa · 26/06/2026</td><td>Contexto histórico de autenticación, CSP y heterogeneidad del ecosistema.</td><td><span class="status historical">Histórico</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <strong>Cómo mantener este documento.</strong> Al cambiar un contrato, módulo o regla clínica, actualizar primero código y pruebas; luego modificar la sección correspondiente, la matriz de archivos y la evidencia. No pegar respuestas reales, tokens, IDs de episodio, nombres ni RUN.
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <strong>Mapa operativo Rayen · Eloísa · HHR</strong><br>
+    Documento técnico para continuidad de desarrollo. No reemplaza procedimientos clínicos, autorización institucional ni documentación oficial de Rayen.
+  </footer>
+
+  <script>
+    (() => {
+      const search = document.getElementById('section-search');
+      const sections = [...document.querySelectorAll('main section')];
+      const links = [...document.querySelectorAll('nav a')];
+
+      search?.addEventListener('input', () => {
+        const query = search.value.trim().toLocaleLowerCase('es');
+        sections.forEach(section => {
+          const haystack = `${section.dataset.title || ''} ${section.querySelector('h2')?.textContent || ''}`.toLocaleLowerCase('es');
+          section.classList.toggle('search-hidden', Boolean(query) && !haystack.includes(query));
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        links.forEach(link => link.classList.toggle('active', link.hash === `#${visible.target.id}`));
+      }, { rootMargin: '-10% 0px -72% 0px', threshold: [0, .15, .4] });
+
+      sections.forEach(section => observer.observe(section));
+    })();
+  </script>
+</body>
+</html>

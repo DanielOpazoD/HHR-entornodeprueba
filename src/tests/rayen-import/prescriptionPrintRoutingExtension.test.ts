@@ -334,6 +334,28 @@ describe('extension prescription operations', () => {
     );
   });
 
+  it('keeps a prescription batch valid only for its verified session lifetime', () => {
+    const now = Date.parse('2026-07-16T12:00:00Z');
+    const batch = { sessionKey: 'tab-4:session-a', expiresAt: now + 60_000 };
+
+    expect(prescriptionPrint.isPrescriptionBatchSessionValid(batch, 'tab-4:session-a', now)).toBe(
+      true
+    );
+    expect(
+      prescriptionPrint.isPrescriptionBatchSessionValid(batch, 'tab-4:session-a', now + 60_000)
+    ).toBe(false);
+    expect(prescriptionPrint.isPrescriptionBatchSessionValid(batch, 'tab-4:session-b', now)).toBe(
+      false
+    );
+    expect(
+      prescriptionPrint.isPrescriptionBatchSessionValid(
+        { sessionKey: 'tab-4:session-a', expiresAt: null },
+        'tab-4:session-a',
+        now + 24 * 60 * 60_000
+      )
+    ).toBe(true);
+  });
+
   it('renders zoned clinical timestamps in Pacific/Easter and preserves naive local values', () => {
     expect(prescriptionPrint.formatDateTimeLabel('2026-07-15T14:56:00Z')).toBe('15-07-2026 08:56');
     expect(prescriptionPrint.formatDateTimeLabel('2026-07-15T10:56:00-04:00')).toBe(

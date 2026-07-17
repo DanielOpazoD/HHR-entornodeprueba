@@ -163,6 +163,11 @@ export const prescriptionPrint = (
           validationDateTime: string;
         }>;
       };
+      isPrescriptionBatchSessionValid: (
+        batch: { sessionKey?: string; expiresAt?: number | null } | null,
+        sessionKey: string,
+        now?: number
+      ) => boolean;
       buildBatchPrescriptionFilename: (count: number, printFormat: string, date?: string) => string;
       buildBatchIndicationsFilename: (count: number, date?: string) => string;
       buildRegimenFilename: (date?: string) => string;

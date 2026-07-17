@@ -252,7 +252,7 @@
 
   /**
    * Printable HTML replica of the official laboratory request form, laid out to match the
-   * PDF that the HHR app produces: filled-square checkmarks, TUBO VERDE nested inside
+   * PDF that the HHR app produces: cross checkmarks, TUBO VERDE nested inside
    * BIOQUIMICA, two-column HEMATOLOGIA, merged ORINA/PARÁSITOS and VIROLOGÍA/OTROS panels,
    * and the bottom INMUNOLOGIA + OTROS/MEDICO/FIRMA block. `state` carries
    * {patient:{name,run,birthDate}, diagnosis, ficha, procedencia, fonasaLevel, prais,
@@ -261,7 +261,7 @@
   const buildLabRequestPrintHtml = state => {
     const selected = new Set(Array.isArray(state.selected) ? state.selected : Array.from(state.selected || []));
     const byId = Object.fromEntries(EXAM_CATEGORIES.map(category => [category.id, category]));
-    const box = isOn => `<span class="box${isOn ? ' on' : ''}"></span>`;
+    const box = isOn => `<span class="box${isOn ? ' on' : ''}">${isOn ? '&times;' : ''}</span>`;
     const exam = (categoryId, label) =>
       `<div class="exam">${box(selected.has(categoryId + '|' + label))}<span>${escapeHtml(label)}</span></div>`;
     const examList = categoryIds => categoryIds
@@ -318,43 +318,43 @@
     return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud de Exámenes de Laboratorio</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 7mm 8mm; color: #111; font: 10px/1.3 Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .head { display: flex; align-items: center; gap: 10px; padding-bottom: 5px; }
-  .head img { width: 46px; height: 42px; object-fit: contain; }
-  .head .brand { font-weight: 700; font-size: 11.5px; line-height: 1.15; white-space: nowrap; }
-  .head .brand small { display: block; font-weight: 600; font-size: 8px; letter-spacing: .02em; }
-  .head h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; }
-  .head .network { font-size: 8px; font-weight: 700; text-align: right; white-space: nowrap; }
-  .box { display: inline-block; vertical-align: -1px; width: 10px; height: 10px; border: 1.2px solid #111; border-radius: 2px; }
-  .box.on { background: #1d4ed8; border-color: #1d4ed8; }
-  .meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0; border-top: 2px solid #111; border-bottom: 1.5px solid #111; }
+  body { margin: 0; padding: 3mm 4mm; color: #111; font: 11px/1.3 Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .head { display: flex; align-items: center; gap: 12px; padding-bottom: 6px; }
+  .head img { width: 50px; height: 46px; object-fit: contain; }
+  .head .brand { font-weight: 700; font-size: 12.5px; line-height: 1.15; white-space: nowrap; }
+  .head .brand small { display: block; font-weight: 600; font-size: 8.5px; letter-spacing: .02em; }
+  .head h1 { flex: 1; margin: 0; text-align: center; font-size: 18px; }
+  .head .network { font-size: 8.5px; font-weight: 700; text-align: right; white-space: nowrap; }
+  .box { display: inline-flex; align-items: center; justify-content: center; vertical-align: -1px; width: 11px; height: 11px; border: 1.2px solid #111; border-radius: 1px; color: #111; font-size: 13px; font-weight: 900; line-height: 1; }
+  .box.on { background: #fff; border-color: #111; }
+  .meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border-top: 2px solid #111; border-bottom: 1.5px solid #111; }
   .meta b { font-size: 9.5px; }
   .proc { display: flex; align-items: center; gap: 10px; }
   .proc-pair { display: inline-flex; flex-direction: column; gap: 2px; }
-  .proc-item { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; }
-  .prev { font-size: 9px; text-align: right; }
+  .proc-item { display: inline-flex; align-items: center; gap: 4px; font-size: 9.8px; }
+  .prev { font-size: 9.8px; text-align: right; }
   .prev-item { margin-left: 4px; }
-  .patient { border-bottom: 1.5px solid #111; padding: 3px 0 6px; }
-  .patient .row { display: flex; gap: 16px; margin-top: 4px; }
+  .patient { border-bottom: 1.5px solid #111; padding: 4px 0 7px; }
+  .patient .row { display: flex; gap: 16px; margin-top: 5px; }
   .patient .field { flex: 1; display: flex; gap: 5px; align-items: baseline; }
-  .patient .field b { font-size: 8.5px; white-space: nowrap; }
-  .patient .field span { flex: 1; border-bottom: 1px solid #111; padding: 0 3px 1px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 8px; align-items: start; }
-  .section { border: 2px solid #111; border-radius: 2px; margin-bottom: 8px; background: #fff; }
-  .section-title { border-bottom: 1.5px solid #111; padding: 3px 5px 2px; text-align: center; font-weight: 800; font-size: 9.5px; letter-spacing: .02em; }
-  .section-title small { display: block; font-weight: 600; font-size: 6.5px; }
-  .subsection-title { margin: 5px 8px 2px; color: #0f766e; font-weight: 700; font-size: 8px; letter-spacing: .04em; text-decoration: underline; }
-  .exam { display: flex; align-items: flex-start; gap: 6px; padding: 2px 7px; font-size: 9.5px; }
+  .patient .field b { font-size: 9px; white-space: nowrap; }
+  .patient .field span { flex: 1; border-bottom: 1px solid #111; padding: 0 3px 1px; font-size: 12.2px; font-weight: 700; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; padding-top: 7px; align-items: start; }
+  .section { border: 2px solid #111; border-radius: 2px; margin-bottom: 7px; background: #fff; }
+  .section-title { border-bottom: 1.5px solid #111; padding: 4px 5px 3px; text-align: center; font-weight: 800; font-size: 10.3px; letter-spacing: .02em; }
+  .section-title small { display: block; font-weight: 600; font-size: 7px; }
+  .subsection-title { margin: 6px 8px 3px; color: #0f766e; font-weight: 700; font-size: 8.5px; letter-spacing: .04em; text-decoration: underline; }
+  .exam { display: flex; align-items: flex-start; gap: 6px; padding: 3px 7px; font-size: 10.2px; }
   .exam .box { flex: 0 0 auto; margin-top: 1px; }
   .two-cols { display: grid; grid-template-columns: 1fr 1fr; }
   .bottom { display: grid; grid-template-columns: 1fr 2fr; gap: 0; border: 2px solid #111; border-radius: 2px; margin-top: 2px; }
   .bottom .left { border-right: 1.5px solid #111; }
   .bottom .left .section-title { border-bottom: 1.5px solid #111; }
-  .bottom .right { display: grid; align-content: space-evenly; gap: 8px; padding: 10px 14px; }
-  .bottom .line { display: flex; gap: 6px; align-items: baseline; font-size: 9.5px; }
-  .bottom .line b { white-space: nowrap; font-size: 9px; }
+  .bottom .right { display: grid; align-content: space-evenly; gap: 9px; padding: 12px 14px; }
+  .bottom .line { display: flex; gap: 6px; align-items: baseline; font-size: 10px; }
+  .bottom .line b { white-space: nowrap; font-size: 9.5px; }
   .bottom .line span { flex: 1; border-bottom: 1px solid #111; min-height: 12px; padding: 0 3px; font-weight: 700; text-transform: uppercase; }
-  @page { size: letter portrait; margin: 6mm; }
+  @page { size: letter portrait; margin: 4mm; }
 </style></head><body>
   <div class="head">
     ${state.logoUrl ? `<img src="${escapeHtml(state.logoUrl)}" alt="">` : ''}
@@ -387,7 +387,6 @@
       <div class="line"><b>FIRMA:</b><span></span></div>
     </div>
   </div>
-<script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 180); });</script>
 </body></html>`;
   };
 

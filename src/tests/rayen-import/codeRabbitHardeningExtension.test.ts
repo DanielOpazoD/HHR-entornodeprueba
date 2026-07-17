@@ -80,16 +80,18 @@ describe('CodeRabbit clinical integration hardening', () => {
 
   it('preserves selected patient context and rejects stale async renders', () => {
     expect(contentSource).toContain(
-      'openCenterModule(target, root.dataset.selectedEncounterId || encId'
+      'switchCenterModule(root, target, root.dataset.selectedEncounterId || encId'
     );
     expect(contentSource).toContain('const requestedEncId = selected');
     expect(contentSource).toContain('root.dataset.handoffRequestGeneration !== requestGeneration');
     expect(contentSource).toContain('root.dataset.vitalsRequestGeneration !== requestGeneration');
   });
 
-  it('protects request drafts and exposes imaging marking to keyboard users', () => {
-    expect(contentSource).toContain("clinicalWriteKey('request-draft-imaging', encId)");
-    expect(contentSource).toContain("clinicalWriteKey('request-draft-lab', encId)");
+  it('keeps transient request selections out of the clinical-write guard', () => {
+    expect(contentSource).not.toContain("clinicalWriteKey('request-draft-imaging', encId)");
+    expect(contentSource).not.toContain("clinicalWriteKey('request-draft-lab', encId)");
+    expect(contentSource).toContain("printWindow.addEventListener('load', openPrintDialog");
+    expect(contentSource).toContain('printWindow.print()');
     expect(contentSource).toContain('class="hhr-imaging-canvas" role="group" tabindex="0"');
     expect(contentSource).toContain("event.key === 'Enter' || event.key === ' '");
     expect(contentSource).toContain('selectedKeys().length + (othersInput.value.trim() ? 1 : 0)');
@@ -100,5 +102,25 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(textEditorKeys).toContain('event.stopPropagation()');
     expect(textEditorKeys).toContain('restoreCanvasFocus = true');
     expect(contentSource).toContain('canvas.focus({ preventScroll: true })');
+  });
+
+  it('keeps prescription batches reusable for the verified Ficha session', () => {
+    const prescriptionBatch = backgroundSource.slice(
+      backgroundSource.indexOf('const handleHospitalizedPrescriptionOptionsRequest'),
+      backgroundSource.indexOf("// Keep Eloisa's official Jasper prescription")
+    );
+    expect(prescriptionBatch).toContain('const sessionKey = await fichaSessionCacheKey');
+    expect(prescriptionBatch).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
+    expect(prescriptionBatch).not.toContain('30 * 60 * 1000');
+    expect(prescriptionBatch).toContain('[storageKey]: { ...batch, lastUsedAt: Date.now() }');
+    expect(backgroundSource).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
+    expect(backgroundSource).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
+    expect(backgroundSource).not.toContain('PRESCRIPTION_BATCH_LIMIT - 1');
+    expect(backgroundSource).toContain('await sweepPrescriptionBatches()');
+    expect(backgroundSource).toContain("allowOfficialFallback: format === 'compact'");
+    expect(backgroundSource).toContain('compactFallbackReason');
+    expect(backgroundSource).toContain('officialResult.buffer.slice(0)');
+    expect(fichaSource).toContain('expiresAt: sessionExpiryTimestamp(session, payload)');
+    expect(contentSource).toContain('el formato oficial para evitar omitir contenido clínico');
   });
 });

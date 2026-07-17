@@ -166,16 +166,18 @@ describe('extension request forms · laboratory print HTML', () => {
 
   it('marks only the selected exams and the chosen procedencia/FONASA level', () => {
     const html = forms.buildLabRequestPrintHtml(baseState);
-    expect(html).toContain('<span class="box on"></span><span>GLICEMIA</span>');
-    expect(html).toContain('<span class="box on"></span><span>HEMOGRAMA</span>');
+    expect(html).toContain('<span class="box on">&times;</span><span>GLICEMIA</span>');
+    expect(html).toContain('<span class="box on">&times;</span><span>HEMOGRAMA</span>');
     expect(html).toContain('<span class="box"></span><span>UREMIA</span>');
     expect(html).toContain('Jose Mario Solar Rebeco');
-    expect(html).toContain('B <span class="box on"></span>');
-    expect(html).toContain('Hospitalización <span class="box on"></span>');
+    expect(html).toContain('B <span class="box on">&times;</span>');
+    expect(html).toContain('Hospitalización <span class="box on">&times;</span>');
     expect(html).toContain('TUBO VERDE');
     expect(html).toContain('ORINA / PARÁSITOS');
     expect(html).toContain('VIROLOGÍA / OTROS');
-    expect(html).toContain('window.print()');
+    expect(html).toContain('body { margin: 0; padding: 3mm 4mm;');
+    expect(html).toContain('@page { size: letter portrait; margin: 4mm; }');
+    expect(html).not.toContain('window.print()');
   });
 
   it('escapes patient-controlled text (no HTML injection into the print tab)', () => {
