@@ -79,11 +79,17 @@ describe('runClinicalFill', () => {
     expect(summary).toMatchObject({ total: 1, patched: 1, errors: [] });
     expect(deps.applyPatch).toHaveBeenCalledTimes(1);
     const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const target = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][1];
     // Only the evaluationScores path is patched (no devices came back).
     expect(Object.keys(patch)).toEqual(['beds.H1C2.evaluationScores']);
     expect(patch['beds.H1C2.evaluationScores']).toMatchObject({
       braden: { total: 17 },
       cudyr: { category: 'D3', source: 'Eloísa · Ficha Médico' },
+    });
+    expect(target).toEqual({
+      censusDate: '2026-07-10',
+      bedId: 'H1C2',
+      clinicalEpisodeId: 'E1',
     });
   });
 

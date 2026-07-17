@@ -6,6 +6,7 @@ import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import {
   runClinicalFill,
   type ClinicalFillSummary,
+  type ClinicalFillPatchTarget,
   type HistoricalCudyrApplyResult,
 } from '../clinicalFillRunner';
 import { beginRayenFill, endRayenFill, reportRayenFillProgress } from './useRayenFillStatus';
@@ -18,7 +19,7 @@ import {
 } from '../bridge/rayenImportBridge';
 
 interface UseRayenClinicalFillInput {
-  patchDailyRecord: (patch: DailyRecordPatch) => Promise<unknown>;
+  patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
     censusDay: string,
@@ -69,8 +70,8 @@ export const useRayenClinicalFill = ({
             fetchHistoryScales: requestHistoryScales,
             fetchScalesForms: requestScalesReport,
             fetchCudyrCategories: () => requestCudyrCategories(15000),
-            applyPatch: async patch => {
-              await patchDailyRecord(patch);
+            applyPatch: async (patch, target) => {
+              await patchDailyRecord(patch, target);
             },
             applyHistoricalCudyr,
             now: () => new Date(),

@@ -28,7 +28,7 @@ import {
 } from '../domain/previousDayCorrections';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
-import type { HistoricalCudyrApplyResult } from '../clinicalFillRunner';
+import type { ClinicalFillPatchTarget, HistoricalCudyrApplyResult } from '../clinicalFillRunner';
 import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
 import {
   subscribeToRayenSnapshots,
@@ -53,6 +53,7 @@ import {
   toHistoricalClinicalOnlyDiff,
 } from '../domain/historicalCensusSync';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { assertClinicalFillPatchTarget } from '../domain/clinicalFillPatchTarget';
 
 const makeId = (): string => crypto.randomUUID();
 
@@ -93,15 +94,14 @@ export const useRayenImport = () => {
   // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
   const patchFreshClinicalRecord = useCallback(
-    async (patch: DailyRecordPatch): Promise<void> => {
-      const date = currentRecordRef.current?.date;
-      if (!date) throw new Error('No hay un censo activo para guardar la cobertura clínica.');
-
+    async (patch: DailyRecordPatch, target: ClinicalFillPatchTarget): Promise<void> => {
+      const date = target.censusDate;
       // Each patient write starts from the latest repository record. The React query cache may
       // still hold the optimistic version from the previous patient and must not become the CAS
       // base for the next one in the same synchronization.
       const fresh = await dailyRecord.getForDateWithMeta(date, true);
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      assertClinicalFillPatchTarget(fresh.record, target);
       const result = await patchDailyRecordWithCompatibility(dailyRecord, date, patch, {
         baseRecord: fresh.record,
       });
@@ -159,9 +159,20 @@ export const useRayenImport = () => {
         return { persisted: false, changed: false, applicable: false };
       }
       if (!resolution.patch) return { persisted: true, changed: false };
-      await patchDailyRecordWithCompatibility(dailyRecord, censusDay, resolution.patch, {
-        baseRecord: historicalRecord,
-      });
+      const result = await patchDailyRecordWithCompatibility(
+        dailyRecord,
+        censusDay,
+        resolution.patch,
+        {
+          baseRecord: historicalRecord,
+        }
+      );
+      if (result?.blockingError) throw result.blockingError;
+      if (isDailyRecordWriteBlockedResult(result)) {
+        throw new Error(
+          result?.userSafeMessage || 'El guardado histórico del CUDYR fue bloqueado.'
+        );
+      }
       return { persisted: true, changed: true };
     },
     [dailyRecord, isAdmin]

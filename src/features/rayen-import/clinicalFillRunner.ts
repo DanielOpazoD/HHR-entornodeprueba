@@ -56,9 +56,15 @@ export interface ClinicalFillDeps {
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
   /** Apply one patient's granular patch. Throwing marks that patient as failed, nothing else. */
-  applyPatch: (patch: DailyRecordPatch) => Promise<void>;
+  applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   now: () => Date;
   createId: () => string;
+}
+
+export interface ClinicalFillPatchTarget {
+  censusDate: string;
+  bedId: string;
+  clinicalEpisodeId: string;
 }
 
 export interface HistoricalCudyrApplyResult {
@@ -263,7 +269,13 @@ export const runClinicalFill = async (
     if (Object.keys(patch).length === 0) return;
 
     try {
-      await enqueueWrite(() => deps.applyPatch(patch));
+      await enqueueWrite(() =>
+        deps.applyPatch(patch, {
+          censusDate: fecha,
+          bedId,
+          clinicalEpisodeId: encId,
+        })
+      );
       summary.patched += 1;
     } catch (error) {
       summary.errors.push({ bedId, source: 'patch', message: message(error) });
