@@ -16,11 +16,19 @@ import {
 } from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { requiresReview } from '../domain/reconcileCensus';
 import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyEgresoReport';
-import { computePreviousDayEdits, fileCrossDayCorrections } from '../domain/previousDayCorrections';
+import {
+  canWritePreviousDay,
+  computePreviousDayEdits,
+  fileCrossDayCorrections,
+} from '../domain/previousDayCorrections';
+import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import type { HistoricalCudyrApplyResult } from '../clinicalFillRunner';
 import { toIsoReportDate, nextIsoDay } from './reportDateHelpers';
 import {
   subscribeToRayenSnapshots,
@@ -37,8 +45,14 @@ import {
 import { failureReasonFromHealth, useRayenSyncAudit } from './useRayenSyncAudit';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
+import { resolveHistoricalCudyrPatch } from '../domain/historicalCudyrPatch';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import {
+  isHistoricalCensusDay,
+  toHistoricalClinicalOnlyDiff,
+} from '../domain/historicalCensusSync';
+import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const makeId = (): string => crypto.randomUUID();
 
@@ -78,6 +92,26 @@ export const useRayenImport = () => {
   currentRecordRef.current = currentRecord;
   // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
+  const patchFreshClinicalRecord = useCallback(
+    async (patch: DailyRecordPatch): Promise<void> => {
+      const date = currentRecordRef.current?.date;
+      if (!date) throw new Error('No hay un censo activo para guardar la cobertura clínica.');
+
+      // Each patient write starts from the latest repository record. The React query cache may
+      // still hold the optimistic version from the previous patient and must not become the CAS
+      // base for the next one in the same synchronization.
+      const fresh = await dailyRecord.getForDateWithMeta(date, true);
+      if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      const result = await patchDailyRecordWithCompatibility(dailyRecord, date, patch, {
+        baseRecord: fresh.record,
+      });
+      if (result?.blockingError) throw result.blockingError;
+      if (isDailyRecordWriteBlockedResult(result)) {
+        throw new Error(result?.userSafeMessage || 'El guardado clínico fue bloqueado.');
+      }
+    },
+    [dailyRecord]
+  );
   const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
   const {
     startRun,
@@ -108,8 +142,33 @@ export const useRayenImport = () => {
   const finishSyncing = useCallback(() => {
     setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
   }, []);
+  const applyHistoricalCudyr = useCallback(
+    async (
+      encId: string,
+      censusDay: string,
+      cudyr: ImportedCudyr
+    ): Promise<HistoricalCudyrApplyResult> => {
+      if (!canWritePreviousDay(censusDay, isAdmin)) return { persisted: false, changed: false };
+      const historicalRecord = await dailyRecord.getForDate(censusDay);
+      if (!historicalRecord) {
+        return { persisted: false, changed: false, applicable: false };
+      }
+
+      const resolution = resolveHistoricalCudyrPatch(historicalRecord, encId, cudyr);
+      if (!resolution.matched) {
+        return { persisted: false, changed: false, applicable: false };
+      }
+      if (!resolution.patch) return { persisted: true, changed: false };
+      await patchDailyRecordWithCompatibility(dailyRecord, censusDay, resolution.patch, {
+        baseRecord: historicalRecord,
+      });
+      return { persisted: true, changed: true };
+    },
+    [dailyRecord, isAdmin]
+  );
   const fillDevicesInBackground = useRayenClinicalFill({
-    patchDailyRecord,
+    patchDailyRecord: patchFreshClinicalRecord,
+    applyHistoricalCudyr,
     completeRun,
     onSettled: finishSyncing,
     createId: makeId,
@@ -132,9 +191,43 @@ export const useRayenImport = () => {
       }
       let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
 
+      const reportDate = toIsoReportDate(currentRecord);
+      if (isHistoricalCensusDay(reportDate)) {
+        // A live Ficha Médico snapshot describes today's location. It cannot prove when a patient
+        // moved, entered or left, so applying it to D-1 (or older) would rewrite history. Preserve
+        // the selected census structure and refresh only date-aware clinical data already attached
+        // to its patients (devices, scores, vitals and CUDYR).
+        if (autoApplyingRef.current) return;
+        autoApplyingRef.current = true;
+        diff = toHistoricalClinicalOnlyDiff(diff, currentRecord);
+        setState({
+          diff,
+          isPreviewOpen: false,
+          isBusy: true,
+          isSyncing: true,
+          result: null,
+          error: null,
+        });
+        try {
+          const stamped = await persistAppliedRun(currentRecord, diff);
+          autoApplyingRef.current = false;
+          setState(prev => ({ ...prev, isBusy: false }));
+          void fillDevicesInBackground(stamped);
+        } catch (error) {
+          autoApplyingRef.current = false;
+          void failRun('apply_failed');
+          setState(prev => ({
+            ...prev,
+            isBusy: false,
+            isSyncing: false,
+            error: getRayenImportErrorMessage(error),
+          }));
+        }
+        return;
+      }
+
       // The bulk Gestión de Camas report is the only authority for statistical egresos. Ficha
       // Médico may signal a clinical closure, but it never vacates a bed by itself.
-      const reportDate = toIsoReportDate(currentRecord);
       // Fetch the report for [D, D+1]: the source files a late island egreso on the NEXT day (its
       // filter runs in a zone ahead of Rapa Nui), so asking only for D would miss it. The extra day's
       // rows are routed to their real island day (or skipped) by the day-correction logic downstream.

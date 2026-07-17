@@ -5,6 +5,8 @@ import type {
   RayenSyncFailureReason,
   RayenSyncMeta,
   RayenSyncSource,
+  RayenSyncCoverageIssue,
+  RayenSyncIssueReason,
 } from '@/types/domain/rayenSync';
 import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
@@ -66,15 +68,44 @@ export const buildFailedRayenSyncEvent = (
 
 export const buildRayenSyncCoverage = (
   total: number,
-  errors: Array<{ bedId: string }>,
+  errors: Array<{ bedId: string; source?: string; message?: string }>,
   completedAt: string
 ): RayenSyncCoverage => {
   const failedPatients = new Set(errors.map(error => error.bedId).filter(bedId => bedId !== '*'));
+  const issueReason = (
+    error: (typeof errors)[number],
+    source: RayenSyncCoverageIssue['source']
+  ): RayenSyncIssueReason => {
+    const detail = String(error.message || '').toLowerCase();
+    if (detail.includes('modificado por otro usuario') || detail.includes('concurrencyerror')) {
+      return 'concurrent_write';
+    }
+    if (detail.includes('no se pudo archivar el cudyr')) return 'historical_archive_failed';
+    if (detail.includes('clinical_fill_busy')) return 'sync_already_running';
+    if (detail.includes('timeout') || detail.includes('tiempo de espera')) return 'source_timeout';
+    if (source === 'patch') {
+      return detail.includes('unexpected') ? 'unexpected' : 'write_failed';
+    }
+    return detail.includes('unexpected') ? 'unexpected' : 'source_unavailable';
+  };
+  const issueMap = new Map<string, RayenSyncCoverageIssue>();
+  errors.forEach(error => {
+    const source = ['devices', 'scales', 'vitals', 'cudyr', 'patch'].includes(error.source ?? '')
+      ? (error.source as RayenSyncCoverageIssue['source'])
+      : 'patch';
+    const issue: RayenSyncCoverageIssue = {
+      bedId: error.bedId,
+      source,
+      reason: issueReason(error, source),
+    };
+    issueMap.set(`${issue.bedId}:${issue.source}:${issue.reason}`, issue);
+  });
   return {
     total,
     completed: Math.max(total - failedPatients.size, 0),
     errors: failedPatients.size,
     sourceErrors: errors.length,
+    ...(issueMap.size > 0 ? { issues: [...issueMap.values()].slice(0, 12) } : {}),
     completedAt,
   };
 };

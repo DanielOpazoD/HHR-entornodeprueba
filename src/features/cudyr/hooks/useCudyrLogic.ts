@@ -10,13 +10,19 @@ import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { resolveCudyrEligibility } from '@/features/cudyr/controllers/cudyrEligibilityController';
 import { canEditCudyrRecord } from '@/features/cudyr/controllers/cudyrEditAccessController';
 import { useNotification } from '@/context/UIContext';
+import { resolveCudyrRecordCompletion } from '@/domain/cudyr/cudyrCompletion';
 
-const createEmptyCudyrDraft = (): Required<CudyrBatchUpdate> => ({
+type CudyrDraft = {
+  beds: NonNullable<CudyrBatchUpdate['beds']>;
+  clinicalCribs: NonNullable<CudyrBatchUpdate['clinicalCribs']>;
+};
+
+const createEmptyCudyrDraft = (): CudyrDraft => ({
   beds: {},
   clinicalCribs: {},
 });
 
-const countDraftFields = (draft: Required<CudyrBatchUpdate>): number =>
+const countDraftFields = (draft: CudyrDraft): number =>
   [...Object.values(draft.beds), ...Object.values(draft.clinicalCribs)].reduce(
     (total, fields) => total + Object.keys(fields).length,
     0
@@ -26,13 +32,13 @@ const isEmptyPatch = (fields: CudyrScorePatch | undefined): boolean =>
   !fields || Object.keys(fields).length === 0;
 
 const updateDraftField = (
-  draft: Required<CudyrBatchUpdate>,
-  group: keyof Required<CudyrBatchUpdate>,
+  draft: CudyrDraft,
+  group: keyof CudyrDraft,
   bedId: string,
   field: keyof CudyrScore,
   value: number,
   persistedValue: number | undefined
-): Required<CudyrBatchUpdate> => {
+): CudyrDraft => {
   const nextGroup = { ...draft[group] };
   const nextFields: CudyrScorePatch = { ...(nextGroup[bedId] ?? {}) };
 
@@ -56,7 +62,7 @@ const updateDraftField = (
 
 const applyCudyrDraftToRecord = (
   record: DailyRecord | null,
-  draft: Required<CudyrBatchUpdate>
+  draft: CudyrDraft
 ): DailyRecord | null => {
   if (!record || countDraftFields(draft) === 0) {
     return record;
@@ -99,7 +105,7 @@ const applyCudyrDraftToRecord = (
 
 const buildCudyrBatchAuditDetails = (
   record: DailyRecord,
-  draft: Required<CudyrBatchUpdate>
+  draft: CudyrDraft
 ): Record<string, unknown> => {
   const bedIds = Object.keys(draft.beds);
   const clinicalCribBedIds = Object.keys(draft.clinicalCribs);
@@ -132,9 +138,9 @@ export const useCudyrLogic = (readOnly: boolean) => {
   const { record } = useDailyRecordData();
   const { updateCudyrBatch } = useDailyRecordCudyrActions();
   const { logEvent, logViewEvent, userId } = useAuditContext();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { success, error: notifyError } = useNotification();
-  const [draft, setDraft] = useState<Required<CudyrBatchUpdate>>(createEmptyCudyrDraft);
+  const [draft, setDraft] = useState<CudyrDraft>(createEmptyCudyrDraft);
   const [isSavingCudyrChanges, setIsSavingCudyrChanges] = useState(false);
 
   useEffect(() => {
@@ -143,23 +149,29 @@ export const useCudyrLogic = (readOnly: boolean) => {
 
   const draftRecord = useMemo(() => applyCudyrDraftToRecord(record, draft), [record, draft]);
   const pendingCudyrChangeCount = useMemo(() => countDraftFields(draft), [draft]);
+  const persistedCompletion = useMemo(
+    () => (record ? resolveCudyrRecordCompletion(record) : null),
+    [record]
+  );
 
   const handleScoreChange = useCallback(
     (bedId: string, field: keyof CudyrScore, value: number) => {
+      if (record?.cudyrLocked || persistedCompletion?.isComplete) return;
       const persistedValue = record?.beds[bedId]?.cudyr?.[field];
       setDraft(current => updateDraftField(current, 'beds', bedId, field, value, persistedValue));
     },
-    [record?.beds]
+    [persistedCompletion?.isComplete, record?.beds, record?.cudyrLocked]
   );
 
   const handleCribScoreChange = useCallback(
     (bedId: string, field: keyof CudyrScore, value: number) => {
+      if (record?.cudyrLocked || persistedCompletion?.isComplete) return;
       const persistedValue = record?.beds[bedId]?.clinicalCrib?.cudyr?.[field];
       setDraft(current =>
         updateDraftField(current, 'clinicalCribs', bedId, field, value, persistedValue)
       );
     },
-    [record?.beds]
+    [persistedCompletion?.isComplete, record?.beds, record?.cudyrLocked]
   );
 
   const saveCudyrChanges = useCallback(async () => {
@@ -167,9 +179,40 @@ export const useCudyrLogic = (readOnly: boolean) => {
       return;
     }
 
+    if (record?.cudyrLocked || persistedCompletion?.isComplete) {
+      notifyError(
+        'CUDYR cerrado',
+        'Otro profesional ya completó este CUDYR. Los resultados quedaron en modo lectura.'
+      );
+      setDraft(createEmptyCudyrDraft());
+      return;
+    }
+
     setIsSavingCudyrChanges(true);
     try {
-      const didConfirmPersistence = updateCudyrBatch ? await updateCudyrBatch(draft) : false;
+      const savedAt = new Date().toISOString();
+      const savedBy =
+        getAttributedAuthors(userId, record, 'night') ||
+        user?.displayName?.trim() ||
+        user?.email?.trim() ||
+        userId;
+      const nextRecord = applyCudyrDraftToRecord(record, draft);
+      const willComplete = Boolean(
+        !record?.cudyrLocked && nextRecord && resolveCudyrRecordCompletion(nextRecord).isComplete
+      );
+      const didConfirmPersistence = updateCudyrBatch
+        ? await updateCudyrBatch({
+            ...draft,
+            metadata: {
+              savedAt,
+              savedBy,
+              savedById: user?.uid || userId,
+              // Ownership is bound to the record selected for night shift D. A later
+              // offline synchronization on D + 1 must never reassign it to that census.
+              shiftDate: record?.date || '',
+            },
+          })
+        : false;
 
       if (!didConfirmPersistence || !record) {
         notifyError(
@@ -185,14 +228,22 @@ export const useCudyrLogic = (readOnly: boolean) => {
         'CUDYR_BATCH_SAVED',
         'dailyRecord',
         record.date,
-        buildCudyrBatchAuditDetails(record, draft),
+        {
+          ...buildCudyrBatchAuditDetails(record, draft),
+          shiftDate: record.date,
+          completed: willComplete,
+          savedAt,
+          savedBy,
+        },
         undefined,
         record.date,
         authors
       );
       success(
-        'CUDYR guardado',
-        `Se guardaron ${savedFieldCount} ${savedFieldCount === 1 ? 'cambio CUDYR' : 'cambios CUDYR'}.`
+        willComplete ? 'CUDYR completado' : 'CUDYR guardado',
+        willComplete
+          ? `CUDYR del turno noche ${record.date} guardado y cerrado para edición.`
+          : `Se guardaron ${savedFieldCount} ${savedFieldCount === 1 ? 'cambio CUDYR' : 'cambios CUDYR'}.`
       );
       setDraft(createEmptyCudyrDraft());
     } finally {
@@ -202,11 +253,13 @@ export const useCudyrLogic = (readOnly: boolean) => {
     draft,
     isSavingCudyrChanges,
     pendingCudyrChangeCount,
+    persistedCompletion?.isComplete,
     record,
     updateCudyrBatch,
     logEvent,
     notifyError,
     success,
+    user,
     userId,
   ]);
 
@@ -284,7 +337,14 @@ export const useCudyrLogic = (readOnly: boolean) => {
     [role, readOnly, draftRecord?.date]
   );
 
-  const isEditingLocked = !canEditRecord;
+  const isCompletionLocked = Boolean(record?.cudyrLocked || persistedCompletion?.isComplete);
+  const isEditingLocked = !canEditRecord || isCompletionLocked;
+
+  useEffect(() => {
+    if (isCompletionLocked && pendingCudyrChangeCount > 0) {
+      setDraft(createEmptyCudyrDraft());
+    }
+  }, [isCompletionLocked, pendingCudyrChangeCount]);
 
   return {
     record: draftRecord,
@@ -292,6 +352,8 @@ export const useCudyrLogic = (readOnly: boolean) => {
     stats,
     cudyrSummary,
     isEditingLocked,
+    isCompletionLocked,
+    persistedCompletion,
     pendingCudyrChangeCount,
     isSavingCudyrChanges,
     handleScoreChange,

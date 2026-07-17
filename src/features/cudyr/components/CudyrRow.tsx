@@ -4,6 +4,8 @@ import { PatientData } from '@/features/cudyr/contracts/cudyrPatientContracts';
 import { BedDefinition } from '@/types/domain/beds';
 import clsx from 'clsx';
 import { buildCudyrRowViewModel } from '@/features/cudyr/controllers/cudyrRowViewController';
+import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
+import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 
 interface CudyrRowProps {
   bed: BedDefinition;
@@ -13,6 +15,7 @@ interface CudyrRowProps {
   isCrib?: boolean;
   eligibilityBlocked?: boolean;
   eligibilityBlockedReason?: string;
+  censusDate: string;
 }
 
 // Reusable Header Cell for Vertical Text
@@ -78,6 +81,7 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
   isCrib = false,
   eligibilityBlocked = false,
   eligibilityBlockedReason,
+  censusDate,
 }) => {
   const viewModel = buildCudyrRowViewModel({
     bed,
@@ -112,9 +116,28 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
   }
 
   const occupiedPatient = patient!;
-  // CUDYR imported from Eloísa (Rayen): only the composite category is available (no per-variable
-  // breakdown), so make that explicit here instead of showing the derived category over empty inputs.
-  const importedCudyr = occupiedPatient.evaluationScores?.cudyr ?? null;
+  // The imported category can include official author, time and 14-item detail from Gestión de Camas.
+  const candidateImportedCudyr = occupiedPatient.evaluationScores?.cudyr ?? null;
+  const importedCudyr =
+    candidateImportedCudyr &&
+    importedCudyrBelongsToCensus(candidateImportedCudyr, censusDate) &&
+    /^[A-D][1-3]$/i.test(candidateImportedCudyr.category.trim())
+      ? candidateImportedCudyr
+      : null;
+  const importedCudyrTooltip = importedCudyr
+    ? [
+        `CUDYR ${importedCudyr.category} importado desde ${importedCudyr.source}.`,
+        importedCudyr.author
+          ? `Profesional: ${importedCudyr.author}${importedCudyr.authorRole ? ` (${importedCudyr.authorRole})` : ''}.`
+          : 'Profesional no informado por la fuente.',
+        importedCudyr.recordedAt
+          ? `Registrado: ${formatDateTimeCL(importedCudyr.recordedAt)}.`
+          : 'Hora de registro no informada por la fuente.',
+        importedCudyr.items?.length
+          ? `${importedCudyr.items.length} variables oficiales disponibles.`
+          : 'Solo categoría compuesta; sin desglose de variables.',
+      ].join('\n')
+    : undefined;
 
   return (
     <tr
@@ -150,9 +173,9 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         {importedCudyr && (
           <span
             className="print:hidden block text-[9px] font-semibold uppercase tracking-wide text-indigo-700"
-            title={`CUDYR importado desde ${importedCudyr.source}: solo la categoría compuesta (${importedCudyr.category}); Eloísa no entrega el valor de cada variable.`}
+            title={importedCudyrTooltip}
           >
-            Importado Eloísa
+            Importado Eloísa ⓘ
           </span>
         )}
         <span className="hidden print:inline text-[10px]">{occupiedPatient.rut || '-'}</span>
@@ -301,11 +324,7 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
             'px-2 py-0.5 rounded font-bold text-xs block w-full shadow-sm print:px-1 print:text-[10px]',
             importedCudyr ? 'bg-indigo-100 text-indigo-800' : viewModel.badgeColor
           )}
-          title={
-            importedCudyr
-              ? `Importado desde ${importedCudyr.source} (categoría compuesta, sin desglose)`
-              : undefined
-          }
+          title={importedCudyr ? importedCudyrTooltip : undefined}
         >
           {importedCudyr ? importedCudyr.category : viewModel.finalCat}
         </span>

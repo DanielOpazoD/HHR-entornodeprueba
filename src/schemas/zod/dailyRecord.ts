@@ -56,6 +56,23 @@ const RayenSyncCoverageSchema = z.object({
   completed: z.number().int().nonnegative(),
   errors: z.number().int().nonnegative(),
   sourceErrors: z.number().int().nonnegative(),
+  issues: nullableOptional(
+    z.array(
+      z.object({
+        bedId: z.string(),
+        source: z.enum(['devices', 'scales', 'vitals', 'cudyr', 'patch']),
+        reason: z.enum([
+          'concurrent_write',
+          'source_unavailable',
+          'source_timeout',
+          'historical_archive_failed',
+          'sync_already_running',
+          'write_failed',
+          'unexpected',
+        ]),
+      })
+    )
+  ),
   completedAt: z.string(),
 });
 
@@ -225,6 +242,11 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       cudyrLockedAt: nullableOptional(z.string()),
       cudyrLockedBy: nullableOptional(z.string()),
       cudyrUpdatedAt: nullableOptional(z.string()),
+      cudyrUpdatedBy: nullableOptional(z.string()),
+      cudyrUpdatedById: nullableOptional(z.string()),
+      cudyrShiftDate: nullableOptional(z.string()),
+      cudyrCompletedAt: nullableOptional(z.string()),
+      cudyrCompletedBy: nullableOptional(z.string()),
       handoffNightReceives: nullishDefault(z.array(z.string()), () => []),
     })
     .passthrough()

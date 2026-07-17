@@ -18,6 +18,7 @@ import type {
   ImportedCudyr,
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
+import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 
 export interface BradenCellModel {
@@ -150,11 +151,16 @@ export const buildScoresCellModel = (
   }
 
   let cudyr: CudyrCellModel | null = null;
-  if (scores.cudyr && scores.cudyr.category) {
-    const first = scores.cudyr.category.trim().charAt(0).toUpperCase();
+  const importedCudyr = scores.cudyr;
+  if (
+    importedCudyr &&
+    importedCudyrBelongsToCensus(importedCudyr, censusIsoDay) &&
+    /^[A-D][1-3]$/i.test(importedCudyr.category.trim())
+  ) {
+    const first = importedCudyr.category.trim().charAt(0).toUpperCase();
     cudyr = {
-      entry: scores.cudyr,
-      category: scores.cudyr.category.trim(),
+      entry: importedCudyr,
+      category: importedCudyr.category.trim().toUpperCase(),
       band: first === 'A' || first === 'B' || first === 'C' || first === 'D' ? first : null,
     };
   }

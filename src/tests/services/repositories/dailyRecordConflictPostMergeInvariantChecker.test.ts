@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { CUDYR_SCORE_FIELDS } from '@/domain/cudyr/cudyrCompletion';
+import type { CudyrScore } from '@/types/domain/cudyr';
+
+const completeCudyr = (value = 1): CudyrScore =>
+  Object.fromEntries(CUDYR_SCORE_FIELDS.map(field => [field, value])) as unknown as CudyrScore;
 
 const makeRecord = (lastUpdated: string): DailyRecord =>
   ({
@@ -336,5 +341,255 @@ describe('dailyRecordConflictPostMergeInvariantChecker', () => {
     expect(result.record.medicalHandoffNovedades).toContain('Cirugía');
     expect(result.record.medicalHandoffNovedades).toContain('Medicina Interna');
     expect(result.record.medicalHandoffNovedades).toContain('Ajustar antihipertensivos');
+  });
+
+  it('blocks a delayed CUDYR merge after another client completed the night shift', () => {
+    const remote = makeRecord('2026-07-17T01:05:00.000Z');
+    remote.cudyrLocked = true;
+    remote.cudyrShiftDate = '2026-07-16';
+    remote.beds = {
+      R1: makePatient('Paciente CUDYR', '11.111.111-1', '2026-07-15', {
+        cudyr: { changeClothes: 1, mobilization: 1 } as never,
+      }),
+    };
+
+    const local = makeRecord('2026-07-17T00:55:00.000Z');
+    local.beds = {
+      R1: makePatient('Paciente CUDYR', '11.111.111-1', '2026-07-15', {
+        cudyr: { changeClothes: 3, mobilization: 1 } as never,
+      }),
+    };
+
+    const resolved = {
+      ...remote,
+      beds: local.beds,
+    };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'cudyr_changed_after_remote_completion',
+          path: 'beds.R1.cudyr',
+        }),
+      ])
+    );
+  });
+
+  it('allows identity detail corrections for the same episode after CUDYR closure', () => {
+    const remote = makeRecord('2026-07-17T01:05:00.000Z');
+    remote.date = '2026-07-16';
+    remote.cudyrLocked = true;
+    remote.cudyrShiftDate = '2026-07-16';
+    remote.beds = {
+      R1: makePatient('Paciente CUDYR', '11.111.111-1', '2026-07-15', {
+        clinicalEpisodeId: 'episode-cudyr',
+        cudyr: completeCudyr(),
+      }),
+    };
+    const resolved = {
+      ...remote,
+      beds: {
+        R1: { ...remote.beds.R1, patientName: 'Paciente CUDYR corregido' },
+      },
+    };
+
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('protects last-save attribution after CUDYR closure', () => {
+    const remote = makeRecord('2026-07-17T01:05:00.000Z');
+    remote.date = '2026-07-16';
+    remote.cudyrLocked = true;
+    remote.cudyrUpdatedAt = '2026-07-17T01:05:00.000Z';
+    remote.cudyrUpdatedBy = 'Enfermera oficial';
+    remote.cudyrUpdatedById = 'nurse-official';
+    const resolved = {
+      ...remote,
+      cudyrUpdatedBy: 'Cliente atrasado',
+    };
+
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'cudyr_changed_after_remote_completion',
+          path: 'cudyrUpdatedBy',
+        }),
+      ])
+    );
+  });
+
+  it('closes a CUDYR completed by disjoint concurrent patient updates', () => {
+    const remote = makeRecord('2026-07-17T01:04:00.000Z');
+    remote.date = '2026-07-16';
+    remote.beds = {
+      R1: makePatient('Paciente uno', '1-1', '2026-07-15', { cudyr: completeCudyr(1) }),
+      R2: makePatient('Paciente dos', '2-2', '2026-07-15'),
+    };
+
+    const local = makeRecord('2026-07-17T01:05:00.000Z');
+    local.date = '2026-07-16';
+    local.cudyrUpdatedAt = '2026-07-17T01:05:00.000Z';
+    local.cudyrUpdatedBy = 'Enfermera Noche';
+    local.cudyrUpdatedById = 'nurse-1';
+    local.cudyrShiftDate = '2026-07-16';
+    local.beds = {
+      R1: makePatient('Paciente uno', '1-1', '2026-07-15'),
+      R2: makePatient('Paciente dos', '2-2', '2026-07-15', { cudyr: completeCudyr(2) }),
+    };
+
+    const resolved = {
+      ...local,
+      beds: {
+        R1: remote.beds.R1,
+        R2: local.beds.R2,
+      },
+    };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.record).toMatchObject({
+      cudyrLocked: true,
+      cudyrLockedAt: '2026-07-17T01:05:00.000Z',
+      cudyrLockedBy: 'nurse-1',
+      cudyrShiftDate: '2026-07-16',
+      cudyrCompletedAt: '2026-07-17T01:05:00.000Z',
+      cudyrCompletedBy: 'Enfermera Noche',
+    });
+  });
+
+  it('blocks a delayed merge that makes a closed CUDYR population incomplete', () => {
+    const remote = makeRecord('2026-07-17T01:05:00.000Z');
+    remote.date = '2026-07-16';
+    remote.cudyrLocked = true;
+    remote.cudyrShiftDate = '2026-07-16';
+    remote.beds = {
+      R1: makePatient('Paciente uno', '1-1', '2026-07-15', { cudyr: completeCudyr() }),
+    };
+    const resolved = {
+      ...remote,
+      beds: {
+        ...remote.beds,
+        R2: makePatient('Paciente nuevo', '2-2', '2026-07-15'),
+      },
+    };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'cudyr_changed_after_remote_completion',
+          path: 'cudyrLocked',
+        }),
+      ])
+    );
+  });
+
+  it('blocks conflict resolution that replaces immutable CUDYR closure attribution', () => {
+    const remote = makeRecord('2026-07-17T01:05:00.000Z');
+    remote.date = '2026-07-16';
+    remote.cudyrLocked = true;
+    remote.cudyrLockedAt = '2026-07-17T01:05:00.000Z';
+    remote.cudyrLockedBy = 'nurse-1';
+    remote.cudyrShiftDate = '2026-07-16';
+    remote.cudyrCompletedAt = '2026-07-17T01:05:00.000Z';
+    remote.cudyrCompletedBy = 'Enfermera Noche';
+    remote.beds = {
+      R1: makePatient('Paciente uno', '1-1', '2026-07-15', { cudyr: completeCudyr() }),
+    };
+    const resolved = { ...remote, cudyrCompletedBy: 'Identidad atrasada' };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'cudyr_changed_after_remote_completion',
+          path: 'cudyrCompletedBy',
+        }),
+      ])
+    );
+  });
+
+  it('blocks a stale merge that introduces a lock before the merged CUDYR is complete', () => {
+    const remote = makeRecord('2026-07-17T01:00:00.000Z');
+    remote.date = '2026-07-16';
+    remote.beds = {
+      R1: makePatient('Paciente pendiente', '1-1', '2026-07-15', {
+        cudyr: { changeClothes: 1 } as never,
+      }),
+    };
+    const resolved = { ...remote, cudyrLocked: true };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('blocked');
+    expect(result.violations).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: 'cudyrLocked' })])
+    );
+  });
+
+  it('allows unrelated conflict recovery for an unchanged legacy manual incomplete lock', () => {
+    const remote = makeRecord('2026-07-17T01:00:00.000Z');
+    remote.date = '2026-07-16';
+    remote.cudyrLocked = true;
+    remote.cudyrLockedAt = '2026-07-17T01:00:00.000Z';
+    remote.cudyrLockedBy = 'legacy-user';
+    remote.beds = {
+      R1: makePatient('Paciente legado', '1-1', '2026-07-15', {
+        cudyr: { changeClothes: 1 } as never,
+      }),
+    };
+    const resolved = { ...remote, handoffNovedadesNightShift: 'Cambio no relacionado' };
+    const result = evaluateDailyRecordConflictPostMergeInvariants({
+      remote,
+      local: resolved,
+      resolved,
+      context: { date: '2026-07-16', phase: 'sync_publish' },
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.record.cudyrLocked).toBe(true);
   });
 });

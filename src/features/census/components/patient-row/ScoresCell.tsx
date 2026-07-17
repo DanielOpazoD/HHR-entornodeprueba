@@ -16,6 +16,9 @@ import { ScaleChip } from './ScaleChip';
 import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { useRayenFillStatus } from '@/features/rayen-import';
+import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
+import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
@@ -35,76 +38,105 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   }
 
   const model = buildScoresCellModel(data, currentDateString);
+  const hasManualCudyr = getCategorization(data.cudyr).isCategorized;
+  const cudyrPending =
+    !model.cudyr && !hasManualCudyr && isCudyrPatientEligible(currentDateString, data)
+      ? resolveCudyrPendingStatus(currentDateString)
+      : null;
+  const hasCellContent = model.hasAny || cudyrPending != null;
+  const pendingClass =
+    cudyrPending?.phase === 'overdue'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : cudyrPending?.phase === 'application_window'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : 'border-slate-200 bg-slate-50 text-slate-500';
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
       {/* Show the syncing indicator on top of existing data too, so a re-sync gives feedback. */}
-      {isFilling && model.hasAny && <CellSyncIndicator />}
-      {model.hasAny ? (
-        <button
-          type="button"
-          onClick={e => {
-            e.stopPropagation();
-            setIsDetailOpen(true);
-          }}
-          className="w-full flex flex-col items-stretch gap-0.5 cursor-pointer"
-          aria-label="Ver detalle de escalas de enfermería"
-        >
-          {model.braden && (
-            <ScaleChip
-              hue="violet"
-              icon={Bandage}
-              label="Braden"
-              value={String(model.braden.total)}
-              severity={model.braden.assessment.riskLevel}
-              countdown={model.braden.chipCountdown}
-              countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
-              note={{
-                title: model.braden.entry.name,
-                recordedDate: model.braden.entry.recordedDate,
-                recordedAt: model.braden.entry.recordedAt,
-                author: model.braden.entry.author,
-                authorRole: model.braden.entry.authorRole,
-                detail: model.braden.assessment.conducta.riskLabel,
+      {isFilling && hasCellContent && <CellSyncIndicator />}
+      {hasCellContent ? (
+        <div className="flex w-full flex-col items-stretch gap-0.5">
+          {model.hasAny && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setIsDetailOpen(true);
               }}
-            />
+              className="flex w-full cursor-pointer flex-col items-stretch gap-0.5"
+              aria-label="Ver detalle de escalas de enfermería"
+            >
+              {model.braden && (
+                <ScaleChip
+                  hue="violet"
+                  icon={Bandage}
+                  label="Braden"
+                  value={String(model.braden.total)}
+                  severity={model.braden.assessment.riskLevel}
+                  countdown={model.braden.chipCountdown}
+                  countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
+                  note={{
+                    title: model.braden.entry.name,
+                    recordedDate: model.braden.entry.recordedDate,
+                    recordedAt: model.braden.entry.recordedAt,
+                    author: model.braden.entry.author,
+                    authorRole: model.braden.entry.authorRole,
+                    detail: model.braden.assessment.conducta.riskLabel,
+                  }}
+                />
+              )}
+              {model.downton && (
+                <ScaleChip
+                  hue="indigo"
+                  icon={Footprints}
+                  label="Downton"
+                  value={String(model.downton.total)}
+                  severity={model.downton.level}
+                  countdown={model.downton.chipCountdown}
+                  countdownUrgent={
+                    !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
+                  }
+                  note={{
+                    title: model.downton.entry.name,
+                    recordedDate: model.downton.entry.recordedDate,
+                    recordedAt: model.downton.entry.recordedAt,
+                    author: model.downton.entry.author,
+                    authorRole: model.downton.entry.authorRole,
+                    detail: model.downton.severityLabel,
+                  }}
+                />
+              )}
+              {model.cudyr && (
+                <ScaleChip
+                  hue="teal"
+                  icon={ClipboardList}
+                  label="CUDYR"
+                  value={model.cudyr.category}
+                  band={model.cudyr.band}
+                  note={{
+                    title: 'CUDYR (CRD) — categorización',
+                    recordedDate: model.cudyr.entry.recordedDate,
+                    recordedAt: model.cudyr.entry.recordedAt,
+                    author: model.cudyr.entry.author,
+                    authorRole: model.cudyr.entry.authorRole,
+                    detail: `Turno noche: ${model.cudyr.entry.recordedDate.split('-').reverse().join('-')}`,
+                  }}
+                />
+              )}
+            </button>
           )}
-          {model.downton && (
-            <ScaleChip
-              hue="indigo"
-              icon={Footprints}
-              label="Downton"
-              value={String(model.downton.total)}
-              severity={model.downton.level}
-              countdown={model.downton.chipCountdown}
-              countdownUrgent={
-                !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
-              }
-              note={{
-                title: model.downton.entry.name,
-                recordedDate: model.downton.entry.recordedDate,
-                recordedAt: model.downton.entry.recordedAt,
-                author: model.downton.entry.author,
-                authorRole: model.downton.entry.authorRole,
-                detail: model.downton.severityLabel,
-              }}
-            />
+          {cudyrPending && (
+            <div
+              className={`flex items-center justify-between rounded border px-1.5 py-0.5 text-[9px] ${pendingClass}`}
+              title={cudyrPending.detail}
+              aria-label={`CUDYR ${cudyrPending.label}. ${cudyrPending.detail}`}
+            >
+              <span className="font-semibold">CUDYR</span>
+              <span>{cudyrPending.label}</span>
+            </div>
           )}
-          {model.cudyr && (
-            <ScaleChip
-              hue="teal"
-              icon={ClipboardList}
-              label="CUDYR"
-              value={model.cudyr.category}
-              band={model.cudyr.band}
-              note={{
-                title: 'CUDYR (CRD) — categorización',
-                recordedDate: model.cudyr.entry.recordedDate,
-                detail: `Importado desde ${model.cudyr.entry.source} · sin desglose`,
-              }}
-            />
-          )}
-        </button>
+        </div>
       ) : isFilling ? (
         <div
           className="flex flex-col gap-0.5 animate-pulse"

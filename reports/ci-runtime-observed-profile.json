@@ -1,38 +1,122 @@
 {
   "reportId": "ci-runtime-observed-profile",
-  "status": "no_observed_ci_data",
+  "status": "observed_ci_data",
   "summary": {
-    "observedShardCount": 0,
+    "observedShardCount": 4,
     "expectedShardCount": 4,
-    "totalDurationMs": 0,
-    "spreadPercent": 0,
+    "totalDurationMs": 851000,
+    "slowestShard": {
+      "index": 1,
+      "durationMs": 234000
+    },
+    "fastestShard": {
+      "index": 2,
+      "durationMs": 201000
+    },
+    "fastestMs": 201000,
+    "slowestMs": 234000,
+    "spreadMs": 33000,
+    "spreadPercent": 16.4,
     "tolerancePercent": 25
   },
-  "shards": [],
+  "shards": [
+    {
+      "completedAt": "2026-07-06T01:47:27Z",
+      "conclusion": "SUCCESS",
+      "durationMs": 234000,
+      "index": 1,
+      "name": "unit-risk-shard-1",
+      "startedAt": "2026-07-06T01:43:33Z",
+      "status": "COMPLETED"
+    },
+    {
+      "completedAt": "2026-07-06T01:46:53Z",
+      "conclusion": "SUCCESS",
+      "durationMs": 201000,
+      "index": 2,
+      "name": "unit-risk-shard-2",
+      "startedAt": "2026-07-06T01:43:32Z",
+      "status": "COMPLETED"
+    },
+    {
+      "completedAt": "2026-07-06T01:47:05Z",
+      "conclusion": "SUCCESS",
+      "durationMs": 213000,
+      "index": 3,
+      "name": "unit-risk-shard-3",
+      "startedAt": "2026-07-06T01:43:32Z",
+      "status": "COMPLETED"
+    },
+    {
+      "completedAt": "2026-07-06T01:46:54Z",
+      "conclusion": "SUCCESS",
+      "durationMs": 203000,
+      "index": 4,
+      "name": "unit-risk-shard-4",
+      "startedAt": "2026-07-06T01:43:31Z",
+      "status": "COMPLETED"
+    }
+  ],
   "duplicateShardJobs": [],
   "invalidTimestampShardJobs": [],
   "missingShardIndices": [],
   "unexpectedShardJobs": [],
-  "recommendation": "No observed CI unit shard data is available yet; keep this signal advisory until GitHub Actions data is captured.",
-  "generatedAt": "2026-07-06T05:49:01.976Z",
-  "gitSha": "c6bbc765",
-  "gitDirty": false,
+  "recommendation": "Observed CI unit shard spread is within observed tolerance; keep monitoring trend data.",
+  "generatedAt": "2026-07-17T06:06:33.210Z",
+  "gitSha": "0b730214",
+  "gitDirty": true,
   "source": {
-    "inputPath": "reports/ci-runtime-observed-input.json",
-    "hasInput": false
+    "provider": "github-actions",
+    "repository": "DanielOpazoD/HHR-ServicioHospitalizados",
+    "runId": "28767128242",
+    "status": "collected",
+    "inputPath": "/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-54e18e7e-50ad-4b4e-bee3-cc0e0c8d1ecb.json",
+    "hasInput": true
   },
   "comparison": {
-    "status": "no_observed_ci_data",
+    "status": "observed_within_tolerance",
     "blockingIssues": [],
     "advisoryFindings": [
-      "No observed CI runtime data is available yet."
+      "Observed shard 1 runtime is 349.8% of the estimated duration.",
+      "Observed shard 2 runtime is 300.4% of the estimated duration.",
+      "Observed shard 3 runtime is 318.4% of the estimated duration.",
+      "Observed shard 4 runtime is 303.4% of the estimated duration."
     ],
-    "shards": [],
+    "shards": [
+      {
+        "deltaMs": 167097,
+        "estimatedDurationMs": 66903,
+        "index": 1,
+        "observedDurationMs": 234000,
+        "ratioPercent": 349.8
+      },
+      {
+        "deltaMs": 134097,
+        "estimatedDurationMs": 66903,
+        "index": 2,
+        "observedDurationMs": 201000,
+        "ratioPercent": 300.4
+      },
+      {
+        "deltaMs": 146097,
+        "estimatedDurationMs": 66903,
+        "index": 3,
+        "observedDurationMs": 213000,
+        "ratioPercent": 318.4
+      },
+      {
+        "deltaMs": 136097,
+        "estimatedDurationMs": 66903,
+        "index": 4,
+        "observedDurationMs": 203000,
+        "ratioPercent": 303.4
+      }
+    ],
     "summary": {
       "estimatedTotalDurationMs": 267612,
-      "observedTotalDurationMs": 0,
-      "totalDeltaMs": 0,
-      "totalRatioPercent": 0
+      "observedTotalDurationMs": 851000,
+      "totalDeltaMs": 583388,
+      "totalRatioPercent": 318
     }
   }
 }

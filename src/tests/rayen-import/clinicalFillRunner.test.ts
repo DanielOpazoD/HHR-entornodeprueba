@@ -87,6 +87,69 @@ describe('runClinicalFill', () => {
     });
   });
 
+  it('routes the 16-jul early-morning CUDYR to the 15-jul census when syncing on 16-jul', async () => {
+    const applyHistoricalCudyr = vi.fn().mockResolvedValue({ persisted: true, changed: true });
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [
+          {
+            encId: 'E1',
+            crdValue: 'C2',
+            crdDateTime: '2026-07-16T07:00:00+00:00',
+            author: 'Constanza Guajardo',
+          },
+        ],
+      }),
+      applyHistoricalCudyr,
+    });
+
+    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-16', deps);
+
+    expect(summary).toMatchObject({ total: 1, patched: 1, errors: [] });
+    expect(applyHistoricalCudyr).toHaveBeenCalledWith(
+      'E1',
+      '2026-07-15',
+      expect.objectContaining({
+        category: 'C2',
+        recordedDate: '2026-07-15',
+        author: 'Constanza Guajardo',
+      })
+    );
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
+  it('does not fail coverage when a prior-shift CUDYR belongs to an episode absent from that census', async () => {
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [
+          {
+            encId: 'E1',
+            crdValue: 'C1',
+            crdDateTime: '2026-07-16T14:26:00+00:00',
+          },
+        ],
+      }),
+      applyHistoricalCudyr: vi.fn().mockResolvedValue({
+        persisted: false,
+        changed: false,
+        applicable: false,
+      }),
+    });
+
+    const summary = await runClinicalFill(
+      record({ R1: { encId: 'E1', name: 'Paciente ingresado el 16' } }),
+      '2026-07-16',
+      deps
+    );
+
+    expect(summary).toEqual({ total: 1, patched: 0, errors: [] });
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
   it('syncs the latest vitals from the same forms fetch (VITAL_SIGNS)', async () => {
     const VITALS_FORM = {
       formCodigo: 'VITAL_SIGNS',
@@ -155,6 +218,36 @@ describe('runClinicalFill', () => {
     ]);
   });
 
+  it('fetches patients concurrently but serializes census writes to avoid self-conflicts', async () => {
+    let activeWrites = 0;
+    let maxActiveWrites = 0;
+    const applyPatch = vi.fn().mockImplementation(async () => {
+      activeWrites += 1;
+      maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      activeWrites -= 1;
+    });
+    const deps = okDeps({
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      applyPatch,
+    });
+
+    const summary = await runClinicalFill(
+      record({
+        R1: { encId: 'E1' },
+        R2: { encId: 'E2' },
+        R3: { encId: 'E3' },
+        R4: { encId: 'E4' },
+      }),
+      '2026-07-10',
+      deps
+    );
+
+    expect(summary).toMatchObject({ total: 4, patched: 4, errors: [] });
+    expect(applyPatch).toHaveBeenCalledTimes(4);
+    expect(maxActiveWrites).toBe(1);
+  });
+
   it('a CUDYR bulk failure costs only that source and is reported once', async () => {
     const deps = okDeps({
       fetchCudyrCategories: vi.fn().mockRejectedValue(new Error('sin relay CUDYR')),
@@ -181,10 +274,10 @@ describe('runClinicalFill', () => {
     expect(onProgress).toHaveBeenCalledWith({ done: 1, total: 1 });
   });
 
-  it('removes a stale CUDYR carried over from another day when the read is authoritative', async () => {
+  it('removes a legacy CUDYR misfiled on D + 1 when the read is authoritative', async () => {
     const rec = record({ H1C2: { encId: 'E1' } });
     (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
-      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
+      cudyr: { category: 'D3', recordedDate: '2026-07-11', source: 'Eloísa (Rayen)' },
     };
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
@@ -192,6 +285,7 @@ describe('runClinicalFill', () => {
       fetchCudyrCategories: vi.fn().mockResolvedValue({
         items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
       }),
+      applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: true, changed: true }),
     });
     const summary = await runClinicalFill(rec, '2026-07-11', deps);
 
@@ -212,6 +306,29 @@ describe('runClinicalFill', () => {
     const summary = await runClinicalFill(rec, '2026-07-11', deps);
 
     expect(summary.patched).toBe(0); // nothing changed — the stale value is preserved, not wiped
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
+  it('keeps stored CUDYR when the bridge resolves with a non-authoritative error', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
+      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        error: 'Gestión de Camas no disponible',
+      }),
+    });
+
+    const summary = await runClinicalFill(rec, '2026-07-11', deps);
+
+    expect(summary.errors).toContainEqual({
+      bedId: '*',
+      source: 'cudyr',
+      message: 'Gestión de Camas no disponible',
+    });
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 

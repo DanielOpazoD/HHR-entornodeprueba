@@ -66,7 +66,7 @@ export interface ImportedCudyrHistoryEntry {
 export interface ImportedCudyr {
   /** Composite CUDYR category, e.g. "D3". */
   category: string;
-  /** ISO local day (Rapa Nui) the categorization was recorded — YYYY-MM-DD. */
+  /** Census/night-shift day that owns the categorization in Rapa Nui — YYYY-MM-DD. */
   recordedDate: string;
   /** Source timestamp including time and offset. */
   recordedAt?: string;

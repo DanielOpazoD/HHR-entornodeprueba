@@ -1,8 +1,13 @@
 import { useCallback } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import { runClinicalFill, type ClinicalFillSummary } from '../clinicalFillRunner';
+import {
+  runClinicalFill,
+  type ClinicalFillSummary,
+  type HistoricalCudyrApplyResult,
+} from '../clinicalFillRunner';
 import { beginRayenFill, endRayenFill, reportRayenFillProgress } from './useRayenFillStatus';
 import { toIsoReportDate } from './reportDateHelpers';
 import {
@@ -14,6 +19,11 @@ import {
 
 interface UseRayenClinicalFillInput {
   patchDailyRecord: (patch: DailyRecordPatch) => Promise<unknown>;
+  applyHistoricalCudyr: (
+    encId: string,
+    censusDay: string,
+    cudyr: ImportedCudyr
+  ) => Promise<HistoricalCudyrApplyResult>;
   completeRun: (record: DailyRecord, summary: ClinicalFillSummary) => Promise<void>;
   onSettled: () => void;
   createId: () => string;
@@ -22,6 +32,7 @@ interface UseRayenClinicalFillInput {
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   patchDailyRecord,
+  applyHistoricalCudyr,
   completeRun,
   onSettled,
   createId,
@@ -61,6 +72,7 @@ export const useRayenClinicalFill = ({
             applyPatch: async patch => {
               await patchDailyRecord(patch);
             },
+            applyHistoricalCudyr,
             now: () => new Date(),
             createId,
           },
@@ -89,5 +101,5 @@ export const useRayenClinicalFill = ({
       }
       onSettled();
     },
-    [completeRun, createId, onSettled, patchDailyRecord]
+    [applyHistoricalCudyr, completeRun, createId, onSettled, patchDailyRecord]
   );

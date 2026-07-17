@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClipboardList } from 'lucide-react';
 import { CUDYR_NIGHT_REFERENCE_TIME_LABEL } from '@/features/cudyr/public';
+import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
 export const HandoffCudyrPrintHeader: React.FC<{
   categorized: number;
@@ -9,7 +10,18 @@ export const HandoffCudyrPrintHeader: React.FC<{
   printDate: string;
   applicationDate: string;
   responsibleNurses: string[];
-}> = ({ categorized, index, occupied, printDate, applicationDate, responsibleNurses }) => (
+  recordedAt?: string;
+  recordedBy?: string;
+}> = ({
+  categorized,
+  index,
+  occupied,
+  printDate,
+  applicationDate,
+  responsibleNurses,
+  recordedAt,
+  recordedBy,
+}) => (
   <div className="mb-3 border-b border-slate-300 pb-3">
     <div className="mb-1 flex items-center justify-between">
       <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
@@ -58,6 +70,17 @@ export const HandoffCudyrPrintHeader: React.FC<{
           <span className="italic text-slate-400">No registrados</span>
         )}
       </span>
+
+      {(recordedBy || recordedAt) && (
+        <>
+          <span className="text-slate-400">|</span>
+          <span title="Responsable y hora del último registro CUDYR confirmado">
+            <span className="font-semibold">Registro CUDYR: </span>
+            {recordedBy || 'Profesional no informado'}
+            {recordedAt ? ` · ${formatDateTimeCL(recordedAt)}` : ''}
+          </span>
+        </>
+      )}
     </div>
   </div>
 );

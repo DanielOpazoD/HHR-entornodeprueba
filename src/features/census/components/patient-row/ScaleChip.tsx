@@ -87,9 +87,21 @@ const formatDayLong = (isoDay: string): string => {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : isoDay;
 };
 
-const extractTime = (raw?: string): string | null => {
-  const match = (raw ?? '').match(/(\d{1,2}):(\d{2})/);
-  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
+const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string => {
+  const instant = recordedAt ? new Date(recordedAt) : null;
+  if (instant && !Number.isNaN(instant.getTime())) {
+    return instant.toLocaleString('es-CL', {
+      timeZone: 'Pacific/Easter',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+  const time = (recordedAt ?? '').match(/(\d{1,2}):(\d{2})/);
+  return `${formatDayLong(recordedDate)}${time ? ` · ${time[1].padStart(2, '0')}:${time[2]} h` : ''}`;
 };
 
 /**
@@ -99,7 +111,6 @@ const extractTime = (raw?: string): string | null => {
  */
 const HALF_WIDTH = 110; // max-width 220 / 2, for the horizontal clamp
 const StickyNote: React.FC<{ note: StickyNoteData; anchor: DOMRect }> = ({ note, anchor }) => {
-  const time = extractTime(note.recordedAt);
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
   const left = Math.min(
     Math.max(anchor.left + anchor.width / 2, HALF_WIDTH + 8),
@@ -119,8 +130,7 @@ const StickyNote: React.FC<{ note: StickyNoteData; anchor: DOMRect }> = ({ note,
         <span className="absolute -top-1.5 left-1/2 h-2.5 w-8 -translate-x-1/2 rotate-1 rounded-[1px] bg-amber-200/70 shadow-sm" />
         <p className="text-[10px] font-bold leading-snug text-amber-900">{note.title}</p>
         <p className="mt-0.5 text-[10px] tabular-nums text-amber-800">
-          {formatDayLong(note.recordedDate)}
-          {time && <span> · {time} h</span>}
+          Registrado: {formatRecordedMoment(note.recordedDate, note.recordedAt)}
         </p>
         {note.detail && <p className="text-[10px] italic text-amber-800/90">{note.detail}</p>}
         <p className="mt-1 border-t border-amber-200/80 pt-1 text-[10px] leading-snug text-amber-900">

@@ -43,4 +43,28 @@ describe('handoffCudyrPrintSupport', () => {
     expect(display.visibleScores).toBeUndefined();
     expect(display.categorization.finalCat).toBe('');
   });
+
+  it('shows an official imported category in the night-shift CUDYR section', () => {
+    const display = resolveHandoffCudyrPrintDisplay('2026-07-15', {
+      patientName: 'Categorizado en Eloísa',
+      admissionDate: '2026-07-14',
+      admissionTime: '18:00',
+      evaluationScores: { cudyr: { category: 'C1', recordedDate: '2026-07-15' } },
+    });
+
+    expect(display.isEligible).toBe(true);
+    expect(display.categorization).toMatchObject({ finalCat: 'C1', isCategorized: true });
+    expect(display.visibleScores).toBeUndefined();
+  });
+
+  it('ignores an imported category owned by another night shift', () => {
+    const display = resolveHandoffCudyrPrintDisplay('2026-07-15', {
+      patientName: 'Registro desfasado',
+      admissionDate: '2026-07-14',
+      admissionTime: '18:00',
+      evaluationScores: { cudyr: { category: 'C1', recordedDate: '2026-07-16' } },
+    });
+
+    expect(display.categorization.isCategorized).toBe(false);
+  });
 });

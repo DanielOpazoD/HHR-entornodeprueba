@@ -6,6 +6,7 @@ import { rayenSyncChangeCount } from '../domain/rayenSyncHistory';
 import {
   presentRayenCoverage,
   presentRayenSyncOutcome,
+  presentRayenCoverageIssue,
   rayenFailureReasonLabel,
   type RayenSyncRecoveryPresentation,
 } from './rayenSyncPresentation';
@@ -185,6 +186,26 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
                 )}
                 {source && <span className="font-medium text-slate-400">{source}</span>}
               </div>
+              {event.coverage && event.coverage.errors > 0 && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                  <p className="font-bold">Detalle para resolver</p>
+                  {event.coverage.issues?.length ? (
+                    <ul className="mt-1 space-y-1">
+                      {event.coverage.issues.map(issue => (
+                        <li key={`${issue.bedId}-${issue.source}-${issue.reason}`}>
+                          {presentRayenCoverageIssue(issue)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1">
+                      Esta ejecución no registró el paciente ni la etapa que falló. Usa “Reintentar
+                      con revisión”; la nueva ejecución mostrará cama, fuente y causa si vuelve a
+                      ocurrir.
+                    </p>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}

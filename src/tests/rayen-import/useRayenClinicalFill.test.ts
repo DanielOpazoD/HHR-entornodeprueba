@@ -32,6 +32,7 @@ describe('useRayenClinicalFill', () => {
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
         onSettled,
         createId: () => 'id',

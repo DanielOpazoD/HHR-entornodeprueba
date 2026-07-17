@@ -4,7 +4,7 @@ import type { PatientData } from './patient';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
 import type { DeviceDetails, DeviceInstance } from './devices';
-import type { PatientEvaluationScores } from './evaluationScores';
+import type { ImportedCudyr, PatientEvaluationScores } from './evaluationScores';
 import type { PatientVitalSigns } from './vitalSigns';
 import type { FhirResource } from './fhir';
 import type { CMAData, DischargeData, TransferData } from './movements';
@@ -20,6 +20,9 @@ import type { RayenSyncEvent, RayenSyncMeta } from './rayenSync';
 
 type PatientFieldPath = `beds.${string}.${keyof PatientData}`;
 type PatientCudyrPath = `beds.${string}.cudyr.${keyof CudyrScore}`;
+type PatientImportedCudyrPath =
+  | `beds.${string}.evaluationScores.cudyr`
+  | `beds.${string}.clinicalCrib.evaluationScores.cudyr`;
 type PatientClinicalCribPath = `beds.${string}.clinicalCrib.${keyof PatientData}`;
 type PatientDeviceDetailsPath = `beds.${string}.deviceDetails.${string}`;
 
@@ -52,6 +55,11 @@ type TopLevelValueMap = {
   cudyrLockedAt: string | undefined;
   cudyrLockedBy: string | undefined;
   cudyrUpdatedAt: string | undefined;
+  cudyrUpdatedBy: string | undefined;
+  cudyrUpdatedById: string | undefined;
+  cudyrShiftDate: string | undefined;
+  cudyrCompletedAt: string | undefined;
+  cudyrCompletedBy: string | undefined;
   bedTypeOverrides: Record<string, BedType>;
   rayenSync: RayenSyncMeta | undefined;
   rayenSyncHistory: RayenSyncEvent[] | undefined;
@@ -81,6 +89,7 @@ export type DailyRecordPatchPath =
   | TopLevelPath
   | PatientFieldPath
   | PatientCudyrPath
+  | PatientImportedCudyrPath
   | PatientClinicalCribPath
   | PatientDeviceDetailsPath
   | HandoffDayChecklistPath
@@ -95,29 +104,31 @@ export type DailyRecordPatch = {
       : TopLevelValueMap[K]
     : K extends PatientCudyrPath
       ? number
-      : K extends HandoffDayChecklistPath | HandoffNightChecklistPath
-        ? boolean | string
-        : K extends HandoffStaffPath
-          ? string[]
-          :
-              | string
-              | number
-              | boolean
-              | string[]
-              | PatientData
-              | CudyrScore
-              | DeviceDetails
-              | PatientEvaluationScores
-              | PatientVitalSigns
-              | PatientVitalSigns[]
-              | PatientStatus
-              | Specialty
-              | ClinicalEvent[]
-              | DeviceInstance[]
-              | FhirResource
-              | Record<string, unknown>
-              | null
-              | undefined;
+      : K extends PatientImportedCudyrPath
+        ? ImportedCudyr
+        : K extends HandoffDayChecklistPath | HandoffNightChecklistPath
+          ? boolean | string
+          : K extends HandoffStaffPath
+            ? string[]
+            :
+                | string
+                | number
+                | boolean
+                | string[]
+                | PatientData
+                | CudyrScore
+                | DeviceDetails
+                | PatientEvaluationScores
+                | PatientVitalSigns
+                | PatientVitalSigns[]
+                | PatientStatus
+                | Specialty
+                | ClinicalEvent[]
+                | DeviceInstance[]
+                | FhirResource
+                | Record<string, unknown>
+                | null
+                | undefined;
 } & {
   [key: string]: unknown;
 };

@@ -1,10 +1,23 @@
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import { hasDisplayablePatientName } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
+import {
+  finalizeCudyrCompletion,
+  resolveCudyrRecordCompletion,
+} from '@/domain/cudyr/cudyrCompletion';
+import { applyPatches } from '@/utils/patchUtils';
 
-const getCudyrTimestampPatch = () => ({
-  cudyrUpdatedAt: new Date().toISOString(),
+const getCudyrTimestampPatch = (savedAt = new Date().toISOString()) => ({
+  cudyrUpdatedAt: savedAt,
 });
+
+const canApplyUnattributedLegacyCudyrPatch = (
+  state: DailyRecord,
+  patch: DailyRecordPatch
+): boolean =>
+  !state.cudyrLocked &&
+  !resolveCudyrRecordCompletion(state).isComplete &&
+  !resolveCudyrRecordCompletion(applyPatches(state, patch)).isComplete;
 
 export const buildUpdateCudyrPatches = (
   state: DailyRecord,
@@ -16,10 +29,11 @@ export const buildUpdateCudyrPatches = (
     return null;
   }
 
-  return {
+  const patch = {
     [`beds.${bedId}.cudyr.${field}`]: value,
     ...getCudyrTimestampPatch(),
   } as DailyRecordPatch;
+  return canApplyUnattributedLegacyCudyrPatch(state, patch) ? patch : null;
 };
 
 export const buildUpdateCudyrMultiplePatches = (
@@ -40,16 +54,33 @@ export const buildUpdateCudyrMultiplePatches = (
     return null;
   }
 
-  return {
+  const patch = {
     ...patches,
     ...getCudyrTimestampPatch(),
   } as DailyRecordPatch;
+  return canApplyUnattributedLegacyCudyrPatch(state, patch) ? patch : null;
 };
 
 export const buildUpdateCudyrBatchPatches = (
   state: DailyRecord,
   changes: CudyrBatchUpdate
 ): DailyRecordPatch | null => {
+  const metadata = changes.metadata;
+  if (
+    !metadata ||
+    metadata.shiftDate !== state.date ||
+    !metadata.savedBy.trim() ||
+    !metadata.savedById.trim() ||
+    Number.isNaN(Date.parse(metadata.savedAt))
+  ) {
+    return null;
+  }
+
+  const isAlreadyComplete = state.cudyrLocked || resolveCudyrRecordCompletion(state).isComplete;
+  if (isAlreadyComplete) {
+    return null;
+  }
+
   const patches: Record<string, unknown> = {};
 
   Object.entries(changes.beds ?? {}).forEach(([bedId, fields]) => {
@@ -78,10 +109,27 @@ export const buildUpdateCudyrBatchPatches = (
     return null;
   }
 
-  return {
+  const basePatch = {
     ...patches,
-    ...getCudyrTimestampPatch(),
+    ...getCudyrTimestampPatch(metadata?.savedAt),
+    ...(metadata?.savedBy ? { cudyrUpdatedBy: metadata.savedBy } : {}),
+    ...(metadata?.savedById ? { cudyrUpdatedById: metadata.savedById } : {}),
+    ...(metadata?.shiftDate ? { cudyrShiftDate: metadata.shiftDate } : {}),
   } as DailyRecordPatch;
+  const prospective = finalizeCudyrCompletion(applyPatches(state, basePatch));
+
+  if (!state.cudyrLocked && prospective.cudyrLocked) {
+    Object.assign(basePatch, {
+      cudyrLocked: true,
+      cudyrLockedAt: prospective.cudyrLockedAt,
+      cudyrLockedBy: prospective.cudyrLockedBy,
+      cudyrShiftDate: prospective.cudyrShiftDate,
+      cudyrCompletedAt: prospective.cudyrCompletedAt,
+      cudyrCompletedBy: prospective.cudyrCompletedBy,
+    });
+  }
+
+  return basePatch;
 };
 
 export const buildUpdateClinicalCribCudyrPatches = (
@@ -94,10 +142,11 @@ export const buildUpdateClinicalCribCudyrPatches = (
     return null;
   }
 
-  return {
+  const patch = {
     [`beds.${bedId}.clinicalCrib.cudyr.${field}`]: value,
     ...getCudyrTimestampPatch(),
   } as DailyRecordPatch;
+  return canApplyUnattributedLegacyCudyrPatch(state, patch) ? patch : null;
 };
 
 export const buildUpdateClinicalCribCudyrMultiplePatches = (
@@ -118,8 +167,9 @@ export const buildUpdateClinicalCribCudyrMultiplePatches = (
     return null;
   }
 
-  return {
+  const patch = {
     ...patches,
     ...getCudyrTimestampPatch(),
   } as DailyRecordPatch;
+  return canApplyUnattributedLegacyCudyrPatch(state, patch) ? patch : null;
 };

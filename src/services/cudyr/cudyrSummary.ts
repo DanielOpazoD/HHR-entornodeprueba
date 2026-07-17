@@ -11,6 +11,7 @@ import type { DailyRecordCudyrState } from '@/services/contracts/dailyRecordServ
 import { BEDS } from '@/constants/beds';
 import { getCategorization } from './CudyrScoreUtils';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
+import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 
 // ============================================================================
 // Type Definitions
@@ -97,6 +98,22 @@ export const resolveVisibleCudyrBeds = (record: Pick<DailyRecordCudyrState, 'act
   return BEDS.filter(bed => !bed.isExtra || activeExtras.includes(bed.id));
 };
 
+const resolvePatientCudyrCategory = (
+  patient: PatientData,
+  censusDate: string
+): { category: CudyrCategory; isCategorized: boolean } => {
+  const importedCudyr = patient.evaluationScores?.cudyr;
+  const imported = String(importedCudyr?.category || '')
+    .trim()
+    .toUpperCase();
+  const validImportedCategory = /^[A-D][1-3]$/.test(imported);
+  if (importedCudyrBelongsToCensus(importedCudyr, censusDate) && validImportedCategory) {
+    return { category: imported as CudyrCategory, isCategorized: true };
+  }
+  const { finalCat, isCategorized } = getCategorization(patient.cudyr);
+  return { category: finalCat as CudyrCategory, isCategorized };
+};
+
 // ============================================================================
 // Main Functions
 // ============================================================================
@@ -118,7 +135,7 @@ export const collectDailyCudyrPatients = (record: DailyRecordCudyrState): Catego
 
     // Process main patient
     if (isCudyrPatientEligible(record.date, patient)) {
-      const { finalCat, isCategorized } = getCategorization(patient.cudyr);
+      const { category, isCategorized } = resolvePatientCudyrCategory(patient, record.date);
       if (isCategorized) {
         patients.push({
           bedId: bed.id,
@@ -126,7 +143,7 @@ export const collectDailyCudyrPatients = (record: DailyRecordCudyrState): Catego
           bedType: bed.type,
           patientName: patient.patientName,
           rut: patient.rut || '',
-          category: finalCat as CudyrCategory,
+          category,
           isCrib: false,
         });
       }
@@ -135,7 +152,7 @@ export const collectDailyCudyrPatients = (record: DailyRecordCudyrState): Catego
     // Process clinical crib
     const clinicalCrib = patient.clinicalCrib;
     if (clinicalCrib && isCudyrPatientEligible(record.date, clinicalCrib)) {
-      const { finalCat, isCategorized } = getCategorization(clinicalCrib.cudyr);
+      const { category, isCategorized } = resolvePatientCudyrCategory(clinicalCrib, record.date);
       if (isCategorized) {
         patients.push({
           bedId: `${bed.id}-crib`,
@@ -143,7 +160,7 @@ export const collectDailyCudyrPatients = (record: DailyRecordCudyrState): Catego
           bedType: bed.type,
           patientName: clinicalCrib.patientName,
           rut: clinicalCrib.rut || '',
-          category: finalCat as CudyrCategory,
+          category,
           isCrib: true,
         });
       }
@@ -180,10 +197,10 @@ export const buildDailyCudyrSummary = (record: DailyRecordCudyrState): CudyrDail
       if (!isCudyrPatientEligible(record.date, p)) return;
       occupiedCount++;
 
-      const { finalCat, isCategorized } = getCategorization(p.cudyr);
+      const { category, isCategorized } = resolvePatientCudyrCategory(p, record.date);
       if (isCategorized) {
         categorizedCount++;
-        const cat = finalCat as CudyrCategory;
+        const cat = category;
         if (bedType === BedType.UTI) {
           counts.uti[cat]++;
           utiTotal++;

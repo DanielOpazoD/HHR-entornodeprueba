@@ -6,6 +6,7 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
+import type { CudyrScore } from '@/types/domain/cudyr';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { mockAuditContextValue } from '../setup';
 
@@ -76,6 +77,31 @@ describe('useBedManagement CUDYR updates', () => {
     nurses: [],
     activeExtraBeds: [],
     cma: [],
+  });
+
+  const completeCudyr = (overrides: Partial<CudyrScore> = {}): CudyrScore => ({
+    changeClothes: 0,
+    mobilization: 0,
+    feeding: 0,
+    elimination: 0,
+    psychosocial: 0,
+    surveillance: 0,
+    vitalSigns: 0,
+    fluidBalance: 0,
+    oxygenTherapy: 0,
+    airway: 0,
+    proInterventions: 0,
+    skinCare: 0,
+    pharmacology: 0,
+    invasiveElements: 0,
+    ...overrides,
+  });
+
+  const batchMetadata = (record: DailyRecord, savedAt: string) => ({
+    savedAt,
+    savedBy: 'Test Author',
+    savedById: 'test-user-123',
+    shiftDate: record.date,
   });
 
   beforeEach(() => {
@@ -195,6 +221,7 @@ describe('useBedManagement CUDYR updates', () => {
         clinicalCribs: {
           R1: { feeding: 1 },
         },
+        metadata: batchMetadata(record, '2026-03-23T10:30:00.000Z'),
       });
     });
 
@@ -204,6 +231,9 @@ describe('useBedManagement CUDYR updates', () => {
       'beds.R2.cudyr.mobilization': 3,
       'beds.R1.clinicalCrib.cudyr.feeding': 1,
       cudyrUpdatedAt: '2026-03-23T10:30:00.000Z',
+      cudyrUpdatedBy: 'Test Author',
+      cudyrUpdatedById: 'test-user-123',
+      cudyrShiftDate: record.date,
     });
     expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledTimes(3);
   });
@@ -226,6 +256,7 @@ describe('useBedManagement CUDYR updates', () => {
         beds: {
           R1: { changeClothes: 2, mobilization: 3 },
         },
+        metadata: batchMetadata(record, '2026-03-23T10:32:00.000Z'),
       });
     });
 
@@ -233,7 +264,114 @@ describe('useBedManagement CUDYR updates', () => {
       'beds.R1.cudyr.changeClothes': 2,
       'beds.R1.cudyr.mobilization': 3,
       cudyrUpdatedAt: '2026-03-23T10:32:00.000Z',
+      cudyrUpdatedBy: 'Test Author',
+      cudyrUpdatedById: 'test-user-123',
+      cudyrShiftDate: record.date,
     });
+  });
+
+  it('persists CUDYR ownership and closure metadata with the night-shift record', async () => {
+    const record = createMockRecord({
+      R1: createMockPatient('R1', {
+        cudyr: { ...completeCudyr(), changeClothes: undefined as never },
+      }),
+    });
+    const { result } = renderHook(() =>
+      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await act(async () => {
+      await result.current.updateCudyrBatch({
+        beds: { R1: { changeClothes: 2 } },
+        metadata: {
+          savedAt: '2026-07-17T01:00:00.000Z',
+          savedBy: 'Enfermera Noche',
+          savedById: 'user_nurse',
+          shiftDate: '2025-01-01',
+        },
+      });
+    });
+
+    expect(mockPatchRecord).toHaveBeenCalledWith({
+      'beds.R1.cudyr.changeClothes': 2,
+      cudyrUpdatedAt: '2026-07-17T01:00:00.000Z',
+      cudyrUpdatedBy: 'Enfermera Noche',
+      cudyrUpdatedById: 'user_nurse',
+      cudyrLocked: true,
+      cudyrLockedAt: '2026-07-17T01:00:00.000Z',
+      cudyrLockedBy: 'user_nurse',
+      cudyrShiftDate: '2025-01-01',
+      cudyrCompletedAt: '2026-07-17T01:00:00.000Z',
+      cudyrCompletedBy: 'Enfermera Noche',
+    });
+  });
+
+  it('rejects a CUDYR batch whose shift owner differs from the record receiving scores', async () => {
+    const record = createMockRecord({ R1: createMockPatient('R1') });
+    const { result } = renderHook(() =>
+      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await expect(
+      result.current.updateCudyrBatch({
+        beds: { R1: { changeClothes: 2 } },
+        metadata: {
+          savedAt: '2026-07-17T15:00:00.000Z',
+          savedBy: 'Enfermera Día',
+          savedById: 'user-day',
+          shiftDate: '2025-01-02',
+        },
+      })
+    ).resolves.toBe(false);
+    expect(mockPatchRecord).not.toHaveBeenCalled();
+  });
+
+  it('rejects unattributed batch completion attempts at the mutation boundary', async () => {
+    const record = createMockRecord({ R1: createMockPatient('R1') });
+    const { result } = renderHook(() =>
+      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await expect(
+      result.current.updateCudyrBatch({ beds: { R1: { changeClothes: 2 } } } as never)
+    ).resolves.toBe(false);
+    expect(mockPatchRecord).not.toHaveBeenCalled();
+  });
+
+  it('blocks legacy single-cell mutation paths after CUDYR closure', async () => {
+    const record = {
+      ...createMockRecord({ R1: createMockPatient('R1') }),
+      cudyrLocked: true,
+    };
+    const { result } = renderHook(() =>
+      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await runBedAction(() => result.current.updateCudyr('R1', 'changeClothes', 2));
+    expect(mockPatchRecord).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale nurse CUDYR writes after the record was closed', async () => {
+    const record = {
+      ...createMockRecord({ R1: createMockPatient('R1') }),
+      cudyrLocked: true,
+    };
+    const { result } = renderHook(() =>
+      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
+    );
+
+    await expect(
+      result.current.updateCudyrBatch({
+        beds: { R1: { changeClothes: 2 } },
+        metadata: {
+          savedAt: '2026-07-17T01:00:00.000Z',
+          savedBy: 'Enfermera Noche',
+          savedById: 'user_nurse',
+          shiftDate: record.date,
+        },
+      })
+    ).resolves.toBe(false);
+    expect(mockPatchRecord).not.toHaveBeenCalled();
   });
 
   it('creates only changed CUDYR fields when the patient had no previous CUDYR object', async () => {
@@ -249,6 +387,7 @@ describe('useBedManagement CUDYR updates', () => {
       await result.current.updateCudyrBatch({
         beds: { R1: { changeClothes: 2, mobilization: 3, vitalSigns: 1 } },
         clinicalCribs: {},
+        metadata: batchMetadata(record, '2026-03-23T10:35:00.000Z'),
       });
     });
 
@@ -257,6 +396,9 @@ describe('useBedManagement CUDYR updates', () => {
       'beds.R1.cudyr.mobilization': 3,
       'beds.R1.cudyr.vitalSigns': 1,
       cudyrUpdatedAt: '2026-03-23T10:35:00.000Z',
+      cudyrUpdatedBy: 'Test Author',
+      cudyrUpdatedById: 'test-user-123',
+      cudyrShiftDate: record.date,
     });
   });
 
@@ -271,6 +413,7 @@ describe('useBedManagement CUDYR updates', () => {
       result.current.updateCudyrBatch({
         beds: { R1: { changeClothes: 2 } },
         clinicalCribs: {},
+        metadata: batchMetadata(record, '2025-01-01T01:00:00.000Z'),
       })
     ).resolves.toBe(true);
 
@@ -280,6 +423,7 @@ describe('useBedManagement CUDYR updates', () => {
       result.current.updateCudyrBatch({
         beds: { R1: { mobilization: 3 } },
         clinicalCribs: {},
+        metadata: batchMetadata(record, '2025-01-01T01:01:00.000Z'),
       })
     ).resolves.toBe(false);
     expect(mockAuditContextValue.logCudyrModified).toHaveBeenCalledTimes(1);

@@ -31,6 +31,8 @@ export const HandoffCudyrPrint: React.FC = () => {
         printDate={printDate}
         applicationDate={applicationDate}
         responsibleNurses={responsibleNurses}
+        recordedAt={record.cudyrCompletedAt || record.cudyrUpdatedAt}
+        recordedBy={record.cudyrCompletedBy || record.cudyrUpdatedBy}
       />
       <HandoffCudyrPrintTable record={record} visibleBeds={visibleBeds} />
     </div>

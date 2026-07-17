@@ -3,6 +3,7 @@ import type {
   RayenSyncEvent,
   RayenSyncFailureReason,
   RayenSyncStatus,
+  RayenSyncCoverageIssue,
 } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
@@ -78,16 +79,45 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
   const reasons: string[] = [];
   if (event.coverage?.errors) {
     reasons.push(
-      `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} pendiente${event.coverage.errors === 1 ? '' : 's'}`
+      `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} no se pudo completar`
     );
   }
-  if (event.coverage?.sourceErrors) {
+  const recordedSourceIssue = event.coverage?.issues?.some(
+    issue => issue.reason === 'source_unavailable' || issue.reason === 'source_timeout'
+  );
+  if (
+    event.coverage?.sourceErrors &&
+    (event.coverage.errors === 0 || recordedSourceIssue === true)
+  ) {
     reasons.push('Fuente clínica incompleta');
   }
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
     reasons.push('Gestión de Camas no disponible');
   }
   return reasons;
+};
+
+const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
+  devices: 'Dispositivos',
+  scales: 'Escalas de riesgo',
+  vitals: 'Signos vitales',
+  cudyr: 'CUDYR',
+  patch: 'Guardado del censo',
+};
+
+const issueReasonLabel: Record<RayenSyncCoverageIssue['reason'], string> = {
+  concurrent_write: 'el censo cambió mientras se guardaba; reintenta para completar este dato',
+  source_unavailable: 'Eloísa no devolvió esta información; comprueba la ficha y reintenta',
+  source_timeout: 'la fuente demoró demasiado; comprueba la conexión y reintenta',
+  historical_archive_failed: 'no se pudo asociar el CUDYR al turno correcto; reintenta',
+  sync_already_running: 'ya había otra sincronización clínica en curso; espera y reintenta',
+  write_failed: 'no se pudo confirmar el guardado; comprueba la conexión y reintenta',
+  unexpected: 'ocurrió un error no esperado; reintenta y revisa el nuevo detalle',
+};
+
+export const presentRayenCoverageIssue = (issue: RayenSyncCoverageIssue): string => {
+  const scope = issue.bedId === '*' ? 'General' : `Cama ${issue.bedId}`;
+  return `${scope} · ${issueSourceLabel[issue.source]}: ${issueReasonLabel[issue.reason]}.`;
 };
 
 export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcomePresentation => {
