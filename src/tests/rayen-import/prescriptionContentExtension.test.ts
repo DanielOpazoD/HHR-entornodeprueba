@@ -264,9 +264,13 @@ describe('extension prescription print content flow', () => {
     window.matchMedia = vi
       .fn()
       .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
-    document.body.innerHTML =
-      '<div role="menu"><button type="button">Imprimir Alta Médica</button></div>';
-    const messages: Array<{ type?: string }> = [];
+    document.body.innerHTML = `
+      <table><tbody><tr><td>Paciente prueba · RUN: 15.066.726-7</td><td><button id="open-actions">⋮</button></td></tr></tbody></table>
+      <div role="menu"><button id="native-print-1" type="button">Imprimir Alta Médica</button></div>
+      <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
+      <div role="menu" hidden><button id="native-print-3" type="button">Imprimir Alta Médica</button></div>
+    `;
+    const messages: Array<{ type?: string; patientRun?: string }> = [];
     (globalThis as typeof globalThis & { chrome: unknown }).chrome = {
       runtime: {
         getManifest: () => ({ version: '0.30.0' }),
@@ -280,38 +284,50 @@ describe('extension prescription print content flow', () => {
         },
       },
     };
-    const nativePrint = document.querySelector('button') as HTMLButtonElement;
+    const nativePrint = document.querySelector('[role="menu"] button') as HTMLButtonElement;
     nativePrint.addEventListener('click', () => undefined);
-    window.addEventListener(
-      'message',
-      event => {
-        if (event.data?.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') return;
-        window.dispatchEvent(
-          new MessageEvent('message', {
-            source: window,
-            origin: window.location.origin,
-            data: {
-              type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
-              reqId: event.data.reqId,
-              pdfBase64: 'JVBERi0xLjQ=',
-            },
-          })
-        );
-      },
-      { once: true }
-    );
+    let captureArmCount = 0;
+    window.addEventListener('message', event => {
+      if (event.data?.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') return;
+      captureArmCount += 1;
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window,
+          origin: window.location.origin,
+          data: {
+            type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+            reqId: event.data.reqId,
+            pdfBase64: 'JVBERi0xLjQ=',
+          },
+        })
+      );
+    });
 
     vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    (document.getElementById('open-actions') as HTMLButtonElement).click();
     const corrected = await vi.waitFor(() => {
       const element = document.getElementById('hhr-corrected-discharge-print');
       expect(element?.textContent).toContain('Imprimir alta corregida');
+      const correctedItems = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-hhr-corrected-discharge-print="true"]')
+      );
+      expect(correctedItems).toHaveLength(3);
+      expect(correctedItems.map(item => item.id)).toEqual([
+        'hhr-corrected-discharge-print',
+        '',
+        '',
+      ]);
       return element as HTMLButtonElement;
     });
     corrected.click();
+    corrected.click();
     await vi.waitFor(() => {
-      expect(
-        messages.some(message => message.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST')
-      ).toBe(true);
+      const correctedMessages = messages.filter(
+        message => message.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST'
+      );
+      expect(correctedMessages).toHaveLength(1);
+      expect(correctedMessages[0]?.patientRun).toBe('15.066.726-7');
+      expect(captureArmCount).toBe(1);
     });
   });
 });

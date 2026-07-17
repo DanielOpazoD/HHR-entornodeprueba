@@ -414,6 +414,6 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"lab-viewer.js"');
     expect(manifest).toContain('"syslab-bridge.js"');
     expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
-    expect(manifest).toContain('"version": "0.30.0"');
+    expect(manifest).toContain('"version": "0.31.0"');
   });
 });

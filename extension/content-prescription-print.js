@@ -38,6 +38,22 @@
   const currentRouteEncounterId = () => helper.resolveEncounterId(window.location.href) || '';
   const EPICRISIS_MENU_ITEM_ID = 'hhr-corrected-discharge-print';
   const epicrisisCaptureWaiters = new Map();
+  let activeEpicrisisPrintReqId = '';
+  let lastDischargePatientRun = '';
+
+  const runFromText = value => {
+    const match = String(value || '').match(/\bRUN\s*:?\s*([0-9.\-Kk]+)/i);
+    return match ? match[1].trim() : '';
+  };
+
+  // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
+  // the user opens a row action so the captured PDF can later be bound to that patient.
+  document.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target : null;
+    const row = target && target.closest('tr,[role="row"]');
+    const patientRun = row ? runFromText(row.textContent) : '';
+    if (patientRun) lastDischargePatientRun = patientRun;
+  }, true);
 
   window.addEventListener('message', event => {
     if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
@@ -61,18 +77,31 @@
     });
   });
 
-  const findNativeDischargePrintItem = () => Array.from(document.querySelectorAll('button,[role="menuitem"]'))
-    .find(element => normalizedText(element.textContent) === 'imprimir alta medica') || null;
+  const findNativeDischargePrintItems = () => Array.from(
+    document.querySelectorAll('button,[role="menuitem"]')
+  ).filter(element =>
+    normalizedText(element.textContent) === 'imprimir alta medica' &&
+    element.dataset.hhrCorrectedDischargePrint !== 'true'
+  );
 
   const requestCorrectedDischargePrint = async (nativeItem, item) => {
+    if (activeEpicrisisPrintReqId) return;
     const reqId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : 'epicrisis-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    const expectedPatientRun = lastDischargePatientRun;
+    activeEpicrisisPrintReqId = reqId;
     const originalLabel = item.textContent;
     item.textContent = 'Preparando alta corregida…';
     item.setAttribute('aria-busy', 'true');
-    window.postMessage({ type: 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM', reqId }, window.location.origin);
+    item.setAttribute('aria-disabled', 'true');
+    item.style.pointerEvents = 'none';
     const captured = waitForEpicrisisCapture(reqId);
+    window.postMessage({
+      type: 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM',
+      reqId,
+      patientRun: expectedPatientRun,
+    }, window.location.origin);
     try {
       nativeItem.click();
       const result = await captured;
@@ -80,30 +109,39 @@
       const response = await sendMessage({
         type: 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST',
         pdfBase64: String(result.pdfBase64 || ''),
+        patientRun: expectedPatientRun,
       });
       if (!response || response.error) throw new Error(String(response && response.error || 'No se pudo preparar el alta corregida.'));
     } catch (error) {
       window.alert(String((error && error.message) || error || 'No se pudo preparar el alta corregida.'));
     } finally {
+      window.postMessage({ type: 'RAYEN_EPICRISIS_PDF_CAPTURE_CANCEL', reqId }, window.location.origin);
+      if (activeEpicrisisPrintReqId === reqId) activeEpicrisisPrintReqId = '';
       item.textContent = originalLabel;
       item.removeAttribute('aria-busy');
+      item.removeAttribute('aria-disabled');
+      item.style.pointerEvents = '';
     }
   };
 
-  const ensureCorrectedDischargePrintItem = () => {
-    const nativeItem = findNativeDischargePrintItem();
-    if (!nativeItem || document.getElementById(EPICRISIS_MENU_ITEM_ID)) return;
-    const item = nativeItem.cloneNode(true);
-    item.id = EPICRISIS_MENU_ITEM_ID;
-    item.removeAttribute('data-state');
-    item.textContent = 'Imprimir alta corregida';
-    item.setAttribute('aria-label', 'Imprimir alta médica con receta en página nueva');
-    item.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      void requestCorrectedDischargePrint(nativeItem, item);
+  const ensureCorrectedDischargePrintItems = () => {
+    findNativeDischargePrintItems().forEach(nativeItem => {
+      const nextItem = nativeItem.nextElementSibling;
+      if (nextItem && nextItem.dataset.hhrCorrectedDischargePrint === 'true') return;
+      const item = nativeItem.cloneNode(true);
+      item.removeAttribute('id');
+      if (!document.getElementById(EPICRISIS_MENU_ITEM_ID)) item.id = EPICRISIS_MENU_ITEM_ID;
+      item.dataset.hhrCorrectedDischargePrint = 'true';
+      item.removeAttribute('data-state');
+      item.textContent = 'Imprimir alta corregida';
+      item.setAttribute('aria-label', 'Imprimir alta médica con receta en página nueva');
+      item.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        void requestCorrectedDischargePrint(nativeItem, item);
+      });
+      nativeItem.insertAdjacentElement('afterend', item);
     });
-    nativeItem.insertAdjacentElement('afterend', item);
   };
 
   // Combines the free-text search with an optional service <select> (shown only when the
@@ -5098,7 +5136,7 @@
       }
     }
     ensureOperationsBar(encId);
-    ensureCorrectedDischargePrintItem();
+    ensureCorrectedDischargePrintItems();
     if (!encId || !nursingContext) {
       document.documentElement.setAttribute(
         'data-hhr-prescription-print-state',

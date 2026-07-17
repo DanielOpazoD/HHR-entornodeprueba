@@ -1901,7 +1901,7 @@ const openPdfPrintDialog = async ({ buffer, filename }) => {
   }
 };
 
-const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64 }) => {
+const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) => {
   try {
     if (String(pdfBase64 || '').length > 20 * 1024 * 1024) {
       return { error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.' };
@@ -1913,7 +1913,12 @@ const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64 }) => {
     if (!formatter || typeof formatter.correctEpicrisisPrescriptionPages !== 'function') {
       return { error: 'El corrector de receta de alta no está disponible. Recarga la extensión.' };
     }
-    const corrected = await formatter.correctEpicrisisPrescriptionPages(source, self.HhrPrescriptionPrint, self.PDFLib);
+    const corrected = await formatter.correctEpicrisisPrescriptionPages(
+      source,
+      self.HhrPrescriptionPrint,
+      self.PDFLib,
+      { expectedPatientRun: String(patientRun || '') }
+    );
     return openPdfPrintDialog({
       buffer: corrected,
       filename: 'Alta_medica_receta_separada.pdf',
@@ -4921,7 +4926,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg && msg.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST') {
     return respond(
-      handleCorrectedEpicrisisPrintRequest({ pdfBase64: msg.pdfBase64 }),
+      handleCorrectedEpicrisisPrintRequest({ pdfBase64: msg.pdfBase64, patientRun: msg.patientRun }),
       'No se pudo preparar el alta médica corregida.'
     );
   }

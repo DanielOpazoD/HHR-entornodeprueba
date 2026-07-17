@@ -871,6 +871,7 @@
     });
     if (!headerDate || !titleItems[recipePageIndex]) return null;
     var headerBottomY = Math.max(0, headerDate.y - 22);
+    var headerContentBottomY = Math.max(0, headerDate.y - 4);
     // Keep this boundary tight: the last free-text discharge indication can otherwise be
     // mistaken for recipe content because Jasper places it immediately above the title.
     var recipeTopY = recipeTitle.y + 3;
@@ -891,12 +892,26 @@
     };
     var recipeParts = [partFromPage(pageItems, 48, recipeTopY)];
     var control = null;
+    var recipeEndPageIndex = recipePageIndex;
+    var isPrescriptionContinuation = function (items) {
+      var safeItems = Array.isArray(items) ? items : [];
+      var texts = safeItems.map(function (item) { return normalizedPdfText(item.text); });
+      var hasMedication = texts.some(function (text) { return /^\(\*\)/.test(text); });
+      var hasTableHeader = texts.some(function (text) { return /^Medicamento$/i.test(text); }) &&
+        texts.some(function (text) { return /^Posolog[ií]a e indicaciones$/i.test(text); });
+      return hasMedication || hasTableHeader;
+    };
     for (var continuationIndex = recipePageIndex + 1; continuationIndex < pages.length; continuationIndex += 1) {
       var continuationItems = pages[continuationIndex];
       var continuationDate = continuationItems.find(function (item) {
         return /^Fecha Ingreso:?$/i.test(normalizedPdfText(item.text));
       });
-      var continuationHeaderBottom = continuationDate ? continuationDate.y - 22 : Number.POSITIVE_INFINITY;
+      // Jasper occasionally omits the exact "Fecha Ingreso" label on continuation pages. The
+      // first recipe page still gives us a finite, safe patient-header boundary.
+      var continuationHeaderBottom = continuationDate ? continuationDate.y - 22 : headerBottomY;
+      var continuationHeaderContentBottom = continuationDate
+        ? continuationDate.y - 4
+        : headerContentBottomY;
       var controlTitle = continuationItems.find(function (item) {
         return normalize(item.text) === 'PROXIMO CONTROL';
       });
@@ -906,12 +921,18 @@
         continuationLowerBound,
         continuationHeaderBottom
       );
-      if (continuationPart.items.length || continuationPart.lines.length) recipeParts.push(continuationPart);
+      var confirmedContinuation = Boolean(controlTitle) ||
+        isPrescriptionContinuation(continuationItems);
+      if (!confirmedContinuation) break;
+      if (continuationPart.items.length || continuationPart.lines.length) {
+        recipeParts.push(continuationPart);
+        recipeEndPageIndex = continuationIndex;
+      }
       if (controlTitle) {
         control = {
           pageIndex: continuationIndex,
           headerItems: continuationItems.filter(function (item) {
-            return item.y >= continuationHeaderBottom && !isPageNumber(item);
+            return item.y >= continuationHeaderContentBottom && !isPageNumber(item);
           }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
           items: partFromPage(continuationItems, 48, controlTitle.y + 3).items,
           lines: partFromPage(continuationItems, 48, controlTitle.y + 3).lines,
@@ -919,16 +940,16 @@
         break;
       }
     }
-    if (recipeParts.length > 1 && !control) return null;
     return {
       pageCount: pages.length,
       recipePageIndex: recipePageIndex,
       recipeTitleY: recipeTitle.y,
       headerBottomY: headerBottomY,
       headerItems: pageItems.filter(function (item) {
-        return item.y >= headerBottomY && !isPageNumber(item);
+        return item.y >= headerContentBottomY && !isPageNumber(item);
       }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
       recipeParts: recipeParts,
+      recipeEndPageIndex: recipeEndPageIndex,
       control: control,
       titleItems: titleItems.map(function (item) {
         return item ? { x: item.x, y: item.y } : null;
