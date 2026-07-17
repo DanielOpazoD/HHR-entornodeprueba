@@ -21,6 +21,16 @@ export const HandoffCudyrPrint: React.FC = () => {
   const printDate = formatCudyrPrintDate(record.date);
   const applicationDate = formatCudyrPrintDate(resolveCudyrNightApplicationDate(record.date));
   const responsibleNurses = resolveResponsibleNightNurses(record);
+  const hasCompletionAttribution = Boolean(
+    record.cudyrCompletedAt &&
+    !Number.isNaN(Date.parse(record.cudyrCompletedAt)) &&
+    record.cudyrCompletedBy?.trim()
+  );
+  const hasUpdateAttribution = Boolean(
+    record.cudyrUpdatedAt &&
+    !Number.isNaN(Date.parse(record.cudyrUpdatedAt)) &&
+    record.cudyrUpdatedBy?.trim()
+  );
 
   return (
     <div className="handoff-cudyr-print list-none bg-white print:m-0 print:bg-white print:p-0">
@@ -31,8 +41,20 @@ export const HandoffCudyrPrint: React.FC = () => {
         printDate={printDate}
         applicationDate={applicationDate}
         responsibleNurses={responsibleNurses}
-        recordedAt={record.cudyrCompletedAt || record.cudyrUpdatedAt}
-        recordedBy={record.cudyrCompletedBy || record.cudyrUpdatedBy}
+        recordedAt={
+          hasCompletionAttribution
+            ? record.cudyrCompletedAt
+            : hasUpdateAttribution
+              ? record.cudyrUpdatedAt
+              : undefined
+        }
+        recordedBy={
+          hasCompletionAttribution
+            ? record.cudyrCompletedBy
+            : hasUpdateAttribution
+              ? record.cudyrUpdatedBy
+              : undefined
+        }
       />
       <HandoffCudyrPrintTable record={record} visibleBeds={visibleBeds} />
     </div>

@@ -18,4 +18,8 @@ describe('formatDateTimeCL', () => {
     expect(formatted).toContain('16:30');
     expect(formatted).not.toMatch(/[ap]\.?\s*m\.?/i);
   });
+
+  it('can pin clinical timestamps to Rapa Nui independently of the browser timezone', () => {
+    expect(formatDateTimeCL('2026-07-17T07:00:00.000Z', 'Pacific/Easter')).toContain('01:00');
+  });
 });

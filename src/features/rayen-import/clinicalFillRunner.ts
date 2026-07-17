@@ -175,7 +175,14 @@ export const runClinicalFill = async (
       deps.fetchHistoryScales(encId),
       deps.fetchScalesForms(encId),
     ]);
-    const forms = formsResult.status === 'fulfilled' ? formsResult.value.forms : [];
+    const formsReadError =
+      formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
+    if (formsReadError) {
+      summary.errors.push({ bedId, source: 'scales', message: formsReadError });
+      summary.errors.push({ bedId, source: 'vitals', message: formsReadError });
+    }
+    const forms =
+      formsResult.status === 'fulfilled' && !formsReadError ? formsResult.value.forms : [];
 
     try {
       // Union BOTH scale sources — neither is complete on its own.
@@ -193,7 +200,7 @@ export const runClinicalFill = async (
     try {
       // Latest vitals come from the same encounter-form-entry forms (VITAL_SIGNS). Independent of
       // scales: a failure here never blocks them.
-      if (formsResult.status === 'fulfilled') {
+      if (formsResult.status === 'fulfilled' && !formsReadError) {
         const vitals = parseVitalSigns(forms);
         merged = mergeReportVitals(merged, vitals, fecha);
       }

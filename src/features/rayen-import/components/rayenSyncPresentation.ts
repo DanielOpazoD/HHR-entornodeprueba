@@ -85,10 +85,8 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
   const recordedSourceIssue = event.coverage?.issues?.some(
     issue => issue.reason === 'source_unavailable' || issue.reason === 'source_timeout'
   );
-  if (
-    event.coverage?.sourceErrors &&
-    (event.coverage.errors === 0 || recordedSourceIssue === true)
-  ) {
+  const hasStructuredIssues = Boolean(event.coverage?.issues?.length);
+  if (event.coverage?.sourceErrors && (recordedSourceIssue === true || !hasStructuredIssues)) {
     reasons.push('Fuente clínica incompleta');
   }
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {

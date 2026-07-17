@@ -33,7 +33,7 @@ export const formatTimeHHMM = (isoDateTime?: string): string => {
  * locale default. Returns the original input unchanged when it is not a parseable
  * date, matching the prescriptions/wound-care display contract.
  */
-export const formatDateTimeCL = (isoDateTime: string): string => {
+export const formatDateTimeCL = (isoDateTime: string, timeZone?: string): string => {
   const date = new Date(isoDateTime);
   if (Number.isNaN(date.getTime())) return isoDateTime;
 
@@ -44,5 +44,6 @@ export const formatDateTimeCL = (isoDateTime: string): string => {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    ...(timeZone ? { timeZone } : {}),
   });
 };

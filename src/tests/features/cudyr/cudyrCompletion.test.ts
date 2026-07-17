@@ -34,21 +34,37 @@ describe('CUDYR night-shift completion policy', () => {
       date: '2026-07-16',
       activeExtraBeds: [],
       beds: {
-        R1: createEligiblePatient({ cudyr: completeScore }),
+        R1: createEligiblePatient({
+          cudyr: completeScore,
+          clinicalCrib: createEligiblePatient({
+            patientName: 'Recién nacido pendiente',
+            cudyr: undefined,
+          }),
+        }),
         R2: createEligiblePatient({ patientName: 'Paciente pendiente', cudyr: undefined }),
       },
     };
 
     expect(resolveCudyrRecordCompletion(record)).toEqual({
-      eligibleCount: 2,
+      eligibleCount: 3,
       completedCount: 1,
       isComplete: false,
     });
 
     record.beds.R2 = { ...record.beds.R2, cudyr: completeScore };
     expect(resolveCudyrRecordCompletion(record)).toEqual({
-      eligibleCount: 2,
+      eligibleCount: 3,
       completedCount: 2,
+      isComplete: false,
+    });
+
+    record.beds.R1 = {
+      ...record.beds.R1,
+      clinicalCrib: { ...record.beds.R1.clinicalCrib!, cudyr: completeScore },
+    };
+    expect(resolveCudyrRecordCompletion(record)).toEqual({
+      eligibleCount: 3,
+      completedCount: 3,
       isComplete: true,
     });
   });

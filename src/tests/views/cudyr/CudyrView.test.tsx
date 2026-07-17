@@ -403,7 +403,7 @@ describe('CudyrView Component', () => {
     );
   });
 
-  it('shows the legacy lock owner when an older completed record has no new attribution fields', () => {
+  it('shows the legacy notice when an older completed record has no atomic attribution', () => {
     const record = DataFactory.createMockDailyRecord('2026-07-16', {
       cudyrLocked: true,
       cudyrLockedAt: '2026-07-17T01:05:00.000Z',
@@ -423,7 +423,10 @@ describe('CudyrView Component', () => {
 
     render(<CudyrView />);
 
-    expect(screen.getByText(/Completado por usuario-enfermeria-legado/i)).toBeInTheDocument();
+    expect(screen.getByTestId('cudyr-legacy-lock-notice')).toHaveTextContent(
+      /completo sin cierre atribuido/i
+    );
+    expect(screen.queryByText(/Completado por/i)).not.toBeInTheDocument();
   });
 
   it('labels an incomplete legacy manual lock without claiming synchronized completion', () => {

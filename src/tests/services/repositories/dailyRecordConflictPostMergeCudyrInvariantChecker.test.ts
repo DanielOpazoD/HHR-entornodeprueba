@@ -103,6 +103,24 @@ describe('dailyRecord CUDYR post-merge invariants', () => {
     );
   });
 
+  it('blocks a new complete lock attributed to a different shift date', () => {
+    const remote = makeRecord('2026-07-17T01:00:00.000Z');
+    remote.beds = { R1: makePatient('Paciente completo', { cudyr: completeCudyr() }) };
+    const resolved = {
+      ...remote,
+      cudyrLocked: true,
+      cudyrShiftDate: '2026-07-15',
+      cudyrUpdatedAt: '2026-07-17T01:05:00.000Z',
+      cudyrUpdatedBy: 'Enfermera Noche',
+      cudyrUpdatedById: 'nurse-1',
+    };
+
+    expect(evaluate(remote, resolved)).toMatchObject({
+      status: 'blocked',
+      violations: expect.arrayContaining([expect.objectContaining({ path: 'cudyrLocked' })]),
+    });
+  });
+
   it('allows unrelated conflict recovery for an unchanged legacy manual incomplete lock', () => {
     const remote = makeRecord('2026-07-17T01:00:00.000Z');
     Object.assign(remote, {

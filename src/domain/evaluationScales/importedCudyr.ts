@@ -63,8 +63,10 @@ export const importedCudyrBelongsToCensus = (
   censusIsoDay: string
 ): boolean => {
   if (!cudyr) return false;
-  const owningDay = cudyr.recordedAt ? resolveCudyrOwningCensusDay(cudyr.recordedAt) : null;
-  return (owningDay ?? cudyr.recordedDate ?? null) === censusIsoDay;
+  if (cudyr.recordedAt) {
+    return resolveCudyrOwningCensusDay(cudyr.recordedAt) === censusIsoDay;
+  }
+  return (cudyr.recordedDate ?? null) === censusIsoDay;
 };
 
 /** Provenance label shown for the preferred official source. */

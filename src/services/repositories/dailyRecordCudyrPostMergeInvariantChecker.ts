@@ -50,11 +50,14 @@ export const collectClosedCudyrInvariantViolations = ({
 }): CudyrPostMergeInvariantViolation[] => {
   const remoteIsComplete = resolveCudyrRecordCompletion(remote).isComplete;
   const resolvedIsComplete = resolveCudyrRecordCompletion(resolved).isComplete;
+  const canNormalizeShiftDate = !resolved.cudyrShiftDate?.trim();
   const introducesInvalidLock =
     !remote.cudyrLocked &&
     resolved.cudyrLocked === true &&
     (!resolvedIsComplete ||
-      !hasValidCudyrSaveAttribution(resolved, { allowShiftDateNormalization: true }));
+      !hasValidCudyrSaveAttribution(resolved, {
+        allowShiftDateNormalization: canNormalizeShiftDate,
+      }));
   if (!remote.cudyrLocked && !remoteIsComplete && !introducesInvalidLock) return [];
 
   const changedBeds = new Set([

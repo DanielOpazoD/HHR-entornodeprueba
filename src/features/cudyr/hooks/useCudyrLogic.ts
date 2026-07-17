@@ -342,9 +342,13 @@ export const useCudyrLogic = (readOnly: boolean) => {
 
   useEffect(() => {
     if (isCompletionLocked && pendingCudyrChangeCount > 0) {
+      notifyError(
+        'Cambios CUDYR descartados',
+        'Otro profesional completó este CUDYR. Tus cambios pendientes no fueron aplicados.'
+      );
       setDraft(createEmptyCudyrDraft());
     }
-  }, [isCompletionLocked, pendingCudyrChangeCount]);
+  }, [isCompletionLocked, notifyError, pendingCudyrChangeCount]);
 
   return {
     record: draftRecord,

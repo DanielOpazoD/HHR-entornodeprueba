@@ -131,7 +131,7 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
           ? `Profesional: ${importedCudyr.author}${importedCudyr.authorRole ? ` (${importedCudyr.authorRole})` : ''}.`
           : 'Profesional no informado por la fuente.',
         importedCudyr.recordedAt
-          ? `Registrado: ${formatDateTimeCL(importedCudyr.recordedAt)}.`
+          ? `Registrado: ${formatDateTimeCL(importedCudyr.recordedAt, 'Pacific/Easter')}.`
           : 'Hora de registro no informada por la fuente.',
         importedCudyr.items?.length
           ? `${importedCudyr.items.length} variables oficiales disponibles.`

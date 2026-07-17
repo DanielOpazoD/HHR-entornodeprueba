@@ -66,7 +66,8 @@ describe('rayen sync presentation', () => {
 
     expect(presentRayenSyncOutcome(event)).toMatchObject({
       label: 'Parcial',
-      detail: '1 paciente no se pudo completar · Gestión de Camas no disponible',
+      detail:
+        '1 paciente no se pudo completar · Fuente clínica incompleta · Gestión de Camas no disponible',
       tone: 'warning',
       unresolved: true,
     });
@@ -101,6 +102,25 @@ describe('rayen sync presentation', () => {
     };
 
     expect(presentRayenSyncOutcome(event).detail).toBe('1 paciente no se pudo completar');
+  });
+
+  it('does not mislabel a global synchronization issue as an incomplete clinical source', () => {
+    const event: RayenSyncEvent = {
+      id: 'run-global-issue',
+      startedAt: '2026-07-17T07:16:00.000Z',
+      by: 'Operador',
+      status: 'partial',
+      coverage: {
+        total: 9,
+        completed: 9,
+        errors: 0,
+        sourceErrors: 1,
+        completedAt: '2026-07-17T07:17:00.000Z',
+        issues: [{ bedId: '*', source: 'patch', reason: 'sync_already_running' }],
+      },
+    };
+
+    expect(presentRayenSyncOutcome(event).detail).toBe('Enriquecimiento clínico parcial');
   });
 
   it('offers reviewed recovery only after the connection is ready again', () => {

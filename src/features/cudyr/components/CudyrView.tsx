@@ -37,10 +37,14 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
   }
 
   const isCalculatedComplete = Boolean(persistedCompletion?.isComplete);
-  const completionTimestamp = record.cudyrCompletedAt || record.cudyrLockedAt;
-  const completionOwner = record.cudyrCompletedBy || record.cudyrUpdatedBy || record.cudyrLockedBy;
+  const completionTimestamp = record.cudyrCompletedAt;
+  const completionOwner = record.cudyrCompletedBy;
   const hasConfirmedCompletion = Boolean(
-    isCalculatedComplete && record.cudyrLocked && completionTimestamp && completionOwner
+    isCalculatedComplete &&
+    record.cudyrLocked &&
+    completionTimestamp &&
+    !Number.isNaN(Date.parse(completionTimestamp)) &&
+    completionOwner?.trim()
   );
 
   const responsibleNurses = resolveNightShiftNurses(record).filter(n => n && n.trim() !== '');

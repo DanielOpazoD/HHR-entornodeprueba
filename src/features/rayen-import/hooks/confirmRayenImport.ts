@@ -7,6 +7,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';
 
+const isVersionConflict = (error: unknown): boolean =>
+  (error instanceof Error && error.name === 'ConcurrencyError') ||
+  /actualizó hace un momento/i.test(getRayenImportErrorMessage(error));
+
 export const applyConfirmedRayenImport = async ({
   applyPreviousDays,
   base,
@@ -25,7 +29,7 @@ export const applyConfirmedRayenImport = async ({
   isAdmin: boolean;
   ensureRun: () => RayenSyncRun;
   applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<ApplyResult>;
-  getFreshRecord: () => DailyRecord | null | undefined;
+  getFreshRecord: () => Promise<DailyRecord | null | undefined>;
   createId: () => string;
 }): Promise<ApplyResult> => {
   if (applyPreviousDays) {
@@ -44,9 +48,9 @@ export const applyConfirmedRayenImport = async ({
   try {
     return await applyDiff(base, diff);
   } catch (error) {
-    if (!/actualizó hace un momento/i.test(getRayenImportErrorMessage(error))) throw error;
+    if (!isVersionConflict(error)) throw error;
     await new Promise(resolve => setTimeout(resolve, 900));
-    const fresh = getFreshRecord();
+    const fresh = await getFreshRecord();
     if (!fresh) throw error;
     return applyDiff(fresh, diff);
   }

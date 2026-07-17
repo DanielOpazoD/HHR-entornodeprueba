@@ -90,6 +90,15 @@ describe('buildImportedCudyr', () => {
     expect(importedCudyrBelongsToCensus(legacy, '2026-07-16')).toBe(false);
   });
 
+  it('rejects a malformed authoritative timestamp instead of trusting recordedDate', () => {
+    expect(
+      importedCudyrBelongsToCensus(
+        { recordedDate: '2026-07-16', recordedAt: 'fecha-invalida' },
+        '2026-07-16'
+      )
+    ).toBe(false);
+  });
+
   it('can synchronize the prior census later without using the synchronization clock', () => {
     const historical = {
       crdValue: 'B2',

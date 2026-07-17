@@ -206,6 +206,26 @@ describe('runClinicalFill', () => {
     expect(summary.errors).toEqual([{ bedId: 'H1C2', source: 'devices', message: 'tab cerrada' }]);
   });
 
+  it('reports a fulfilled forms error and does not treat its scales or vitals as successful', async () => {
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({
+        forms: [BRADEN_SUMMARY_FORM],
+        error: 'Ficha clínica no disponible',
+      }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.errors).toEqual([
+      { bedId: 'H1C2', source: 'scales', message: 'Ficha clínica no disponible' },
+      { bedId: 'H1C2', source: 'vitals', message: 'Ficha clínica no disponible' },
+    ]);
+    expect(summary.patched).toBe(0);
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
   it('a failing patient never blocks another (patch error on one bed only)', async () => {
     const applyPatch = vi.fn().mockImplementation(async (patch: Record<string, unknown>) => {
       if (Object.keys(patch)[0]?.includes('H1C1')) throw new Error('patch rechazado');

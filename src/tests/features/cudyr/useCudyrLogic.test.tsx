@@ -249,6 +249,27 @@ describe('useCudyrLogic', () => {
     expect(result.current.pendingCudyrChangeCount).toBe(0);
   });
 
+  it('notifies before discarding a draft completed from another tab', () => {
+    const { result, rerender } = renderHook(() => useCudyrLogic(false));
+
+    act(() => {
+      result.current.handleScoreChange('R1', 'changeClothes', 2);
+    });
+    expect(result.current.pendingCudyrChangeCount).toBe(1);
+
+    cudyrMocks.dailyRecordData.record = {
+      ...cudyrMocks.dailyRecordData.record!,
+      cudyrLocked: true,
+    };
+    rerender();
+
+    expect(result.current.pendingCudyrChangeCount).toBe(0);
+    expect(cudyrMocks.notifications.error).toHaveBeenCalledWith(
+      'Cambios CUDYR descartados',
+      'Otro profesional completó este CUDYR. Tus cambios pendientes no fueron aplicados.'
+    );
+  });
+
   it('protects the page unload flow while CUDYR changes are pending', () => {
     const { result, unmount } = renderHook(() => useCudyrLogic(false));
 

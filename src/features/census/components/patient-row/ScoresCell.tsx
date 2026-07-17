@@ -17,7 +17,7 @@ import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { useRayenFillStatus } from '@/features/rayen-import';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
-import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
+import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 
 interface ScoresCellProps extends BaseCellProps {
@@ -38,9 +38,9 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   }
 
   const model = buildScoresCellModel(data, currentDateString);
-  const hasManualCudyr = getCategorization(data.cudyr).isCategorized;
+  const hasCompleteManualCudyr = isCudyrScoreComplete(data.cudyr);
   const cudyrPending =
-    !model.cudyr && !hasManualCudyr && isCudyrPatientEligible(currentDateString, data)
+    !model.cudyr && !hasCompleteManualCudyr && isCudyrPatientEligible(currentDateString, data)
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
   const hasCellContent = model.hasAny || cudyrPending != null;

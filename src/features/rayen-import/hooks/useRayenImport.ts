@@ -229,7 +229,8 @@ export const useRayenImport = () => {
           isAdmin,
           ensureRun,
           applyDiff,
-          getFreshRecord: () => currentRecordRef.current,
+          getFreshRecord: async () =>
+            (await dailyRecord.getForDateWithMeta(base.date, true)).record,
           createId: makeId,
         });
         setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
