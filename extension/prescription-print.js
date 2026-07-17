@@ -878,6 +878,48 @@
     var isPageNumber = function (item) {
       return /^P[aá]g\.?(?:ina)?\s*\d+\s*(?:de|\/)?\s*\d+$/i.test(normalizedPdfText(item.text));
     };
+    var partFromPage = function (items, lowerY, upperY) {
+      var safeItems = (Array.isArray(items) ? items : []).filter(function (item) {
+        return item.y >= lowerY && item.y <= upperY && !isPageNumber(item);
+      });
+      var safeLines = (Array.isArray(items && items.horizontalLines) ? items.horizontalLines : [])
+        .filter(function (line) { return line.y >= lowerY && line.y <= upperY; });
+      return {
+        items: safeItems.map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+        lines: safeLines.map(function (line) { return { x0: line.x0, x1: line.x1, y: line.y }; }),
+      };
+    };
+    var recipeParts = [partFromPage(pageItems, 48, recipeTopY)];
+    var control = null;
+    for (var continuationIndex = recipePageIndex + 1; continuationIndex < pages.length; continuationIndex += 1) {
+      var continuationItems = pages[continuationIndex];
+      var continuationDate = continuationItems.find(function (item) {
+        return /^Fecha Ingreso:?$/i.test(normalizedPdfText(item.text));
+      });
+      var continuationHeaderBottom = continuationDate ? continuationDate.y - 22 : Number.POSITIVE_INFINITY;
+      var controlTitle = continuationItems.find(function (item) {
+        return normalize(item.text) === 'PROXIMO CONTROL';
+      });
+      var continuationLowerBound = controlTitle ? controlTitle.y + 3 : 48;
+      var continuationPart = partFromPage(
+        continuationItems,
+        continuationLowerBound,
+        continuationHeaderBottom
+      );
+      if (continuationPart.items.length || continuationPart.lines.length) recipeParts.push(continuationPart);
+      if (controlTitle) {
+        control = {
+          pageIndex: continuationIndex,
+          headerItems: continuationItems.filter(function (item) {
+            return item.y >= continuationHeaderBottom && !isPageNumber(item);
+          }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+          items: partFromPage(continuationItems, 48, controlTitle.y + 3).items,
+          lines: partFromPage(continuationItems, 48, controlTitle.y + 3).lines,
+        };
+        break;
+      }
+    }
+    if (recipeParts.length > 1 && !control) return null;
     return {
       pageCount: pages.length,
       recipePageIndex: recipePageIndex,
@@ -886,12 +928,8 @@
       headerItems: pageItems.filter(function (item) {
         return item.y >= headerBottomY && !isPageNumber(item);
       }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
-      recipeItems: pageItems.filter(function (item) {
-        return item.y >= 48 && item.y <= recipeTopY && !isPageNumber(item);
-      }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
-      recipeLines: (Array.isArray(pageItems.horizontalLines) ? pageItems.horizontalLines : [])
-        .filter(function (line) { return line.y >= 48 && line.y <= recipeTopY; })
-        .map(function (line) { return { x0: line.x0, x1: line.x1, y: line.y }; }),
+      recipeParts: recipeParts,
+      control: control,
       titleItems: titleItems.map(function (item) {
         return item ? { x: item.x, y: item.y } : null;
       }),

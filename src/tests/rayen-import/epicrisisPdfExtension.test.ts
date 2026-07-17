@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import '../../../extension/epicrisis-pdf.js';
 
 describe('epicrisis PDF extension', () => {
-  it('inserts a dedicated recipe page without changing the official epicrisis page count order', async () => {
+  it('places next control before one compact prescription page', async () => {
     const source = await PDFDocument.create();
     source.addPage([612, 792]);
     source.addPage([612, 792]);
@@ -19,12 +19,32 @@ describe('epicrisis PDF extension', () => {
           { x: 35, y: 700, text: 'DATOS DEL PACIENTE' },
           { x: 35, y: 670, text: 'RUN: 15.066.726-7' },
         ],
-        recipeItems: [
-          { x: 35, y: 160, text: 'RECETA DE ALTA' },
-          { x: 35, y: 130, text: 'Medicamento' },
-          { x: 35, y: 100, text: 'Tratamiento de prueba' },
+        recipeParts: [
+          {
+            items: [
+              { x: 35, y: 160, text: 'RECETA DE ALTA' },
+              { x: 35, y: 130, text: 'Medicamento' },
+              { x: 35, y: 100, text: 'Tratamiento de prueba' },
+            ],
+            lines: [{ x0: 35, x1: 575, y: 120 }],
+          },
+          {
+            items: [{ x: 35, y: 160, text: 'Continuación del tratamiento' }],
+            lines: [],
+          },
         ],
-        recipeLines: [{ x0: 35, x1: 575, y: 120 }],
+        control: {
+          pageIndex: 2,
+          headerItems: [
+            { x: 35, y: 700, text: 'DATOS DEL PACIENTE' },
+            { x: 35, y: 670, text: 'RUN: 15.066.726-7' },
+          ],
+          items: [
+            { x: 35, y: 360, text: 'PRÓXIMO CONTROL' },
+            { x: 35, y: 320, text: 'Profesional: Dr. Rodriguez' },
+          ],
+          lines: [],
+        },
         titleItems: [
           { x: 260, y: 744 },
           { x: 260, y: 744 },

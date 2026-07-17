@@ -21,7 +21,7 @@
     var total = pages.length;
     pages.forEach(function (page, index) {
       var label = 'Pág. ' + (index + 1) + '   de ' + total;
-      page.drawRectangle({ x: page.getWidth() - 125, y: 13, width: 115, height: 24, color: library.rgb(1, 1, 1) });
+      page.drawRectangle({ x: page.getWidth() - 190, y: 0, width: 190, height: 58, color: library.rgb(1, 1, 1) });
       page.drawText(label, { x: page.getWidth() - 18 - font.widthOfTextAtSize(label, 8), y: 20, size: 8, font: font, color: library.rgb(0, 0, 0) });
     });
   };
@@ -49,6 +49,14 @@
     });
   };
 
+  var boundsForLayout = function (items, lines) {
+    var ys = [];
+    (Array.isArray(items) ? items : []).forEach(function (item) { ys.push(Number(item.y)); });
+    (Array.isArray(lines) ? lines : []).forEach(function (line) { ys.push(Number(line.y)); });
+    var valid = ys.filter(Number.isFinite);
+    return valid.length ? { top: Math.max.apply(null, valid), bottom: Math.min.apply(null, valid) } : null;
+  };
+
   var correctEpicrisisPrescriptionPages = async function (buffer, helper, pdfLibrary) {
     if (!helper || typeof helper.extractOfficialEpicrisisLayout !== 'function') {
       throw new Error('No está disponible el analizador del alta médica.');
@@ -60,7 +68,11 @@
     var sourceBytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
     var sourcePdf = await library.PDFDocument.load(sourceBytes);
     var pdf = await library.PDFDocument.create();
-    var copiedPages = await pdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
+    var skippedUntil = layout.control ? layout.control.pageIndex : layout.recipePageIndex;
+    var keptIndexes = sourcePdf.getPageIndices().filter(function (index) {
+      return index <= layout.recipePageIndex || index > skippedUntil;
+    });
+    var copiedPages = await pdf.copyPages(sourcePdf, keptIndexes);
     copiedPages.forEach(function (page) { pdf.addPage(page); });
     var sourcePage = sourcePdf.getPage(layout.recipePageIndex);
     var targetEpicrisisPage = pdf.getPage(layout.recipePageIndex);
@@ -87,23 +99,39 @@
       height: 28,
       color: library.rgb(1, 1, 1),
     });
-    var recipePage = pdf.insertPage(layout.recipePageIndex + 1, [size.width, size.height]);
     var font = await pdf.embedFont(library.StandardFonts.Helvetica);
+    var insertionIndex = layout.recipePageIndex + 1;
+    if (layout.control) {
+      var controlPage = pdf.insertPage(insertionIndex, [size.width, size.height]);
+      drawLayoutItems(controlPage, layout.control.headerItems, [], font, library, 0);
+      drawCenteredTitle(controlPage, font, layout.titleItems[layout.recipePageIndex], 'Epicrisis', library);
+      var controlBounds = boundsForLayout(layout.control.items, layout.control.lines);
+      if (controlBounds) {
+        drawLayoutItems(
+          controlPage,
+          layout.control.items,
+          layout.control.lines,
+          font,
+          library,
+          layout.headerBottomY - 30 - controlBounds.top
+        );
+      }
+      insertionIndex += 1;
+    }
+    var recipePage = pdf.insertPage(insertionIndex, [size.width, size.height]);
     drawLayoutItems(recipePage, layout.headerItems, [], font, library, 0);
     var contentTop = layout.headerBottomY - 22;
-    drawLayoutItems(
-      recipePage,
-      layout.recipeItems,
-      layout.recipeLines,
-      font,
-      library,
-      contentTop - recipeTop
-    );
+    var currentBottom = contentTop;
+    (Array.isArray(layout.recipeParts) ? layout.recipeParts : []).forEach(function (part, index) {
+      var partBounds = boundsForLayout(part && part.items, part && part.lines);
+      if (!partBounds) return;
+      var offset = index === 0
+        ? contentTop - partBounds.top
+        : currentBottom - 10 - partBounds.top;
+      drawLayoutItems(recipePage, part.items, part.lines, font, library, offset);
+      currentBottom = partBounds.bottom + offset;
+    });
     drawCenteredTitle(recipePage, font, layout.titleItems[layout.recipePageIndex], correctedTitle, library);
-    // Keep the recipe title on any continuation page that carries the official title anchor.
-    for (var index = layout.recipePageIndex + 2; index < pdf.getPageCount(); index += 1) {
-      drawCenteredTitle(pdf.getPage(index), font, layout.titleItems[index - 1], correctedTitle, library);
-    }
     drawPagination(pdf.getPages(), font, library);
     return pdf.save();
   };
