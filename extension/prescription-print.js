@@ -840,6 +840,155 @@
     };
   };
 
+  var extractOfficialEpicrisisLayout = async function (buffer) {
+    var streams = await inflatePdfStreams(buffer);
+    var pages = pdfTextItems(streams);
+    if (!pages.length) return null;
+    var normalize = function (value) {
+      return normalizedPdfText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+    };
+    var recipePageIndex = -1;
+    var recipeTitle = null;
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+      var candidate = pages[pageIndex].find(function (item) {
+        return normalize(item.text) === 'RECETA DE ALTA';
+      });
+      if (candidate) {
+        recipePageIndex = pageIndex;
+        recipeTitle = candidate;
+        break;
+      }
+    }
+    if (recipePageIndex < 0 || !recipeTitle) return null;
+    var headerDate = pages[recipePageIndex].find(function (item) {
+      return /^Fecha Ingreso:?$/i.test(normalizedPdfText(item.text));
+    });
+    var titleItems = pages.map(function (items) {
+      return items.find(function (item) { return normalize(item.text) === 'EPICRISIS'; }) || null;
+    });
+    if (!headerDate || !titleItems[recipePageIndex]) return null;
+    var headerBottomY = Math.max(0, headerDate.y - 22);
+    var headerContentBottomY = Math.max(0, headerDate.y - 4);
+    // Keep this boundary tight: the last free-text discharge indication can otherwise be
+    // mistaken for recipe content because Jasper places it immediately above the title.
+    var recipeTopY = recipeTitle.y + 3;
+    var pageItems = pages[recipePageIndex];
+    var isPageNumber = function (item) {
+      return /^P[aá]g\.?(?:ina)?\s*\d+\s*(?:de|\/)?\s*\d+$/i.test(normalizedPdfText(item.text));
+    };
+    var partFromPage = function (items, lowerY, upperY) {
+      var safeItems = (Array.isArray(items) ? items : []).filter(function (item) {
+        return item.y >= lowerY && item.y <= upperY && !isPageNumber(item);
+      });
+      var safeLines = (Array.isArray(items && items.horizontalLines) ? items.horizontalLines : [])
+        .filter(function (line) { return line.y >= lowerY && line.y <= upperY; });
+      return {
+        items: safeItems.map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+        lines: safeLines.map(function (line) { return { x0: line.x0, x1: line.x1, y: line.y }; }),
+      };
+    };
+    var normalizedRun = function (value) {
+      return String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
+    };
+    var runFromItems = function (items) {
+      var safeItems = Array.isArray(items) ? items : [];
+      var label = safeItems.find(function (item) {
+        return /^RUN\s*:?/i.test(normalizedPdfText(item && item.text).trim());
+      });
+      if (!label) return '';
+      var inline = normalizedPdfText(label.text).trim()
+        .match(/^RUN\s*:?\s*([0-9.]+-[0-9K])$/i);
+      if (inline) return normalizedRun(inline[1]);
+      var candidate = safeItems
+        .filter(function (item) {
+          return item !== label && Number(item.x) > Number(label.x) &&
+            Math.abs(Number(item.y) - Number(label.y)) <= 2;
+        })
+        .sort(function (left, right) { return Number(left.x) - Number(right.x); })
+        .map(function (item) { return normalizedRun(item.text); })
+        .find(function (value) { return /^[0-9]{6,8}[0-9K]$/.test(value); });
+      return candidate || '';
+    };
+    var recipeParts = [partFromPage(pageItems, 48, recipeTopY)];
+    var control = null;
+    var recipeEndPageIndex = recipePageIndex;
+    var recipePatientRun = runFromItems(pageItems);
+    var hasNoConflictingPatientRun = function (items) {
+      var pageRun = runFromItems(items);
+      return Boolean(recipePatientRun && (!pageRun || pageRun === recipePatientRun));
+    };
+    var isPrescriptionContinuation = function (items, part) {
+      var safeItems = Array.isArray(items) ? items : [];
+      var texts = safeItems.map(function (item) { return normalizedPdfText(item.text); });
+      var hasMedication = texts.some(function (text) { return /^\(\*\)/.test(text); });
+      var hasTableHeader = texts.some(function (text) { return /^Medicamento$/i.test(text); }) &&
+        texts.some(function (text) { return /^Posolog[ií]a e indicaciones$/i.test(text); });
+      var hasPrescriptionLines = Array.isArray(part && part.lines) && part.lines.length > 0;
+      return Boolean(hasNoConflictingPatientRun(safeItems) &&
+        (hasTableHeader || (hasMedication && hasPrescriptionLines)));
+    };
+    for (var continuationIndex = recipePageIndex + 1; continuationIndex < pages.length; continuationIndex += 1) {
+      var continuationItems = pages[continuationIndex];
+      var continuationDate = continuationItems.find(function (item) {
+        return /^Fecha Ingreso:?$/i.test(normalizedPdfText(item.text));
+      });
+      // Jasper occasionally omits the exact "Fecha Ingreso" label on continuation pages. The
+      // first recipe page still gives us a finite, safe patient-header boundary.
+      var continuationHeaderBottom = continuationDate ? continuationDate.y - 22 : headerBottomY;
+      var continuationHeaderContentBottom = continuationDate
+        ? continuationDate.y - 4
+        : headerContentBottomY;
+      var controlTitle = continuationItems.find(function (item) {
+        return normalize(item.text) === 'PROXIMO CONTROL';
+      });
+      var continuationLowerBound = controlTitle ? controlTitle.y + 3 : 48;
+      var continuationPart = partFromPage(
+        continuationItems,
+        continuationLowerBound,
+        continuationHeaderBottom
+      );
+      var confirmedContinuation = isPrescriptionContinuation(
+        continuationItems,
+        continuationPart
+      );
+      if (confirmedContinuation &&
+          (continuationPart.items.length || continuationPart.lines.length)) {
+        recipeParts.push(continuationPart);
+        recipeEndPageIndex = continuationIndex;
+      }
+      if (controlTitle && hasNoConflictingPatientRun(continuationItems)) {
+        control = {
+          pageIndex: continuationIndex,
+          headerItems: continuationItems.filter(function (item) {
+            return item.y >= continuationHeaderContentBottom && !isPageNumber(item);
+          }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+          items: partFromPage(continuationItems, 48, controlTitle.y + 3).items,
+          lines: partFromPage(continuationItems, 48, controlTitle.y + 3).lines,
+        };
+        break;
+      }
+      if (!confirmedContinuation) break;
+    }
+    return {
+      pageCount: pages.length,
+      recipePageIndex: recipePageIndex,
+      recipeTitleY: recipeTitle.y,
+      headerBottomY: headerBottomY,
+      headerItems: pageItems.filter(function (item) {
+        return item.y >= headerContentBottomY && !isPageNumber(item);
+      }).map(function (item) { return { x: item.x, y: item.y, text: item.text }; }),
+      recipeParts: recipeParts,
+      recipeEndPageIndex: recipeEndPageIndex,
+      control: control,
+      titleItems: titleItems.map(function (item) {
+        return item ? { x: item.x, y: item.y } : null;
+      }),
+    };
+  };
+
   var derivePrescriptionDates = function (events) {
     var byDate = new Map();
     for (var i = 0; i < (Array.isArray(events) ? events.length : 0); i += 1) {
@@ -1311,6 +1460,7 @@
     applyProfessionalValidationDates: applyProfessionalValidationDates,
     extractOfficialPrescriptionMetadata: extractOfficialPrescriptionMetadata,
     extractOfficialPrescriptionContent: extractOfficialPrescriptionContent,
+    extractOfficialEpicrisisLayout: extractOfficialEpicrisisLayout,
     buildClinicalReportUrl: buildClinicalReportUrl,
     buildPrescriptionReportUrl: buildPrescriptionReportUrl,
     buildIndicationsReportUrl: buildIndicationsReportUrl,

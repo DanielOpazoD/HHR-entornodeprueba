@@ -250,4 +250,101 @@ describe('extension prescription print content flow', () => {
     expect(contentSource).toContain('hhr-ops-connection-dot');
     expect(contentSource).not.toMatch(/type=["']password["']/i);
   });
+
+  it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {
+    vi.stubGlobal(
+      'MutationObserver',
+      class extends NativeMutationObserver {
+        constructor(callback: MutationCallback) {
+          super(callback);
+          contentObservers.add(this);
+        }
+      }
+    );
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+    document.body.innerHTML = `
+      <table><tbody><tr><td><span>Paciente prueba · Alta médica</span><p aria-label="15.066.726-7">RUN : 15.066.726-7</p></td><td>80 a</td><td><button id="open-actions" aria-expanded="true">⋮</button></td></tr></tbody></table>
+      <table><tbody><tr><td>Paciente sin identificador</td><td><button id="open-actions-without-run" aria-expanded="false">⋮</button></td></tr></tbody></table>
+      <div role="menu"><button id="native-print-1" type="button"><span class="MuiListItemIcon-root"><svg data-testid="LocalPrintshopRoundedIcon"></svg></span><span class="MuiListItemText-primary">Imprimir Alta Médica</span></button></div>
+      <div role="menu" hidden><button id="native-print-2" type="button">Imprimir Alta Médica</button></div>
+      <div role="menu" hidden><button id="native-print-3" type="button">Imprimir Alta Médica</button></div>
+    `;
+    const messages: Array<{ type?: string; patientRun?: string }> = [];
+    (globalThis as typeof globalThis & { chrome: unknown }).chrome = {
+      runtime: {
+        getManifest: () => ({ version: '0.30.0' }),
+        getURL: (value: string) => `chrome-extension://test/${value}`,
+        get lastError() {
+          return undefined;
+        },
+        sendMessage: (message: { type?: string }, callback: (response: unknown) => void) => {
+          messages.push(message);
+          callback({ ok: true });
+        },
+      },
+    };
+    const nativePrint = document.querySelector('[role="menu"] button') as HTMLButtonElement;
+    nativePrint.addEventListener('click', () => undefined);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    let captureArmCount = 0;
+    window.addEventListener('message', event => {
+      if (event.data?.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') return;
+      captureArmCount += 1;
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window,
+          origin: window.location.origin,
+          data: {
+            type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+            reqId: event.data.reqId,
+            pdfBase64: 'JVBERi0xLjQ=',
+          },
+        })
+      );
+    });
+
+    vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    (document.getElementById('open-actions') as HTMLButtonElement).focus();
+    const corrected = await vi.waitFor(() => {
+      const element = document.getElementById('hhr-corrected-discharge-print');
+      expect(element?.textContent).toContain('Imprimir alta corregida');
+      expect(element?.querySelector('[data-testid="LocalPrintshopRoundedIcon"]')).not.toBeNull();
+      const correctedItems = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-hhr-corrected-discharge-print="true"]')
+      );
+      expect(correctedItems).toHaveLength(3);
+      expect(correctedItems.map(item => item.id)).toEqual([
+        'hhr-corrected-discharge-print',
+        '',
+        '',
+      ]);
+      return element as HTMLButtonElement;
+    });
+    corrected.click();
+    corrected.click();
+    await vi.waitFor(() => {
+      const correctedMessages = messages.filter(
+        message => message.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST'
+      );
+      expect(correctedMessages).toHaveLength(1);
+      expect(correctedMessages[0]?.patientRun).toBe('15.066.726-7');
+      expect(captureArmCount).toBe(1);
+    });
+    (document.getElementById('open-actions') as HTMLButtonElement).setAttribute(
+      'aria-expanded',
+      'false'
+    );
+    (document.getElementById('open-actions-without-run') as HTMLButtonElement).setAttribute(
+      'aria-expanded',
+      'true'
+    );
+    (document.getElementById('open-actions-without-run') as HTMLButtonElement).focus();
+    corrected.click();
+    expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No se pudo identificar al paciente')
+    );
+    expect(captureArmCount).toBe(1);
+  });
 });

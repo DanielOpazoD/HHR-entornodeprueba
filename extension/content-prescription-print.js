@@ -36,6 +36,155 @@
       .toLowerCase();
 
   const currentRouteEncounterId = () => helper.resolveEncounterId(window.location.href) || '';
+  const EPICRISIS_MENU_ITEM_ID = 'hhr-corrected-discharge-print';
+  const epicrisisCaptureWaiters = new Map();
+  let activeEpicrisisPrintReqId = '';
+  let lastDischargePatientRun = '';
+
+  const runFromText = value => {
+    const match = String(value || '').match(/RUN\s*:?\s*([0-9.\-Kk]+)/i);
+    return match ? match[1].trim() : '';
+  };
+
+  const runFromPatientRow = row => {
+    if (!row) return '';
+    const labeledRun = Array.from(row.querySelectorAll('[aria-label]')).find(element =>
+      /^RUN\s*:?/i.test(String(element.textContent || '').trim())
+    );
+    if (labeledRun) return String(labeledRun.getAttribute('aria-label') || '').trim();
+    const visibleRun = Array.from(row.querySelectorAll('p,span,div')).find(element =>
+      /^RUN\s*:?/i.test(String(element.textContent || '').trim())
+    );
+    return runFromText(visibleRun ? visibleRun.textContent : row.textContent);
+  };
+
+  // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
+  // the user opens a row action so the captured PDF can later be bound to that patient.
+  const rememberDischargePatientFromEvent = event => {
+    const target = event.target instanceof Element ? event.target : null;
+    const row = target && target.closest('tr,[role="row"]');
+    if (!row) return;
+    lastDischargePatientRun = runFromPatientRow(row);
+  };
+  document.addEventListener('click', rememberDischargePatientFromEvent, true);
+  document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
+
+  const dischargePatientFromOpenMenu = () => {
+    const expandedActions = Array.from(
+      document.querySelectorAll('button[aria-expanded="true"],[role="button"][aria-expanded="true"]')
+    );
+    for (const action of expandedActions) {
+      const row = action.closest('tr,[role="row"]');
+      if (row) return { found: true, patientRun: runFromPatientRow(row) };
+    }
+    return { found: false, patientRun: '' };
+  };
+
+  const setCorrectedDischargeItemLabel = (item, label) => {
+    const labelNode = item.querySelector(
+      '.MuiListItemText-primary,.MuiListItemText-root span,p'
+    );
+    if (labelNode) labelNode.textContent = label;
+    else item.textContent = label;
+  };
+
+  window.addEventListener('message', event => {
+    if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
+    const data = event.data || {};
+    if (data.type !== 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT') return;
+    const resolve = epicrisisCaptureWaiters.get(String(data.reqId || ''));
+    if (!resolve) return;
+    epicrisisCaptureWaiters.delete(String(data.reqId || ''));
+    resolve(data);
+  });
+
+  const waitForEpicrisisCapture = reqId => new Promise(resolve => {
+    const timeout = window.setTimeout(() => {
+      if (!epicrisisCaptureWaiters.has(reqId)) return;
+      epicrisisCaptureWaiters.delete(reqId);
+      resolve({ error: 'Eloísa no generó el PDF de alta dentro del tiempo esperado.' });
+    }, 32_000);
+    epicrisisCaptureWaiters.set(reqId, result => {
+      window.clearTimeout(timeout);
+      resolve(result || { error: 'No se recibió el PDF de alta.' });
+    });
+  });
+
+  const findNativeDischargePrintItems = () => Array.from(
+    document.querySelectorAll('button,[role="menuitem"]')
+  ).filter(element =>
+    normalizedText(element.textContent) === 'imprimir alta medica' &&
+    element.dataset.hhrCorrectedDischargePrint !== 'true'
+  );
+
+  const requestCorrectedDischargePrint = async (nativeItem, item) => {
+    if (activeEpicrisisPrintReqId) return;
+    const openMenuPatient = dischargePatientFromOpenMenu();
+    const expectedPatientRun = openMenuPatient.found
+      ? openMenuPatient.patientRun
+      : lastDischargePatientRun;
+    if (!expectedPatientRun) {
+      window.alert(
+        'No se pudo identificar al paciente de esta alta. Cierra el menú, vuelve a abrirlo desde su fila y reintenta.'
+      );
+      return;
+    }
+    const reqId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : 'epicrisis-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    lastDischargePatientRun = expectedPatientRun;
+    activeEpicrisisPrintReqId = reqId;
+    setCorrectedDischargeItemLabel(item, 'Preparando alta corregida…');
+    item.setAttribute('aria-busy', 'true');
+    item.setAttribute('aria-disabled', 'true');
+    item.style.pointerEvents = 'none';
+    const captured = waitForEpicrisisCapture(reqId);
+    window.postMessage({
+      type: 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM',
+      reqId,
+      patientRun: expectedPatientRun,
+    }, window.location.origin);
+    try {
+      nativeItem.click();
+      const result = await captured;
+      if (result.error) throw new Error(result.error);
+      const response = await sendMessage({
+        type: 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST',
+        pdfBase64: String(result.pdfBase64 || ''),
+        patientRun: expectedPatientRun,
+      });
+      if (!response || response.error) throw new Error(String(response && response.error || 'No se pudo preparar el alta corregida.'));
+    } catch (error) {
+      window.alert(String((error && error.message) || error || 'No se pudo preparar el alta corregida.'));
+    } finally {
+      window.postMessage({ type: 'RAYEN_EPICRISIS_PDF_CAPTURE_CANCEL', reqId }, window.location.origin);
+      if (activeEpicrisisPrintReqId === reqId) activeEpicrisisPrintReqId = '';
+      setCorrectedDischargeItemLabel(item, 'Imprimir alta corregida');
+      item.removeAttribute('aria-busy');
+      item.removeAttribute('aria-disabled');
+      item.style.pointerEvents = '';
+    }
+  };
+
+  const ensureCorrectedDischargePrintItems = () => {
+    findNativeDischargePrintItems().forEach(nativeItem => {
+      const nextItem = nativeItem.nextElementSibling;
+      if (nextItem && nextItem.dataset.hhrCorrectedDischargePrint === 'true') return;
+      const item = nativeItem.cloneNode(true);
+      item.removeAttribute('id');
+      if (!document.getElementById(EPICRISIS_MENU_ITEM_ID)) item.id = EPICRISIS_MENU_ITEM_ID;
+      item.dataset.hhrCorrectedDischargePrint = 'true';
+      item.removeAttribute('data-state');
+      setCorrectedDischargeItemLabel(item, 'Imprimir alta corregida');
+      item.setAttribute('aria-label', 'Imprimir alta médica con receta en página nueva');
+      item.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        void requestCorrectedDischargePrint(nativeItem, item);
+      });
+      nativeItem.insertAdjacentElement('afterend', item);
+    });
+  };
 
   // Combines the free-text search with an optional service <select> (shown only when the
   // census spans more than one service). Rows expose data-search and data-service.
@@ -5029,6 +5178,7 @@
       }
     }
     ensureOperationsBar(encId);
+    ensureCorrectedDischargePrintItems();
     if (!encId || !nursingContext) {
       document.documentElement.setAttribute(
         'data-hhr-prescription-print-state',

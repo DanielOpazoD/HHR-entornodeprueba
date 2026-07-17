@@ -52,6 +52,16 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(fichaSource).toContain('previousAuth === sessionToken');
   });
 
+  it('binds corrected discharge PDFs to a valid patient before allocating the payload', () => {
+    expect(backgroundSource).toContain('No se pudo validar el RUN del paciente seleccionado.');
+    expect(backgroundSource).toContain('{ expectedPatientRun: normalizedPatientRun }');
+    expect(contentSource).toContain('if (!expectedPatientRun)');
+    expect(fichaSource).toContain('MAX_EPICRISIS_BASE64_LENGTH = 20 * 1024 * 1024');
+    expect(fichaSource).toContain(
+      'Math.ceil(Number(value.size || 0) / 3) * 4 > MAX_EPICRISIS_BASE64_LENGTH'
+    );
+  });
+
   it('restores reconnect after forgetting a session and documents retained metadata', () => {
     const forgetHandler = contentSource.slice(
       contentSource.indexOf("forget.addEventListener('click'"),

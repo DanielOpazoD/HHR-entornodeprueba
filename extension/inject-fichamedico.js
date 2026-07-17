@@ -37,6 +37,92 @@
   const normalization = globalThis.HhrFichaMedicoNormalization;
   let capturedApiOrigin = null;
   let sessionBindingRevision = 0;
+  let epicrisisCapture = null;
+  const epicrisisPdfCandidates = new Map();
+
+  const originalCreateObjectURL = typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL.bind(URL)
+    : null;
+  const originalWindowOpen = typeof window.open === 'function'
+    ? window.open.bind(window)
+    : null;
+  const anchorPrototype = typeof HTMLAnchorElement !== 'undefined'
+    ? HTMLAnchorElement.prototype
+    : null;
+  const originalAnchorClick = anchorPrototype && typeof anchorPrototype.click === 'function'
+    ? anchorPrototype.click
+    : null;
+  const MAX_EPICRISIS_BASE64_LENGTH = 20 * 1024 * 1024;
+  const publishEpicrisisCapture = (capture, value) => {
+    if (!capture || !value) return;
+    if (Math.ceil(Number(value.size || 0) / 3) * 4 > MAX_EPICRISIS_BASE64_LENGTH) {
+      window.postMessage({
+        type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+        reqId: capture.reqId,
+        error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.',
+      }, window.location.origin);
+      return;
+    }
+    value.arrayBuffer().then(buffer => {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(offset, offset + 0x8000));
+      }
+      window.postMessage({
+        type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+        reqId: capture.reqId,
+        pdfBase64: btoa(binary),
+      }, window.location.origin);
+    }).catch(error => {
+      window.postMessage({
+        type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+        reqId: capture.reqId,
+        error: 'No se pudo leer el PDF oficial: ' + String((error && error.message) || error),
+      }, window.location.origin);
+    });
+  };
+  const consumeEpicrisisCandidate = url => {
+    const key = String(url || '');
+    const candidate = epicrisisPdfCandidates.get(key);
+    if (!candidate || Date.now() >= candidate.expiresAt ||
+        !epicrisisCapture || epicrisisCapture.reqId !== candidate.capture.reqId) return false;
+    epicrisisPdfCandidates.delete(key);
+    epicrisisCapture = null;
+    try { URL.revokeObjectURL(key); } catch (_) {}
+    publishEpicrisisCapture(candidate.capture, candidate.value);
+    return true;
+  };
+  URL.createObjectURL = function (value) {
+    if (!originalCreateObjectURL) {
+      throw new TypeError('URL.createObjectURL no está disponible en este entorno.');
+    }
+    if (epicrisisCapture && Date.now() < epicrisisCapture.expiresAt &&
+        value instanceof Blob && /application\/pdf/i.test(String(value.type || ''))) {
+      const url = originalCreateObjectURL(value);
+      epicrisisPdfCandidates.set(url, {
+        capture: epicrisisCapture,
+        value,
+        expiresAt: Math.min(epicrisisCapture.expiresAt, Date.now() + 10_000),
+      });
+      window.setTimeout(() => {
+        const candidate = epicrisisPdfCandidates.get(url);
+        if (candidate && Date.now() >= candidate.expiresAt) epicrisisPdfCandidates.delete(url);
+      }, 10_100);
+      return url;
+    }
+    return originalCreateObjectURL(value);
+  };
+  window.open = function (url) {
+    if (consumeEpicrisisCandidate(url)) return null;
+    return originalWindowOpen ? originalWindowOpen.apply(window, arguments) : null;
+  };
+  if (anchorPrototype) {
+    anchorPrototype.click = function () {
+      if (consumeEpicrisisCandidate(this.href)) return;
+      if (originalAnchorClick) return originalAnchorClick.apply(this, arguments);
+    };
+  }
 
   const rememberFromRequest = (url, authHeader) => {
     try {
@@ -390,6 +476,32 @@
     if (event.source !== window) return;
     const data = event.data;
     if (!data) return;
+
+    if (data.type === 'RAYEN_EPICRISIS_PDF_CAPTURE_ARM') {
+      const reqId = String(data.reqId || '');
+      if (!/^[a-z0-9-]{8,80}$/i.test(reqId)) return;
+      epicrisisCapture = { reqId, expiresAt: Date.now() + 30_000 };
+      window.setTimeout(() => {
+        if (!epicrisisCapture || epicrisisCapture.reqId !== reqId) return;
+        epicrisisCapture = null;
+        window.postMessage({
+          type: 'RAYEN_EPICRISIS_PDF_CAPTURE_RESULT',
+          reqId,
+          error: 'Eloísa no generó el PDF de alta dentro del tiempo esperado.',
+        }, window.location.origin);
+      }, 30_100);
+      return;
+    }
+
+    if (data.type === 'RAYEN_EPICRISIS_PDF_CAPTURE_CANCEL') {
+      const reqId = String(data.reqId || '');
+      if (epicrisisCapture && epicrisisCapture.reqId === reqId) epicrisisCapture = null;
+      epicrisisPdfCandidates.forEach(function (candidate, url) {
+        if (candidate.capture.reqId !== reqId) return;
+        epicrisisPdfCandidates.delete(url);
+      });
+      return;
+    }
 
     if (data.type === 'RAYEN_EXT_READ_REQUEST') {
       const reqId = data.reqId;
