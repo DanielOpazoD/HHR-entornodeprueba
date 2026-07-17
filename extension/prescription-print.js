@@ -627,6 +627,7 @@
           );
         })
         .map(function (item) { return item.y; });
+      var rowStructuralPattern = /^(?:Medicamento|Posología e indicaciones|Despacho Farmacia|Diagnóstico\(s\):|Nombres:|RUN:|Cama:|Sala:|Servicio:|Prescriptor:|Fecha:|Impreso por:?)(?:\s|$)/i;
       var boundaryGroups = new Map();
       (Array.isArray(pageItems.horizontalLines) ? pageItems.horizontalLines : []).forEach(function (line) {
         var key = String(Math.round(line.y * 2) / 2);
@@ -690,6 +691,16 @@
         if (!Number.isFinite(upperBoundary) || !Number.isFinite(lowerBoundary) ||
             upperBoundary <= timestamp.y || lowerBoundary >= timestamp.y ||
             upperBoundary - lowerBoundary > 120) {
+          extractionComplete = false;
+          return;
+        }
+        // Never compact a row whose inferred bounds include patient/header/footer metadata.
+        // A false horizontal boundary must fail closed to the untouched official PDF.
+        var containsStructuralMetadata = pageItems.some(function (item) {
+          return item.y > lowerBoundary && item.y < upperBoundary &&
+            rowStructuralPattern.test(normalizedPdfText(item.text));
+        });
+        if (containsStructuralMetadata) {
           extractionComplete = false;
           return;
         }

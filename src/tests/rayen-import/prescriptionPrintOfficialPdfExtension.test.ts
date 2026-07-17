@@ -145,6 +145,13 @@ describe('extension prescription operations', () => {
         dateTime: '09-07-2026 11:15',
       }),
     ]);
+
+    // A repeated institutional label inside the inferred medication row means the
+    // horizontal border was not trustworthy. Preserve the official PDF in that case.
+    document.text('Impreso por: Profesional incorrectamente mezclado', 20, 230);
+    await expect(
+      prescriptionPrint.extractOfficialPrescriptionContent(document.output('arraybuffer'))
+    ).resolves.toBeNull();
   });
 
   it('uses the official table borders when adjacent medication rows have different heights', async () => {

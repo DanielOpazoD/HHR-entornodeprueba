@@ -114,6 +114,8 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(prescriptionBatch).not.toContain('30 * 60 * 1000');
     expect(prescriptionBatch).toContain('[storageKey]: { ...batch, lastUsedAt: Date.now() }');
     expect(backgroundSource).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
+    expect(backgroundSource).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
+    expect(backgroundSource).not.toContain('PRESCRIPTION_BATCH_LIMIT - 1');
     expect(backgroundSource).toContain('await sweepPrescriptionBatches()');
     expect(backgroundSource).toContain("allowOfficialFallback: format === 'compact'");
     expect(backgroundSource).toContain('compactFallbackReason');

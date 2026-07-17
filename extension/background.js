@@ -4156,7 +4156,7 @@ const sweepPrescriptionBatches = async (now = Date.now()) => {
       Number(right[1].lastUsedAt || right[1].createdAt || 0) -
       Number(left[1].lastUsedAt || left[1].createdAt || 0)
     )
-    .slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT - 1))
+    .slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))
     .map(([key]) => key);
   const removable = [...expiredKeys, ...overflowKeys];
   if (removable.length) await chrome.storage.session.remove(removable);

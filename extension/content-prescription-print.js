@@ -1010,6 +1010,8 @@
       ? existingRoot.__hhrFocusReturnTarget
       : document.activeElement;
     const hasCurrentPatient = /^\d+$/.test(String(encId || ''));
+    const currentPatientMatchesRoute = hasCurrentPatient &&
+      String(currentRouteEncounterId() || '') === String(encId || '');
     const root = prepareCenterModalRoot({
       existingRoot,
       activeModule: 'recipes',
@@ -1042,12 +1044,17 @@
     const subtitle = root.querySelector('.hhr-rx-subtitle');
     const tabs = Array.from(root.querySelectorAll('.hhr-rx-tab'));
     const currentTab = tabs.find(tab => tab.dataset.tab === 'current');
-    if (!hasCurrentPatient && currentTab) {
+    if (!currentPatientMatchesRoute && currentTab) {
       currentTab.disabled = true;
       currentTab.setAttribute('aria-disabled', 'true');
       currentTab.setAttribute('aria-selected', 'false');
+      currentTab.title = 'Disponible al abrir Recetas desde el episodio activo en Ficha Médico';
+    } else if (currentTab) {
+      currentTab.disabled = false;
+      currentTab.removeAttribute('aria-disabled');
+      currentTab.removeAttribute('title');
     }
-    let activeTab = hasCurrentPatient ? 'current' : 'hospitalized';
+    let activeTab = currentPatientMatchesRoute ? 'current' : 'hospitalized';
     let viewGeneration = 0;
     let hospitalizedResponse = null;
     let hospitalizedRequest = null;
@@ -1507,6 +1514,8 @@
     };
 
     const activateTab = tabName => {
+      const requestedTab = tabs.find(tab => tab.dataset.tab === tabName);
+      if (!requestedTab || requestedTab.disabled) return;
       activeTab = tabName;
       viewGeneration += 1;
       const generation = viewGeneration;
@@ -1515,8 +1524,7 @@
         tab.setAttribute('aria-selected', String(selected));
         tab.tabIndex = selected ? 0 : -1;
       });
-      const activeTabElement = tabs.find(tab => tab.dataset.tab === tabName);
-      body.setAttribute('aria-labelledby', activeTabElement?.id || '');
+      body.setAttribute('aria-labelledby', requestedTab.id || '');
       subtitle.textContent = tabName === 'current'
         ? 'Elige la receta completa o solamente los fármacos indicados por un profesional.'
         : 'Selecciona uno, varios o todos. Se abrirá un único PDF, con fecha, hora y prescriptor por paciente.';
@@ -1542,7 +1550,7 @@
       if (nextTab.dataset.tab !== activeTab) activateTab(nextTab.dataset.tab);
       nextTab.focus();
     }));
-    activateTab(initialTab === 'hospitalized' || !hasCurrentPatient ? 'hospitalized' : 'current');
+    activateTab(initialTab === 'hospitalized' || !currentPatientMatchesRoute ? 'hospitalized' : 'current');
   };
 
   const createHospitalizedDocumentsModal = (kind, encId, existingRoot = null) => {
@@ -3837,11 +3845,14 @@
       content.innerHTML = '<div class="hhr-rx-error">El módulo de signos vitales no quedó cargado. Recarga la extensión y la pestaña.</div>';
       return;
     }
+    const requestGeneration = String(Number(root.dataset.vitalsCensusRequestGeneration || 0) + 1);
+    root.dataset.vitalsCensusRequestGeneration = requestGeneration;
     sendMessage({
       type: 'RAYEN_VITALS_CENSUS_REQUEST',
       currentEncId: currentRouteEncounterId() || encId || '',
     }).then(response => {
-      if (!root.isConnected || root.dataset.activeModule !== 'vitals') return;
+      if (!root.isConnected || root.dataset.activeModule !== 'vitals' ||
+          root.dataset.vitalsCensusRequestGeneration !== requestGeneration) return;
       content.innerHTML = '';
       if (!response || response.error) {
         const error = document.createElement('div');
@@ -3868,6 +3879,7 @@
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'hhr-vitals-patient' + (patient.unavailableReason ? ' is-unavailable' : '');
+        row.disabled = Boolean(patient.unavailableReason);
         row.dataset.search = normalizedText([patient.name, patient.run, patient.bed, patient.service].join(' '));
         const bed = document.createElement('span');
         bed.className = 'hhr-vitals-bed';
@@ -3905,11 +3917,13 @@
           ? 'No disponible'
           : latest ? latest.recordedAt : 'Sin registros';
         row.appendChild(time);
-        row.addEventListener('click', () => {
-          createOperationsCenterModal('vitals', patient.encounterId, root.__hhrFocusReturnTarget, root, {
-            vitalsView: 'detail',
+        if (!patient.unavailableReason) {
+          row.addEventListener('click', () => {
+            createOperationsCenterModal('vitals', patient.encounterId, root.__hhrFocusReturnTarget, root, {
+              vitalsView: 'detail',
+            });
           });
-        });
+        }
         list.appendChild(row);
       });
       content.appendChild(list);

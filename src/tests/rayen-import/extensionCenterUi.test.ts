@@ -37,9 +37,26 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain("bed.className = 'hhr-vitals-bed'");
     expect(contentSource).toContain("values.className = 'hhr-vitals-values'");
     expect(contentSource).toContain('row.append(bed, identity)');
+    expect(contentSource).toContain(
+      'root.dataset.vitalsCensusRequestGeneration !== requestGeneration'
+    );
+    expect(contentSource).toContain('row.disabled = Boolean(patient.unavailableReason)');
+    expect(contentSource).toContain('if (!patient.unavailableReason) {');
     expect(backgroundSource).toContain('const handleVitalsCensusRequest');
     expect(backgroundSource).toContain('mapWithConcurrency(result.patients || [], 4');
     expect(backgroundSource).toContain("msg.type === 'RAYEN_VITALS_CENSUS_REQUEST'");
+  });
+
+  it('redirects recipes to hospitalized patients when the preserved encounter is not the active route', () => {
+    expect(contentSource).toContain(
+      "String(currentRouteEncounterId() || '') === String(encId || '')"
+    );
+    expect(contentSource).toContain(
+      "initialTab === 'hospitalized' || !currentPatientMatchesRoute ? 'hospitalized' : 'current'"
+    );
+    expect(contentSource).toContain("currentTab.removeAttribute('aria-disabled')");
+    expect(contentSource).toContain("currentTab.removeAttribute('title')");
+    expect(contentSource).toContain('if (!requestedTab || requestedTab.disabled) return');
   });
 
   it('keeps imaging tools visible without a false draft guard and separates indications', () => {
