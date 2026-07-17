@@ -402,7 +402,7 @@ describe('native Eloisa laboratory viewer', () => {
       "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
     );
     expect(content).toContain(
-      "else if (activeModule === 'lab') renderLabCenter(root, targetEncId)"
+      "else if (activeModule === 'lab') renderLabRequestView(root, targetEncId)"
     );
     expect(content).toContain('else renderConnectionCenter(root, targetEncId)');
     expect(content).toContain('Comparación');

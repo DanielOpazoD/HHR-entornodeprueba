@@ -886,11 +886,8 @@ const handleDeviceReportSave = async args => {
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
 const FORM_CODIGO_KEEP = new Set(['INSTRUMENTO', 'VITAL_SIGNS']);
-const handleScalesReportRequest = async ({ encId, sender }) => {
+const fetchScalesReportWithInfo = async (encId, info) => {
   if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return { error: infoResult.error };
-  const info = infoResult.info;
   const url =
     `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
     `${encodeURIComponent(encId)}/1/0/${encodeURIComponent(info.practitionerId || '7941')}`;
@@ -909,6 +906,12 @@ const handleScalesReportRequest = async ({ encId, sender }) => {
   } catch (error) {
     return { error: 'Falló la descarga de escalas: ' + String((error && error.message) || error) };
   }
+};
+
+const handleScalesReportRequest = async ({ encId, sender }) => {
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return { error: infoResult.error };
+  return fetchScalesReportWithInfo(encId, infoResult.info);
 };
 
 // Patient header for the auto-filled request forms (imaging + laboratory). Read-only:
@@ -979,6 +982,31 @@ const handleCensusListRequest = async ({ currentEncId, sender }) => {
       isCurrent: String(patient.encounterId) === String(currentEncId || ''),
     })),
   };
+};
+
+// Census-wide latest-vitals view. The service worker reuses one verified Ficha Médico session and
+// bounds parallel reads so the UI can show every hospitalized patient without opening N independent
+// extension message flows or overwhelming Eloísa.
+const handleVitalsCensusRequest = async ({ currentEncId, sender }) => {
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return infoResult;
+  const result = await fetchActiveHospitalizedPatients(infoResult.info);
+  if (result.error) return result;
+  const patients = await mapWithConcurrency(result.patients || [], 4, async patient => {
+    const report = await fetchScalesReportWithInfo(patient.encounterId, infoResult.info);
+    return {
+      encounterId: String(patient.encounterId),
+      name: String(patient.name || '').trim(),
+      run: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
+      bed: patient.bed || patient.room || '',
+      service: patient.service || '',
+      birthDate: patient.birthDate || '',
+      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
+      forms: report.error ? [] : report.forms,
+      unavailableReason: report.error || '',
+    };
+  });
+  return { ok: true, patients };
 };
 
 // Fill an official imaging-request template (solicitud / encuesta de contraste / consentimiento)
@@ -4744,6 +4772,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return respond(
       handleCensusListRequest({ currentEncId: msg.currentEncId, sender }),
       'No se pudo leer el censo de hospitalizados.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_VITALS_CENSUS_REQUEST') {
+    return respond(
+      handleVitalsCensusRequest({ currentEncId: msg.currentEncId, sender }),
+      'No se pudieron leer los signos vitales del censo.'
     );
   }
   if (msg && msg.type === 'RAYEN_IMAGING_FORM_PRINT_REQUEST') {

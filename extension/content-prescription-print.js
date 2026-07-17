@@ -85,6 +85,7 @@
     'RAYEN_SCALES_REPORT_REQUEST',
     'RAYEN_PATIENT_HEADER_REQUEST',
     'RAYEN_CENSUS_LIST_REQUEST',
+    'RAYEN_VITALS_CENSUS_REQUEST',
   ]);
   const isTransientMessageChannelError = value =>
     /message channel closed|receiving end does not exist|asynchronous response|extension context invalidated/i
@@ -359,9 +360,8 @@
       }
       #${BUTTON_ID} svg, #${INDICATIONS_BUTTON_ID} svg { width: 25px; height: 25px; fill: currentColor; }
       ${ui.tokenRule('#' + MODAL_ID)}
-      @keyframes hhr-modal-fade { from { opacity: 0; } }
-      @keyframes hhr-modal-pop { from { opacity: 0; transform: translateY(8px) scale(.988); } }
       #${MODAL_ID} { position: fixed; inset: 0; z-index: 2147483646; font-family: var(--hhr-font); }
+      #${MODAL_ID} [hidden] { display: none !important; }
       #${MODAL_ID} ::-webkit-scrollbar { width: 10px; height: 10px; }
       #${MODAL_ID} ::-webkit-scrollbar-track { background: transparent; }
       #${MODAL_ID} ::-webkit-scrollbar-thumb {
@@ -371,17 +371,12 @@
       #${MODAL_ID} .hhr-rx-backdrop {
         position: absolute; inset: 0; background: rgba(7,27,49,.44);
         backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
-        animation: hhr-modal-fade .18s ease;
       }
       #${MODAL_ID} .hhr-rx-dialog {
         position: relative; width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 20px);
         margin: max(10px, 2vh) auto; background: #fff; border-radius: 14px; overflow: hidden;
         box-shadow: 0 24px 70px rgba(7,27,49,.30), 0 2px 8px rgba(7,27,49,.10);
         color: var(--hhr-ink-900); display: flex; flex-direction: column;
-        animation: hhr-modal-pop .22s cubic-bezier(.2,.8,.3,1);
-      }
-      @media (prefers-reduced-motion: reduce) {
-        #${MODAL_ID} .hhr-rx-backdrop, #${MODAL_ID} .hhr-rx-dialog { animation: none; }
       }
       #${MODAL_ID} .hhr-rx-header { padding: 12px 16px 8px; border-bottom: 1px solid #e7ecea; }
       #${MODAL_ID} .hhr-rx-title { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.2; color: var(--hhr-ink-900); letter-spacing: -.01em; }
@@ -397,7 +392,6 @@
       #${MODAL_ID} .hhr-rx-tab {
         flex: 1; min-height: 29px; border: 0; border-radius: 7px; background: transparent; color: #5c686c;
         cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 550;
-        transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
       }
       #${MODAL_ID} .hhr-rx-tab[aria-selected="true"] { background: #fff; color: var(--hhr-teal-ink); font-weight: 650; box-shadow: 0 1px 4px rgba(16,42,67,.14); }
       #${MODAL_ID} .hhr-rx-tab:disabled { cursor: not-allowed; opacity: .42; }
@@ -629,7 +623,7 @@
       #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); font-weight: 700; }
       #${MODAL_ID} .hhr-center-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; position: relative; }
       #${MODAL_ID} .hhr-center-toolbar {
-        display: flex; align-items: center; gap: 9px; min-height: 56px; padding: 8px 16px; border-bottom: 1px solid #e6ebe9;
+        display: flex; align-items: center; gap: 9px; min-height: 56px; padding: 8px clamp(20px,1.8vw,28px); border-bottom: 1px solid #e6ebe9;
       }
       #${MODAL_ID} .hhr-center-heading { margin: 0 auto 0 0; color: var(--hhr-ink-900); font-size: 15.5px; font-weight: 650; white-space: nowrap; letter-spacing: -.01em; }
       #${MODAL_ID} .hhr-center-search, #${MODAL_ID} .hhr-center-select {
@@ -641,7 +635,7 @@
       #${MODAL_ID} .hhr-handoff-input:focus, #${MODAL_ID} .hhr-score-control:focus {
         border-color: var(--hhr-teal-500); outline: none; box-shadow: 0 0 0 3px rgba(15,147,140,.14);
       }
-      #${MODAL_ID} .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 0 16px 16px; }
+      #${MODAL_ID} .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 14px clamp(20px,1.8vw,28px) 22px; }
       #${MODAL_ID} .hhr-center-notice { margin: 10px 0; padding: 8px 11px; border-left: 3px solid var(--hhr-amber-600); border-radius: 6px; background: #fffaf0; color: #665526; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-center-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; color: #36413f; }
       #${MODAL_ID} .hhr-center-table th {
@@ -730,7 +724,6 @@
       #${MODAL_ID} .hhr-lab-tab {
         padding: 7px 11px; border: 0; border-bottom: 2px solid transparent; background: transparent;
         color: #586562; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600;
-        transition: color .15s ease, border-color .15s ease;
       }
       #${MODAL_ID} .hhr-lab-tab:hover { color: var(--hhr-teal-ink); }
       #${MODAL_ID} .hhr-lab-tab:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
@@ -776,7 +769,11 @@
       #${MODAL_ID} .hhr-connection-feedback { min-height: 18px; margin-top: 10px; color: #64716f; font-size: 11.5px; }
       #${MODAL_ID} .hhr-connection-feedback.is-error { color: var(--hhr-red-ink); }
       #${MODAL_ID} .hhr-imaging-tabs { flex: 0 1 430px; min-width: 300px; margin: 0 0 0 auto; }
-      #${MODAL_ID} .hhr-imaging-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; }
+      #${MODAL_ID} .hhr-imaging-controls {
+        position: sticky; top: 0; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        margin: 8px 0 4px; padding: 7px 0; border-bottom: 1px solid #e8eeec; background: rgba(255,255,255,.97);
+        box-shadow: 0 5px 10px rgba(255,255,255,.92);
+      }
       #${MODAL_ID} .hhr-imaging-physician { flex: 1 1 240px; min-width: 200px; }
       #${MODAL_ID} .hhr-imaging-tools { display: flex; align-items: center; gap: 5px; }
       #${MODAL_ID} .hhr-imaging-tool.is-active { border-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); }
@@ -830,6 +827,31 @@
       #${MODAL_ID} .hhr-vitals-tile.is-alert .hhr-vitals-value { color: var(--hhr-red-ink); }
       #${MODAL_ID} .hhr-vitals-tile.is-ungraded { border-style: dashed; background: #f7f9f8; }
       #${MODAL_ID} .hhr-vitals-tile.is-ungraded .hhr-vitals-value { color: #5f6d6a; }
+      #${MODAL_ID} .hhr-vitals-census { display: grid; gap: 6px; padding-top: 10px; }
+      #${MODAL_ID} .hhr-vitals-patient {
+        display: grid; grid-template-columns: 64px minmax(190px,1.25fr) minmax(390px,3fr) auto;
+        gap: 9px; align-items: center; width: 100%; padding: 7px 9px; border: 1px solid #e0e8e6;
+        border-radius: 10px; background: #fff; color: var(--hhr-ink-900); cursor: pointer;
+        text-align: left; font: inherit;
+      }
+      #${MODAL_ID} .hhr-vitals-patient:hover { border-color: #8fc8c1; background: #f6fbfa; }
+      #${MODAL_ID} .hhr-vitals-patient:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-vitals-patient.is-unavailable { cursor: default; opacity: .68; }
+      #${MODAL_ID} .hhr-vitals-bed {
+        display: inline-flex; justify-content: center; min-width: 0; padding: 4px 6px; border-radius: 7px;
+        background: #e8f4f1; color: var(--hhr-teal-ink); font-size: 11px; font-weight: 750;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      #${MODAL_ID} .hhr-vitals-patient-id { display: grid; gap: 2px; min-width: 0; }
+      #${MODAL_ID} .hhr-vitals-patient-id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+      #${MODAL_ID} .hhr-vitals-patient-id span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #74807e; font-size: 10.5px; }
+      #${MODAL_ID} .hhr-vitals-values { display: grid; grid-template-columns: repeat(6,minmax(52px,1fr)); gap: 4px; min-width: 0; }
+      #${MODAL_ID} .hhr-vitals-summary-value { display: grid; gap: 0; min-width: 0; padding: 3px 5px; border-radius: 6px; background: #f5f8f7; }
+      #${MODAL_ID} .hhr-vitals-summary-value span { color: #788481; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+      #${MODAL_ID} .hhr-vitals-summary-value strong { overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+      #${MODAL_ID} .hhr-vitals-summary-value.is-alert strong { color: var(--hhr-red-ink); }
+      #${MODAL_ID} .hhr-vitals-summary-value.is-warn strong { color: var(--hhr-amber-ink); }
+      #${MODAL_ID} .hhr-vitals-summary-time { color: #71807d; font-size: 10px; white-space: nowrap; }
       #${MODAL_ID} .hhr-vitals-obs { margin: 8px 0 0; padding: 8px 11px; border: 1px solid #e0e8e6; border-radius: 8px; background: #fbfdfc; color: #4c5a58; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-vitals-trends { margin-top: 10px; }
       #${MODAL_ID} .hhr-vitals-table-wrap { border: 1px solid #e0e8e6; border-radius: 10px; overflow: auto; max-height: 380px; }
@@ -837,8 +859,12 @@
       #${MODAL_ID} .hhr-vitals-table td.is-warn { color: var(--hhr-amber-ink); font-weight: 700; }
       #${MODAL_ID} .hhr-vitals-table td.is-alert { color: var(--hhr-red-ink); font-weight: 700; background: #fdf3f2; }
       #${MODAL_ID} .hhr-vitals-day td { padding: 5px 8px; background: #f2f6f5; color: #55635f; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; }
+      #${MODAL_ID} .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }
       #${MODAL_ID} .hhr-labreq-count { color: #64716f; font-size: 11.5px; white-space: nowrap; }
-      #${MODAL_ID} .hhr-labreq-meta { display: grid; gap: 6px; margin: 10px 0; }
+      #${MODAL_ID} .hhr-labreq-meta {
+        display: grid; gap: 7px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #e3eae8;
+        border-radius: 10px; background: #f8fbfa;
+      }
       #${MODAL_ID} .hhr-labreq-meta-group { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
       #${MODAL_ID} .hhr-labreq-meta-label { min-width: 84px; color: #55635f; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
       #${MODAL_ID} .hhr-labreq-chip {
@@ -847,8 +873,8 @@
       }
       #${MODAL_ID} .hhr-labreq-chip:has(input:checked) { border-color: var(--hhr-teal-500); background: #e8f4f1; color: var(--hhr-teal-ink); }
       #${MODAL_ID} .hhr-labreq-chip input { width: 13px; height: 13px; margin: 0; accent-color: var(--hhr-teal-500); }
-      #${MODAL_ID} .hhr-labreq-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-      #${MODAL_ID} .hhr-labreq-column { display: grid; gap: 10px; align-content: start; }
+      #${MODAL_ID} .hhr-labreq-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      #${MODAL_ID} .hhr-labreq-column { display: grid; gap: 12px; align-content: start; }
       #${MODAL_ID} .hhr-labreq-section { border: 1px solid #dfe7e5; border-radius: 9px; background: #fff; overflow: hidden; }
       #${MODAL_ID} .hhr-labreq-section header {
         padding: 5px 9px; border-bottom: 1px solid #e6ecea; background: #f6f9f8; color: #45524f;
@@ -864,14 +890,18 @@
       @media (max-width: 760px) {
         #${MODAL_ID} .hhr-center-dialog { width: calc(100vw - 16px); height: calc(100vh - 16px); max-height: calc(100vh - 16px); margin: 8px auto; }
         #${MODAL_ID} .hhr-center-shell { grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr); }
-        #${MODAL_ID} .hhr-center-nav { display: grid; grid-template-columns: repeat(8,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
+        #${MODAL_ID} .hhr-center-nav { display: grid; grid-template-columns: repeat(9,1fr); padding: 4px; border-right: 0; border-bottom: 1px solid #e0e6e5; }
         #${MODAL_ID} .hhr-center-nav-session { margin-top: 0; border-top: 0; }
         #${MODAL_ID} .hhr-center-nav-button { min-height: 48px; border-left: 0; border-bottom: 2px solid transparent; border-radius: 5px; font-size: 9.5px; }
         #${MODAL_ID} .hhr-center-nav-button[aria-current="page"] { border-left-color: transparent; border-bottom-color: #15978b; }
-        #${MODAL_ID} .hhr-center-toolbar { flex-wrap: wrap; min-height: auto; padding: 8px 10px; }
+        #${MODAL_ID} .hhr-center-toolbar { flex-wrap: wrap; min-height: auto; padding: 8px 12px; }
         #${MODAL_ID} .hhr-center-heading { flex-basis: 100%; }
         #${MODAL_ID} .hhr-center-search { width: 100%; flex: 1 1 160px; }
-        #${MODAL_ID} .hhr-center-content { padding: 0 10px 12px; }
+        #${MODAL_ID} .hhr-center-content { padding: 10px 12px 14px; }
+        #${MODAL_ID} .hhr-labreq-content { padding: 12px 16px 18px; }
+        #${MODAL_ID} .hhr-vitals-patient { grid-template-columns: 54px minmax(130px,1fr) auto; }
+        #${MODAL_ID} .hhr-vitals-values { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
+        #${MODAL_ID} .hhr-vitals-summary-time { grid-column: 1 / -1; justify-self: end; }
         #${MODAL_ID} .hhr-connection-grid { grid-template-columns: 1fr; }
         #${MODAL_ID} .hhr-center-table { min-width: 0; display: block; }
         #${MODAL_ID} .hhr-center-table colgroup, #${MODAL_ID} .hhr-center-table thead { display: none; }
@@ -970,24 +1000,29 @@
     root.querySelector('.hhr-rx-close').focus();
   };
 
-  const createModal = (encId, initialTab = '') => {
-    encId = currentRouteEncounterId() || String(encId || '');
-    const focusReturnTarget = document.activeElement;
-    if (!closeModal()) return;
-    ensureStyles();
+  const createModal = (encId, initialTab = '', existingRoot = null) => {
+    const requestedEncId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
+    // Module changes inside Centro HHR must keep the patient selected there, even when the
+    // underlying Eloísa route still points at another encounter. Consult the route only when
+    // opening a fresh modal without an explicit encounter.
+    encId = requestedEncId || (!existingRoot ? currentRouteEncounterId() : '');
+    const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
+      ? existingRoot.__hhrFocusReturnTarget
+      : document.activeElement;
     const hasCurrentPatient = /^\d+$/.test(String(encId || ''));
-    const root = document.createElement('div');
-    root.id = MODAL_ID;
-    root.dataset.encounterId = hasCurrentPatient ? String(encId) : '';
-    root.innerHTML = centerShellMarkup('recipes');
-    applyCenterShellLogo(root);
+    const root = prepareCenterModalRoot({
+      existingRoot,
+      activeModule: 'recipes',
+      encId,
+      focusReturnTarget,
+    });
+    if (!root) return;
     root.querySelector('.hhr-center-main').innerHTML = `
       <div class="hhr-center-toolbar">
         <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title">Recetas</h2>
         <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
           <button class="hhr-rx-tab" id="hhr-rx-tab-current" type="button" role="tab" data-tab="current" aria-controls="hhr-rx-tabpanel" aria-selected="true">Paciente actual</button>
           <button class="hhr-rx-tab" id="hhr-rx-tab-hospitalized" type="button" role="tab" data-tab="hospitalized" aria-controls="hhr-rx-tabpanel" aria-selected="false">Hospitalizados</button>
-          <button class="hhr-rx-tab hhr-rx-tab-minor" id="hhr-rx-tab-indications" type="button" role="tab" data-tab="indications" aria-controls="hhr-rx-tabpanel" aria-selected="false">Indicaciones</button>
         </div>
       </div>
       <div class="hhr-center-content hhr-center-embed">
@@ -1001,14 +1036,9 @@
         </button>
       </footer>
     `;
-    wireCenterNavButtons(root, 'recipes', encId, focusReturnTarget);
-    document.body.appendChild(root);
-
     const body = root.querySelector('.hhr-rx-body');
     const submit = root.querySelector('.hhr-rx-submit');
     const cancel = root.querySelector('.hhr-rx-cancel');
-    const close = root.querySelector('.hhr-rx-close');
-    const backdrop = root.querySelector('.hhr-rx-backdrop');
     const subtitle = root.querySelector('.hhr-rx-subtitle');
     const tabs = Array.from(root.querySelectorAll('.hhr-rx-tab'));
     const currentTab = tabs.find(tab => tab.dataset.tab === 'current');
@@ -1021,20 +1051,7 @@
     let viewGeneration = 0;
     let hospitalizedResponse = null;
     let hospitalizedRequest = null;
-    const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
-    root.__hhrDismiss = dismiss;
-    cancel.addEventListener('click', dismiss);
-    close.addEventListener('click', dismiss);
-    backdrop.addEventListener('click', dismiss);
-    root.addEventListener('keydown', event => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dismiss();
-        return;
-      }
-      trapModalFocus(root, event);
-    });
-    close.focus();
+    cancel.addEventListener('click', root.__hhrDismiss);
 
     const renderError = message => {
       body.innerHTML = '';
@@ -1325,7 +1342,7 @@
       const selectVisible = document.createElement('button');
       selectVisible.className = 'hhr-rx-mini-action';
       selectVisible.type = 'button';
-      selectVisible.textContent = 'Seleccionar visibles';
+      selectVisible.textContent = 'Seleccionar todos';
       const clearSelection = document.createElement('button');
       clearSelection.className = 'hhr-rx-mini-action';
       clearSelection.type = 'button';
@@ -1430,8 +1447,7 @@
       body.append(toolbar, selectionSummary, list);
       const formats = renderFormats('hhr-bulk-prescription-format');
 
-      const visibleCheckboxes = () => Array.from(list.querySelectorAll('input:not(:disabled)'))
-        .filter(input => !input.closest('.hhr-rx-patient').hidden);
+      const availableCheckboxes = () => Array.from(list.querySelectorAll('input:not(:disabled)'));
       const selectedCheckboxes = () => Array.from(list.querySelectorAll('input:checked'));
       const updateSelection = () => {
         const count = selectedCheckboxes().length;
@@ -1441,7 +1457,7 @@
       };
       attachPatientListFilter({ toolbar, search, list, services: patients.map(patient => patient.service) });
       selectVisible.addEventListener('click', () => {
-        visibleCheckboxes().forEach(input => { input.checked = true; });
+        availableCheckboxes().forEach(input => { input.checked = true; });
         updateSelection();
       });
       clearSelection.addEventListener('click', () => {
@@ -1484,12 +1500,6 @@
     };
 
     const activateTab = tabName => {
-      if (tabName === 'indications') {
-        root.__hhrDismiss = null;
-        root.remove();
-        createHospitalizedDocumentsModal('indications', encId);
-        return;
-      }
       activeTab = tabName;
       viewGeneration += 1;
       const generation = viewGeneration;
@@ -1528,27 +1538,23 @@
     activateTab(initialTab === 'hospitalized' || !hasCurrentPatient ? 'hospitalized' : 'current');
   };
 
-  const createHospitalizedDocumentsModal = (kind, encId) => {
-    const focusReturnTarget = document.activeElement;
-    if (!closeModal()) return;
-    ensureStyles();
+  const createHospitalizedDocumentsModal = (kind, encId, existingRoot = null) => {
+    const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
+      ? existingRoot.__hhrFocusReturnTarget
+      : document.activeElement;
     const isRegimen = kind === 'regimen';
-    const root = document.createElement('div');
-    root.id = MODAL_ID;
-    root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
-    // Indicaciones vive como pestaña secundaria del módulo Recetas: el shell destaca Rx
-    // y la toolbar repite las pestañas para volver a los flujos de recetas sin fricción.
-    root.innerHTML = centerShellMarkup(isRegimen ? kind : 'recipes');
-    applyCenterShellLogo(root);
+    // Indicaciones es un módulo paralelo a Recetas: ambos comparten el contexto de impresión,
+    // pero mantienen navegación y jerarquía independientes en el Centro HHR.
+    const root = prepareCenterModalRoot({
+      existingRoot,
+      activeModule: isRegimen ? kind : 'indications',
+      encId,
+      focusReturnTarget,
+    });
+    if (!root) return;
     root.querySelector('.hhr-center-main').innerHTML = `
       <div class="hhr-center-toolbar">
         <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title"></h2>
-        ${isRegimen ? '' : `
-        <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
-          <button class="hhr-rx-tab" type="button" role="tab" data-tab="current" aria-selected="false">Paciente actual</button>
-          <button class="hhr-rx-tab" type="button" role="tab" data-tab="hospitalized" aria-selected="false">Hospitalizados</button>
-          <button class="hhr-rx-tab hhr-rx-tab-minor" type="button" role="tab" data-tab="indications" aria-selected="true">Indicaciones</button>
-        </div>`}
       </div>
       <div class="hhr-center-content hhr-center-embed">
         <p class="hhr-rx-subtitle"></p>
@@ -1559,17 +1565,6 @@
         <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled></button>
       </footer>
     `;
-    wireCenterNavButtons(root, isRegimen ? kind : 'indications', encId, focusReturnTarget);
-    if (!isRegimen) {
-      root.querySelectorAll('.hhr-rx-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          if (tab.dataset.tab === 'indications') return;
-          root.__hhrDismiss = null;
-          root.remove();
-          createModal(encId, tab.dataset.tab);
-        });
-      });
-    }
     const title = root.querySelector('.hhr-rx-title');
     const subtitle = root.querySelector('.hhr-rx-subtitle');
     const body = root.querySelector('.hhr-rx-body');
@@ -1580,22 +1575,7 @@
       ? 'Genera una tabla única con régimen vigente, observación, fecha, valor BRADEN, clasificación y fecha de escala.'
       : 'Selecciona uno, varios o todos los pacientes. Sus indicaciones oficiales se abrirán en un único PDF.';
     submit.textContent = isRegimen ? 'Imprimir regímenes + BRADEN' : 'Imprimir indicaciones';
-    document.body.appendChild(root);
-
-    const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
-    root.__hhrDismiss = dismiss;
-    cancel.addEventListener('click', dismiss);
-    root.querySelector('.hhr-rx-close').addEventListener('click', dismiss);
-    root.querySelector('.hhr-rx-backdrop').addEventListener('click', dismiss);
-    root.addEventListener('keydown', event => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dismiss();
-        return;
-      }
-      trapModalFocus(root, event);
-    });
-    root.querySelector('.hhr-rx-close').focus();
+    cancel.addEventListener('click', root.__hhrDismiss);
 
     const renderError = message => {
       body.innerHTML = '';
@@ -1641,7 +1621,7 @@
         selectVisible = document.createElement('button');
         selectVisible.type = 'button';
         selectVisible.className = 'hhr-rx-mini-action';
-        selectVisible.textContent = 'Seleccionar visibles';
+        selectVisible.textContent = 'Seleccionar todos';
         clearSelection = document.createElement('button');
         clearSelection.type = 'button';
         clearSelection.className = 'hhr-rx-mini-action';
@@ -1746,8 +1726,7 @@
       });
       body.append(toolbar, selectionSummary, list);
 
-      const visibleInputs = () => Array.from(list.querySelectorAll('input'))
-        .filter(input => !input.closest('.hhr-rx-patient').hidden);
+      const availableInputs = () => Array.from(list.querySelectorAll('input'));
       const selectedInputs = () => Array.from(list.querySelectorAll('input:checked'));
       const updateSelection = () => {
         if (isRegimen) {
@@ -1773,7 +1752,7 @@
       attachPatientListFilter({ toolbar, search, list, services: patients.map(patient => patient.service) });
       if (!isRegimen) {
         selectVisible.addEventListener('click', () => {
-          visibleInputs().forEach(input => { input.checked = true; });
+          availableInputs().forEach(input => { input.checked = true; });
           updateSelection();
         });
         clearSelection.addEventListener('click', () => {
@@ -1849,6 +1828,10 @@
         icon: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
       },
       {
+        key: 'indications', label: 'Indicaciones', title: 'Indicaciones',
+        icon: '<path d="M7 3h10v4H7zM5 5H3v16h18V5h-2M7 12h10M7 16h7"/>',
+      },
+      {
         key: 'handoff', label: 'Turno', title: 'Entrega de turno',
         icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11l2 2 3-4"/>',
       },
@@ -1865,7 +1848,7 @@
         icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M8 15h8"/>',
       },
       {
-        key: 'imaging', label: 'MMRAD', title: 'Imágenes y radiología',
+        key: 'imaging', label: 'Imágenes', title: 'Imágenes',
         icon: '<circle cx="12" cy="12" r="3"/><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>',
       },
     ];
@@ -1919,6 +1902,53 @@
     }
   };
 
+  // Keep one Centro HHR root mounted while its modules change. Rebuilding only the shell contents
+  // avoids the visible close/open cycle and also invalidates detached async views safely.
+  const prepareCenterModalRoot = ({ existingRoot = null, activeModule, encId, focusReturnTarget }) => {
+    if (!existingRoot && !closeModal()) return null;
+    ensureStyles();
+    const root = existingRoot || document.createElement('div');
+    const isNew = !existingRoot;
+    if (isNew) {
+      root.id = MODAL_ID;
+      root.__hhrFocusReturnTarget = focusReturnTarget;
+      root.__hhrDismiss = () => {
+        if (!confirmClinicalTransition(root)) return false;
+        root.remove();
+        const target = root.__hhrFocusReturnTarget;
+        if (target && target.isConnected && typeof target.focus === 'function') {
+          window.setTimeout(() => target.focus(), 0);
+        }
+        return true;
+      };
+      root.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          root.__hhrDismiss();
+          return;
+        }
+        trapModalFocus(root, event);
+      });
+    }
+    // encounterId tracks the Eloísa route that opened the modal. A patient chosen from the
+    // census lives in selectedEncounterId and must not look like a route change to the observer.
+    if (isNew) root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
+    root.dataset.activeModule = activeModule;
+    root.innerHTML = centerShellMarkup(activeModule);
+    applyCenterShellLogo(root);
+    getClinicalGuard(root);
+    root.querySelector('.hhr-rx-close').addEventListener('click', root.__hhrDismiss);
+    root.querySelector('.hhr-rx-backdrop').addEventListener('click', root.__hhrDismiss);
+    wireCenterNavButtons(root, activeModule, encId, root.__hhrFocusReturnTarget);
+    if (isNew) {
+      document.body.appendChild(root);
+      root.querySelector('.hhr-rx-close').focus();
+    } else {
+      root.querySelector('.hhr-center-nav-button[aria-current="page"]')?.focus();
+    }
+    return root;
+  };
+
   // Remembered across openings so the brand button of the bar reopens where the user left off.
   let lastCenterModule = 'home';
 
@@ -1928,6 +1958,13 @@
     else createOperationsCenterModal(module, encId, trigger);
   };
 
+  const switchCenterModule = (root, module, encId, focusReturnTarget) => {
+    if (module === 'recipes') createModal(encId, '', root);
+    else if (module === 'regimen' || module === 'indications') {
+      createHospitalizedDocumentsModal(module, encId, root);
+    } else createOperationsCenterModal(module, encId, focusReturnTarget, root);
+  };
+
   const wireCenterNavButtons = (root, activeModule, encId, focusReturnTarget) => {
     lastCenterModule = activeModule;
     root.querySelectorAll('.hhr-center-nav-button').forEach(button => {
@@ -1935,9 +1972,7 @@
         const target = button.dataset.module;
         if (target === activeModule) return;
         if (!confirmClinicalTransition(root)) return;
-        root.__hhrDismiss = null;
-        root.remove();
-        openCenterModule(target, root.dataset.selectedEncounterId || encId, focusReturnTarget);
+        switchCenterModule(root, target, root.dataset.selectedEncounterId || encId, focusReturnTarget);
       });
     });
     const regimenButton = root.querySelector('.hhr-center-regimen-print');
@@ -3192,7 +3227,7 @@
       ].join(' ')).includes(query));
     };
     const updateSelection = () => {
-      const visible = visibleExams();
+      const selectableCount = Math.min(exams.length, LAB_MAX_SELECTED_EXAMS);
       if (!isAnalyzing) {
         status.textContent = exams.length
           ? `${selected.size} de ${exams.length} informes seleccionados · máximo ${LAB_MAX_SELECTED_EXAMS}`
@@ -3200,9 +3235,9 @@
         analyze.textContent = selected.size ? `Analizar ${selected.size}` : 'Analizar';
       }
       analyze.disabled = isAnalyzing || selected.size === 0;
-      selectAll.disabled = isAnalyzing || visible.length === 0;
-      selectAll.textContent = visible.length && visible.every(exam => selected.has(exam.id))
-        ? 'Quitar visibles' : 'Seleccionar visibles';
+      selectAll.disabled = isAnalyzing || exams.length === 0;
+      selectAll.textContent = selectableCount > 0 && selected.size >= selectableCount
+        ? 'Quitar todos' : 'Seleccionar todos';
     };
     const renderList = () => {
       list.innerHTML = '';
@@ -3320,13 +3355,13 @@
     };
     filter.addEventListener('input', renderList);
     selectAll.addEventListener('click', () => {
-      const visible = visibleExams();
       const selectionBefore = [...selected].sort().join('|');
-      const shouldSelect = !visible.every(exam => selected.has(exam.id));
-      visible.forEach(exam => {
-        if (shouldSelect && selected.size < LAB_MAX_SELECTED_EXAMS) selected.add(exam.id);
-        else if (!shouldSelect) selected.delete(exam.id);
-      });
+      const selectableCount = Math.min(exams.length, LAB_MAX_SELECTED_EXAMS);
+      if (selectableCount > 0 && selected.size >= selectableCount) selected.clear();
+      else {
+        selected.clear();
+        exams.slice(0, LAB_MAX_SELECTED_EXAMS).forEach(exam => selected.add(exam.id));
+      }
       if ([...selected].sort().join('|') !== selectionBefore) invalidateLabAnalysis();
       renderList();
     });
@@ -3405,7 +3440,7 @@
     { module: 'vitals', icon: 'vitals', title: 'Signos vitales', desc: 'Última toma, historial y tendencias por paciente.' },
     { module: 'scores', icon: 'scores', title: 'Scores', desc: 'CUDYR, Downton y Braden de todo el censo.' },
     { module: 'lab', icon: 'lab', title: 'Laboratorio', desc: 'Resultados Syslab y solicitud de exámenes de sangre.' },
-    { module: 'imaging', icon: 'imaging', title: 'Imágenes · MMRAD', desc: 'Solicitud con formularios oficiales; informes en preparación.' },
+    { module: 'imaging', icon: 'imaging', title: 'Imágenes', desc: 'Solicitud con formularios oficiales; informes en preparación.' },
   ];
 
   const renderHomeCenter = (root, encId) => {
@@ -3441,9 +3476,7 @@
     main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
       card.addEventListener('click', () => {
         if (!confirmClinicalTransition(root)) return;
-        root.__hhrDismiss = null;
-        root.remove();
-        openCenterModule(card.dataset.module, encId, null);
+        switchCenterModule(root, card.dataset.module, encId, root.__hhrFocusReturnTarget);
       });
     });
     main.querySelector('.hhr-home-regimen').addEventListener('click', () => {
@@ -3460,14 +3493,14 @@
   const renderImagingCenter = (root, encId) => {
     const main = root.querySelector('.hhr-center-main');
     if (!requestForms) {
-      main.innerHTML = '<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Imágenes · MMRAD</h2></div>' +
+      main.innerHTML = '<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Imágenes</h2></div>' +
         '<div class="hhr-center-content"><div class="hhr-rx-error">Los formularios de solicitud no quedaron cargados. Recarga la extensión y la pestaña.</div></div>';
       return;
     }
     const documents = requestForms.IMAGING_DOCUMENTS;
     main.innerHTML = `
       <div class="hhr-center-toolbar">
-        <h2 class="hhr-center-heading">Imágenes · MMRAD</h2>
+        <h2 class="hhr-center-heading">Imágenes</h2>
         <div class="hhr-rx-tabs hhr-flow-tabs" role="tablist" aria-label="Flujo de imágenes">
           <button class="hhr-rx-tab" type="button" role="tab" data-flow="request" aria-selected="true">Solicitar</button>
           <button class="hhr-rx-tab" type="button" role="tab" data-flow="reports" aria-selected="false">Ver informes</button>
@@ -3511,7 +3544,6 @@
     const docTabs = Array.from(main.querySelectorAll('.hhr-imaging-tabs .hhr-rx-tab'));
     const contentHost = main.querySelector('.hhr-center-content');
     main.querySelector('.hhr-flow-tabs [data-flow="reports"]').addEventListener('click', event => {
-      if (!confirmClinicalTransition(root)) return;
       main.querySelectorAll('.hhr-flow-tabs .hhr-rx-tab').forEach(tab =>
         tab.setAttribute('aria-selected', String(tab === event.currentTarget)));
       contentHost.innerHTML = `
@@ -3540,14 +3572,8 @@
     let toolMode = 'cross';
     let patientView = null;
     const marksByDoc = { solicitud: [], encuesta: [], consentimiento: [] };
-    const imagingDraftKey = clinicalWriteKey('request-draft-imaging', encId);
     const keyboardPoint = { x: 50, y: 50 };
     let keyboardActive = false;
-
-    const updateDraftState = () => {
-      const hasMarks = Object.values(marksByDoc).some(marks => marks.length > 0);
-      setClinicalGuardState(root, 'dirty', imagingDraftKey, hasMarks || Boolean(physicianInput.value.trim()));
-    };
 
     const setFeedback = (message, error = false) => {
       feedback.className = 'hhr-connection-feedback hhr-imaging-feedback' + (error ? ' is-error' : '');
@@ -3612,7 +3638,6 @@
         editor.remove();
         if (text) {
           marksByDoc[selectedDoc].push({ x, y, text });
-          updateDraftState();
         }
         if (!restoreCanvasFocus) keyboardActive = false;
         renderOverlays();
@@ -3647,7 +3672,6 @@
       if (toolMode === 'text') openTextEditor(x, y);
       else {
         marksByDoc[selectedDoc].push({ x, y });
-        updateDraftState();
         renderOverlays();
       }
     });
@@ -3675,7 +3699,6 @@
         if (toolMode === 'text') openTextEditor(keyboardPoint.x, keyboardPoint.y);
         else {
           marksByDoc[selectedDoc].push({ x: keyboardPoint.x, y: keyboardPoint.y });
-          updateDraftState();
           renderOverlays();
         }
         return;
@@ -3696,7 +3719,6 @@
     });
     undoButton.addEventListener('click', () => {
       marksByDoc[selectedDoc].pop();
-      updateDraftState();
       renderOverlays();
     });
     docTabs.forEach(tab => tab.addEventListener('click', () => {
@@ -3705,7 +3727,6 @@
       renderDocument();
     }));
     physicianInput.addEventListener('input', () => {
-      updateDraftState();
       renderOverlays();
     });
 
@@ -3791,14 +3812,124 @@
     </svg>`;
   };
 
-  const renderVitalsCenter = (root, encId) => {
+  const renderVitalsCensus = (root, encId) => {
+    const main = root.querySelector('.hhr-center-main');
+    main.innerHTML = `
+      <div class="hhr-center-toolbar">
+        <h2 class="hhr-center-heading">Signos vitales</h2>
+        <input class="hhr-center-search hhr-vitals-search" type="search"
+          placeholder="Buscar paciente, RUN o cama" aria-label="Buscar paciente por signos vitales">
+        <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
+      </div>
+      <div class="hhr-center-content"><div class="hhr-center-empty">Leyendo la última toma de los pacientes hospitalizados…</div></div>
+    `;
+    const content = main.querySelector('.hhr-center-content');
+    const search = main.querySelector('.hhr-vitals-search');
+    main.querySelector('.hhr-center-refresh').addEventListener('click', () => renderVitalsCensus(root, encId));
+    if (!vitalsHelper) {
+      content.innerHTML = '<div class="hhr-rx-error">El módulo de signos vitales no quedó cargado. Recarga la extensión y la pestaña.</div>';
+      return;
+    }
+    sendMessage({
+      type: 'RAYEN_VITALS_CENSUS_REQUEST',
+      currentEncId: currentRouteEncounterId() || encId || '',
+    }).then(response => {
+      if (!root.isConnected || root.dataset.activeModule !== 'vitals') return;
+      content.innerHTML = '';
+      if (!response || response.error) {
+        const error = document.createElement('div');
+        error.className = 'hhr-rx-error';
+        error.textContent = (response && response.error) || 'No se pudieron leer los signos vitales del censo.';
+        content.appendChild(error);
+        return;
+      }
+      const patients = Array.isArray(response.patients) ? response.patients : [];
+      if (!patients.length) {
+        content.innerHTML = '<div class="hhr-center-empty">No hay pacientes hospitalizados disponibles.</div>';
+        return;
+      }
+      const notice = document.createElement('div');
+      notice.className = 'hhr-center-notice';
+      notice.textContent = 'Última toma disponible por paciente. Haz clic en una fila para revisar todo su historial y sus gráficas.';
+      content.appendChild(notice);
+      const list = document.createElement('div');
+      list.className = 'hhr-vitals-census';
+      const metrics = vitalsHelper.VITAL_METRICS.slice(0, 6);
+      patients.forEach(patient => {
+        const records = vitalsHelper.parseVitalSigns(patient.forms);
+        const latest = records[0] || null;
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'hhr-vitals-patient' + (patient.unavailableReason ? ' is-unavailable' : '');
+        row.dataset.search = normalizedText([patient.name, patient.run, patient.bed, patient.service].join(' '));
+        const bed = document.createElement('span');
+        bed.className = 'hhr-vitals-bed';
+        bed.textContent = patient.bed || '—';
+        const identity = document.createElement('span');
+        identity.className = 'hhr-vitals-patient-id';
+        const name = document.createElement('strong');
+        name.textContent = patient.name || 'Paciente sin nombre';
+        const meta = document.createElement('span');
+        meta.textContent = patient.run || 'RUN no disponible';
+        identity.append(name, meta);
+        row.append(bed, identity);
+        let cohort = 'unknown';
+        if (latest && latest.recordedDate) {
+          const parts = latest.recordedDate.split('-').map(Number);
+          const referenceDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date('invalid');
+          cohort = vitalsHelper.ageCohort(patient.birthDate, referenceDate);
+        }
+        const values = document.createElement('span');
+        values.className = 'hhr-vitals-values';
+        metrics.forEach(metric => {
+          const value = document.createElement('span');
+          value.className = 'hhr-vitals-summary-value' + (latest ? ' is-' + metric.status(latest, cohort) : '');
+          const label = document.createElement('span');
+          label.textContent = metric.label;
+          const reading = document.createElement('strong');
+          reading.textContent = latest ? metric.text(latest) || '–' : '–';
+          value.append(label, reading);
+          values.appendChild(value);
+        });
+        row.appendChild(values);
+        const time = document.createElement('span');
+        time.className = 'hhr-vitals-summary-time';
+        time.textContent = patient.unavailableReason
+          ? 'No disponible'
+          : latest ? latest.recordedAt : 'Sin registros';
+        row.appendChild(time);
+        row.addEventListener('click', () => {
+          createOperationsCenterModal('vitals', patient.encounterId, root.__hhrFocusReturnTarget, root, {
+            vitalsView: 'detail',
+          });
+        });
+        list.appendChild(row);
+      });
+      content.appendChild(list);
+      const applyFilter = () => {
+        const query = normalizedText(search.value);
+        Array.from(list.children).forEach(row => {
+          row.hidden = Boolean(query) && !String(row.dataset.search || '').includes(query);
+        });
+      };
+      search.addEventListener('input', applyFilter);
+    });
+  };
+
+  const renderVitalsCenter = (root, encId, view = 'overview') => {
+    if (view !== 'detail') {
+      renderVitalsCensus(root, encId);
+      return;
+    }
     const requestedEncId = String(encId || '');
+    root.dataset.selectedEncounterId = requestedEncId;
     const requestGeneration = String(Number(root.dataset.vitalsRequestGeneration || 0) + 1);
     root.dataset.vitalsRequestGeneration = requestGeneration;
     const main = root.querySelector('.hhr-center-main');
     main.innerHTML = `
       <div class="hhr-center-toolbar">
         <h2 class="hhr-center-heading">Signos vitales</h2>
+        <button class="hhr-center-action hhr-vitals-all" type="button">Todos los pacientes</button>
         <button class="hhr-center-action hhr-vitals-charts" type="button" aria-pressed="false" hidden>Ver gráficas</button>
         <button class="hhr-center-action hhr-center-refresh" type="button">Actualizar</button>
       </div>
@@ -3806,7 +3937,10 @@
     `;
     const content = main.querySelector('.hhr-center-content');
     const chartsToggle = main.querySelector('.hhr-vitals-charts');
-    main.querySelector('.hhr-center-refresh').addEventListener('click', () => renderVitalsCenter(root, encId));
+    main.querySelector('.hhr-vitals-all').addEventListener('click', () => {
+      createOperationsCenterModal('vitals', encId, root.__hhrFocusReturnTarget, root, { vitalsView: 'overview' });
+    });
+    main.querySelector('.hhr-center-refresh').addEventListener('click', () => renderVitalsCenter(root, encId, 'detail'));
     if (!vitalsHelper) {
       content.innerHTML = '<div class="hhr-rx-error">El módulo de signos vitales no quedó cargado. Recarga la extensión y la pestaña.</div>';
       return;
@@ -3985,7 +4119,7 @@
   };
 
   // Solicitud de laboratorio — réplica del formulario oficial HHR (checkboxes por categoría),
-  // autocompletada con el paciente actual; imprime vía pestaña dedicada con window.print().
+  // autocompletada con el paciente actual; imprime vía pestaña dedicada.
   const renderLabRequestView = (root, encId) => {
     const main = root.querySelector('.hhr-center-main');
     if (!requestForms) return;
@@ -4000,7 +4134,7 @@
         <span class="hhr-labreq-count">0 exámenes seleccionados</span>
         <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
       </div>
-      <div class="hhr-center-content">
+      <div class="hhr-center-content hhr-labreq-content">
         <div class="hhr-labreq-meta">
           <div class="hhr-labreq-meta-group" role="radiogroup" aria-label="Procedencia">
             <span class="hhr-labreq-meta-label">Procedencia</span>
@@ -4045,7 +4179,6 @@
     const othersInput = main.querySelector('.hhr-labreq-otros');
     let patientData = null;
     let patientViewData = null;
-    const labDraftKey = clinicalWriteKey('request-draft-lab', encId);
 
     main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () => {
       if (!confirmClinicalTransition(root)) return;
@@ -4058,24 +4191,11 @@
       counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
       printButton.disabled = !patientData || count === 0;
     };
-    const updateDraftState = () => {
-      const procedencia = main.querySelector('input[name="hhr-labreq-procedencia"]:checked');
-      const hasDraft = selectedKeys().length > 0 || Boolean(
-        othersInput.value.trim() ||
-        main.querySelector('.hhr-labreq-medico').value.trim() ||
-        main.querySelector('input[name="hhr-labreq-fonasa"]:checked') ||
-        main.querySelector('.hhr-labreq-prais').checked ||
-        (procedencia && procedencia.value !== 'Hospitalización')
-      );
-      setClinicalGuardState(root, 'dirty', labDraftKey, hasDraft);
-    };
     main.querySelector('.hhr-center-content').addEventListener('change', () => {
       updateCount();
-      updateDraftState();
     });
     main.querySelector('.hhr-center-content').addEventListener('input', () => {
       updateCount();
-      updateDraftState();
     });
 
     printButton.addEventListener('click', () => {
@@ -4105,8 +4225,20 @@
         setLiveRegion(feedback, 'El navegador bloqueó la pestaña de impresión. Permite ventanas emergentes.', 'error');
         return;
       }
+      let printStarted = false;
+      const openPrintDialog = () => {
+        if (printStarted || printWindow.closed) return;
+        printStarted = true;
+        printWindow.focus();
+        printWindow.print();
+      };
+      printWindow.addEventListener('load', openPrintDialog, { once: true });
+      printWindow.document.open();
       printWindow.document.write(html);
       printWindow.document.close();
+      // document.write() does not fire `load` consistently in every supported Chrome build.
+      // Keep a guarded fallback so the native dialog still opens exactly once.
+      window.setTimeout(openPrintDialog, 300);
       setLiveRegion(feedback, 'Se abrió la solicitud con el diálogo de impresión.');
     });
 
@@ -4330,50 +4462,31 @@
     return operationsConnectionCheck;
   };
 
-  const createOperationsCenterModal = (module, encId, returnFocusTarget = null) => {
-    const focusReturnTarget = returnFocusTarget || document.activeElement;
-    if (!closeModal()) return;
-    ensureStyles();
+  const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null, options = {}) => {
+    const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
+      ? existingRoot.__hhrFocusReturnTarget
+      : returnFocusTarget || document.activeElement;
     const activeModule = ['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module) ? module : 'handoff';
-    const root = document.createElement('div');
-    root.id = MODAL_ID;
-    root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
-    root.dataset.activeModule = activeModule;
-    root.innerHTML = centerShellMarkup(activeModule);
-    applyCenterShellLogo(root);
-    getClinicalGuard(root);
-    const dismiss = () => {
-      if (!confirmClinicalTransition(root)) return false;
-      root.remove();
-      if (focusReturnTarget && focusReturnTarget.isConnected && typeof focusReturnTarget.focus === 'function') {
-        window.setTimeout(() => focusReturnTarget.focus(), 0);
-      }
-      return true;
-    };
-    root.__hhrDismiss = dismiss;
-    root.querySelector('.hhr-rx-close').addEventListener('click', dismiss);
-    root.querySelector('.hhr-rx-backdrop').addEventListener('click', dismiss);
-    root.addEventListener('keydown', event => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dismiss();
-        return;
-      }
-      trapModalFocus(root, event);
+    const root = prepareCenterModalRoot({
+      existingRoot,
+      activeModule,
+      encId,
+      focusReturnTarget,
     });
-    wireCenterNavButtons(root, activeModule, encId, focusReturnTarget);
-    document.body.appendChild(root);
-    root.querySelector('.hhr-rx-close').focus();
+    if (!root) return;
     const renderModule = targetEncId => {
       if (activeModule === 'handoff') renderHandoffCenter(root, targetEncId);
       else if (activeModule === 'scores') renderScoresCenter(root, targetEncId);
-      else if (activeModule === 'lab') renderLabCenter(root, targetEncId);
+      else if (activeModule === 'lab') renderLabRequestView(root, targetEncId);
       else if (activeModule === 'imaging') renderImagingCenter(root, targetEncId);
-      else if (activeModule === 'vitals') renderVitalsCenter(root, targetEncId);
+      else if (activeModule === 'vitals') renderVitalsCenter(root, targetEncId, options.vitalsView || 'overview');
       else if (activeModule === 'home') renderHomeCenter(root, targetEncId);
       else renderConnectionCenter(root, targetEncId);
     };
     setupCenterPatientContext(root, activeModule, encId, renderModule);
+    if (activeModule === 'vitals' && options.vitalsView !== 'detail') {
+      root.querySelector('.hhr-center-patientbar').hidden = true;
+    }
     renderModule(encId);
   };
 
@@ -4753,8 +4866,8 @@
       aria: 'Exámenes de laboratorio',
     },
     {
-      key: 'imaging', label: 'MMRAD', icon: 'imaging',
-      tip: 'Imágenes · MMRAD',
+      key: 'imaging', label: 'Imágenes', icon: 'imaging',
+      tip: 'Imágenes',
       note: 'Solicitud de imágenes con formularios oficiales y, próximamente, informes.',
       aria: 'Imágenes y radiología',
     },

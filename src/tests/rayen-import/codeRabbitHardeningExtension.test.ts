@@ -80,16 +80,18 @@ describe('CodeRabbit clinical integration hardening', () => {
 
   it('preserves selected patient context and rejects stale async renders', () => {
     expect(contentSource).toContain(
-      'openCenterModule(target, root.dataset.selectedEncounterId || encId'
+      'switchCenterModule(root, target, root.dataset.selectedEncounterId || encId'
     );
     expect(contentSource).toContain('const requestedEncId = selected');
     expect(contentSource).toContain('root.dataset.handoffRequestGeneration !== requestGeneration');
     expect(contentSource).toContain('root.dataset.vitalsRequestGeneration !== requestGeneration');
   });
 
-  it('protects request drafts and exposes imaging marking to keyboard users', () => {
-    expect(contentSource).toContain("clinicalWriteKey('request-draft-imaging', encId)");
-    expect(contentSource).toContain("clinicalWriteKey('request-draft-lab', encId)");
+  it('keeps transient request selections out of the clinical-write guard', () => {
+    expect(contentSource).not.toContain("clinicalWriteKey('request-draft-imaging', encId)");
+    expect(contentSource).not.toContain("clinicalWriteKey('request-draft-lab', encId)");
+    expect(contentSource).toContain("printWindow.addEventListener('load', openPrintDialog");
+    expect(contentSource).toContain('printWindow.print()');
     expect(contentSource).toContain('class="hhr-imaging-canvas" role="group" tabindex="0"');
     expect(contentSource).toContain("event.key === 'Enter' || event.key === ' '");
     expect(contentSource).toContain('selectedKeys().length + (othersInput.value.trim() ? 1 : 0)');
