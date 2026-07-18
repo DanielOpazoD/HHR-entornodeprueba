@@ -53,6 +53,7 @@
         "hhr-center-styles.js",
         "hhr-prescription-center.js",
         "hhr-hospitalized-documents-center.js",
+        "hhr-handoff-scores-center.js",
         "hhr-vitals.js",
         "hhr-request-forms.js",
         "prescription-print.js",

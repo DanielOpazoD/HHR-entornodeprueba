@@ -7,10 +7,12 @@ const backgroundSource = readFileSync(
   new URL('../../../extension/background.js', import.meta.url),
   'utf8'
 );
-const contentSource = readFileSync(
-  new URL('../../../extension/content-prescription-print.js', import.meta.url),
-  'utf8'
-);
+const contentSource = [
+  '../../../extension/content-prescription-print.js',
+  '../../../extension/hhr-handoff-scores-center.js',
+]
+  .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
+  .join('\n');
 
 const sliceBetween = (startMarker: string, endMarker: string) => {
   const start = backgroundSource.indexOf(startMarker);

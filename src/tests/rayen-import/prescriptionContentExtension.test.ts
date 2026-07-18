@@ -10,11 +10,16 @@ import '../../../extension/hhr-ui.js';
 import '../../../extension/hhr-center-styles.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
+import '../../../extension/hhr-handoff-scores-center.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
 const hospitalizedDocumentsSource = readFileSync(
   path.resolve('extension/hhr-hospitalized-documents-center.js'),
+  'utf8'
+);
+const handoffScoresSource = readFileSync(
+  path.resolve('extension/hhr-handoff-scores-center.js'),
   'utf8'
 );
 const NativeMutationObserver = globalThis.MutationObserver;
@@ -245,20 +250,20 @@ describe('extension prescription print content flow', () => {
     );
     expect(hospitalizedDocumentsSource).toContain("submit.textContent = 'Reintentar impresión'");
 
-    const scoreAck = contentSource.indexOf(
+    const scoreAck = handoffScoresSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      contentSource.indexOf('const renderScoresCenter')
+      handoffScoresSource.indexOf('const renderScoresCenter')
     );
-    const scoreDisconnect = contentSource.indexOf('if (!panel.isConnected) return;', scoreAck);
+    const scoreDisconnect = handoffScoresSource.indexOf('if (!panel.isConnected) return;', scoreAck);
     expect(scoreAck).toBeGreaterThan(-1);
     expect(scoreDisconnect).toBeGreaterThan(scoreAck);
 
-    const handoffRequest = contentSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
-    const handoffAck = contentSource.indexOf(
+    const handoffRequest = handoffScoresSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
+    const handoffAck = handoffScoresSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
       handoffRequest
     );
-    const handoffDisconnect = contentSource.indexOf(
+    const handoffDisconnect = handoffScoresSource.indexOf(
       'if (!root.isConnected) return;',
       handoffRequest
     );
