@@ -11,7 +11,7 @@ const {
 } = require('./minsal/minsalReclassifications');
 
 const createMinsalFunctions = ({
-  admin,
+  firestore,
   hospitalCapacity,
   hasCallableClinicalAccess,
   resolveRoleForEmail,
@@ -21,9 +21,9 @@ const createMinsalFunctions = ({
     const { hospitalId, startDate, endDate } = parseMinsalRangeRequest(data);
 
     try {
-      const filteredRecords = await loadMinsalRecords(admin, hospitalId, startDate, endDate);
+      const filteredRecords = await loadMinsalRecords(firestore, hospitalId, startDate, endDate);
       const options = await buildServerOwnedCalculationOptions({
-        admin,
+        firestore,
         hospitalId,
         startDate,
         endDate,
@@ -49,7 +49,7 @@ const createMinsalFunctions = ({
     await assertAuthenticatedClinicalRequest(context, hasCallableClinicalAccess);
     try {
       return await persistMinsalSpecialtyReclassification({
-        admin,
+        firestore,
         data,
         context,
         resolveRoleForEmail,

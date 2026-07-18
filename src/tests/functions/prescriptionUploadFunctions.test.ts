@@ -27,7 +27,8 @@ describe('submitPrescriptionPhoto', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createSubmitHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -63,7 +64,8 @@ describe('submitPrescriptionPhoto', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createSubmitHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -77,7 +79,11 @@ describe('submitPrescriptionPhoto', () => {
     const { admin, writtenPrescriptions } = buildAdminHarness();
     const resolveRoleForEmail = vi.fn().mockResolvedValue('nurse_hospital');
 
-    const handler = createSubmitHandler({ admin, resolveRoleForEmail });
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail,
+    });
     const payload = validPayload();
     delete (payload as Record<string, unknown>).pin;
 
@@ -97,7 +103,11 @@ describe('submitPrescriptionPhoto', () => {
     const { admin } = buildAdminHarness();
     const resolveRoleForEmail = vi.fn().mockResolvedValue('viewer');
 
-    const handler = createSubmitHandler({ admin, resolveRoleForEmail });
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail,
+    });
     const payload = validPayload();
     delete (payload as Record<string, unknown>).pin;
 
@@ -109,7 +119,11 @@ describe('submitPrescriptionPhoto', () => {
   it('rejects an unsupported prescription type', async () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createSubmitHandler({ admin, resolveRoleForEmail: vi.fn() });
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
 
     await expect(
       handler(validPayload({ prescriptionType: 'antibioticos' }), undefined)
@@ -119,7 +133,11 @@ describe('submitPrescriptionPhoto', () => {
   it('persists Stock de Hospitalizados as a non-patient assignment category', async () => {
     const { admin, accessConfig, writtenPrescriptions } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createSubmitHandler({ admin, resolveRoleForEmail: vi.fn() });
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
 
     const result = await handler(
       validPayload({
@@ -143,7 +161,11 @@ describe('submitPrescriptionPhoto', () => {
   it('rejects oversized image payloads', async () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createSubmitHandler({ admin, resolveRoleForEmail: vi.fn() });
+    const handler = createSubmitHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail: vi.fn(),
+    });
 
     const tooBig = Buffer.alloc(5 * 1024 * 1024).toString('base64');
     await expect(
@@ -157,7 +179,10 @@ describe('setPrescriptionAccessPin', () => {
     const { admin, accessConfig } = buildAdminHarness();
     const resolveRoleForEmail = vi.fn().mockResolvedValue('admin');
 
-    const handler = createSetPinHandler({ admin, resolveRoleForEmail });
+    const handler = createSetPinHandler({
+      firestore: admin.firestore(),
+      resolveRoleForEmail,
+    });
     await handler(
       { newPin: '835412' },
       {
@@ -179,7 +204,10 @@ describe('setPrescriptionAccessPin', () => {
     const { admin } = buildAdminHarness();
     const resolveRoleForEmail = vi.fn().mockResolvedValue('nurse_hospital');
 
-    const handler = createSetPinHandler({ admin, resolveRoleForEmail });
+    const handler = createSetPinHandler({
+      firestore: admin.firestore(),
+      resolveRoleForEmail,
+    });
     await expect(
       handler(
         { newPin: '835412' },
@@ -192,7 +220,10 @@ describe('setPrescriptionAccessPin', () => {
 
   it('rejects unauthenticated callers', async () => {
     const { admin } = buildAdminHarness();
-    const handler = createSetPinHandler({ admin, resolveRoleForEmail: vi.fn() });
+    const handler = createSetPinHandler({
+      firestore: admin.firestore(),
+      resolveRoleForEmail: vi.fn(),
+    });
     await expect(handler({ newPin: '835412' }, undefined)).rejects.toMatchObject({
       code: 'unauthenticated',
     });

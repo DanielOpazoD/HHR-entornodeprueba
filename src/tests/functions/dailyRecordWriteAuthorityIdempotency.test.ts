@@ -19,7 +19,8 @@ describe('dailyRecordWriteAuthorityFunctions idempotency', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -75,7 +76,8 @@ describe('dailyRecordWriteAuthorityFunctions idempotency', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
     });
 

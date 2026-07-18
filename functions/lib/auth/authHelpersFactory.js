@@ -2,13 +2,13 @@ const { GENERAL_LOGIN_ROLES } = require('./authConfig');
 const { normalizeEmail } = require('./authEmailUtils');
 const { sanitizeLogValue } = require('../logging/redaction');
 
-const createAuthHelpers = admin => {
+const createAuthHelpers = ({ auth, firestore }) => {
   const resolveRoleForEmail = async email => {
     const cleanEmail = normalizeEmail(email);
     if (!cleanEmail) return 'unauthorized';
 
     try {
-      const roleDoc = await admin.firestore().collection('config').doc('roles').get();
+      const roleDoc = await firestore.collection('config').doc('roles').get();
       if (roleDoc.exists) {
         const rolesMap = roleDoc.data() || {};
         const resolvedRole = rolesMap[cleanEmail];
@@ -44,7 +44,7 @@ const createAuthHelpers = admin => {
     const role = await resolveRoleForEmail(email);
 
     try {
-      await admin.auth().setCustomUserClaims(user.uid, { role });
+      await auth.setCustomUserClaims(user.uid, { role });
       return role;
     } catch (error) {
       console.error('Error assigning role to user', sanitizeLogValue({ email, error }));

@@ -30,18 +30,9 @@ describe('functions authFunctionsFactory', () => {
 
   it('rejects role mutation without admin access', async () => {
     const functionsApi = createAuthFunctions({
-      admin: {
-        auth: () => ({
-          getUserByEmail: vi.fn(),
-          setCustomUserClaims: vi.fn(),
-        }),
-        firestore: () => ({
-          collection: () => ({
-            doc: () => ({
-              set: vi.fn().mockResolvedValue(undefined),
-            }),
-          }),
-        }),
+      auth: {
+        getUserByEmail: vi.fn(),
+        setCustomUserClaims: vi.fn(),
       },
       helpers: {
         normalizeEmail: (value: unknown) => String(value || '').toLowerCase(),
@@ -56,18 +47,9 @@ describe('functions authFunctionsFactory', () => {
   it('delegates user creation role assignment to helper', async () => {
     const assignRole = vi.fn().mockResolvedValue('admin');
     const functionsApi = createAuthFunctions({
-      admin: {
-        auth: () => ({
-          getUserByEmail: vi.fn(),
-          setCustomUserClaims: vi.fn(),
-        }),
-        firestore: () => ({
-          collection: () => ({
-            doc: () => ({
-              set: vi.fn().mockResolvedValue(undefined),
-            }),
-          }),
-        }),
+      auth: {
+        getUserByEmail: vi.fn(),
+        setCustomUserClaims: vi.fn(),
       },
       helpers: {
         assignRole,
@@ -87,12 +69,10 @@ describe('functions authFunctionsFactory', () => {
     const setCustomUserClaims = vi.fn().mockResolvedValue(undefined);
     const resolveRoleForEmail = vi.fn().mockResolvedValue('admin');
     const functionsApi = createAuthFunctions({
-      admin: {
-        auth: () => ({
-          getUserByEmail: vi.fn(),
-          getUser,
-          setCustomUserClaims,
-        }),
+      auth: {
+        getUserByEmail: vi.fn(),
+        getUser,
+        setCustomUserClaims,
       },
       helpers: {
         assignRole: vi.fn(),

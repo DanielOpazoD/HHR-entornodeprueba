@@ -20,24 +20,15 @@ const {
   createHandoffSignatureFunctions,
 } = require('../../../functions/lib/handoffSignatureFunctions.js');
 
-const createAdminMock = (record: Record<string, unknown>) => {
+const createFirestoreMock = (record: Record<string, unknown>) => {
   const setRecord = vi.fn().mockResolvedValue(undefined);
   const setAudit = vi.fn().mockResolvedValue(undefined);
 
   return {
-    admin: {
-      firestore: () => ({
-        collection: () => ({
-          doc: (_docId: string) => ({
-            collection: () => ({
-              doc: () => ({
-                get: vi.fn().mockResolvedValue({
-                  exists: true,
-                  data: () => record,
-                }),
-                set: setRecord,
-              }),
-            }),
+    firestore: {
+      collection: () => ({
+        doc: (_docId: string) => ({
+          collection: () => ({
             doc: () => ({
               get: vi.fn().mockResolvedValue({
                 exists: true,
@@ -45,6 +36,13 @@ const createAdminMock = (record: Record<string, unknown>) => {
               }),
               set: setRecord,
             }),
+          }),
+          doc: () => ({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => record,
+            }),
+            set: setRecord,
           }),
         }),
       }),
@@ -60,13 +58,13 @@ describe('functions handoffSignatureFunctions', () => {
   });
 
   it('rejects payload fetch when the link token does not match', async () => {
-    const { admin } = createAdminMock({
+    const { firestore } = createFirestoreMock({
       medicalSignatureLinkTokenByScope: {
         all: 'valid-token',
       },
     });
 
-    const functionsApi = createHandoffSignatureFunctions({ admin });
+    const functionsApi = createHandoffSignatureFunctions({ firestore });
 
     await expect(
       functionsApi.getMedicalHandoffSignaturePayload.run({
@@ -82,34 +80,32 @@ describe('functions handoffSignatureFunctions', () => {
   it('stores scoped medical signature and writes an audit entry', async () => {
     const setRecord = vi.fn().mockResolvedValue(undefined);
     const setAudit = vi.fn().mockResolvedValue(undefined);
-    const admin = {
-      firestore: () => ({
-        collection: () => ({
-          doc: () => ({
-            collection: (name: string) => ({
-              doc: () => {
-                if (name === 'dailyRecords') {
-                  return {
-                    get: vi.fn().mockResolvedValue({
-                      exists: true,
-                      data: () => ({
-                        medicalSignatureLinkTokenByScope: { upc: 'scope-token' },
-                      }),
-                    }),
-                    set: setRecord,
-                  };
-                }
+    const firestore = {
+      collection: () => ({
+        doc: () => ({
+          collection: (name: string) => ({
+            doc: () => {
+              if (name === 'dailyRecords') {
                 return {
-                  set: setAudit,
+                  get: vi.fn().mockResolvedValue({
+                    exists: true,
+                    data: () => ({
+                      medicalSignatureLinkTokenByScope: { upc: 'scope-token' },
+                    }),
+                  }),
+                  set: setRecord,
                 };
-              },
-            }),
+              }
+              return {
+                set: setAudit,
+              };
+            },
           }),
         }),
       }),
     };
 
-    const functionsApi = createHandoffSignatureFunctions({ admin });
+    const functionsApi = createHandoffSignatureFunctions({ firestore });
     const result = await functionsApi.submitMedicalHandoffSignature.run({
       date: '2026-03-03',
       scope: 'upc',

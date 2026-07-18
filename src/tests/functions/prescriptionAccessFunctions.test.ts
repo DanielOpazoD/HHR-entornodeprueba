@@ -51,7 +51,7 @@ describe('validatePrescriptionAccessPin', () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
 
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
     const result = await handler({ pin: '7351' }, undefined);
 
     expect(result).toEqual({ valid: true });
@@ -61,7 +61,7 @@ describe('validatePrescriptionAccessPin', () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
 
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
     await expect(handler({ pin: '0000' }, undefined)).rejects.toMatchObject({
       code: 'permission-denied',
     });
@@ -69,7 +69,7 @@ describe('validatePrescriptionAccessPin', () => {
 
   it('rejects when no PIN is configured yet', async () => {
     const { admin } = buildAdminHarness();
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
     await expect(handler({ pin: '7351' }, undefined)).rejects.toMatchObject({
       code: 'failed-precondition',
     });
@@ -78,7 +78,7 @@ describe('validatePrescriptionAccessPin', () => {
   it('rejects malformed PIN input (empty, too short, too long)', async () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
 
     await expect(handler({ pin: '' }, undefined)).rejects.toMatchObject({
       code: 'invalid-argument',
@@ -94,7 +94,7 @@ describe('validatePrescriptionAccessPin', () => {
   it('locks the PIN endpoint for 15 min after 5 consecutive wrong attempts', async () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await expect(handler({ pin: '0000' }, undefined)).rejects.toMatchObject({
@@ -111,7 +111,7 @@ describe('validatePrescriptionAccessPin', () => {
   it('clears the failure counter when the PIN finally matches', async () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
 
     await expect(handler({ pin: '0000' }, undefined)).rejects.toMatchObject({
       code: 'permission-denied',
@@ -135,7 +135,7 @@ describe('validatePrescriptionAccessPin', () => {
       lockedUntil: '2026-05-04T11:59:00.000Z',
     };
 
-    const handler = createValidatePinHandler({ admin });
+    const handler = createValidatePinHandler({ firestore: admin.firestore() });
     await expect(handler({ pin: '7351' }, undefined)).resolves.toEqual({ valid: true });
   });
 });
@@ -174,7 +174,8 @@ describe('listPrescriptionUploadPatientOptions', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createListUploadPatientOptionsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -211,7 +212,8 @@ describe('listPrescriptionUploadPatientOptions', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createListUploadPatientOptionsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -269,7 +271,8 @@ describe('listPrescriptionUploadPatientOptions', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createListUploadPatientOptionsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -301,7 +304,10 @@ describe('listPrescriptionUploadPatientOptions', () => {
       dailyRecords: { '2026-05-05': dailyRecord },
     });
     const resolveRoleForEmail = vi.fn().mockResolvedValue('nurse_hospital');
-    const handler = createListUploadPatientOptionsHandler({ admin, resolveRoleForEmail });
+    const handler = createListUploadPatientOptionsHandler({
+      firestore: admin.firestore(),
+      resolveRoleForEmail,
+    });
 
     const result = await handler(
       { date: '2026-05-05' },
@@ -315,7 +321,8 @@ describe('listPrescriptionUploadPatientOptions', () => {
   it('rejects unauthenticated calls without a PIN', async () => {
     const { admin } = buildAdminHarness();
     const handler = createListUploadPatientOptionsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -336,7 +343,8 @@ describe('listPrescriptionUploadReadonlyRecords', () => {
     await seedPin(accessConfig, '7351');
 
     const handler = createListUploadReadonlyRecordsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -354,7 +362,8 @@ describe('listPrescriptionUploadReadonlyRecords', () => {
     const { admin, accessConfig } = buildAdminHarness();
     await seedPin(accessConfig, '7351');
     const handler = createListUploadReadonlyRecordsHandler({
-      admin,
+      firestore: admin.firestore(),
+      storage: admin.storage(),
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -370,7 +379,11 @@ describe('listPrescriptionUploadReadonlyRecords', () => {
       },
     });
     const resolveRoleForEmail = vi.fn().mockResolvedValue('nurse_hospital');
-    const handler = createListUploadReadonlyRecordsHandler({ admin, resolveRoleForEmail });
+    const handler = createListUploadReadonlyRecordsHandler({
+      firestore: admin.firestore(),
+      storage: admin.storage(),
+      resolveRoleForEmail,
+    });
 
     const result = await handler(
       { date: '2026-05-04' },

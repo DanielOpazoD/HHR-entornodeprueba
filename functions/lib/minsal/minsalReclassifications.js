@@ -16,8 +16,8 @@ const isIsoDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 const buildReclassificationId = ({ date, movementKind, movementId }) =>
   `${date}_${movementKind}_${String(movementId).replace(/[/#?[\]]/g, '_')}`;
 
-const getHospitalCollection = (admin, hospitalId, collectionName) =>
-  admin.firestore().collection('hospitals').doc(hospitalId).collection(collectionName);
+const getHospitalCollection = (firestore, hospitalId, collectionName) =>
+  firestore.collection('hospitals').doc(hospitalId).collection(collectionName);
 
 const getHeader = (rawRequest, headerName) => {
   if (!rawRequest) return null;
@@ -111,13 +111,13 @@ const resolveMovementSpecialty = (movementKind, movement) => {
 };
 
 const loadMovementForReclassification = async ({
-  admin,
+  firestore,
   hospitalId,
   date,
   movementKind,
   movementId,
 }) => {
-  const recordDoc = await getHospitalCollection(admin, hospitalId, 'dailyRecords').doc(date).get();
+  const recordDoc = await getHospitalCollection(firestore, hospitalId, 'dailyRecords').doc(date).get();
   if (!recordDoc.exists) {
     throw new functions.https.HttpsError('not-found', 'Daily census record was not found.');
   }
@@ -172,14 +172,14 @@ const buildAuditEntry = ({
 });
 
 const persistMinsalSpecialtyReclassification = async ({
-  admin,
+  firestore,
   data,
   context,
   resolveRoleForEmail,
 }) => {
   const request = parseReclassificationRequest(data);
   const actor = await assertAdminRole(context, resolveRoleForEmail);
-  const { originalSpecialty } = await loadMovementForReclassification({ admin, ...request });
+  const { originalSpecialty } = await loadMovementForReclassification({ firestore, ...request });
   const id = buildReclassificationId(request);
   const timestamp = new Date().toISOString();
   const active = Boolean(request.reportingSpecialty);
@@ -200,10 +200,10 @@ const persistMinsalSpecialtyReclassification = async ({
     userAgent,
   };
 
-  await getHospitalCollection(admin, request.hospitalId, 'analyticsSpecialtyReclassifications')
+  await getHospitalCollection(firestore, request.hospitalId, 'analyticsSpecialtyReclassifications')
     .doc(id)
     .set(record);
-  await getHospitalCollection(admin, request.hospitalId, 'auditLogs')
+  await getHospitalCollection(firestore, request.hospitalId, 'auditLogs')
     .doc()
     .set(
       buildAuditEntry({
@@ -222,13 +222,13 @@ const persistMinsalSpecialtyReclassification = async ({
 };
 
 const loadActiveMinsalSpecialtyReclassifications = async (
-  admin,
+  firestore,
   hospitalId,
   startDate,
   endDate
 ) => {
   const snapshot = await getHospitalCollection(
-    admin,
+    firestore,
     hospitalId,
     'analyticsSpecialtyReclassifications'
   )
@@ -259,7 +259,7 @@ const loadActiveMinsalSpecialtyReclassifications = async (
 };
 
 const buildServerOwnedCalculationOptions = async ({
-  admin,
+  firestore,
   hospitalId,
   startDate,
   endDate,
@@ -270,7 +270,7 @@ const buildServerOwnedCalculationOptions = async ({
       ? 'group-other'
       : 'detailed',
   specialtyReclassifications: await loadActiveMinsalSpecialtyReclassifications(
-    admin,
+    firestore,
     hospitalId,
     startDate,
     endDate

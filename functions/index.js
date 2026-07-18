@@ -1,4 +1,11 @@
-const { admin, HOSPITAL_CAPACITY } = require('./lib/appContext');
+const {
+  auth,
+  firestore,
+  storage,
+  FieldValue,
+  Timestamp,
+  HOSPITAL_CAPACITY,
+} = require('./lib/appContext');
 const { createAuthHelpers, createAuthFunctions } = require('./lib/authFunctions');
 const { createMinsalFunctions } = require('./lib/minsalFunctions');
 const { createHandoffSignatureFunctions } = require('./lib/handoffSignatureFunctions');
@@ -15,42 +22,47 @@ const {
 const { createWoundCareMobileUploadFunctions } = require('./lib/woundCareMobileUploadFunctions');
 const { createPrescriptionAccessFunctions } = require('./lib/prescriptionAccessFunctions');
 
-const authHelpers = createAuthHelpers(admin);
+const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
   ...createMinsalFunctions({
-    admin,
+    firestore,
     hospitalCapacity: HOSPITAL_CAPACITY,
     hasCallableClinicalAccess: authHelpers.hasCallableClinicalAccess,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createAuthFunctions({
-    admin,
+    auth,
     helpers: authHelpers,
   }),
   ...createHandoffSignatureFunctions({
-    admin,
+    firestore,
   }),
   ...createSpecialistMedicalHandoffFunctions({
-    admin,
+    firestore,
+    Timestamp,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createDailyRecordWriteAuthorityFunctions({
-    admin,
+    firestore,
+    Timestamp,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createClinicalDocumentExportFunctions({
-    admin,
+    firestore,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createClinicalDocumentPdfRenderFunctions({
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createWoundCareMobileUploadFunctions({
-    admin,
+    firestore,
+    storage,
+    FieldValue,
   }),
   ...createPrescriptionAccessFunctions({
-    admin,
+    firestore,
+    storage,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
 };

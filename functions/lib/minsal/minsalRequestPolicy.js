@@ -39,9 +39,8 @@ const parseMinsalRangeRequest = data => {
   return { hospitalId, startDate, endDate };
 };
 
-const loadMinsalRecords = async (admin, hospitalId, startDate, endDate) => {
-  const recordsRef = admin
-    .firestore()
+const loadMinsalRecords = async (firestore, hospitalId, startDate, endDate) => {
+  const recordsRef = firestore
     .collection('hospitals')
     .doc(hospitalId)
     .collection('dailyRecords');

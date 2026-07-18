@@ -51,11 +51,11 @@ const assertScope = rawScope => {
   return scope;
 };
 
-const getDailyRecordRef = admin =>
-  admin.firestore().collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
+const getDailyRecordRef = firestore =>
+  firestore.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords');
 
-const getAuditLogsRef = admin =>
-  admin.firestore().collection('hospitals').doc(HOSPITAL_ID).collection('auditLogs');
+const getAuditLogsRef = firestore =>
+  firestore.collection('hospitals').doc(HOSPITAL_ID).collection('auditLogs');
 
 const resolveSignatureToken = (record, scope) =>
   record?.medicalSignatureLinkTokenByScope?.[scope] || null;
@@ -89,13 +89,13 @@ const createAuditEntry = ({ action, entityId, details }) => ({
   recordDate: entityId,
 });
 
-const createHandoffSignatureFunctions = ({ admin }) => ({
+const createHandoffSignatureFunctions = ({ firestore }) => ({
   getMedicalHandoffSignaturePayload: functions.https.onCall(async data => {
     const date = assertStringField(data?.date, 'date');
     const scope = assertScope(data?.scope);
     const token = assertStringField(data?.token, 'token');
 
-    const docRef = getDailyRecordRef(admin).doc(date);
+    const docRef = getDailyRecordRef(firestore).doc(date);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
       throw new functions.https.HttpsError('not-found', 'Medical handoff record not found.');
@@ -117,7 +117,7 @@ const createHandoffSignatureFunctions = ({ admin }) => ({
     const token = assertStringField(data?.token, 'token');
     const doctorName = assertStringField(data?.doctorName, 'doctorName');
 
-    const docRef = getDailyRecordRef(admin).doc(date);
+    const docRef = getDailyRecordRef(firestore).doc(date);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
       throw new functions.https.HttpsError('not-found', 'Medical handoff record not found.');
@@ -166,7 +166,7 @@ const createHandoffSignatureFunctions = ({ admin }) => ({
         source: 'public_signature_link',
       },
     });
-    await getAuditLogsRef(admin).doc(auditEntry.id).set(auditEntry);
+    await getAuditLogsRef(firestore).doc(auditEntry.id).set(auditEntry);
 
     return {
       scope,

@@ -32,23 +32,27 @@ const buildValidSession = () => ({
   uploadCount: 0,
 });
 
-interface AdminMockResult {
-  admin: unknown;
+interface FirebaseServicesMockResult {
+  firebaseServices: {
+    firestore: unknown;
+    storage: unknown;
+    FieldValue: unknown;
+  };
   setPhoto: ReturnType<typeof vi.fn>;
   setAudit: ReturnType<typeof vi.fn>;
   saveFile: ReturnType<typeof vi.fn>;
   updateSession: ReturnType<typeof vi.fn>;
 }
 
-const createAdminMock = (
+const createFirebaseServicesMock = (
   session: Record<string, unknown> | null = buildValidSession()
-): AdminMockResult => {
+): FirebaseServicesMockResult => {
   const setPhoto = vi.fn().mockResolvedValue(undefined);
   const setAudit = vi.fn().mockResolvedValue(undefined);
   const saveFile = vi.fn().mockResolvedValue(undefined);
   const updateSession = vi.fn().mockResolvedValue(undefined);
 
-  const firestore = () => ({
+  const firestore = {
     collection: () => ({
       doc: () => ({
         collection: (name: string) => ({
@@ -72,22 +76,23 @@ const createAdminMock = (
         }),
       }),
     }),
-  });
-  firestore.FieldValue = { increment: (n: number) => ({ __op: 'increment', amount: n }) };
+  };
+  const FieldValue = { increment: (n: number) => ({ __op: 'increment', amount: n }) };
 
-  const admin = {
+  const firebaseServices = {
     firestore,
-    storage: () => ({
+    FieldValue,
+    storage: {
       bucket: () => ({
         name: 'test-bucket',
         file: () => ({
           save: saveFile,
         }),
       }),
-    }),
+    },
   };
 
-  return { admin, setPhoto, setAudit, saveFile, updateSession };
+  return { firebaseServices, setPhoto, setAudit, saveFile, updateSession };
 };
 
 describe('functions woundCareMobileUploadFunctions', () => {
@@ -115,8 +120,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
       ...buildValidSession(),
       expiresAt: new Date(Date.now() - 1000).toISOString(),
     };
-    const { admin } = createAdminMock(expiredSession);
-    const functionsApi = createWoundCareMobileUploadFunctions({ admin });
+    const { firebaseServices } = createFirebaseServicesMock(expiredSession);
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     await expect(
       functionsApi.validateWoundCareMobileUploadSession.run({ sessionId: 'session-1' }, {})
@@ -124,8 +129,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
   });
 
   it('emits a WOUND_CARE_MOBILE_SESSION_VALIDATED audit entry alongside the session payload', async () => {
-    const { admin, setAudit } = createAdminMock();
-    const functionsApi = createWoundCareMobileUploadFunctions({ admin });
+    const { firebaseServices, setAudit } = createFirebaseServicesMock();
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     const payload = await functionsApi.validateWoundCareMobileUploadSession.run(
       { sessionId: 'session-1', userAgent: 'Vitest' },
@@ -153,8 +158,9 @@ describe('functions woundCareMobileUploadFunctions', () => {
   });
 
   it('uploads photo metadata, storage objects, audit entry, and increments the per-session counter', async () => {
-    const { admin, setPhoto, setAudit, saveFile, updateSession } = createAdminMock();
-    const functionsApi = createWoundCareMobileUploadFunctions({ admin });
+    const { firebaseServices, setPhoto, setAudit, saveFile, updateSession } =
+      createFirebaseServicesMock();
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     const result = await functionsApi.uploadWoundCareMobilePhoto.run(
       {
@@ -203,8 +209,9 @@ describe('functions woundCareMobileUploadFunctions', () => {
       maxUploads: 3,
       uploadCount: 3,
     };
-    const { admin, setPhoto, updateSession } = createAdminMock(exhaustedSession);
-    const functionsApi = createWoundCareMobileUploadFunctions({ admin });
+    const { firebaseServices, setPhoto, updateSession } =
+      createFirebaseServicesMock(exhaustedSession);
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     await expect(
       functionsApi.uploadWoundCareMobilePhoto.run(
@@ -225,8 +232,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
     const legacySession = { ...buildValidSession() };
     delete (legacySession as Record<string, unknown>).maxUploads;
     delete (legacySession as Record<string, unknown>).uploadCount;
-    const { admin, setPhoto } = createAdminMock(legacySession);
-    const functionsApi = createWoundCareMobileUploadFunctions({ admin });
+    const { firebaseServices, setPhoto } = createFirebaseServicesMock(legacySession);
+    const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
 
     const result = await functionsApi.uploadWoundCareMobilePhoto.run(
       {
@@ -247,8 +254,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
     const {
       createWoundCareMobileUploadFunctions: createApiWithEnforce,
     } = require('../../../functions/lib/woundCareMobileUploadFunctions.js');
-    const { admin } = createAdminMock();
-    const functionsApi = createApiWithEnforce({ admin });
+    const { firebaseServices } = createFirebaseServicesMock();
+    const functionsApi = createApiWithEnforce(firebaseServices);
 
     await expect(
       functionsApi.validateWoundCareMobileUploadSession.run({ sessionId: 'session-1' }, {})
@@ -271,8 +278,8 @@ describe('functions woundCareMobileUploadFunctions', () => {
     const {
       createWoundCareMobileUploadFunctions: createApiWithEnforce,
     } = require('../../../functions/lib/woundCareMobileUploadFunctions.js');
-    const { admin, setAudit } = createAdminMock();
-    const functionsApi = createApiWithEnforce({ admin });
+    const { firebaseServices, setAudit } = createFirebaseServicesMock();
+    const functionsApi = createApiWithEnforce(firebaseServices);
 
     const payload = await functionsApi.validateWoundCareMobileUploadSession.run(
       { sessionId: 'session-1' },

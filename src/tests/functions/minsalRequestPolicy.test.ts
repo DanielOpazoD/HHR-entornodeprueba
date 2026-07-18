@@ -50,20 +50,18 @@ describe('functions minsalRequestPolicy', () => {
     });
     const whereEnd = vi.fn(() => ({ get }));
     const whereStart = vi.fn(() => ({ where: whereEnd }));
-    const admin = {
-      firestore: () => ({
-        collection: () => ({
-          doc: () => ({
-            collection: () => ({
-              where: whereStart,
-            }),
+    const firestore = {
+      collection: () => ({
+        doc: () => ({
+          collection: () => ({
+            where: whereStart,
           }),
         }),
       }),
     };
 
     await expect(
-      loadMinsalRecords(admin, 'hanga_roa', '2026-03-01', '2026-03-02')
+      loadMinsalRecords(firestore, 'hanga_roa', '2026-03-01', '2026-03-02')
     ).resolves.toEqual([{ date: '2026-03-01' }]);
   });
 });

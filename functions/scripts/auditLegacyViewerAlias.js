@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const admin = require('firebase-admin');
+const { getApps, initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore } = require('firebase-admin/firestore');
 
 const LEGACY_ALIAS = ['viewer', 'census'].join('_');
 const CANONICAL_ROLE = 'viewer';
@@ -8,9 +10,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const REPORTS_DIR = path.join(ROOT, 'reports');
 
 const ensureAdminApp = () => {
-  if (admin.apps.length > 0) {
-    return admin.app();
-  }
+  const existingApp = getApps()[0];
+  if (existingApp) return existingApp;
 
   const explicitProjectId = String(
     process.env.GOOGLE_CLOUD_PROJECT ||
@@ -20,15 +21,13 @@ const ensureAdminApp = () => {
   ).trim();
 
   if (explicitProjectId) {
-    return admin.initializeApp({ projectId: explicitProjectId });
+    return initializeApp({ projectId: explicitProjectId });
   }
 
-  return admin.initializeApp();
+  return initializeApp();
 };
 
-const collectUsersWithLegacyClaim = async () => {
-  ensureAdminApp();
-  const auth = admin.auth();
+const collectUsersWithLegacyClaim = async auth => {
   const legacyClaimUsers = [];
   let nextPageToken = undefined;
 
@@ -48,9 +47,8 @@ const collectUsersWithLegacyClaim = async () => {
   return legacyClaimUsers;
 };
 
-const collectLegacyConfigEntries = async () => {
-  ensureAdminApp();
-  const roleDoc = await admin.firestore().collection('config').doc('roles').get();
+const collectLegacyConfigEntries = async firestore => {
+  const roleDoc = await firestore.collection('config').doc('roles').get();
   const rolesMap = roleDoc.exists ? roleDoc.data() || {} : {};
 
   return Object.entries(rolesMap)
@@ -105,9 +103,12 @@ const writeReport = report => {
 };
 
 const run = async () => {
+  const app = ensureAdminApp();
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
   const [legacyConfigEmails, legacyClaimUsers] = await Promise.all([
-    collectLegacyConfigEntries(),
-    collectUsersWithLegacyClaim(),
+    collectLegacyConfigEntries(firestore),
+    collectUsersWithLegacyClaim(auth),
   ]);
 
   const report = {

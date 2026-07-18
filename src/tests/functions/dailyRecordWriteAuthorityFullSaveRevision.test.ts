@@ -20,7 +20,8 @@ describe('dailyRecordWriteAuthorityFunctions full save revisions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 

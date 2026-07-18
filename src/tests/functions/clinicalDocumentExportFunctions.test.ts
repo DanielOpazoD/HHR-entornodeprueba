@@ -71,7 +71,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
 
   it('rejects unauthenticated calls', async () => {
     const functionsApi = createClinicalDocumentExportFunctions({
-      admin: { firestore: vi.fn() },
+      firestore: { collection: vi.fn() },
       resolveRoleForEmail: vi.fn(),
     });
 
@@ -85,7 +85,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
   it('ignores stale token claims when export role is no longer authorized', async () => {
     const resolveRoleForEmail = vi.fn().mockResolvedValue('unauthorized');
     const functionsApi = createClinicalDocumentExportFunctions({
-      admin: { firestore: vi.fn() },
+      firestore: { collection: vi.fn() },
       resolveRoleForEmail,
     });
 
@@ -148,7 +148,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
     };
 
     const functionsApi = createClinicalDocumentExportFunctions({
-      admin,
+      firestore: admin.firestore(),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
       buildDriveClientOverride: () => ({
         files: {
@@ -210,7 +210,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
     };
 
     const functionsApi = createClinicalDocumentExportFunctions({
-      admin,
+      firestore: admin.firestore(),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
       buildDriveClientOverride: () => ({
         files: {
@@ -256,7 +256,7 @@ describe('functions clinicalDocumentExportFunctions', () => {
     });
 
     const functionsApi = createClinicalDocumentExportFunctions({
-      admin: { firestore: vi.fn() },
+      firestore: { collection: vi.fn() },
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
       buildDriveClientOverride: () => ({
         files: {
