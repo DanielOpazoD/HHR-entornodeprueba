@@ -9,6 +9,7 @@ const contentSource = [
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
   'hhr-handoff-scores-center.js',
+  'hhr-lab-center.js',
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');
@@ -130,7 +131,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
 
   it('opens laboratory on the exam-request view by default', () => {
     expect(contentSource).toContain(
-      "else if (activeModule === 'lab') renderLabRequestView(root, targetEncId)"
+      "else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
     );
     expect(contentSource).toContain(
       "main.querySelector('.hhr-flow-tabs [data-flow=\"results\"]').addEventListener('click', () => {"

@@ -11,6 +11,7 @@ import '../../../extension/hhr-center-styles.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-scores-center.js';
+import '../../../extension/hhr-lab-center.js';
 import '../../../extension/prescription-print.js';
 
 type Runtime = {
