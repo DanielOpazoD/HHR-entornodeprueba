@@ -8,9 +8,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
 import '../../../extension/hhr-center-styles.js';
+import '../../../extension/hhr-prescription-center.js';
+import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+const hospitalizedDocumentsSource = readFileSync(
+  path.resolve('extension/hhr-hospitalized-documents-center.js'),
+  'utf8'
+);
 const NativeMutationObserver = globalThis.MutationObserver;
 const contentObservers = new Set<MutationObserver>();
 
@@ -214,12 +220,30 @@ describe('extension prescription print content flow', () => {
       expect(firstPrint.isConnected).toBe(true);
       expect(firstPrint.disabled).toBe(false);
     });
+
+    const centerRoot = document.getElementById('hhr-prescription-print-modal');
+    document.querySelector<HTMLButtonElement>('[data-rx-module="indications"]')?.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('.hhr-rx-status')?.textContent).toContain(
+        'No hay pacientes hospitalizados disponibles'
+      );
+      expect(document.getElementById('hhr-prescription-print-modal')).toBe(centerRoot);
+    });
+    document.querySelector<HTMLButtonElement>('[data-rx-module="recipes"]')?.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
+        'Inés Leiva Riroroko'
+      );
+      expect(document.getElementById('hhr-prescription-print-modal')).toBe(centerRoot);
+    });
   });
 
   it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', async () => {
     await new Promise(resolve => setTimeout(resolve, 120));
-    expect(contentSource).toContain("submit.textContent = 'Imprimir regímenes y BRADEN'");
-    expect(contentSource).toContain("submit.textContent = 'Reintentar impresión'");
+    expect(hospitalizedDocumentsSource).toContain(
+      "submit.textContent = 'Imprimir regímenes y BRADEN'"
+    );
+    expect(hospitalizedDocumentsSource).toContain("submit.textContent = 'Reintentar impresión'");
 
     const scoreAck = contentSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',

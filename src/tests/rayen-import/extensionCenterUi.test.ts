@@ -4,7 +4,13 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+const contentSource = [
+  'content-prescription-print.js',
+  'hhr-prescription-center.js',
+  'hhr-hospitalized-documents-center.js',
+]
+  .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
+  .join('\n');
 const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
@@ -58,7 +64,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
       "initialTab === 'hospitalized' || !currentPatientMatchesRoute ? 'hospitalized' : 'current'"
     );
     expect(contentSource).toContain("openPatient.textContent = 'Abrir'");
-    expect(contentSource).toContain("createModal(patient.encounterId, 'current', root)");
+    expect(contentSource).toContain("open(patient.encounterId, 'current', root)");
     expect(contentSource).not.toContain('El episodio cambió. Cierra este panel');
     expect(contentSource).toContain("currentTab.removeAttribute('aria-disabled')");
     expect(contentSource).toContain("currentTab.removeAttribute('title')");
@@ -142,11 +148,11 @@ describe('Centro HHR navigation and vital-signs overview', () => {
       '#hhr-prescription-print-modal .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }'
     );
     expect(contentSource).toContain("selectVisible.textContent = 'Seleccionar todos'");
-    expect(contentSource).toContain(
-      'availableCheckboxes().forEach(input => { input.checked = true; })'
+    expect(contentSource).toMatch(
+      /availableCheckboxes\(\)\.forEach\(input => \{\s*input\.checked = true;/
     );
-    expect(contentSource).toContain(
-      'availableInputs().forEach(input => { input.checked = true; })'
+    expect(contentSource).toMatch(
+      /availableInputs\(\)\.forEach\(input => \{\s*input\.checked = true;/
     );
     expect(contentSource).toContain(
       'exams.slice(0, LAB_MAX_SELECTED_EXAMS).forEach(exam => selected.add(exam.id))'
