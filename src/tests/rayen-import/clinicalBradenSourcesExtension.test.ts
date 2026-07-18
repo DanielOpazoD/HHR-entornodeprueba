@@ -19,6 +19,7 @@ const contentSource = [
   '../../../extension/content-prescription-print.js',
   '../../../extension/hhr-handoff-center.js',
   '../../../extension/hhr-scores-center.js',
+  '../../../extension/hhr-medication-actions-runtime.js',
 ]
   .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');

@@ -17,6 +17,10 @@ const contentSource = [
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');
+const medicationActionsSource = readFileSync(
+  path.resolve('extension/hhr-medication-actions-runtime.js'),
+  'utf8'
+);
 const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
@@ -169,9 +173,9 @@ describe('Centro HHR navigation and vital-signs overview', () => {
   });
 
   it('keeps the route-independent favorites dialog open during route reconciliation', () => {
-    const favoritesDialog = contentSource.slice(
-      contentSource.indexOf('const createFavoritesDialog'),
-      contentSource.indexOf('const OPERATIONS_MODULES')
+    const favoritesDialog = medicationActionsSource.slice(
+      medicationActionsSource.indexOf('const createFavoritesDialog'),
+      medicationActionsSource.indexOf('return Object.freeze')
     );
     expect(favoritesDialog).toContain("root.dataset.routeIndependent = 'true'");
     expect(contentSource).toContain("modal && modal.dataset.routeIndependent !== 'true' &&");
