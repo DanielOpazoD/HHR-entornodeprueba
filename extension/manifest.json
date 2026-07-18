@@ -58,6 +58,7 @@
         "hhr-lab-center.js",
         "hhr-vitals.js",
         "hhr-request-forms.js",
+        "hhr-imaging-center.js",
         "prescription-print.js",
         "lab-viewer.js",
         "exam-request-print.js",

@@ -11,6 +11,7 @@ const contentSource = [
   'hhr-hospitalized-documents-center.js',
   'hhr-handoff-scores-center.js',
   'hhr-lab-center.js',
+  'hhr-imaging-center.js',
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');
@@ -78,7 +79,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain("createHospitalizedDocumentsModal('regimen', encId, root)");
     const home = contentSource.slice(
       contentSource.indexOf('const renderHomeCenter'),
-      contentSource.indexOf('const renderImagingCenter')
+      contentSource.indexOf('const vitalsSparklineSvg')
     );
     expect(home).not.toContain('root.remove()');
     expect(home).not.toContain('createRegimenQuickDialog()');
