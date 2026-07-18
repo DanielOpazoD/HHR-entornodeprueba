@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const clinicalScoreRuntimeSource = readFileSync(
+  path.resolve('extension/clinical-score-runtime.js'),
+  'utf8'
+);
 const gestionCamasSource = readFileSync(path.resolve('extension/inject-gestioncamas.js'), 'utf8');
 const gestionCamasRuntimeSource = readFileSync(
   path.resolve('extension/gestion-camas-runtime.js'),
@@ -46,7 +50,9 @@ describe('extension heavy runtime loading', () => {
 
   it('keeps clinical writes tied to a verified nursing or medical session role', () => {
     const identityGuards = [
-      ...backgroundSource.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2}\);/g),
+      ...[backgroundSource, clinicalScoreRuntimeSource].flatMap(source => [
+        ...source.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2,6}\);/g),
+      ]),
     ].map(match => match[1]);
 
     expect(identityGuards).toHaveLength(3);
@@ -69,6 +75,8 @@ describe('extension heavy runtime loading', () => {
     expect(startup).toContain("'xlsx.full.min.js'");
     expect(startup).toContain("'gestion-camas-runtime.js'");
     expect(startup).toContain("'fichamedico-transport-runtime.js'");
+    expect(startup).toContain("'clinical-score-runtime.js'");
+    expect(startup).toContain('No se pudo cargar el runtime de lectura de Scores.');
   });
 
   it('only verifies already-registered runtimes and never performs a late import', () => {
