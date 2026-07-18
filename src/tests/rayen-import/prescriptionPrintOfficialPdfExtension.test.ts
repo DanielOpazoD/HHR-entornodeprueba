@@ -65,6 +65,88 @@ describe('extension prescription operations', () => {
     expect(metadata).toMatchObject({ folio: '012D5533', emissionDateTime: '15-07-2026 08:56' });
   });
 
+  it('inflates every official PDF stream only once while extracting compact content', async () => {
+    const document = new jsPDF({ unit: 'pt', format: 'letter', compress: true });
+    document.text('Fecha impresión', 434, 30);
+    document.text('14-07-2026  23:23', 500, 30);
+    document.text('Dirección', 20, 56);
+    document.text('Simón Paoa N°S/N', 100, 56);
+    document.text('Folio: D292620E', 500, 80);
+    document.text('Nombres:', 20, 110);
+    document.text('Paciente Prueba', 70, 110);
+    document.text('RUN:', 20, 130);
+    document.text('8.932.066-6', 90, 130);
+    document.text('Sexo:', 180, 130);
+    document.text('Mujer', 220, 130);
+    document.text('Edad:', 310, 130);
+    document.text('59 año(s)', 350, 130);
+    document.text('Cama:', 20, 150);
+    document.text('H6C1', 70, 150);
+    document.text('Sala:', 190, 150);
+    document.text('Habitacion 6', 240, 150);
+    document.text('Servicio:', 364, 150);
+    document.text('Área Médico Quirúrgica', 414, 150);
+    document.text('Diagnóstico(s):', 20, 175);
+    document.text('Dolor agudo', 100, 175);
+    document.text('Medicamento', 20, 205);
+    document.text('Posología e indicaciones', 310, 205);
+    document.text('Despacho Farmacia', 500, 205);
+    document.line(20, 210, 310, 210);
+    document.line(310, 210, 500, 210);
+    document.line(500, 210, 590, 210);
+    document.text('Losartán 50 mg Comprimidos, vía oral', 20, 220);
+    document.text('1 comprimido al día', 310, 220);
+    document.text('Pendiente', 500, 220);
+    document.text('09-07-2026 11:15', 20, 252);
+    document.line(20, 265, 310, 265);
+    document.line(310, 265, 500, 265);
+    document.line(500, 265, 590, 265);
+    document.text('Prescriptor:', 20, 300);
+    document.text('Elena Diaz', 99, 300);
+    document.text('RUN:', 20, 320);
+    document.text('19.525.925-9', 99, 320);
+    document.text('Fecha:', 427, 300);
+    document.text('15-07-2026', 473, 300);
+    document.text('Impreso por', 20, 360);
+    document.text('Valeria Salfate', 71, 360);
+
+    const buffer = document.output('arraybuffer');
+    const source = new TextDecoder('latin1').decode(new Uint8Array(buffer));
+    const streamExpression = /<<(?:.|\r|\n)*?\/Filter\s*(?:\/FlateDecode|\[\s*\/FlateDecode\s*\])(?:.|\r|\n)*?>>\s*stream\r?\n/g;
+    const expectedStreamCount = [...source.matchAll(streamExpression)].length;
+    const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'DecompressionStream');
+    const NativeDecompressionStream = globalThis.DecompressionStream;
+    let decompressionCount = 0;
+    class CountingDecompressionStream extends NativeDecompressionStream {
+      constructor(format: ConstructorParameters<typeof DecompressionStream>[0]) {
+        super(format);
+        decompressionCount += 1;
+      }
+    }
+
+    let content;
+    try {
+      Object.defineProperty(globalThis, 'DecompressionStream', {
+        configurable: originalDescriptor?.configurable ?? true,
+        enumerable: originalDescriptor?.enumerable ?? false,
+        writable: originalDescriptor?.writable ?? true,
+        value: CountingDecompressionStream,
+      });
+      content = await prescriptionPrint.extractOfficialPrescriptionContent(buffer);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, 'DecompressionStream', originalDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, 'DecompressionStream');
+      }
+    }
+
+    expect(expectedStreamCount).toBeGreaterThan(0);
+    expect(decompressionCount).toBe(expectedStreamCount);
+    expect(content?.folio).toBe('D292620E');
+    expect(content?.medications).toHaveLength(1);
+  });
+
   it('extracts equivalent patient, medication and footer content from the official PDF layout', async () => {
     const document = new jsPDF({ unit: 'pt', format: 'letter', compress: true });
     document.text('Fecha impresión', 434, 30);

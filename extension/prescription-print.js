@@ -560,6 +560,16 @@
     return pages;
   };
 
+  var parseOfficialPdfDocument = async function (buffer) {
+    var streams = await inflatePdfStreams(buffer);
+    var pages = pdfTextItems(streams);
+    return {
+      streams: streams,
+      pages: pages,
+      items: pages.flat(),
+    };
+  };
+
   var normalizedPdfText = function (value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
   };
@@ -579,14 +589,7 @@
     return normalizedPdfText(candidate && candidate.text);
   };
 
-  var extractOfficialPrescriptionContent = async function (buffer) {
-    var streams = await inflatePdfStreams(buffer);
-    var pages = pdfTextItems(streams);
-    var items = pages.flat();
-    if (!items.length) return null;
-    var firstPage = pages[0] || [];
-    var lastPage = pages[pages.length - 1] || [];
-    var metadata = await extractOfficialPrescriptionMetadata(buffer);
+  var officialPrescriptionHeaders = function (firstPage) {
     var diagnosisLabel = firstPage.find(function (item) {
       return normalizedPdfText(item.text).toLowerCase() === 'diagnóstico(s):';
     });
@@ -599,8 +602,17 @@
     var dispatchHeader = firstPage.find(function (item) {
       return normalizedPdfText(item.text).toLowerCase() === 'despacho farmacia';
     });
-    if (!medicationHeader || !posologyHeader || !dispatchHeader) return null;
-    var dispatchColumnX = dispatchHeader ? dispatchHeader.x : NaN;
+    return {
+      diagnosisLabel: diagnosisLabel,
+      medicationHeader: medicationHeader,
+      posologyHeader: posologyHeader,
+      dispatchHeader: dispatchHeader,
+    };
+  };
+
+  var officialPrescriptionDiagnosis = function (firstPage, headers) {
+    var diagnosisLabel = headers.diagnosisLabel;
+    var medicationHeader = headers.medicationHeader;
     var diagnosis = '';
     if (diagnosisLabel) {
       var diagnosisFloor = medicationHeader && medicationHeader.y < diagnosisLabel.y
@@ -620,6 +632,14 @@
         .filter(Boolean)
         .join(' ');
     }
+    return diagnosis;
+  };
+
+  var officialPrescriptionMedicationRows = function (pages, headers) {
+    var medicationHeader = headers.medicationHeader;
+    var posologyHeader = headers.posologyHeader;
+    var dispatchHeader = headers.dispatchHeader;
+    var dispatchColumnX = dispatchHeader ? dispatchHeader.x : NaN;
     var medications = [];
     var extractionComplete = true;
     var recognizedTimestampCount = 0;
@@ -755,15 +775,14 @@
         });
       });
     });
-    if (!extractionComplete || !diagnosisLabel ||
-        !recognizedTimestampCount ||
-        medications.length !== recognizedTimestampCount ||
-        medications.some(function (medication) {
-          return !/\bv[ií]a\b/i.test(medication.medication + ' ' + medication.posology) ||
-            !normalizedPdfText(medication.posology);
-        })) {
-      return null;
-    }
+    return {
+      medications: medications,
+      extractionComplete: extractionComplete,
+      recognizedTimestampCount: recognizedTimestampCount,
+    };
+  };
+
+  var buildOfficialPrescriptionContent = function (firstPage, lastPage, metadata, diagnosis, medications) {
     var extracted = {
       patient: {
         name: sameRowValue(firstPage, 'Nombres:'),
@@ -805,9 +824,9 @@
       : null;
   };
 
-  var extractOfficialPrescriptionMetadata = async function (buffer) {
-    var streams = await inflatePdfStreams(buffer);
-    var pages = pdfTextItems(streams);
+  var extractOfficialPrescriptionMetadataFromDocument = function (document) {
+    var streams = document.streams;
+    var pages = document.pages;
     var firstPage = pages[0] || [];
     var values = [];
     streams.forEach(function (stream) {
@@ -850,9 +869,42 @@
     };
   };
 
+  var extractOfficialPrescriptionContent = async function (buffer) {
+    var document = await parseOfficialPdfDocument(buffer);
+    if (!document.items.length) return null;
+    var firstPage = document.pages[0] || [];
+    var lastPage = document.pages[document.pages.length - 1] || [];
+    var metadata = extractOfficialPrescriptionMetadataFromDocument(document);
+    var headers = officialPrescriptionHeaders(firstPage);
+    if (!headers.medicationHeader || !headers.posologyHeader || !headers.dispatchHeader) return null;
+    var diagnosis = officialPrescriptionDiagnosis(firstPage, headers);
+    var rowResult = officialPrescriptionMedicationRows(document.pages, headers);
+    if (!rowResult.extractionComplete || !headers.diagnosisLabel ||
+        !rowResult.recognizedTimestampCount ||
+        rowResult.medications.length !== rowResult.recognizedTimestampCount ||
+        rowResult.medications.some(function (medication) {
+          return !/\bv[ií]a\b/i.test(medication.medication + ' ' + medication.posology) ||
+            !normalizedPdfText(medication.posology);
+        })) {
+      return null;
+    }
+    return buildOfficialPrescriptionContent(
+      firstPage,
+      lastPage,
+      metadata,
+      diagnosis,
+      rowResult.medications
+    );
+  };
+
+  var extractOfficialPrescriptionMetadata = async function (buffer) {
+    var document = await parseOfficialPdfDocument(buffer);
+    return extractOfficialPrescriptionMetadataFromDocument(document);
+  };
+
   var extractOfficialEpicrisisLayout = async function (buffer) {
-    var streams = await inflatePdfStreams(buffer);
-    var pages = pdfTextItems(streams);
+    var document = await parseOfficialPdfDocument(buffer);
+    var pages = document.pages;
     if (!pages.length) return null;
     var normalize = function (value) {
       return normalizedPdfText(value)
