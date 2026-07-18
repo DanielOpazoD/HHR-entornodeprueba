@@ -12,6 +12,10 @@ const gestionCamasRuntimeSource = readFileSync(
   path.resolve('extension/gestion-camas-runtime.js'),
   'utf8'
 );
+const fichaMedicoTransportSource = readFileSync(
+  path.resolve('extension/fichamedico-transport-runtime.js'),
+  'utf8'
+);
 const extensionManifest = JSON.parse(
   readFileSync(path.resolve('extension/manifest.json'), 'utf8')
 ) as {
@@ -57,13 +61,14 @@ describe('extension heavy runtime loading', () => {
   });
 
   it('registers PDF and spreadsheet vendors during classic MV3 worker startup', () => {
-    const startup = backgroundSource.slice(0, backgroundSource.indexOf('const FICHAMEDICO_MATCH'));
+    const startup = backgroundSource.slice(0, backgroundSource.indexOf('const REPORT_FILE'));
 
     expect(startup).toContain("'runtime-loader.js'");
     expect(startup).toContain("'jspdf.umd.min.js'");
     expect(startup).toContain("'pdf-lib.min.js'");
     expect(startup).toContain("'xlsx.full.min.js'");
     expect(startup).toContain("'gestion-camas-runtime.js'");
+    expect(startup).toContain("'fichamedico-transport-runtime.js'");
   });
 
   it('only verifies already-registered runtimes and never performs a late import', () => {
@@ -126,8 +131,13 @@ describe('extension heavy runtime loading', () => {
           onMessage: { addListener: () => undefined },
         },
         storage: { local: localStorage, session: localStorage },
-        tabs: {},
-        windows: {},
+        tabs: {
+          query: async () => [],
+          sendMessage: async () => undefined,
+          update: async () => undefined,
+          create: async () => undefined,
+        },
+        windows: { update: async () => undefined },
         downloads: {},
       },
     });
@@ -167,10 +177,10 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('BACKEND_REQUEST_TIMEOUT_MS = 45_000');
     expect(backgroundSource).toContain('TAB_MESSAGE_TIMEOUT_MS = 50_000');
     expect(backgroundSource).toContain('HEALTH_PROBE_TIMEOUT_MS = 5_000');
-    expect(backgroundSource).toMatch(/withTimeout\(\s*chrome\.tabs\.sendMessage/);
-    expect(backgroundSource).toContain('sendMessage: sendHealthProbe');
+    expect(fichaMedicoTransportSource).toMatch(/withTimeout\(\s*tabs\.sendMessage/);
+    expect(fichaMedicoTransportSource).toContain('sendMessage: sendHealthProbe');
     expect(gestionCamasRuntimeSource).toContain('extensionHealth.orderTabs(tabs)');
-    expect(backgroundSource).toContain('response && !response.error');
+    expect(fichaMedicoTransportSource).toContain('response && !response.error');
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
   });

@@ -254,7 +254,7 @@ describe('clinical panel read runtime', () => {
       'utf8'
     );
 
-    expect(background.slice(0, background.indexOf('const FICHAMEDICO_MATCH'))).toContain(
+    expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
       "'clinical-panel-runtime.js'"
     );
     expect(background).toContain('const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({');

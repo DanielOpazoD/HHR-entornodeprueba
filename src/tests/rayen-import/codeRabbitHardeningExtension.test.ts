@@ -11,6 +11,7 @@ const backgroundSource = readExtension('background.js');
 const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
+const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
 const contentSource = [
   'content-prescription-print.js',
   'hhr-prescription-center.js',
@@ -87,9 +88,8 @@ describe('CodeRabbit clinical integration hardening', () => {
   });
 
   it('isolates Ficha lookups and patient caches by sender session', () => {
-    expect(backgroundSource).toContain(
-      'const getFichaFetchInfo = sender => getFichaFetchInfoUncached(sender)'
-    );
+    expect(backgroundSource).toContain('getFetchInfo: getFichaFetchInfo');
+    expect(fichaMedicoTransportSource).toContain('const getFetchInfo = async sender =>');
     expect(backgroundSource).not.toContain('fichaFetchInfoInflight');
     expect(backgroundSource).toContain('const fichaSessionCacheKey = async (info, sender) =>');
     expect(backgroundSource).toContain("self.crypto.subtle.digest('SHA-256'");

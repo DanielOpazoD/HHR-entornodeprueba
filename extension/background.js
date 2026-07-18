@@ -21,6 +21,7 @@ importScripts(
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js',
+  'fichamedico-transport-runtime.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
   'gestion-camas-cudyr.js',
@@ -48,11 +49,16 @@ if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create 
 if (!self.HhrClinicalPanelRuntime || typeof self.HhrClinicalPanelRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de lectura del panel clínico.');
 }
+if (
+  !self.HhrFichaMedicoTransportRuntime ||
+  typeof self.HhrFichaMedicoTransportRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime de transporte de Ficha Médico.');
+}
 
 const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
 
-const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
 const EXTENSION_PROTOCOL_VERSION = 3;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
@@ -94,34 +100,22 @@ const fetchWithTimeout = async (
   }
 };
 
-const sendHealthProbe = (tabId, message) => withTimeout(
-  chrome.tabs.sendMessage(tabId, message),
-  HEALTH_PROBE_TIMEOUT_MS,
-  'La pestaña no respondió a la verificación de conexión.'
-);
+const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({
+  chrome,
+  extensionHealth: self.HhrExtensionHealth,
+  encounterNavigation: self.HhrEncounterNavigation,
+  withTimeout,
+  tabMessageTimeoutMs: TAB_MESSAGE_TIMEOUT_MS,
+  healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+});
 
-// Try every matching tab (active/most-recent first): some may be stale tabs whose content
-// script isn't injected. The first one that answers wins.
-const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
-  const tabs = await chrome.tabs.query({ url: urlMatch });
-  if (!tabs.length) return { error: noTabError };
-  const ordered = self.HhrExtensionHealth.orderTabs(tabs);
-  let lastError = 'Sin respuesta de la pestaña.';
-  for (const tab of ordered) {
-    try {
-      const response = await withTimeout(
-        chrome.tabs.sendMessage(tab.id, message),
-        TAB_MESSAGE_TIMEOUT_MS,
-        'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
-      );
-      if (response && !response.error) return response;
-      if (response && response.error) lastError = String(response.error);
-    } catch (error) {
-      lastError = String((error && error.message) || error);
-    }
-  }
-  return { error: noAnswerError + ' Detalle: ' + lastError };
-};
+const {
+  sendToMatchingTab,
+  handleSnapshotRequest,
+  handleOpenEncounter,
+  health: handleFichaMedicoHealth,
+  getFetchInfo: getFichaFetchInfo,
+} = fichaMedicoTransportRuntime;
 
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
@@ -145,61 +139,9 @@ const {
   disconnect: handleDisconnectGestionCamas,
 } = gestionCamasRuntime;
 
-const handleSnapshotRequest = () =>
-  sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_READ' },
-    'No hay una pestaña de Rayen (Ficha Médico) abierta. Ábrela e inicia sesión.',
-    'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta.'
-  );
-
-const handleOpenEncounter = async encId => {
-  const normalizedEncounterId = self.HhrEncounterNavigation.normalizeEncounterId(encId);
-  if (!normalizedEncounterId) {
-    return { ok: false, reused: false, error: 'El episodio clínico no es válido.' };
-  }
-
-  try {
-    const matchingTabs = await chrome.tabs.query({ url: FICHAMEDICO_MATCH });
-    const orderedTabs = self.HhrEncounterNavigation.orderEncounterTabs(matchingTabs);
-    const existingTab = orderedTabs[0];
-    const reused = Boolean(existingTab && existingTab.id != null);
-    const targetUrl = self.HhrEncounterNavigation.buildEncounterUrl(
-      normalizedEncounterId,
-      existingTab && existingTab.url
-    );
-    const tab = reused
-      ? await chrome.tabs.update(existingTab.id, { url: targetUrl, active: true })
-      : await chrome.tabs.create({ url: targetUrl, active: true });
-
-    if (tab && tab.windowId != null) {
-      try {
-        await chrome.windows.update(tab.windowId, { focused: true });
-      } catch (_error) {
-        // The encounter is already open; failure to foreground its window is non-blocking.
-      }
-    }
-
-    return { ok: true, reused };
-  } catch (error) {
-    return {
-      ok: false,
-      reused: false,
-      error: 'No se pudo abrir Ficha Médico: ' + String((error && error.message) || error),
-    };
-  }
-};
-
 const handleExtensionHealth = async () => {
   const [fichaMedico, gestionCamas] = await Promise.all([
-    chrome.tabs.query({ url: FICHAMEDICO_MATCH }).then(tabs =>
-      self.HhrExtensionHealth.probeTabs({
-        tabs,
-        sendMessage: sendHealthProbe,
-        missingMessage: 'Abre Ficha Médico e inicia sesión para sincronizar.',
-        staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
-      })
-    ),
+    handleFichaMedicoHealth(),
     handleGestionCamasHealth(),
   ]);
 
@@ -715,50 +657,6 @@ const handleHistoryScalesRequest = async ({ encId }) => {
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
 // the active groups already normalized by author; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
-// Prefer the tab that SENT the request: it is guaranteed to be alive and to run this same
-// extension version. Session verification is deduplicated inside that page/document; the
-// background must not reuse a promise across a login, role transition or sender context.
-const fichaSenderTabId = sender => {
-  const tabId = sender && sender.tab && sender.tab.id;
-  const tabUrl = String(sender && sender.tab && sender.tab.url || sender && sender.url || '');
-  return tabId != null && tabUrl.startsWith('https://fichamedico.rayensalud.cl/')
-    ? tabId
-    : null;
-};
-const getFichaFetchInfo = sender => getFichaFetchInfoUncached(sender);
-
-const getFichaFetchInfoUncached = async sender => {
-  const senderTabId = fichaSenderTabId(sender);
-  if (senderTabId != null) {
-    try {
-      const direct = await withTimeout(
-        chrome.tabs.sendMessage(senderTabId, { type: 'RAYEN_FM_GET_FETCH_INFO' }),
-        TAB_MESSAGE_TIMEOUT_MS,
-        'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
-      );
-      if (direct && direct.info && direct.info.token && direct.info.apiOrigin) {
-        return { info: direct.info };
-      }
-      return { error: direct && direct.error || 'La pestaña emisora no entregó una sesión clínica válida.' };
-    } catch (_error) {}
-    return {
-      error: 'No se pudo verificar la sesión de la pestaña emisora. Recárgala e inicia sesión nuevamente.',
-    };
-  }
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener la sesión de Ficha Médico. Recarga la página (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin sesión de Ficha Médico. Recarga la página e inicia sesión.' };
-  }
-  return { info };
-};
-
 const fetchPrescriptionEvents = async (encId, knownInfo) => {
   if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
   const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
