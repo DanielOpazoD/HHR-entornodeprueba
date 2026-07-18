@@ -75,7 +75,7 @@ describe('Gestión de Camas CUDYR normalizer', () => {
       'utf8'
     );
     const start = source.indexOf('const handleCudyrCategoriesRequest = async');
-    const end = source.indexOf('\n\nconst respondAsync', start);
+    const end = source.indexOf('\n\nconst runtimeRoute', start);
     if (start < 0 || end < 0) throw new Error('No se encontró el manejador CUDYR.');
     const context = vm.createContext({
       getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),

@@ -137,7 +137,7 @@ describe('extension clinical write recovery', () => {
 
   it('uses the same recovery-token field in content and background routing', () => {
     expect(contentSource).toContain("['recoveryToken']: recoveryPreview.challenge");
-    expect(backgroundSource).toContain('recoveryToken: msg.recoveryToken');
+    expect(backgroundSource).toContain('recoveryToken: message.recoveryToken');
   });
 
   it('does not preview an ambiguous write during the consistency window', async () => {

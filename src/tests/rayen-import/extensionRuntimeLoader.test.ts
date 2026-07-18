@@ -185,7 +185,7 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('record.connectionAttemptId = suppliedAttemptId');
     expect(backgroundSource).toContain('attemptId: crypto.randomUUID()');
     expect(backgroundSource).toContain('RAYEN_GC_SET_CONNECTION_ATTEMPT');
-    expect(backgroundSource).toContain('RAYEN_GC_DOCUMENT_READY');
+    expect(backgroundSource).toContain('[RUNTIME_MESSAGES.GC_DOCUMENT_READY]: runtimeRoute(');
     expect(backgroundSource).toContain('CONNECTION_CONTROL_STORAGE_KEY');
     expect(backgroundSource).toContain('CLOSING_WINDOW_STORAGE_KEY');
     expect(backgroundSource).toContain('clearUnusableGestionCamasSession');

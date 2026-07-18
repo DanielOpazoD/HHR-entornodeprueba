@@ -28,6 +28,10 @@
 (() => {
   'use strict';
 
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!runtimeMessages) return;
+
   const post = message => window.postMessage(message, window.location.origin);
 
   window.addEventListener('message', event => {
@@ -38,7 +42,7 @@
     if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' })
+        .sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST })
         .then(report => {
           post({ type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report });
         })
@@ -54,7 +58,7 @@
 
     if (data.type === 'HHR_RAYEN_REQUEST_SNAPSHOT') {
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_SNAPSHOT_REQUEST' })
+        .sendMessage({ type: runtimeMessages.SNAPSHOT_REQUEST })
         .then(response => {
           if (response && response.snapshot) {
             post({ type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot: response.snapshot });
@@ -74,7 +78,7 @@
     if (data.type === 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_OPEN_ENCOUNTER_REQUEST', encId: data.encId })
+        .sendMessage({ type: runtimeMessages.OPEN_ENCOUNTER_REQUEST, encId: data.encId })
         .then(response => {
           post({
             type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT',
@@ -101,7 +105,7 @@
       const reqId = data.reqId;
       const runs = Array.isArray(data.runs) ? data.runs : [];
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_EGRESO_LOOKUP_REQUEST', runs })
+        .sendMessage({ type: runtimeMessages.EGRESO_LOOKUP_REQUEST, runs })
         .then(response => {
           const results = (response && Array.isArray(response.results) && response.results) || [];
           post({ type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId, results });
@@ -118,7 +122,7 @@
       const reqId = data.reqId;
       chrome.runtime
         .sendMessage({
-          type: 'RAYEN_EGRESO_REPORT_REQUEST',
+          type: runtimeMessages.EGRESO_REPORT_REQUEST,
           dateStart: data.dateStart,
           dateEnd: data.dateEnd,
         })
@@ -137,7 +141,7 @@
     if (data.type === 'HHR_RAYEN_DEVICE_REPORT_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_DEVICE_REPORT_REQUEST', encId: data.encId, fecha: data.fecha })
+        .sendMessage({ type: runtimeMessages.DEVICE_REPORT_REQUEST, encId: data.encId, fecha: data.fecha })
         .then(response => {
           post({
             type: 'HHR_RAYEN_DEVICE_REPORT_RESULT',
@@ -157,7 +161,7 @@
     if (data.type === 'HHR_RAYEN_SCALES_REPORT_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_SCALES_REPORT_REQUEST', encId: data.encId })
+        .sendMessage({ type: runtimeMessages.SCALES_REPORT_REQUEST, encId: data.encId })
         .then(response => {
           post({
             type: 'HHR_RAYEN_SCALES_REPORT_RESULT',
@@ -177,7 +181,7 @@
     if (data.type === 'HHR_RAYEN_HISTORY_SCALES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_HISTORY_SCALES_REQUEST', encId: data.encId })
+        .sendMessage({ type: runtimeMessages.HISTORY_SCALES_REQUEST, encId: data.encId })
         .then(response => {
           post({
             type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',
@@ -197,7 +201,7 @@
     if (data.type === 'HHR_RAYEN_CLINICAL_PANEL_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_CLINICAL_PANEL_REQUEST', encId: data.encId })
+        .sendMessage({ type: runtimeMessages.CLINICAL_PANEL_REQUEST, encId: data.encId })
         .then(response => {
           post({
             type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT',
@@ -227,7 +231,7 @@
     if (data.type === 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: 'RAYEN_CUDYR_CATEGORIES_REQUEST' })
+        .sendMessage({ type: runtimeMessages.CUDYR_CATEGORIES_REQUEST })
         .then(response => {
           post({
             type: 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT',

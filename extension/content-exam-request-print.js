@@ -7,7 +7,9 @@
   window.__hhrExamRequestPrintInjected = true;
 
   const ui = globalThis.HhrExamRequestPrintUi;
-  if (!ui) return;
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!ui || !runtimeMessages) return;
 
   const CONTROL_ID = 'hhr-exam-request-print-control';
   const MODAL_ID = 'hhr-exam-request-print-modal';
@@ -125,7 +127,7 @@
       feedback.style.color = '#35645e';
       feedback.textContent = 'Preparando las solicitudes oficiales…';
       const response = await sendMessage({
-        type: 'RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST',
+        type: runtimeMessages.EXAM_REQUEST_COMBINE_PRINT_REQUEST,
         encId,
         diteIds: result.selected,
         requests: requests

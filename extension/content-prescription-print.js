@@ -14,7 +14,9 @@
   const ui = globalThis.HhrUI;
   const vitalsHelper = globalThis.HhrVitals;
   const requestForms = globalThis.HhrRequestForms;
-  if (!helper || !ui || globalThis.__hhrPrescriptionPrintInjected) return;
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!helper || !ui || !runtimeMessages || globalThis.__hhrPrescriptionPrintInjected) return;
   globalThis.__hhrPrescriptionPrintInjected = true;
 
   const BUTTON_ID = 'hhr-prescription-print-button';
@@ -250,7 +252,7 @@
       const result = await captured;
       if (result.error) throw new Error(result.error);
       const response = await sendMessage({
-        type: 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST',
+        type: runtimeMessages.EPICRISIS_CORRECTED_PRINT_REQUEST,
         pdfBase64: String(result.pdfBase64 || ''),
         patientRun: expectedPatientRun,
       });
@@ -323,7 +325,7 @@
     item.style.pointerEvents = 'none';
     try {
       const response = await sendMessage({
-        type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST',
+        type: runtimeMessages.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST,
         encId: encounterId,
         patientRun,
       });
@@ -415,12 +417,12 @@
   } catch (_error) {}
 
   const retryableMessageTypes = new Set([
-    'RAYEN_PRESCRIPTION_OPTIONS_REQUEST',
-    'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST',
-    'RAYEN_SCALES_REPORT_REQUEST',
-    'RAYEN_PATIENT_HEADER_REQUEST',
-    'RAYEN_CENSUS_LIST_REQUEST',
-    'RAYEN_VITALS_CENSUS_REQUEST',
+    runtimeMessages.PRESCRIPTION_OPTIONS_REQUEST,
+    runtimeMessages.HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST,
+    runtimeMessages.SCALES_REPORT_REQUEST,
+    runtimeMessages.PATIENT_HEADER_REQUEST,
+    runtimeMessages.CENSUS_LIST_REQUEST,
+    runtimeMessages.VITALS_CENSUS_REQUEST,
   ]);
   const isTransientMessageChannelError = value =>
     /message channel closed|receiving end does not exist|asynchronous response|extension context invalidated/i
@@ -436,8 +438,8 @@
   const sendMessage = message =>
     new Promise(resolve => {
       const isClinicalWrite = message && (
-        message.type === 'RAYEN_HANDOFF_SAVE_REQUEST' ||
-        message.type === 'RAYEN_SCORE_SAVE_REQUEST'
+        message.type === runtimeMessages.HANDOFF_SAVE_REQUEST ||
+        message.type === runtimeMessages.SCORE_SAVE_REQUEST
       );
       const transportFailure = error => ({
         error: friendlyTransportMessage(error, isClinicalWrite),
@@ -474,7 +476,7 @@
       }
       try {
         chrome.runtime.sendMessage({
-          type: 'RAYEN_CLINICAL_WRITE_ACK',
+          type: runtimeMessages.CLINICAL_WRITE_ACK,
           key: receipt.key,
           generationId: receipt.generationId,
           receiptId: receipt.receiptId,
@@ -530,7 +532,7 @@
 
   const releaseClinicalWriteProtection = async (key, protection) => {
     const preview = await sendMessage({
-      type: 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST',
+      type: runtimeMessages.CLINICAL_WRITE_RECOVERY_REQUEST,
       key,
       generationId: protection && protection.generationId,
       phase: 'preview',
@@ -549,7 +551,7 @@
     });
     if (!confirmed) return { cancelled: true };
     return sendMessage({
-      type: 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST',
+      type: runtimeMessages.CLINICAL_WRITE_RECOVERY_REQUEST,
       key,
       generationId: protection && protection.generationId,
       phase: 'confirm',
@@ -1505,7 +1507,7 @@
       body.innerHTML = '<div class="hhr-rx-status">Buscando recetas disponibles…</div>';
       submit.disabled = true;
       submit.textContent = 'Imprimir receta completa';
-      const response = await sendMessage({ type: 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST', encId });
+      const response = await sendMessage({ type: runtimeMessages.PRESCRIPTION_OPTIONS_REQUEST, encId });
       if (!root.isConnected || generation !== viewGeneration) return;
       if (!response || response.error) {
         renderError((response && response.error) || 'No se encontraron recetas disponibles.');
@@ -1670,7 +1672,7 @@
         cancel.disabled = true;
         submit.textContent = 'Generando receta…';
         const result = await sendMessage({
-          type: 'RAYEN_PRESCRIPTION_PRINT_REQUEST',
+          type: runtimeMessages.PRESCRIPTION_PRINT_REQUEST,
           encId,
           selectionKey: selected.value,
           printFormat: selectedFormat.value,
@@ -1697,7 +1699,7 @@
         body.innerHTML = '<div class="hhr-rx-status">Revisando pacientes hospitalizados y sus recetas activas…</div>';
         if (!hospitalizedRequest) {
           hospitalizedRequest = sendMessage({
-            type: 'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST',
+            type: runtimeMessages.HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST,
             currentEncId: encId,
           });
         }
@@ -1877,7 +1879,7 @@
         cancel.disabled = true;
         submit.textContent = 'Preparando ' + selected.length + (selected.length === 1 ? ' receta…' : ' recetas…');
         const result = await sendMessage({
-          type: 'RAYEN_HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST',
+          type: runtimeMessages.HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST,
           batchId: hospitalizedResponse.batchId,
           encIds: selected.map(input => input.value),
           printFormat: selectedFormat.value,
@@ -2192,9 +2194,9 @@
           ? 'Preparando regímenes y BRADEN…'
           : 'Preparando ' + selected.length + (selected.length === 1 ? ' indicación…' : ' indicaciones…');
         const result = await sendMessage(isRegimen
-          ? { type: 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST' }
+          ? { type: runtimeMessages.HOSPITALIZED_REGIMEN_PRINT_REQUEST }
           : {
-              type: 'RAYEN_HOSPITALIZED_INDICATIONS_PRINT_REQUEST',
+              type: runtimeMessages.HOSPITALIZED_INDICATIONS_PRINT_REQUEST,
               batchId: response.batchId,
               encIds: selected.map(input => input.value),
             });
@@ -2219,8 +2221,8 @@
 
     sendMessage({
       type: isRegimen
-        ? 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST'
-        : 'RAYEN_HOSPITALIZED_INDICATIONS_OPTIONS_REQUEST',
+        ? runtimeMessages.HOSPITALIZED_REGIMEN_OPTIONS_REQUEST
+        : runtimeMessages.HOSPITALIZED_INDICATIONS_OPTIONS_REQUEST,
       currentEncId: encId || '',
     }).then(response => {
       if (!root.isConnected) return;
@@ -2444,7 +2446,7 @@
       }
       nameEl.textContent = 'Identificando…';
       metaEl.textContent = '';
-      const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: requestedEncId });
+      const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId: requestedEncId });
       if (!root.isConnected || root.dataset.selectedEncounterId !== requestedEncId) return;
       if (!response || response.error) {
         nameEl.textContent = 'Paciente no identificado';
@@ -2520,7 +2522,7 @@
       if (!censusLoaded) {
         list.innerHTML = '<div class="hhr-patientbar-empty">Cargando censo…</div>';
         const response = await sendMessage({
-          type: 'RAYEN_CENSUS_LIST_REQUEST',
+          type: runtimeMessages.CENSUS_LIST_REQUEST,
           currentEncId: currentRouteEncounterId(),
         });
         if (!root.isConnected || picker.hidden) return;
@@ -2588,7 +2590,7 @@
       printButton.disabled = true;
       printButton.textContent = 'Abriendo…';
       const result = await sendMessage({
-        type: 'RAYEN_HANDOFF_REPORT_REQUEST',
+        type: runtimeMessages.HANDOFF_REPORT_REQUEST,
         nurseStationId: station.value,
       });
       printButton.disabled = false;
@@ -2601,7 +2603,7 @@
       }
     });
 
-    sendMessage({ type: 'RAYEN_HANDOFF_OPTIONS_REQUEST', currentEncId: encId || '' }).then(response => {
+    sendMessage({ type: runtimeMessages.HANDOFF_OPTIONS_REQUEST, currentEncId: encId || '' }).then(response => {
       if (
         !root.isConnected ||
         root.dataset.activeModule !== 'handoff' ||
@@ -2789,7 +2791,7 @@
           setClinicalGuardState(root, 'pending', handoffKey, true);
           setSyncState(sync, 'Guardando…', 'pending');
           const result = await sendMessage({
-            type: 'RAYEN_HANDOFF_SAVE_REQUEST',
+            type: runtimeMessages.HANDOFF_SAVE_REQUEST,
             batchId: response.batchId,
             encId: patient.encounterId,
             observation: pendingText,
@@ -2877,7 +2879,7 @@
       runClinicalTransition(root, () => renderScoresCenter(root, encId), { allowUncertain: true });
     });
 
-    sendMessage({ type: 'RAYEN_SCORES_OPTIONS_REQUEST', currentEncId: encId || '' }).then(response => {
+    sendMessage({ type: runtimeMessages.SCORES_OPTIONS_REQUEST, currentEncId: encId || '' }).then(response => {
       if (!root.isConnected || root.dataset.activeModule !== 'scores') return;
       if (!response || response.error) {
         content.innerHTML = '';
@@ -2940,7 +2942,7 @@
         main.appendChild(panel);
         panelClose.focus();
         sendMessage({
-          type: 'RAYEN_SCORE_FORM_REQUEST',
+          type: runtimeMessages.SCORE_FORM_REQUEST,
           batchId: response.batchId,
           encId: patient.encounterId,
           instrument,
@@ -3083,7 +3085,7 @@
             setClinicalGuardState(root, 'dirty', scoreKey, false);
             setClinicalGuardState(root, 'pending', scoreKey, true);
             const result = await sendMessage({
-              type: 'RAYEN_SCORE_SAVE_REQUEST',
+              type: runtimeMessages.SCORE_SAVE_REQUEST,
               batchId: response.batchId,
               encId: patient.encounterId,
               instrument,
@@ -3657,7 +3659,7 @@
     };
 
     const checkSyslabAccess = async () => {
-      const report = await sendMessage({ type: 'RAYEN_SYSLAB_STATUS_REQUEST' });
+      const report = await sendMessage({ type: runtimeMessages.SYSLAB_STATUS_REQUEST });
       const connected = Boolean(report && !report.error && report.connected);
       setSyslabAccess(connected, report && (report.error || report.message) || 'No se pudo comprobar Syslab.');
       return connected;
@@ -3730,7 +3732,7 @@
           event.preventDefault();
           event.stopPropagation();
           pdf.disabled = true;
-          const response = await sendMessage({ type: 'RAYEN_LAB_PDF_OPEN_REQUEST', batchId, examId: exam.id });
+          const response = await sendMessage({ type: runtimeMessages.LAB_PDF_OPEN_REQUEST, batchId, examId: exam.id });
           pdf.disabled = false;
           if (!response || response.error) status.textContent = (response && response.error) || 'No se pudo abrir el PDF.';
         });
@@ -3780,7 +3782,7 @@
       selectAll.disabled = true;
       filter.disabled = true;
       refresh.disabled = true;
-      const response = await sendMessage({ type: 'RAYEN_LAB_SEARCH_REQUEST', encId: encId || '' });
+      const response = await sendMessage({ type: runtimeMessages.LAB_SEARCH_REQUEST, encId: encId || '' });
       if (!root.isConnected || root.dataset.activeModule !== 'lab' || generation !== requestGeneration) return;
       filter.disabled = false;
       refresh.disabled = false;
@@ -3842,7 +3844,7 @@
       analyze.textContent = 'Leyendo y organizando informes…';
       status.textContent = 'Extrayendo resultados desde los PDF seleccionados. Cada bloque tiene un límite de 25 segundos.';
       const response = await sendMessage({
-        type: 'RAYEN_LAB_DETAILS_REQUEST',
+        type: runtimeMessages.LAB_DETAILS_REQUEST,
         batchId: requestBatchId,
         examIds: requestExamIds,
       });
@@ -3887,7 +3889,7 @@
   };
 
   const fetchPatientHeaderView = async encId => {
-    const response = await sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId });
+    const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
     if (!response || response.error) {
       return { error: (response && response.error) || 'No se pudo identificar al paciente.' };
     }
@@ -4194,7 +4196,7 @@
       printButton.textContent = 'Generando PDF…';
       setFeedback('Rellenando la plantilla oficial…');
       const result = await sendMessage({
-        type: 'RAYEN_IMAGING_FORM_PRINT_REQUEST',
+        type: runtimeMessages.IMAGING_FORM_PRINT_REQUEST,
         encId,
         doc: selectedDoc,
         physician: physicianInput.value.trim(),
@@ -4292,7 +4294,7 @@
     const requestGeneration = String(Number(root.dataset.vitalsCensusRequestGeneration || 0) + 1);
     root.dataset.vitalsCensusRequestGeneration = requestGeneration;
     sendMessage({
-      type: 'RAYEN_VITALS_CENSUS_REQUEST',
+      type: runtimeMessages.VITALS_CENSUS_REQUEST,
       currentEncId: currentRouteEncounterId() || encId || '',
     }).then(response => {
       if (!root.isConnected || root.dataset.activeModule !== 'vitals' ||
@@ -4415,8 +4417,8 @@
     }
 
     Promise.all([
-      sendMessage({ type: 'RAYEN_SCALES_REPORT_REQUEST', encId: requestedEncId }),
-      sendMessage({ type: 'RAYEN_PATIENT_HEADER_REQUEST', encId: requestedEncId }),
+      sendMessage({ type: runtimeMessages.SCALES_REPORT_REQUEST, encId: requestedEncId }),
+      sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId: requestedEncId }),
     ]).then(([response, patientResponse]) => {
       if (
         !root.isConnected ||
@@ -4787,7 +4789,7 @@
 
     const load = async () => {
       refresh.disabled = true;
-      const report = await sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' });
+      const report = await sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
       refresh.disabled = false;
       if (!root.isConnected) return null;
       if (!report || report.error) {
@@ -4832,7 +4834,7 @@
       connect.disabled = true;
       setFeedback('Abriendo la página oficial de Gestión de Camas…');
       const response = await sendMessage({
-        type: 'RAYEN_GC_CONNECT_REQUEST',
+        type: runtimeMessages.GC_CONNECT_REQUEST,
         renew: shouldRenewSession,
       });
       if (!response || response.error) {
@@ -4846,7 +4848,7 @@
     });
     forget.addEventListener('click', async () => {
       pollingGeneration += 1;
-      const response = await sendMessage({ type: 'RAYEN_GC_DISCONNECT_REQUEST' });
+      const response = await sendMessage({ type: runtimeMessages.GC_DISCONNECT_REQUEST });
       connect.disabled = false;
       if (!response || response.error) {
         setFeedback((response && response.error) || 'No se pudo olvidar la conexión.', true);
@@ -4916,7 +4918,7 @@
     }
     if (!force && Date.now() - operationsConnectionCheckAt < 30 * 1000) return Promise.resolve(null);
     if (operationsConnectionCheck) return operationsConnectionCheck;
-    operationsConnectionCheck = sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' })
+    operationsConnectionCheck = sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST })
       .then(report => apply(report && !report.error ? report : null))
       .finally(() => {
         operationsConnectionCheckAt = Date.now();
@@ -4972,7 +4974,7 @@
       return;
     }
     button.disabled = true;
-    const result = await sendMessage({ type: 'RAYEN_INDICATIONS_PRINT_REQUEST', encId });
+    const result = await sendMessage({ type: runtimeMessages.INDICATIONS_PRINT_REQUEST, encId });
     button.disabled = false;
     if (!result || result.error) {
       createFeedbackModal({
@@ -5091,7 +5093,7 @@
       submit.disabled = true;
     };
 
-    sendMessage({ type: 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST', currentEncId: '' }).then(response => {
+    sendMessage({ type: runtimeMessages.HOSPITALIZED_REGIMEN_OPTIONS_REQUEST, currentEncId: '' }).then(response => {
       if (!root.isConnected) return;
       if (!response || response.error) {
         renderError((response && response.error) || 'No se pudo leer la lista de hospitalizados.');
@@ -5134,7 +5136,7 @@
         submit.disabled = true;
         cancel.disabled = true;
         submit.textContent = 'Preparando PDF…';
-        const result = await sendMessage({ type: 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST' });
+        const result = await sendMessage({ type: runtimeMessages.HOSPITALIZED_REGIMEN_PRINT_REQUEST });
         if (!root.isConnected) return;
         cancel.disabled = false;
         if (!result || result.error) {

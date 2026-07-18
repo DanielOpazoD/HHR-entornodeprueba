@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
 
 describe('Centro HHR navigation and vital-signs overview', () => {
   it('keeps the Centro root mounted while switching modules', () => {
@@ -30,7 +31,8 @@ describe('Centro HHR navigation and vital-signs overview', () => {
   });
 
   it('opens vital signs with a census summary and preserves patient drill-down', () => {
-    expect(contentSource).toContain("type: 'RAYEN_VITALS_CENSUS_REQUEST'");
+    expect(contentSource).toContain('type: runtimeMessages.VITALS_CENSUS_REQUEST');
+    expect(messageContractSource).toContain("VITALS_CENSUS_REQUEST: 'RAYEN_VITALS_CENSUS_REQUEST'");
     expect(contentSource).toContain('Última toma disponible por paciente');
     expect(contentSource).toContain("vitalsView: 'detail'");
     expect(contentSource).toContain('Todos los pacientes');
@@ -44,7 +46,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain('if (!patient.unavailableReason) {');
     expect(backgroundSource).toContain('const handleVitalsCensusRequest');
     expect(backgroundSource).toContain('mapWithConcurrency(result.patients || [], 4');
-    expect(backgroundSource).toContain("msg.type === 'RAYEN_VITALS_CENSUS_REQUEST'");
+    expect(backgroundSource).toContain('[RUNTIME_MESSAGES.VITALS_CENSUS_REQUEST]: runtimeRoute(');
   });
 
   it('opens any selected hospitalized patient with the complete individual recipe flow', () => {
@@ -79,7 +81,9 @@ describe('Centro HHR navigation and vital-signs overview', () => {
 
   it('resolves a nursing medical epicrisis against the exact discharged patient', () => {
     expect(contentSource).toContain('Imprimir epicrisis médica');
-    expect(contentSource).toContain("type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'");
+    expect(contentSource).toContain(
+      'type: runtimeMessages.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'
+    );
     expect(backgroundSource).toContain('const resolveDischargedEncounterIdByRun');
     expect(backgroundSource).toContain("url.searchParams.set('filterType', '2')");
     expect(backgroundSource).toContain('contextRun !== normalizedPatientRun');

@@ -357,8 +357,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
     expect(background).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
     expect(background).toContain('searchSyslabDirectly');
-    expect(background).toContain('RAYEN_SYSLAB_STATUS_REQUEST');
-    expect(background).toContain('RAYEN_SYSLAB_LOGIN_REQUEST');
+    expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(');
+    expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(');
     expect(background).toContain('handleSyslabLoginRequest');
     expect(background).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
     expect(background).toContain('chrome.offscreen.createDocument');
@@ -372,8 +372,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('response.bridgeId !== previousBridgeId');
     expect(background).toContain('RAYEN_SYSLAB_READ_DETAILS');
     expect(background).toContain('linksByExamId');
-    expect(background).toContain('RAYEN_LAB_SEARCH_REQUEST');
-    expect(background).toContain('RAYEN_LAB_DETAILS_REQUEST');
+    expect(background).toContain('[RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(');
+    expect(background).toContain('[RUNTIME_MESSAGES.LAB_DETAILS_REQUEST]: runtimeRoute(');
     expect(background).toContain('validateDetailBatch');
     expect(background).toContain('linksByExamId');
     expect(background).toContain('const reportRequests = exams.map(exam => ({');
@@ -389,12 +389,12 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
     expect(background).toContain('no está en el censo de hospitalizados activo');
     expect(background).toContain(
-      'handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender })'
+      'handleLabDetailsRequest({ batchId: message.batchId, examIds: message.examIds, sender })'
     );
     expect(background).toContain(
-      'handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId, sender })'
+      'handleLabPdfOpenRequest({ batchId: message.batchId, examId: message.examId, sender })'
     );
-    expect(background).toContain('RAYEN_LAB_PDF_OPEN_REQUEST');
+    expect(background).toContain('[RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(');
     expect(background).toContain('base64: validation.pdfBase64');
     expect(background).toContain('print-pdf.html?job=');
     expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
@@ -420,7 +420,7 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain("chrome.runtime.getURL('syslab-login.html')");
     expect(content).not.toContain('input name="password"');
     expect(loginHtml).toContain('No se guardan en la extensión');
-    expect(login).toContain("type: 'RAYEN_SYSLAB_LOGIN_REQUEST'");
+    expect(login).toContain('type: runtimeMessages.SYSLAB_LOGIN_REQUEST');
     expect(login).toContain("candidate === 'https://fichamedico.rayensalud.cl'");
     expect(login).not.toContain('localStorage');
     expect(login).not.toContain('sessionStorage');

@@ -8,6 +8,10 @@
 (() => {
   'use strict';
 
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!runtimeMessages) return;
+
   // Diagnostic marker so page-context checks can confirm this relay injected.
   try {
     document.documentElement.setAttribute('data-rayen-gc-relay', '1');
@@ -32,7 +36,7 @@
   // that document is asked for credentials, otherwise its captures would look stale.
   try {
     const requestedRevision = connectionAttemptRevision;
-    chrome.runtime.sendMessage({ type: 'RAYEN_GC_DOCUMENT_READY' }, response => {
+    chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
       if (chrome.runtime.lastError) return;
       if (connectionAttemptRevision !== requestedRevision) return;
       applyConnectionAttempt(response && response.connectionAttemptId, true);
@@ -107,9 +111,9 @@
   window.addEventListener('message', event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
-    if (!data || data.type !== 'RAYEN_GC_SESSION_CAPTURED' || !data.info) return;
+    if (!data || data.type !== runtimeMessages.GC_SESSION_CAPTURED || !data.info) return;
     try {
-      chrome.runtime.sendMessage({ type: 'RAYEN_GC_SESSION_CAPTURED', info: data.info }, () => {
+      chrome.runtime.sendMessage({ type: runtimeMessages.GC_SESSION_CAPTURED, info: data.info }, () => {
         void chrome.runtime.lastError;
       });
     } catch (_error) {}
@@ -144,7 +148,7 @@
     if (!d || (d.type !== 'RAYEN_GC_TEST_REPORT' && d.type !== 'RAYEN_GC_TEST_SAVE')) return;
     const isSave = d.type === 'RAYEN_GC_TEST_SAVE';
     chrome.runtime.sendMessage(
-      { type: isSave ? 'RAYEN_EGRESO_REPORT_SAVE' : 'RAYEN_EGRESO_REPORT_REQUEST', dateStart: d.dateStart, dateEnd: d.dateEnd },
+      { type: isSave ? runtimeMessages.EGRESO_REPORT_SAVE : runtimeMessages.EGRESO_REPORT_REQUEST, dateStart: d.dateStart, dateEnd: d.dateEnd },
       resp => {
         const err = chrome.runtime.lastError;
         window.postMessage(
