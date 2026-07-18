@@ -25,6 +25,7 @@ importScripts(
   'gestion-camas-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
+  'clinical-panel-runtime.js',
   'clinical-write-runtime.js',
   'prescription-print.js',
   'lab-viewer.js',
@@ -44,6 +45,9 @@ importScripts(
 if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
 }
+if (!self.HhrClinicalPanelRuntime || typeof self.HhrClinicalPanelRuntime.create !== 'function') {
+  throw new Error('No se pudo cargar el runtime de lectura del panel clínico.');
+}
 
 const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
@@ -54,6 +58,7 @@ const EXTENSION_PROTOCOL_VERSION = 3;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;
+const CLINICAL_PANEL_REQUEST_TIMEOUT_MS = 15_000;
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
   const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -707,202 +712,6 @@ const handleHistoryScalesRequest = async ({ encId }) => {
   }
 };
 
-// Fetch one patient's clinical history report (same endpoint as the scales history) and return the
-// events slimmed to the CLINICAL PANEL resumes: medical evolutions, nursing shift-change notes and
-// active indications (pharma / free-text / diet / rest). Each resume keeps ONLY the whitelisted
-// fields HHR renders — author, timestamp, status flags and the clinical text — nothing else leaves
-// the page. Deliberately excluded (unused at HHR): procedure indications, nurse physical exams,
-// invasive devices (those come from the PDF report) and diagnosis resumes.
-const pickFields = (list, fields) =>
-  Array.isArray(list)
-    ? list.map(item => {
-        const out = {};
-        for (const f of fields) out[f] = item ? item[f] : undefined;
-        return out;
-      })
-    : [];
-const CLINICAL_PANEL_RESUMES = {
-  evolutionResume: [
-    'OBE_NOTES', 'OBE_PUBLISH_DATETIME', 'OBE_START_DATETIME',
-    // HCPR_NAME is the practitioner's ROLE (Médico/Enfermera/…); the person's name arrives split
-    // in the HCP_* name parts — HHR composes "Nombre Apellido" from them and files the evolution
-    // under Médicas / Enfermería / Otros by the role.
-    'HCPR_NAME', 'HCP_FGN', 'HCP_NGN', 'HCP_FFN', 'HCP_SFN',
-    'HCP_LEGAL', 'ARCHIVED', 'IS_CROSSED_OUT', 'OBE_AMENDED', 'id',
-  ],
-  shiftChangeResume: [
-    'OBSERVATION', 'HCPR_NAME', 'HCP_FGN', 'HCP_NGN', 'HCP_FFN', 'HCP_SFN',
-    'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED', 'ID',
-  ],
-  patientPharmaIndicationResume: [
-    'DESCRIPTOR', 'VIRTUAL_MEDICAL_PRODUCT', 'POSOLOGY', 'ROUTE_ADMINISTRATION',
-    'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'FINALIZED', 'IS_NEW', 'IS_DISCHARGE',
-    'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME', 'MRE_ID', 'ARCHIVED',
-    'IS_EXTERNAL', 'is_external', 'ALL_MEDICATION', 'allMedication',
-  ],
-  patientFreeIndicationResume: [
-    'INDICATION', 'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME',
-    'SUSPENDED', 'IS_NEW', 'IS_DISCHARGE', 'AMRE_ID', 'ARCHIVED',
-  ],
-  nutritionOrderResume: ['DIET_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED'],
-  restResume: ['rest_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED'],
-};
-
-const slimCarePlanHeaders = payload =>
-  Array.isArray(payload && payload.carePlanHeader)
-    ? payload.carePlanHeader.map(header => ({
-        label: header && header.label,
-        labelDate: header && header.labelDate,
-        scheduledDate: header && header.scheduledDate,
-        isSuspended: header && header.isSuspended,
-        carePlanBody: pickFields(header && header.carePlanBody, [
-          'entryGuid',
-          'activityId',
-          'activity',
-          'title',
-          'tag',
-          'hoursRange',
-          'hoursRangeActi',
-          'administrationDate',
-          'timestamp',
-          'user',
-          'isPerformed',
-          'isPerformedOutSidePlanning',
-          'isFinished',
-          'isSuspended',
-          'doNotExecute',
-        ]),
-      }))
-    : [];
-
-const slimMedicationStates = payload =>
-  pickFields(payload && payload.Medication, [
-    'id',
-    'suspended',
-    'archived',
-    'finalized',
-    'programmingEndDatetime',
-    'programmingEndDateTime',
-    'endDateTime',
-    'deletedDateTime',
-  ]);
-
-const fetchFichaJson = (url, token) =>
-  self.HhrClinicalPanelFetch.fetchJsonWithTimeout({ url, token, fetchImpl: fetch });
-
-const fetchMedicationStates = async (baseUrl, isSuspended, token) => {
-  const rows = await self.HhrClinicalPanelFetch.fetchMedicationPages({
-    fetchPage: (page, limit) =>
-      fetchFichaJson(`${baseUrl}?page=${page}&limit=${limit}&isSuspended=${isSuspended}`, token),
-  });
-  return slimMedicationStates({ Medication: rows });
-};
-
-const handleClinicalPanelRequest = async ({ encId }) => {
-  if (!encId) return { error: 'Falta enc_id para el panel clínico.' };
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
-  }
-  const historyUrl =
-    `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
-    `getPatientEncounterHistoryReportServer/false/0/0/-14`;
-  const encodedEncounter = encodeURIComponent(encId);
-  const careUrl = `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
-  const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}`;
-
-  const [historyResult, careResult, activeMedicationResult, suspendedMedicationResult, validationResult] =
-    await Promise.allSettled([
-      fetchFichaJson(historyUrl, info.token),
-      fetchFichaJson(careUrl, info.token),
-      fetchMedicationStates(medicationBase, false, info.token),
-      fetchMedicationStates(medicationBase, true, info.token),
-      fetchTreatmentValidation(encId, info),
-    ]);
-
-  let sources;
-  try {
-    sources = self.HhrClinicalPanelFetch.unwrapRequiredSources([
-      { label: 'historial clínico', result: historyResult },
-      { label: 'plan de cuidados', result: careResult },
-      { label: 'medicamentos activos', result: activeMedicationResult },
-      { label: 'medicamentos inactivos', result: suspendedMedicationResult },
-      { label: 'validación diaria del tratamiento', result: validationResult },
-    ]);
-    const validationSource = sources[4];
-    if (validationSource && validationSource.error) {
-      throw new Error('validación diaria del tratamiento: ' + validationSource.error);
-    }
-  } catch (error) {
-    return {
-      error:
-        'Falló la descarga del panel clínico: ' +
-        String((error && error.message) || error),
-    };
-  }
-
-  const [
-    rawHistory,
-    carePayload,
-    activeMedicationStates,
-    suspendedMedicationStates,
-    validationSource,
-  ] = sources;
-
-  const events = [];
-  for (const ev of Array.isArray(rawHistory) ? rawHistory : []) {
-    if (!ev) continue;
-    const slim = { publishDatetime: ev.publishDatetime || '' };
-    const validator = ev.healthCarePractitionerValidator;
-    if (validator && typeof validator === 'object') {
-      slim.validationDatetime =
-        validator.creationDatetime || validator.stringTimestamp || validator.timestamp || '';
-    } else if (typeof validator === 'string' && validator.trim()) {
-      slim.validationDatetime = ev.publishDatetime || '';
-    }
-    let hasContent = Boolean(slim.validationDatetime);
-    for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
-      const picked = pickFields(ev[resume], fields);
-      slim[resume] = picked;
-      if (picked.length > 0) hasContent = true;
-    }
-    if (hasContent) events.push(slim);
-  }
-
-  const currentValidation = validationSource && validationSource.validation || null;
-  const currentValidationDatetime =
-    currentValidation && typeof currentValidation === 'object'
-      ? currentValidation.creationDatetime
-        || currentValidation.stringTimestamp
-        || currentValidation.timestamp
-        || ''
-      : '';
-  if (currentValidationDatetime
-    && !events.some(event => event.validationDatetime === currentValidationDatetime)) {
-    events.push({
-      publishDatetime: currentValidationDatetime,
-      validationDatetime: currentValidationDatetime,
-      ...Object.fromEntries(Object.keys(CLINICAL_PANEL_RESUMES).map(resume => [resume, []])),
-    });
-  }
-
-  return {
-    ok: true,
-    events,
-    carePlan: {
-      carePlanHeaders: slimCarePlanHeaders(carePayload),
-      medicationStates: [...activeMedicationStates, ...suspendedMedicationStates],
-    },
-  };
-};
-
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
 // the active groups already normalized by author; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
@@ -1142,6 +951,22 @@ const fetchTreatmentValidation = async (encId, knownInfo) => {
     return { error: 'No se pudo leer la última validación: ' + String((error && error.message) || error) };
   }
 };
+
+const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({
+  fetchImpl: fetch,
+  fetchJsonWithTimeout: self.HhrClinicalPanelFetch.fetchJsonWithTimeout,
+  fetchMedicationPages: self.HhrClinicalPanelFetch.fetchMedicationPages,
+  unwrapRequiredSources: self.HhrClinicalPanelFetch.unwrapRequiredSources,
+  resolveSession: () => sendToMatchingTab(
+    FICHAMEDICO_MATCH,
+    { type: 'RAYEN_FM_GET_FETCH_INFO' },
+    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
+    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
+  ),
+  fetchCurrentValidation: fetchTreatmentValidation,
+  timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS,
+});
+const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest;
 
 const handlePrescriptionOptionsRequest = async ({ encId }) => {
   const infoResult = await getFichaFetchInfo();

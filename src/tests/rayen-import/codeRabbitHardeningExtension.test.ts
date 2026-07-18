@@ -8,6 +8,7 @@ const readExtension = (file: string): string =>
   readFileSync(path.resolve('extension', file), 'utf8');
 
 const backgroundSource = readExtension('background.js');
+const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const contentSource = [
@@ -43,10 +44,8 @@ describe('CodeRabbit clinical integration hardening', () => {
   });
 
   it('fails the clinical panel closed when daily treatment validation is unavailable', () => {
-    expect(backgroundSource).toContain(
-      "{ label: 'validación diaria del tratamiento', result: validationResult }"
-    );
-    expect(backgroundSource).toContain('validationSource && validationSource.error');
+    expect(clinicalPanelRuntimeSource).toContain("{ label: 'validación diaria del tratamiento'");
+    expect(clinicalPanelRuntimeSource).toContain('validationSource && validationSource.error');
   });
 
   it('requires server claims for medical and nursing handoff access', () => {

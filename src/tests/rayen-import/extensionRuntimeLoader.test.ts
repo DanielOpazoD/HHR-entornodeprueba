@@ -112,6 +112,7 @@ describe('extension heavy runtime loading', () => {
       TextEncoder,
       TextDecoder,
       AbortController,
+      fetch: globalThis.fetch,
       URL,
       Blob,
       atob,
