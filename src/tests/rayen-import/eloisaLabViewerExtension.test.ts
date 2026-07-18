@@ -344,6 +344,7 @@ describe('native Eloisa laboratory viewer', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
     const content = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+    const labCenter = readFileSync(path.resolve('extension/hhr-lab-center.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
     const offscreen = readFileSync(path.resolve('extension/syslab-offscreen.js'), 'utf8');
@@ -416,8 +417,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
     expect(offscreen).not.toContain('Math.min(1_500');
     expect(content).toContain('hhr-ops-lab');
-    expect(content).toContain('hhr-syslab-login');
-    expect(content).toContain("chrome.runtime.getURL('syslab-login.html')");
+    expect(labCenter).toContain('hhr-syslab-login');
+    expect(labCenter).toContain("chrome.runtime.getURL('syslab-login.html')");
     expect(content).not.toContain('input name="password"');
     expect(loginHtml).toContain('No se guardan en la extensión');
     expect(login).toContain('type: runtimeMessages.SYSLAB_LOGIN_REQUEST');
@@ -429,15 +430,15 @@ describe('native Eloisa laboratory viewer', () => {
       "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
     );
     expect(content).toContain(
-      "else if (activeModule === 'lab') renderLabRequestView(root, targetEncId)"
+      "else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
     );
     expect(content).toContain('else renderConnectionCenter(root, targetEncId)');
-    expect(content).toContain('Comparación');
-    expect(content).toContain('Tendencias');
-    expect(content).toContain('Por informe');
-    expect(content).toContain('requestGeneration');
-    expect(content).toContain('invalidateLabAnalysis');
-    expect(content).toContain("batchId = ''");
+    expect(labCenter).toContain('Comparación');
+    expect(labCenter).toContain('Tendencias');
+    expect(labCenter).toContain('Por informe');
+    expect(labCenter).toContain('requestGeneration');
+    expect(labCenter).toContain('invalidateLabAnalysis');
+    expect(labCenter).toContain("batchId = ''");
     expect(manifest).toContain('"lab-viewer.js"');
     expect(manifest).toContain('"syslab-bridge.js"');
     expect(manifest).toContain('"http://10.4.69.90/syslab/*"');

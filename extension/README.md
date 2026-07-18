@@ -50,7 +50,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `vendor-lock.json` | Versiones, licencias y SHA-256 de las librerías vendorizadas del paquete |
 | `hhr-prescription-center.js` | Superficie de Recetas del Centro HHR: paciente actual, hospitalizados, selección e impresión repetible |
 | `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones y Regímenes + BRADEN |
-| `content-prescription-print.js` | Orquesta el shell, navegación, contexto clínico y módulos restantes del Centro HHR |
+| `hhr-handoff-scores-center.js` | Superficies de Entrega de turno y Scores, con sus lecturas y escrituras clínicas verificadas |
+| `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
+| `content-prescription-print.js` | Orquesta el shell, navegación, contexto de paciente y montaje de los owners del Centro HHR |
 | `background.js` | Enruta lecturas, reportes y escrituras verificadas contra los servicios de Eloísa |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
