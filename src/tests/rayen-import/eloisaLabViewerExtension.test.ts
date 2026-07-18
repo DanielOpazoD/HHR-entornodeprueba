@@ -342,6 +342,7 @@ describe('native Eloisa laboratory viewer', () => {
 
   it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
+    const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
     const content = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
@@ -351,53 +352,52 @@ describe('native Eloisa laboratory viewer', () => {
     const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
 
     expect(background).not.toContain('localhost:3001');
-    expect(background).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
-    expect(background).toContain('sweepExpiredLabBatches');
-    expect(background).toContain('Puedes analizar como máximo 24 informes por operación.');
-    expect(background).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
-    expect(background).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
-    expect(background).toContain('searchSyslabDirectly');
+    expect(background).toContain("'syslab-runtime.js'");
+    expect(background).toContain('self.HhrSyslabRuntime.create({');
+    expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
+    expect(runtime).toContain('sweepExpiredLabBatches');
+    expect(runtime).toContain('Puedes analizar como máximo 24 informes por operación.');
+    expect(runtime).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
+    expect(runtime).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
+    expect(runtime).toContain('searchSyslabDirectly');
     expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(');
     expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(');
-    expect(background).toContain('handleSyslabLoginRequest');
-    expect(background).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
-    expect(background).toContain('chrome.offscreen.createDocument');
-    expect(background).toContain("reasons: ['IFRAME_SCRIPTING']");
-    expect(background).toContain('context.documentUrl === offscreenUrl');
-    expect(background).toContain('const current = await readOffscreenContexts()');
-    expect(background).toContain('sendToSyslabOffscreen');
-    expect(background).not.toContain('SYSLAB_TAB_STORAGE_KEY');
-    expect(background).not.toContain('focusSyslabTab');
-    expect(background).toContain('previousBridgeId');
-    expect(background).toContain('response.bridgeId !== previousBridgeId');
-    expect(background).toContain('RAYEN_SYSLAB_READ_DETAILS');
-    expect(background).toContain('linksByExamId');
+    expect(runtime).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
+    expect(runtime).toContain('chromeApi.offscreen.createDocument');
+    expect(runtime).toContain("reasons: ['IFRAME_SCRIPTING']");
+    expect(runtime).toContain('context.documentUrl === offscreenUrl');
+    expect(runtime).toContain('const current = await readOffscreenContexts()');
+    expect(runtime).toContain('sendToSyslabOffscreen');
+    expect(runtime).not.toContain('SYSLAB_TAB_STORAGE_KEY');
+    expect(runtime).not.toContain('focusSyslabTab');
+    expect(runtime).toContain('previousBridgeId');
+    expect(runtime).toContain('response.bridgeId !== previousBridgeId');
+    expect(runtime).toContain('RAYEN_SYSLAB_READ_DETAILS');
+    expect(runtime).toContain('linksByExamId');
     expect(background).toContain('[RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(');
     expect(background).toContain('[RUNTIME_MESSAGES.LAB_DETAILS_REQUEST]: runtimeRoute(');
-    expect(background).toContain('validateDetailBatch');
-    expect(background).toContain('linksByExamId');
-    expect(background).toContain('const reportRequests = exams.map(exam => ({');
-    expect(background).toContain('exams: reportRequests');
-    expect(background).toContain('validateLabSenderEncounter');
-    expect(background).toContain('examRowsMatchRut(payload.exams, rutBody)');
-    expect(background).toContain(
-      'Syslab no confirmó que los informes correspondan al RUN solicitado'
-    );
+    expect(runtime).toContain('validateDetailBatch');
+    expect(runtime).toContain('linksByExamId');
+    expect(runtime).toContain('const reportRequests = exams.map(exam => ({');
+    expect(runtime).toContain('exams: reportRequests');
+    expect(runtime).toContain('validateLabSenderEncounter');
+    expect(runtime).toContain('examRowsMatchRut(payload.exams, rutBody)');
+    expect(runtime).toContain('Syslab no confirmó que los informes correspondan al RUN solicitado');
     // The lab flow accepts the sender tab's own encounter (fast path) or any encounter present
     // in the active hospitalized census (shared patient picker); anything else is rejected.
-    expect(background).toContain('senderEncounterId === String(expectedEncounterId');
-    expect(background).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
-    expect(background).toContain('no está en el censo de hospitalizados activo');
+    expect(runtime).toContain('senderEncounterId === String(expectedEncounterId');
+    expect(runtime).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
+    expect(runtime).toContain('no está en el censo de hospitalizados activo');
     expect(background).toContain(
-      'handleLabDetailsRequest({ batchId: message.batchId, examIds: message.examIds, sender })'
+      'syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender })'
     );
     expect(background).toContain(
-      'handleLabPdfOpenRequest({ batchId: message.batchId, examId: message.examId, sender })'
+      'syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender })'
     );
     expect(background).toContain('[RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(');
-    expect(background).toContain('base64: validation.pdfBase64');
-    expect(background).toContain('print-pdf.html?job=');
-    expect(background).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
+    expect(runtime).toContain('base64: validation.pdfBase64');
+    expect(runtime).toContain('print-pdf.html?job=');
+    expect(runtime).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
     expect(bridge).toContain("SYSLAB_ORIGIN = 'http://10.4.69.90'");
     expect(bridge).toContain("credentials: 'include'");
     expect(bridge).toContain('MAX_BODY_BYTES = 6 * 1024 * 1024');

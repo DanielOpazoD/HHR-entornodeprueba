@@ -8,6 +8,7 @@ const readExtension = (file: string): string =>
   readFileSync(path.resolve('extension', file), 'utf8');
 
 const backgroundSource = readExtension('background.js');
+const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const contentSource = readExtension('content-prescription-print.js');
 const fichaSource = readExtension('inject-fichamedico.js');
 const readmeSource = readExtension('README.md');
@@ -84,8 +85,8 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(backgroundSource).not.toContain('fichaFetchInfoInflight');
     expect(backgroundSource).toContain('const fichaSessionCacheKey = async (info, sender) =>');
     expect(backgroundSource).toContain("self.crypto.subtle.digest('SHA-256'");
-    expect(backgroundSource).toContain('const censusAllowlistCache = new Map()');
-    expect(backgroundSource).toContain('getClinicalReportContext(encId, null, null, sender)');
+    expect(syslabRuntimeSource).toContain('const censusAllowlistCache = new Map()');
+    expect(syslabRuntimeSource).toContain('getClinicalReportContext(encId, null, null, sender)');
   });
 
   it('preserves selected patient context and rejects stale async renders', () => {
