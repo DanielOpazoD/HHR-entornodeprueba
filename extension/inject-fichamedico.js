@@ -190,20 +190,6 @@
     } catch (_) {}
   };
 
-  const readSessionRole = session => {
-    const candidates = [
-      session && session.role,
-      session && session.roleName,
-      session && session.profileName,
-      session && session.practitionerRoleName,
-      session && session.healthCarePractitionerRoleName,
-      session && session.healthCareRoleName,
-    ];
-    return String(candidates.find(value => typeof value === 'string' && value.trim()) || '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
   const resolveNursingContext = ({ facilityId, practitionerId, practitionerRoleId, role }) => {
     const identityKey = [facilityId, practitionerId, practitionerRoleId].join(':');
     const routeIsNursing = NURSING_ROUTE_RE.test(window.location.pathname || '');
@@ -241,17 +227,6 @@
     return sessionIdentityInflight;
   };
 
-  const sessionExpiryTimestamp = (session, payload) => {
-    const value = session && (
-      session.expiresAt || session.expires || session.expirationDateTime || session.expiration
-    ) || payload && (payload.expiresAt || payload.expires);
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value > 10_000_000_000 ? Math.round(value) : Math.round(value * 1000);
-    }
-    const parsed = Date.parse(String(value || ''));
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
   const readSafeSessionIdentityUncached = async () => {
     const revision = ++sessionBindingRevision;
     try {
@@ -279,7 +254,7 @@
       if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
         return null;
       }
-      const role = readSessionRole(session);
+      const role = normalization.normalizeSessionRole(session);
       const previousAuth = capturedAuth;
       const tokenMatchesCapturedAuth = !previousAuth || previousAuth === sessionToken;
       if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
@@ -292,7 +267,7 @@
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        expiresAt: sessionExpiryTimestamp(session, payload),
+        expiresAt: normalization.normalizeSessionExpiry(session, payload),
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
@@ -353,52 +328,12 @@
   });
   refreshSessionBinding();
 
-  const realDate = iso => {
-    if (!iso) return undefined;
-    const year = Number(String(iso).slice(0, 4));
-    return year > 1 ? iso : undefined;
-  };
-
   const headerUrl = (base, encId) =>
     `${base.origin}/api/encounter/patientHeaderData/${encId}/false`;
 
   const diagnosisUrl = (base, encId) =>
     `${base.origin}/api/encounter/entrySummary/diagnosisEntry/` +
     `${encId}/0/2/${base.searchParams.get('healthCarePractitionerId') || '7941'}`;
-
-  const normalizeEncounter = (item, header, principalDiagnosis, discharged) => {
-    const p = item.patient || {};
-    const h = header || {};
-    const fullName = String(item.patientName || p.patientName || '').replace(/\s+/g, ' ').trim();
-    return {
-      encounterId: String(item.id),
-      run: h.preferredIdentifierCode || p.identifier || item.patientIdentifier || '',
-      firstGivenName: h.firstGivenName || fullName || '',
-      nextGivenNames: h.nextGivenNames || '',
-      firstFamilyName: h.firstFamilyName || '',
-      secondFamilyName: h.secondFamilyName || '',
-      birthDate: h.birthDate || p.birthDate || item.birthDate || '',
-      administrativeSexId: h.adseId || item.patientAdministrativeSexId || '',
-      administrativeSex: h.adseName || '',
-      gender: h.gendName || p.genero || '',
-      service: item.hospitalDepartmentShortName || item.hospitalDepartmentName || item.serviceName || '',
-      room: item.roomShortName || item.roomName || '',
-      bed: item.bedShortName || item.bedName || '',
-      hospitalDepartmentId: item.hospitalDepartmentId || h.hospitalDepartmentId || '',
-      nurseStationId: item.nurseStationId || '',
-      patientId: h.patID || item.patientId || p.id || '',
-      admissionDatetime: h.encStartPeriod || item.startDatetime || '',
-      diagnosis: principalDiagnosis.name,
-      diagnosisCode: principalDiagnosis.code || undefined,
-      diagnosisDescription: principalDiagnosis.code ? principalDiagnosis.name : undefined,
-      hasMedicalDischarge: discharged || !!item.hasMedicalDischarge || !!item.medicalDischarge,
-      hasNurseDischarge: !!item.hasNurseDischarge,
-      dischargeDatetime: realDate(h.encEndPeriod) || realDate(item.medicalDischargeDateTime),
-      isDead: !!item.isDead,
-      isIsolated: !!item.isIsolated,
-      isGes: !!item.isGes,
-    };
-  };
 
   const readCensus = async () => {
     const context = await getVerifiedClinicalContext();
@@ -458,7 +393,12 @@
           header,
           item
         );
-        encounters[index] = normalizeEncounter(item, header, principalDiagnosis, isDischarged);
+        encounters[index] = normalization.normalizeEncounter(
+          item,
+          header,
+          principalDiagnosis,
+          isDischarged
+        );
       }
     };
     await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));

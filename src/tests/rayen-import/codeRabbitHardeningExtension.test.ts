@@ -138,7 +138,9 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(backgroundSource).toContain("allowOfficialFallback: format === 'compact'");
     expect(backgroundSource).toContain('compactFallbackReason');
     expect(backgroundSource).toContain('officialResult.buffer.slice(0)');
-    expect(fichaSource).toContain('expiresAt: sessionExpiryTimestamp(session, payload)');
+    expect(fichaSource).toContain(
+      'expiresAt: normalization.normalizeSessionExpiry(session, payload)'
+    );
     expect(contentSource).toContain('el formato oficial para evitar omitir contenido clínico');
   });
 });
