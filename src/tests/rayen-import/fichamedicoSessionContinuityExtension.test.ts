@@ -6,6 +6,10 @@ import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 
 const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
+const normalizationSource = readFileSync(
+  path.resolve('extension/fichamedico-normalization.js'),
+  'utf8'
+);
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 
 type PostedMessage = {
@@ -124,6 +128,7 @@ const createHarness = async (
     },
   });
 
+  vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
 
