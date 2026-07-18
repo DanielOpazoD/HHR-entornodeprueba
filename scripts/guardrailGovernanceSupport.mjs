@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { EVIDENCE_DEPENDENCY_GRAPH } from './evidenceDependencyGraph.mjs';
 
 const CONFIG_PATH = 'scripts/config/guardrail-governance.json';
 const PACKAGE_JSON_PATH = 'package.json';
@@ -93,12 +94,6 @@ export const collectGuardrailGovernanceIssues = root => {
       return false;
     }
     return true;
-  };
-
-  const ensureArtifactExists = (artifactPath, ownerLabel) => {
-    if (!fs.existsSync(path.join(root, artifactPath))) {
-      issues.push(`${ownerLabel}: missing artifact ${artifactPath}`);
-    }
   };
 
   for (const tier of blockingTiers) {
@@ -200,7 +195,19 @@ export const collectGuardrailGovernanceIssues = root => {
       issues.push(`${label}: missing artifact`);
       continue;
     }
-    ensureArtifactExists(artifact, label);
+
+    const evidenceNode = Object.values(EVIDENCE_DEPENDENCY_GRAPH).find(
+      node => node.command === scriptName
+    );
+    if (!evidenceNode) {
+      issues.push(`${label}: ${scriptName} is not declared in the evidence dependency graph`);
+      continue;
+    }
+    if (!evidenceNode.artifacts.includes(artifact)) {
+      issues.push(
+        `${label}: ${artifact} is not produced by ${scriptName} in the evidence dependency graph`
+      );
+    }
   }
 
   return issues;

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPostMergeEvidenceSummary,
   buildPostMergeEvidencePayload,
+  collectPostMergeEvidenceContractIssues,
   findPostMergeEvidenceIssues,
   POST_MERGE_EVIDENCE_COMMANDS,
   REQUIRED_POST_MERGE_EVIDENCE_RESULTS,
@@ -12,6 +13,7 @@ describe('postMergeEvidenceSupport', () => {
   it('defines the release evidence commands that must be refreshed after merge', () => {
     expect(POST_MERGE_EVIDENCE_COMMANDS.map(command => command.name)).toEqual([
       'quality-metrics',
+      'sync-convergence',
       'system-confidence',
       'operational-health',
       'clinical-release-validation',
@@ -21,6 +23,24 @@ describe('postMergeEvidenceSupport', () => {
       'maintenance-debt-scorecard',
       'report-freshness-strict',
     ]);
+  });
+
+  it('requires post-merge evidence to regenerate every strictly fresh report', () => {
+    expect(collectPostMergeEvidenceContractIssues()).toEqual([]);
+
+    expect(
+      collectPostMergeEvidenceContractIssues(
+        POST_MERGE_EVIDENCE_COMMANDS.filter(command => command.name !== 'sync-convergence')
+      )
+    ).toContain('postmerge:evidence does not regenerate npm run report:sync-convergence');
+
+    const strictFirst = [
+      POST_MERGE_EVIDENCE_COMMANDS.at(-1),
+      ...POST_MERGE_EVIDENCE_COMMANDS.slice(0, -1),
+    ].filter(command => command !== undefined);
+    expect(collectPostMergeEvidenceContractIssues(strictFirst)).toContain(
+      'postmerge:evidence runs npm run report:sync-convergence after strict freshness'
+    );
   });
 
   it('builds an executive summary with commit and freshness status', () => {

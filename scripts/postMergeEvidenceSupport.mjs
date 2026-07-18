@@ -1,5 +1,8 @@
+import { REPORT_FRESHNESS_CONTRACTS } from './reportFreshnessSupport.mjs';
+
 export const POST_MERGE_EVIDENCE_COMMANDS = [
   { name: 'quality-metrics', command: 'npm run report:quality-metrics' },
+  { name: 'sync-convergence', command: 'npm run report:sync-convergence' },
   { name: 'system-confidence', command: 'npm run report:system-confidence' },
   { name: 'operational-health', command: 'npm run report:operational-health' },
   { name: 'clinical-release-validation', command: 'npm run report:clinical-release-validation' },
@@ -13,6 +16,28 @@ export const POST_MERGE_EVIDENCE_COMMANDS = [
 export const REQUIRED_POST_MERGE_EVIDENCE_RESULTS = POST_MERGE_EVIDENCE_COMMANDS.map(
   command => command.name
 );
+
+export const collectPostMergeEvidenceContractIssues = (
+  commands = POST_MERGE_EVIDENCE_COMMANDS,
+  freshnessContracts = REPORT_FRESHNESS_CONTRACTS
+) => {
+  const configuredCommands = commands.map(entry => entry.command);
+  const strictCommand = 'npm run check:report-freshness:strict';
+  const strictIndex = configuredCommands.indexOf(strictCommand);
+  const issues = strictIndex === -1 ? [`postmerge:evidence does not run ${strictCommand}`] : [];
+
+  for (const contract of freshnessContracts) {
+    const refreshCommand = `npm run ${contract.refreshScript}`;
+    const refreshIndex = configuredCommands.indexOf(refreshCommand);
+    if (refreshIndex === -1) {
+      issues.push(`postmerge:evidence does not regenerate ${refreshCommand}`);
+    } else if (strictIndex !== -1 && refreshIndex > strictIndex) {
+      issues.push(`postmerge:evidence runs ${refreshCommand} after strict freshness`);
+    }
+  }
+
+  return issues;
+};
 
 const statusLabel = status => (status === 'passed' ? 'verde' : 'revisar');
 

@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import {
   buildPostMergeEvidencePayload,
   buildPostMergeEvidenceSummary,
+  collectPostMergeEvidenceContractIssues,
   POST_MERGE_EVIDENCE_COMMANDS,
 } from './postMergeEvidenceSupport.mjs';
 
@@ -36,6 +37,15 @@ const runCommand = ({ name, command }) => {
 };
 
 fs.mkdirSync(REPORTS_DIR, { recursive: true });
+
+const contractIssues = collectPostMergeEvidenceContractIssues();
+if (contractIssues.length > 0) {
+  console.error('[postmerge-evidence] Invalid freshness contract:');
+  for (const issue of contractIssues) {
+    console.error(`- ${issue}`);
+  }
+  process.exit(1);
+}
 
 const results = POST_MERGE_EVIDENCE_COMMANDS.map(runCommand);
 const payload = buildPostMergeEvidencePayload({
