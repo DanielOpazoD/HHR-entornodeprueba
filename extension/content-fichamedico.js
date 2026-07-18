@@ -8,6 +8,10 @@
 (() => {
   'use strict';
 
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!runtimeMessages) return;
+
   // Diagnostic marker on the shared DOM so page-context checks can confirm this
   // ISOLATED content script actually injected on fichamedico.
   try {
@@ -110,7 +114,7 @@
     const isSave = d.type === 'RAYEN_FM_TEST_DEVICE_SAVE';
     chrome.runtime.sendMessage(
       {
-        type: isSave ? 'RAYEN_DEVICE_REPORT_SAVE' : 'RAYEN_DEVICE_REPORT_REQUEST',
+        type: isSave ? runtimeMessages.DEVICE_REPORT_SAVE : runtimeMessages.DEVICE_REPORT_REQUEST,
         encId: d.encId,
         fecha: d.fecha,
       },

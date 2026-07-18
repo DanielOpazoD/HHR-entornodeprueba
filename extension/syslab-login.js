@@ -2,6 +2,9 @@
   'use strict';
 
   const form = document.getElementById('syslab-login-form');
+  const runtimeMessages = globalThis.HhrRayenMessageContract &&
+    globalThis.HhrRayenMessageContract.types;
+  if (!form || !runtimeMessages) return;
   const username = form.querySelector('input[name="username"]');
   const password = form.querySelector('input[name="password"]');
   const submit = form.querySelector('button[type="submit"]');
@@ -44,7 +47,7 @@
     submit.disabled = true;
     showStatus('Verificando credenciales en Syslab…');
     const response = await sendMessage({
-      type: 'RAYEN_SYSLAB_LOGIN_REQUEST',
+      type: runtimeMessages.SYSLAB_LOGIN_REQUEST,
       username: safeUsername,
       password: safePassword,
     });
@@ -59,7 +62,7 @@
     if (!connected) password.focus();
   });
 
-  void sendMessage({ type: 'RAYEN_SYSLAB_STATUS_REQUEST' }).then(response => {
+  void sendMessage({ type: runtimeMessages.SYSLAB_STATUS_REQUEST }).then(response => {
     const connected = Boolean(response && !response.error && response.connected);
     if (!connected) return;
     const message = String(response.message || 'Syslab conectado.');

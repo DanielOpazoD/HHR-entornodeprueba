@@ -21,6 +21,7 @@
     {
       "resources": [
         "hhr-logo.svg",
+        "message-contract.js",
         "syslab-login.html",
         "syslab-login.js",
         "forms/consentimiento.pdf",
@@ -47,6 +48,7 @@
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
       "js": [
+        "message-contract.js",
         "hhr-ui.js",
         "hhr-vitals.js",
         "hhr-request-forms.js",
@@ -67,7 +69,7 @@
     },
     {
       "matches": ["https://hospitalizado.rayensalud.cl/*"],
-      "js": ["content-gestioncamas.js"],
+      "js": ["message-contract.js", "content-gestioncamas.js"],
       "run_at": "document_start"
     },
     {
@@ -78,7 +80,7 @@
     },
     {
       "matches": ["http://localhost/*", "https://testinghhr.netlify.app/*"],
-      "js": ["content-hhr.js"],
+      "js": ["message-contract.js", "content-hhr.js"],
       "run_at": "document_idle"
     }
   ]

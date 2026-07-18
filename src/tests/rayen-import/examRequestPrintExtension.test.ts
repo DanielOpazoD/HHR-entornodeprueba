@@ -10,6 +10,8 @@ import { PDFDocument } from 'pdf-lib';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/message-contract.js';
+
 const helperSource = readFileSync(path.resolve('extension/exam-request-print.js'), 'utf8');
 const contentSource = readFileSync(path.resolve('extension/content-exam-request-print.js'), 'utf8');
 const pdfSource = readFileSync(path.resolve('extension/exam-request-pdf.js'), 'utf8');
@@ -413,7 +415,7 @@ describe('integrated laboratory-request extension', () => {
     expect(scripts).toContain('exam-request-print.js');
     expect(scripts).toContain('content-exam-request-print.js');
     expect(contentSource).toContain('Imprimir selección (2–3 órdenes)');
-    expect(contentSource).toContain('RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST');
+    expect(contentSource).toContain('runtimeMessages.EXAM_REQUEST_COMBINE_PRINT_REQUEST');
     expect(backgroundSource).toContain('/api/report/Orden_Examen_Hospitalario.pdf');
     expect(backgroundSource).toContain("senderEncounterId !== String(encId || '')");
     expect(backgroundSource).toContain('extractOfficialExamRequestContent');

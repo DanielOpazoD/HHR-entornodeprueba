@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
 import '../../../extension/prescription-print.js';
 
@@ -227,7 +228,7 @@ describe('extension prescription print content flow', () => {
     expect(scoreAck).toBeGreaterThan(-1);
     expect(scoreDisconnect).toBeGreaterThan(scoreAck);
 
-    const handoffRequest = contentSource.indexOf("type: 'RAYEN_HANDOFF_SAVE_REQUEST'");
+    const handoffRequest = contentSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
     const handoffAck = contentSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
       handoffRequest
@@ -241,8 +242,8 @@ describe('extension prescription print content flow', () => {
   });
 
   it('keeps credentials on the official Rayen page and exposes session controls in Centro HHR', () => {
-    expect(contentSource).toContain("type: 'RAYEN_GC_CONNECT_REQUEST'");
-    expect(contentSource).toContain("type: 'RAYEN_GC_DISCONNECT_REQUEST'");
+    expect(contentSource).toContain('type: runtimeMessages.GC_CONNECT_REQUEST');
+    expect(contentSource).toContain('type: runtimeMessages.GC_DISCONNECT_REQUEST');
     expect(contentSource).toContain(
       'La contraseña se ingresa únicamente en la página oficial de Rayen'
     );

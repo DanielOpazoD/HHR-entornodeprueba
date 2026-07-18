@@ -17,6 +17,7 @@
 // evaluation. Register every PDF/XLS dependency here; runtime-loader.js then acts as a readiness
 // guard for the workflows that use them instead of attempting a forbidden late import.
 importScripts(
+  'message-contract.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js',
@@ -36,6 +37,9 @@ importScripts(
   'pdf-print.js',
   'runtime-loader.js',
 );
+
+const messageContract = self.HhrRayenMessageContract;
+const RUNTIME_MESSAGES = messageContract.types;
 
 const FICHAMEDICO_MATCH = 'https://fichamedico.rayensalud.cl/*';
 const GESTIONCAMAS_MATCH = 'https://hospitalizado.rayensalud.cl/*';
@@ -5109,262 +5113,264 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   return { ok: true, viewerTabId: tab && tab.id };
 };
 
-const respondAsync = (promise, sendResponse, fallbackMessage) => {
-  Promise.resolve(promise)
-    .then(response => sendResponse(response || { error: fallbackMessage }))
-    .catch(error => {
-      console.error('[HHR] Falló una operación asíncrona de la extensión:', error);
-      sendResponse({
-        error: fallbackMessage + ' ' + String((error && error.message) || error || '').trim(),
-      });
-    });
-  return true;
-};
+const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  const respond = (promise, fallbackMessage = 'La operación de la extensión no pudo completarse.') =>
-    respondAsync(promise, sendResponse, fallbackMessage);
-  if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_REQUEST') {
-    return respond(handleExtensionHealth(), 'No se pudo verificar el estado de la extensión.');
-  }
-  if (msg && msg.type === 'RAYEN_GC_SESSION_CAPTURED') {
-    return respond(
-      captureGestionCamasSession(msg.info, sender),
-      'No se pudo conservar la sesión temporal de Gestión de Camas.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_GC_DOCUMENT_READY') {
-    return respond(
-      handleGestionCamasDocumentReady(sender),
-      'No se pudo restaurar el intento de conexión de Gestión de Camas.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_GC_CONNECT_REQUEST') {
-    return respond(
-      handleConnectGestionCamas({ renew: msg.renew === true }),
-      'No se pudo abrir Gestión de Camas.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_GC_DISCONNECT_REQUEST') {
-    return respond(handleDisconnectGestionCamas(), 'No se pudo olvidar la conexión de Gestión de Camas.');
-  }
-  if (msg && msg.type === 'RAYEN_SNAPSHOT_REQUEST') {
-    return respond(handleSnapshotRequest(), 'No se pudo leer el censo de Ficha Médico.');
-  }
-  if (msg && msg.type === 'RAYEN_OPEN_ENCOUNTER_REQUEST') {
-    return respond(handleOpenEncounter(msg.encId), 'No se pudo abrir el episodio clínico.');
-  }
-  if (msg && msg.type === 'RAYEN_EGRESO_LOOKUP_REQUEST') {
-    return respond(handleEgresoLookup(Array.isArray(msg.runs) ? msg.runs : []), 'No se pudo consultar el egreso.');
-  }
-  if (msg && msg.type === 'RAYEN_EGRESO_REPORT_REQUEST') {
-    return respond(handleReportRequest({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }), 'No se pudo leer el reporte de egresos.');
-  }
-  if (msg && msg.type === 'RAYEN_EGRESO_REPORT_SAVE') {
-    return respond(handleReportSave({ dateStart: msg.dateStart, dateEnd: msg.dateEnd }), 'No se pudo guardar el reporte de egresos.');
-  }
-  if (msg && msg.type === 'RAYEN_DEVICE_REPORT_REQUEST') {
-    return respond(handleDeviceReportRequest({ encId: msg.encId, fecha: msg.fecha }), 'No se pudo leer el reporte de dispositivos.');
-  }
-  if (msg && msg.type === 'RAYEN_DEVICE_REPORT_SAVE') {
-    return respond(handleDeviceReportSave({ encId: msg.encId, fecha: msg.fecha }), 'No se pudo guardar el reporte de dispositivos.');
-  }
-  if (msg && msg.type === 'RAYEN_SCALES_REPORT_REQUEST') {
-    return respond(handleScalesReportRequest({ encId: msg.encId, sender }), 'No se pudo leer el reporte de escalas.');
-  }
-  if (msg && msg.type === 'RAYEN_PATIENT_HEADER_REQUEST') {
-    return respond(handlePatientHeaderRequest({ encId: msg.encId, sender }), 'No se pudo identificar al paciente.');
-  }
-  if (msg && msg.type === 'RAYEN_CENSUS_LIST_REQUEST') {
-    return respond(
-      handleCensusListRequest({ currentEncId: msg.currentEncId, sender }),
-      'No se pudo leer el censo de hospitalizados.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_VITALS_CENSUS_REQUEST') {
-    return respond(
-      handleVitalsCensusRequest({ currentEncId: msg.currentEncId, sender }),
-      'No se pudieron leer los signos vitales del censo.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_IMAGING_FORM_PRINT_REQUEST') {
-    return respond(
-      handleImagingFormPrintRequest({ encId: msg.encId, doc: msg.doc, physician: msg.physician, marks: msg.marks, sender }),
-      'No se pudo imprimir el formulario de imagenología.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HISTORY_SCALES_REQUEST') {
-    return respond(handleHistoryScalesRequest({ encId: msg.encId }), 'No se pudo leer el historial de escalas.');
-  }
-  if (msg && msg.type === 'RAYEN_CLINICAL_PANEL_REQUEST') {
-    return respond(handleClinicalPanelRequest({ encId: msg.encId }), 'No se pudo cargar el panel clínico.');
-  }
-  if (msg && msg.type === 'RAYEN_LAB_SEARCH_REQUEST') {
-    return respond(
-      handleLabSearchRequest({ encId: msg.encId, sender }),
-      'No se pudieron buscar los exámenes de laboratorio.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_SYSLAB_STATUS_REQUEST') {
-    return respond(currentSyslabSession(), 'No se pudo comprobar la conexión con Syslab.');
-  }
-  if (msg && msg.type === 'RAYEN_SYSLAB_LOGIN_REQUEST') {
-    return respond(
-      handleSyslabLoginRequest({ username: msg.username, password: msg.password }),
-      'No se pudo iniciar sesión en Syslab.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_LAB_DETAILS_REQUEST') {
-    return respond(
-      handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender }),
-      'No se pudieron analizar los informes de laboratorio.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_LAB_PDF_OPEN_REQUEST') {
-    return respond(
-      handleLabPdfOpenRequest({ batchId: msg.batchId, examId: msg.examId, sender }),
-      'No se pudo abrir el informe de laboratorio.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST') {
-    return respondAsync(
-      handlePrescriptionOptionsRequest({ encId: msg.encId }),
-      sendResponse,
-      'No se pudieron preparar las opciones de receta.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_PRESCRIPTION_PRINT_REQUEST') {
-    return respondAsync(
+const runtimeMessageRoutes = Object.freeze({
+  [RUNTIME_MESSAGES.EXTENSION_HEALTH_REQUEST]: runtimeRoute(
+    () => handleExtensionHealth(),
+    'No se pudo verificar el estado de la extensión.'
+  ),
+  [RUNTIME_MESSAGES.GC_SESSION_CAPTURED]: runtimeRoute(
+    (message, sender) => captureGestionCamasSession(message.info, sender),
+    'No se pudo conservar la sesión temporal de Gestión de Camas.'
+  ),
+  [RUNTIME_MESSAGES.GC_DOCUMENT_READY]: runtimeRoute(
+    (_message, sender) => handleGestionCamasDocumentReady(sender),
+    'No se pudo restaurar el intento de conexión de Gestión de Camas.'
+  ),
+  [RUNTIME_MESSAGES.GC_CONNECT_REQUEST]: runtimeRoute(
+    message => handleConnectGestionCamas({ renew: message.renew === true }),
+    'No se pudo abrir Gestión de Camas.'
+  ),
+  [RUNTIME_MESSAGES.GC_DISCONNECT_REQUEST]: runtimeRoute(
+    () => handleDisconnectGestionCamas(),
+    'No se pudo olvidar la conexión de Gestión de Camas.'
+  ),
+  [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
+    () => handleSnapshotRequest(),
+    'No se pudo leer el censo de Ficha Médico.'
+  ),
+  [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
+    message => handleOpenEncounter(message.encId),
+    'No se pudo abrir el episodio clínico.'
+  ),
+  [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
+    message => handleEgresoLookup(message.runs),
+    'No se pudo consultar el egreso.'
+  ),
+  [RUNTIME_MESSAGES.EGRESO_REPORT_REQUEST]: runtimeRoute(
+    message => handleReportRequest({ dateStart: message.dateStart, dateEnd: message.dateEnd }),
+    'No se pudo leer el reporte de egresos.'
+  ),
+  [RUNTIME_MESSAGES.EGRESO_REPORT_SAVE]: runtimeRoute(
+    message => handleReportSave({ dateStart: message.dateStart, dateEnd: message.dateEnd }),
+    'No se pudo guardar el reporte de egresos.'
+  ),
+  [RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(
+    message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
+    'No se pudo leer el reporte de dispositivos.'
+  ),
+  [RUNTIME_MESSAGES.DEVICE_REPORT_SAVE]: runtimeRoute(
+    message => handleDeviceReportSave({ encId: message.encId, fecha: message.fecha }),
+    'No se pudo guardar el reporte de dispositivos.'
+  ),
+  [RUNTIME_MESSAGES.SCALES_REPORT_REQUEST]: runtimeRoute(
+    (message, sender) => handleScalesReportRequest({ encId: message.encId, sender }),
+    'No se pudo leer el reporte de escalas.'
+  ),
+  [RUNTIME_MESSAGES.PATIENT_HEADER_REQUEST]: runtimeRoute(
+    (message, sender) => handlePatientHeaderRequest({ encId: message.encId, sender }),
+    'No se pudo identificar al paciente.'
+  ),
+  [RUNTIME_MESSAGES.CENSUS_LIST_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleCensusListRequest({ currentEncId: message.currentEncId, sender }),
+    'No se pudo leer el censo de hospitalizados.'
+  ),
+  [RUNTIME_MESSAGES.VITALS_CENSUS_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleVitalsCensusRequest({ currentEncId: message.currentEncId, sender }),
+    'No se pudieron leer los signos vitales del censo.'
+  ),
+  [RUNTIME_MESSAGES.IMAGING_FORM_PRINT_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleImagingFormPrintRequest({
+        encId: message.encId,
+        doc: message.doc,
+        physician: message.physician,
+        marks: message.marks,
+        sender,
+      }),
+    'No se pudo imprimir el formulario de imagenología.'
+  ),
+  [RUNTIME_MESSAGES.HISTORY_SCALES_REQUEST]: runtimeRoute(
+    message => handleHistoryScalesRequest({ encId: message.encId }),
+    'No se pudo leer el historial de escalas.'
+  ),
+  [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
+    message => handleClinicalPanelRequest({ encId: message.encId }),
+    'No se pudo cargar el panel clínico.'
+  ),
+  [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
+    (message, sender) => handleLabSearchRequest({ encId: message.encId, sender }),
+    'No se pudieron buscar los exámenes de laboratorio.'
+  ),
+  [RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(
+    () => currentSyslabSession(),
+    'No se pudo comprobar la conexión con Syslab.'
+  ),
+  [RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(
+    message =>
+      handleSyslabLoginRequest({ username: message.username, password: message.password }),
+    'No se pudo iniciar sesión en Syslab.'
+  ),
+  [RUNTIME_MESSAGES.LAB_DETAILS_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleLabDetailsRequest({ batchId: message.batchId, examIds: message.examIds, sender }),
+    'No se pudieron analizar los informes de laboratorio.'
+  ),
+  [RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleLabPdfOpenRequest({ batchId: message.batchId, examId: message.examId, sender }),
+    'No se pudo abrir el informe de laboratorio.'
+  ),
+  [RUNTIME_MESSAGES.PRESCRIPTION_OPTIONS_REQUEST]: runtimeRoute(
+    message => handlePrescriptionOptionsRequest({ encId: message.encId }),
+    'No se pudieron preparar las opciones de receta.'
+  ),
+  [RUNTIME_MESSAGES.PRESCRIPTION_PRINT_REQUEST]: runtimeRoute(
+    message =>
       handlePrescriptionPrintRequest({
-        encId: msg.encId,
-        selectionKey: msg.selectionKey,
-        printFormat: msg.printFormat,
+        encId: message.encId,
+        selectionKey: message.selectionKey,
+        printFormat: message.printFormat,
       }),
-      sendResponse,
-      'No se pudo generar la receta.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST') {
-    return respond(
-      handleCorrectedEpicrisisPrintRequest({ pdfBase64: msg.pdfBase64, patientRun: msg.patientRun }),
-      'No se pudo preparar el alta médica corregida.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST') {
-    return respond(
+    'No se pudo generar la receta.'
+  ),
+  [RUNTIME_MESSAGES.EPICRISIS_CORRECTED_PRINT_REQUEST]: runtimeRoute(
+    message =>
+      handleCorrectedEpicrisisPrintRequest({
+        pdfBase64: message.pdfBase64,
+        patientRun: message.patientRun,
+      }),
+    'No se pudo preparar el alta médica corregida.'
+  ),
+  [RUNTIME_MESSAGES.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: runtimeRoute(
+    (message, sender) =>
       handleNursingMedicalEpicrisisPrintRequest({
-        encId: msg.encId,
-        patientRun: msg.patientRun,
+        encId: message.encId,
+        patientRun: message.patientRun,
         sender,
       }),
-      'No se pudo imprimir la epicrisis médica.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST') {
-    return respond(
+    'No se pudo imprimir la epicrisis médica.'
+  ),
+  [RUNTIME_MESSAGES.EXAM_REQUEST_COMBINE_PRINT_REQUEST]: runtimeRoute(
+    (message, sender) =>
       handleExamRequestCombinePrint({
-        encId: msg.encId,
-        diteIds: msg.diteIds,
-        requests: msg.requests,
+        encId: message.encId,
+        diteIds: message.diteIds,
+        requests: message.requests,
         sender,
       }),
-      'No se pudieron combinar las solicitudes de laboratorio.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST') {
-    return respondAsync(
-      handleHospitalizedPrescriptionOptionsRequest({ currentEncId: msg.currentEncId, sender }),
-      sendResponse,
-      'No se pudieron revisar las recetas de pacientes hospitalizados.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST') {
-    return respondAsync(
+    'No se pudieron combinar las solicitudes de laboratorio.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST]: runtimeRoute(
+    (message, sender) =>
+      handleHospitalizedPrescriptionOptionsRequest({
+        currentEncId: message.currentEncId,
+        sender,
+      }),
+    'No se pudieron revisar las recetas de pacientes hospitalizados.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_PRESCRIPTION_PRINT_REQUEST]: runtimeRoute(
+    (message, sender) =>
       handleHospitalizedPrescriptionPrintRequest({
-        batchId: msg.batchId,
-        encIds: msg.encIds,
-        printFormat: msg.printFormat,
+        batchId: message.batchId,
+        encIds: message.encIds,
+        printFormat: message.printFormat,
         sender,
       }),
-      sendResponse,
-      'No se pudo generar la impresión de pacientes hospitalizados.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_INDICATIONS_PRINT_REQUEST') {
-    return respond(handleIndicationsPrintRequest({ encId: msg.encId }), 'No se pudieron preparar las indicaciones.');
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_INDICATIONS_OPTIONS_REQUEST') {
-    return respond(
-      handleHospitalizedIndicationsOptionsRequest({ currentEncId: msg.currentEncId }),
-      'No se pudieron revisar las indicaciones de pacientes hospitalizados.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_INDICATIONS_PRINT_REQUEST') {
-    return respond(
-      handleHospitalizedIndicationsPrintRequest({ batchId: msg.batchId, encIds: msg.encIds }),
-      'No se pudo generar la impresión de indicaciones.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST') {
-    return respond(
-      handleHospitalizedRegimenOptionsRequest({ currentEncId: msg.currentEncId }),
-      'No se pudieron revisar los regímenes hospitalizados.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST') {
-    return respond(handleHospitalizedRegimenPrintRequest(), 'No se pudo generar el reporte de regímenes.');
-  }
-  if (msg && msg.type === 'RAYEN_HANDOFF_OPTIONS_REQUEST') {
-    return respond(handleHandoffOptionsRequest({ currentEncId: msg.currentEncId }), 'No se pudo cargar la entrega de turno.');
-  }
-  if (msg && msg.type === 'RAYEN_HANDOFF_SAVE_REQUEST') {
-    return respond(
-      handleHandoffSaveRequest({ batchId: msg.batchId, encId: msg.encId, observation: msg.observation }),
-      'No se pudo completar el guardado de la entrega de turno.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_HANDOFF_REPORT_REQUEST') {
-    return respond(handleHandoffReportRequest({ nurseStationId: msg.nurseStationId }), 'No se pudo preparar el reporte de turno.');
-  }
-  if (msg && msg.type === 'RAYEN_SCORES_OPTIONS_REQUEST') {
-    return respond(handleScoresOptionsRequest({ currentEncId: msg.currentEncId }), 'No se pudieron cargar los instrumentos clínicos.');
-  }
-  if (msg && msg.type === 'RAYEN_SCORE_FORM_REQUEST') {
-    return respond(
-      handleScoreFormRequest({ batchId: msg.batchId, encId: msg.encId, instrument: msg.instrument }),
-      'No se pudo cargar el formulario clínico.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_SCORE_SAVE_REQUEST') {
-    return respond(
+    'No se pudo generar la impresión de pacientes hospitalizados.'
+  ),
+  [RUNTIME_MESSAGES.INDICATIONS_PRINT_REQUEST]: runtimeRoute(
+    message => handleIndicationsPrintRequest({ encId: message.encId }),
+    'No se pudieron preparar las indicaciones.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_INDICATIONS_OPTIONS_REQUEST]: runtimeRoute(
+    message =>
+      handleHospitalizedIndicationsOptionsRequest({ currentEncId: message.currentEncId }),
+    'No se pudieron revisar las indicaciones de pacientes hospitalizados.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_INDICATIONS_PRINT_REQUEST]: runtimeRoute(
+    message =>
+      handleHospitalizedIndicationsPrintRequest({
+        batchId: message.batchId,
+        encIds: message.encIds,
+      }),
+    'No se pudo generar la impresión de indicaciones.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_REGIMEN_OPTIONS_REQUEST]: runtimeRoute(
+    message =>
+      handleHospitalizedRegimenOptionsRequest({ currentEncId: message.currentEncId }),
+    'No se pudieron revisar los regímenes hospitalizados.'
+  ),
+  [RUNTIME_MESSAGES.HOSPITALIZED_REGIMEN_PRINT_REQUEST]: runtimeRoute(
+    () => handleHospitalizedRegimenPrintRequest(),
+    'No se pudo generar el reporte de regímenes.'
+  ),
+  [RUNTIME_MESSAGES.HANDOFF_OPTIONS_REQUEST]: runtimeRoute(
+    message => handleHandoffOptionsRequest({ currentEncId: message.currentEncId }),
+    'No se pudo cargar la entrega de turno.'
+  ),
+  [RUNTIME_MESSAGES.HANDOFF_SAVE_REQUEST]: runtimeRoute(
+    message =>
+      handleHandoffSaveRequest({
+        batchId: message.batchId,
+        encId: message.encId,
+        observation: message.observation,
+      }),
+    'No se pudo completar el guardado de la entrega de turno.'
+  ),
+  [RUNTIME_MESSAGES.HANDOFF_REPORT_REQUEST]: runtimeRoute(
+    message => handleHandoffReportRequest({ nurseStationId: message.nurseStationId }),
+    'No se pudo preparar el reporte de turno.'
+  ),
+  [RUNTIME_MESSAGES.SCORES_OPTIONS_REQUEST]: runtimeRoute(
+    message => handleScoresOptionsRequest({ currentEncId: message.currentEncId }),
+    'No se pudieron cargar los instrumentos clínicos.'
+  ),
+  [RUNTIME_MESSAGES.SCORE_FORM_REQUEST]: runtimeRoute(
+    message =>
+      handleScoreFormRequest({
+        batchId: message.batchId,
+        encId: message.encId,
+        instrument: message.instrument,
+      }),
+    'No se pudo cargar el formulario clínico.'
+  ),
+  [RUNTIME_MESSAGES.SCORE_SAVE_REQUEST]: runtimeRoute(
+    message =>
       handleScoreSaveRequest({
-        batchId: msg.batchId,
-        encId: msg.encId,
-        instrument: msg.instrument,
-        answers: msg.answers,
+        batchId: message.batchId,
+        encId: message.encId,
+        instrument: message.instrument,
+        answers: message.answers,
       }),
-      'No se pudo completar el guardado del instrumento.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_CLINICAL_WRITE_ACK') {
-    return respond(
-      acknowledgeClinicalWrite({ key: msg.key, generationId: msg.generationId, receiptId: msg.receiptId }),
-      'No se pudo confirmar localmente el guardado clínico.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST') {
-    return respond(
+    'No se pudo completar el guardado del instrumento.'
+  ),
+  [RUNTIME_MESSAGES.CLINICAL_WRITE_ACK]: runtimeRoute(
+    message =>
+      acknowledgeClinicalWrite({
+        key: message.key,
+        generationId: message.generationId,
+        receiptId: message.receiptId,
+      }),
+    'No se pudo confirmar localmente el guardado clínico.'
+  ),
+  [RUNTIME_MESSAGES.CLINICAL_WRITE_RECOVERY_REQUEST]: runtimeRoute(
+    message =>
       handleClinicalWriteRecoveryRequest({
-        key: msg.key,
-        generationId: msg.generationId,
-        phase: msg.phase,
-        recoveryToken: msg.recoveryToken,
+        key: message.key,
+        generationId: message.generationId,
+        phase: message.phase,
+        recoveryToken: message.recoveryToken,
       }),
-      'No se pudo revisar el estado del guardado clínico.'
-    );
-  }
-  if (msg && msg.type === 'RAYEN_CUDYR_CATEGORIES_REQUEST') {
-    return respond(handleCudyrCategoriesRequest(), 'No se pudo consultar CUDYR.');
-  }
-  return undefined;
+    'No se pudo revisar el estado del guardado clínico.'
+  ),
+  [RUNTIME_MESSAGES.CUDYR_CATEGORIES_REQUEST]: runtimeRoute(
+    () => handleCudyrCategoriesRequest(),
+    'No se pudo consultar CUDYR.'
+  ),
 });
+
+chrome.runtime.onMessage.addListener(messageContract.createRuntimeRouter(runtimeMessageRoutes));
