@@ -50,7 +50,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `vendor-lock.json` | Versiones, licencias y SHA-256 de las librerías vendorizadas del paquete |
 | `hhr-prescription-center.js` | Superficie de Recetas del Centro HHR: paciente actual, hospitalizados, selección e impresión repetible |
 | `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones y Regímenes + BRADEN |
-| `hhr-handoff-scores-center.js` | Superficies de Entrega de turno y Scores, con sus lecturas y escrituras clínicas verificadas |
+| `hhr-handoff-center.js`, `hhr-scores-center.js` | Superficies separadas de Entrega de turno y Scores |
 | `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
 | `content-prescription-print.js` | Orquesta el shell, navegación, contexto de paciente y montaje de los owners del Centro HHR |
 | `background.js` | Enruta lecturas, reportes y escrituras verificadas contra los servicios de Eloísa |
@@ -61,6 +61,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `gestion-camas-runtime.js` | Conserva, verifica, renueva y desconecta la sesión temporal de Gestión de Camas; administra su ventana oficial de acceso |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
 | `clinical-panel-runtime.js` | Lee y normaliza el historial, plan de cuidados, estados farmacológicos y validación vigente del panel clínico |
+| `clinical-handoff-runtime.js` | Orquesta lectura, escritura verificada, recuperación e informe oficial de Entrega de turno |
 | `lab-viewer.js` | Parser clínico y organización pura de comparación, alertas y tendencias |
 | `syslab-bridge.js` | Navega la sesión oficial de Syslab y extrae/valida informes dentro de la red local |
 | `pdf.min.mjs`, `pdf.worker.min.mjs` | PDF.js vendorizado para extraer el texto de informes sin servicios auxiliares |
