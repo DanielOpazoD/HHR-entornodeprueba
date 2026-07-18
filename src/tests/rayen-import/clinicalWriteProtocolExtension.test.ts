@@ -275,6 +275,36 @@ describe('extension clinical write protocol', () => {
     );
   });
 
+  it('finishes the Eloisa encounter event after verifying a handoff readback', () => {
+    const source = readFileSync(
+      new URL('../../../extension/background.js', import.meta.url),
+      'utf8'
+    );
+    const helperStart = source.indexOf('const readFinishRegisterEvent = async');
+    const requestStart = source.indexOf('const performHandoffSaveRequest = async');
+    const requestEnd = source.indexOf('\n\nconst handleHandoffSaveRequest =', requestStart);
+    const helpers = source.slice(helperStart, requestStart);
+    const handoffWrite = source.slice(requestStart, requestEnd);
+
+    expect(helpers).toContain('encounterEvent/0/getFinishRegister');
+    expect(helpers).toContain('/confirmedEncounterEvent');
+    expect(helpers).toContain("url.searchParams.set('healthCarePractitionerRoleId'");
+    expect(helpers).toContain("url.searchParams.set('facilityId'");
+    expect(helpers).toContain('body: JSON.stringify(event)');
+    expect(helpers).toContain("String(event.encounterId || '') !== String(encId)");
+    expect(helpers).toContain("String(event.facilityId || '') !== String(info.facId)");
+    expect(handoffWrite).toContain(
+      'const finishRegister = await readFinishRegisterEvent(encId, info);'
+    );
+    expect(handoffWrite).toContain(
+      'const finished = await confirmFinishRegisterEvent(encId, info, finishRegister.event);'
+    );
+    expect(handoffWrite).toContain('finishConfirmed: true');
+    expect(handoffWrite.indexOf('verifiedRecord =')).toBeLessThan(
+      handoffWrite.indexOf('const finishRegister = await readFinishRegisterEvent')
+    );
+  });
+
   it('revalidates score attribution and both history sources before beginWrite', () => {
     const source = readFileSync(
       new URL('../../../extension/background.js', import.meta.url),

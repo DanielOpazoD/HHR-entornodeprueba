@@ -47,27 +47,63 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(backgroundSource).toContain("msg.type === 'RAYEN_VITALS_CENSUS_REQUEST'");
   });
 
-  it('redirects recipes to hospitalized patients when the preserved encounter is not the active route', () => {
-    expect(contentSource).toContain(
-      "String(currentRouteEncounterId() || '') === String(encId || '')"
-    );
+  it('opens any selected hospitalized patient with the complete individual recipe flow', () => {
+    expect(contentSource).toContain('const currentPatientMatchesRoute = hasCurrentPatient');
     expect(contentSource).toContain(
       "initialTab === 'hospitalized' || !currentPatientMatchesRoute ? 'hospitalized' : 'current'"
     );
+    expect(contentSource).toContain("openPatient.textContent = 'Abrir'");
+    expect(contentSource).toContain("createModal(patient.encounterId, 'current', root)");
+    expect(contentSource).not.toContain('El episodio cambió. Cierra este panel');
     expect(contentSource).toContain("currentTab.removeAttribute('aria-disabled')");
     expect(contentSource).toContain("currentTab.removeAttribute('title')");
     expect(contentSource).toContain('if (!requestedTab || requestedTab.disabled) return');
   });
 
-  it('keeps imaging tools visible without a false draft guard and separates indications', () => {
+  it('keeps Reg + BRADEN inside the mounted clinical center', () => {
+    expect(contentSource).toContain("createHospitalizedDocumentsModal('regimen', encId, root)");
+    const home = contentSource.slice(
+      contentSource.indexOf('const renderHomeCenter'),
+      contentSource.indexOf('const renderImagingCenter')
+    );
+    expect(home).not.toContain('root.remove()');
+    expect(home).not.toContain('createRegimenQuickDialog()');
+  });
+
+  it('integrates handoff diagnosis and the latest vital-sign timestamp with patient identity', () => {
+    expect(contentSource).toContain("diagnosis.textContent = 'Dg: ' + patient.diagnosis");
+    expect(contentSource).toContain("time.className = 'hhr-vitals-patient-time'");
+    expect(contentSource).toContain("'Última toma · ' + latest.recordedAt");
+    expect(contentSource).not.toContain("time.className = 'hhr-vitals-summary-time'");
+  });
+
+  it('resolves a nursing medical epicrisis against the exact discharged patient', () => {
+    expect(contentSource).toContain('Imprimir epicrisis médica');
+    expect(contentSource).toContain("type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'");
+    expect(backgroundSource).toContain('const resolveDischargedEncounterIdByRun');
+    expect(backgroundSource).toContain("url.searchParams.set('filterType', '2')");
+    expect(backgroundSource).toContain('contextRun !== normalizedPatientRun');
+    expect(backgroundSource).toContain('{ expectedPatientRun: normalizedPatientRun }');
+    expect(backgroundSource).toContain('getFichaFetchInfo(sender)');
+  });
+
+  it('keeps imaging tools visible and nests indications inside recipes', () => {
     expect(contentSource).toContain(
       '#${MODAL_ID} .hhr-imaging-controls {\n        position: sticky; top: 0;'
     );
     expect(contentSource).not.toContain("clinicalWriteKey('request-draft-imaging', encId)");
     expect(contentSource).toContain('<h2 class="hhr-center-heading">Imágenes</h2>');
-    expect(contentSource).toContain("key: 'indications', label: 'Indicaciones'");
-    expect(contentSource).toContain("activeModule: isRegimen ? kind : 'indications'");
-    expect(contentSource).not.toContain('id="hhr-rx-tab-indications"');
+    expect(contentSource).not.toContain("key: 'indications', label: 'Indicaciones'");
+    expect(contentSource).toContain("activeModule: isRegimen ? kind : 'recipes'");
+    expect(contentSource).toContain('data-rx-module="indications"');
+    expect(contentSource).toContain('hhr-rx-module-tabs');
+    expect(contentSource).not.toContain('data-module="indications"');
+  });
+
+  it('uses integrated feedback instead of native browser alerts or confirms', () => {
+    expect(contentSource).toContain('const showPageNotice =');
+    expect(contentSource).toContain('const requestPageConfirmation =');
+    expect(contentSource).not.toMatch(/window\.(?:alert|confirm)\s*\(/);
   });
 
   it('opens laboratory on the exam-request view by default', () => {

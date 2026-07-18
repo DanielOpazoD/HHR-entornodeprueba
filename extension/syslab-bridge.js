@@ -2,8 +2,9 @@
  * Direct, session-bound bridge for the internal Syslab portal.
  *
  * Runs only on http://10.4.69.90/syslab/*. The user authenticates in the official
- * portal; this isolated-world script never reads or stores the password. It automates
- * the RUT search and fetches reports with the browser session already established.
+ * portal inside the extension's hidden document; this isolated-world script receives credentials
+ * only for the duration of the login message and never persists them. It then automates the RUT
+ * search and fetches reports with the browser session already established.
  */
 (function () {
   'use strict';
@@ -17,6 +18,9 @@
   const REQUEST_TIMEOUT_MS = 30_000;
   const DETAILS_CONCURRENCY = 3;
   const BRIDGE_ID = crypto.randomUUID();
+  const FRAME_REQUEST = 'HHR_SYSLAB_FRAME_REQUEST';
+  const FRAME_RESULT = 'HHR_SYSLAB_FRAME_RESULT';
+  const EXTENSION_ORIGIN = chrome.runtime.getURL('').replace(/\/$/, '');
 
   const cleanText = value => String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   const normalizeRutBody = value => self.HhrLabViewer.normalizeRutBody(value);
@@ -39,6 +43,27 @@
   const loginRequired = () => Boolean(
     document.querySelector('input[name="password"], input[type="password"]')
   );
+
+  const submitLogin = (username, password) => {
+    const passwordInput = document.querySelector('input[name="password"], input[type="password"]');
+    const usernameInput = document.querySelector(
+      'input[name="username"], input[name="usuario"], input[name="user"], input[name*="usu" i], input[type="text"]'
+    );
+    if (!usernameInput || !passwordInput) {
+      return { error: 'El formulario oficial de acceso a Syslab no está disponible.' };
+    }
+    dispatchFieldValue(usernameInput, username);
+    dispatchFieldValue(passwordInput, password);
+    const submit = clickableByText(/iniciar\s+sesi[oó]n|ingresar|entrar|aceptar/i);
+    const form = passwordInput.closest('form') || usernameInput.closest('form');
+    if (!submit && !form) return { error: 'No se encontró el botón de acceso de Syslab.' };
+    setTimeout(() => {
+      if (submit) submit.click();
+      else if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.submit();
+    }, 0);
+    return { ok: true, bridgeId: BRIDGE_ID, navigated: true };
+  };
 
   const dispatchFieldValue = (input, value) => {
     input.focus();
@@ -268,8 +293,19 @@
     if (message.type === 'RAYEN_SYSLAB_STATUS') {
       return { ok: true, bridgeId: BRIDGE_ID, loginRequired: loginRequired(), url: location.href };
     }
+    if (message.type === 'RAYEN_SYSLAB_LOGIN') {
+      const username = cleanText(message.username);
+      const password = String(message.password || '');
+      if (!username || !password || username.length > 120 || password.length > 256) {
+        return { error: 'Ingresa un usuario y una contraseña válidos.' };
+      }
+      if (!loginRequired()) {
+        return { ok: true, bridgeId: BRIDGE_ID, loginRequired: false, navigated: false };
+      }
+      return submitLogin(username, password);
+    }
     if (message.type === 'RAYEN_SYSLAB_PREPARE_SEARCH') {
-      if (loginRequired()) return { error: 'Debes iniciar sesión en la ventana oficial de Syslab.' };
+      if (loginRequired()) return { error: 'Debes iniciar sesión en el cuadro de Syslab de la extensión.' };
       if (document.querySelector('input[name="rut"]')) {
         return { ok: true, bridgeId: BRIDGE_ID, navigated: false };
       }
@@ -323,5 +359,26 @@
       sendResponse({ error: String((error && error.message) || error) });
     });
     return true;
+  });
+
+  // When Syslab runs inside the extension's hidden offscreen iframe there is no visible tab id.
+  // Relay the same session-bound operations to the extension parent without exposing them to any
+  // unrelated origin. Credentials remain transient and are submitted only to Syslab's own form.
+  window.addEventListener('message', event => {
+    if (window.parent === window || event.source !== window.parent || event.origin !== EXTENSION_ORIGIN) return;
+    const data = event.data || {};
+    if (data.type !== FRAME_REQUEST || !/^[0-9a-f-]{36}$/i.test(String(data.reqId || ''))) return;
+    Promise.resolve(handleMessage(data.message)).then(
+      response => window.parent.postMessage({
+        type: FRAME_RESULT,
+        reqId: data.reqId,
+        response: response || { error: 'La operación de Syslab no es válida.' },
+      }, EXTENSION_ORIGIN),
+      error => window.parent.postMessage({
+        type: FRAME_RESULT,
+        reqId: data.reqId,
+        response: { error: String((error && error.message) || error) },
+      }, EXTENSION_ORIGIN)
+    );
   });
 })();

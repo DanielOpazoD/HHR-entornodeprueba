@@ -345,8 +345,9 @@ describe('native Eloisa laboratory viewer', () => {
     const content = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
+    const offscreen = readFileSync(path.resolve('extension/syslab-offscreen.js'), 'utf8');
+    const offscreenHtml = readFileSync(path.resolve('extension/syslab-offscreen.html'), 'utf8');
 
-    expect(background).toContain("SYSLAB_BASE_URL = 'http://10.4.69.90/syslab/'");
     expect(background).not.toContain('localhost:3001');
     expect(background).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
     expect(background).toContain('sweepExpiredLabBatches');
@@ -354,9 +355,15 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
     expect(background).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
     expect(background).toContain('searchSyslabDirectly');
-    expect(background).toContain("SYSLAB_TAB_STORAGE_KEY = 'hhr-syslab-owned-tab'");
-    expect(background).toContain('chrome.tabs.get(owned.tabId)');
-    expect(background).not.toContain('chrome.tabs.query({ url: SYSLAB_MATCH })');
+    expect(background).toContain('RAYEN_SYSLAB_STATUS_REQUEST');
+    expect(background).toContain('RAYEN_SYSLAB_LOGIN_REQUEST');
+    expect(background).toContain('handleSyslabLoginRequest');
+    expect(background).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
+    expect(background).toContain('chrome.offscreen.createDocument');
+    expect(background).toContain("reasons: ['IFRAME_SCRIPTING']");
+    expect(background).toContain('sendToSyslabOffscreen');
+    expect(background).not.toContain('SYSLAB_TAB_STORAGE_KEY');
+    expect(background).not.toContain('focusSyslabTab');
     expect(background).toContain('previousBridgeId');
     expect(background).toContain('response.bridgeId !== previousBridgeId');
     expect(background).toContain('RAYEN_SYSLAB_READ_DETAILS');
@@ -392,11 +399,20 @@ describe('native Eloisa laboratory viewer', () => {
     expect(bridge).toContain('MAX_BODY_BYTES = 6 * 1024 * 1024');
     expect(bridge).toContain("import(chrome.runtime.getURL('pdf.min.mjs'))");
     expect(bridge).toContain('BRIDGE_ID = crypto.randomUUID()');
+    expect(bridge).toContain("message.type === 'RAYEN_SYSLAB_LOGIN'");
     expect(bridge).toContain('extractRutBodyFromReportText');
     expect(bridge).toContain('includeValidatedPdf: true');
     expect(bridge).toContain('pdfBase64: detail.pdfBase64');
+    expect(bridge).toContain("FRAME_REQUEST = 'HHR_SYSLAB_FRAME_REQUEST'");
+    expect(bridge).toContain('event.origin !== EXTENSION_ORIGIN');
     expect(bridge).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
+    expect(offscreenHtml).toContain('src="http://10.4.69.90/syslab/"');
+    expect(offscreenHtml).toContain('syslab-offscreen.js');
+    expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
+    expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
     expect(content).toContain('hhr-ops-lab');
+    expect(content).toContain('hhr-syslab-login');
+    expect(content).toContain('No se guardan en la extensión');
     expect(content).toContain("key: 'connection'");
     expect(content).toContain(
       "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
@@ -414,6 +430,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"lab-viewer.js"');
     expect(manifest).toContain('"syslab-bridge.js"');
     expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
+    expect(manifest).toContain('"offscreen"');
+    expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"version": "0.31.0"');
   });
 });

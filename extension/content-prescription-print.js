@@ -22,6 +22,8 @@
   const OPERATIONS_BAR_ID = 'hhr-clinical-operations-bar';
   const MODAL_ID = 'hhr-prescription-print-modal';
   const STYLE_ID = 'hhr-prescription-print-styles';
+  const NOTICE_HOST_ID = 'hhr-clinical-page-notices';
+  const NOTICE_STYLE_ID = 'hhr-clinical-page-notice-styles';
   const LAB_MAX_SELECTED_EXAMS = 24;
   const uncertainClinicalWrites = new Map();
 
@@ -40,6 +42,7 @@
   const epicrisisCaptureWaiters = new Map();
   let activeEpicrisisPrintReqId = '';
   let lastDischargePatientRun = '';
+  let lastDischargeEncounterId = '';
 
   const runFromText = value => {
     const match = String(value || '').match(/RUN\s*:?\s*([0-9.\-Kk]+)/i);
@@ -58,6 +61,14 @@
     return runFromText(visibleRun ? visibleRun.textContent : row.textContent);
   };
 
+  const encounterIdFromPatientRow = row => {
+    if (!row) return '';
+    const link = Array.from(row.querySelectorAll('a[href]')).find(anchor =>
+      /\/dashboard\/encounter-list(?:-nurse)?(?:\/|\?)/.test(String(anchor.getAttribute('href') || ''))
+    );
+    return link ? helper.resolveEncounterId(link.href) || '' : '';
+  };
+
   // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
   // the user opens a row action so the captured PDF can later be bound to that patient.
   const rememberDischargePatientFromEvent = event => {
@@ -65,6 +76,7 @@
     const row = target && target.closest('tr,[role="row"]');
     if (!row) return;
     lastDischargePatientRun = runFromPatientRow(row);
+    lastDischargeEncounterId = encounterIdFromPatientRow(row);
   };
   document.addEventListener('click', rememberDischargePatientFromEvent, true);
   document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
@@ -87,6 +99,71 @@
     if (labelNode) labelNode.textContent = label;
     else item.textContent = label;
   };
+
+  const ensurePageNoticeHost = () => {
+    let host = document.getElementById(NOTICE_HOST_ID);
+    if (host) return host;
+    if (!document.getElementById(NOTICE_STYLE_ID)) {
+      const style = document.createElement('style');
+      style.id = NOTICE_STYLE_ID;
+      style.textContent = `
+      #${NOTICE_HOST_ID} { position: fixed; right: 18px; bottom: 18px; z-index: 2147483647; display: grid; gap: 8px; width: min(390px,calc(100vw - 36px)); font-family: Arial,sans-serif; }
+      #${NOTICE_HOST_ID} .hhr-page-notice { padding: 11px 13px; border: 1px solid #d8e3e0; border-left: 4px solid #15968b; border-radius: 9px; background: #fff; color: #263633; box-shadow: 0 10px 30px rgba(7,27,49,.22); font-size: 13px; line-height: 1.4; }
+      #${NOTICE_HOST_ID} .hhr-page-notice.is-error { border-left-color: #c74a43; background: #fff8f7; }
+      #${NOTICE_HOST_ID} .hhr-page-notice strong { display: block; margin-bottom: 3px; font-size: 13.5px; }
+      #${NOTICE_HOST_ID} .hhr-page-notice > span { white-space: pre-line; }
+      #${NOTICE_HOST_ID} .hhr-page-notice-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }
+      #${NOTICE_HOST_ID} button { min-height: 31px; padding: 5px 11px; border: 1px solid #cbd7d4; border-radius: 7px; background: #fff; color: #3b4b48; cursor: pointer; font: inherit; font-weight: 600; }
+      #${NOTICE_HOST_ID} button.is-primary { border-color: #15968b; background: #15968b; color: #fff; }
+    `;
+      document.head.appendChild(style);
+    }
+    host = document.createElement('div');
+    host.id = NOTICE_HOST_ID;
+    host.setAttribute('aria-live', 'polite');
+    document.body.appendChild(host);
+    return host;
+  };
+
+  const showPageNotice = (message, { title = 'Centro HHR', error = false, duration = 6500 } = {}) => {
+    const host = ensurePageNoticeHost();
+    const notice = document.createElement('div');
+    notice.className = 'hhr-page-notice' + (error ? ' is-error' : '');
+    notice.setAttribute('role', error ? 'alert' : 'status');
+    const heading = document.createElement('strong');
+    heading.textContent = title;
+    const text = document.createElement('span');
+    text.textContent = String(message || '');
+    notice.append(heading, text);
+    host.appendChild(notice);
+    if (duration > 0) window.setTimeout(() => notice.remove(), duration);
+    return notice;
+  };
+
+  const requestPageConfirmation = ({ title, message, confirmLabel = 'Confirmar' }) =>
+    new Promise(resolve => {
+      const notice = showPageNotice(message, { title, duration: 0 });
+      notice.setAttribute('role', 'dialog');
+      notice.setAttribute('aria-modal', 'false');
+      const actions = document.createElement('div');
+      actions.className = 'hhr-page-notice-actions';
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.textContent = 'Cancelar';
+      const confirm = document.createElement('button');
+      confirm.type = 'button';
+      confirm.className = 'is-primary';
+      confirm.textContent = confirmLabel;
+      const finish = value => {
+        notice.remove();
+        resolve(value);
+      };
+      cancel.addEventListener('click', () => finish(false));
+      confirm.addEventListener('click', () => finish(true));
+      actions.append(cancel, confirm);
+      notice.appendChild(actions);
+      confirm.focus();
+    });
 
   window.addEventListener('message', event => {
     if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
@@ -124,8 +201,9 @@
       ? openMenuPatient.patientRun
       : lastDischargePatientRun;
     if (!expectedPatientRun) {
-      window.alert(
-        'No se pudo identificar al paciente de esta alta. Cierra el menú, vuelve a abrirlo desde su fila y reintenta.'
+      showPageNotice(
+        'No se pudo identificar al paciente de esta alta. Cierra el menú, vuelve a abrirlo desde su fila y reintenta.',
+        { title: 'Alta corregida', error: true }
       );
       return;
     }
@@ -155,7 +233,10 @@
       });
       if (!response || response.error) throw new Error(String(response && response.error || 'No se pudo preparar el alta corregida.'));
     } catch (error) {
-      window.alert(String((error && error.message) || error || 'No se pudo preparar el alta corregida.'));
+      showPageNotice(
+        String((error && error.message) || error || 'No se pudo preparar el alta corregida.'),
+        { title: 'Alta corregida', error: true }
+      );
     } finally {
       window.postMessage({ type: 'RAYEN_EPICRISIS_PDF_CAPTURE_CANCEL', reqId }, window.location.origin);
       if (activeEpicrisisPrintReqId === reqId) activeEpicrisisPrintReqId = '';
@@ -184,6 +265,76 @@
       });
       nativeItem.insertAdjacentElement('afterend', item);
     });
+  };
+
+  const nursingMedicalEpicrisisMenu = () => Array.from(document.querySelectorAll(
+    '[role="menu"],[class*="MuiMenu-paper"],[class*="MuiPopover-paper"]'
+  )).find(menu =>
+    !menu.hidden && menu.getAttribute('aria-hidden') !== 'true' &&
+      menu.querySelector('button,[role="menuitem"]')
+  ) || null;
+
+  const requestNursingMedicalEpicrisisPrint = async item => {
+    if (activeEpicrisisPrintReqId) return;
+    const openMenuPatient = dischargePatientFromOpenMenu();
+    const patientRun = openMenuPatient.found ? openMenuPatient.patientRun : lastDischargePatientRun;
+    if (!patientRun) {
+      showPageNotice(
+        'No se pudo identificar al paciente de esta alta. Cierra el menú y vuelve a abrirlo desde su fila.',
+        { title: 'Epicrisis médica', error: true }
+      );
+      return;
+    }
+    activeEpicrisisPrintReqId = 'nursing-epicrisis-' + Date.now();
+    setCorrectedDischargeItemLabel(item, 'Preparando epicrisis médica…');
+    item.setAttribute('aria-busy', 'true');
+    item.setAttribute('aria-disabled', 'true');
+    item.style.pointerEvents = 'none';
+    try {
+      const response = await sendMessage({
+        type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST',
+        encId: lastDischargeEncounterId,
+        patientRun,
+      });
+      if (!response || response.error) {
+        throw new Error(String(response && response.error || 'No se pudo imprimir la epicrisis médica.'));
+      }
+    } catch (error) {
+      showPageNotice(
+        String((error && error.message) || error || 'No se pudo imprimir la epicrisis médica.'),
+        { title: 'Epicrisis médica', error: true }
+      );
+    } finally {
+      activeEpicrisisPrintReqId = '';
+      setCorrectedDischargeItemLabel(item, 'Imprimir epicrisis médica');
+      item.removeAttribute('aria-busy');
+      item.removeAttribute('aria-disabled');
+      item.style.pointerEvents = '';
+    }
+  };
+
+  const ensureNursingMedicalEpicrisisPrintItem = nursingContext => {
+    if (!nursingContext || !/\?tab=3(?:&|$)/.test(window.location.search || '?tab=3')) return;
+    const menu = nursingMedicalEpicrisisMenu();
+    if (!menu || menu.querySelector('[data-hhr-nursing-medical-epicrisis="true"]')) return;
+    const template = menu.querySelector('button,[role="menuitem"]');
+    if (!template) return;
+    const item = template.cloneNode(true);
+    item.removeAttribute('id');
+    item.dataset.hhrNursingMedicalEpicrisis = 'true';
+    item.removeAttribute('data-state');
+    setCorrectedDischargeItemLabel(item, 'Imprimir epicrisis médica');
+    item.setAttribute('aria-label', 'Imprimir epicrisis médica corregida');
+    const iconHost = item.querySelector('.MuiListItemIcon-root,[class*="MuiListItemIcon"]');
+    if (iconHost) {
+      iconHost.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M6 8V3h12v5h1a3 3 0 0 1 3 3v6h-4v4H6v-4H2v-6a3 3 0 0 1 3-3h1Zm2-3v3h8V5H8Zm0 10v4h8v-4H8Zm10-2h2v-2a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v2h2v-1h12v1Z"/></svg>';
+    }
+    item.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void requestNursingMedicalEpicrisisPrint(item);
+    });
+    menu.appendChild(item);
   };
 
   // Combines the free-text search with an optional service <select> (shown only when the
@@ -354,11 +505,13 @@
     if (!recoveryPreview.challenge || !recoveryPreview.review) {
       return { error: 'Eloísa no devolvió una lectura fresca verificable; la protección se mantuvo.' };
     }
-    const confirmed = window.confirm(
-      'Eloísa se consultó nuevamente. Revisa esta lectura fresca:\n\n' +
+    const confirmed = await requestPageConfirmation({
+      title: 'Revisión del último guardado',
+      message: 'Eloísa se consultó nuevamente.\n\n' +
         formatClinicalRecoveryReview(recoveryPreview.review) +
-        '\n\n¿Confirmas que revisaste exactamente este resultado y deseas liberar la protección contra duplicados?'
-    );
+        '\n\nLibera la protección solo si este resultado coincide con lo que registraste.',
+      confirmLabel: 'Revisado, liberar',
+    });
     if (!confirmed) return { cancelled: true };
     return sendMessage({
       type: 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST',
@@ -399,19 +552,23 @@
   const confirmClinicalTransition = (root, { allowUncertain = false } = {}) => {
     const guard = getClinicalGuard(root);
     if (guard.pending.size) {
-      window.alert('Hay una escritura clínica en curso. Espera a que Eloísa confirme el resultado.');
+      setRouteChangeState(root, 'Guardado clínico en curso · espera su confirmación', 'uncertain');
+      showPageNotice('Espera a que Eloísa confirme el guardado antes de cambiar de módulo.', {
+        title: 'Guardado en curso',
+      });
       return false;
     }
     if (guard.dirty.size) {
-      const discard = window.confirm('Hay cambios clínicos sin guardar. ¿Descartarlos y continuar?');
-      if (!discard) return false;
       guard.dirty.clear();
+      showPageNotice('Los cambios que no se habían guardado fueron descartados.', {
+        title: 'Cambio de módulo',
+      });
     }
     if (!allowUncertain && guard.uncertain.size) {
-      const leave = window.confirm(
-        'Hay escrituras cuyo resultado aún no pudo verificarse. La protección contra duplicados se conservará hasta confirmar su estado en Eloísa. ¿Continuar?'
+      showPageNotice(
+        'El resultado de un guardado aún no pudo verificarse. Puedes continuar: la protección contra duplicados se mantiene activa.',
+        { title: 'Verificación pendiente' }
       );
-      if (!leave) return false;
     }
     return true;
   };
@@ -614,7 +771,7 @@
       #${MODAL_ID} .hhr-rx-selection-summary { display: flex; justify-content: space-between; gap: 12px; margin: 2px 0 8px; color: #5d696d; font-size: 12px; }
       #${MODAL_ID} .hhr-rx-patient-list { display: block; border: 1px solid #dde3e4; border-radius: 10px; background: #fff; overflow: hidden; }
       #${MODAL_ID} .hhr-rx-patient {
-        display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 10px; align-items: center;
+        display: grid; grid-template-columns: 20px minmax(0,1fr) auto auto; gap: 10px; align-items: center;
         border-bottom: 1px solid #eef2f1; padding: 7px 12px; background: #fff; cursor: pointer;
       }
       #${MODAL_ID} .hhr-rx-patient:last-child { border-bottom: 0; }
@@ -623,6 +780,10 @@
       #${MODAL_ID} .hhr-rx-patient.is-disabled { cursor: default; background: #fafbfb; opacity: .62; }
       #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary { grid-template-columns: minmax(0,1fr) auto; cursor: default; }
       #${MODAL_ID} .hhr-rx-patient.hhr-rx-patient-summary:hover { background: #fff; }
+      #${MODAL_ID} .hhr-rx-patient-selection { min-width: 0; cursor: pointer; }
+      #${MODAL_ID} .hhr-rx-open-patient {
+        border: 1px solid #b8d9d4; background: #f4fbf9; padding: 5px 9px; font-size: 11.5px;
+      }
       #${MODAL_ID} .hhr-rx-patient-details { display: grid; gap: 1px; min-width: 0; }
       #${MODAL_ID} .hhr-rx-patient-title {
         display: flex; align-items: baseline; gap: 7px; min-width: 0; white-space: nowrap; overflow: hidden;
@@ -801,8 +962,14 @@
       #${MODAL_ID} .hhr-center-embed .hhr-rx-subtitle { margin: 0 0 8px; }
       #${MODAL_ID} .hhr-center-embed .hhr-rx-body { padding: 0; overflow: visible; min-height: 0; }
       #${MODAL_ID} .hhr-center-toolbar .hhr-rx-tabs { margin: 0 0 0 auto; flex: 0 1 340px; min-width: 240px; }
+      #${MODAL_ID} .hhr-recipes-toolbar .hhr-center-heading { margin-right: 0; }
+      #${MODAL_ID} .hhr-recipes-toolbar .hhr-rx-module-tabs {
+        flex: 0 0 auto; min-width: 0; margin: 0; padding: 2px; background: #eaf3f1;
+      }
+      #${MODAL_ID} .hhr-recipes-toolbar .hhr-rx-module-tabs .hhr-rx-tab { flex: 0 0 auto; min-height: 27px; padding: 0 12px; font-size: 11.5px; }
+      #${MODAL_ID} .hhr-recipes-toolbar .hhr-rx-scope-tabs { margin-left: auto; }
       #${MODAL_ID} .hhr-center-main .hhr-rx-footer { flex: 0 0 auto; }
-      #${MODAL_ID} .hhr-handoff-input { width: 100%; min-height: 58px; resize: vertical; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d2dcd9; border-radius: 8px; color: #303a38; background: #fff; font: inherit; font-size: 11.5px; line-height: 1.4; }
+      #${MODAL_ID} .hhr-handoff-input { width: 100%; min-height: 48px; resize: vertical; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d2dcd9; border-radius: 8px; color: #303a38; background: #fff; font: inherit; font-size: 11.5px; line-height: 1.35; }
       #${MODAL_ID} .hhr-handoff-input:disabled { background: #f5f7f6; color: #818a88; }
       #${MODAL_ID} .hhr-handoff-tools { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 5px; }
       #${MODAL_ID} .hhr-char-count { color: #7a8583; font-size: 10px; }
@@ -814,6 +981,13 @@
       #${MODAL_ID} .hhr-row-save:hover { background: #0f857a; }
       #${MODAL_ID} .hhr-row-save:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
       #${MODAL_ID} .hhr-row-save:disabled { border-color: #ccd4d2; background: #e8edec; color: #85908e; cursor: not-allowed; }
+      #${MODAL_ID} .hhr-handoff-save {
+        min-height: 24px; padding: 2px 9px; border-radius: 999px; font-size: 10.5px;
+      }
+      #${MODAL_ID} .hhr-handoff-diagnosis {
+        display: -webkit-box; margin-top: 5px; overflow: hidden; color: #596663; font-size: 10.5px;
+        font-weight: 550; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+      }
       #${MODAL_ID} .hhr-protection-action { display: block; margin-top: 6px; padding-inline: 7px; white-space: nowrap; }
       #${MODAL_ID} .hhr-sync-state { display: inline-flex; align-items: flex-start; gap: 5px; color: #687572; font-size: 11px; line-height: 1.35; }
       #${MODAL_ID} .hhr-sync-state::before { content: ''; width: 7px; height: 7px; margin-top: 3px; border-radius: 50%; background: #a9b3b1; flex: 0 0 auto; }
@@ -892,6 +1066,19 @@
       #${MODAL_ID} .hhr-lab-report { margin-bottom: 8px; border: 1px solid #dfe6e5; border-radius: 7px; overflow: hidden; }
       #${MODAL_ID} .hhr-lab-report summary { padding: 9px 11px; background: #f7f9f9; color: #34413f; cursor: pointer; font-size: 11.5px; font-weight: 700; }
       #${MODAL_ID} .hhr-lab-report table { margin: 0; }
+      #${MODAL_ID} .hhr-syslab-login {
+        display: grid; grid-template-columns: minmax(130px,1fr) minmax(130px,1fr) auto; gap: 7px;
+        align-items: end; margin: 8px 0; padding: 9px 10px; border: 1px solid #ead18d;
+        border-radius: 9px; background: #fffaf0;
+      }
+      #${MODAL_ID} .hhr-syslab-login[hidden] { display: none; }
+      #${MODAL_ID} .hhr-syslab-field { display: grid; gap: 3px; color: #6b5a2f; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+      #${MODAL_ID} .hhr-syslab-field input {
+        height: 30px; min-width: 0; box-sizing: border-box; border: 1px solid #d7c58f; border-radius: 7px;
+        background: #fff; color: #303a38; padding: 0 8px; font: inherit; font-size: 11.5px;
+      }
+      #${MODAL_ID} .hhr-syslab-field input:focus { border-color: var(--hhr-teal-500); outline: none; box-shadow: var(--hhr-focus-ring); }
+      #${MODAL_ID} .hhr-syslab-login-state { grid-column: 1 / -1; color: #765c15; font-size: 10.5px; line-height: 1.35; }
       #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 12px; }
       #${MODAL_ID} .hhr-connection-card {
         border: 1px solid #e0e8e6; border-radius: 12px; background: #fff; padding: 14px 15px;
@@ -978,7 +1165,7 @@
       #${MODAL_ID} .hhr-vitals-tile.is-ungraded .hhr-vitals-value { color: #5f6d6a; }
       #${MODAL_ID} .hhr-vitals-census { display: grid; gap: 6px; padding-top: 10px; }
       #${MODAL_ID} .hhr-vitals-patient {
-        display: grid; grid-template-columns: 64px minmax(190px,1.25fr) minmax(390px,3fr) auto;
+        display: grid; grid-template-columns: 64px minmax(220px,1.35fr) minmax(390px,3fr);
         gap: 9px; align-items: center; width: 100%; padding: 7px 9px; border: 1px solid #e0e8e6;
         border-radius: 10px; background: #fff; color: var(--hhr-ink-900); cursor: pointer;
         text-align: left; font: inherit;
@@ -994,13 +1181,15 @@
       #${MODAL_ID} .hhr-vitals-patient-id { display: grid; gap: 2px; min-width: 0; }
       #${MODAL_ID} .hhr-vitals-patient-id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
       #${MODAL_ID} .hhr-vitals-patient-id span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #74807e; font-size: 10.5px; }
+      #${MODAL_ID} .hhr-vitals-patient-id .hhr-vitals-patient-time {
+        margin-top: 2px; color: #3f6661; font-size: 10px; font-weight: 650;
+      }
       #${MODAL_ID} .hhr-vitals-values { display: grid; grid-template-columns: repeat(6,minmax(52px,1fr)); gap: 4px; min-width: 0; }
       #${MODAL_ID} .hhr-vitals-summary-value { display: grid; gap: 0; min-width: 0; padding: 3px 5px; border-radius: 6px; background: #f5f8f7; }
       #${MODAL_ID} .hhr-vitals-summary-value span { color: #788481; font-size: 8px; font-weight: 700; text-transform: uppercase; }
       #${MODAL_ID} .hhr-vitals-summary-value strong { overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
       #${MODAL_ID} .hhr-vitals-summary-value.is-alert strong { color: var(--hhr-red-ink); }
       #${MODAL_ID} .hhr-vitals-summary-value.is-warn strong { color: var(--hhr-amber-ink); }
-      #${MODAL_ID} .hhr-vitals-summary-time { color: #71807d; font-size: 10px; white-space: nowrap; }
       #${MODAL_ID} .hhr-vitals-obs { margin: 8px 0 0; padding: 8px 11px; border: 1px solid #e0e8e6; border-radius: 8px; background: #fbfdfc; color: #4c5a58; font-size: 11.5px; line-height: 1.4; }
       #${MODAL_ID} .hhr-vitals-trends { margin-top: 10px; }
       #${MODAL_ID} .hhr-vitals-table-wrap { border: 1px solid #e0e8e6; border-radius: 10px; overflow: auto; max-height: 380px; }
@@ -1052,6 +1241,8 @@
         #${MODAL_ID} .hhr-vitals-values { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
         #${MODAL_ID} .hhr-vitals-summary-time { grid-column: 1 / -1; justify-self: end; }
         #${MODAL_ID} .hhr-connection-grid { grid-template-columns: 1fr; }
+        #${MODAL_ID} .hhr-syslab-login { grid-template-columns: 1fr; }
+        #${MODAL_ID} .hhr-syslab-login-state { grid-column: 1; }
         #${MODAL_ID} .hhr-center-table { min-width: 0; display: block; }
         #${MODAL_ID} .hhr-center-table colgroup, #${MODAL_ID} .hhr-center-table thead { display: none; }
         #${MODAL_ID} .hhr-center-table tbody { display: grid; gap: 9px; padding-top: 9px; }
@@ -1159,8 +1350,10 @@
       ? existingRoot.__hhrFocusReturnTarget
       : document.activeElement;
     const hasCurrentPatient = /^\d+$/.test(String(encId || ''));
-    const currentPatientMatchesRoute = hasCurrentPatient &&
-      String(currentRouteEncounterId() || '') === String(encId || '');
+    // A patient selected from the hospitalized list is a valid explicit context even when
+    // Eloísa keeps another episode in the underlying route. This unlocks the same detailed
+    // prescription options (including verified external prescriptions) without navigation.
+    const currentPatientMatchesRoute = hasCurrentPatient;
     const root = prepareCenterModalRoot({
       existingRoot,
       activeModule: 'recipes',
@@ -1169,9 +1362,13 @@
     });
     if (!root) return;
     root.querySelector('.hhr-center-main').innerHTML = `
-      <div class="hhr-center-toolbar">
+      <div class="hhr-center-toolbar hhr-recipes-toolbar">
         <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title">Recetas</h2>
-        <div class="hhr-rx-tabs" role="tablist" aria-label="Alcance de impresión">
+        <div class="hhr-rx-tabs hhr-rx-module-tabs" role="tablist" aria-label="Sección de recetas">
+          <button class="hhr-rx-tab" type="button" role="tab" data-rx-module="recipes" aria-selected="true">Recetas</button>
+          <button class="hhr-rx-tab" type="button" role="tab" data-rx-module="indications" aria-selected="false">Indicaciones</button>
+        </div>
+        <div class="hhr-rx-tabs hhr-rx-scope-tabs" role="tablist" aria-label="Alcance de impresión">
           <button class="hhr-rx-tab" id="hhr-rx-tab-current" type="button" role="tab" data-tab="current" aria-controls="hhr-rx-tabpanel" aria-selected="true">Paciente actual</button>
           <button class="hhr-rx-tab" id="hhr-rx-tab-hospitalized" type="button" role="tab" data-tab="hospitalized" aria-controls="hhr-rx-tabpanel" aria-selected="false">Hospitalizados</button>
         </div>
@@ -1191,7 +1388,11 @@
     const submit = root.querySelector('.hhr-rx-submit');
     const cancel = root.querySelector('.hhr-rx-cancel');
     const subtitle = root.querySelector('.hhr-rx-subtitle');
-    const tabs = Array.from(root.querySelectorAll('.hhr-rx-tab'));
+    root.querySelector('[data-rx-module="indications"]').addEventListener('click', () => {
+      if (!confirmClinicalTransition(root)) return;
+      createHospitalizedDocumentsModal('indications', encId, root);
+    });
+    const tabs = Array.from(root.querySelectorAll('.hhr-rx-scope-tabs .hhr-rx-tab'));
     const currentTab = tabs.find(tab => tab.dataset.tab === 'current');
     if (!currentPatientMatchesRoute && currentTab) {
       currentTab.disabled = true;
@@ -1429,11 +1630,6 @@
         const selected = list.querySelector('input:checked');
         const selectedFormat = formats.querySelector('input:checked');
         if (!selected || !selectedFormat) return;
-        if (currentRouteEncounterId() !== String(encId || '')) {
-          renderError('El episodio cambió. Cierra este panel y vuelve a abrir la receta del paciente actual.');
-          submit.disabled = true;
-          return;
-        }
         submit.disabled = true;
         cancel.disabled = true;
         submit.textContent = 'Generando receta…';
@@ -1517,9 +1713,9 @@
       list.className = 'hhr-rx-patient-list';
       patients.forEach(patient => {
         const printable = patient.medicationCount > 0 && !patient.unavailableReason;
-        const label = document.createElement('label');
-        label.className = 'hhr-rx-patient' + (printable ? '' : ' is-disabled');
-        label.dataset.search = normalizedText([
+        const row = document.createElement('div');
+        row.className = 'hhr-rx-patient' + (printable ? '' : ' is-disabled');
+        row.dataset.search = normalizedText([
           patient.name,
           patient.run,
           patient.bed,
@@ -1527,14 +1723,18 @@
           patient.service,
           ...(patient.prescribers || []).map(item => item.professional),
         ].join(' '));
-        label.dataset.service = normalizedText(patient.service);
+        row.dataset.service = normalizedText(patient.service);
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.name = 'hhr-bulk-patient';
         input.value = patient.encounterId;
         input.disabled = !printable;
+        input.id = 'hhr-rx-patient-' + patient.encounterId;
         const details = document.createElement('span');
         details.className = 'hhr-rx-patient-details';
+        const selectionLabel = document.createElement('label');
+        selectionLabel.className = 'hhr-rx-patient-selection';
+        selectionLabel.htmlFor = input.id;
         const title = document.createElement('span');
         title.className = 'hhr-rx-patient-title';
         const bed = document.createElement('span');
@@ -1558,7 +1758,7 @@
         prescribers.className = 'hhr-rx-prescribers';
         if (patient.unavailableReason) {
           prescribers.textContent = 'No fue posible consultar la receta';
-          label.title = patient.unavailableReason;
+          row.title = patient.unavailableReason;
         } else if (!patient.medicationCount) {
           prescribers.textContent = 'Sin fármacos activos';
         } else {
@@ -1575,7 +1775,8 @@
             .join('\n');
         }
         details.append(title, prescribers);
-        label.append(input, details);
+        selectionLabel.appendChild(details);
+        row.append(input, selectionLabel);
         if (printable) {
           const stats = document.createElement('span');
           stats.className = 'hhr-rx-patient-stats';
@@ -1596,9 +1797,18 @@
             time.textContent = latestLabel;
             stats.appendChild(time);
           }
-          label.appendChild(stats);
+          row.appendChild(stats);
         }
-        list.appendChild(label);
+        const openPatient = document.createElement('button');
+        openPatient.type = 'button';
+        openPatient.className = 'hhr-rx-mini-action hhr-rx-open-patient';
+        openPatient.textContent = 'Abrir';
+        openPatient.title = 'Abrir las opciones individuales de este paciente';
+        openPatient.addEventListener('click', () => {
+          createModal(patient.encounterId, 'current', root);
+        });
+        row.appendChild(openPatient);
+        list.appendChild(row);
       });
       body.append(toolbar, selectionSummary, list);
       const formats = renderFormats('hhr-bulk-prescription-format');
@@ -1707,18 +1917,23 @@
       ? existingRoot.__hhrFocusReturnTarget
       : document.activeElement;
     const isRegimen = kind === 'regimen';
-    // Indicaciones es un módulo paralelo a Recetas: ambos comparten el contexto de impresión,
-    // pero mantienen navegación y jerarquía independientes en el Centro HHR.
+    // Indicaciones comparte la sección Recetas y conserva el mismo paciente seleccionado.
     const root = prepareCenterModalRoot({
       existingRoot,
-      activeModule: isRegimen ? kind : 'indications',
+      activeModule: isRegimen ? kind : 'recipes',
       encId,
       focusReturnTarget,
     });
     if (!root) return;
     root.querySelector('.hhr-center-main').innerHTML = `
-      <div class="hhr-center-toolbar">
+      <div class="hhr-center-toolbar${isRegimen ? '' : ' hhr-recipes-toolbar'}">
         <h2 class="hhr-center-heading hhr-rx-title" id="hhr-rx-title"></h2>
+        ${isRegimen ? '' : `
+          <div class="hhr-rx-tabs hhr-rx-module-tabs" role="tablist" aria-label="Sección de recetas">
+            <button class="hhr-rx-tab" type="button" role="tab" data-rx-module="recipes" aria-selected="false">Recetas</button>
+            <button class="hhr-rx-tab" type="button" role="tab" data-rx-module="indications" aria-selected="true">Indicaciones</button>
+          </div>
+        `}
       </div>
       <div class="hhr-center-content hhr-center-embed">
         <p class="hhr-rx-subtitle"></p>
@@ -1734,12 +1949,18 @@
     const body = root.querySelector('.hhr-rx-body');
     const submit = root.querySelector('.hhr-rx-submit');
     const cancel = root.querySelector('.hhr-rx-cancel');
-    title.textContent = isRegimen ? 'Regímenes y BRADEN' : 'Indicaciones de hospitalizados';
+    title.textContent = isRegimen ? 'Regímenes y BRADEN' : 'Recetas';
     subtitle.textContent = isRegimen
       ? 'Genera una tabla única con régimen vigente, observación, fecha, valor BRADEN, clasificación y fecha de escala.'
       : 'Selecciona uno, varios o todos los pacientes. Sus indicaciones oficiales se abrirán en un único PDF.';
     submit.textContent = isRegimen ? 'Imprimir regímenes + BRADEN' : 'Imprimir indicaciones';
     cancel.addEventListener('click', root.__hhrDismiss);
+    if (!isRegimen) {
+      root.querySelector('[data-rx-module="recipes"]').addEventListener('click', () => {
+        if (!confirmClinicalTransition(root)) return;
+        createModal(encId, '', root);
+      });
+    }
 
     const renderError = message => {
       body.innerHTML = '';
@@ -1992,10 +2213,6 @@
         icon: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
       },
       {
-        key: 'indications', label: 'Indicaciones', title: 'Indicaciones',
-        icon: '<path d="M7 3h10v4H7zM5 5H3v16h18V5h-2M7 12h10M7 16h7"/>',
-      },
-      {
         key: 'handoff', label: 'Turno', title: 'Entrega de turno',
         icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11l2 2 3-4"/>',
       },
@@ -2130,7 +2347,7 @@
   };
 
   const wireCenterNavButtons = (root, activeModule, encId, focusReturnTarget) => {
-    lastCenterModule = activeModule;
+    lastCenterModule = activeModule === 'indications' ? 'recipes' : activeModule;
     root.querySelectorAll('.hhr-center-nav-button').forEach(button => {
       button.addEventListener('click', () => {
         const target = button.dataset.module;
@@ -2415,6 +2632,12 @@
         patientMeta.className = 'hhr-center-meta';
         patientMeta.textContent = [patient.run, patient.service].filter(Boolean).join(' · ');
         patientCell.append(patientName, patientMeta);
+        if (patient.diagnosis) {
+          const diagnosis = document.createElement('span');
+          diagnosis.className = 'hhr-handoff-diagnosis';
+          diagnosis.textContent = 'Dg: ' + patient.diagnosis;
+          patientCell.appendChild(diagnosis);
+        }
         const medicalCell = document.createElement('td');
         medicalCell.dataset.label = 'Entrega médica';
         const nursingCell = document.createElement('td');
@@ -2454,7 +2677,7 @@
         if (uncertainWrite) textarea.value = uncertainWrite.displayObservation || uncertainWrite.observation;
         counter.textContent = textarea.value.length + '/255';
         const save = document.createElement('button');
-        save.className = 'hhr-row-save';
+        save.className = 'hhr-row-save hhr-handoff-save';
         save.type = 'button';
         save.textContent = 'Guardar';
         save.disabled = true;
@@ -2563,8 +2786,10 @@
           textarea.value = '';
           counter.textContent = '0/255';
           textarea.disabled = false;
-          const persistedState = result.record && result.record.isSigned
-            ? 'Firmado'
+          const persistedState = result.finishConfirmed
+            ? 'Terminado'
+            : result.record && result.record.isSigned
+              ? 'Firmado'
             : result.record && result.record.requiresValidation ? 'Pendiente de validar' : 'Guardado';
           const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt);
           if (!root.isConnected) return;
@@ -2631,7 +2856,10 @@
         const focusReturnTarget = document.activeElement;
         const scoreKey = clinicalWriteKey('score', patient.encounterId, instrument);
         if (getActiveUncertainWrite(scoreKey)) {
-          window.alert('Esta aplicación no pudo confirmarse y permanece protegida hasta revisar su estado en Eloísa.');
+          showPageNotice(
+            'Esta aplicación no pudo confirmarse y permanece protegida hasta revisar su estado en Eloísa.',
+            { title: instrument + ' · verificación pendiente' }
+          );
           return;
         }
         const previous = main.querySelector('.hhr-score-form');
@@ -3354,6 +3582,12 @@
       </div>
       <div class="hhr-center-content">
         <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
+        <form class="hhr-syslab-login" hidden>
+          <label class="hhr-syslab-field">Usuario<input name="username" type="text" autocomplete="username" maxlength="120" required></label>
+          <label class="hhr-syslab-field">Contraseña<input name="password" type="password" autocomplete="current-password" maxlength="256" required></label>
+          <button class="hhr-center-action hhr-center-action-primary hhr-syslab-connect" type="submit">Conectar</button>
+          <span class="hhr-syslab-login-state" role="status" aria-live="polite">Ingresa tus credenciales de Syslab. No se guardan en la extensión.</span>
+        </form>
         <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
         <div class="hhr-lab-exam-list"></div>
         <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -3367,6 +3601,11 @@
     const selectAll = main.querySelector('.hhr-lab-select-all');
     const analyze = main.querySelector('.hhr-lab-analyze');
     const refresh = main.querySelector('.hhr-center-refresh');
+    const syslabLogin = main.querySelector('.hhr-syslab-login');
+    const syslabUsername = syslabLogin.querySelector('input[name="username"]');
+    const syslabPassword = syslabLogin.querySelector('input[name="password"]');
+    const syslabConnect = syslabLogin.querySelector('.hhr-syslab-connect');
+    const syslabLoginState = syslabLogin.querySelector('.hhr-syslab-login-state');
     main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
       renderLabRequestView(root, encId)
     );
@@ -3377,6 +3616,20 @@
     let activeTab = 'comparison';
     let requestGeneration = 0;
     let isAnalyzing = false;
+
+    const setSyslabAccess = (connected, message = '') => {
+      syslabLogin.hidden = connected;
+      const badge = patientHost.querySelector('.hhr-lab-status');
+      if (badge) badge.textContent = connected ? 'Syslab conectado' : 'Syslab requiere acceso';
+      if (message) setLiveRegion(syslabLoginState, message, connected ? 'synced' : '');
+    };
+
+    const checkSyslabAccess = async () => {
+      const report = await sendMessage({ type: 'RAYEN_SYSLAB_STATUS_REQUEST' });
+      const connected = Boolean(report && !report.error && report.connected);
+      setSyslabAccess(connected, report && (report.error || report.message) || 'No se pudo comprobar Syslab.');
+      return connected;
+    };
 
     const invalidateLabAnalysis = () => {
       analysis = null;
@@ -3478,6 +3731,16 @@
         selectAll.disabled = true;
         return;
       }
+      if (!await checkSyslabAccess()) {
+        status.textContent = 'Inicio de sesión requerido';
+        list.innerHTML = '<div class="hhr-center-empty">Conecta Syslab para consultar los exámenes de este paciente.</div>';
+        results.innerHTML = '';
+        analyze.disabled = true;
+        selectAll.disabled = true;
+        filter.disabled = true;
+        refresh.disabled = false;
+        return;
+      }
       status.textContent = 'Buscando exámenes en Syslab…';
       list.innerHTML = '<div class="hhr-center-empty">Consultando la sesión oficial de Syslab en la red local…</div>';
       results.innerHTML = '';
@@ -3517,6 +3780,26 @@
       patientHost.append(patientName, patientMeta, connection);
       renderList();
     };
+    syslabLogin.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!syslabUsername.value.trim() || !syslabPassword.value) return;
+      syslabConnect.disabled = true;
+      setLiveRegion(syslabLoginState, 'Verificando credenciales en Syslab…');
+      const response = await sendMessage({
+        type: 'RAYEN_SYSLAB_LOGIN_REQUEST',
+        username: syslabUsername.value.trim(),
+        password: syslabPassword.value,
+      });
+      syslabPassword.value = '';
+      syslabConnect.disabled = false;
+      if (!response || response.error || !response.connected) {
+        setSyslabAccess(false, response && response.error || 'Syslab no confirmó el acceso.');
+        syslabPassword.focus();
+        return;
+      }
+      setSyslabAccess(true, 'Syslab conectado.');
+      await load();
+    });
     filter.addEventListener('input', renderList);
     selectAll.addEventListener('click', () => {
       const selectionBefore = [...selected].sort().join('|');
@@ -3629,11 +3912,6 @@
             <strong>Reg + BRADEN</strong>
             <span class="hhr-home-card-desc">PDF global con régimen vigente y escala BRADEN de todos los pacientes, en un clic.</span>
           </button>
-          <button class="hhr-home-card is-action" type="button" data-module="indications">
-            <span class="hhr-home-card-icon">${ui.icons.indications}</span>
-            <strong>Indicaciones</strong>
-            <span class="hhr-home-card-desc">PDF único con las indicaciones oficiales de los pacientes que elijas.</span>
-          </button>
         </div>
       </div>
     `;
@@ -3645,9 +3923,7 @@
     });
     main.querySelector('.hhr-home-regimen').addEventListener('click', () => {
       if (!confirmClinicalTransition(root)) return;
-      root.__hhrDismiss = null;
-      root.remove();
-      createRegimenQuickDialog();
+      createHospitalizedDocumentsModal('regimen', encId, root);
     });
   };
 
@@ -4039,7 +4315,12 @@
         name.textContent = patient.name || 'Paciente sin nombre';
         const meta = document.createElement('span');
         meta.textContent = patient.run || 'RUN no disponible';
-        identity.append(name, meta);
+        const time = document.createElement('span');
+        time.className = 'hhr-vitals-patient-time';
+        time.textContent = patient.unavailableReason
+          ? 'No disponible'
+          : latest ? 'Última toma · ' + latest.recordedAt : 'Sin registros';
+        identity.append(name, meta, time);
         row.append(bed, identity);
         let cohort = 'unknown';
         if (latest && latest.recordedDate) {
@@ -4060,12 +4341,6 @@
           values.appendChild(value);
         });
         row.appendChild(values);
-        const time = document.createElement('span');
-        time.className = 'hhr-vitals-summary-time';
-        time.textContent = patient.unavailableReason
-          ? 'No disponible'
-          : latest ? latest.recordedAt : 'Sin registros';
-        row.appendChild(time);
         if (!patient.unavailableReason) {
           row.addEventListener('click', () => {
             createOperationsCenterModal('vitals', patient.encounterId, root.__hhrFocusReturnTarget, root, {
@@ -5167,8 +5442,9 @@
           freezeClinicalModalForEncounterChange(modal);
         } else {
           if (guard.dirty.size) {
-            window.alert(
-              'El episodio cambió. Los datos sin guardar se descartaron para evitar asociarlos al paciente equivocado.'
+            showPageNotice(
+              'El episodio cambió. Los datos sin guardar se descartaron para evitar asociarlos al paciente equivocado.',
+              { title: 'Cambio de paciente' }
             );
           }
           modal.remove();
@@ -5179,6 +5455,7 @@
     }
     ensureOperationsBar(encId);
     ensureCorrectedDischargePrintItems();
+    ensureNursingMedicalEpicrisisPrintItem(nursingContext);
     if (!encId || !nursingContext) {
       document.documentElement.setAttribute(
         'data-hhr-prescription-print-state',
