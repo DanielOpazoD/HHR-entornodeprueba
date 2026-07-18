@@ -148,7 +148,13 @@
           if (latest && latest.recordedDate) {
             const parts = latest.recordedDate.split('-').map(Number);
             const referenceDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date('invalid');
-            cohort = vitalsHelper.ageCohort(patient.birthDate, referenceDate);
+            const validReferenceDate =
+              referenceDate.getFullYear() === parts[0] &&
+              referenceDate.getMonth() === parts[1] - 1 &&
+              referenceDate.getDate() === parts[2];
+            cohort = validReferenceDate
+              ? vitalsHelper.ageCohort(patient.birthDate, referenceDate)
+              : 'unknown';
           }
           const values = document.createElement('span');
           values.className = 'hhr-vitals-values';
@@ -282,9 +288,16 @@
           const text = metric.text(latest);
           const tile = document.createElement('div');
           tile.className = 'hhr-vitals-tile is-' + metric.status(latest, cohort);
-          tile.innerHTML = `<span class="hhr-vitals-label">${metric.label}</span>
-            <span class="hhr-vitals-value">${text || '–'}</span>
-            <span class="hhr-vitals-unit">${metric.unit}</span>`;
+          const label = document.createElement('span');
+          label.className = 'hhr-vitals-label';
+          label.textContent = metric.label;
+          const value = document.createElement('span');
+          value.className = 'hhr-vitals-value';
+          value.textContent = text || '–';
+          const unit = document.createElement('span');
+          unit.className = 'hhr-vitals-unit';
+          unit.textContent = metric.unit;
+          tile.append(label, value, unit);
           grid.appendChild(tile);
         });
         content.appendChild(grid);
@@ -354,7 +367,10 @@
             currentDay = day;
             const dayRow = document.createElement('tr');
             dayRow.className = 'hhr-vitals-day';
-            dayRow.innerHTML = `<td colspan="${metrics.length + 1}">${day}</td>`;
+            const dayCell = document.createElement('td');
+            dayCell.colSpan = metrics.length + 1;
+            dayCell.textContent = day;
+            dayRow.appendChild(dayCell);
             tbody.appendChild(dayRow);
           }
           const row = document.createElement('tr');

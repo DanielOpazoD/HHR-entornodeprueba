@@ -179,6 +179,15 @@ describe('Centro HHR vital-signs runtime', () => {
           unavailableReason: 'Sesión no disponible',
           forms: [],
         },
+        {
+          encounterId: '104',
+          name: 'Fecha inválida',
+          run: 'RUN 104',
+          bed: '12D',
+          service: 'Medicina',
+          birthDate: '1980-02-03',
+          forms: [{ ...latest, recordedDate: '2026-02-31' }],
+        },
       ],
     }));
     const root = makeRoot();
@@ -193,15 +202,43 @@ describe('Centro HHR vital-signs runtime', () => {
       currentEncId: 'route-encounter',
     });
     const rows = root.querySelectorAll<HTMLButtonElement>('.hhr-vitals-patient');
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     expect(rows[0].querySelector('.hhr-vitals-summary-value')).toHaveClass('is-alert');
     expect(rows[1].textContent).toContain('Sin registros');
     expect(rows[1].querySelector('.hhr-vitals-summary-value strong')?.textContent).toBe('–');
     expect(rows[2].disabled).toBe(true);
     expect(rows[2].textContent).toContain('No disponible');
+    expect(rows[3].querySelector('.hhr-vitals-summary-value')).toHaveClass('is-ungraded');
 
     rows[0].click();
     expect(openVitalsView).toHaveBeenCalledWith(root, '101', 'detail');
+  });
+
+  it('renders response-derived metric values and history dates as text', async () => {
+    const payload = '<img class="response-payload" src="invalid">';
+    const textOnlyHelper = {
+      ...vitalsHelper,
+      VITAL_METRICS: [{
+        ...temperatureMetric,
+        text: () => payload,
+      }],
+    };
+    const sendMessage = vi.fn(async (message: Record<string, unknown>) =>
+      message.type === runtimeMessages.SCALES_REPORT_REQUEST
+        ? { forms: [{ ...record('2026-07-18 09:00', 38), recordedAt: payload }] }
+        : { patient: { birthDate: '1980-02-03' } }
+    );
+    const root = makeRoot();
+
+    runtimeOwner().create({
+      ...makeDependencies(sendMessage),
+      vitalsHelper: textOnlyHelper,
+    }).renderVitalsCenter(root, '505', 'detail');
+    await flushPromises();
+
+    expect(root.querySelector('.response-payload')).toBeNull();
+    expect(root.querySelector('.hhr-vitals-value')?.textContent).toBe(payload);
+    expect(root.querySelector('.hhr-vitals-day td')?.textContent).toBe(payload.slice(0, 10));
   });
 
   it('starts scales and patient-header requests in parallel and preserves detail charts and overview navigation', async () => {
