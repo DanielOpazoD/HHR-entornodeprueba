@@ -8,6 +8,7 @@ const readExtension = (file: string): string =>
   readFileSync(path.resolve('extension', file), 'utf8');
 
 const backgroundSource = readExtension('background.js');
+const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const contentSource = readExtension('content-prescription-print.js');
 const fichaSource = readExtension('inject-fichamedico.js');
@@ -15,16 +16,16 @@ const readmeSource = readExtension('README.md');
 
 describe('CodeRabbit clinical integration hardening', () => {
   it('uses the short health budget for both tab and backend session verification', () => {
-    expect(backgroundSource).toContain('verificationTimeoutMs: HEALTH_PROBE_TIMEOUT_MS');
-    expect(backgroundSource).toContain('tabTimeoutMs: HEALTH_PROBE_TIMEOUT_MS');
-    expect(backgroundSource).toContain(
-      'verifyGestionCamasSession(record, HEALTH_PROBE_TIMEOUT_MS)'
+    expect(gestionCamasRuntimeSource).toContain('verificationTimeoutMs: healthProbeTimeoutMs');
+    expect(gestionCamasRuntimeSource).toContain('tabTimeoutMs: healthProbeTimeoutMs');
+    expect(gestionCamasRuntimeSource).toContain(
+      'verifyGestionCamasSession(record, healthProbeTimeoutMs)'
     );
   });
 
   it('separates expired and forbidden sessions and only forwards approved egreso metadata', () => {
-    expect(backgroundSource).toContain('if (response.status === 401)');
-    expect(backgroundSource).toContain("if (response.status === 403) return 'forbidden'");
+    expect(gestionCamasRuntimeSource).toContain('if (response.status === 401)');
+    expect(gestionCamasRuntimeSource).toContain("if (response.status === 403) return 'forbidden'");
     expect(backgroundSource).toContain('GESTION_CAMAS_EGRESO_METADATA_FIELDS');
     expect(backgroundSource).not.toContain('GESTION_CAMAS_PHI_FIELDS');
     const picker = backgroundSource.slice(
