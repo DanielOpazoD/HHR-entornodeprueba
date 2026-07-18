@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
 import '../../../extension/hhr-center-styles.js';
+import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-scores-center.js';

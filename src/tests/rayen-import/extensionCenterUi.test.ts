@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const contentSource = [
   'content-prescription-print.js',
+  'hhr-center-shell-runtime.js',
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
   'hhr-handoff-scores-center.js',

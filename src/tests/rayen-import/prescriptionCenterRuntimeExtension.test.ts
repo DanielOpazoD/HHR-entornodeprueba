@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-scores-center.js';
@@ -31,6 +32,10 @@ const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json')
   content_scripts?: Array<{ matches?: string[]; js?: string[] }>;
 };
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+const centerShellSource = readFileSync(
+  path.resolve('extension/hhr-center-shell-runtime.js'),
+  'utf8'
+);
 const prescriptionSource = readFileSync(
   path.resolve('extension/hhr-prescription-center.js'),
   'utf8'
@@ -60,6 +65,9 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(() => globalThis.HhrLabCenterRuntime.create({})).toThrow(
       /Laboratorio HHR/
     );
+    expect(() => globalThis.HhrCenterShellRuntime.create({})).toThrow(
+      /shell del Centro HHR/
+    );
   });
 
   it('exposes one immutable open operation per owner', () => {
@@ -81,10 +89,14 @@ describe('Centro HHR prescription runtime ownership', () => {
     const scripts = fichaEntry?.js || [];
 
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeGreaterThan(-1);
+    expect(scripts.indexOf('hhr-center-shell-runtime.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-handoff-scores-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-lab-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeLessThan(
+      scripts.indexOf('content-prescription-print.js')
+    );
+    expect(scripts.indexOf('hhr-center-shell-runtime.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeLessThan(
@@ -106,10 +118,14 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(contentSource).toContain('labCenterOwner.create({');
     expect(contentSource).not.toContain('const renderLabCenter =');
     expect(contentSource).not.toContain('const renderLabRequestView =');
+    expect(contentSource).toContain('centerShellOwner.create({');
+    expect(contentSource).not.toContain('const centerShellMarkup =');
+    expect(contentSource).not.toContain('const setupCenterPatientContext =');
   });
 
   it('keeps the orchestrator and extracted owners inside their bounded size budgets', () => {
     expect(lineCount(contentSource)).toBeLessThanOrEqual(2_750);
+    expect(lineCount(centerShellSource)).toBeLessThanOrEqual(400);
     expect(lineCount(prescriptionSource)).toBeLessThanOrEqual(700);
     expect(lineCount(hospitalizedDocumentsSource)).toBeLessThanOrEqual(400);
     expect(lineCount(handoffScoresSource)).toBeLessThanOrEqual(1_000);
@@ -119,6 +135,7 @@ describe('Centro HHR prescription runtime ownership', () => {
 
 declare global {
   var HhrPrescriptionCenterRuntime: RuntimeOwner;
+  var HhrCenterShellRuntime: RuntimeOwner;
   var HhrHospitalizedDocumentsCenterRuntime: RuntimeOwner;
   var HhrHandoffScoresCenterRuntime: RuntimeOwner;
   var HhrLabCenterRuntime: RuntimeOwner;

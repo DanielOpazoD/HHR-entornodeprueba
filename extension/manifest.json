@@ -51,6 +51,7 @@
         "message-contract.js",
         "hhr-ui.js",
         "hhr-center-styles.js",
+        "hhr-center-shell-runtime.js",
         "hhr-prescription-center.js",
         "hhr-hospitalized-documents-center.js",
         "hhr-handoff-scores-center.js",
