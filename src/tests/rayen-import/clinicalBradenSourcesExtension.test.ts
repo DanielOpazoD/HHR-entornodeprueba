@@ -11,6 +11,10 @@ const clinicalScoreRuntimeSource = readFileSync(
   new URL('../../../extension/clinical-score-runtime.js', import.meta.url),
   'utf8'
 );
+const clinicalBatchPrintRuntimeSource = readFileSync(
+  new URL('../../../extension/clinical-batch-print-runtime.js', import.meta.url),
+  'utf8'
+);
 const contentSource = [
   '../../../extension/content-prescription-print.js',
   '../../../extension/hhr-handoff-scores-center.js',
@@ -28,7 +32,7 @@ const sliceBetween = (source: string, startMarker: string, endMarker: string) =>
 describe('extension BRADEN source reconciliation', () => {
   it('always reads history and forms for the integrated regimen PDF', () => {
     const source = sliceBetween(
-      backgroundSource,
+      clinicalBatchPrintRuntimeSource,
       'const fetchHospitalizedRegimenSummaries = async',
       'const getActiveHospitalizedPatientsWithFallback = async'
     );
@@ -79,7 +83,7 @@ describe('extension BRADEN source reconciliation', () => {
     const source = sliceBetween(
       backgroundSource,
       'const readClinicalWriteRecoveryReview = async',
-      "const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-'"
+      'const clinicalBatchPrintRuntime = self.HhrClinicalBatchPrintRuntime.create({'
     );
 
     expect(source).toContain('fetchScaleHistoryEvents(encId, info, 120)');
