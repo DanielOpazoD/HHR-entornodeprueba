@@ -8,6 +8,10 @@ import { describe, expect, it } from 'vitest';
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const gestionCamasSource = readFileSync(path.resolve('extension/inject-gestioncamas.js'), 'utf8');
+const gestionCamasRuntimeSource = readFileSync(
+  path.resolve('extension/gestion-camas-runtime.js'),
+  'utf8'
+);
 const extensionManifest = JSON.parse(
   readFileSync(path.resolve('extension/manifest.json'), 'utf8')
 ) as {
@@ -59,6 +63,7 @@ describe('extension heavy runtime loading', () => {
     expect(startup).toContain("'jspdf.umd.min.js'");
     expect(startup).toContain("'pdf-lib.min.js'");
     expect(startup).toContain("'xlsx.full.min.js'");
+    expect(startup).toContain("'gestion-camas-runtime.js'");
   });
 
   it('only verifies already-registered runtimes and never performs a late import', () => {
@@ -163,7 +168,7 @@ describe('extension heavy runtime loading', () => {
     expect(backgroundSource).toContain('HEALTH_PROBE_TIMEOUT_MS = 5_000');
     expect(backgroundSource).toMatch(/withTimeout\(\s*chrome\.tabs\.sendMessage/);
     expect(backgroundSource).toContain('sendMessage: sendHealthProbe');
-    expect(backgroundSource).toContain('self.HhrExtensionHealth.orderTabs(tabs)');
+    expect(gestionCamasRuntimeSource).toContain('extensionHealth.orderTabs(tabs)');
     expect(backgroundSource).toContain('response && !response.error');
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
@@ -181,29 +186,33 @@ describe('extension heavy runtime loading', () => {
       'this.__gcConnectionAttemptId = activeConnectionAttemptId'
     );
     expect(gestionCamasSource).not.toContain('verified: Boolean(verified)');
-    expect(backgroundSource).toContain('sameGestionCamasSession(current, record)');
-    expect(backgroundSource).toContain('record.sourceTabId = normalizedSourceTabId');
-    expect(backgroundSource).toContain('record.connectionAttemptId = suppliedAttemptId');
-    expect(backgroundSource).toContain('attemptId: crypto.randomUUID()');
-    expect(backgroundSource).toContain('RAYEN_GC_SET_CONNECTION_ATTEMPT');
+    expect(gestionCamasRuntimeSource).toContain('sameGestionCamasSession(current, record)');
+    expect(gestionCamasRuntimeSource).toContain('record.sourceTabId = normalizedSourceTabId');
+    expect(gestionCamasRuntimeSource).toContain('record.connectionAttemptId = suppliedAttemptId');
+    expect(gestionCamasRuntimeSource).toContain('attemptId: crypto.randomUUID()');
+    expect(gestionCamasRuntimeSource).toContain('RAYEN_GC_SET_CONNECTION_ATTEMPT');
     expect(backgroundSource).toContain('[RUNTIME_MESSAGES.GC_DOCUMENT_READY]: runtimeRoute(');
-    expect(backgroundSource).toContain('CONNECTION_CONTROL_STORAGE_KEY');
-    expect(backgroundSource).toContain('CLOSING_WINDOW_STORAGE_KEY');
-    expect(backgroundSource).toContain('clearUnusableGestionCamasSession');
-    expect(backgroundSource).toContain(
+    expect(gestionCamasRuntimeSource).toContain('CONNECTION_CONTROL_STORAGE_KEY');
+    expect(gestionCamasRuntimeSource).toContain('CLOSING_WINDOW_STORAGE_KEY');
+    expect(gestionCamasRuntimeSource).toContain('clearUnusableGestionCamasSession');
+    expect(gestionCamasRuntimeSource).toContain(
       'const verified = await verifyGestionCamasSession(candidate, verificationTimeoutMs)'
     );
-    expect(backgroundSource).toContain('if (verified.record) return { record: verified.record }');
-    expect(backgroundSource).toContain('isClosingGestionCamasWindow(closing, windowId)');
-    expect(backgroundSource).toContain('return { replaced: true }');
-    expect(backgroundSource).toMatch(
+    expect(gestionCamasRuntimeSource).toContain(
+      'if (verified.record) return { record: verified.record }'
+    );
+    expect(gestionCamasRuntimeSource).toContain('isClosingGestionCamasWindow(closing, windowId)');
+    expect(gestionCamasRuntimeSource).toContain('return { replaced: true }');
+    expect(gestionCamasRuntimeSource).toMatch(
       /mutateGestionCamasSession\(async \(\) => \{\s+const pending = await readPendingGestionCamasConnection\(\)/
     );
     expect(backgroundSource).toContain('if (!verified)');
-    expect(backgroundSource).toContain("? 'expired' : 'changed'");
-    expect(backgroundSource).toContain('if (response.status === 401)');
-    expect(backgroundSource).toContain("if (response.status === 403) return 'forbidden'");
-    expect(backgroundSource).not.toContain('response.status === 401 || response.status === 403');
+    expect(gestionCamasRuntimeSource).toContain("? 'expired' : 'changed'");
+    expect(gestionCamasRuntimeSource).toContain('if (response.status === 401)');
+    expect(gestionCamasRuntimeSource).toContain("if (response.status === 403) return 'forbidden'");
+    expect(gestionCamasRuntimeSource).not.toContain(
+      'response.status === 401 || response.status === 403'
+    );
   });
 
   it('keeps the application and extension health protocol versions aligned', () => {

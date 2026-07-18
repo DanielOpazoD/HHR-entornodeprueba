@@ -54,6 +54,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 | `gestion-camas-session.js` | Valida y reduce la sesión temporal de Gestión de Camas, incluida su expiración |
+| `gestion-camas-runtime.js` | Conserva, verifica, renueva y desconecta la sesión temporal de Gestión de Camas; administra su ventana oficial de acceso |
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
 | `lab-viewer.js` | Parser clínico y organización pura de comparación, alertas y tendencias |
 | `syslab-bridge.js` | Navega la sesión oficial de Syslab y extrae/valida informes dentro de la red local |
