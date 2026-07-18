@@ -4,48 +4,46 @@ import { describe, expect, it, vi } from 'vitest';
 const require = createRequire(import.meta.url);
 const { createAuthHelpers } = require('../../../functions/lib/auth/authHelpersFactory.js');
 
-const createAdminStub = (options: { dynamicRoles?: Record<string, string> }) => {
+const createFirebaseServicesStub = (options: { dynamicRoles?: Record<string, string> }) => {
   const dynamicRoles = options.dynamicRoles ?? null;
 
   return {
-    admin: {
-      firestore: () => ({
-        collection: (name: string) => ({
-          doc: (id: string) => ({
-            get: async () => {
-              if (name === 'config' && id === 'roles') {
-                return {
-                  exists: !!dynamicRoles,
-                  data: () => dynamicRoles ?? {},
-                };
-              }
-              return { exists: false, data: () => ({}) };
-            },
-          }),
+    firestore: {
+      collection: (name: string) => ({
+        doc: (id: string) => ({
+          get: async () => {
+            if (name === 'config' && id === 'roles') {
+              return {
+                exists: !!dynamicRoles,
+                data: () => dynamicRoles ?? {},
+              };
+            }
+            return { exists: false, data: () => ({}) };
+          },
         }),
       }),
-      auth: () => ({
-        setCustomUserClaims: vi.fn().mockResolvedValue(undefined),
-      }),
+    },
+    auth: {
+      setCustomUserClaims: vi.fn().mockResolvedValue(undefined),
     },
   };
 };
 
 describe('functions authHelpersFactory', () => {
   it('resolves dynamic roles from config/roles without mutating the source document', async () => {
-    const { admin } = createAdminStub({
+    const services = createFirebaseServicesStub({
       dynamicRoles: { 'custom@example.com': 'viewer_census' },
     });
-    const helpers = createAuthHelpers(admin);
+    const helpers = createAuthHelpers(services);
 
     await expect(helpers.resolveRoleForEmail('custom@example.com')).resolves.toBe('viewer');
   });
 
   it('treats doctor_specialist as valid general login access in callable helpers', async () => {
-    const { admin } = createAdminStub({
+    const services = createFirebaseServicesStub({
       dynamicRoles: { 'specialist@example.com': 'doctor_specialist' },
     });
-    const helpers = createAuthHelpers(admin);
+    const helpers = createAuthHelpers(services);
 
     await expect(
       helpers.hasCallableClinicalAccess({
@@ -59,10 +57,10 @@ describe('functions authHelpersFactory', () => {
   });
 
   it('normalizes viewer_census to viewer for callable helpers', async () => {
-    const { admin } = createAdminStub({
+    const services = createFirebaseServicesStub({
       dynamicRoles: { 'shared@example.com': 'viewer_census' },
     });
-    const helpers = createAuthHelpers(admin);
+    const helpers = createAuthHelpers(services);
 
     await expect(
       helpers.hasCallableClinicalAccess({

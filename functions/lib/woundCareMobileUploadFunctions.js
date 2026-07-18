@@ -51,10 +51,11 @@ const decodeBase64 = (value, fieldName) => {
   return buffer;
 };
 
-const getHospitalRef = admin => admin.firestore().collection('hospitals').doc(HOSPITAL_ID);
-const getSessionsRef = admin => getHospitalRef(admin).collection('woundCareMobileUploadSessions');
-const getPhotosRef = admin => getHospitalRef(admin).collection('woundCarePhotos');
-const getAuditLogsRef = admin => getHospitalRef(admin).collection('auditLogs');
+const getHospitalRef = firestore => firestore.collection('hospitals').doc(HOSPITAL_ID);
+const getSessionsRef = firestore =>
+  getHospitalRef(firestore).collection('woundCareMobileUploadSessions');
+const getPhotosRef = firestore => getHospitalRef(firestore).collection('woundCarePhotos');
+const getAuditLogsRef = firestore => getHospitalRef(firestore).collection('auditLogs');
 
 const generateId = prefix => `${prefix}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
 
@@ -81,13 +82,13 @@ const normalizeSession = snapshot => {
   return session;
 };
 
-const loadValidSession = async (admin, sessionId) => {
-  const snapshot = await getSessionsRef(admin).doc(sessionId).get();
+const loadValidSession = async (firestore, sessionId) => {
+  const snapshot = await getSessionsRef(firestore).doc(sessionId).get();
   return normalizeSession(snapshot);
 };
 
-const saveBufferToStorage = async ({ admin, path, buffer, contentType, metadata }) => {
-  const bucket = admin.storage().bucket();
+const saveBufferToStorage = async ({ storage, path, buffer, contentType, metadata }) => {
+  const bucket = storage.bucket();
   const token = crypto.randomUUID();
   const file = bucket.file(path);
   await file.save(buffer, {
@@ -177,11 +178,11 @@ const assertUploadCapacity = session => {
   return { max, used };
 };
 
-const createWoundCareMobileUploadFunctions = ({ admin }) => ({
+const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }) => ({
   validateWoundCareMobileUploadSession: functions.https.onCall(async (data, context) => {
     requireAppCheckToken(context, 'validateWoundCareMobileUploadSession');
     const sessionId = assertStringField(data?.sessionId, 'sessionId');
-    const session = await loadValidSession(admin, sessionId);
+    const session = await loadValidSession(firestore, sessionId);
 
     // Observability: every successful validate is auditable, not just
     // the upload itself. Lets ops detect QR scanning patterns or
@@ -192,7 +193,7 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
         requestData: data,
         appCheckPresent: Boolean(context && context.app),
       });
-      await getAuditLogsRef(admin).doc(auditEntry.id).set(auditEntry);
+      await getAuditLogsRef(firestore).doc(auditEntry.id).set(auditEntry);
     } catch (auditError) {
       console.warn('[wound-care] validateSession audit emit failed', auditError);
     }
@@ -214,7 +215,7 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
   uploadWoundCareMobilePhoto: functions.https.onCall(async (data, context) => {
     requireAppCheckToken(context, 'uploadWoundCareMobilePhoto');
     const sessionId = assertStringField(data?.sessionId, 'sessionId');
-    const session = await loadValidSession(admin, sessionId);
+    const session = await loadValidSession(firestore, sessionId);
     assertUploadCapacity(session);
     const imageBuffer = decodeBase64(data?.imageBase64, 'imageBase64');
     const thumbnailBuffer = decodeBase64(data?.thumbnailBase64, 'thumbnailBase64');
@@ -244,7 +245,7 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
 
     const [downloadUrl, thumbnailDownloadUrl] = await Promise.all([
       saveBufferToStorage({
-        admin,
+        storage,
         path: photoPath,
         buffer: imageBuffer,
         contentType: mimeType,
@@ -255,7 +256,7 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
         },
       }),
       saveBufferToStorage({
-        admin,
+        storage,
         path: thumbPath,
         buffer: thumbnailBuffer,
         contentType: 'image/webp',
@@ -290,20 +291,19 @@ const createWoundCareMobileUploadFunctions = ({ admin }) => ({
       isDeleted: false,
     };
 
-    await getPhotosRef(admin).doc(photoId).set(photo);
+    await getPhotosRef(firestore).doc(photoId).set(photo);
     const auditEntry = createAuditEntry({ session, photoId, requestData: data });
-    await getAuditLogsRef(admin).doc(auditEntry.id).set(auditEntry);
+    await getAuditLogsRef(firestore).doc(auditEntry.id).set(auditEntry);
 
     // Increment the per-session upload counter so the next call hits
     // the cap. Best-effort: a failure to update the counter is logged
     // but does not roll back the photo write — losing one increment is
     // strictly safer than failing an already-persisted upload.
     try {
-      const FieldValue = (admin.firestore && admin.firestore.FieldValue) || null;
-      const updatePayload = FieldValue
+      const updatePayload = FieldValue && typeof FieldValue.increment === 'function'
         ? { uploadCount: FieldValue.increment(1) }
         : { uploadCount: (typeof session.uploadCount === 'number' ? session.uploadCount : 0) + 1 };
-      await getSessionsRef(admin).doc(sessionId).update(updatePayload);
+      await getSessionsRef(firestore).doc(sessionId).update(updatePayload);
     } catch (counterError) {
       console.warn('[wound-care] uploadCount increment failed', counterError);
     }

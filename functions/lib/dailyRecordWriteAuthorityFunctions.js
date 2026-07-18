@@ -395,7 +395,7 @@ const idempotentAuthority = {
 };
 
 const recordAuthorityTelemetry = async ({
-  admin,
+  firestore,
   date,
   mode,
   origin,
@@ -413,8 +413,7 @@ const recordAuthorityTelemetry = async ({
     const changedPaths = collectChangedPaths(syncContract);
     const safeAuthority = authority || emptyAuthority;
     const safeCoverage = coverage || emptyCoverage;
-    await admin
-      .firestore()
+    await firestore
       .collection('hospitals')
       .doc(HOSPITAL_ID)
       .collection('functionsTelemetry')
@@ -486,7 +485,7 @@ const assertNoPatientErasures = ({ snapshot, record }) => {
   );
 };
 
-const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }) => ({
+const createDailyRecordWriteAuthorityFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
   saveDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
     const email = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
@@ -498,7 +497,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
 
     if (authority.status !== 'ok') {
       await recordAuthorityTelemetry({
-        admin,
+        firestore,
         date,
         mode,
         origin,
@@ -517,7 +516,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
       );
     }
 
-    const db = admin.firestore();
+    const db = firestore;
     const docRef = db.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords').doc(date);
     let revision;
     let responseAuthority = authority;
@@ -542,7 +541,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
           return;
         }
 
-        const now = admin.firestore.Timestamp.now();
+        const now = Timestamp.now();
         if (snapshot.exists) {
           const historyRef = docRef.collection('history').doc(new Date().toISOString());
           transaction.set(historyRef, {
@@ -565,7 +564,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
       });
 
       await recordAuthorityTelemetry({
-        admin,
+        firestore,
         date,
         mode,
         origin,
@@ -588,7 +587,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         await recordAuthorityTelemetry({
-          admin,
+          firestore,
           date,
           mode,
           origin,
@@ -620,7 +619,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
     const email = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
     const { date, patch, mode, origin, dryRun, syncContract, expectedLastUpdated } =
       parsePatchPayload(data);
-    const db = admin.firestore();
+    const db = firestore;
     const docRef = db.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords').doc(date);
     let authority;
     let coverage;
@@ -648,7 +647,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
         assertExpectedVersion({ snapshot, expectedLastUpdated });
         assertExpectedRevision({ snapshot, syncContract });
         assertPatchTargetsCurrentClinicalEpisode({ remoteData, patch });
-        const now = admin.firestore.Timestamp.now();
+        const now = Timestamp.now();
         const patchedRecord = applyPatchToRecord({ date, remoteData, patch });
         patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
 
@@ -680,7 +679,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
       });
 
       await recordAuthorityTelemetry({
-        admin,
+        firestore,
         date,
         mode,
         origin,
@@ -697,7 +696,7 @@ const createDailyRecordWriteAuthorityFunctions = ({ admin, resolveRoleForEmail }
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         await recordAuthorityTelemetry({
-          admin,
+          firestore,
           date,
           mode,
           origin,

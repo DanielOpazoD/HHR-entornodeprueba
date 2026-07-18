@@ -100,12 +100,12 @@ const computeExpiresAt = (prescriptionType, createdAtIso) => {
   return new Date(new Date(createdAtIso).getTime() + days * DAY_MS).toISOString();
 };
 
-const getHospitalRef = admin => admin.firestore().collection('hospitals').doc(HOSPITAL_ID);
-const getPrescriptionsRef = admin => getHospitalRef(admin).collection('prescriptions');
-const getAccessConfigRef = admin =>
-  getHospitalRef(admin).collection('config').doc('prescriptionsAccess');
-const getDailyRecordRef = (admin, date) =>
-  getHospitalRef(admin).collection('dailyRecords').doc(date);
+const getHospitalRef = firestore => firestore.collection('hospitals').doc(HOSPITAL_ID);
+const getPrescriptionsRef = firestore => getHospitalRef(firestore).collection('prescriptions');
+const getAccessConfigRef = firestore =>
+  getHospitalRef(firestore).collection('config').doc('prescriptionsAccess');
+const getDailyRecordRef = (firestore, date) =>
+  getHospitalRef(firestore).collection('dailyRecords').doc(date);
 
 const requireAuthentication = context => {
   if (!context?.auth) {
@@ -194,9 +194,9 @@ const requirePinString = pin => {
   return trimmed;
 };
 
-const validatePinAgainstConfig = async (admin, providedPin) => {
+const validatePinAgainstConfig = async (firestore, providedPin) => {
   const trimmed = requirePinString(providedPin);
-  const ref = getAccessConfigRef(admin);
+  const ref = getAccessConfigRef(firestore);
   const snap = await ref.get();
   if (!snap.exists) {
     throw new functions.https.HttpsError(
@@ -250,8 +250,8 @@ const validatePinAgainstConfig = async (admin, providedPin) => {
   }
 };
 
-const saveImageBufferToStorage = async ({ admin, path, buffer, contentType }) => {
-  const bucket = admin.storage().bucket();
+const saveImageBufferToStorage = async ({ storage, path, buffer, contentType }) => {
+  const bucket = storage.bucket();
   const token = crypto.randomUUID();
   const file = bucket.file(path);
   await file.save(buffer, {
@@ -264,35 +264,35 @@ const saveImageBufferToStorage = async ({ admin, path, buffer, contentType }) =>
   return token;
 };
 
-const deleteImageBlobIfPresent = async ({ admin, path }) => {
+const deleteImageBlobIfPresent = async ({ storage, path }) => {
   if (!path) return;
   try {
-    await admin.storage().bucket().file(path).delete({ ignoreNotFound: true });
+    await storage.bucket().file(path).delete({ ignoreNotFound: true });
   } catch (error) {
     console.error(`[prescriptions/upload] failed to clean blob ${path}:`, error.message);
   }
 };
 
-const cleanupUploadedPrescriptionBlobs = async ({ admin, fullPath, thumbPath }) => {
+const cleanupUploadedPrescriptionBlobs = async ({ storage, fullPath, thumbPath }) => {
   await Promise.all([
-    deleteImageBlobIfPresent({ admin, path: fullPath }),
-    deleteImageBlobIfPresent({ admin, path: thumbPath }),
+    deleteImageBlobIfPresent({ storage, path: fullPath }),
+    deleteImageBlobIfPresent({ storage, path: thumbPath }),
   ]);
 };
 
 const createValidatePinHandler =
-  ({ admin }) =>
+  ({ firestore }) =>
   async (data, _context) => {
-    await validatePinAgainstConfig(admin, data?.pin);
+    await validatePinAgainstConfig(firestore, data?.pin);
     return { valid: true };
   };
 
-const resolveUploadPickerAccess = async ({ admin, context, payload, resolveRoleForEmail }) => {
+const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
     const role = await resolveCallerRole(context, resolveRoleForEmail);
     if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) return;
     if (payload.pin) {
-      await validatePinAgainstConfig(admin, payload.pin);
+      await validatePinAgainstConfig(firestore, payload.pin);
       return;
     }
     throw new functions.https.HttpsError(
@@ -300,7 +300,7 @@ const resolveUploadPickerAccess = async ({ admin, context, payload, resolveRoleF
       'No tienes permiso para ver el selector de pacientes. Usa el QR + PIN.'
     );
   }
-  await validatePinAgainstConfig(admin, payload.pin);
+  await validatePinAgainstConfig(firestore, payload.pin);
 };
 
 const buildPatientOptionsFromDailyRecord = dailyRecord => {
@@ -359,8 +359,8 @@ const buildMovementPatientOptions = (movements, scope) => {
     .filter(Boolean);
 };
 
-const resolveUploadPatientOptionsForDate = async (admin, date) => {
-  const snap = await getDailyRecordRef(admin, date).get();
+const resolveUploadPatientOptionsForDate = async (firestore, date) => {
+  const snap = await getDailyRecordRef(firestore, date).get();
   const dailyRecord = snap.exists ? snap.data() || null : null;
   const patientOptions = buildPatientOptionsFromDailyRecord(dailyRecord);
   if (patientOptions.length > 0) {
@@ -368,7 +368,7 @@ const resolveUploadPatientOptionsForDate = async (admin, date) => {
   }
 
   const fallbackDate = previousIsoDay(date);
-  const fallbackSnap = await getDailyRecordRef(admin, fallbackDate).get();
+  const fallbackSnap = await getDailyRecordRef(firestore, fallbackDate).get();
   const fallbackDailyRecord = fallbackSnap.exists ? fallbackSnap.data() || null : null;
   const fallbackPatientOptions = buildPatientOptionsFromDailyRecord(fallbackDailyRecord);
   if (fallbackPatientOptions.length > 0) {
@@ -407,9 +407,9 @@ const buildFirebaseStorageDownloadUrl = (bucketName, storagePath, token) =>
     storagePath
   )}?alt=media&token=${encodeURIComponent(token)}`;
 
-const resolveDownloadUrlForStoragePath = async (admin, storagePath) => {
+const resolveDownloadUrlForStoragePath = async (storage, storagePath) => {
   if (!storagePath) return null;
-  const bucket = admin.storage().bucket();
+  const bucket = storage.bucket();
   const file = bucket.file(storagePath);
 
   try {
@@ -447,10 +447,10 @@ const resolveDownloadUrlForStoragePath = async (admin, storagePath) => {
   return null;
 };
 
-const attachReadonlyImageUrls = async (admin, record) => {
-  const fullDownloadUrl = await resolveDownloadUrlForStoragePath(admin, record?.image?.storagePath);
+const attachReadonlyImageUrls = async (storage, record) => {
+  const fullDownloadUrl = await resolveDownloadUrlForStoragePath(storage, record?.image?.storagePath);
   const thumbnailDownloadUrl = await resolveDownloadUrlForStoragePath(
-    admin,
+    storage,
     record?.image?.thumbnailStoragePath
   );
 
@@ -464,8 +464,8 @@ const attachReadonlyImageUrls = async (admin, record) => {
   });
 };
 
-const listPrescriptionRecordsForDate = async (admin, date) => {
-  const snapshot = await getPrescriptionsRef(admin).get();
+const listPrescriptionRecordsForDate = async (firestore, storage, date) => {
+  const snapshot = await getPrescriptionsRef(firestore).get();
   const records = [];
   snapshot.forEach(doc => {
     const record = doc.data() || {};
@@ -476,17 +476,17 @@ const listPrescriptionRecordsForDate = async (admin, date) => {
   records.sort((left, right) =>
     String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
   );
-  return Promise.all(records.map(record => attachReadonlyImageUrls(admin, record)));
+  return Promise.all(records.map(record => attachReadonlyImageUrls(storage, record)));
 };
 
 const createListUploadPatientOptionsHandler =
-  ({ admin, resolveRoleForEmail }) =>
+  ({ firestore, resolveRoleForEmail }) =>
   async (data, context) => {
     const payload = data || {};
-    await resolveUploadPickerAccess({ admin, context, payload, resolveRoleForEmail });
+    await resolveUploadPickerAccess({ firestore, context, payload, resolveRoleForEmail });
 
     const date = resolveIsoDate(payload.date);
-    const optionsResult = await resolveUploadPatientOptionsForDate(admin, date);
+    const optionsResult = await resolveUploadPatientOptionsForDate(firestore, date);
     return {
       date,
       ...optionsResult,
@@ -494,14 +494,14 @@ const createListUploadPatientOptionsHandler =
   };
 
 const createListUploadReadonlyRecordsHandler =
-  ({ admin, resolveRoleForEmail }) =>
+  ({ firestore, storage, resolveRoleForEmail }) =>
   async (data, context) => {
     const payload = data || {};
-    await resolveUploadPickerAccess({ admin, context, payload, resolveRoleForEmail });
+    await resolveUploadPickerAccess({ firestore, context, payload, resolveRoleForEmail });
 
     const date = resolveIsoDate(payload.date);
     assertReadonlyUploadDateAllowed(date);
-    const records = await listPrescriptionRecordsForDate(admin, date);
+    const records = await listPrescriptionRecordsForDate(firestore, storage, date);
     return { date, records };
   };
 
@@ -511,7 +511,7 @@ const createListUploadReadonlyRecordsHandler =
  * otherwise the call must include a valid PIN (QR flow). Mixed flows
  * (authenticated user without role + PIN) fall back to the PIN path.
  */
-const resolveUploaderIdentity = async ({ admin, context, payload, resolveRoleForEmail }) => {
+const resolveUploaderIdentity = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
     const role = await resolveCallerRole(context, resolveRoleForEmail);
     if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) {
@@ -522,7 +522,7 @@ const resolveUploaderIdentity = async ({ admin, context, payload, resolveRoleFor
       };
     }
     if (payload.pin) {
-      await validatePinAgainstConfig(admin, payload.pin);
+      await validatePinAgainstConfig(firestore, payload.pin);
       return { source: 'qr_pin' };
     }
     throw new functions.https.HttpsError(
@@ -531,7 +531,7 @@ const resolveUploaderIdentity = async ({ admin, context, payload, resolveRoleFor
     );
   }
 
-  await validatePinAgainstConfig(admin, payload.pin);
+  await validatePinAgainstConfig(firestore, payload.pin);
   return { source: 'qr_pin' };
 };
 
@@ -613,7 +613,7 @@ const resolveAssignmentScope = payload => {
 };
 
 const createSubmitHandler =
-  ({ admin, resolveRoleForEmail }) =>
+  ({ firestore, storage, resolveRoleForEmail }) =>
   async (data, context) => {
     const payload = data || {};
     if (!PRESCRIPTION_TYPES.has(payload.prescriptionType)) {
@@ -622,7 +622,7 @@ const createSubmitHandler =
     resolveAssignmentScope(payload);
 
     const uploaderIdentity = await resolveUploaderIdentity({
-      admin,
+      firestore,
       context,
       payload,
       resolveRoleForEmail,
@@ -636,13 +636,13 @@ const createSubmitHandler =
 
     try {
       await saveImageBufferToStorage({
-        admin,
+        storage,
         path: fullPath,
         buffer: fullBuffer,
         contentType: 'image/jpeg',
       });
       await saveImageBufferToStorage({
-        admin,
+        storage,
         path: thumbPath,
         buffer: thumbBuffer,
         contentType: 'image/jpeg',
@@ -660,16 +660,16 @@ const createSubmitHandler =
         createdAt: new Date().toISOString(),
       });
 
-      await getPrescriptionsRef(admin).doc(prescriptionId).set(record);
+      await getPrescriptionsRef(firestore).doc(prescriptionId).set(record);
       return { id: prescriptionId, expiresAt: record.expiresAt };
     } catch (error) {
-      await cleanupUploadedPrescriptionBlobs({ admin, fullPath, thumbPath });
+      await cleanupUploadedPrescriptionBlobs({ storage, fullPath, thumbPath });
       throw error;
     }
   };
 
 const createSetPinHandler =
-  ({ admin, resolveRoleForEmail }) =>
+  ({ firestore, resolveRoleForEmail }) =>
   async (data, context) => {
     requireAuthentication(context);
     const role = await resolveCallerRole(context, resolveRoleForEmail);
@@ -682,7 +682,7 @@ const createSetPinHandler =
     const newPin = requirePinString(data?.newPin);
     const salt = generatePinSalt();
     const hash = await hashPin(newPin, salt);
-    await getAccessConfigRef(admin).set(
+    await getAccessConfigRef(firestore).set(
       {
         pinHash: hash,
         pinSalt: salt,
@@ -698,19 +698,19 @@ const createSetPinHandler =
     return { ok: true };
   };
 
-const createPrescriptionAccessFunctions = ({ admin, resolveRoleForEmail }) => ({
-  validatePrescriptionAccessPin: functions.https.onCall(createValidatePinHandler({ admin })),
+const createPrescriptionAccessFunctions = ({ firestore, storage, resolveRoleForEmail }) => ({
+  validatePrescriptionAccessPin: functions.https.onCall(createValidatePinHandler({ firestore })),
   listPrescriptionUploadPatientOptions: functions.https.onCall(
-    createListUploadPatientOptionsHandler({ admin, resolveRoleForEmail })
+    createListUploadPatientOptionsHandler({ firestore, resolveRoleForEmail })
   ),
   listPrescriptionUploadReadonlyRecords: functions.https.onCall(
-    createListUploadReadonlyRecordsHandler({ admin, resolveRoleForEmail })
+    createListUploadReadonlyRecordsHandler({ firestore, storage, resolveRoleForEmail })
   ),
   submitPrescriptionPhoto: functions.https.onCall(
-    createSubmitHandler({ admin, resolveRoleForEmail })
+    createSubmitHandler({ firestore, storage, resolveRoleForEmail })
   ),
   setPrescriptionAccessPin: functions.https.onCall(
-    createSetPinHandler({ admin, resolveRoleForEmail })
+    createSetPinHandler({ firestore, resolveRoleForEmail })
   ),
 });
 

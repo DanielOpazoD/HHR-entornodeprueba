@@ -244,7 +244,7 @@ const upsertPdfFile = async (drive, folderId, fileName, mimeType, bodyBuffer) =>
 };
 
 const writeAuditEntry = async ({
-  admin,
+  firestore,
   documentId,
   documentType,
   patientRut,
@@ -254,8 +254,7 @@ const writeAuditEntry = async ({
   if (!documentId) return;
 
   const auditId = `audit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  await admin
-    .firestore()
+  await firestore
     .collection('hospitals')
     .doc(HOSPITAL_ID)
     .collection('auditLogs')
@@ -282,7 +281,7 @@ const writeAuditEntry = async ({
 };
 
 const createClinicalDocumentExportFunctions = ({
-  admin,
+  firestore,
   resolveRoleForEmail,
   buildDriveClientOverride,
 }) => ({
@@ -327,7 +326,7 @@ const createClinicalDocumentExportFunctions = ({
       }
 
       await writeAuditEntry({
-        admin,
+        firestore,
         documentId: typeof data?.documentId === 'string' ? data.documentId : null,
         documentType,
         patientRut,

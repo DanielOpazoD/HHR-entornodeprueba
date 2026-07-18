@@ -20,7 +20,7 @@ const applyRoleClaim = async (adminAuth, uid, role) => {
   await adminAuth.setCustomUserClaims(uid, nextClaims);
 };
 
-const createAuthFunctions = ({ admin, helpers }) => ({
+const createAuthFunctions = ({ auth, helpers }) => ({
   onUserCreated: functions.auth.user().onCreate(async user => helpers.assignRole(user)),
   setUserRole: functions.https.onCall(async (data, context) => {
     assertRoleMutationAccess({ context });
@@ -31,9 +31,8 @@ const createAuthFunctions = ({ admin, helpers }) => ({
     assertAssignableRole(email, role);
 
     try {
-      const adminAuth = admin.auth();
-      const userRecord = await adminAuth.getUserByEmail(email);
-      await applyRoleClaim(adminAuth, userRecord.uid, role);
+      const userRecord = await auth.getUserByEmail(email);
+      await applyRoleClaim(auth, userRecord.uid, role);
       return { success: true, message: `Role ${role} assigned to ${email}` };
     } catch (error) {
       console.error('Error setting role for user', sanitizeLogValue({ email, error }));
@@ -45,9 +44,8 @@ const createAuthFunctions = ({ admin, helpers }) => ({
 
     try {
       const resolvedRole = await helpers.resolveRoleForEmail(email);
-      const adminAuth = admin.auth();
       await applyRoleClaim(
-        adminAuth,
+        auth,
         context.auth.uid,
         resolvedRole === 'unauthorized' ? null : resolvedRole
       );

@@ -158,7 +158,7 @@ const parseSpecialistPatch = rawPatch => {
   };
 };
 
-const createSpecialistMedicalHandoffFunctions = ({ admin, resolveRoleForEmail }) => ({
+const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
   updateSpecialistMedicalHandoff: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
     const resolvedRole = await resolveRoleForEmail(email);
@@ -173,8 +173,7 @@ const createSpecialistMedicalHandoffFunctions = ({ admin, resolveRoleForEmail })
     const date = assertStringField(data?.date, 'date');
     const { bedId, patch } = parseSpecialistPatch(data?.patch);
 
-    const docRef = admin
-      .firestore()
+    const docRef = firestore
       .collection('hospitals')
       .doc(HOSPITAL_ID)
       .collection('dailyRecords')
@@ -196,7 +195,7 @@ const createSpecialistMedicalHandoffFunctions = ({ admin, resolveRoleForEmail })
     try {
       await docRef.update({
         ...patch,
-        lastUpdated: admin.firestore.Timestamp.now(),
+        lastUpdated: Timestamp.now(),
       });
 
       return {

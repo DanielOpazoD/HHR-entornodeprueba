@@ -98,7 +98,7 @@ describe('functions minsalFunctions', () => {
 
   it('rejects unauthenticated calls', async () => {
     const functionsApi = createMinsalFunctions({
-      admin: { firestore: vi.fn() },
+      firestore: { collection: vi.fn() },
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn(),
     });
@@ -125,20 +125,18 @@ describe('functions minsalFunctions', () => {
     const whereEnd = vi.fn(() => ({ get }));
     const whereStart = vi.fn(() => ({ where: whereEnd }));
 
-    const admin = {
-      firestore: () => ({
-        collection: () => ({
-          doc: () => ({
-            collection: () => ({
-              where: whereStart,
-            }),
+    const firestore = {
+      collection: () => ({
+        doc: () => ({
+          collection: () => ({
+            where: whereStart,
           }),
         }),
       }),
     };
 
     const functionsApi = createMinsalFunctions({
-      admin,
+      firestore,
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn().mockResolvedValue(true),
     });
@@ -178,7 +176,7 @@ describe('functions minsalFunctions', () => {
     });
 
     const functionsApi = createMinsalFunctions({
-      admin: { firestore: () => fake.firestore },
+      firestore: fake.firestore,
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn().mockResolvedValue(true),
       resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
@@ -262,7 +260,7 @@ describe('functions minsalFunctions', () => {
     });
 
     const functionsApi = createMinsalFunctions({
-      admin: { firestore: () => fake.firestore },
+      firestore: fake.firestore,
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn().mockResolvedValue(true),
       resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
@@ -329,7 +327,7 @@ describe('functions minsalFunctions', () => {
     });
 
     const functionsApi = createMinsalFunctions({
-      admin: { firestore: () => fake.firestore },
+      firestore: fake.firestore,
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn().mockResolvedValue(true),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
@@ -389,7 +387,7 @@ describe('functions minsalFunctions', () => {
     });
 
     const functionsApi = createMinsalFunctions({
-      admin: { firestore: () => fake.firestore },
+      firestore: fake.firestore,
       hospitalCapacity: 12,
       hasCallableClinicalAccess: vi.fn().mockResolvedValue(true),
     });

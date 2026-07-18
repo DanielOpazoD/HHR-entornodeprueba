@@ -20,6 +20,27 @@ const {
   createSpecialistMedicalHandoffFunctions,
 } = require('../../../functions/lib/specialistMedicalHandoffFunctions.js');
 
+const createFirebaseServices = ({
+  get = vi.fn(),
+  update = vi.fn(),
+}: {
+  get?: ReturnType<typeof vi.fn>;
+  update?: ReturnType<typeof vi.fn>;
+} = {}) => ({
+  firestore: {
+    collection: () => ({
+      doc: () => ({
+        collection: () => ({
+          doc: () => ({ get, update }),
+        }),
+      }),
+    }),
+  },
+  Timestamp: {
+    now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
+  },
+});
+
 describe('functions specialistMedicalHandoffFunctions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,27 +61,7 @@ describe('functions specialistMedicalHandoffFunctions', () => {
     });
 
     const functionsApi = createSpecialistMedicalHandoffFunctions({
-      admin: {
-        firestore: Object.assign(
-          () => ({
-            collection: () => ({
-              doc: () => ({
-                collection: () => ({
-                  doc: () => ({
-                    get,
-                    update,
-                  }),
-                }),
-              }),
-            }),
-          }),
-          {
-            Timestamp: {
-              now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
-            },
-          }
-        ),
-      },
+      ...createFirebaseServices({ get, update }),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
     });
 
@@ -104,27 +105,7 @@ describe('functions specialistMedicalHandoffFunctions', () => {
 
   it('rejects writes that target fields outside the specialist whitelist', async () => {
     const functionsApi = createSpecialistMedicalHandoffFunctions({
-      admin: {
-        firestore: Object.assign(
-          () => ({
-            collection: () => ({
-              doc: () => ({
-                collection: () => ({
-                  doc: () => ({
-                    get: vi.fn(),
-                    update: vi.fn(),
-                  }),
-                }),
-              }),
-            }),
-          }),
-          {
-            Timestamp: {
-              now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
-            },
-          }
-        ),
-      },
+      ...createFirebaseServices(),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
     });
 
@@ -153,27 +134,7 @@ describe('functions specialistMedicalHandoffFunctions', () => {
     const get = vi.fn();
     const update = vi.fn();
     const functionsApi = createSpecialistMedicalHandoffFunctions({
-      admin: {
-        firestore: Object.assign(
-          () => ({
-            collection: () => ({
-              doc: () => ({
-                collection: () => ({
-                  doc: () => ({
-                    get,
-                    update,
-                  }),
-                }),
-              }),
-            }),
-          }),
-          {
-            Timestamp: {
-              now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
-            },
-          }
-        ),
-      },
+      ...createFirebaseServices({ get, update }),
       resolveRoleForEmail: vi.fn().mockResolvedValue('viewer'),
     });
 
@@ -203,27 +164,7 @@ describe('functions specialistMedicalHandoffFunctions', () => {
 
   it('rejects writes that try to touch more than one bed', async () => {
     const functionsApi = createSpecialistMedicalHandoffFunctions({
-      admin: {
-        firestore: Object.assign(
-          () => ({
-            collection: () => ({
-              doc: () => ({
-                collection: () => ({
-                  doc: () => ({
-                    get: vi.fn(),
-                    update: vi.fn(),
-                  }),
-                }),
-              }),
-            }),
-          }),
-          {
-            Timestamp: {
-              now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
-            },
-          }
-        ),
-      },
+      ...createFirebaseServices(),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
     });
 
@@ -259,27 +200,7 @@ describe('functions specialistMedicalHandoffFunctions', () => {
     });
 
     const functionsApi = createSpecialistMedicalHandoffFunctions({
-      admin: {
-        firestore: Object.assign(
-          () => ({
-            collection: () => ({
-              doc: () => ({
-                collection: () => ({
-                  doc: () => ({
-                    get,
-                    update,
-                  }),
-                }),
-              }),
-            }),
-          }),
-          {
-            Timestamp: {
-              now: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
-            },
-          }
-        ),
-      },
+      ...createFirebaseServices({ get, update }),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
     });
 

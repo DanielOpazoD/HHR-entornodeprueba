@@ -20,7 +20,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -113,7 +114,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -201,7 +203,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -260,7 +263,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       remoteData: makeRecord(),
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -288,7 +292,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       remoteData: makeRecord(),
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
     });
 
@@ -325,7 +330,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -360,7 +366,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
     });
 
@@ -399,7 +406,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       bedId: 'R2',
     };
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
     });
 
@@ -427,7 +435,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       },
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
     });
 
@@ -450,7 +459,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
   it('rejects viewer role even when authenticated', async () => {
     const { admin, set } = createAdminMock();
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      admin,
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('viewer'),
     });
 
