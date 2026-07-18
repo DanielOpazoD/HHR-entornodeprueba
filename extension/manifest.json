@@ -57,6 +57,7 @@
         "hhr-handoff-scores-center.js",
         "hhr-lab-center.js",
         "hhr-vitals.js",
+        "hhr-vitals-center.js",
         "hhr-request-forms.js",
         "hhr-imaging-center.js",
         "prescription-print.js",
