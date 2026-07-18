@@ -11,7 +11,8 @@ import '../../../extension/hhr-center-styles.js';
 import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
-import '../../../extension/hhr-handoff-scores-center.js';
+import '../../../extension/hhr-handoff-center.js';
+import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
 import '../../../extension/prescription-print.js';
 
@@ -20,8 +21,12 @@ const hospitalizedDocumentsSource = readFileSync(
   path.resolve('extension/hhr-hospitalized-documents-center.js'),
   'utf8'
 );
-const handoffScoresSource = readFileSync(
-  path.resolve('extension/hhr-handoff-scores-center.js'),
+const handoffSource = readFileSync(
+  path.resolve('extension/hhr-handoff-center.js'),
+  'utf8'
+);
+const scoresSource = readFileSync(
+  path.resolve('extension/hhr-scores-center.js'),
   'utf8'
 );
 const NativeMutationObserver = globalThis.MutationObserver;
@@ -251,20 +256,20 @@ describe('extension prescription print content flow', () => {
     );
     expect(hospitalizedDocumentsSource).toContain("submit.textContent = 'Reintentar impresión'");
 
-    const scoreAck = handoffScoresSource.indexOf(
+    const scoreAck = scoresSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      handoffScoresSource.indexOf('const renderScoresCenter')
+      scoresSource.indexOf('const renderScoresCenter')
     );
-    const scoreDisconnect = handoffScoresSource.indexOf('if (!panel.isConnected) return;', scoreAck);
+    const scoreDisconnect = scoresSource.indexOf('if (!panel.isConnected) return;', scoreAck);
     expect(scoreAck).toBeGreaterThan(-1);
     expect(scoreDisconnect).toBeGreaterThan(scoreAck);
 
-    const handoffRequest = handoffScoresSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
-    const handoffAck = handoffScoresSource.indexOf(
+    const handoffRequest = handoffSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
+    const handoffAck = handoffSource.indexOf(
       'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
       handoffRequest
     );
-    const handoffDisconnect = handoffScoresSource.indexOf(
+    const handoffDisconnect = handoffSource.indexOf(
       'if (!root.isConnected) return;',
       handoffRequest
     );

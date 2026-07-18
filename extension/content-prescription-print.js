@@ -16,7 +16,8 @@
   const centerShellOwner = globalThis.HhrCenterShellRuntime;
   const prescriptionCenterOwner = globalThis.HhrPrescriptionCenterRuntime;
   const hospitalizedDocumentsCenterOwner = globalThis.HhrHospitalizedDocumentsCenterRuntime;
-  const handoffScoresCenterOwner = globalThis.HhrHandoffScoresCenterRuntime;
+  const handoffCenterOwner = globalThis.HhrHandoffCenterRuntime;
+  const scoresCenterOwner = globalThis.HhrScoresCenterRuntime;
   const labCenterOwner = globalThis.HhrLabCenterRuntime;
   const imagingCenterOwner = globalThis.HhrImagingCenterRuntime;
   // Imaging interaction contracts are implemented by hhr-imaging-center.js. Keep this compact
@@ -40,7 +41,8 @@
     !centerShellOwner ||
     !prescriptionCenterOwner ||
     !hospitalizedDocumentsCenterOwner ||
-    !handoffScoresCenterOwner ||
+    !handoffCenterOwner ||
+    !scoresCenterOwner ||
     !labCenterOwner ||
     !runtimeMessages ||
     globalThis.__hhrPrescriptionPrintInjected
@@ -807,7 +809,24 @@
     openPrescriptionCenter: (...args) => createModal(...args),
   }).open;
 
-  const handoffScoresCenterRuntime = handoffScoresCenterOwner.create({
+  const handoffCenterRuntime = handoffCenterOwner.create({
+    helper,
+    runtimeMessages,
+    runClinicalTransition,
+    normalizedText,
+    sendMessage,
+    clinicalWriteKey,
+    hydrateClinicalWriteProtection,
+    setClinicalGuardState,
+    setSyncState,
+    releaseClinicalWriteProtection,
+    uncertainClinicalWrites,
+    normalizedClinicalText,
+    finishRouteChangeWrite,
+    acknowledgeClinicalWrite,
+    clinicalWriteRecoveryReady,
+  });
+  const scoresCenterRuntime = scoresCenterOwner.create({
     helper,
     runtimeMessages,
     runClinicalTransition,
@@ -817,10 +836,8 @@
     clinicalWriteKey,
     hydrateClinicalWriteProtection,
     setClinicalGuardState,
-    setSyncState,
     releaseClinicalWriteProtection,
     uncertainClinicalWrites,
-    normalizedClinicalText,
     finishRouteChangeWrite,
     acknowledgeClinicalWrite,
     clinicalWriteRecoveryReady,
@@ -1157,8 +1174,8 @@
     });
     if (!root) return;
     const renderModule = targetEncId => {
-      if (activeModule === 'handoff') handoffScoresCenterRuntime.renderHandoffCenter(root, targetEncId);
-      else if (activeModule === 'scores') handoffScoresCenterRuntime.renderScoresCenter(root, targetEncId);
+      if (activeModule === 'handoff') handoffCenterRuntime.renderHandoffCenter(root, targetEncId);
+      else if (activeModule === 'scores') scoresCenterRuntime.renderScoresCenter(root, targetEncId);
       else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId);
       else if (activeModule === 'imaging') {
         if (!imagingCenterRuntime) {

@@ -13,7 +13,8 @@ const clinicalScoreRuntimeSource = readFileSync(
 );
 const contentSource = [
   '../../../extension/content-prescription-print.js',
-  '../../../extension/hhr-handoff-scores-center.js',
+  '../../../extension/hhr-handoff-center.js',
+  '../../../extension/hhr-scores-center.js',
 ]
   .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');

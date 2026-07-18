@@ -11,22 +11,34 @@ import '../../../extension/hhr-center-styles.js';
 import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
-import '../../../extension/hhr-handoff-scores-center.js';
+import '../../../extension/hhr-handoff-center.js';
+import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
 import '../../../extension/prescription-print.js';
 
-type Runtime = {
+type HandoffRuntime = {
   renderHandoffCenter: (root: HTMLElement, encId: string) => void;
+};
+
+type ScoresRuntime = {
   renderScoresCenter: (root: HTMLElement, encId: string) => void;
 };
 
-type RuntimeOwner = {
-  create: (dependencies: Record<string, unknown>) => Runtime;
+type HandoffRuntimeOwner = {
+  create: (dependencies: Record<string, unknown>) => HandoffRuntime;
 };
 
-const runtimeOwner = () =>
-  (globalThis as unknown as { HhrHandoffScoresCenterRuntime: RuntimeOwner })
-    .HhrHandoffScoresCenterRuntime;
+type ScoresRuntimeOwner = {
+  create: (dependencies: Record<string, unknown>) => ScoresRuntime;
+};
+
+const handoffRuntimeOwner = () =>
+  (globalThis as unknown as { HhrHandoffCenterRuntime: HandoffRuntimeOwner })
+    .HhrHandoffCenterRuntime;
+
+const scoresRuntimeOwner = () =>
+  (globalThis as unknown as { HhrScoresCenterRuntime: ScoresRuntimeOwner })
+    .HhrScoresCenterRuntime;
 
 const runtimeMessages = {
   HANDOFF_OPTIONS_REQUEST: 'RAYEN_HANDOFF_OPTIONS_REQUEST',
@@ -191,13 +203,13 @@ describe('Centro HHR Turno y Scores runtime', () => {
   it('ignores obsolete handoff renders and detached score renders', async () => {
     const pending: Array<(value: unknown) => void> = [];
     const sendMessage = vi.fn(() => new Promise(resolve => pending.push(resolve)));
-    const runtime = runtimeOwner().create(
+    const handoffRuntime = handoffRuntimeOwner().create(
       makeDependencies(sendMessage)
     );
     const handoffRoot = makeRoot('handoff');
 
-    runtime.renderHandoffCenter(handoffRoot, '101');
-    runtime.renderHandoffCenter(handoffRoot, '101');
+    handoffRuntime.renderHandoffCenter(handoffRoot, '101');
+    handoffRuntime.renderHandoffCenter(handoffRoot, '101');
     pending[1](handoffResponse('Respuesta vigente'));
     await vi.waitFor(() => {
       expect(handoffRoot.querySelector('.hhr-center-heading')?.textContent).toBe('Respuesta vigente');
@@ -207,7 +219,8 @@ describe('Centro HHR Turno y Scores runtime', () => {
     expect(handoffRoot.querySelector('.hhr-center-heading')?.textContent).toBe('Respuesta vigente');
 
     const scoresRoot = makeRoot('scores');
-    runtime.renderScoresCenter(scoresRoot, '202');
+    const scoresRuntime = scoresRuntimeOwner().create(makeDependencies(sendMessage));
+    scoresRuntime.renderScoresCenter(scoresRoot, '202');
     scoresRoot.remove();
     pending[2]({ batchId: 'scores-batch', canWrite: true, patients: [] });
     await Promise.resolve();
@@ -240,7 +253,7 @@ describe('Centro HHR Turno y Scores runtime', () => {
       }
       return { ok: true };
     });
-    const runtime = runtimeOwner().create(makeDependencies(sendMessage));
+    const runtime = handoffRuntimeOwner().create(makeDependencies(sendMessage));
     const root = makeRoot('handoff');
     runtime.renderHandoffCenter(root, '303');
     const textarea = await vi.waitFor(() => {
@@ -305,7 +318,7 @@ describe('Centro HHR Turno y Scores runtime', () => {
       }
       return { ok: true };
     });
-    const runtime = runtimeOwner().create(makeDependencies(sendMessage));
+    const runtime = scoresRuntimeOwner().create(makeDependencies(sendMessage));
     const root = makeRoot('scores');
     runtime.renderScoresCenter(root, '404');
     const register = await vi.waitFor(() => {
