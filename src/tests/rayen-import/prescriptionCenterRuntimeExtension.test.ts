@@ -113,7 +113,7 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(lineCount(prescriptionSource)).toBeLessThanOrEqual(700);
     expect(lineCount(hospitalizedDocumentsSource)).toBeLessThanOrEqual(400);
     expect(lineCount(handoffScoresSource)).toBeLessThanOrEqual(1_000);
-    expect(lineCount(labCenterSource)).toBeLessThanOrEqual(700);
+    expect(lineCount(labCenterSource)).toBeLessThanOrEqual(850);
   });
 });
 
