@@ -26,6 +26,7 @@ importScripts(
   'clinical-panel-fetch.js',
   'prescription-print.js',
   'lab-viewer.js',
+  'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
   'report-parser.js',
@@ -4699,419 +4700,16 @@ const handleCudyrCategoriesRequest = async () => {
   return result.error ? result : { ok: true, ...result };
 };
 
-const SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html';
-const SYSLAB_OFFSCREEN_TARGET = 'hhr-syslab-offscreen';
-const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
-const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
-const LAB_MAX_SELECTED_EXAMS = 24;
-const LAB_BRIDGE_TIMEOUT_MS = 35_000;
-const LAB_REPORT_TIMEOUT_MS = 90_000;
-const LAB_DETAILS_TIMEOUT_MS = 600_000;
-
-const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-
-let syslabOffscreenCreation = null;
-const readOffscreenContexts = async () => {
-  if (typeof chrome.runtime.getContexts !== 'function') return [];
-  const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-  return Array.isArray(contexts) ? contexts : [];
-};
-
-const ensureSyslabOffscreen = async () => {
-  const offscreenUrl = chrome.runtime.getURL(SYSLAB_OFFSCREEN_PATH);
-  const contexts = await readOffscreenContexts();
-  if (contexts.some(context => context.documentUrl === offscreenUrl)) return;
-  if (contexts.length) {
-    throw new Error('Otra función de la extensión está usando el documento interno. Recarga la extensión para conectar Syslab.');
-  }
-  if (!syslabOffscreenCreation) {
-    syslabOffscreenCreation = chrome.offscreen.createDocument({
-      url: SYSLAB_OFFSCREEN_PATH,
-      reasons: ['IFRAME_SCRIPTING'],
-      justification: 'Mantener la sesión local de Syslab sin abrir una pestaña visible.',
-    }).catch(async error => {
-      if (/single offscreen|already exists/i.test(String((error && error.message) || error))) {
-        const current = await readOffscreenContexts();
-        if (current.some(context => context.documentUrl === offscreenUrl)) return;
-      }
-      throw error;
-    }).finally(() => {
-      syslabOffscreenCreation = null;
-    });
-  }
-  await syslabOffscreenCreation;
-};
-
-const sendToSyslabOffscreen = async (message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) => {
-  await ensureSyslabOffscreen();
-  return withTimeout(
-    chrome.runtime.sendMessage({
-      target: SYSLAB_OFFSCREEN_TARGET,
-      request: message,
-      timeoutMs,
-    }),
-    timeoutMs + 1_000,
-    'Syslab demoró demasiado en responder.'
-  );
-};
-
-const waitForSyslabBridge = async ({
-  timeoutMs = LAB_BRIDGE_TIMEOUT_MS,
-  previousBridgeId = '',
-} = {}) => {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = 'La sesión interna de Syslab todavía no está disponible.';
-  while (Date.now() < deadline) {
-    try {
-      const response = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
-      if (
-        response && response.bridgeId &&
-        (!previousBridgeId || response.bridgeId !== previousBridgeId)
-      ) return response;
-    } catch (error) {
-      lastError = String((error && error.message) || error);
-    }
-    await delay(350);
-  }
-  throw new Error(lastError);
-};
-
-const currentSyslabSession = async () => {
-  try {
-    const bridge = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 8_000);
-    if (!bridge || bridge.error) {
-      return {
-        ok: true,
-        status: 'unavailable',
-        connected: false,
-        message: String(bridge && bridge.error || 'La sesión interna de Syslab no responde.'),
-      };
-    }
-    const connected = Boolean(bridge && !bridge.loginRequired);
-    return {
-      ok: true,
-      status: connected ? 'ready' : 'login-required',
-      connected,
-      loginRequired: !connected,
-      message: connected ? 'Sesión de Syslab activa.' : 'Syslab requiere iniciar sesión.',
-    };
-  } catch (_error) {
-    return {
-      ok: true,
-      status: 'unavailable',
-      connected: false,
-      message: 'No se pudo conectar con Syslab en la red local.',
-    };
-  }
-};
-
-const handleSyslabLoginRequest = async ({ username, password }) => {
-  const safeUsername = String(username || '').trim();
-  const safePassword = String(password || '');
-  if (!safeUsername || !safePassword || safeUsername.length > 120 || safePassword.length > 256) {
-    return { error: 'Ingresa usuario y contraseña para conectar Syslab.' };
-  }
-  let status;
-  try {
-    status = await waitForSyslabBridge();
-  } catch (error) {
-    return { error: 'No se pudo conectar con Syslab en la red local: ' + String((error && error.message) || error) };
-  }
-  if (!status.loginRequired) {
-    return { ok: true, connected: true, status: 'ready', message: 'Syslab ya estaba conectado.' };
-  }
-  const submitted = await sendToSyslabOffscreen({
-    type: 'RAYEN_SYSLAB_LOGIN',
-    username: safeUsername,
-    password: safePassword,
-  });
-  if (!submitted || submitted.error) {
-    return { error: String(submitted && submitted.error || 'Syslab no aceptó el inicio de sesión.') };
-  }
-  if (submitted.navigated) {
-    try {
-      const verified = await waitAfterSyslabNavigation(submitted.bridgeId);
-      if (verified && !verified.loginRequired) {
-        return { ok: true, connected: true, status: 'ready', message: 'Syslab quedó conectado.' };
-      }
-    } catch (_error) {}
-  }
-  const refreshedStatus = await currentSyslabSession();
-  return refreshedStatus.connected
-    ? refreshedStatus
-    : { error: 'Syslab no confirmó el acceso. Revisa el usuario y la contraseña.' };
-};
-
-const waitAfterSyslabNavigation = async previousBridgeId => {
-  await delay(250);
-  return waitForSyslabBridge({ previousBridgeId });
-};
-
-const searchSyslabDirectly = async rutBody => {
-  let status;
-  try {
-    status = await waitForSyslabBridge();
-  } catch (error) {
-    throw new Error(
-      'No se pudo acceder a Syslab en la red local: ' + String((error && error.message) || error)
-    );
-  }
-  if (status.loginRequired) {
-    throw new Error('Inicia sesión en el cuadro de Syslab de la extensión y vuelve a pulsar Actualizar.');
-  }
-  const prepare = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_PREPARE_SEARCH' });
-  if (!prepare || prepare.error) throw new Error(prepare && prepare.error || 'No se pudo abrir la búsqueda por RUT.');
-  if (prepare.navigated) {
-    await waitAfterSyslabNavigation(prepare.bridgeId);
-  }
-  const submit = await sendToSyslabOffscreen({
-    type: 'RAYEN_SYSLAB_SUBMIT_SEARCH',
-    rutBody,
-  });
-  if (!submit || submit.error) throw new Error(submit && submit.error || 'No se pudo consultar el RUN en Syslab.');
-  if (submit.navigated) {
-    await waitAfterSyslabNavigation(submit.bridgeId);
-  }
-  const result = await sendToSyslabOffscreen({
-    type: 'RAYEN_SYSLAB_READ_RESULTS',
-    rutBody,
-  });
-  if (!result || result.error) throw new Error(result && result.error || 'Syslab no entregó resultados interpretables.');
-  return { payload: result };
-};
-
-const sweepExpiredLabBatches = async () => {
-  const stored = await chrome.storage.session.get(null);
-  const now = Date.now();
-  const expiredKeys = Object.entries(stored || {})
-    .filter(([key, value]) => key.startsWith(LAB_BATCH_PREFIX) && (
-      !value || !Number.isFinite(value.createdAt) || now - value.createdAt > LAB_BATCH_TTL_MS
-    ))
-    .map(([key]) => key);
-  if (expiredKeys.length) await chrome.storage.session.remove(expiredKeys);
-};
-
-// The lab flow used to demand that the requested encounter matched the SENDER TAB's route.
-// With the shared patient picker the user may consult any hospitalized patient, so the
-// binding is now: route match (fast path) OR membership in the active census. Patient-data
-// safety is preserved downstream by the RUN cross-check against Syslab's own response.
-const CENSUS_ALLOWLIST_TTL_MS = 5 * 60_000;
-const censusAllowlistCache = new Map();
-const encounterInActiveCensus = async (encId, sender) => {
-  const id = String(encId || '');
-  if (!/^\d+$/.test(id)) return false;
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return false;
-  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
-  const cached = censusAllowlistCache.get(sessionKey);
-  if (
-    cached &&
-    Date.now() - cached.at < CENSUS_ALLOWLIST_TTL_MS &&
-    cached.ids.has(id)
-  ) {
-    return true;
-  }
-  const rowResult = await fetchActiveEncounterRows(infoResult.info);
-  if (rowResult.error) return false;
-  const ids = new Set((rowResult.rows || []).map(row => String(row && row.id || '')));
-  censusAllowlistCache.set(sessionKey, { at: Date.now(), ids });
-  if (censusAllowlistCache.size > 12) {
-    const oldest = censusAllowlistCache.keys().next().value;
-    censusAllowlistCache.delete(oldest);
-  }
-  return ids.has(id);
-};
-
-const validateLabSenderEncounter = async (sender, expectedEncounterId) => {
-  const senderEncounterId = resolveFichaEncounterId(
-    sender && sender.tab && sender.tab.url || sender && sender.url
-  );
-  if (senderEncounterId && senderEncounterId === String(expectedEncounterId || '')) return null;
-  if (await encounterInActiveCensus(expectedEncounterId, sender)) return null;
-  return { error: 'El episodio solicitado no está en el censo de hospitalizados activo.' };
-};
-
-const handleLabSearchRequest = async ({ encId, sender }) => {
-  const senderError = await validateLabSenderEncounter(sender, encId);
-  if (senderError) return senderError;
-  const context = await getClinicalReportContext(encId, null, null, sender);
-  if (context.error) return context;
-  const rutBody = self.HhrLabViewer.normalizeRutBody(context.patient && context.patient.run);
-  if (!/^\d{5,9}$/.test(rutBody)) {
-    return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
-  }
-
-  let search;
-  try {
-    search = await searchSyslabDirectly(rutBody);
-  } catch (error) {
-    return { error: String((error && error.message) || error) };
-  }
-  const payload = search.payload;
-  if (
-    self.HhrLabViewer.normalizeRutBody(payload.rutBody) !== rutBody ||
-    !self.HhrLabViewer.examRowsMatchRut(payload.exams, rutBody)
-  ) {
-    return {
-      error: 'Syslab no confirmó que los informes correspondan al RUN solicitado. No se mostrarán datos.',
-    };
-  }
-  const rawExams = Array.isArray(payload.exams) ? payload.exams : [];
-  const exams = self.HhrLabViewer.sanitizeExamList(rawExams);
-  const linksByExamId = Object.fromEntries(rawExams.map(exam => [String(exam.id), String(exam.link || '')]));
-  if (exams.some(exam => !linksByExamId[exam.id])) {
-    return { error: 'Syslab entregó uno o más informes sin una ruta interna válida.' };
-  }
-  const batchId = crypto.randomUUID();
-  await sweepExpiredLabBatches();
-  await chrome.storage.session.set({
-    [LAB_BATCH_PREFIX + batchId]: {
-      encounterId: String(encId),
-      rutBody,
-      createdAt: Date.now(),
-      exams,
-      linksByExamId,
-    },
-  });
-  return {
-    ok: true,
-    batchId,
-    patient: context.patient,
-    exams: exams.map(exam => ({
-      id: exam.id,
-      date: exam.date,
-      time: exam.time,
-      patientName: exam.patientName,
-      origin: exam.origin,
-      exams: exam.exams,
-      hasReport: true,
-    })),
-  };
-};
-
-const readLabBatch = async batchId => {
-  if (!/^[0-9a-f-]{36}$/i.test(String(batchId || ''))) {
-    return { error: 'La búsqueda de laboratorio no es válida. Actualiza el visor.' };
-  }
-  const key = LAB_BATCH_PREFIX + batchId;
-  const stored = await chrome.storage.session.get(key);
-  const batch = stored && stored[key];
-  if (!batch || !Array.isArray(batch.exams)) {
-    return { error: 'La búsqueda de laboratorio ya no está disponible. Actualiza el visor.' };
-  }
-  if (!Number.isFinite(batch.createdAt) || Date.now() - batch.createdAt > LAB_BATCH_TTL_MS) {
-    await chrome.storage.session.remove(key);
-    return { error: 'La búsqueda de laboratorio caducó. Actualiza el visor para proteger al paciente.' };
-  }
-  return { batch };
-};
-
-const selectedLabExams = (batch, examIds) => {
-  const ids = [...new Set((Array.isArray(examIds) ? examIds : []).map(String))]
-    .filter(Boolean);
-  if (ids.length > LAB_MAX_SELECTED_EXAMS) return [];
-  const allowedById = new Map(batch.exams.map(exam => [String(exam.id), exam]));
-  const exams = ids.map(id => allowedById.get(id)).filter(Boolean);
-  return exams.length === ids.length && exams.length > 0 ? exams : [];
-};
-
-const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
-  const batchResult = await readLabBatch(batchId);
-  if (batchResult.error) return batchResult;
-  const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
-  if (senderError) return senderError;
-  const requestedIds = [...new Set((Array.isArray(examIds) ? examIds : []).map(String).filter(Boolean))];
-  if (requestedIds.length > LAB_MAX_SELECTED_EXAMS) {
-    return { error: 'Puedes analizar como máximo 24 informes por operación.' };
-  }
-  const exams = selectedLabExams(batchResult.batch, requestedIds);
-  if (!exams.length) return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
-
-  const session = await currentSyslabSession();
-  if (!session.connected) {
-    return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
-  }
-  const reportRequests = exams.map(exam => ({
-    id: exam.id,
-    link: batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exam.id],
-  }));
-  if (reportRequests.some(exam => !exam.link)) {
-    return { error: 'La búsqueda vigente no contiene todas las rutas de informe requeridas.' };
-  }
-  let payload;
-  try {
-    payload = await sendToSyslabOffscreen({
-      type: 'RAYEN_SYSLAB_READ_DETAILS',
-      rutBody: batchResult.batch.rutBody,
-      exams: reportRequests,
-    }, LAB_DETAILS_TIMEOUT_MS);
-  } catch (error) {
-    return { error: 'No se pudieron interpretar los informes en Syslab: ' + String((error && error.message) || error) };
-  }
-  const details = payload && !payload.error &&
-    self.HhrLabViewer.normalizeRutBody(payload.rutBody) === batchResult.batch.rutBody
-    ? self.HhrLabViewer.validateDetailBatch(
-        payload.details,
-        exams.map(exam => exam.id),
-        batchResult.batch.rutBody
-      )
-    : null;
-  if (!details) {
-    return {
-      error: payload && payload.error ||
-        'Syslab devolvió un lote incompleto o inconsistente. No se mostrará un análisis parcial.',
-    };
-  }
-  return { ok: true, analysis: self.HhrLabViewer.buildAnalysis(details, exams) };
-};
-
-const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
-  const batchResult = await readLabBatch(batchId);
-  if (batchResult.error) return batchResult;
-  const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
-  if (senderError) return senderError;
-  const exams = selectedLabExams(batchResult.batch, [examId]);
-  if (exams.length !== 1) {
-    return { error: 'El informe no pertenece a la búsqueda vigente de este paciente.' };
-  }
-  const link = batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exams[0].id];
-  if (!link) return { error: 'La ruta interna del informe ya no está disponible.' };
-  const session = await currentSyslabSession();
-  if (!session.connected) {
-    return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
-  }
-  let validation;
-  try {
-    validation = await sendToSyslabOffscreen({
-      type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
-      rutBody: batchResult.batch.rutBody,
-      examId: exams[0].id,
-      link,
-    }, LAB_REPORT_TIMEOUT_MS);
-  } catch (error) {
-    return { error: 'No se pudo validar el informe en Syslab: ' + String((error && error.message) || error) };
-  }
-  if (
-    !validation || validation.error ||
-    self.HhrLabViewer.normalizeRutBody(validation.rutBody) !== batchResult.batch.rutBody ||
-    !String(validation.pdfBase64 || '')
-  ) {
-    return { error: validation && validation.error || 'El informe no corresponde al RUN solicitado.' };
-  }
-  const jobId = crypto.randomUUID();
-  await chrome.storage.session.set({
-    [`hhr-pdf-print-${jobId}`]: {
-      base64: validation.pdfBase64,
-      filename: `Laboratorio_${exams[0].id}.pdf`,
-      createdAt: Date.now(),
-    },
-  });
-  const tab = await chrome.tabs.create({
-    url: chrome.runtime.getURL(`print-pdf.html?job=${encodeURIComponent(jobId)}`),
-    active: true,
-  });
-  return { ok: true, viewerTabId: tab && tab.id };
-};
+const syslabRuntime = self.HhrSyslabRuntime.create({
+  chrome,
+  labViewer: self.HhrLabViewer,
+  withTimeout,
+  getClinicalReportContext,
+  getFichaFetchInfo,
+  fichaSessionCacheKey,
+  fetchActiveEncounterRows,
+  resolveFichaEncounterId,
+});
 
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
@@ -5202,26 +4800,26 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo cargar el panel clínico.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
-    (message, sender) => handleLabSearchRequest({ encId: message.encId, sender }),
+    (message, sender) => syslabRuntime.search({ encId: message.encId, sender }),
     'No se pudieron buscar los exámenes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(
-    () => currentSyslabSession(),
+    () => syslabRuntime.currentSession(),
     'No se pudo comprobar la conexión con Syslab.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(
     message =>
-      handleSyslabLoginRequest({ username: message.username, password: message.password }),
+      syslabRuntime.login({ username: message.username, password: message.password }),
     'No se pudo iniciar sesión en Syslab.'
   ),
   [RUNTIME_MESSAGES.LAB_DETAILS_REQUEST]: runtimeRoute(
     (message, sender) =>
-      handleLabDetailsRequest({ batchId: message.batchId, examIds: message.examIds, sender }),
+      syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender }),
     'No se pudieron analizar los informes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(
     (message, sender) =>
-      handleLabPdfOpenRequest({ batchId: message.batchId, examId: message.examId, sender }),
+      syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender }),
     'No se pudo abrir el informe de laboratorio.'
   ),
   [RUNTIME_MESSAGES.PRESCRIPTION_OPTIONS_REQUEST]: runtimeRoute(
