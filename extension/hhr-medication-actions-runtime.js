@@ -242,13 +242,17 @@
     const readFavorites = () => new Promise(resolve => {
       try {
         chromeApi.storage.local.get(FAVORITES_STORAGE_KEY, stored => {
+          if (chromeApi.runtime.lastError) {
+            resolve(undefined);
+            return;
+          }
           const list = stored && Array.isArray(stored[FAVORITES_STORAGE_KEY])
             ? stored[FAVORITES_STORAGE_KEY]
             : null;
           resolve(list);
         });
       } catch (_error) {
-        resolve(null);
+        resolve(undefined);
       }
     });
     const writeFavorites = list => new Promise(resolve => {
@@ -348,8 +352,14 @@
           remove.setAttribute('aria-label', 'Eliminar ' + (favorite.name || favorite.url));
           remove.textContent = '×';
           remove.addEventListener('click', async () => {
-            favorites.splice(index, 1);
-            await writeFavorites(favorites);
+            const nextFavorites = favorites.filter((_item, itemIndex) => itemIndex !== index);
+            const saved = await writeFavorites(nextFavorites);
+            if (!root.isConnected) return;
+            if (!saved) {
+              setLiveRegion(feedback, 'No se pudo eliminar el favorito.', 'error');
+              return;
+            }
+            favorites = nextFavorites;
             renderList();
           });
           row.append(open, remove);
@@ -363,29 +373,48 @@
           setLiveRegion(feedback, 'Ingresa una dirección web válida (http o https).', 'error');
           return;
         }
-        favorites.push({
+        const nextFavorites = [...favorites, {
           name: nameInput.value.trim() || url.replace(/^https?:\/\//, ''),
           url,
-        });
-        const saved = await writeFavorites(favorites);
+        }];
+        const saved = await writeFavorites(nextFavorites);
+        if (!root.isConnected) return;
+        if (!saved) {
+          setLiveRegion(feedback, 'No se pudo guardar el favorito.', 'error');
+          return;
+        }
+        favorites = nextFavorites;
         nameInput.value = '';
         urlInput.value = '';
-        setLiveRegion(
-          feedback,
-          saved ? 'Favorito guardado.' : 'No se pudo guardar el favorito.',
-          saved ? '' : 'error'
-        );
+        setLiveRegion(feedback, 'Favorito guardado.');
         renderList();
         nameInput.focus();
       });
 
       root.querySelector('.hhr-rx-close').focus();
-      readFavorites().then(stored => {
+      readFavorites().then(async stored => {
         if (!root.isConnected) return;
-        favorites = stored || [
+        if (stored === undefined) {
+          setLiveRegion(feedback, 'No se pudieron leer los favoritos guardados.', 'error');
+          renderList();
+          return;
+        }
+        if (stored) {
+          favorites = stored;
+          renderList();
+          return;
+        }
+        const defaults = [
           { name: 'HHR · Sistema Estadístico', url: 'https://testinghhr.netlify.app/' },
         ];
-        if (!stored) void writeFavorites(favorites);
+        const saved = await writeFavorites(defaults);
+        if (!root.isConnected) return;
+        if (!saved) {
+          setLiveRegion(feedback, 'No se pudieron inicializar los favoritos.', 'error');
+          renderList();
+          return;
+        }
+        favorites = defaults;
         renderList();
       });
     };
