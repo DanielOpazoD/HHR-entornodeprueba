@@ -14,6 +14,7 @@ const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
 const contentSource = [
   'content-prescription-print.js',
+  'hhr-center-shell-runtime.js',
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
   'hhr-handoff-scores-center.js',

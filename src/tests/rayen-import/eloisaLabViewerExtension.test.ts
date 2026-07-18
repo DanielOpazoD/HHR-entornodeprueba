@@ -343,7 +343,10 @@ describe('native Eloisa laboratory viewer', () => {
   it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
-    const content = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+    const content = [
+      'content-prescription-print.js',
+      'hhr-center-shell-runtime.js',
+    ].map(file => readFileSync(path.resolve('extension', file), 'utf8')).join('\n');
     const labCenter = readFileSync(path.resolve('extension/hhr-lab-center.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
