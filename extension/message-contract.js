@@ -218,7 +218,9 @@
 
   const respondAsync = (promise, sendResponse, fallbackMessage, logError = console.error) => {
     Promise.resolve(promise)
-      .then(response => sendResponse(response || responses.error(fallbackMessage)))
+      .then(response =>
+        sendResponse(response == null ? responses.error(fallbackMessage) : response)
+      )
       .catch(error => {
         if (typeof logError === 'function') {
           logError('[HHR] Falló una operación asíncrona de la extensión:', error);

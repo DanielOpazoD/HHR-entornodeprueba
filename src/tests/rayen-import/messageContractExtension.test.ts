@@ -101,6 +101,18 @@ describe('shared Rayen runtime-message contract', () => {
       sender
     );
 
+    const falsyResponse = vi.fn();
+    const falsyRouter = contract.createRuntimeRouter({
+      [contract.types.EXTENSION_HEALTH_REQUEST]: {
+        handle: () => false,
+        fallback: 'No se pudo verificar la extensión.',
+      },
+    });
+    expect(falsyRouter({ type: contract.types.EXTENSION_HEALTH_REQUEST }, {}, falsyResponse)).toBe(
+      true
+    );
+    await vi.waitFor(() => expect(falsyResponse).toHaveBeenCalledWith(false));
+
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const failedResponse = vi.fn();
     const failedRouter = contract.createRuntimeRouter({
@@ -118,6 +130,7 @@ describe('shared Rayen runtime-message contract', () => {
       })
     );
     expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
   });
 
   it('does not invoke a handler when a known payload is invalid', async () => {
