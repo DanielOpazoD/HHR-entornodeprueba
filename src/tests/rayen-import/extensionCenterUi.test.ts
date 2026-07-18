@@ -12,6 +12,7 @@ const contentSource = [
   'hhr-handoff-scores-center.js',
   'hhr-lab-center.js',
   'hhr-imaging-center.js',
+  'hhr-vitals-center.js',
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');
@@ -47,7 +48,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain('type: runtimeMessages.VITALS_CENSUS_REQUEST');
     expect(messageContractSource).toContain("VITALS_CENSUS_REQUEST: 'RAYEN_VITALS_CENSUS_REQUEST'");
     expect(contentSource).toContain('Última toma disponible por paciente');
-    expect(contentSource).toContain("vitalsView: 'detail'");
+    expect(contentSource).toContain("openVitalsView(root, patient.encounterId, 'detail')");
     expect(contentSource).toContain('Todos los pacientes');
     expect(contentSource).toContain("bed.className = 'hhr-vitals-bed'");
     expect(contentSource).toContain("values.className = 'hhr-vitals-values'");
@@ -79,7 +80,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain("createHospitalizedDocumentsModal('regimen', encId, root)");
     const home = contentSource.slice(
       contentSource.indexOf('const renderHomeCenter'),
-      contentSource.indexOf('const vitalsSparklineSvg')
+      contentSource.indexOf('const renderConnectionCenter')
     );
     expect(home).not.toContain('root.remove()');
     expect(home).not.toContain('createRegimenQuickDialog()');
