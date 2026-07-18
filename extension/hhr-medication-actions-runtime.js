@@ -311,6 +311,7 @@
       const nameInput = root.querySelector('.hhr-fav-name');
       const urlInput = root.querySelector('.hhr-fav-url');
       const feedback = root.querySelector('.hhr-fav-feedback');
+      const addButton = root.querySelector('.hhr-fav-add');
       const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
       root.__hhrDismiss = dismiss;
       root.querySelector('.hhr-rx-cancel').addEventListener('click', dismiss);
@@ -326,6 +327,14 @@
       });
 
       let favorites = [];
+      let favoritesMutationPending = false;
+      const setFavoritesMutationPending = pending => {
+        favoritesMutationPending = pending;
+        addButton.disabled = pending;
+        root.querySelectorAll('.hhr-fav-remove').forEach(button => {
+          button.disabled = pending;
+        });
+      };
       const renderList = () => {
         list.innerHTML = '';
         if (!favorites.length) {
@@ -351,10 +360,14 @@
           remove.className = 'hhr-fav-remove';
           remove.setAttribute('aria-label', 'Eliminar ' + (favorite.name || favorite.url));
           remove.textContent = '×';
+          remove.disabled = favoritesMutationPending;
           remove.addEventListener('click', async () => {
+            if (favoritesMutationPending) return;
+            setFavoritesMutationPending(true);
             const nextFavorites = favorites.filter((_item, itemIndex) => itemIndex !== index);
             const saved = await writeFavorites(nextFavorites);
             if (!root.isConnected) return;
+            setFavoritesMutationPending(false);
             if (!saved) {
               setLiveRegion(feedback, 'No se pudo eliminar el favorito.', 'error');
               return;
@@ -367,18 +380,21 @@
         });
       };
 
-      root.querySelector('.hhr-fav-add').addEventListener('click', async () => {
+      addButton.addEventListener('click', async () => {
+        if (favoritesMutationPending) return;
         const url = normalizeFavoriteUrl(urlInput.value);
         if (!url) {
           setLiveRegion(feedback, 'Ingresa una dirección web válida (http o https).', 'error');
           return;
         }
+        setFavoritesMutationPending(true);
         const nextFavorites = [...favorites, {
           name: nameInput.value.trim() || url.replace(/^https?:\/\//, ''),
           url,
         }];
         const saved = await writeFavorites(nextFavorites);
         if (!root.isConnected) return;
+        setFavoritesMutationPending(false);
         if (!saved) {
           setLiveRegion(feedback, 'No se pudo guardar el favorito.', 'error');
           return;

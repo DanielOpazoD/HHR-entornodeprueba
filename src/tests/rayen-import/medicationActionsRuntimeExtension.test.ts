@@ -40,8 +40,10 @@ const makeRuntime = (options: {
   storedFavorites?: Array<{ name: string; url: string }> | null;
   storageReadError?: boolean;
   storageWriteError?: boolean;
+  deferWrites?: boolean;
 } = {}) => {
   const writes: Array<Array<{ name: string; url: string }>> = [];
+  const pendingWrites: Array<() => void> = [];
   const feedback = vi.fn();
   const liveRegion = vi.fn((element: HTMLElement, text: string, state = '') => {
     element.textContent = text;
@@ -67,9 +69,13 @@ const makeRuntime = (options: {
             callback: () => void
           ) => {
             writes.push(stored.hhrFavorites.map(item => ({ ...item })));
-            if (options.storageWriteError) runtimeState.lastError = { message: 'write failed' };
-            callback();
-            delete runtimeState.lastError;
+            const finishWrite = () => {
+              if (options.storageWriteError) runtimeState.lastError = { message: 'write failed' };
+              callback();
+              delete runtimeState.lastError;
+            };
+            if (options.deferWrites) pendingWrites.push(finishWrite);
+            else finishWrite();
           }
         ),
       },
@@ -98,7 +104,14 @@ const makeRuntime = (options: {
     trapModalFocus: vi.fn(),
     setLiveRegion: liveRegion,
   });
-  return { runtime, feedback, liveRegion, chromeApi, writes };
+  return {
+    runtime,
+    feedback,
+    liveRegion,
+    chromeApi,
+    writes,
+    releaseNextWrite: () => pendingWrites.shift()?.(),
+  };
 };
 
 const flushPromises = async () => {
@@ -328,5 +341,44 @@ describe('HHR medication actions runtime', () => {
       'No se pudo eliminar el favorito.',
       'error'
     );
+  });
+
+  it('serializes favorite mutations while storage writes are pending', async () => {
+    const deferred = makeRuntime({
+      storedFavorites: [{ name: 'Guía', url: 'https://example.test/guia' }],
+      deferWrites: true,
+    });
+    deferred.runtime.createFavoritesDialog();
+    await flushPromises();
+    const root = document.getElementById('hhr-prescription-print-modal') as HTMLElement;
+    const name = root.querySelector('.hhr-fav-name') as HTMLInputElement;
+    const url = root.querySelector('.hhr-fav-url') as HTMLInputElement;
+    const add = root.querySelector('.hhr-fav-add') as HTMLButtonElement;
+
+    name.value = 'Primero';
+    url.value = 'primero.test';
+    add.click();
+    expect(add.disabled).toBe(true);
+    name.value = 'Segundo';
+    url.value = 'segundo.test';
+    add.click();
+    expect(deferred.writes).toHaveLength(1);
+
+    deferred.releaseNextWrite();
+    await flushPromises();
+    expect(add.disabled).toBe(false);
+    expect(root.querySelectorAll('.hhr-fav-row')).toHaveLength(2);
+
+    const removeButtons = Array.from(
+      root.querySelectorAll<HTMLButtonElement>('.hhr-fav-remove')
+    );
+    removeButtons[0].click();
+    expect(removeButtons.every(button => button.disabled)).toBe(true);
+    removeButtons[1].click();
+    expect(deferred.writes).toHaveLength(2);
+
+    deferred.releaseNextWrite();
+    await flushPromises();
+    expect(root.querySelectorAll('.hhr-fav-row')).toHaveLength(1);
   });
 });
