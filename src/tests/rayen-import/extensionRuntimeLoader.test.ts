@@ -30,6 +30,7 @@ describe('extension heavy runtime loading', () => {
     expect(fichaEntries.every(entry => entry.run_at === 'document_start')).toBe(true);
     expect(scripts).toContain('inject-fichamedico.js');
     expect(scripts).toContain('content-fichamedico.js');
+    expect(scripts).toContain('hhr-center-styles.js');
     expect(scripts).toContain('exam-request-print.js');
     expect(scripts).toContain('content-exam-request-print.js');
     expect(scripts).toContain('content-prescription-print.js');

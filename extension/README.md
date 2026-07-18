@@ -38,6 +38,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `hhr-ui.js` | Design system de la extensión: tokens (paleta navy/teal), iconos de trazo, estilos de la barra (Shadow DOM), tooltips y foco por teclado |
+| `hhr-center-styles.js` | Estilos light-DOM del Centro HHR y sus avisos; reutiliza los tokens de `hhr-ui.js` |
 | `hhr-vitals.js` | Parser de formularios `VITAL_SIGNS` de Ficha Médico + umbrales de alerta (port de HHR) para el módulo de signos vitales |
 | `hhr-request-forms.js` | Formularios de solicitud (imágenes: overlays % + coordenadas PDF; laboratorio: catálogo de exámenes y HTML imprimible), port de HHR |
 | `forms/` | Plantillas oficiales: PNG de vista previa y PDF de solicitud de imagen, encuesta de contraste y consentimiento informado |
