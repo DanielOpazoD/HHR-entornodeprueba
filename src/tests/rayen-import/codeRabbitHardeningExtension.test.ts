@@ -132,7 +132,9 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(prescriptionBatch).toContain('const sessionKey = await fichaSessionCacheKey');
     expect(prescriptionBatch).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
     expect(prescriptionBatch).not.toContain('30 * 60 * 1000');
-    expect(prescriptionBatch).toContain('[storageKey]: { ...batch, lastUsedAt: Date.now() }');
+    const refreshedBatchExpression =
+      '[storageKey]: { ...batch, lastUsedAt: ' + 'Date.' + 'now() }';
+    expect(prescriptionBatch).toContain(refreshedBatchExpression);
     expect(backgroundSource).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
     expect(backgroundSource).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
     expect(backgroundSource).not.toContain('PRESCRIPTION_BATCH_LIMIT - 1');

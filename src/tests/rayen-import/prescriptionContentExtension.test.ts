@@ -246,7 +246,6 @@ describe('extension prescription print content flow', () => {
   });
 
   it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', async () => {
-    await new Promise(resolve => setTimeout(resolve, 120));
     expect(hospitalizedDocumentsSource).toContain(
       "submit.textContent = 'Imprimir regímenes y BRADEN'"
     );
