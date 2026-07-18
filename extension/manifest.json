@@ -50,6 +50,7 @@
       "js": [
         "message-contract.js",
         "hhr-ui.js",
+        "hhr-center-styles.js",
         "hhr-vitals.js",
         "hhr-request-forms.js",
         "prescription-print.js",

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
+const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
 
@@ -25,9 +26,11 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain(
       "encId = requestedEncId || (!existingRoot ? currentRouteEncounterId() : '')"
     );
-    expect(contentSource).toContain('#${MODAL_ID} [hidden] { display: none !important; }');
-    expect(contentSource).not.toContain('animation: hhr-modal-pop');
-    expect(contentSource).not.toContain('animation: hhr-modal-fade');
+    expect(stylesSource).toContain(
+      '#hhr-prescription-print-modal [hidden] { display: none !important; }'
+    );
+    expect(stylesSource).not.toContain('animation: hhr-modal-pop');
+    expect(stylesSource).not.toContain('animation: hhr-modal-fade');
   });
 
   it('opens vital signs with a census summary and preserves patient drill-down', () => {
@@ -98,8 +101,8 @@ describe('Centro HHR navigation and vital-signs overview', () => {
   });
 
   it('keeps imaging tools visible and nests indications inside recipes', () => {
-    expect(contentSource).toContain(
-      '#${MODAL_ID} .hhr-imaging-controls {\n        position: sticky; top: 0;'
+    expect(stylesSource).toContain(
+      '#hhr-prescription-print-modal .hhr-imaging-controls {\n        position: sticky; top: 0;'
     );
     expect(contentSource).not.toContain("clinicalWriteKey('request-draft-imaging', encId)");
     expect(contentSource).toContain('<h2 class="hhr-center-heading">Imágenes</h2>');
@@ -132,11 +135,11 @@ describe('Centro HHR navigation and vital-signs overview', () => {
 
   it('adds breathing room to laboratory requests and uses consistent select-all labels', () => {
     expect(contentSource).toContain('class="hhr-center-content hhr-labreq-content"');
-    expect(contentSource).toContain(
-      '#${MODAL_ID} .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 14px clamp(20px,1.8vw,28px) 22px; }'
+    expect(stylesSource).toContain(
+      '#hhr-prescription-print-modal .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 14px clamp(20px,1.8vw,28px) 22px; }'
     );
-    expect(contentSource).toContain(
-      '#${MODAL_ID} .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }'
+    expect(stylesSource).toContain(
+      '#hhr-prescription-print-modal .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }'
     );
     expect(contentSource).toContain("selectVisible.textContent = 'Seleccionar todos'");
     expect(contentSource).toContain(

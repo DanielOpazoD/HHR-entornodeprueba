@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
+import '../../../extension/hhr-center-styles.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
