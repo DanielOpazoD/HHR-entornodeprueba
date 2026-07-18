@@ -1932,6 +1932,151 @@ const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) =
   }
 };
 
+const MEDICAL_EPICRISIS_REPORT_CANDIDATES = [
+  'Reporte_Alta_Medica.pdf',
+  'Reporte_Epicrisis.pdf',
+  'Reporte_Epicrisis_Medica.pdf',
+  'Epicrisis.pdf',
+];
+
+const normalizedRunKey = value => String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
+
+const resolveDischargedEncounterIdByRun = async (info, patientRun) => {
+  const expectedRun = normalizedRunKey(patientRun);
+  if (!info || !info.apiOrigin || !info.token || !/^\d+$/.test(String(info.facId || ''))) {
+    return { error: 'La sesión no permite consultar los pacientes egresados.' };
+  }
+  const url = new URL('/encounter/list/filter', info.apiOrigin);
+  url.searchParams.set('facilityId', String(info.facId));
+  url.searchParams.set('healthCarePractitionerId', String(info.practitionerId || ''));
+  url.searchParams.set('healthCarePractitionerRoleId', String(info.practitionerRoleId || ''));
+  url.searchParams.set('filterType', '2');
+  let rows;
+  try {
+    const response = await fetchWithTimeout(url.toString(), {
+      headers: { Authorization: info.token, Accept: 'application/json' },
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      return { error: 'Eloísa respondió HTTP ' + response.status + ' al consultar pacientes egresados.' };
+    }
+    const payload = await response.json();
+    rows = Array.isArray(payload) ? payload : [];
+  } catch (error) {
+    return { error: 'No se pudo consultar la lista de egresados: ' + String((error && error.message) || error) };
+  }
+
+  const rowRun = row => normalizedRunKey(
+    row && (row.patientIdentifier || row.preferredIdentifierCode || row.identifier ||
+      row.patient && (row.patient.identifier || row.patient.preferredIdentifierCode))
+  );
+  const directMatches = rows.filter(row => /^\d+$/.test(String(row && row.id || '')) && rowRun(row) === expectedRun);
+  if (directMatches.length === 1) return { encId: String(directMatches[0].id) };
+  if (directMatches.length > 1) {
+    return { error: 'Eloísa devolvió más de un episodio egresado para este RUN. Abre el episodio exacto y reintenta.' };
+  }
+
+  // Some Eloísa list variants omit the RUN but retain the encounter id. Verify every row that
+  // actually lacks a RUN, with bounded concurrency, so long discharged lists remain searchable.
+  const candidates = rows.filter(row =>
+    /^\d+$/.test(String(row && row.id || '')) && !rowRun(row)
+  );
+  const verified = await mapWithConcurrency(candidates, 5, async row => {
+    try {
+      const response = await fetchWithTimeout(
+        `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(row.id)}/false`,
+        {
+          headers: { Authorization: info.token, Accept: 'application/json' },
+          credentials: 'omit',
+          cache: 'no-store',
+        }
+      );
+      if (!response.ok) return '';
+      const header = await response.json();
+      return normalizedRunKey(header && header.preferredIdentifierCode) === expectedRun
+        ? String(row.id)
+        : '';
+    } catch (_error) {
+      return '';
+    }
+  });
+  const encounterIds = [...new Set(verified.filter(Boolean))];
+  if (encounterIds.length === 1) return { encId: encounterIds[0] };
+  if (encounterIds.length > 1) {
+    return { error: 'Eloísa devolvió más de un episodio egresado para este RUN. Abre el episodio exacto y reintenta.' };
+  }
+  return { error: 'No se encontró la epicrisis médica del paciente en la lista de egresados.' };
+};
+
+const handleNursingMedicalEpicrisisPrintRequest = async ({ encId, patientRun, sender }) => {
+  const normalizedPatientRun = String(patientRun || '').toUpperCase().replace(/[^0-9K]/g, '');
+  if (!/^[0-9]{6,8}[0-9K]$/.test(normalizedPatientRun)) {
+    return { error: 'No se pudo validar el RUN del paciente seleccionado.' };
+  }
+  const infoResult = await getFichaFetchInfo(sender);
+  if (infoResult.error) return infoResult;
+  let resolvedEncounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
+  let context = resolvedEncounterId
+    ? await getClinicalReportContext(resolvedEncounterId, infoResult.info, null, sender)
+    : null;
+  const initialContextRun = normalizedRunKey(context && context.patient && context.patient.run);
+  if (!resolvedEncounterId || context && (context.error || initialContextRun !== normalizedPatientRun)) {
+    const resolved = await resolveDischargedEncounterIdByRun(infoResult.info, normalizedPatientRun);
+    if (resolved.error) return resolved;
+    resolvedEncounterId = resolved.encId;
+    context = null;
+  }
+  if (!context) {
+    context = await getClinicalReportContext(resolvedEncounterId, infoResult.info, null, sender);
+  }
+  if (context.error) return context;
+  const contextRun = String(context.patient && context.patient.run || '').toUpperCase().replace(/[^0-9K]/g, '');
+  if (!contextRun || contextRun !== normalizedPatientRun) {
+    return { error: 'El episodio ya no corresponde al RUN seleccionado. Actualiza la lista antes de imprimir.' };
+  }
+  const formatter = self.HhrEpicrisisPdf;
+  if (!formatter || typeof formatter.correctEpicrisisPrescriptionPages !== 'function') {
+    return { error: 'El corrector de epicrisis no está disponible. Recarga la extensión.' };
+  }
+  let lastError = '';
+  for (const reportName of MEDICAL_EPICRISIS_REPORT_CANDIDATES) {
+    const url = self.HhrPrescriptionPrint.buildClinicalReportUrl(
+      context.info.apiOrigin,
+      reportName,
+      resolvedEncounterId,
+      context.info.practitionerId,
+      context.patientId,
+      ''
+    );
+    if (!url) continue;
+    const report = await fetchOfficialPdf({ url, token: context.info.token, label: 'la epicrisis médica' });
+    if (report.fatal) return { error: report.error };
+    if (report.error) {
+      lastError = report.error;
+      continue;
+    }
+    try {
+      const corrected = await formatter.correctEpicrisisPrescriptionPages(
+        report.buffer,
+        self.HhrPrescriptionPrint,
+        self.PDFLib,
+        { expectedPatientRun: normalizedPatientRun }
+      );
+      return openPdfPrintDialog({
+        buffer: corrected,
+        filename: 'Epicrisis_medica_corregida_' + String(resolvedEncounterId) + '.pdf',
+      });
+    } catch (error) {
+      lastError = String((error && error.message) || error);
+    }
+  }
+  return {
+    error: 'Eloísa no entregó una epicrisis médica imprimible para este episodio.' +
+      (lastError ? ' Detalle: ' + lastError : ''),
+  };
+};
+
 const createCompletePrescriptionPdf = async ({ encId, printFormat, info, allowOfficialFallback = false }) => {
   const format = printFormat === 'compact' ? 'compact' : 'standard';
   const officialResult = await fetchPrescriptionReportBuffer({ encId, info });
@@ -2102,6 +2247,8 @@ const fetchActiveHospitalizedPatients = async info => {
         hospitalDepartmentId: item && item.hospitalDepartmentId || patient.hospitalDepartmentId || '',
         nurseStationId: item && item.nurseStationId || '',
         patientId: patient.patID || patient.patientId || item && item.patientId || '',
+        diagnosis: patient.principalDiagName || patient.haoDiagName ||
+          item && (item.principalDiagName || item.haoDiagName || item.diagnosisName) || '',
         hasMedicalDischarge: Boolean(item && (item.hasMedicalDischarge || item.medicalDischarge)),
         dischargeDatetime: item && item.medicalDischargeDateTime || '',
         isDead: Boolean(item && item.isDead),
@@ -2872,6 +3019,83 @@ const readHandoffBatch = async (batchId, encId) => {
   return { ok: true, batch };
 };
 
+const readFinishRegisterEvent = async (encId, info) => {
+  const url =
+    `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
+    'encounterEvent/0/getFinishRegister';
+  try {
+    const response = await fetchWithTimeout(url, {
+      headers: { Authorization: info.token, Accept: 'application/json' },
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (response.status === 204) return { event: null };
+    if (!response.ok) {
+      return { error: 'Eloísa respondió HTTP ' + response.status + ' al preparar la confirmación final.' };
+    }
+    const raw = (await response.text()).trim();
+    if (!raw || raw === 'false' || raw === 'null') return { event: null };
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch (_error) {
+      return { error: 'Eloísa devolvió una confirmación final con formato no reconocido.' };
+    }
+    const event = parsed && parsed.data && typeof parsed.data === 'object'
+      ? parsed.data
+      : parsed;
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      return { error: 'Eloísa no devolvió el evento pendiente que debe finalizarse.' };
+    }
+    if (!/^\d+$/.test(String(event.id || '')) ||
+        String(event.encounterId || '') !== String(encId) ||
+        String(event.facilityId || '') !== String(info.facId) ||
+        String(event.healthCarePractitionerRoleId || '') !== String(info.practitionerRoleId)) {
+      return { error: 'El evento pendiente no coincide con este episodio, establecimiento o rol clínico.' };
+    }
+    const legalId = String(event.healthCarePractitionerLegalId || '');
+    if (legalId && legalId !== String(info.practitionerId)) {
+      return { error: 'El evento pendiente pertenece a otro profesional y no se confirmó.' };
+    }
+    return { event };
+  } catch (error) {
+    return {
+      error: 'No se pudo preparar la confirmación final en Eloísa: ' +
+        String((error && error.message) || error),
+    };
+  }
+};
+
+const confirmFinishRegisterEvent = async (encId, info, event) => {
+  const url = new URL(
+    `/api/encounter/${encodeURIComponent(encId)}/encounterEvent/` +
+      `${encodeURIComponent(event.id)}/confirmedEncounterEvent`,
+    info.apiOrigin
+  );
+  url.searchParams.set('healthCarePractitionerRoleId', String(info.practitionerRoleId));
+  url.searchParams.set('facilityId', String(info.facId));
+  try {
+    const response = await fetchWithTimeout(url.toString(), {
+      method: 'PUT',
+      headers: {
+        Authorization: info.token,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      credentials: 'omit',
+      cache: 'no-store',
+      body: JSON.stringify(event),
+    });
+    if (!response.ok) {
+      return { error: 'Eloísa respondió HTTP ' + response.status + ' al finalizar los cambios ingresados.' };
+    }
+    return { ok: true };
+  } catch (error) {
+    return {
+      error: 'Se perdió la confirmación del paso Terminar: ' +
+        String((error && error.message) || error),
+    };
+  }
+};
+
 const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeGuard) => {
   const batch = await readHandoffBatch(batchId, encId);
   if (batch.error) return batch;
@@ -2979,6 +3203,7 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
 
   const createdId = String(created && (created.id || created.data && created.data.id) || '');
   const createdGuid = String(created && (created.guid || created.data && created.data.guid) || '');
+  let verifiedRecord = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (attempt) await new Promise(resolve => setTimeout(resolve, 250 * attempt));
     const refreshed = await fetchShiftChangeEntries(encId, info);
@@ -3002,9 +3227,37 @@ const performHandoffSaveRequest = async ({ batchId, encId, observation }, writeG
         authorMatches;
     });
     if (matches.length === 1) {
-      const verified = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches, { kind: handoffKind });
-      return { ok: true, verified: true, record: verified };
+      verifiedRecord = self.HhrPrescriptionPrint.deriveLatestShiftChange(matches, { kind: handoffKind });
+      break;
     }
+  }
+  if (verifiedRecord) {
+    const finishRegister = await readFinishRegisterEvent(encId, info);
+    if (finishRegister.error) {
+      return {
+        error: 'La entrega quedó registrada, pero no se completó el paso Terminar. ' + finishRegister.error,
+        writeMayHaveSucceeded: true,
+      };
+    }
+    if (!finishRegister.event) {
+      return {
+        error: 'La entrega quedó registrada, pero Eloísa no expuso el evento necesario para completar Terminar.',
+        writeMayHaveSucceeded: true,
+      };
+    }
+    const finished = await confirmFinishRegisterEvent(encId, info, finishRegister.event);
+    if (finished.error) {
+      return {
+        error: 'La entrega quedó registrada, pero no se completó el paso Terminar. ' + finished.error,
+        writeMayHaveSucceeded: true,
+      };
+    }
+    return {
+      ok: true,
+      verified: true,
+      finishConfirmed: true,
+      record: { ...verifiedRecord, isSigned: true, requiresValidation: false },
+    };
   }
   return {
     error: (uncertainPostError ? uncertainPostError + ' ' : '') +
@@ -4442,8 +4695,8 @@ const handleCudyrCategoriesRequest = async () => {
   return result.error ? result : { ok: true, ...result };
 };
 
-const SYSLAB_BASE_URL = 'http://10.4.69.90/syslab/';
-const SYSLAB_TAB_STORAGE_KEY = 'hhr-syslab-owned-tab';
+const SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html';
+const SYSLAB_OFFSCREEN_TARGET = 'hhr-syslab-offscreen';
 const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
 const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
 const LAB_MAX_SELECTED_EXAMS = 24;
@@ -4453,22 +4706,60 @@ const LAB_DETAILS_TIMEOUT_MS = 600_000;
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-const sendToSyslabTab = async (tabId, message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) =>
-  withTimeout(
-    chrome.tabs.sendMessage(tabId, message),
-    timeoutMs,
+let syslabOffscreenCreation = null;
+const readOffscreenContexts = async () => {
+  if (typeof chrome.runtime.getContexts !== 'function') return [];
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+  return Array.isArray(contexts) ? contexts : [];
+};
+
+const ensureSyslabOffscreen = async () => {
+  const offscreenUrl = chrome.runtime.getURL(SYSLAB_OFFSCREEN_PATH);
+  const contexts = await readOffscreenContexts();
+  if (contexts.some(context => context.documentUrl === offscreenUrl)) return;
+  if (contexts.length) {
+    throw new Error('Otra función de la extensión está usando el documento interno. Recarga la extensión para conectar Syslab.');
+  }
+  if (!syslabOffscreenCreation) {
+    syslabOffscreenCreation = chrome.offscreen.createDocument({
+      url: SYSLAB_OFFSCREEN_PATH,
+      reasons: ['IFRAME_SCRIPTING'],
+      justification: 'Mantener la sesión local de Syslab sin abrir una pestaña visible.',
+    }).catch(async error => {
+      if (/single offscreen|already exists/i.test(String((error && error.message) || error))) {
+        const current = await readOffscreenContexts();
+        if (current.some(context => context.documentUrl === offscreenUrl)) return;
+      }
+      throw error;
+    }).finally(() => {
+      syslabOffscreenCreation = null;
+    });
+  }
+  await syslabOffscreenCreation;
+};
+
+const sendToSyslabOffscreen = async (message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) => {
+  await ensureSyslabOffscreen();
+  return withTimeout(
+    chrome.runtime.sendMessage({
+      target: SYSLAB_OFFSCREEN_TARGET,
+      request: message,
+      timeoutMs,
+    }),
+    timeoutMs + 1_000,
     'Syslab demoró demasiado en responder.'
   );
+};
 
-const waitForSyslabBridge = async (
-  tabId,
-  { timeoutMs = LAB_BRIDGE_TIMEOUT_MS, previousBridgeId = '' } = {}
-) => {
+const waitForSyslabBridge = async ({
+  timeoutMs = LAB_BRIDGE_TIMEOUT_MS,
+  previousBridgeId = '',
+} = {}) => {
   const deadline = Date.now() + timeoutMs;
-  let lastError = 'La ventana oficial de Syslab todavía no está disponible.';
+  let lastError = 'La sesión interna de Syslab todavía no está disponible.';
   while (Date.now() < deadline) {
     try {
-      const response = await sendToSyslabTab(tabId, { type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
+      const response = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
       if (
         response && response.bridgeId &&
         (!previousBridgeId || response.bridgeId !== previousBridgeId)
@@ -4481,80 +4772,108 @@ const waitForSyslabBridge = async (
   throw new Error(lastError);
 };
 
-const focusSyslabTab = async tab => {
-  if (!tab || !Number.isInteger(tab.id)) return;
-  await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
-  if (Number.isInteger(tab.windowId)) {
-    await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
-  }
-};
-
-const resolveSyslabTab = async ({ resetToBase = false } = {}) => {
-  const stored = await chrome.storage.session.get(SYSLAB_TAB_STORAGE_KEY);
-  const owned = stored && stored[SYSLAB_TAB_STORAGE_KEY];
-  let tab = null;
-  if (owned && Number.isInteger(owned.tabId)) {
-    tab = await chrome.tabs.get(owned.tabId).catch(() => null);
-    if (!tab || !String(tab.url || '').startsWith(SYSLAB_BASE_URL)) {
-      tab = null;
-      await chrome.storage.session.remove(SYSLAB_TAB_STORAGE_KEY);
+const currentSyslabSession = async () => {
+  try {
+    const bridge = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 8_000);
+    if (!bridge || bridge.error) {
+      return {
+        ok: true,
+        status: 'unavailable',
+        connected: false,
+        message: String(bridge && bridge.error || 'La sesión interna de Syslab no responde.'),
+      };
     }
+    const connected = Boolean(bridge && !bridge.loginRequired);
+    return {
+      ok: true,
+      status: connected ? 'ready' : 'login-required',
+      connected,
+      loginRequired: !connected,
+      message: connected ? 'Sesión de Syslab activa.' : 'Syslab requiere iniciar sesión.',
+    };
+  } catch (_error) {
+    return {
+      ok: true,
+      status: 'unavailable',
+      connected: false,
+      message: 'No se pudo conectar con Syslab en la red local.',
+    };
   }
-  let previousBridgeId = '';
-  if (!tab) {
-    tab = await chrome.tabs.create({ url: SYSLAB_BASE_URL, active: true });
-    await chrome.storage.session.set({
-      [SYSLAB_TAB_STORAGE_KEY]: { tabId: tab.id, createdAt: Date.now() },
-    });
-  } else if (resetToBase) {
-    try {
-      const previous = await sendToSyslabTab(tab.id, { type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
-      previousBridgeId = String(previous && previous.bridgeId || '');
-    } catch (_error) {}
-    tab = await chrome.tabs.update(tab.id, { url: SYSLAB_BASE_URL, active: false });
-  }
-  if (!tab || !Number.isInteger(tab.id)) throw new Error('No se pudo abrir la ventana oficial de Syslab.');
-  const status = await waitForSyslabBridge(tab.id, { previousBridgeId });
-  return { tab, status };
 };
 
-const waitAfterSyslabNavigation = async (tabId, previousBridgeId) => {
+const handleSyslabLoginRequest = async ({ username, password }) => {
+  const safeUsername = String(username || '').trim();
+  const safePassword = String(password || '');
+  if (!safeUsername || !safePassword || safeUsername.length > 120 || safePassword.length > 256) {
+    return { error: 'Ingresa usuario y contraseña para conectar Syslab.' };
+  }
+  let status;
+  try {
+    status = await waitForSyslabBridge();
+  } catch (error) {
+    return { error: 'No se pudo conectar con Syslab en la red local: ' + String((error && error.message) || error) };
+  }
+  if (!status.loginRequired) {
+    return { ok: true, connected: true, status: 'ready', message: 'Syslab ya estaba conectado.' };
+  }
+  const submitted = await sendToSyslabOffscreen({
+    type: 'RAYEN_SYSLAB_LOGIN',
+    username: safeUsername,
+    password: safePassword,
+  });
+  if (!submitted || submitted.error) {
+    return { error: String(submitted && submitted.error || 'Syslab no aceptó el inicio de sesión.') };
+  }
+  if (submitted.navigated) {
+    try {
+      const verified = await waitAfterSyslabNavigation(submitted.bridgeId);
+      if (verified && !verified.loginRequired) {
+        return { ok: true, connected: true, status: 'ready', message: 'Syslab quedó conectado.' };
+      }
+    } catch (_error) {}
+  }
+  const refreshedStatus = await currentSyslabSession();
+  return refreshedStatus.connected
+    ? refreshedStatus
+    : { error: 'Syslab no confirmó el acceso. Revisa el usuario y la contraseña.' };
+};
+
+const waitAfterSyslabNavigation = async previousBridgeId => {
   await delay(250);
-  return waitForSyslabBridge(tabId, { previousBridgeId });
+  return waitForSyslabBridge({ previousBridgeId });
 };
 
 const searchSyslabDirectly = async rutBody => {
-  let session;
+  let status;
   try {
-    session = await resolveSyslabTab({ resetToBase: true });
+    status = await waitForSyslabBridge();
   } catch (error) {
     throw new Error(
       'No se pudo acceder a Syslab en la red local: ' + String((error && error.message) || error)
     );
   }
-  if (session.status.loginRequired) {
-    await focusSyslabTab(session.tab);
-    throw new Error('Inicia sesión en la ventana oficial de Syslab y vuelve a pulsar Actualizar.');
+  if (status.loginRequired) {
+    throw new Error('Inicia sesión en el cuadro de Syslab de la extensión y vuelve a pulsar Actualizar.');
   }
-  const prepare = await sendToSyslabTab(session.tab.id, { type: 'RAYEN_SYSLAB_PREPARE_SEARCH' });
+  const prepare = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_PREPARE_SEARCH' });
   if (!prepare || prepare.error) throw new Error(prepare && prepare.error || 'No se pudo abrir la búsqueda por RUT.');
   if (prepare.navigated) {
-    await waitAfterSyslabNavigation(session.tab.id, prepare.bridgeId);
+    await waitAfterSyslabNavigation(prepare.bridgeId);
   }
-  const submit = await sendToSyslabTab(session.tab.id, {
+  const submit = await sendToSyslabOffscreen({
     type: 'RAYEN_SYSLAB_SUBMIT_SEARCH',
     rutBody,
   });
   if (!submit || submit.error) throw new Error(submit && submit.error || 'No se pudo consultar el RUN en Syslab.');
   if (submit.navigated) {
-    await waitAfterSyslabNavigation(session.tab.id, submit.bridgeId);
+    await waitAfterSyslabNavigation(submit.bridgeId);
   }
-  const result = await sendToSyslabTab(session.tab.id, {
+  const result = await sendToSyslabOffscreen({
     type: 'RAYEN_SYSLAB_READ_RESULTS',
     rutBody,
   });
   if (!result || result.error) throw new Error(result && result.error || 'Syslab no entregó resultados interpretables.');
-  return { tab: session.tab, payload: result };
+  return { payload: result };
 };
 
 const sweepExpiredLabBatches = async () => {
@@ -4704,15 +5023,9 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
   const exams = selectedLabExams(batchResult.batch, requestedIds);
   if (!exams.length) return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
 
-  let session;
-  try {
-    session = await resolveSyslabTab();
-  } catch (error) {
-    return { error: 'La sesión oficial de Syslab no está disponible: ' + String((error && error.message) || error) };
-  }
-  if (session.status.loginRequired) {
-    await focusSyslabTab(session.tab);
-    return { error: 'La sesión de Syslab venció. Inicia sesión y actualiza nuevamente el visor.' };
+  const session = await currentSyslabSession();
+  if (!session.connected) {
+    return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
   }
   const reportRequests = exams.map(exam => ({
     id: exam.id,
@@ -4723,7 +5036,7 @@ const handleLabDetailsRequest = async ({ batchId, examIds, sender }) => {
   }
   let payload;
   try {
-    payload = await sendToSyslabTab(session.tab.id, {
+    payload = await sendToSyslabOffscreen({
       type: 'RAYEN_SYSLAB_READ_DETAILS',
       rutBody: batchResult.batch.rutBody,
       exams: reportRequests,
@@ -4759,19 +5072,13 @@ const handleLabPdfOpenRequest = async ({ batchId, examId, sender }) => {
   }
   const link = batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exams[0].id];
   if (!link) return { error: 'La ruta interna del informe ya no está disponible.' };
-  let session;
-  try {
-    session = await resolveSyslabTab();
-  } catch (error) {
-    return { error: 'La sesión oficial de Syslab no está disponible: ' + String((error && error.message) || error) };
-  }
-  if (session.status.loginRequired) {
-    await focusSyslabTab(session.tab);
-    return { error: 'La sesión de Syslab venció. Inicia sesión y actualiza nuevamente el visor.' };
+  const session = await currentSyslabSession();
+  if (!session.connected) {
+    return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
   }
   let validation;
   try {
-    validation = await sendToSyslabTab(session.tab.id, {
+    validation = await sendToSyslabOffscreen({
       type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
       rutBody: batchResult.batch.rutBody,
       examId: exams[0].id,
@@ -4898,6 +5205,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       'No se pudieron buscar los exámenes de laboratorio.'
     );
   }
+  if (msg && msg.type === 'RAYEN_SYSLAB_STATUS_REQUEST') {
+    return respond(currentSyslabSession(), 'No se pudo comprobar la conexión con Syslab.');
+  }
+  if (msg && msg.type === 'RAYEN_SYSLAB_LOGIN_REQUEST') {
+    return respond(
+      handleSyslabLoginRequest({ username: msg.username, password: msg.password }),
+      'No se pudo iniciar sesión en Syslab.'
+    );
+  }
   if (msg && msg.type === 'RAYEN_LAB_DETAILS_REQUEST') {
     return respond(
       handleLabDetailsRequest({ batchId: msg.batchId, examIds: msg.examIds, sender }),
@@ -4932,6 +5248,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return respond(
       handleCorrectedEpicrisisPrintRequest({ pdfBase64: msg.pdfBase64, patientRun: msg.patientRun }),
       'No se pudo preparar el alta médica corregida.'
+    );
+  }
+  if (msg && msg.type === 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST') {
+    return respond(
+      handleNursingMedicalEpicrisisPrintRequest({
+        encId: msg.encId,
+        patientRun: msg.patientRun,
+        sender,
+      }),
+      'No se pudo imprimir la epicrisis médica.'
     );
   }
   if (msg && msg.type === 'RAYEN_EXAM_REQUEST_COMBINE_PRINT_REQUEST') {

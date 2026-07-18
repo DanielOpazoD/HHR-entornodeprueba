@@ -248,7 +248,11 @@ describe('extension prescription print content flow', () => {
     );
     expect(contentSource).toContain("createOperationsCenterModal('connection'");
     expect(contentSource).toContain('hhr-ops-connection-dot');
-    expect(contentSource).not.toMatch(/type=["']password["']/i);
+    const gestionCamasConnection = contentSource.slice(
+      contentSource.indexOf('const renderConnectionCenter'),
+      contentSource.indexOf('const renderHomeCenter')
+    );
+    expect(gestionCamasConnection).not.toMatch(/type=["']password["']/i);
   });
 
   it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {
@@ -342,9 +346,89 @@ describe('extension prescription print content flow', () => {
     );
     (document.getElementById('open-actions-without-run') as HTMLButtonElement).focus();
     corrected.click();
-    expect(alertSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No se pudo identificar al paciente')
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(document.getElementById('hhr-clinical-page-notices')?.textContent).toContain(
+      'No se pudo identificar al paciente'
     );
     expect(captureArmCount).toBe(1);
+  });
+
+  it('offers nurses the medical epicrisis independently from the nursing epicrisis', async () => {
+    vi.stubGlobal(
+      'MutationObserver',
+      class extends NativeMutationObserver {
+        constructor(callback: MutationCallback) {
+          super(callback);
+          contentObservers.add(this);
+        }
+      }
+    );
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+    window.history.replaceState({}, '', '/dashboard/encounter-list-nurse?tab=3');
+    document.body.innerHTML = `
+      <table><tbody><tr role="row">
+        <td><a href="/dashboard/encounter-list-nurse/141987">Paciente egresado</a><p>RUN: 15.066.726-7</p></td>
+        <td><button id="nursing-actions" aria-expanded="true">⋮</button></td>
+      </tr></tbody></table>
+      <div role="menu" id="unrelated-menu"><button type="button">Configuración</button></div>
+      <div role="menu" id="discharge-menu">
+        <button type="button"><span class="MuiListItemIcon-root"></span><span class="MuiListItemText-primary">Revertir alta de enfermería</span></button>
+      </div>
+    `;
+    const helper = (
+      globalThis as typeof globalThis & { HhrPrescriptionPrint: Record<string, unknown> }
+    ).HhrPrescriptionPrint;
+    (
+      globalThis as typeof globalThis & { HhrPrescriptionPrint: Record<string, unknown> }
+    ).HhrPrescriptionPrint = {
+      ...helper,
+      resolveEncounterId: (value: string) => String(value).match(/\/(\d+)(?:\?|$)/)?.[1] || '',
+      isNursingRouteUrl: () => true,
+    };
+    const messages: Array<{ type?: string; encId?: string; patientRun?: string }> = [];
+    (globalThis as typeof globalThis & { chrome: unknown }).chrome = {
+      runtime: {
+        getManifest: () => ({ version: '0.31.0' }),
+        getURL: (value: string) => `chrome-extension://test/${value}`,
+        get lastError() {
+          return undefined;
+        },
+        sendMessage: (
+          message: { type?: string; encId?: string; patientRun?: string },
+          callback: (response: unknown) => void
+        ) => {
+          messages.push(message);
+          callback({ ok: true });
+        },
+      },
+    };
+
+    vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    (document.getElementById('nursing-actions') as HTMLButtonElement).focus();
+    const printItem = await vi.waitFor(() => {
+      const item = document.querySelector<HTMLElement>(
+        '[data-hhr-nursing-medical-epicrisis="true"]'
+      );
+      expect(item?.textContent).toContain('Imprimir epicrisis médica');
+      expect(item?.querySelector('svg')).not.toBeNull();
+      return item as HTMLButtonElement;
+    });
+    printItem.click();
+
+    await vi.waitFor(() => {
+      const request = messages.find(
+        message => message.type === 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'
+      );
+      expect(request?.patientRun).toBe('15.066.726-7');
+      expect(request?.encId).toBe('141987');
+      expect(
+        document.querySelector('#unrelated-menu [data-hhr-nursing-medical-epicrisis]')
+      ).toBeNull();
+      expect(
+        document.querySelector('#discharge-menu [data-hhr-nursing-medical-epicrisis]')
+      ).not.toBeNull();
+    });
   });
 });

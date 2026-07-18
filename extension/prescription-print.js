@@ -200,7 +200,17 @@
   };
 
   var normalizedAuthor = function (value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
+    return String(value || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      // Some Downton history rows prepend the publication timestamp to the professional
+      // name (for example "16-07-2026 08:26 Nicole Palma"). The application date already
+      // has its own column, so keep the author field limited to the actual professional.
+      .replace(
+        /^(?:(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?\s*(?:[·|,;–—-]\s*)?)+/,
+        ''
+      )
+      .trim();
   };
 
   var authorKey = function (name) {
@@ -1385,6 +1395,7 @@
           hospitalDepartmentId: String(encounter.hospitalDepartmentId || '').trim(),
           nurseStationId: String(encounter.nurseStationId || '').trim(),
           patientId: String(encounter.patientId || '').trim(),
+          diagnosis: String(encounter.diagnosis || '').replace(/\s+/g, ' ').trim(),
         };
       })
       .sort(function (a, b) {

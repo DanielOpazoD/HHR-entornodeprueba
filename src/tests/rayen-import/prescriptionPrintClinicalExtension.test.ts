@@ -90,6 +90,29 @@ describe('extension prescription operations', () => {
     expect(history[0]).toMatchObject({ total: 0, severity: 'Sin riesgo' });
   });
 
+  it('removes a duplicated publication timestamp from the Downton professional name', () => {
+    const history = prescriptionPrint.deriveScaleHistory(
+      [
+        {
+          encounterEventId: 321,
+          publishDatetime: '2026-07-16T08:26:00-06:00',
+          evaluationInstrumentsResume: [
+            {
+              FORM_NAME: 'Escala Downton',
+              LABEL: 'DOWNTON_Puntaje',
+              VALUE: 2,
+              PUBLISH_DATE_HCP_NAME: '16-07-2026 08:26 Nicole Palma',
+            },
+          ],
+        },
+      ],
+      [],
+      'DOWNTON'
+    );
+
+    expect(history[0]).toMatchObject({ total: 2, author: 'Nicole Palma' });
+  });
+
   it('keeps distinct score applications that share a timestamp but have different totals', () => {
     const history = prescriptionPrint.deriveScaleHistory(
       [
