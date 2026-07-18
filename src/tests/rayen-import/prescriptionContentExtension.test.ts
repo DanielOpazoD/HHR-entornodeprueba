@@ -372,7 +372,8 @@ describe('extension prescription print content flow', () => {
         <td><a href="/dashboard/encounter-list-nurse/141987">Paciente egresado</a><p>RUN: 15.066.726-7</p></td>
         <td><button id="nursing-actions" aria-expanded="true">⋮</button></td>
       </tr></tbody></table>
-      <div role="menu">
+      <div role="menu" id="unrelated-menu"><button type="button">Configuración</button></div>
+      <div role="menu" id="discharge-menu">
         <button type="button"><span class="MuiListItemIcon-root"></span><span class="MuiListItemText-primary">Revertir alta de enfermería</span></button>
       </div>
     `;
@@ -421,7 +422,13 @@ describe('extension prescription print content flow', () => {
         message => message.type === 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'
       );
       expect(request?.patientRun).toBe('15.066.726-7');
-      expect(request?.encId).toMatch(/^\d+$/);
+      expect(request?.encId).toBe('141987');
+      expect(
+        document.querySelector('#unrelated-menu [data-hhr-nursing-medical-epicrisis]')
+      ).toBeNull();
+      expect(
+        document.querySelector('#discharge-menu [data-hhr-nursing-medical-epicrisis]')
+      ).not.toBeNull();
     });
   });
 });

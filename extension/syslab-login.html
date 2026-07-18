@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Acceso a Syslab</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Arial,sans-serif; color: #3f4c49; background: #fffaf0; }
+      form { display: grid; grid-template-columns: minmax(130px,1fr) minmax(130px,1fr) auto; gap: 7px; align-items: end; padding: 9px 10px; border: 1px solid #ead18d; border-radius: 9px; }
+      label { display: grid; gap: 3px; color: #6b5a2f; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+      input { height: 30px; min-width: 0; border: 1px solid #d7c58f; border-radius: 7px; background: #fff; color: #303a38; padding: 0 8px; font: inherit; font-size: 11.5px; }
+      input:focus { border-color: #15968b; outline: 2px solid rgba(21,150,139,.2); outline-offset: 1px; }
+      button { height: 30px; padding: 0 12px; border: 1px solid #15968b; border-radius: 7px; background: #15968b; color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+      button:disabled { cursor: wait; opacity: .65; }
+      output { grid-column: 1 / -1; color: #765c15; font-size: 10.5px; line-height: 1.35; }
+      @media (max-width: 560px) { form { grid-template-columns: 1fr; } output { grid-column: 1; } }
+    </style>
+  </head>
+  <body>
+    <form id="syslab-login-form">
+      <label>Usuario<input name="username" type="text" autocomplete="username" maxlength="120" required></label>
+      <label>Contraseña<input name="password" type="password" autocomplete="current-password" maxlength="256" required></label>
+      <button type="submit">Conectar</button>
+      <output role="status" aria-live="polite">Ingresa tus credenciales de Syslab. No se guardan en la extensión.</output>
+    </form>
+    <script src="syslab-login.js"></script>
+  </body>
+</html>

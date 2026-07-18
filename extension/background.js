@@ -1977,9 +1977,11 @@ const resolveDischargedEncounterIdByRun = async (info, patientRun) => {
     return { error: 'Eloísa devolvió más de un episodio egresado para este RUN. Abre el episodio exacto y reintenta.' };
   }
 
-  // Some Eloísa list variants omit the RUN but retain the encounter id. Verify those candidates
-  // against patientHeaderData with a small concurrency ceiling before choosing an episode.
-  const candidates = rows.filter(row => /^\d+$/.test(String(row && row.id || ''))).slice(0, 60);
+  // Some Eloísa list variants omit the RUN but retain the encounter id. Verify every row that
+  // actually lacks a RUN, with bounded concurrency, so long discharged lists remain searchable.
+  const candidates = rows.filter(row =>
+    /^\d+$/.test(String(row && row.id || '')) && !rowRun(row)
+  );
   const verified = await mapWithConcurrency(candidates, 5, async row => {
     try {
       const response = await fetchWithTimeout(
@@ -4705,25 +4707,30 @@ const LAB_DETAILS_TIMEOUT_MS = 600_000;
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 let syslabOffscreenCreation = null;
+const readOffscreenContexts = async () => {
+  if (typeof chrome.runtime.getContexts !== 'function') return [];
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+  return Array.isArray(contexts) ? contexts : [];
+};
+
 const ensureSyslabOffscreen = async () => {
   const offscreenUrl = chrome.runtime.getURL(SYSLAB_OFFSCREEN_PATH);
-  if (typeof chrome.runtime.getContexts === 'function') {
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT'],
-      documentUrls: [offscreenUrl],
-    });
-    if (Array.isArray(contexts) && contexts.length > 0) return;
+  const contexts = await readOffscreenContexts();
+  if (contexts.some(context => context.documentUrl === offscreenUrl)) return;
+  if (contexts.length) {
+    throw new Error('Otra función de la extensión está usando el documento interno. Recarga la extensión para conectar Syslab.');
   }
   if (!syslabOffscreenCreation) {
     syslabOffscreenCreation = chrome.offscreen.createDocument({
       url: SYSLAB_OFFSCREEN_PATH,
       reasons: ['IFRAME_SCRIPTING'],
       justification: 'Mantener la sesión local de Syslab sin abrir una pestaña visible.',
-    }).catch(error => {
-      // Chrome versions without getContexts can report the already-created singleton here.
-      if (!/single offscreen|already exists/i.test(String((error && error.message) || error))) {
-        throw error;
+    }).catch(async error => {
+      if (/single offscreen|already exists/i.test(String((error && error.message) || error))) {
+        const current = await readOffscreenContexts();
+        if (current.some(context => context.documentUrl === offscreenUrl)) return;
       }
+      throw error;
     }).finally(() => {
       syslabOffscreenCreation = null;
     });

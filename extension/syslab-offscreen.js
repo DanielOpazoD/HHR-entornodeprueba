@@ -38,7 +38,7 @@
     let lastError = 'No se pudo iniciar la sesión interna de Syslab.';
     while (Date.now() < deadline) {
       try {
-        return await requestFrameOnce(message, Math.min(1_500, Math.max(250, deadline - Date.now())));
+        return await requestFrameOnce(message, Math.max(250, deadline - Date.now()));
       } catch (error) {
         lastError = String((error && error.message) || error);
       }

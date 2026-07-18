@@ -347,6 +347,8 @@ describe('native Eloisa laboratory viewer', () => {
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
     const offscreen = readFileSync(path.resolve('extension/syslab-offscreen.js'), 'utf8');
     const offscreenHtml = readFileSync(path.resolve('extension/syslab-offscreen.html'), 'utf8');
+    const login = readFileSync(path.resolve('extension/syslab-login.js'), 'utf8');
+    const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
 
     expect(background).not.toContain('localhost:3001');
     expect(background).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
@@ -361,6 +363,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(background).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
     expect(background).toContain('chrome.offscreen.createDocument');
     expect(background).toContain("reasons: ['IFRAME_SCRIPTING']");
+    expect(background).toContain('context.documentUrl === offscreenUrl');
+    expect(background).toContain('const current = await readOffscreenContexts()');
     expect(background).toContain('sendToSyslabOffscreen');
     expect(background).not.toContain('SYSLAB_TAB_STORAGE_KEY');
     expect(background).not.toContain('focusSyslabTab');
@@ -410,9 +414,16 @@ describe('native Eloisa laboratory viewer', () => {
     expect(offscreenHtml).toContain('syslab-offscreen.js');
     expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
     expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
+    expect(offscreen).not.toContain('Math.min(1_500');
     expect(content).toContain('hhr-ops-lab');
     expect(content).toContain('hhr-syslab-login');
-    expect(content).toContain('No se guardan en la extensión');
+    expect(content).toContain("chrome.runtime.getURL('syslab-login.html')");
+    expect(content).not.toContain('input name="password"');
+    expect(loginHtml).toContain('No se guardan en la extensión');
+    expect(login).toContain("type: 'RAYEN_SYSLAB_LOGIN_REQUEST'");
+    expect(login).toContain("candidate === 'https://fichamedico.rayensalud.cl'");
+    expect(login).not.toContain('localStorage');
+    expect(login).not.toContain('sessionStorage');
     expect(content).toContain("key: 'connection'");
     expect(content).toContain(
       "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
@@ -432,6 +443,7 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
+    expect(manifest).toContain('"syslab-login.html"');
     expect(manifest).toContain('"version": "0.31.0"');
   });
 });

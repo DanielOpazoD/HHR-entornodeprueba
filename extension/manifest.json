@@ -21,6 +21,8 @@
     {
       "resources": [
         "hhr-logo.svg",
+        "syslab-login.html",
+        "syslab-login.js",
         "forms/consentimiento.pdf",
         "forms/consentimiento.png",
         "forms/encuesta-contraste.pdf",

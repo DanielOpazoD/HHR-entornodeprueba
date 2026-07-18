@@ -40,9 +40,9 @@
   const currentRouteEncounterId = () => helper.resolveEncounterId(window.location.href) || '';
   const EPICRISIS_MENU_ITEM_ID = 'hhr-corrected-discharge-print';
   const epicrisisCaptureWaiters = new Map();
+  const syslabLoginFrameHandlers = new WeakMap();
   let activeEpicrisisPrintReqId = '';
   let lastDischargePatientRun = '';
-  let lastDischargeEncounterId = '';
 
   const runFromText = value => {
     const match = String(value || '').match(/RUN\s*:?\s*([0-9.\-Kk]+)/i);
@@ -66,7 +66,11 @@
     const link = Array.from(row.querySelectorAll('a[href]')).find(anchor =>
       /\/dashboard\/encounter-list(?:-nurse)?(?:\/|\?)/.test(String(anchor.getAttribute('href') || ''))
     );
-    return link ? helper.resolveEncounterId(link.href) || '' : '';
+    if (!link) return '';
+    const direct = String(link.getAttribute('href') || '').match(
+      /\/dashboard\/encounter-list(?:-nurse)?\/(\d+)(?:[/?#]|$)/
+    );
+    return direct ? direct[1] : helper.resolveEncounterId(link.href) || '';
   };
 
   // Eloísa renders the action menu in a portal, outside the patient row. Remember the RUN when
@@ -76,7 +80,6 @@
     const row = target && target.closest('tr,[role="row"]');
     if (!row) return;
     lastDischargePatientRun = runFromPatientRow(row);
-    lastDischargeEncounterId = encounterIdFromPatientRow(row);
   };
   document.addEventListener('click', rememberDischargePatientFromEvent, true);
   document.addEventListener('focusin', rememberDischargePatientFromEvent, true);
@@ -87,9 +90,15 @@
     );
     for (const action of expandedActions) {
       const row = action.closest('tr,[role="row"]');
-      if (row) return { found: true, patientRun: runFromPatientRow(row) };
+      if (row) {
+        return {
+          found: true,
+          patientRun: runFromPatientRow(row),
+          encounterId: encounterIdFromPatientRow(row),
+        };
+      }
     }
-    return { found: false, patientRun: '' };
+    return { found: false, patientRun: '', encounterId: '' };
   };
 
   const setCorrectedDischargeItemLabel = (item, label) => {
@@ -164,6 +173,20 @@
       notice.appendChild(actions);
       confirm.focus();
     });
+
+  window.addEventListener('message', event => {
+    const handler = event.source && syslabLoginFrameHandlers.get(event.source);
+    if (!handler) return;
+    let extensionOrigin = '';
+    try {
+      extensionOrigin = chrome.runtime.getURL('').replace(/\/$/, '');
+    } catch (_error) {
+      return;
+    }
+    const data = event.data || {};
+    if (event.origin !== extensionOrigin || data.type !== 'HHR_SYSLAB_LOGIN_STATE') return;
+    handler(data);
+  });
 
   window.addEventListener('message', event => {
     if (event.source !== window || (event.origin && event.origin !== window.location.origin)) return;
@@ -269,16 +292,24 @@
 
   const nursingMedicalEpicrisisMenu = () => Array.from(document.querySelectorAll(
     '[role="menu"],[class*="MuiMenu-paper"],[class*="MuiPopover-paper"]'
-  )).find(menu =>
-    !menu.hidden && menu.getAttribute('aria-hidden') !== 'true' &&
-      menu.querySelector('button,[role="menuitem"]')
-  ) || null;
+  )).find(menu => {
+    if (menu.hidden || menu.getAttribute('aria-hidden') === 'true') return false;
+    return Array.from(menu.querySelectorAll('button,[role="menuitem"]')).some(action => {
+      const label = normalizedText(action.textContent);
+      return label.includes('alta') && /(revertir|imprimir|epicrisis)/.test(label);
+    });
+  }) || null;
 
   const requestNursingMedicalEpicrisisPrint = async item => {
     if (activeEpicrisisPrintReqId) return;
     const openMenuPatient = dischargePatientFromOpenMenu();
-    const patientRun = openMenuPatient.found ? openMenuPatient.patientRun : lastDischargePatientRun;
-    if (!patientRun) {
+    const patientRun = openMenuPatient.patientRun;
+    const encounterId = openMenuPatient.encounterId;
+    const expectedRun = String(item.dataset.hhrPatientRun || '');
+    const expectedEncounterId = String(item.dataset.hhrEncounterId || '');
+    const contextChanged = !openMenuPatient.found || !patientRun || patientRun !== expectedRun ||
+      (expectedEncounterId && encounterId !== expectedEncounterId);
+    if (contextChanged) {
       showPageNotice(
         'No se pudo identificar al paciente de esta alta. Cierra el menú y vuelve a abrirlo desde su fila.',
         { title: 'Epicrisis médica', error: true }
@@ -293,7 +324,7 @@
     try {
       const response = await sendMessage({
         type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST',
-        encId: lastDischargeEncounterId,
+        encId: encounterId,
         patientRun,
       });
       if (!response || response.error) {
@@ -315,6 +346,8 @@
 
   const ensureNursingMedicalEpicrisisPrintItem = nursingContext => {
     if (!nursingContext || !/\?tab=3(?:&|$)/.test(window.location.search || '?tab=3')) return;
+    const patientContext = dischargePatientFromOpenMenu();
+    if (!patientContext.found || !patientContext.patientRun) return;
     const menu = nursingMedicalEpicrisisMenu();
     if (!menu || menu.querySelector('[data-hhr-nursing-medical-epicrisis="true"]')) return;
     const template = menu.querySelector('button,[role="menuitem"]');
@@ -322,6 +355,8 @@
     const item = template.cloneNode(true);
     item.removeAttribute('id');
     item.dataset.hhrNursingMedicalEpicrisis = 'true';
+    item.dataset.hhrPatientRun = patientContext.patientRun;
+    item.dataset.hhrEncounterId = patientContext.encounterId;
     item.removeAttribute('data-state');
     setCorrectedDischargeItemLabel(item, 'Imprimir epicrisis médica');
     item.setAttribute('aria-label', 'Imprimir epicrisis médica corregida');
@@ -538,6 +573,7 @@
         dirty: new Set(),
         pending: new Set(),
         uncertain: new Set(),
+        confirming: false,
       };
     }
     return root.__hhrClinicalGuard;
@@ -549,7 +585,7 @@
     else bucket.delete(key);
   };
 
-  const confirmClinicalTransition = (root, { allowUncertain = false } = {}) => {
+  const runClinicalTransition = (root, action, { allowUncertain = false } = {}) => {
     const guard = getClinicalGuard(root);
     if (guard.pending.size) {
       setRouteChangeState(root, 'Guardado clínico en curso · espera su confirmación', 'uncertain');
@@ -559,10 +595,22 @@
       return false;
     }
     if (guard.dirty.size) {
-      guard.dirty.clear();
-      showPageNotice('Los cambios que no se habían guardado fueron descartados.', {
-        title: 'Cambio de módulo',
+      if (guard.confirming) return false;
+      guard.confirming = true;
+      void requestPageConfirmation({
+        title: 'Cambios sin guardar',
+        message: 'Hay cambios clínicos sin guardar. ¿Quieres descartarlos y continuar?',
+        confirmLabel: 'Descartar y continuar',
+      }).then(confirmed => {
+        guard.confirming = false;
+        if (!confirmed || guard.pending.size) return;
+        guard.dirty.clear();
+        showPageNotice('Los cambios que no se habían guardado fueron descartados.', {
+          title: 'Cambio de módulo',
+        });
+        if (root.isConnected) action();
       });
+      return false;
     }
     if (!allowUncertain && guard.uncertain.size) {
       showPageNotice(
@@ -570,6 +618,7 @@
         { title: 'Verificación pendiente' }
       );
     }
+    action();
     return true;
   };
 
@@ -1066,19 +1115,8 @@
       #${MODAL_ID} .hhr-lab-report { margin-bottom: 8px; border: 1px solid #dfe6e5; border-radius: 7px; overflow: hidden; }
       #${MODAL_ID} .hhr-lab-report summary { padding: 9px 11px; background: #f7f9f9; color: #34413f; cursor: pointer; font-size: 11.5px; font-weight: 700; }
       #${MODAL_ID} .hhr-lab-report table { margin: 0; }
-      #${MODAL_ID} .hhr-syslab-login {
-        display: grid; grid-template-columns: minmax(130px,1fr) minmax(130px,1fr) auto; gap: 7px;
-        align-items: end; margin: 8px 0; padding: 9px 10px; border: 1px solid #ead18d;
-        border-radius: 9px; background: #fffaf0;
-      }
+      #${MODAL_ID} .hhr-syslab-login { display: block; width: 100%; height: 92px; margin: 8px 0; border: 0; border-radius: 9px; background: #fffaf0; }
       #${MODAL_ID} .hhr-syslab-login[hidden] { display: none; }
-      #${MODAL_ID} .hhr-syslab-field { display: grid; gap: 3px; color: #6b5a2f; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
-      #${MODAL_ID} .hhr-syslab-field input {
-        height: 30px; min-width: 0; box-sizing: border-box; border: 1px solid #d7c58f; border-radius: 7px;
-        background: #fff; color: #303a38; padding: 0 8px; font: inherit; font-size: 11.5px;
-      }
-      #${MODAL_ID} .hhr-syslab-field input:focus { border-color: var(--hhr-teal-500); outline: none; box-shadow: var(--hhr-focus-ring); }
-      #${MODAL_ID} .hhr-syslab-login-state { grid-column: 1 / -1; color: #765c15; font-size: 10.5px; line-height: 1.35; }
       #${MODAL_ID} .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 12px; }
       #${MODAL_ID} .hhr-connection-card {
         border: 1px solid #e0e8e6; border-radius: 12px; background: #fff; padding: 14px 15px;
@@ -1241,8 +1279,7 @@
         #${MODAL_ID} .hhr-vitals-values { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
         #${MODAL_ID} .hhr-vitals-summary-time { grid-column: 1 / -1; justify-self: end; }
         #${MODAL_ID} .hhr-connection-grid { grid-template-columns: 1fr; }
-        #${MODAL_ID} .hhr-syslab-login { grid-template-columns: 1fr; }
-        #${MODAL_ID} .hhr-syslab-login-state { grid-column: 1; }
+        #${MODAL_ID} .hhr-syslab-login { height: 170px; }
         #${MODAL_ID} .hhr-center-table { min-width: 0; display: block; }
         #${MODAL_ID} .hhr-center-table colgroup, #${MODAL_ID} .hhr-center-table thead { display: none; }
         #${MODAL_ID} .hhr-center-table tbody { display: grid; gap: 9px; padding-top: 9px; }
@@ -1389,8 +1426,7 @@
     const cancel = root.querySelector('.hhr-rx-cancel');
     const subtitle = root.querySelector('.hhr-rx-subtitle');
     root.querySelector('[data-rx-module="indications"]').addEventListener('click', () => {
-      if (!confirmClinicalTransition(root)) return;
-      createHospitalizedDocumentsModal('indications', encId, root);
+      runClinicalTransition(root, () => createHospitalizedDocumentsModal('indications', encId, root));
     });
     const tabs = Array.from(root.querySelectorAll('.hhr-rx-scope-tabs .hhr-rx-tab'));
     const currentTab = tabs.find(tab => tab.dataset.tab === 'current');
@@ -1957,8 +1993,7 @@
     cancel.addEventListener('click', root.__hhrDismiss);
     if (!isRegimen) {
       root.querySelector('[data-rx-module="recipes"]').addEventListener('click', () => {
-        if (!confirmClinicalTransition(root)) return;
-        createModal(encId, '', root);
+        runClinicalTransition(root, () => createModal(encId, '', root));
       });
     }
 
@@ -2294,13 +2329,13 @@
       root.id = MODAL_ID;
       root.__hhrFocusReturnTarget = focusReturnTarget;
       root.__hhrDismiss = () => {
-        if (!confirmClinicalTransition(root)) return false;
-        root.remove();
-        const target = root.__hhrFocusReturnTarget;
-        if (target && target.isConnected && typeof target.focus === 'function') {
-          window.setTimeout(() => target.focus(), 0);
-        }
-        return true;
+        return runClinicalTransition(root, () => {
+          root.remove();
+          const target = root.__hhrFocusReturnTarget;
+          if (target && target.isConnected && typeof target.focus === 'function') {
+            window.setTimeout(() => target.focus(), 0);
+          }
+        });
       };
       root.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
@@ -2352,17 +2387,19 @@
       button.addEventListener('click', () => {
         const target = button.dataset.module;
         if (target === activeModule) return;
-        if (!confirmClinicalTransition(root)) return;
-        switchCenterModule(root, target, root.dataset.selectedEncounterId || encId, focusReturnTarget);
+        runClinicalTransition(root, () =>
+          switchCenterModule(root, target, root.dataset.selectedEncounterId || encId, focusReturnTarget)
+        );
       });
     });
     const regimenButton = root.querySelector('.hhr-center-regimen-print');
     if (regimenButton) {
       regimenButton.addEventListener('click', () => {
-        if (!confirmClinicalTransition(root)) return;
-        root.__hhrDismiss = null;
-        root.remove();
-        createRegimenQuickDialog();
+        runClinicalTransition(root, () => {
+          root.__hhrDismiss = null;
+          root.remove();
+          createRegimenQuickDialog();
+        });
       });
     }
   };
@@ -2453,12 +2490,13 @@
               closePicker();
               return;
             }
-            if (!confirmClinicalTransition(root)) return;
-            closePicker();
-            selected = patient.encounterId;
-            root.dataset.selectedEncounterId = selected;
-            void refreshIdentity();
-            renderModule(selected);
+            runClinicalTransition(root, () => {
+              closePicker();
+              selected = patient.encounterId;
+              root.dataset.selectedEncounterId = selected;
+              void refreshIdentity();
+              renderModule(selected);
+            });
           });
           list.appendChild(option);
         });
@@ -2536,8 +2574,7 @@
     const station = main.querySelector('.hhr-handoff-station');
     const printButton = main.querySelector('.hhr-handoff-print');
     main.querySelector('.hhr-center-refresh').addEventListener('click', () => {
-      if (!confirmClinicalTransition(root, { allowUncertain: true })) return;
-      renderHandoffCenter(root, encId);
+      runClinicalTransition(root, () => renderHandoffCenter(root, encId), { allowUncertain: true });
     });
 
     const filterRows = () => {
@@ -2837,8 +2874,7 @@
     const selector = main.querySelector('.hhr-score-selector');
     const search = main.querySelector('.hhr-center-search');
     main.querySelector('.hhr-center-refresh').addEventListener('click', () => {
-      if (!confirmClinicalTransition(root, { allowUncertain: true })) return;
-      renderScoresCenter(root, encId);
+      runClinicalTransition(root, () => renderScoresCenter(root, encId), { allowUncertain: true });
     });
 
     sendMessage({ type: 'RAYEN_SCORES_OPTIONS_REQUEST', currentEncId: encId || '' }).then(response => {
@@ -2864,8 +2900,11 @@
         }
         const previous = main.querySelector('.hhr-score-form');
         if (previous) {
-          if (!confirmClinicalTransition(root, { allowUncertain: true })) return;
-          previous.remove();
+          runClinicalTransition(root, () => {
+            previous.remove();
+            openScoreForm(patient, instrument, rerender);
+          }, { allowUncertain: true });
+          return;
         }
         const panel = document.createElement('section');
         panel.className = 'hhr-score-form';
@@ -2879,13 +2918,14 @@
         const state = { saving: false, saved: false, uncertain: false };
         const panelClose = panel.querySelector('.hhr-score-form-close');
         const closePanel = () => {
-          if (!confirmClinicalTransition(root)) return;
-          panel.remove();
-          if (focusReturnTarget && focusReturnTarget.isConnected && typeof focusReturnTarget.focus === 'function') {
-            focusReturnTarget.focus();
-          } else if (selector && selector.isConnected) {
-            selector.focus();
-          }
+          runClinicalTransition(root, () => {
+            panel.remove();
+            if (focusReturnTarget && focusReturnTarget.isConnected && typeof focusReturnTarget.focus === 'function') {
+              focusReturnTarget.focus();
+            } else if (selector && selector.isConnected) {
+              selector.focus();
+            }
+          });
         };
         panelClose.addEventListener('click', closePanel);
         panel.addEventListener('keydown', event => {
@@ -3312,14 +3352,14 @@
       let selectedInstrument = selector.value;
       selector.addEventListener('change', () => {
         const nextInstrument = selector.value;
-        if (!confirmClinicalTransition(root, { allowUncertain: true })) {
-          selector.value = selectedInstrument;
-          return;
-        }
-        selectedInstrument = nextInstrument;
-        const openPanel = main.querySelector('.hhr-score-form');
-        if (openPanel) openPanel.remove();
-        renderTable();
+        selector.value = selectedInstrument;
+        runClinicalTransition(root, () => {
+          selectedInstrument = nextInstrument;
+          selector.value = nextInstrument;
+          const openPanel = main.querySelector('.hhr-score-form');
+          if (openPanel) openPanel.remove();
+          renderTable();
+        }, { allowUncertain: true });
       });
       search.addEventListener('input', renderTable);
       renderTable();
@@ -3582,12 +3622,7 @@
       </div>
       <div class="hhr-center-content">
         <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
-        <form class="hhr-syslab-login" hidden>
-          <label class="hhr-syslab-field">Usuario<input name="username" type="text" autocomplete="username" maxlength="120" required></label>
-          <label class="hhr-syslab-field">Contraseña<input name="password" type="password" autocomplete="current-password" maxlength="256" required></label>
-          <button class="hhr-center-action hhr-center-action-primary hhr-syslab-connect" type="submit">Conectar</button>
-          <span class="hhr-syslab-login-state" role="status" aria-live="polite">Ingresa tus credenciales de Syslab. No se guardan en la extensión.</span>
-        </form>
+        <iframe class="hhr-syslab-login" title="Acceso seguro a Syslab" hidden></iframe>
         <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
         <div class="hhr-lab-exam-list"></div>
         <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -3602,10 +3637,7 @@
     const analyze = main.querySelector('.hhr-lab-analyze');
     const refresh = main.querySelector('.hhr-center-refresh');
     const syslabLogin = main.querySelector('.hhr-syslab-login');
-    const syslabUsername = syslabLogin.querySelector('input[name="username"]');
-    const syslabPassword = syslabLogin.querySelector('input[name="password"]');
-    const syslabConnect = syslabLogin.querySelector('.hhr-syslab-connect');
-    const syslabLoginState = syslabLogin.querySelector('.hhr-syslab-login-state');
+    syslabLogin.src = chrome.runtime.getURL('syslab-login.html');
     main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
       renderLabRequestView(root, encId)
     );
@@ -3621,7 +3653,7 @@
       syslabLogin.hidden = connected;
       const badge = patientHost.querySelector('.hhr-lab-status');
       if (badge) badge.textContent = connected ? 'Syslab conectado' : 'Syslab requiere acceso';
-      if (message) setLiveRegion(syslabLoginState, message, connected ? 'synced' : '');
+      if (message) syslabLogin.title = message;
     };
 
     const checkSyslabAccess = async () => {
@@ -3780,26 +3812,13 @@
       patientHost.append(patientName, patientMeta, connection);
       renderList();
     };
-    syslabLogin.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (!syslabUsername.value.trim() || !syslabPassword.value) return;
-      syslabConnect.disabled = true;
-      setLiveRegion(syslabLoginState, 'Verificando credenciales en Syslab…');
-      const response = await sendMessage({
-        type: 'RAYEN_SYSLAB_LOGIN_REQUEST',
-        username: syslabUsername.value.trim(),
-        password: syslabPassword.value,
+    if (syslabLogin.contentWindow) {
+      syslabLoginFrameHandlers.set(syslabLogin.contentWindow, data => {
+        const connected = Boolean(data.connected);
+        setSyslabAccess(connected, String(data.message || ''));
+        if (connected) void load();
       });
-      syslabPassword.value = '';
-      syslabConnect.disabled = false;
-      if (!response || response.error || !response.connected) {
-        setSyslabAccess(false, response && response.error || 'Syslab no confirmó el acceso.');
-        syslabPassword.focus();
-        return;
-      }
-      setSyslabAccess(true, 'Syslab conectado.');
-      await load();
-    });
+    }
     filter.addEventListener('input', renderList);
     selectAll.addEventListener('click', () => {
       const selectionBefore = [...selected].sort().join('|');
@@ -3917,13 +3936,13 @@
     `;
     main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
       card.addEventListener('click', () => {
-        if (!confirmClinicalTransition(root)) return;
-        switchCenterModule(root, card.dataset.module, encId, root.__hhrFocusReturnTarget);
+        runClinicalTransition(root, () =>
+          switchCenterModule(root, card.dataset.module, encId, root.__hhrFocusReturnTarget)
+        );
       });
     });
     main.querySelector('.hhr-home-regimen').addEventListener('click', () => {
-      if (!confirmClinicalTransition(root)) return;
-      createHospitalizedDocumentsModal('regimen', encId, root);
+      runClinicalTransition(root, () => createHospitalizedDocumentsModal('regimen', encId, root));
     });
   };
 
@@ -4626,8 +4645,7 @@
     let patientViewData = null;
 
     main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () => {
-      if (!confirmClinicalTransition(root)) return;
-      renderLabCenter(root, encId);
+      runClinicalTransition(root, () => renderLabCenter(root, encId));
     });
     const selectedKeys = () => Array.from(main.querySelectorAll('.hhr-labreq-exam input:checked'))
       .map(input => input.dataset.key);

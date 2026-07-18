@@ -85,6 +85,12 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(backgroundSource).toContain('contextRun !== normalizedPatientRun');
     expect(backgroundSource).toContain('{ expectedPatientRun: normalizedPatientRun }');
     expect(backgroundSource).toContain('getFichaFetchInfo(sender)');
+    expect(backgroundSource).toContain('&& !rowRun(row)');
+    expect(backgroundSource).not.toContain('.slice(0, 60)');
+    expect(contentSource).toContain('item.dataset.hhrPatientRun = patientContext.patientRun');
+    expect(contentSource).not.toContain(
+      'openMenuPatient.found ? openMenuPatient.patientRun : lastDischargePatientRun'
+    );
   });
 
   it('keeps imaging tools visible and nests indications inside recipes', () => {
@@ -103,6 +109,8 @@ describe('Centro HHR navigation and vital-signs overview', () => {
   it('uses integrated feedback instead of native browser alerts or confirms', () => {
     expect(contentSource).toContain('const showPageNotice =');
     expect(contentSource).toContain('const requestPageConfirmation =');
+    expect(contentSource).toContain("confirmLabel: 'Descartar y continuar'");
+    expect(contentSource).toContain('if (root.isConnected) action()');
     expect(contentSource).not.toMatch(/window\.(?:alert|confirm)\s*\(/);
   });
 
@@ -113,7 +121,9 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain(
       "main.querySelector('.hhr-flow-tabs [data-flow=\"results\"]').addEventListener('click', () => {"
     );
-    expect(contentSource).toContain('renderLabCenter(root, encId);');
+    expect(contentSource).toContain(
+      'runClinicalTransition(root, () => renderLabCenter(root, encId))'
+    );
   });
 
   it('adds breathing room to laboratory requests and uses consistent select-all labels', () => {
