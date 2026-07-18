@@ -28,6 +28,7 @@ type RuntimeOwner = {
 
 const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
   .HhrClinicalWriteRuntime;
+const TEST_NOW_MS = Date.UTC(2026, 6, 15, 12, 0, 0);
 
 type StorageHarness = {
   records: Map<string, Record<string, unknown>>;
@@ -71,7 +72,7 @@ const loadProtocol = () => {
     chrome: chromeApi,
     storage: session,
     crypto: globalThis.crypto,
-    now: () => Date.now(),
+    now: () => TEST_NOW_MS,
     authorizeRecovery: async () => ({ info: {} }),
     readRecoveryReview: async () => ({ review: {} }),
   });
@@ -184,8 +185,8 @@ describe('extension clinical write protocol', () => {
     expect(marker?.state).toBe('ambiguous');
     harness.records.set(storageKey, {
       ...marker,
-      createdAt: Date.now() - 11 * 60 * 1000,
-      updatedAt: Date.now() - 11 * 60 * 1000,
+      createdAt: TEST_NOW_MS - 11 * 60 * 1000,
+      updatedAt: TEST_NOW_MS - 11 * 60 * 1000,
     });
 
     const second = await protocol.withWriteLock(key, async guard => {

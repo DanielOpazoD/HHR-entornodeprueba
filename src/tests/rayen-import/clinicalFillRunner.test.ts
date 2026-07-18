@@ -66,7 +66,7 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
   }),
   applyPatch: vi.fn().mockResolvedValue(undefined),
-  now: () => new Date(2026, 6, 10, 12, 0, 0),
+  now: () => new globalThis.Date(Date.UTC(2026, 6, 10, 12, 0, 0)),
   createId: () => 'id-1',
   ...over,
 });
@@ -250,7 +250,9 @@ describe('runClinicalFill', () => {
     const applyPatch = vi.fn().mockImplementation(async () => {
       activeWrites += 1;
       maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
-      await new Promise(resolve => setTimeout(resolve, 5));
+      // Yield exactly one microtask: concurrent writes would overlap here,
+      // while the production serializer keeps maxActiveWrites at one.
+      await Promise.resolve();
       activeWrites -= 1;
     });
     const deps = okDeps({

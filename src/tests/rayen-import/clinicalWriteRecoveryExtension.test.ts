@@ -58,12 +58,13 @@ type RuntimeOwner = {
 };
 const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
   .HhrClinicalWriteRuntime;
+const TEST_NOW_MS = Date.UTC(2026, 6, 15, 12, 0, 0);
 
 const loadRecovery = () => {
   const state: RecoveryState = {
     protection: {
       active: true,
-      marker: { state: 'ambiguous', generationId, createdAt: Date.now() - 61_000 },
+      marker: { state: 'ambiguous', generationId, createdAt: TEST_NOW_MS - 61_000 },
     },
     reviewResult: {
       review: {
@@ -136,7 +137,7 @@ const loadRecovery = () => {
     chrome: { storage: { local: storage } },
     storage,
     crypto: cryptoApi,
-    now: () => Date.now(),
+    now: () => TEST_NOW_MS,
     authorizeRecovery: async () => ({ info: {} }),
     readRecoveryReview: async (request: { kind: string; instrument: string }) => {
       state.freshReads.push(request.kind === 'handoff' ? 'handoff' : request.instrument);
@@ -176,7 +177,7 @@ describe('extension clinical write recovery', () => {
   });
 
   it('does not preview an ambiguous write during the consistency window', async () => {
-    state.protection.marker.createdAt = Date.now();
+    state.protection.marker.createdAt = TEST_NOW_MS;
     const result = await recovery({
       key: 'handoff:141437',
       generationId,
@@ -289,7 +290,7 @@ describe('extension clinical write recovery', () => {
       throw new Error('worker interrupted after post');
     });
     expect(uncertain.writeMayHaveSucceeded).toBe(true);
-    state.protection.marker.createdAt = Date.now() - 61_000;
+    state.protection.marker.createdAt = TEST_NOW_MS - 61_000;
     const uncertainGeneration = state.protection.marker.generationId;
 
     const preview = await recovery({ key, generationId: uncertainGeneration, phase: 'preview' });

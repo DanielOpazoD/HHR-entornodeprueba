@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import '../../../extension/gestion-camas-runtime.js';
 
 type StoredValues = Record<string, unknown>;
+// This runtime harness models freshness as a finite session timestamp; expiry
+// arithmetic belongs to the separately tested gestion-camas-session owner.
+const FINITE_SESSION_TIMESTAMP = 1;
 
 const createFixture = (initial: StoredValues = {}) => {
   const values: StoredValues = { ...initial };
@@ -30,7 +33,7 @@ const createFixture = (initial: StoredValues = {}) => {
             accessValue: info.accessValue,
             apiBase: info.apiBase,
             facId: info.facId,
-            capturedAt: Date.now(),
+            capturedAt: FINITE_SESSION_TIMESTAMP,
             lastVerifiedAt: null,
             expiresAt: null,
             identity: {},
@@ -144,7 +147,7 @@ describe('Gestión de Camas connection runtime', () => {
       facId: '1342',
       sourceTabId: 7,
       connectionAttemptId: '',
-      lastVerifiedAt: Date.now(),
+      lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
     };
     const { runtime, fetchWithTimeout } = createFixture({ 'gc-session': record });
 

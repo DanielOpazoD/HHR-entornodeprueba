@@ -8,7 +8,7 @@ import vm from 'node:vm';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/message-contract.js';
 
@@ -19,6 +19,10 @@ const backgroundSource = readFileSync(path.resolve('extension/background.js'), '
 const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
   content_scripts?: Array<{ js?: string[] }>;
 };
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 type OfficialRequest = {
   folio: string;
@@ -199,6 +203,7 @@ describe('integrated laboratory-request extension', () => {
   });
 
   it('renders the integrated action and sends selected order groups', async () => {
+    vi.useFakeTimers();
     document.body.innerHTML = `
       <table>
         <thead><tr><th>Grupo de exámenes</th><th>Nro. Orden</th><th>Estado Orden</th><th>Fecha solicitud</th><th>Examen(es)</th><th>Observaciones</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -221,7 +226,7 @@ describe('integrated laboratory-request extension', () => {
       .__hhrExamRequestPrintInjected;
 
     vm.runInThisContext(contentSource);
-    await new Promise(resolve => window.setTimeout(resolve, 120));
+    await vi.advanceTimersByTimeAsync(120);
     const button = document.querySelector<HTMLButtonElement>(
       '#hhr-exam-request-print-control button'
     );
@@ -252,7 +257,7 @@ describe('integrated laboratory-request extension', () => {
     await Promise.resolve();
     expect(overlay?.isConnected).toBe(false);
     document.querySelector('table')?.remove();
-    await new Promise(resolve => window.setTimeout(resolve, 120));
+    await vi.advanceTimersByTimeAsync(120);
     expect(document.getElementById('hhr-exam-request-print-control')).toBeNull();
     (
       window as Window & { __hhrExamRequestPrintObserver?: MutationObserver }
