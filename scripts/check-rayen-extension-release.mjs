@@ -18,6 +18,138 @@ const errors = [];
 
 const fail = message => errors.push(message);
 const relative = file => path.relative(root, file);
+const isRegularFile = file => existsSync(file) && statSync(file).isFile();
+const listFiles = directory => readdirSync(directory).flatMap(name => {
+  const absolute = path.join(directory, name);
+  return statSync(absolute).isDirectory() ? listFiles(absolute) : [absolute];
+});
+
+const isSafePackagePath = file => {
+  if (typeof file !== 'string' || file.length === 0) return false;
+  if (file === '.' || file.endsWith('/')) return false;
+  if (/[\\?&#]|[\u0000-\u001f\u007f]/.test(file)) return false;
+  if (path.posix.isAbsolute(file) || path.win32.isAbsolute(file)) return false;
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(file)) return false;
+  const normalized = path.posix.normalize(file);
+  return normalized === file && normalized !== '..' && !normalized.startsWith('../');
+};
+
+const dependencyFiles = new Set();
+const validateFileReferences = (source, files) => {
+  const references = Array.from(files || []);
+  const seen = new Set();
+  for (const file of references) {
+    if (!isSafePackagePath(file)) {
+      fail(`Referencia insegura o externa en ${source}: ${String(file)}`);
+      continue;
+    }
+    if (seen.has(file)) {
+      fail(`Referencia duplicada en ${source}: extension/${file}`);
+      continue;
+    }
+    seen.add(file);
+    dependencyFiles.add(file);
+    const absolute = path.join(extensionDir, file);
+    if (!isRegularFile(absolute)) {
+      fail(`Falta la dependencia de ${source}: extension/${file}`);
+    }
+  }
+};
+
+const parseLiteralImportScripts = source => {
+  const withoutTrailingComma = source.trim().replace(/,\s*$/, '');
+  if (!withoutTrailingComma) return { files: [], valid: true };
+  const entries = withoutTrailingComma.split(',').map(entry => entry.trim());
+  const files = [];
+  for (const entry of entries) {
+    const literal = entry.match(/^(['"])([^'"]+)\1$/);
+    if (!literal) return { files: [], valid: false };
+    files.push(literal[2]);
+  }
+  return { files, valid: true };
+};
+
+const htmlAttributeValue = (tag, requestedName) => {
+  let cursor = tag.search(/\s/);
+  while (cursor >= 0 && cursor < tag.length) {
+    while (/\s/.test(tag[cursor] || '')) cursor += 1;
+    if (tag[cursor] === '>' || tag[cursor] === '/') break;
+
+    const nameStart = cursor;
+    while (cursor < tag.length && !/[\s=/>]/.test(tag[cursor])) cursor += 1;
+    const name = tag.slice(nameStart, cursor).toLowerCase();
+    while (/\s/.test(tag[cursor] || '')) cursor += 1;
+
+    let value = '';
+    if (tag[cursor] === '=') {
+      cursor += 1;
+      while (/\s/.test(tag[cursor] || '')) cursor += 1;
+      const quote = tag[cursor] === '"' || tag[cursor] === "'" ? tag[cursor] : '';
+      if (quote) {
+        cursor += 1;
+        const valueStart = cursor;
+        while (cursor < tag.length && tag[cursor] !== quote) cursor += 1;
+        value = tag.slice(valueStart, cursor);
+        if (tag[cursor] === quote) cursor += 1;
+      } else {
+        const valueStart = cursor;
+        while (cursor < tag.length && !/[\s>]/.test(tag[cursor])) cursor += 1;
+        value = tag.slice(valueStart, cursor);
+      }
+    }
+
+    if (name === requestedName) return value;
+  }
+  return null;
+};
+
+const htmlScriptSources = source => {
+  const sources = [];
+  let hasBaseElement = false;
+  let cursor = 0;
+  while (cursor < source.length) {
+    const tagStart = source.indexOf('<', cursor);
+    if (tagStart === -1) break;
+    if (source.startsWith('<!--', tagStart)) {
+      const commentEnd = source.indexOf('-->', tagStart + 4);
+      cursor = commentEnd === -1 ? source.length : commentEnd + 3;
+      continue;
+    }
+    if (/^<base(?=[\s/>])/i.test(source.slice(tagStart))) {
+      hasBaseElement = true;
+      cursor = tagStart + 5;
+      continue;
+    }
+    if (!/^<script(?=[\s/>])/i.test(source.slice(tagStart))) {
+      cursor = tagStart + 1;
+      continue;
+    }
+
+    let quote = '';
+    let tagEnd = -1;
+    for (let index = tagStart + 7; index < source.length; index += 1) {
+      const character = source[index];
+      if (quote) {
+        if (character === quote) quote = '';
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === '>') {
+        tagEnd = index;
+        break;
+      }
+    }
+    if (tagEnd === -1) break;
+
+    const tag = source.slice(tagStart, tagEnd + 1);
+    const src = htmlAttributeValue(tag, 'src');
+    if (src !== null) sources.push(src);
+
+    const closingTagStart = source.toLowerCase().indexOf('</script', tagEnd + 1);
+    const closingTagEnd = closingTagStart === -1 ? -1 : source.indexOf('>', closingTagStart + 8);
+    cursor = closingTagEnd === -1 ? tagEnd + 1 : closingTagEnd + 1;
+  }
+  return { sources, hasBaseElement };
+};
 
 if (!existsSync(manifestPath)) {
   console.error('No existe extension/manifest.json.');
@@ -28,35 +160,45 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (manifest.manifest_version !== 3) fail('La extensión debe usar Manifest V3.');
 if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ''))) fail('La versión debe usar formato semver X.Y.Z.');
 
-const declaredFiles = new Set();
-if (manifest.background?.service_worker) declaredFiles.add(manifest.background.service_worker);
-for (const script of manifest.content_scripts || []) {
-  for (const file of script.js || []) declaredFiles.add(file);
-  for (const file of script.css || []) declaredFiles.add(file);
+const backgroundWorker = manifest.background?.service_worker;
+if (backgroundWorker) {
+  validateFileReferences('manifest.background.service_worker', [backgroundWorker]);
 }
-for (const resourceGroup of manifest.web_accessible_resources || []) {
-  for (const file of resourceGroup.resources || []) declaredFiles.add(file);
+for (const [index, script] of (manifest.content_scripts || []).entries()) {
+  validateFileReferences(`manifest.content_scripts[${index}].js`, script.js);
+  validateFileReferences(`manifest.content_scripts[${index}].css`, script.css);
 }
-for (const file of declaredFiles) {
-  if (!existsSync(path.join(extensionDir, file))) fail(`Falta el recurso declarado: extension/${file}`);
+for (const [index, resourceGroup] of (manifest.web_accessible_resources || []).entries()) {
+  validateFileReferences(
+    `manifest.web_accessible_resources[${index}].resources`,
+    resourceGroup.resources
+  );
 }
 
-const requiredRuntimeFiles = [
+// These package entry points are not reachable from manifest, importScripts(), or another HTML.
+// All reachable children are validated from their actual edges instead of duplicated as file roots.
+const mandatoryPackageRoots = [
   'vendor-lock.json',
+  'print-pdf.html',
+  'syslab-offscreen.html',
+];
+validateFileReferences('raíces obligatorias del paquete', mandatoryPackageRoots);
+
+// Preserve the pre-existing core-feature contract as required graph edges. File existence remains
+// derived by validateFileReferences(), while removing an edge and its target together still fails.
+const mandatoryStartupRuntimes = [
   'runtime-loader.js',
   'prescription-print.js',
   'prescription-pdf.js',
   'pdf-print.js',
-  'print-pdf.html',
-  'print-pdf.js',
   'report-parser.js',
   'jspdf.umd.min.js',
   'pdf-lib.min.js',
   'xlsx.full.min.js',
 ];
-for (const file of requiredRuntimeFiles) {
-  if (!existsSync(path.join(extensionDir, file))) fail(`Falta el runtime requerido: extension/${file}`);
-}
+const mandatoryHtmlScripts = new Map([
+  ['print-pdf.html', ['print-pdf.js']],
+]);
 
 const vendorLockPath = path.join(extensionDir, 'vendor-lock.json');
 if (existsSync(vendorLockPath)) {
@@ -93,7 +235,12 @@ for (const host of manifest.host_permissions || []) {
   if (!allowedHosts.has(host)) fail(`Permiso de host no revisado: ${host}`);
 }
 
-const backgroundSource = readFileSync(path.join(extensionDir, 'background.js'), 'utf8');
+const backgroundPath = isSafePackagePath(backgroundWorker)
+  ? path.join(extensionDir, backgroundWorker)
+  : null;
+const backgroundSource = backgroundPath && isRegularFile(backgroundPath)
+  ? readFileSync(backgroundPath, 'utf8')
+  : '';
 const healthBridgeSource = existsSync(healthBridgePath)
   ? readFileSync(healthBridgePath, 'utf8')
   : '';
@@ -130,16 +277,24 @@ const firstDeclarationIndex = executableBackgroundSource.search(/\b(?:const|let|
 if (startupCall && firstDeclarationIndex >= 0 && Number(startupCall.index) > firstDeclarationIndex) {
   fail('importScripts() debe ejecutarse antes de las declaraciones del service worker MV3.');
 }
-const startupRuntimes = new Set(
-  [...String(startupCall && startupCall[1] || '').matchAll(/(['"])([^'"]+)\1/g)]
-    .map(match => match[2])
+const startupRuntimeList = parseLiteralImportScripts(String(startupCall?.[1] || ''));
+if (startupCall && !startupRuntimeList.valid) {
+  fail('background service worker debe declarar importScripts() sólo con rutas literales locales.');
+}
+validateFileReferences(
+  `${backgroundWorker || 'background service worker'} importScripts()`,
+  startupRuntimeList.files
 );
-for (const heavyRuntime of ['jspdf.umd.min.js', 'pdf-lib.min.js', 'xlsx.full.min.js']) {
-  if (!startupRuntimes.has(heavyRuntime)) {
-    fail(`${heavyRuntime} debe registrarse durante la evaluación inicial del service worker MV3.`);
+const startupRuntimes = new Set(startupRuntimeList.files);
+for (const runtime of mandatoryStartupRuntimes) {
+  if (!startupRuntimes.has(runtime)) {
+    fail(`${runtime} debe registrarse durante la evaluación inicial del service worker MV3.`);
   }
 }
-const runtimeLoaderSource = readFileSync(path.join(extensionDir, 'runtime-loader.js'), 'utf8');
+const runtimeLoaderPath = path.join(extensionDir, 'runtime-loader.js');
+const runtimeLoaderSource = isRegularFile(runtimeLoaderPath)
+  ? readFileSync(runtimeLoaderPath, 'utf8')
+  : '';
 const executableRuntimeLoaderSource = runtimeLoaderSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');
@@ -147,11 +302,33 @@ if (/\bimportScripts\s*\(/.test(executableRuntimeLoaderSource)) {
   fail('runtime-loader.js no puede ejecutar importScripts() después de instalar el service worker MV3.');
 }
 
-const listFiles = directory => readdirSync(directory).flatMap(name => {
-  const absolute = path.join(directory, name);
-  return statSync(absolute).isDirectory() ? listFiles(absolute) : [absolute];
-});
 const extensionFiles = listFiles(extensionDir);
+for (const htmlFile of extensionFiles.filter(candidate => /\.html?$/i.test(candidate))) {
+  const htmlPath = path.relative(extensionDir, htmlFile).split(path.sep).join('/');
+  const htmlSource = readFileSync(htmlFile, 'utf8');
+  const htmlDependencies = htmlScriptSources(htmlSource);
+  if (htmlDependencies.hasBaseElement) {
+    fail(`No se permite <base> en extension/${htmlPath}; altera la resolución local de scripts.`);
+  }
+  const rawScriptSources = htmlDependencies.sources;
+  const localScriptSources = rawScriptSources.filter(file => {
+    if (isSafePackagePath(file)) return true;
+    fail(`Referencia insegura o externa en ${htmlPath} <script src>: ${String(file)}`);
+    return false;
+  });
+  const resolvedScriptSources = localScriptSources.map(file =>
+    path.posix.join(path.posix.dirname(htmlPath), file)
+  );
+  validateFileReferences(
+    `${htmlPath} <script src>`,
+    resolvedScriptSources
+  );
+  for (const mandatoryScript of mandatoryHtmlScripts.get(htmlPath) || []) {
+    if (!resolvedScriptSources.includes(mandatoryScript)) {
+      fail(`${mandatoryScript} debe permanecer declarado en extension/${htmlPath}.`);
+    }
+  }
+}
 for (const file of extensionFiles.filter(candidate => candidate.endsWith('.map'))) {
   fail(`No se permiten source maps en el paquete clínico: ${relative(file)}`);
 }
@@ -166,4 +343,7 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Extensión Rayen v${manifest.version}: paquete válido (${extensionFiles.length} archivos, ${declaredFiles.size} recursos declarados).`);
+console.log(
+  `Extensión Rayen v${manifest.version}: paquete válido ` +
+  `(${extensionFiles.length} archivos, ${dependencyFiles.size} dependencias verificadas).`
+);
