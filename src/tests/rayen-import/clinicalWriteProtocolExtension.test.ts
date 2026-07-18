@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 
 import { beforeEach, describe, expect, it } from 'vitest';
+
+import '../../../extension/clinical-write-runtime.js';
 
 type WriteGuard = {
   generationId: string;
@@ -10,17 +11,23 @@ type WriteGuard = {
 };
 
 type Protocol = {
-  withClinicalWriteLock: (
+  withWriteLock: (
     key: string,
     task: (guard: WriteGuard) => Promise<Record<string, unknown>>
   ) => Promise<Record<string, unknown>>;
-  acknowledgeClinicalWrite: (receipt: {
+  acknowledge: (receipt: {
     key: string;
     generationId: string;
     receiptId: string;
   }) => Promise<Record<string, unknown>>;
-  clinicalWriteAmbiguityStorageKey: (key: string) => Promise<string>;
 };
+
+type RuntimeOwner = {
+  create: (dependencies: Record<string, unknown>) => Protocol;
+};
+
+const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
+  .HhrClinicalWriteRuntime;
 
 type StorageHarness = {
   records: Map<string, Record<string, unknown>>;
@@ -30,11 +37,6 @@ type StorageHarness = {
 };
 
 const loadProtocol = () => {
-  const source = readFileSync(new URL('../../../extension/background.js', import.meta.url), 'utf8');
-  const start = source.indexOf('const clinicalWriteLocks = new Set();');
-  const end = source.indexOf('\n\nconst fetchHospitalizedBradenSummaries', start);
-  if (start < 0 || end < 0) throw new Error('No se encontró el protocolo de escritura clínica.');
-
   const harness: StorageHarness = {
     records: new Map(),
     events: [],
@@ -64,23 +66,24 @@ const loadProtocol = () => {
       harness.records.delete(key);
     },
   };
-  const context = vm.createContext({
-    chrome: { storage: { local: session } },
+  const chromeApi = { storage: { local: session } };
+  const protocol = runtimeOwner.create({
+    chrome: chromeApi,
+    storage: session,
     crypto: globalThis.crypto,
-    TextEncoder,
-    Uint8Array,
-    Uint32Array,
+    now: () => Date.now(),
+    authorizeRecovery: async () => ({ info: {} }),
+    readRecoveryReview: async () => ({ review: {} }),
   });
-  vm.runInContext(
-    `'use strict';\n${source.slice(start, end)}\n` +
-      `globalThis.__clinicalWriteProtocol = {` +
-      `withClinicalWriteLock, acknowledgeClinicalWrite, clinicalWriteAmbiguityStorageKey };`,
-    context
+  return { protocol, harness };
+};
+
+const markerFor = (harness: StorageHarness, key: string) => {
+  const entry = [...harness.records.entries()].find(([storageKey]) =>
+    storageKey.startsWith('hhr-clinical-write-guard-')
   );
-  return {
-    protocol: (context as unknown as { __clinicalWriteProtocol: Protocol }).__clinicalWriteProtocol,
-    harness,
-  };
+  if (!entry) throw new Error('No se persistió la protección para ' + key);
+  return { storageKey: entry[0], marker: entry[1] };
 };
 
 describe('extension clinical write protocol', () => {
@@ -93,7 +96,7 @@ describe('extension clinical write protocol', () => {
 
   it('persists an in-flight generation before allowing the clinical POST', async () => {
     const key = 'handoff:141437';
-    const result = await protocol.withClinicalWriteLock(key, async guard => {
+    const result = await protocol.withWriteLock(key, async guard => {
       const begun = await guard.beginWrite();
       expect(begun).toEqual({ ok: true });
       expect(harness.events.at(-1)).toBe('storage:set');
@@ -109,7 +112,7 @@ describe('extension clinical write protocol', () => {
         receiptId: expect.stringMatching(/^[a-f0-9-]{20,}$/i),
       })
     );
-    const marker = harness.records.get(await protocol.clinicalWriteAmbiguityStorageKey(key));
+    const { marker } = markerFor(harness, key);
     expect(marker).toEqual(
       expect.objectContaining({
         schemaVersion: 3,
@@ -122,7 +125,7 @@ describe('extension clinical write protocol', () => {
   it('does not call the POST when persisting the in-flight marker fails', async () => {
     harness.failNextSet = true;
     let posts = 0;
-    const result = await protocol.withClinicalWriteLock('handoff:141437', async guard => {
+    const result = await protocol.withWriteLock('handoff:141437', async guard => {
       const begun = await guard.beginWrite();
       if (begun.error) return begun;
       posts += 1;
@@ -144,14 +147,14 @@ describe('extension clinical write protocol', () => {
     const blocked = new Promise<void>(resolve => {
       releaseFirst = resolve;
     });
-    const first = protocol.withClinicalWriteLock(key, async () => {
+    const first = protocol.withWriteLock(key, async () => {
       markEntered();
       await blocked;
       return { ok: true, verified: false };
     });
 
     await entered;
-    const overlapping = await protocol.withClinicalWriteLock(key, async () => ({ ok: true }));
+    const overlapping = await protocol.withWriteLock(key, async () => ({ ok: true }));
     expect(overlapping.error).toContain('guardado clínico en curso');
 
     releaseFirst();
@@ -159,7 +162,7 @@ describe('extension clinical write protocol', () => {
   });
 
   it('does not create a marker when preflight validation returns before beginWrite', async () => {
-    const result = await protocol.withClinicalWriteLock('score:141437:CUDYR', async () => ({
+    const result = await protocol.withWriteLock('score:141437:CUDYR', async () => ({
       error: 'El paciente ya no está hospitalizado.',
     }));
 
@@ -171,14 +174,13 @@ describe('extension clinical write protocol', () => {
   it('keeps an ambiguous generation indefinitely after an exception following beginWrite', async () => {
     const key = 'score:141437:BRADEN';
     let posts = 0;
-    const first = await protocol.withClinicalWriteLock(key, async guard => {
+    const first = await protocol.withWriteLock(key, async guard => {
       await guard.beginWrite();
       posts += 1;
       throw new Error('worker interrupted after post');
     });
     expect(first.writeMayHaveSucceeded).toBe(true);
-    const storageKey = await protocol.clinicalWriteAmbiguityStorageKey(key);
-    const marker = harness.records.get(storageKey);
+    const { storageKey, marker } = markerFor(harness, key);
     expect(marker?.state).toBe('ambiguous');
     harness.records.set(storageKey, {
       ...marker,
@@ -186,7 +188,7 @@ describe('extension clinical write protocol', () => {
       updatedAt: Date.now() - 11 * 60 * 1000,
     });
 
-    const second = await protocol.withClinicalWriteLock(key, async guard => {
+    const second = await protocol.withWriteLock(key, async guard => {
       await guard.beginWrite();
       posts += 1;
       return { ok: true, verified: true };
@@ -198,18 +200,18 @@ describe('extension clinical write protocol', () => {
 
   it('clears only a definitively rejected write from the same generation', async () => {
     const key = 'score:141437:DOWNTON';
-    const result = await protocol.withClinicalWriteLock(key, async guard => {
+    const result = await protocol.withWriteLock(key, async guard => {
       await guard.beginWrite();
       return { error: 'HTTP 400', definitelyNotApplied: true };
     });
 
     expect(result).toEqual({ error: 'HTTP 400' });
-    expect(harness.records.has(await protocol.clinicalWriteAmbiguityStorageKey(key))).toBe(false);
+    expect(harness.records.size).toBe(0);
   });
 
   it('requires an exact generation and receipt, and preserves the marker if remove fails', async () => {
     const key = 'handoff:141437';
-    const result = await protocol.withClinicalWriteLock(key, async guard => {
+    const result = await protocol.withWriteLock(key, async guard => {
       await guard.beginWrite();
       return { ok: true, verified: true };
     });
@@ -218,9 +220,9 @@ describe('extension clinical write protocol', () => {
       generationId: string;
       receiptId: string;
     };
-    const storageKey = await protocol.clinicalWriteAmbiguityStorageKey(key);
+    const { storageKey } = markerFor(harness, key);
 
-    const stale = await protocol.acknowledgeClinicalWrite({
+    const stale = await protocol.acknowledge({
       ...receipt,
       generationId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
     });
@@ -228,17 +230,17 @@ describe('extension clinical write protocol', () => {
     expect(harness.records.has(storageKey)).toBe(true);
 
     harness.failNextRemove = true;
-    const failed = await protocol.acknowledgeClinicalWrite(receipt);
+    const failed = await protocol.acknowledge(receipt);
     expect(failed.error).toBeTruthy();
     expect(harness.records.has(storageKey)).toBe(true);
 
-    await expect(protocol.acknowledgeClinicalWrite(receipt)).resolves.toEqual({ ok: true });
+    await expect(protocol.acknowledge(receipt)).resolves.toEqual({ ok: true });
     expect(harness.records.has(storageKey)).toBe(false);
   });
 
   it('never stores the clinical payload in its duplicate-protection marker', async () => {
     const sensitiveText = 'Paciente estable con dolor 8/10';
-    await protocol.withClinicalWriteLock('handoff:141437', async guard => {
+    await protocol.withWriteLock('handoff:141437', async guard => {
       await guard.beginWrite();
       return { error: sensitiveText, writeMayHaveSucceeded: true };
     });
@@ -323,5 +325,31 @@ describe('extension clinical write protocol', () => {
     expect(scaleSave.indexOf('fetchScaleHistoryEvents(encId, info, 120)')).toBeLessThan(
       scaleSave.indexOf('const begun = await writeGuard.beginWrite()')
     );
+  });
+
+  it('keeps background as an orchestrator and enforces bounded owner sizes', () => {
+    const background = readFileSync(
+      new URL('../../../extension/background.js', import.meta.url),
+      'utf8'
+    );
+    const owner = readFileSync(
+      new URL('../../../extension/clinical-write-runtime.js', import.meta.url),
+      'utf8'
+    );
+    const backgroundLines = background.split('\n').length;
+    const ownerLines = owner.split('\n').length;
+
+    expect(background).toContain("'clinical-write-runtime.js'");
+    expect(background).toContain('self.HhrClinicalWriteRuntime.create({');
+    expect(background).toContain(
+      "throw new Error('No se pudo cargar el runtime de escrituras clínicas.')"
+    );
+    expect(background).not.toMatch(/const clinicalWriteLocks|persistClinicalWriteAmbiguity/);
+    expect(background).not.toMatch(/transitionClinicalWriteAmbiguity|clearClinicalWriteAmbiguity/);
+    expect(background).not.toMatch(
+      /hashClinicalWriteRecoveryToken|signClinicalWriteRecoveryReview/
+    );
+    expect(backgroundLines).toBeLessThanOrEqual(4_250);
+    expect(ownerLines).toBeLessThanOrEqual(525);
   });
 });

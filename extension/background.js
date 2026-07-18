@@ -25,6 +25,7 @@ importScripts(
   'gestion-camas-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
+  'clinical-write-runtime.js',
   'prescription-print.js',
   'lab-viewer.js',
   'syslab-runtime.js',
@@ -39,6 +40,10 @@ importScripts(
   'pdf-print.js',
   'runtime-loader.js',
 );
+
+if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
+  throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
+}
 
 const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
@@ -1935,293 +1940,51 @@ const clinicalRecordKey = (kind, record, timestamp, extraParts = []) => {
   ]);
 };
 
-const clinicalWriteLocks = new Set();
-const clinicalWriteAckLocks = new Set();
-const CLINICAL_WRITE_RECOVERY_DELAY_MS = 60 * 1000;
-const CLINICAL_WRITE_RECOVERY_PREVIEW_TTL_MS = 5 * 60 * 1000;
-const clinicalWriteStorage = chrome.storage.local;
-
-const clinicalWriteAmbiguityStorageKey = async key => {
-  const bytes = new TextEncoder().encode(String(key || ''));
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  const hash = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
-  return 'hhr-clinical-write-guard-' + hash;
-};
-
-const readClinicalWriteAmbiguity = async key => {
-  try {
-    const storageKey = await clinicalWriteAmbiguityStorageKey(key);
-    const stored = await clinicalWriteStorage.get(storageKey);
-    const marker = stored && stored[storageKey];
-    if (marker) {
-      return {
-        active: true,
-        marker,
-      };
+const authorizeClinicalWriteRecovery = async ({ kind, encId, requiredHandoffKind }) => {
+  const infoResult = await getFichaFetchInfo();
+  if (infoResult.error) return infoResult;
+  const info = infoResult.info;
+  const sessionHandoffKind = resolveSessionHandoffKind(info);
+  const roleMatchesRecovery = kind === 'handoff'
+    ? sessionHandoffKind === requiredHandoffKind
+    : sessionHandoffKind === 'nursing';
+  if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
+      !roleMatchesRecovery) {
+    return {
+      error: kind === 'handoff'
+        ? 'No se pudo verificar una sesión médica o de enfermería.'
+        : 'No se pudo verificar una sesión activa de enfermería.',
+    };
+  }
+  const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
+  if (activeEncounter.error) return activeEncounter;
+  const claimsResult = await fetchFichaClaims(info);
+  if (claimsResult.error) return claimsResult;
+  if (kind === 'handoff') {
+    if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
+      return { error: 'El perfil no tiene permiso para verificar entregas de turno.' };
     }
-    return { active: false };
-  } catch (error) {
-    return {
-      error: 'No se pudo comprobar la protección contra duplicados: ' +
-        String((error && error.message) || error),
-    };
+  } else if (!hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
+    return { error: 'El perfil no tiene permiso para verificar instrumentos.' };
   }
+  return { info };
 };
 
-const persistClinicalWriteAmbiguity = async (key, details = {}) => {
-  const now = Date.now();
-  const createdAt = Number(details.createdAt || now);
-  const marker = {
-    schemaVersion: 3,
-    state: String(details.state || 'ambiguous'),
-    generationId: String(details.generationId || ''),
-    receiptId: String(details.receiptId || ''),
-    recoveryTokenHash: String(details.recoveryTokenHash || ''),
-    recoveryReviewMac: String(details.recoveryReviewMac || ''),
-    recoveryPreviewedAt: Number(details.recoveryPreviewedAt || 0),
-    recoveryPreviewExpiresAt: Number(details.recoveryPreviewExpiresAt || 0),
-    createdAt,
-    updatedAt: now,
-  };
-  try {
-    const storageKey = await clinicalWriteAmbiguityStorageKey(key);
-    await clinicalWriteStorage.set({ [storageKey]: marker });
-    return { ok: true, marker };
-  } catch (error) {
-    return {
-      error: 'No se pudo persistir el bloqueo preventivo: ' +
-        String((error && error.message) || error),
-    };
-  }
-};
+const clinicalWriteRuntime = self.HhrClinicalWriteRuntime.create({
+  chrome,
+  storage: chrome.storage.local,
+  crypto: globalThis.crypto,
+  now: () => Date.now(),
+  authorizeRecovery: authorizeClinicalWriteRecovery,
+  readRecoveryReview: request => readClinicalWriteRecoveryReview(request),
+});
 
-const transitionClinicalWriteAmbiguity = async (key, generationId, details = {}) => {
-  try {
-    const storageKey = await clinicalWriteAmbiguityStorageKey(key);
-    const stored = await clinicalWriteStorage.get(storageKey);
-    const marker = stored && stored[storageKey];
-    if (!marker || marker.generationId !== generationId) {
-      return { error: 'La generación del guardado clínico cambió; se mantuvo su protección.' };
-    }
-    return persistClinicalWriteAmbiguity(key, {
-      ...marker,
-      ...details,
-      generationId,
-      createdAt: marker.createdAt,
-    });
-  } catch (error) {
-    return {
-      error: 'No se pudo actualizar la protección del guardado clínico: ' +
-        String((error && error.message) || error),
-    };
-  }
-};
-
-const createClinicalWriteReceiptId = () => {
-  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  const bytes = new Uint32Array(4);
-  globalThis.crypto.getRandomValues(bytes);
-  return Array.from(bytes, value => value.toString(16).padStart(8, '0')).join('-');
-};
-
-const acknowledgeClinicalWrite = async ({ key, generationId, receiptId }) => {
-  const normalizedKey = String(key || '');
-  const normalizedGenerationId = String(generationId || '');
-  const normalizedReceiptId = String(receiptId || '');
-  if (!/^(?:handoff:\d+|score:\d+:(?:CUDYR|BRADEN|DOWNTON))$/.test(normalizedKey) ||
-      !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
-      !/^[a-f0-9-]{20,}$/i.test(normalizedReceiptId)) {
-    return { error: 'El acuse del guardado clínico no es válido.' };
-  }
-  if (clinicalWriteLocks.has(normalizedKey) || clinicalWriteAckLocks.has(normalizedKey)) {
-    return { error: 'El guardado clínico todavía está procesando otra confirmación.' };
-  }
-  clinicalWriteAckLocks.add(normalizedKey);
-  try {
-    const storageKey = await clinicalWriteAmbiguityStorageKey(normalizedKey);
-    const stored = await clinicalWriteStorage.get(storageKey);
-    const marker = stored && stored[storageKey];
-    if (!marker || marker.state !== 'awaiting-client-ack' ||
-        marker.generationId !== normalizedGenerationId ||
-        marker.receiptId !== normalizedReceiptId) {
-      return { error: 'El acuse no coincide con el guardado clínico pendiente.' };
-    }
-    const cleared = await clearClinicalWriteAmbiguity(normalizedKey, {
-      generationId: normalizedGenerationId,
-      receiptId: normalizedReceiptId,
-    });
-    return cleared.error ? cleared : { ok: true };
-  } catch (error) {
-    return {
-      error: 'No se pudo confirmar localmente la recepción del guardado: ' +
-        String((error && error.message) || error),
-    };
-  } finally {
-    clinicalWriteAckLocks.delete(normalizedKey);
-  }
-};
-
-const clearClinicalWriteAmbiguity = async (key, expected = {}) => {
-  try {
-    const storageKey = await clinicalWriteAmbiguityStorageKey(key);
-    if (expected.state || expected.generationId || expected.receiptId ||
-        expected.recoveryTokenHash || expected.recoveryReviewMac) {
-      const stored = await clinicalWriteStorage.get(storageKey);
-      const marker = stored && stored[storageKey];
-      if (!marker || expected.state && marker.state !== expected.state ||
-          expected.generationId && marker.generationId !== expected.generationId ||
-          expected.receiptId && marker.receiptId !== expected.receiptId ||
-          expected.recoveryTokenHash && marker.recoveryTokenHash !== expected.recoveryTokenHash ||
-          expected.recoveryReviewMac && marker.recoveryReviewMac !== expected.recoveryReviewMac) {
-        return { error: 'La protección pertenece a otro guardado clínico y no se liberó.' };
-      }
-    }
-    await clinicalWriteStorage.remove(storageKey);
-    return { ok: true };
-  } catch (error) {
-    return {
-      error: 'No se pudo liberar la protección local del guardado: ' +
-        String((error && error.message) || error),
-    };
-  }
-};
-
-const serializeClinicalWriteProtection = async key => {
-  const result = await readClinicalWriteAmbiguity(key);
-  if (result.error) return { state: 'unavailable', error: result.error };
-  if (!result.active) return null;
-  const marker = result.marker || {};
-  return {
-    key,
-    state: String(marker.state || 'ambiguous'),
-    generationId: String(marker.generationId || ''),
-    receiptId: marker.state === 'awaiting-client-ack' ? String(marker.receiptId || '') : '',
-    createdAt: Number(marker.createdAt || 0),
-  };
-};
-
-const withClinicalWriteLock = async (key, task) => {
-  const ambiguity = await readClinicalWriteAmbiguity(key);
-  if (ambiguity.error) return ambiguity;
-  if (ambiguity.active) {
-    return {
-      error: 'Existe un guardado clínico pendiente de confirmación. Actualiza los datos y revisa ' +
-        'su estado en Eloísa antes de volver a registrar.',
-      writeMayHaveSucceeded: true,
-      clinicalWriteProtection: {
-        state: String(ambiguity.marker && ambiguity.marker.state || 'ambiguous'),
-        generationId: String(ambiguity.marker && ambiguity.marker.generationId || ''),
-      },
-    };
-  }
-  if (clinicalWriteLocks.has(key) || clinicalWriteAckLocks.has(key)) {
-    return { error: 'Ya hay un guardado clínico en curso para este paciente.' };
-  }
-  let generationId = '';
-  try {
-    generationId = createClinicalWriteReceiptId();
-  } catch (error) {
-    return {
-      error: 'No se pudo preparar el identificador seguro del guardado: ' +
-        String((error && error.message) || error),
-    };
-  }
-  clinicalWriteLocks.add(key);
-  let writeBegun = false;
-  const writeGuard = {
-    generationId,
-    beginWrite: async () => {
-      if (writeBegun) return { ok: true };
-      const persisted = await persistClinicalWriteAmbiguity(key, {
-        state: 'in-flight',
-        generationId,
-      });
-      if (persisted.error) return persisted;
-      writeBegun = true;
-      return { ok: true };
-    },
-  };
-  try {
-    const result = await task(writeGuard);
-    if (!writeBegun) return result;
-    const publicResult = result && typeof result === 'object'
-      ? Object.fromEntries(Object.entries(result).filter(([name]) => name !== 'definitelyNotApplied'))
-      : result;
-    if (result && result.definitelyNotApplied) {
-      const cleared = await clearClinicalWriteAmbiguity(key, { generationId });
-      if (cleared.error) {
-        return {
-          ...publicResult,
-          error: String(result.error || '') + ' ' + cleared.error,
-        };
-      }
-      return publicResult;
-    }
-    if (result && result.ok && result.verified) {
-      let receiptId = '';
-      try {
-        receiptId = createClinicalWriteReceiptId();
-      } catch (error) {
-        const protectedResult = await transitionClinicalWriteAmbiguity(key, generationId, {
-          state: 'ambiguous',
-        });
-        return {
-          error: 'El guardado fue verificado en Eloísa, pero no se pudo crear su acuse local. ' +
-            String((error && error.message) || error) +
-            (protectedResult.error ? ' ' + protectedResult.error : '') +
-            ' Actualiza antes de reintentar.',
-          writeMayHaveSucceeded: true,
-        };
-      }
-      const persisted = await transitionClinicalWriteAmbiguity(key, generationId, {
-        state: 'awaiting-client-ack',
-        receiptId,
-      });
-      if (persisted.error) {
-        return {
-          error: 'El guardado fue verificado en Eloísa, pero no se pudo proteger su confirmación local. ' +
-            persisted.error + ' Actualiza antes de reintentar.',
-          writeMayHaveSucceeded: true,
-        };
-      }
-      return {
-        ...publicResult,
-        clinicalWriteReceipt: { key, generationId, receiptId },
-      };
-    }
-    const persisted = await transitionClinicalWriteAmbiguity(key, generationId, {
-      state: 'ambiguous',
-    });
-    if (persisted.error) {
-      return {
-        ...(publicResult && typeof publicResult === 'object' ? publicResult : {}),
-        error: String(publicResult && publicResult.error || 'El guardado no pudo confirmarse.') +
-          ' ' + persisted.error,
-        writeMayHaveSucceeded: true,
-      };
-    }
-    return {
-      ...(publicResult && typeof publicResult === 'object' ? publicResult : {}),
-      writeMayHaveSucceeded: true,
-    };
-  } catch (error) {
-    if (!writeBegun) {
-      return { error: 'No se pudo preparar el guardado clínico: ' + String((error && error.message) || error) };
-    }
-    const persisted = await transitionClinicalWriteAmbiguity(key, generationId, {
-      state: 'ambiguous',
-    });
-    return {
-      error: 'Se perdió la confirmación del guardado clínico: ' + String((error && error.message) || error) +
-        (persisted.error ? ' ' + persisted.error : ''),
-      writeMayHaveSucceeded: true,
-    };
-  } finally {
-    clinicalWriteLocks.delete(key);
-  }
-};
+const {
+  acknowledge: acknowledgeClinicalWrite,
+  recover: handleClinicalWriteRecoveryRequest,
+  serializeProtection: serializeClinicalWriteProtection,
+  withWriteLock: withClinicalWriteLock,
+} = clinicalWriteRuntime;
 
 const fetchHospitalizedBradenSummaries = async (patients, info, currentEncId) =>
   mapWithConcurrency(patients, 4, async patient => {
@@ -3731,35 +3494,6 @@ const handleScoreSaveRequest = args => withClinicalWriteLock(
   writeGuard => performScoreSaveRequest(args || {}, writeGuard)
 );
 
-const hashClinicalWriteRecoveryToken = async token => {
-  const bytes = new TextEncoder().encode(String(token || ''));
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
-};
-
-const createClinicalWriteRecoveryToken = () => {
-  const bytes = new Uint8Array(32);
-  globalThis.crypto.getRandomValues(bytes);
-  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
-};
-
-const signClinicalWriteRecoveryReview = async (review, token, generationId) => {
-  const encoder = new TextEncoder();
-  const signingKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    encoder.encode(String(token || '')),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await globalThis.crypto.subtle.sign(
-    'HMAC',
-    signingKey,
-    encoder.encode(JSON.stringify({ generationId: String(generationId || ''), review }))
-  );
-  return Array.from(new Uint8Array(signature), value => value.toString(16).padStart(2, '0')).join('');
-};
-
 const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }) => {
   if (kind === 'handoff') {
     const handoffKind = resolveSessionHandoffKind(info);
@@ -3820,182 +3554,6 @@ const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }
       author: String(latest && latest.author || ''),
     },
   };
-};
-
-const handleClinicalWriteRecoveryRequest = async ({
-  key,
-  generationId,
-  phase,
-  recoveryToken,
-}) => {
-  const normalizedKey = String(key || '');
-  const normalizedGenerationId = String(generationId || '');
-  const normalizedPhase = String(phase || '');
-  const normalizedRecoveryToken = String(recoveryToken || '');
-  const handoffMatch = normalizedKey.match(/^handoff(?::(medical))?:(\d+)$/);
-  const scoreMatch = normalizedKey.match(/^score:(\d+):(CUDYR|BRADEN|DOWNTON)$/);
-  const recoveryKind = handoffMatch ? 'handoff' : scoreMatch ? 'score' : '';
-  const recoveryEncId = handoffMatch ? handoffMatch[2] : scoreMatch ? scoreMatch[1] : '';
-  const recoveryInstrument = scoreMatch ? scoreMatch[2] : '';
-  const requiredHandoffKind = handoffMatch ? handoffMatch[1] || 'nursing' : '';
-  if (!recoveryKind || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
-      !['preview', 'confirm'].includes(normalizedPhase) ||
-      normalizedPhase === 'confirm' && !/^[a-f0-9-]{20,}$/i.test(normalizedRecoveryToken)) {
-    return { error: 'La solicitud para liberar la protección clínica no es válida.' };
-  }
-  if (clinicalWriteLocks.has(normalizedKey) || clinicalWriteAckLocks.has(normalizedKey)) {
-    return { error: 'La escritura clínica todavía está procesando otra operación.' };
-  }
-  clinicalWriteAckLocks.add(normalizedKey);
-  try {
-    const protection = await readClinicalWriteAmbiguity(normalizedKey);
-    const marker = protection.marker || {};
-    const markerState = String(marker.state || '');
-    const allowedPreviewStates = [
-      'in-flight',
-      'ambiguous',
-      'awaiting-client-ack',
-      'awaiting-recovery-confirm',
-    ];
-    if (!protection.active || marker.generationId !== normalizedGenerationId ||
-        normalizedPhase === 'preview' && !allowedPreviewStates.includes(markerState) ||
-        normalizedPhase === 'confirm' && markerState !== 'awaiting-recovery-confirm') {
-      return { error: 'La protección cambió y no se liberó.' };
-    }
-    let confirmedTokenHash = '';
-    if (normalizedPhase === 'confirm') {
-      confirmedTokenHash = await hashClinicalWriteRecoveryToken(normalizedRecoveryToken);
-      if (!marker.recoveryTokenHash || !marker.recoveryReviewMac ||
-          confirmedTokenHash !== marker.recoveryTokenHash) {
-        return { error: 'La lectura revisada ya no coincide con esta protección. Actualiza y revísala nuevamente.' };
-      }
-      const previewExpiresAt = Number(marker.recoveryPreviewExpiresAt);
-      if (!Number.isFinite(previewExpiresAt) || previewExpiresAt <= Date.now()) {
-        const reset = await transitionClinicalWriteAmbiguity(normalizedKey, normalizedGenerationId, {
-          state: 'ambiguous',
-          receiptId: '',
-          recoveryTokenHash: '',
-          recoveryReviewMac: '',
-          recoveryPreviewedAt: 0,
-          recoveryPreviewExpiresAt: 0,
-        });
-        return {
-          error: 'La lectura fresca expiró y la protección se mantuvo. Actualiza y revísala nuevamente.' +
-            (reset.error ? ' ' + reset.error : ''),
-        };
-      }
-    }
-    const markerCreatedAt = Number(marker.createdAt);
-    if (!Number.isFinite(markerCreatedAt) || markerCreatedAt <= 0) {
-      return {
-        error: 'La protección no informó una fecha válida y no se liberó. Recarga la extensión para conservar el bloqueo preventivo.',
-      };
-    }
-    const recoveryAge = Date.now() - markerCreatedAt;
-    if (!Number.isFinite(recoveryAge) || recoveryAge < CLINICAL_WRITE_RECOVERY_DELAY_MS) {
-      const waitSeconds = Math.max(
-        1,
-        Math.ceil((CLINICAL_WRITE_RECOVERY_DELAY_MS - Math.max(0, recoveryAge)) / 1000)
-      );
-      return {
-        error: 'Eloísa aún puede estar actualizando el registro. Espera ' + waitSeconds +
-          ' s, actualiza la tabla y vuelve a revisar antes de liberar.',
-      };
-    }
-    const infoResult = await getFichaFetchInfo();
-    if (infoResult.error) return infoResult;
-    const info = infoResult.info;
-    const sessionHandoffKind = resolveSessionHandoffKind(info);
-    const roleMatchesRecovery = recoveryKind === 'handoff'
-      ? sessionHandoffKind === requiredHandoffKind
-      : sessionHandoffKind === 'nursing';
-    if (!info.identityVerified || !/^\d+$/.test(String(info.practitionerRoleId || '')) ||
-        !roleMatchesRecovery) {
-      return {
-        error: recoveryKind === 'handoff'
-          ? 'No se pudo verificar una sesión médica o de enfermería.'
-          : 'No se pudo verificar una sesión activa de enfermería.',
-      };
-    }
-    const encId = recoveryEncId;
-    const activeEncounter = await verifyEncounterStillHospitalized(encId, info);
-    if (activeEncounter.error) return activeEncounter;
-    const claimsResult = await fetchFichaClaims(info);
-    if (claimsResult.error) return claimsResult;
-    if (recoveryKind === 'handoff') {
-      if (!hasFichaClaim(claimsResult, 'Ver_Cambio_Turno')) {
-        return { error: 'El perfil no tiene permiso para verificar entregas de turno.' };
-      }
-    } else {
-      if (!hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
-        return { error: 'El perfil no tiene permiso para verificar instrumentos.' };
-      }
-    }
-    const reviewResult = await readClinicalWriteRecoveryReview({
-      kind: recoveryKind,
-      encId,
-      instrument: recoveryInstrument,
-      info,
-    });
-    if (reviewResult.error) return reviewResult;
-    if (normalizedPhase === 'preview') {
-      const previewToken = createClinicalWriteRecoveryToken();
-      const [tokenHash, reviewMac] = await Promise.all([
-        hashClinicalWriteRecoveryToken(previewToken),
-        signClinicalWriteRecoveryReview(reviewResult.review, previewToken, normalizedGenerationId),
-      ]);
-      const persisted = await transitionClinicalWriteAmbiguity(normalizedKey, normalizedGenerationId, {
-        state: 'awaiting-recovery-confirm',
-        receiptId: '',
-        recoveryTokenHash: tokenHash,
-        recoveryReviewMac: reviewMac,
-        recoveryPreviewedAt: Date.now(),
-        recoveryPreviewExpiresAt: Date.now() + CLINICAL_WRITE_RECOVERY_PREVIEW_TTL_MS,
-      });
-      if (persisted.error) return persisted;
-      return {
-        ok: true,
-        recoveryPreview: {
-          challenge: previewToken,
-          review: reviewResult.review,
-        },
-      };
-    }
-    const reviewMac = await signClinicalWriteRecoveryReview(
-      reviewResult.review,
-      normalizedRecoveryToken,
-      normalizedGenerationId
-    );
-    if (reviewMac !== marker.recoveryReviewMac) {
-      const reset = await transitionClinicalWriteAmbiguity(normalizedKey, normalizedGenerationId, {
-        state: 'ambiguous',
-        receiptId: '',
-        recoveryTokenHash: '',
-        recoveryReviewMac: '',
-        recoveryPreviewedAt: 0,
-        recoveryPreviewExpiresAt: 0,
-      });
-      return {
-        error: 'El registro cambió después de mostrar la lectura fresca. ' +
-          'La protección se mantuvo; actualiza y revisa nuevamente.' +
-          (reset.error ? ' ' + reset.error : ''),
-      };
-    }
-    const cleared = await clearClinicalWriteAmbiguity(normalizedKey, {
-      state: 'awaiting-recovery-confirm',
-      generationId: normalizedGenerationId,
-      recoveryTokenHash: confirmedTokenHash,
-      recoveryReviewMac: reviewMac,
-    });
-    return cleared.error ? cleared : { ok: true };
-  } catch (error) {
-    return {
-      error: 'No se pudo verificar y liberar la protección: ' +
-        String((error && error.message) || error),
-    };
-  } finally {
-    clinicalWriteAckLocks.delete(normalizedKey);
-  }
 };
 
 const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-';

@@ -69,7 +69,7 @@ describe('extension BRADEN source reconciliation', () => {
   it('uses the same two-source read for an ambiguous BRADEN or Downton recovery', () => {
     const source = sliceBetween(
       'const readClinicalWriteRecoveryReview = async',
-      'const handleClinicalWriteRecoveryRequest = async'
+      "const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-'"
     );
 
     expect(source).toContain('fetchScaleHistoryEvents(encId, info, 120)');

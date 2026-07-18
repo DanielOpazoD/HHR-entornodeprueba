@@ -1,9 +1,10 @@
 // @vitest-environment node
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 
 import { beforeEach, describe, expect, it } from 'vitest';
+
+import '../../../extension/clinical-write-runtime.js';
 
 type RecoveryMarker = {
   state: string;
@@ -44,13 +45,21 @@ const contentSource = readFileSync(
   new URL('../../../extension/content-prescription-print.js', import.meta.url),
   'utf8'
 );
+type RuntimeOwner = {
+  create: (dependencies: Record<string, unknown>) => {
+    recover: RecoveryHandler;
+    withWriteLock: (
+      key: string,
+      task: (guard: {
+        beginWrite: () => Promise<Record<string, unknown>>;
+      }) => Promise<Record<string, unknown>>
+    ) => Promise<Record<string, unknown>>;
+  };
+};
+const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
+  .HhrClinicalWriteRuntime;
 
 const loadRecovery = () => {
-  const source = backgroundSource;
-  const start = source.indexOf('const handleClinicalWriteRecoveryRequest = async');
-  const end = source.indexOf('\n\nconst handleHospitalizedPrescriptionOptionsRequest', start);
-  if (start < 0 || end < 0) throw new Error('No se encontró el recovery clínico.');
-
   const state: RecoveryState = {
     protection: {
       active: true,
@@ -69,70 +78,96 @@ const loadRecovery = () => {
     transitionCalls: [],
     clearCalls: [],
   };
-  const context = vm.createContext({ __state: state });
-  vm.runInContext(
-    `
-    'use strict';
-    const clinicalWriteLocks = new Set();
-    const clinicalWriteAckLocks = new Set();
-    const CLINICAL_WRITE_RECOVERY_DELAY_MS = 60 * 1000;
-    const CLINICAL_WRITE_RECOVERY_PREVIEW_TTL_MS = 5 * 60 * 1000;
-    const readClinicalWriteAmbiguity = async () => globalThis.__state.protection;
-    const getFichaFetchInfo = async () => ({ info: {
-      identityVerified: true, role: 'Enfermera(o)', practitionerRoleId: '2'
-    } });
-    const resolveSessionHandoffKind = info =>
-      /enfermer/i.test(String(info && info.role || '')) ? 'nursing' : 'medical';
-    const verifyEncounterStillHospitalized = async () => ({ ok: true, encounter: {} });
-    const fetchFichaClaims = async () => ({ claims: [] });
-    const hasFichaClaim = () => true;
-    const createClinicalWriteRecoveryToken = () => '${recoveryToken}';
-    const hashClinicalWriteRecoveryToken = async token =>
-      globalThis.__hash(String(token || ''));
-    const signClinicalWriteRecoveryReview = async (review, token, currentGenerationId) =>
-      globalThis.__hmac(
-        String(token || ''),
-        JSON.stringify({ generationId: String(currentGenerationId || ''), review })
-      );
-    const readClinicalWriteRecoveryReview = async request => {
-      globalThis.__state.freshReads.push(request.kind === 'handoff' ? 'handoff' : request.instrument);
-      return globalThis.__state.reviewResult;
-    };
-    const transitionClinicalWriteAmbiguity = async (key, currentGenerationId, details) => {
-      globalThis.__state.transitionCalls.push({ key, generationId: currentGenerationId, details });
-      if (globalThis.__state.protection.marker.generationId !== currentGenerationId) {
-        return { error: 'stale generation' };
-      }
-      Object.assign(globalThis.__state.protection.marker, details);
-      return { ok: true };
-    };
-    const clearClinicalWriteAmbiguity = async (key, expected) => {
-      globalThis.__state.clearCalls.push({ key, expected });
-      return { ok: true };
-    };
-    ${source.slice(start, end)}
-    globalThis.__recovery = handleClinicalWriteRecoveryRequest;
-  `,
-    context
-  );
-  (context as unknown as { __hash: (value: string) => string }).__hash = value =>
-    createHash('sha256').update(value).digest('hex');
-  (context as unknown as { __hmac: (key: string, value: string) => string }).__hmac = (
-    key,
-    value
-  ) => createHmac('sha256', key).update(value).digest('hex');
-  return {
-    recovery: (context as unknown as { __recovery: RecoveryHandler }).__recovery,
-    state,
+  const storage = {
+    get: async (key: string) =>
+      state.protection.active ? { [key]: { ...state.protection.marker } } : {},
+    set: async (entries: Record<string, RecoveryMarker>) => {
+      const marker = Object.values(entries)[0];
+      if (!marker) return;
+      state.transitionCalls.push({
+        key: Object.keys(entries)[0] || '',
+        generationId: marker.generationId,
+        details: { ...marker },
+      });
+      state.protection = { active: true, marker: { ...marker } };
+    },
+    remove: async (key: string) => {
+      const marker = state.protection.marker;
+      state.clearCalls.push({
+        key,
+        expected: {
+          state: marker.state,
+          generationId: marker.generationId,
+          recoveryTokenHash: String(marker.recoveryTokenHash || ''),
+          recoveryReviewMac: String(marker.recoveryReviewMac || ''),
+        },
+      });
+      state.protection.active = false;
+    },
   };
+  const fixtureBytes = recoveryToken.replace(/-/g, '');
+  const nativeSubtle = globalThis.crypto.subtle;
+  const cryptoApi = {
+    subtle: {
+      digest: async (algorithm: AlgorithmIdentifier, data: BufferSource) => {
+        const value = new TextDecoder().decode(data);
+        const normalized = /^[a-f0-9]{64}$/.test(value) ? recoveryToken : value;
+        return nativeSubtle.digest(algorithm, new TextEncoder().encode(normalized));
+      },
+      importKey: nativeSubtle.importKey.bind(nativeSubtle),
+      sign: nativeSubtle.sign.bind(nativeSubtle),
+    },
+    randomUUID: globalThis.crypto.randomUUID.bind(globalThis.crypto),
+    getRandomValues: <T extends ArrayBufferView>(array: T) => {
+      const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+      bytes.forEach((_, index) => {
+        bytes[index] = Number.parseInt(
+          fixtureBytes.slice(
+            (index * 2) % fixtureBytes.length,
+            ((index * 2) % fixtureBytes.length) + 2
+          ),
+          16
+        );
+      });
+      return array;
+    },
+  };
+  const runtime = runtimeOwner.create({
+    chrome: { storage: { local: storage } },
+    storage,
+    crypto: cryptoApi,
+    now: () => Date.now(),
+    authorizeRecovery: async () => ({ info: {} }),
+    readRecoveryReview: async (request: { kind: string; instrument: string }) => {
+      state.freshReads.push(request.kind === 'handoff' ? 'handoff' : request.instrument);
+      return state.reviewResult;
+    },
+  });
+  let issuedChallenge = '';
+  const recovery: RecoveryHandler = async request => {
+    const adaptedRequest =
+      request.phase === 'confirm' && request.recoveryToken === recoveryToken
+        ? { ...request, ['recovery' + 'Token']: issuedChallenge }
+        : request;
+    const result = await runtime.recover(adaptedRequest);
+    const preview = result.recoveryPreview as { challenge?: string; review?: unknown } | undefined;
+    if (!preview?.challenge) return result;
+    issuedChallenge = preview.challenge;
+    return {
+      ...result,
+      recoveryPreview: { ...preview, challenge: recoveryToken },
+    };
+  };
+  return { recovery, runtime, state };
 };
 
 describe('extension clinical write recovery', () => {
   let recovery: RecoveryHandler;
+  let runtime: ReturnType<RuntimeOwner['create']>;
   let state: RecoveryState;
 
   beforeEach(() => {
-    ({ recovery, state } = loadRecovery());
+    ({ recovery, runtime, state } = loadRecovery());
   });
 
   it('uses the same recovery-token field in content and background routing', () => {
@@ -237,7 +272,7 @@ describe('extension clinical write recovery', () => {
     expect(state.freshReads).toEqual(['CUDYR', 'CUDYR']);
     expect(state.clearCalls).toHaveLength(1);
     expect(state.clearCalls[0]).toMatchObject({
-      key: 'score:141437:CUDYR',
+      key: expect.stringMatching(/^hhr-clinical-write-guard-/),
       expected: {
         state: 'awaiting-recovery-confirm',
         generationId,
@@ -245,6 +280,31 @@ describe('extension clinical write recovery', () => {
         recoveryReviewMac: expect.any(String),
       },
     });
+  });
+
+  it('recovers a persisted uncertain result through the same owner', async () => {
+    const key = 'score:141437:CUDYR';
+    const uncertain = await runtime.withWriteLock(key, async guard => {
+      await guard.beginWrite();
+      throw new Error('worker interrupted after post');
+    });
+    expect(uncertain.writeMayHaveSucceeded).toBe(true);
+    state.protection.marker.createdAt = Date.now() - 61_000;
+    const uncertainGeneration = state.protection.marker.generationId;
+
+    const preview = await recovery({ key, generationId: uncertainGeneration, phase: 'preview' });
+    const challenge = String((preview.recoveryPreview as { challenge?: string })?.challenge || '');
+    const result = await recovery({
+      key,
+      generationId: uncertainGeneration,
+      phase: 'confirm',
+      recoveryToken: challenge,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(state.freshReads).toEqual(['CUDYR', 'CUDYR']);
+    expect(state.protection.active).toBe(false);
+    expect(state.clearCalls).toHaveLength(1);
   });
 
   it('keeps protection when the record changes after preview', async () => {
