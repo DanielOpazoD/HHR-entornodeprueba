@@ -11,6 +11,10 @@ const clinicalScoreRuntimeSource = readFileSync(
   path.resolve('extension/clinical-score-runtime.js'),
   'utf8'
 );
+const clinicalHandoffRuntimeSource = readFileSync(
+  path.resolve('extension/clinical-handoff-runtime.js'),
+  'utf8'
+);
 const clinicalBatchPrintRuntimeSource = readFileSync(
   path.resolve('extension/clinical-batch-print-runtime.js'),
   'utf8'
@@ -54,7 +58,7 @@ describe('extension heavy runtime loading', () => {
 
   it('keeps clinical writes tied to a verified nursing or medical session role', () => {
     const identityGuards = [
-      ...[backgroundSource, clinicalScoreRuntimeSource].flatMap(source => [
+      ...[backgroundSource, clinicalScoreRuntimeSource, clinicalHandoffRuntimeSource].flatMap(source => [
         ...source.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2,6}\);/g),
       ]),
     ].map(match => match[1]);
@@ -67,7 +71,7 @@ describe('extension heavy runtime loading', () => {
     });
     expect(identityGuards.filter(guard => guard.includes('&& handoffKind'))).toHaveLength(2);
     expect(identityGuards.some(guard => guard.includes('&& clinicalRoleKind'))).toBe(true);
-    expect(backgroundSource).toContain('batch.batch.handoffKind !== handoffKind');
+    expect(clinicalHandoffRuntimeSource).toContain('batch.batch.handoffKind !== handoffKind');
   });
 
   it('registers PDF and spreadsheet vendors during classic MV3 worker startup', () => {

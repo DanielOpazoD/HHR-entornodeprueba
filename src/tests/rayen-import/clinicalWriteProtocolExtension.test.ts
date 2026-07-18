@@ -258,18 +258,18 @@ describe('extension clinical write protocol', () => {
 
   it('does not verify a handoff readback unless the POST was positively acknowledged', () => {
     const source = readFileSync(
-      new URL('../../../extension/background.js', import.meta.url),
+      new URL('../../../extension/clinical-handoff-runtime.js', import.meta.url),
       'utf8'
     );
-    const start = source.indexOf('const performHandoffSaveRequest = async');
-    const end = source.indexOf('\n\nconst handleHandoffSaveRequest =', start);
+    const start = source.indexOf('const performSaveRequest = async');
+    const end = source.indexOf('\n\n    const handleSaveRequest =', start);
     const handoffWrite = source.slice(start, end);
 
     expect(handoffWrite).toContain('let postAcknowledged = false;');
     expect(handoffWrite).toContain('postAcknowledged = true;');
     expect(handoffWrite).toContain('if (!postAcknowledged) return false;');
     expect(handoffWrite).toContain(
-      'const handoffEventTypeId = self.HhrPrescriptionPrint.handoffEncounterEventTypeId(handoffKind);'
+      'const handoffEventTypeId = prescriptionPrint.handoffEncounterEventTypeId(handoffKind);'
     );
     expect(handoffWrite).toContain('encounterEventTypeId: handoffEventTypeId');
     expect(handoffWrite).not.toContain('encounterEventTypeId: 2');
@@ -280,12 +280,12 @@ describe('extension clinical write protocol', () => {
 
   it('finishes the Eloisa encounter event after verifying a handoff readback', () => {
     const source = readFileSync(
-      new URL('../../../extension/background.js', import.meta.url),
+      new URL('../../../extension/clinical-handoff-runtime.js', import.meta.url),
       'utf8'
     );
     const helperStart = source.indexOf('const readFinishRegisterEvent = async');
-    const requestStart = source.indexOf('const performHandoffSaveRequest = async');
-    const requestEnd = source.indexOf('\n\nconst handleHandoffSaveRequest =', requestStart);
+    const requestStart = source.indexOf('const performSaveRequest = async');
+    const requestEnd = source.indexOf('\n\n    const handleSaveRequest =', requestStart);
     const helpers = source.slice(helperStart, requestStart);
     const handoffWrite = source.slice(requestStart, requestEnd);
 

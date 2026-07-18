@@ -8,6 +8,7 @@ const readExtension = (file: string): string =>
   readFileSync(path.resolve('extension', file), 'utf8');
 
 const backgroundSource = readExtension('background.js');
+const clinicalHandoffRuntimeSource = readExtension('clinical-handoff-runtime.js');
 const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
@@ -53,9 +54,15 @@ describe('CodeRabbit clinical integration hardening', () => {
   });
 
   it('requires server claims for medical and nursing handoff access', () => {
-    expect(backgroundSource).not.toContain("handoffKind === 'medical' ? { claims: [] }");
-    expect(backgroundSource).not.toContain("handoffKind === 'medical' || hasFichaClaim");
-    expect(backgroundSource).toContain("hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')");
+    expect(clinicalHandoffRuntimeSource).not.toContain(
+      "handoffKind === 'medical' ? { claims: [] }"
+    );
+    expect(clinicalHandoffRuntimeSource).not.toContain(
+      "handoffKind === 'medical' || hasFichaClaim"
+    );
+    expect(clinicalHandoffRuntimeSource).toContain(
+      "hasFichaClaim(claimsResult, 'Ingresar_Cambio_Turno')"
+    );
   });
 
   it('discards stale identity refreshes and compares against the previous binding', () => {
