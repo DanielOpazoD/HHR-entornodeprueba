@@ -11,6 +11,10 @@ const clinicalScoreRuntimeSource = readFileSync(
   path.resolve('extension/clinical-score-runtime.js'),
   'utf8'
 );
+const clinicalBatchPrintRuntimeSource = readFileSync(
+  path.resolve('extension/clinical-batch-print-runtime.js'),
+  'utf8'
+);
 const gestionCamasSource = readFileSync(path.resolve('extension/inject-gestioncamas.js'), 'utf8');
 const gestionCamasRuntimeSource = readFileSync(
   path.resolve('extension/gestion-camas-runtime.js'),
@@ -77,6 +81,13 @@ describe('extension heavy runtime loading', () => {
     expect(startup).toContain("'fichamedico-transport-runtime.js'");
     expect(startup).toContain("'clinical-score-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime de lectura de Scores.');
+    expect(startup).toContain("'clinical-batch-print-runtime.js'");
+    expect(startup).toContain(
+      'No se pudo cargar el runtime batch de documentos hospitalizados.'
+    );
+    expect(clinicalBatchPrintRuntimeSource).toContain(
+      'root.HhrClinicalBatchPrintRuntime = Object.freeze({ create });'
+    );
   });
 
   it('only verifies already-registered runtimes and never performs a late import', () => {

@@ -30,6 +30,7 @@ importScripts(
   'clinical-write-runtime.js',
   'clinical-score-runtime.js',
   'clinical-report-runtime.js',
+  'clinical-batch-print-runtime.js',
   'prescription-print.js',
   'lab-viewer.js',
   'syslab-runtime.js',
@@ -53,6 +54,12 @@ if (!self.HhrClinicalPanelRuntime || typeof self.HhrClinicalPanelRuntime.create 
 }
 if (!self.HhrClinicalReportRuntime || typeof self.HhrClinicalReportRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de informes clínicos.');
+}
+if (
+  !self.HhrClinicalBatchPrintRuntime ||
+  typeof self.HhrClinicalBatchPrintRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime batch de documentos hospitalizados.');
 }
 if (!self.HhrClinicalScoreRuntime || typeof self.HhrClinicalScoreRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de lectura de Scores.');
@@ -1404,193 +1411,6 @@ const {
   withWriteLock: withClinicalWriteLock,
 } = clinicalWriteRuntime;
 
-const fetchHospitalizedBradenSummaries = async (patients, info, currentEncId) =>
-  mapWithConcurrency(patients, 4, async patient => {
-    const [history, forms] = await Promise.all([
-      fetchBradenHistoryEvents(patient.encounterId, info),
-      fetchEvaluationForms(patient.encounterId, info),
-    ]);
-    const bradenReadErrors = [history.error, forms.error].filter(Boolean).join(' ');
-    const braden = bradenReadErrors ? null : self.HhrPrescriptionPrint.deriveLatestBraden(
-      history.error ? [] : history.events,
-      forms.error ? [] : forms.forms
-    );
-    return {
-      ...patient,
-      braden,
-      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
-      bradenUnavailableReason: bradenReadErrors,
-    };
-  });
-
-const fetchHospitalizedRegimenSummaries = async (patients, info, currentEncId) =>
-  mapWithConcurrency(patients, 4, async patient => {
-    const [nutrition, history, forms] = await Promise.all([
-      fetchNutritionOrderEntry(patient.encounterId, info),
-      fetchBradenHistoryEvents(patient.encounterId, info),
-      fetchEvaluationForms(patient.encounterId, info),
-    ]);
-    const bradenReadErrors = [history.error, forms.error].filter(Boolean).join(' ');
-    const braden = bradenReadErrors ? null : self.HhrPrescriptionPrint.deriveLatestBraden(
-      history.error ? [] : history.events,
-      forms.error ? [] : forms.forms
-    );
-    return {
-      ...patient,
-      regimen: nutrition.error ? null : self.HhrPrescriptionPrint.deriveLatestNutritionOrder(nutrition.entry),
-      regimenUnavailableReason: nutrition.error || '',
-      braden,
-      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
-      bradenUnavailableReason: bradenReadErrors,
-    };
-  });
-
-const getActiveHospitalizedPatientsWithFallback = async info => {
-  let patientResult = await fetchActiveHospitalizedPatients(info);
-  if (!patientResult.error) return patientResult;
-  const snapshotResult = await handleSnapshotRequest();
-  if (snapshotResult.error) return { error: patientResult.error + ' ' + snapshotResult.error };
-  return {
-    patients: self.HhrPrescriptionPrint.activeHospitalizedEncounters(snapshotResult.snapshot),
-  };
-};
-
-const handleHospitalizedIndicationsOptionsRequest = async ({ currentEncId }) => {
-  const infoResult = await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const patientResult = await getActiveHospitalizedPatientsWithFallback(infoResult.info);
-  if (patientResult.error) return patientResult;
-  const patients = patientResult.patients.map(patient => ({
-    ...patient,
-    isCurrent: String(patient.encounterId) === String(currentEncId || ''),
-  }));
-  const batchId = crypto.randomUUID();
-  await chrome.storage.session.set({
-    [`hhr-indications-batch-${batchId}`]: {
-      allowedEncounterIds: patients.map(patient => patient.encounterId),
-      createdAt: Date.now(),
-    },
-  });
-  return { ok: true, batchId, patients };
-};
-
-const handleHospitalizedIndicationsPrintRequest = async ({ batchId, encIds }) => {
-  self.HhrExtensionRuntime.ensurePdf();
-  if (!/^[a-f0-9-]{20,}$/i.test(String(batchId || ''))) {
-    return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
-  }
-  const storageKey = `hhr-indications-batch-${batchId}`;
-  const stored = await chrome.storage.session.get(storageKey);
-  const batch = stored && stored[storageKey];
-  if (!batch || Date.now() - Number(batch.createdAt || 0) > 30 * 60 * 1000) {
-    return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
-  }
-  const allowed = new Set(Array.isArray(batch.allowedEncounterIds) ? batch.allowedEncounterIds : []);
-  const selected = Array.from(new Set(Array.isArray(encIds) ? encIds.map(String) : []))
-    .filter(encId => /^\d+$/.test(encId) && allowed.has(encId));
-  if (selected.length === 0) return { error: 'Selecciona al menos un paciente.' };
-  if (selected.length > 120) return { error: 'La selección supera el máximo seguro de 120 pacientes.' };
-
-  const infoResult = await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const activeSelection = await verifySelectedEncountersStillHospitalized(selected, infoResult.info);
-  if (activeSelection.error) return activeSelection;
-  const generated = await mapWithConcurrency(selected, 2, async encId => {
-    const result = await fetchIndicationsReportBuffer({ encId, info: infoResult.info });
-    return result.error ? { encId, error: result.error } : { encId, buffer: result.buffer };
-  });
-  const completed = generated.filter(item => item.buffer);
-  const skipped = generated.filter(item => item.error).map(item => ({ encId: item.encId, error: item.error }));
-  if (completed.length === 0) {
-    return { error: 'No se pudo generar ninguna de las indicaciones seleccionadas.', skipped };
-  }
-  let combinedBuffer;
-  try {
-    combinedBuffer = await self.HhrPdfPrint.mergePdfBuffers(completed.map(item => item.buffer));
-  } catch (error) {
-    return { error: 'No se pudieron unir las indicaciones: ' + String((error && error.message) || error) };
-  }
-  const opened = await openPdfPrintDialog({
-    buffer: combinedBuffer,
-    filename: self.HhrPrescriptionPrint.buildBatchIndicationsFilename(
-      completed.length,
-      new Date().toISOString()
-    ),
-  });
-  if (opened.error) return opened;
-  await chrome.storage.session.remove(storageKey);
-  return { ...opened, count: completed.length, skipped };
-};
-
-const handleHospitalizedRegimenOptionsRequest = async ({ currentEncId }) => {
-  const infoResult = await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const patientResult = await fetchActiveHospitalizedPatients(infoResult.info);
-  if (patientResult.error) return patientResult;
-  const patients = await fetchHospitalizedRegimenSummaries(
-    patientResult.patients,
-    infoResult.info,
-    currentEncId
-  );
-  return {
-    ok: true,
-    patients,
-    bradenCount: patients.filter(patient => patient.braden).length,
-    regimenCount: patients.filter(patient => patient.regimen).length,
-    regimenErrorCount: patients.filter(patient => patient.regimenUnavailableReason).length,
-    unavailableCount: patients.filter(patient => patient.bradenUnavailableReason).length,
-  };
-};
-
-const handleHospitalizedRegimenPrintRequest = async () => {
-  self.HhrExtensionRuntime.ensurePdf();
-  const infoResult = await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const patientResult = await fetchActiveHospitalizedPatients(infoResult.info);
-  if (patientResult.error) return patientResult;
-  if (patientResult.patients.length === 0) return { error: 'No hay pacientes hospitalizados para imprimir.' };
-
-  const patients = await fetchHospitalizedRegimenSummaries(
-    patientResult.patients,
-    infoResult.info,
-    ''
-  );
-  const regimenErrors = patients.filter(patient => patient.regimenUnavailableReason);
-  const bradenErrors = patients.filter(patient => patient.bradenUnavailableReason);
-  if (regimenErrors.length || bradenErrors.length) {
-    const failures = [];
-    if (regimenErrors.length) failures.push('el régimen de ' + regimenErrors.length + (regimenErrors.length === 1 ? ' paciente' : ' pacientes'));
-    if (bradenErrors.length) failures.push('BRADEN de ' + bradenErrors.length + (bradenErrors.length === 1 ? ' paciente' : ' pacientes'));
-    return {
-      error: 'No se imprimió: Eloísa no permitió verificar ' + failures.join(' ni ') + '. Reintenta la consulta.',
-    };
-  }
-  let integrated;
-  try {
-    const now = new Date();
-    const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
-      .toISOString()
-      .slice(0, 19);
-    integrated = self.HhrPrescriptionPdf.generateIntegratedRegimenPdf({
-      patients,
-      generatedAt: localIso,
-    });
-  } catch (error) {
-    return { error: 'No se pudo generar el régimen integrado: ' + String((error && error.message) || error) };
-  }
-  const opened = await openPdfPrintDialog({
-    buffer: integrated,
-    filename: self.HhrPrescriptionPrint.buildRegimenFilename(new Date().toISOString()),
-  });
-  if (opened.error) return opened;
-  return {
-    ...opened,
-    count: patients.length,
-    regimenCount: patients.filter(patient => patient.regimen).length,
-    bradenCount: patients.filter(patient => patient.braden).length,
-  };
-};
-
 const fetchFichaClaims = async info => {
   if (!info || !info.practitionerId || !info.facId) return { claims: [] };
   try {
@@ -2520,152 +2340,37 @@ const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }
   };
 };
 
-const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-';
-const PRESCRIPTION_BATCH_LIMIT = 24;
-const sweepPrescriptionBatches = async (now = Date.now()) => {
-  const stored = await chrome.storage.session.get(null);
-  const entries = Object.entries(stored || {})
-    .filter(([key]) => key.startsWith(PRESCRIPTION_BATCH_PREFIX));
-  const expiredKeys = entries
-    .filter(([, batch]) => {
-      const expiresAt = Number(batch && batch.expiresAt || 0);
-      return !batch || !batch.sessionKey || !Number.isFinite(Number(batch.createdAt)) ||
-        expiresAt > 0 && now >= expiresAt;
-    })
-    .map(([key]) => key);
-  const expired = new Set(expiredKeys);
-  const overflowKeys = entries
-    .filter(([key]) => !expired.has(key))
-    .sort((left, right) =>
-      Number(right[1].lastUsedAt || right[1].createdAt || 0) -
-      Number(left[1].lastUsedAt || left[1].createdAt || 0)
-    )
-    .slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))
-    .map(([key]) => key);
-  const removable = [...expiredKeys, ...overflowKeys];
-  if (removable.length) await chrome.storage.session.remove(removable);
-};
+const clinicalBatchPrintRuntime = self.HhrClinicalBatchPrintRuntime.create({
+  chrome,
+  crypto,
+  getFichaFetchInfo,
+  fetchActiveHospitalizedPatients,
+  handleSnapshotRequest,
+  mapWithConcurrency,
+  fetchPrescriptionEvents,
+  fetchBradenHistoryEvents,
+  fetchEvaluationForms,
+  fetchNutritionOrderEntry,
+  verifySelectedEncountersStillHospitalized,
+  fichaSessionCacheKey,
+  createCompletePrescriptionPdf,
+  fetchIndicationsReportBuffer,
+  openPdfPrintDialog,
+  extensionRuntime: self.HhrExtensionRuntime,
+  pdfPrint: self.HhrPdfPrint,
+  prescriptionPrint: self.HhrPrescriptionPrint,
+  prescriptionPdf: self.HhrPrescriptionPdf,
+  now: () => Date.now(),
+});
 
-const handleHospitalizedPrescriptionOptionsRequest = async ({ currentEncId, sender }) => {
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return infoResult;
-  let patientResult = await fetchActiveHospitalizedPatients(infoResult.info);
-  if (patientResult.error) {
-    const snapshotResult = await handleSnapshotRequest();
-    if (snapshotResult.error) return { error: patientResult.error + ' ' + snapshotResult.error };
-    patientResult = {
-      patients: self.HhrPrescriptionPrint.activeHospitalizedEncounters(snapshotResult.snapshot),
-    };
-  }
-  const patients = patientResult.patients;
-  if (patients.length === 0) return { ok: true, batchId: '', patients: [], unavailableCount: 0 };
-
-  const summaries = await mapWithConcurrency(patients, 4, async patient => {
-    const history = await fetchPrescriptionEvents(patient.encounterId, infoResult.info);
-    if (history.error) {
-      return {
-        ...self.HhrPrescriptionPrint.buildHospitalizedPrescriptionSummary(patient, [], currentEncId),
-        unavailableReason: history.error,
-      };
-    }
-    const groups = self.HhrPrescriptionPrint.applyProfessionalValidationDates(
-      self.HhrPrescriptionPrint.deriveProfessionalPrescriptionGroups(history.events),
-      history.events,
-      null
-    );
-    return self.HhrPrescriptionPrint.buildHospitalizedPrescriptionSummary(patient, groups, currentEncId);
-  });
-
-  const printableIds = summaries
-    .filter(patient => patient.medicationCount > 0 && !patient.unavailableReason)
-    .map(patient => patient.encounterId);
-  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
-  const expiresAt = Number(infoResult.info && infoResult.info.expiresAt);
-  await sweepPrescriptionBatches();
-  const batchId = crypto.randomUUID();
-  await chrome.storage.session.set({
-    [`${PRESCRIPTION_BATCH_PREFIX}${batchId}`]: {
-      allowedEncounterIds: printableIds,
-      createdAt: Date.now(),
-      sessionKey,
-      expiresAt: Number.isFinite(expiresAt) && expiresAt > 0 ? expiresAt : null,
-    },
-  });
-  return {
-    ok: true,
-    batchId,
-    patients: summaries,
-    unavailableCount: summaries.filter(patient => patient.unavailableReason).length,
-  };
-};
-
-const handleHospitalizedPrescriptionPrintRequest = async ({ batchId, encIds, printFormat, sender }) => {
-  self.HhrExtensionRuntime.ensurePdf();
-  if (!/^[a-f0-9-]{20,}$/i.test(String(batchId || ''))) {
-    return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
-  }
-  const storageKey = `${PRESCRIPTION_BATCH_PREFIX}${batchId}`;
-  const stored = await chrome.storage.session.get(storageKey);
-  const batch = stored && stored[storageKey];
-  if (!batch) {
-    return { error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.' };
-  }
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return infoResult;
-  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
-  if (!self.HhrPrescriptionPrint.isPrescriptionBatchSessionValid(batch, sessionKey, Date.now())) {
-    await chrome.storage.session.remove(storageKey);
-    return { error: 'La sesión clínica cambió o venció. Actualiza la lista y vuelve a intentarlo.' };
-  }
-  const allowed = new Set(Array.isArray(batch.allowedEncounterIds) ? batch.allowedEncounterIds : []);
-  const selected = Array.from(new Set(Array.isArray(encIds) ? encIds.map(String) : []))
-    .filter(encId => /^\d+$/.test(encId) && allowed.has(encId));
-  if (selected.length === 0) return { error: 'Selecciona al menos un paciente con receta disponible.' };
-  if (selected.length > 120) return { error: 'La selección supera el máximo seguro de 120 pacientes.' };
-
-  const activeSelection = await verifySelectedEncountersStillHospitalized(selected, infoResult.info);
-  if (activeSelection.error) return activeSelection;
-  const format = printFormat === 'compact' ? 'compact' : 'standard';
-  const generated = await mapWithConcurrency(selected, 2, async encId => {
-    const result = await createCompletePrescriptionPdf({
-      encId,
-      printFormat: format,
-      info: infoResult.info,
-      allowOfficialFallback: format === 'compact',
-    });
-    return result.error
-      ? { encId, error: result.error }
-      : { encId, buffer: result.buffer, compactFallbackReason: result.compactFallbackReason || '' };
-  });
-  const completed = generated.filter(item => item.buffer);
-  const skipped = generated.filter(item => item.error).map(item => ({ encId: item.encId, error: item.error }));
-  const compactFallbacks = completed
-    .filter(item => item.compactFallbackReason)
-    .map(item => ({ encId: item.encId, reason: item.compactFallbackReason }));
-  if (completed.length === 0) {
-    return { error: 'No se pudo generar ninguna de las recetas seleccionadas.', skipped };
-  }
-
-  let combinedBuffer;
-  try {
-    combinedBuffer = await self.HhrPdfPrint.mergePdfBuffers(completed.map(item => item.buffer));
-  } catch (error) {
-    return { error: 'No se pudieron unir las recetas: ' + String((error && error.message) || error) };
-  }
-  const opened = await openPdfPrintDialog({
-    buffer: combinedBuffer,
-    filename: self.HhrPrescriptionPrint.buildBatchPrescriptionFilename(
-      completed.length,
-      format,
-      new Date().toISOString()
-    ),
-  });
-  if (opened.error) return opened;
-  await chrome.storage.session.set({
-    [storageKey]: { ...batch, lastUsedAt: Date.now() },
-  });
-  return { ...opened, count: completed.length, skipped, compactFallbacks };
-};
+const {
+  handleHospitalizedPrescriptionOptionsRequest,
+  handleHospitalizedPrescriptionPrintRequest,
+  handleHospitalizedIndicationsOptionsRequest,
+  handleHospitalizedIndicationsPrintRequest,
+  handleHospitalizedRegimenOptionsRequest,
+  handleHospitalizedRegimenPrintRequest,
+} = clinicalBatchPrintRuntime;
 
 // Keep Eloisa's official Jasper prescription as the source of truth for the complete option and
 // for emission metadata. Every resulting PDF is opened with the standard /Print OpenAction.

@@ -126,22 +126,26 @@ describe('CodeRabbit clinical integration hardening', () => {
   });
 
   it('keeps prescription batches reusable for the verified Ficha session', () => {
-    const prescriptionBatch = backgroundSource.slice(
-      backgroundSource.indexOf('const handleHospitalizedPrescriptionOptionsRequest'),
-      backgroundSource.indexOf("// Keep Eloisa's official Jasper prescription")
+    const prescriptionBatch = readFileSync(
+      new URL('../../../extension/clinical-batch-print-runtime.js', import.meta.url),
+      'utf8'
     );
-    expect(prescriptionBatch).toContain('const sessionKey = await fichaSessionCacheKey');
-    expect(prescriptionBatch).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
-    expect(prescriptionBatch).not.toContain('30 * 60 * 1000');
+    const prescriptionHandlers = prescriptionBatch.slice(
+      prescriptionBatch.indexOf('const handleHospitalizedPrescriptionOptionsRequest'),
+      prescriptionBatch.indexOf('const handleHospitalizedIndicationsOptionsRequest')
+    );
+    expect(prescriptionHandlers).toContain('const sessionKey = await fichaSessionCacheKey');
+    expect(prescriptionHandlers).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
+    expect(prescriptionHandlers).not.toContain('30 * 60 * 1000');
     const refreshedBatchExpression =
-      '[storageKey]: { ...batch, lastUsedAt: ' + 'Date.' + 'now() }';
-    expect(prescriptionBatch).toContain(refreshedBatchExpression);
-    expect(backgroundSource).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
-    expect(backgroundSource).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
-    expect(backgroundSource).not.toContain('PRESCRIPTION_BATCH_LIMIT - 1');
-    expect(backgroundSource).toContain('await sweepPrescriptionBatches()');
-    expect(backgroundSource).toContain("allowOfficialFallback: format === 'compact'");
-    expect(backgroundSource).toContain('compactFallbackReason');
+      '[storageKey]: { ...batch, lastUsedAt: ' + 'now() }';
+    expect(prescriptionHandlers).toContain(refreshedBatchExpression);
+    expect(prescriptionBatch).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
+    expect(prescriptionBatch).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
+    expect(prescriptionBatch).not.toContain('PRESCRIPTION_BATCH_LIMIT - 1');
+    expect(prescriptionBatch).toContain('await sweepPrescriptionBatches()');
+    expect(prescriptionHandlers).toContain("allowOfficialFallback: format === 'compact'");
+    expect(prescriptionHandlers).toContain('compactFallbackReason');
     expect(backgroundSource).toContain('officialResult.buffer.slice(0)');
     expect(fichaSource).toContain(
       'expiresAt: normalization.normalizeSessionExpiry(session, payload)'
