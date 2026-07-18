@@ -10,7 +10,13 @@ const readExtension = (file: string): string =>
 const backgroundSource = readExtension('background.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
-const contentSource = readExtension('content-prescription-print.js');
+const contentSource = [
+  'content-prescription-print.js',
+  'hhr-prescription-center.js',
+  'hhr-hospitalized-documents-center.js',
+]
+  .map(readExtension)
+  .join('\n');
 const fichaSource = readExtension('inject-fichamedico.js');
 const readmeSource = readExtension('README.md');
 

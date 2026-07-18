@@ -48,7 +48,9 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `pdf-print.js`, `print-pdf.*` | Abren la receta en el visor PDF de Chrome y activan el diálogo nativo de impresión |
 | `runtime-loader.js` | Verifica que PDF y planillas hayan quedado registrados durante el arranque permitido por MV3 |
 | `vendor-lock.json` | Versiones, licencias y SHA-256 de las librerías vendorizadas del paquete |
-| `content-prescription-print.js` | Centro HHR: recetas, régimen, indicaciones, entrega de turno y scores |
+| `hhr-prescription-center.js` | Superficie de Recetas del Centro HHR: paciente actual, hospitalizados, selección e impresión repetible |
+| `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones y Regímenes + BRADEN |
+| `content-prescription-print.js` | Orquesta el shell, navegación, contexto clínico y módulos restantes del Centro HHR |
 | `background.js` | Enruta lecturas, reportes y escrituras verificadas contra los servicios de Eloísa |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
