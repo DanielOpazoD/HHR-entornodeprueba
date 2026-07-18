@@ -43,7 +43,11 @@ describe('extension prescription operations', () => {
 
     expect(buffer.byteLength).toBeGreaterThan(1_000);
     expect(new TextDecoder('latin1').decode(buffer.slice(0, 4))).toBe('%PDF');
-    expect((await extractPageText(buffer)).join(' ')).not.toContain('Folio:');
+    const text = (await extractPageText(buffer)).join(' ');
+    expect(text).not.toContain('Folio:');
+    expect(text).toMatch(/Prescriptor:\s+Elena Díaz/);
+    expect(text).toContain('FIRMA');
+    expect(text).toContain('Pagina 1 de 1');
   });
 
   it('labels an individually generated external prescription', async () => {
@@ -302,15 +306,27 @@ describe('extension prescription operations', () => {
 
   it('keeps up to 22 medications on one official-equivalent compact page', async () => {
     const buffer = createOfficialEquivalentCompact(22);
+    const pageCount = (await PDFDocument.load(buffer.slice(0))).getPageCount();
+    const text = (await extractPageText(buffer)).join(' ');
 
-    expect((await PDFDocument.load(buffer)).getPageCount()).toBe(1);
-    expect((await extractPageText(buffer)).join(' ')).toContain('Pendiente');
+    expect(pageCount).toBe(1);
+    expect(text).toContain('Despacho Farmacia');
+    expect(text).toContain('Pendiente');
+    expect(text).toContain('Impreso por Valeria Salfate');
+    expect(text).toContain('FIRMA');
+    expect(text).toContain('Pagina 1 de 1');
   });
 
   it('starts a second official-equivalent compact page at medication 23', async () => {
     const buffer = createOfficialEquivalentCompact(23);
+    const pageCount = (await PDFDocument.load(buffer.slice(0))).getPageCount();
+    const pages = await extractPageText(buffer);
 
-    expect((await PDFDocument.load(buffer)).getPageCount()).toBe(2);
+    expect(pageCount).toBe(2);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).toContain('Pagina 1 de 2');
+    expect(pages[1]).toContain('Pagina 2 de 2');
+    expect(pages[1]).toContain('Medicamento oficial 23');
   });
 
   it('fails closed instead of clipping a medication row taller than a fresh page', () => {
