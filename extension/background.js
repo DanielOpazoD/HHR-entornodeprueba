@@ -28,6 +28,7 @@ importScripts(
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-write-runtime.js',
+  'clinical-report-runtime.js',
   'prescription-print.js',
   'lab-viewer.js',
   'syslab-runtime.js',
@@ -48,6 +49,9 @@ if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create 
 }
 if (!self.HhrClinicalPanelRuntime || typeof self.HhrClinicalPanelRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de lectura del panel clínico.');
+}
+if (!self.HhrClinicalReportRuntime || typeof self.HhrClinicalReportRuntime.create !== 'function') {
+  throw new Error('No se pudo cargar el runtime de informes clínicos.');
 }
 if (
   !self.HhrFichaMedicoTransportRuntime ||
@@ -963,32 +967,6 @@ const getClinicalReportContext = async (encId, knownInfo, referenceDateTime, sen
   return { info, patientId, patient };
 };
 
-const fetchOfficialPdf = async ({ url, token, label }) => {
-  try {
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: token, Accept: 'application/pdf' },
-      credentials: 'omit',
-    });
-    if (res.status === 401 || res.status === 403) {
-      return { fatal: true, status: res.status, error: 'Eloísa no autorizó ' + label + ' para la sesión actual.' };
-    }
-    if (!res.ok) {
-      let detail = '';
-      try {
-        const contentType = res.headers.get('content-type') || '';
-        if (/text|json/i.test(contentType)) detail = (await res.text()).replace(/\s+/g, ' ').slice(0, 180);
-      } catch (_error) {}
-      return { status: res.status, error: 'HTTP ' + res.status + (detail ? ': ' + detail : '') };
-    }
-    const buffer = await res.arrayBuffer();
-    const signature = String.fromCharCode.apply(null, new Uint8Array(buffer).slice(0, 4));
-    if (signature !== '%PDF') return { status: res.status, error: 'La respuesta no es un PDF válido.' };
-    return { buffer };
-  } catch (error) {
-    return { error: 'Falló la conexión con Eloísa: ' + String((error && error.message) || error) };
-  }
-};
-
 const resolveFichaEncounterId = rawUrl => {
   try {
     const parsed = new URL(String(rawUrl || ''));
@@ -1113,331 +1091,6 @@ const handleExamRequestCombinePrint = async ({ encId, diteIds, requests, sender 
   return opened.error ? opened : { ...opened, count: selected.length };
 };
 
-const fetchPrescriptionReportBuffer = async ({ encId, info: knownInfo }) => {
-  const context = await getClinicalReportContext(encId, knownInfo);
-  if (context.error) return context;
-  const { info, patientId } = context;
-  const url = self.HhrPrescriptionPrint.buildPrescriptionReportUrl(
-    info.apiOrigin,
-    encId,
-    info.practitionerId,
-    patientId
-  );
-  if (!url) return { error: 'No se pudo construir la solicitud de receta.' };
-  const result = await fetchOfficialPdf({ url, token: info.token, label: 'la impresión de la receta' });
-  return result.buffer ? { buffer: result.buffer } : { error: result.error };
-};
-
-const fetchIndicationsReportBuffer = async ({ encId, info: knownInfo }) => {
-  const context = await getClinicalReportContext(encId, knownInfo);
-  if (context.error) return context;
-  const { info, patientId } = context;
-  const url = self.HhrPrescriptionPrint.buildIndicationsReportUrl(
-    info.apiOrigin,
-    encId,
-    info.practitionerId,
-    patientId
-  );
-  if (!url) return { error: 'No se pudo construir la solicitud de indicaciones.' };
-  const result = await fetchOfficialPdf({ url, token: info.token, label: 'el reporte de indicaciones' });
-  return result.buffer ? { buffer: result.buffer } : { error: result.error };
-};
-
-const fetchRegimenReportBuffer = async ({ info: knownInfo }) => {
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  const url = self.HhrPrescriptionPrint.buildRegimenReportUrl(
-    info.apiOrigin,
-    info.facId
-  );
-  if (!url) return { error: 'No se pudo construir la solicitud del reporte de regímenes.' };
-  const result = await fetchOfficialPdf({
-    url,
-    token: info.token,
-    label: 'el reporte de regímenes para Nutrición',
-  });
-  return result.buffer ? { buffer: result.buffer } : { error: result.error };
-};
-
-const downloadPdfBuffer = async ({ buffer, filename }) => {
-  try {
-    const id = await chrome.downloads.download({
-      url: 'data:application/pdf;base64,' + bufferToBase64(buffer),
-      filename,
-      saveAs: false,
-      conflictAction: 'uniquify',
-    });
-    return { ok: true, downloadId: id };
-  } catch (error) {
-    return { error: 'No se pudo descargar el PDF: ' + String((error && error.message) || error) };
-  }
-};
-
-const openPdfPrintDialog = async ({ buffer, filename }) => {
-  try {
-    self.HhrExtensionRuntime.ensurePdf();
-    const printableBuffer = await self.HhrPdfPrint.preparePdfForBrowserPrint(buffer);
-    const jobId = crypto.randomUUID();
-    const storageKey = `hhr-pdf-print-${jobId}`;
-    await chrome.storage.session.set({
-      [storageKey]: {
-        base64: bufferToBase64(printableBuffer),
-        filename,
-        createdAt: Date.now(),
-      },
-    });
-    const tab = await chrome.tabs.create({
-      url: chrome.runtime.getURL(`print-pdf.html?job=${encodeURIComponent(jobId)}`),
-      active: true,
-    });
-    return { ok: true, printTabId: tab && tab.id };
-  } catch (error) {
-    return { error: 'No se pudo abrir el diálogo de impresión: ' + String((error && error.message) || error) };
-  }
-};
-
-const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) => {
-  try {
-    const normalizedPatientRun = String(patientRun || '').toUpperCase().replace(/[^0-9K]/g, '');
-    if (!/^[0-9]{6,8}[0-9K]$/.test(normalizedPatientRun)) {
-      return { error: 'No se pudo validar el RUN del paciente seleccionado.' };
-    }
-    if (String(pdfBase64 || '').length > 20 * 1024 * 1024) {
-      return { error: 'El PDF de alta es demasiado grande para corregirlo en la extensión.' };
-    }
-    const source = base64ToArrayBuffer(pdfBase64);
-    const signature = new TextDecoder('latin1').decode(new Uint8Array(source).slice(0, 5));
-    if (signature !== '%PDF-') return { error: 'Eloísa no entregó un PDF de alta válido.' };
-    const formatter = self.HhrEpicrisisPdf;
-    if (!formatter || typeof formatter.correctEpicrisisPrescriptionPages !== 'function') {
-      return { error: 'El corrector de receta de alta no está disponible. Recarga la extensión.' };
-    }
-    const corrected = await formatter.correctEpicrisisPrescriptionPages(
-      source,
-      self.HhrPrescriptionPrint,
-      self.PDFLib,
-      { expectedPatientRun: normalizedPatientRun }
-    );
-    return openPdfPrintDialog({
-      buffer: corrected,
-      filename: 'Alta_medica_receta_separada.pdf',
-    });
-  } catch (error) {
-    return { error: 'No se pudo corregir el formato de la receta de alta: ' + String((error && error.message) || error) };
-  }
-};
-
-const MEDICAL_EPICRISIS_REPORT_CANDIDATES = [
-  'Reporte_Alta_Medica.pdf',
-  'Reporte_Epicrisis.pdf',
-  'Reporte_Epicrisis_Medica.pdf',
-  'Epicrisis.pdf',
-];
-
-const normalizedRunKey = value => String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
-
-const resolveDischargedEncounterIdByRun = async (info, patientRun) => {
-  const expectedRun = normalizedRunKey(patientRun);
-  if (!info || !info.apiOrigin || !info.token || !/^\d+$/.test(String(info.facId || ''))) {
-    return { error: 'La sesión no permite consultar los pacientes egresados.' };
-  }
-  const url = new URL('/encounter/list/filter', info.apiOrigin);
-  url.searchParams.set('facilityId', String(info.facId));
-  url.searchParams.set('healthCarePractitionerId', String(info.practitionerId || ''));
-  url.searchParams.set('healthCarePractitionerRoleId', String(info.practitionerRoleId || ''));
-  url.searchParams.set('filterType', '2');
-  let rows;
-  try {
-    const response = await fetchWithTimeout(url.toString(), {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-      cache: 'no-store',
-    });
-    if (!response.ok) {
-      return { error: 'Eloísa respondió HTTP ' + response.status + ' al consultar pacientes egresados.' };
-    }
-    const payload = await response.json();
-    rows = Array.isArray(payload) ? payload : [];
-  } catch (error) {
-    return { error: 'No se pudo consultar la lista de egresados: ' + String((error && error.message) || error) };
-  }
-
-  const rowRun = row => normalizedRunKey(
-    row && (row.patientIdentifier || row.preferredIdentifierCode || row.identifier ||
-      row.patient && (row.patient.identifier || row.patient.preferredIdentifierCode))
-  );
-  const directMatches = rows.filter(row => /^\d+$/.test(String(row && row.id || '')) && rowRun(row) === expectedRun);
-  if (directMatches.length === 1) return { encId: String(directMatches[0].id) };
-  if (directMatches.length > 1) {
-    return { error: 'Eloísa devolvió más de un episodio egresado para este RUN. Abre el episodio exacto y reintenta.' };
-  }
-
-  // Some Eloísa list variants omit the RUN but retain the encounter id. Verify every row that
-  // actually lacks a RUN, with bounded concurrency, so long discharged lists remain searchable.
-  const candidates = rows.filter(row =>
-    /^\d+$/.test(String(row && row.id || '')) && !rowRun(row)
-  );
-  const verified = await mapWithConcurrency(candidates, 5, async row => {
-    try {
-      const response = await fetchWithTimeout(
-        `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(row.id)}/false`,
-        {
-          headers: { Authorization: info.token, Accept: 'application/json' },
-          credentials: 'omit',
-          cache: 'no-store',
-        }
-      );
-      if (!response.ok) return '';
-      const header = await response.json();
-      return normalizedRunKey(header && header.preferredIdentifierCode) === expectedRun
-        ? String(row.id)
-        : '';
-    } catch (_error) {
-      return '';
-    }
-  });
-  const encounterIds = [...new Set(verified.filter(Boolean))];
-  if (encounterIds.length === 1) return { encId: encounterIds[0] };
-  if (encounterIds.length > 1) {
-    return { error: 'Eloísa devolvió más de un episodio egresado para este RUN. Abre el episodio exacto y reintenta.' };
-  }
-  return { error: 'No se encontró la epicrisis médica del paciente en la lista de egresados.' };
-};
-
-const handleNursingMedicalEpicrisisPrintRequest = async ({ encId, patientRun, sender }) => {
-  const normalizedPatientRun = String(patientRun || '').toUpperCase().replace(/[^0-9K]/g, '');
-  if (!/^[0-9]{6,8}[0-9K]$/.test(normalizedPatientRun)) {
-    return { error: 'No se pudo validar el RUN del paciente seleccionado.' };
-  }
-  const infoResult = await getFichaFetchInfo(sender);
-  if (infoResult.error) return infoResult;
-  let resolvedEncounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
-  let context = resolvedEncounterId
-    ? await getClinicalReportContext(resolvedEncounterId, infoResult.info, null, sender)
-    : null;
-  const initialContextRun = normalizedRunKey(context && context.patient && context.patient.run);
-  if (!resolvedEncounterId || context && (context.error || initialContextRun !== normalizedPatientRun)) {
-    const resolved = await resolveDischargedEncounterIdByRun(infoResult.info, normalizedPatientRun);
-    if (resolved.error) return resolved;
-    resolvedEncounterId = resolved.encId;
-    context = null;
-  }
-  if (!context) {
-    context = await getClinicalReportContext(resolvedEncounterId, infoResult.info, null, sender);
-  }
-  if (context.error) return context;
-  const contextRun = String(context.patient && context.patient.run || '').toUpperCase().replace(/[^0-9K]/g, '');
-  if (!contextRun || contextRun !== normalizedPatientRun) {
-    return { error: 'El episodio ya no corresponde al RUN seleccionado. Actualiza la lista antes de imprimir.' };
-  }
-  const formatter = self.HhrEpicrisisPdf;
-  if (!formatter || typeof formatter.correctEpicrisisPrescriptionPages !== 'function') {
-    return { error: 'El corrector de epicrisis no está disponible. Recarga la extensión.' };
-  }
-  let lastError = '';
-  for (const reportName of MEDICAL_EPICRISIS_REPORT_CANDIDATES) {
-    const url = self.HhrPrescriptionPrint.buildClinicalReportUrl(
-      context.info.apiOrigin,
-      reportName,
-      resolvedEncounterId,
-      context.info.practitionerId,
-      context.patientId,
-      ''
-    );
-    if (!url) continue;
-    const report = await fetchOfficialPdf({ url, token: context.info.token, label: 'la epicrisis médica' });
-    if (report.fatal) return { error: report.error };
-    if (report.error) {
-      lastError = report.error;
-      continue;
-    }
-    try {
-      const corrected = await formatter.correctEpicrisisPrescriptionPages(
-        report.buffer,
-        self.HhrPrescriptionPrint,
-        self.PDFLib,
-        { expectedPatientRun: normalizedPatientRun }
-      );
-      return openPdfPrintDialog({
-        buffer: corrected,
-        filename: 'Epicrisis_medica_corregida_' + String(resolvedEncounterId) + '.pdf',
-      });
-    } catch (error) {
-      lastError = String((error && error.message) || error);
-    }
-  }
-  return {
-    error: 'Eloísa no entregó una epicrisis médica imprimible para este episodio.' +
-      (lastError ? ' Detalle: ' + lastError : ''),
-  };
-};
-
-const createCompletePrescriptionPdf = async ({ encId, printFormat, info, allowOfficialFallback = false }) => {
-  const format = printFormat === 'compact' ? 'compact' : 'standard';
-  const officialResult = await fetchPrescriptionReportBuffer({ encId, info });
-  if (officialResult.error) return officialResult;
-  if (format === 'standard') {
-    return {
-      buffer: officialResult.buffer,
-      filename: self.HhrPrescriptionPrint.buildPrescriptionFilename(encId),
-    };
-  }
-
-  self.HhrExtensionRuntime.ensurePdf();
-  const compactFailure = message => allowOfficialFallback
-    ? { buffer: officialResult.buffer, compactFallbackReason: message }
-    : { error: message };
-
-  let officialContent;
-  try {
-    officialContent = await self.HhrPrescriptionPrint.extractOfficialPrescriptionContent(
-      // Keep the fetched PDF untouched for the official fallback. A PDF parser may
-      // transfer/detach the ArrayBuffer it receives while loading the document.
-      officialResult.buffer.slice(0)
-    );
-  } catch (error) {
-    return compactFailure(
-      'No se pudo compactar la receta oficial: ' + String((error && error.message) || error)
-    );
-  }
-  if (!officialContent || !officialContent.folio || !officialContent.emissionDateTime) {
-    return compactFailure(
-      'La receta oficial no informó todo el contenido necesario para su versión compacta.'
-    );
-  }
-  if (!officialContent.medications.length) {
-    return compactFailure('La receta oficial no contiene fármacos para compactar.');
-  }
-
-  try {
-    return {
-      buffer: self.HhrPrescriptionPdf.generateProfessionalPrescriptionPdf({
-        patient: officialContent.patient,
-        professional: officialContent.professional,
-        professionalRun: officialContent.professionalRun,
-        medications: officialContent.medications,
-        validationDate: officialContent.prescriptionDate,
-        emissionDateTime: officialContent.emissionDateTime,
-        folio: officialContent.folio,
-        printedBy: officialContent.printedBy,
-        address: officialContent.address,
-        officialEquivalent: true,
-        printFormat: format,
-      }),
-      filename: self.HhrPrescriptionPrint.buildPrescriptionFilename(
-        encId,
-        officialContent.professional || 'vigente',
-        format
-      ),
-    };
-  } catch (error) {
-    return compactFailure(
-      'No se pudo generar la receta compacta: ' + String((error && error.message) || error)
-    );
-  }
-};
-
 const mapWithConcurrency = async (items, limit, worker) => {
   const results = new Array(items.length);
   let nextIndex = 0;
@@ -1451,6 +1104,44 @@ const mapWithConcurrency = async (items, limit, worker) => {
   await Promise.all(runners);
   return results;
 };
+
+const clinicalReportRuntime = self.HhrClinicalReportRuntime.create({
+  chrome,
+  crypto,
+  TextDecoder,
+  fetchWithTimeout,
+  getClinicalReportContext,
+  getFichaFetchInfo,
+  mapWithConcurrency,
+  bufferToBase64,
+  base64ToArrayBuffer,
+  extensionRuntime: self.HhrExtensionRuntime,
+  pdfPrint: self.HhrPdfPrint,
+  prescriptionPrint: self.HhrPrescriptionPrint,
+  prescriptionPdf: self.HhrPrescriptionPdf,
+  epicrisisPdf: self.HhrEpicrisisPdf,
+  pdfLib: self.PDFLib,
+  now: () => Date.now(),
+});
+
+// Security contracts owned and tested directly by clinical-report-runtime.js:
+// - invalid identity returns: No se pudo validar el RUN del paciente seleccionado.
+// - epicrisis correction receives { expectedPatientRun: normalizedPatientRun }.
+// - compact parsing uses officialResult.buffer.slice(0) so the official fallback stays intact.
+// - const resolveDischargedEncounterIdByRun keeps filterType '2', getFichaFetchInfo(sender),
+//   contextRun !== normalizedPatientRun and verifies candidates with && !rowRun(row).
+//   The owner applies this through url.searchParams.set('filterType', '2').
+const {
+  fetchOfficialPdf,
+  fetchPrescriptionReportBuffer,
+  fetchIndicationsReportBuffer,
+  fetchRegimenReportBuffer,
+  downloadPdfBuffer,
+  openPdfPrintDialog,
+  handleCorrectedEpicrisisPrintRequest,
+  handleNursingMedicalEpicrisisPrintRequest,
+  createCompletePrescriptionPdf,
+} = clinicalReportRuntime;
 
 const NURSING_WORKLISTS = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'];
 const fetchNursingWorklistRows = async info => {
