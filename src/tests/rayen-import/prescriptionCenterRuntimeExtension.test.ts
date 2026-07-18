@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
+import '../../../extension/hhr-handoff-scores-center.js';
 
 type RuntimeOwner = {
   create: (dependencies: Record<string, unknown>) => { open: (...args: unknown[]) => unknown };
@@ -37,6 +38,10 @@ const hospitalizedDocumentsSource = readFileSync(
   path.resolve('extension/hhr-hospitalized-documents-center.js'),
   'utf8'
 );
+const handoffScoresSource = readFileSync(
+  path.resolve('extension/hhr-handoff-scores-center.js'),
+  'utf8'
+);
 const lineCount = (source: string) => source.split('\n').length;
 
 describe('Centro HHR prescription runtime ownership', () => {
@@ -46,6 +51,9 @@ describe('Centro HHR prescription runtime ownership', () => {
     );
     expect(() => globalThis.HhrHospitalizedDocumentsCenterRuntime.create({})).toThrow(
       /Documentos Hospitalizados HHR/
+    );
+    expect(() => globalThis.HhrHandoffScoresCenterRuntime.create({})).toThrow(
+      /Turno y Scores HHR/
     );
   });
 
@@ -69,26 +77,35 @@ describe('Centro HHR prescription runtime ownership', () => {
 
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeGreaterThan(-1);
+    expect(scripts.indexOf('hhr-handoff-scores-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
+    expect(scripts.indexOf('hhr-handoff-scores-center.js')).toBeLessThan(
+      scripts.indexOf('content-prescription-print.js')
+    );
     expect(contentSource).toContain('prescriptionCenterOwner.create({');
     expect(contentSource).toContain('hospitalizedDocumentsCenterOwner.create({');
     expect(contentSource).not.toContain('const createModal = (');
     expect(contentSource).not.toContain('const createHospitalizedDocumentsModal = (');
+    expect(contentSource).toContain('handoffScoresCenterOwner.create({');
+    expect(contentSource).not.toContain('const renderHandoffCenter =');
+    expect(contentSource).not.toContain('const renderScoresCenter =');
   });
 
   it('keeps the orchestrator and both extracted owners inside their bounded size budgets', () => {
-    expect(lineCount(contentSource)).toBeLessThanOrEqual(4_200);
+    expect(lineCount(contentSource)).toBeLessThanOrEqual(3_600);
     expect(lineCount(prescriptionSource)).toBeLessThanOrEqual(700);
     expect(lineCount(hospitalizedDocumentsSource)).toBeLessThanOrEqual(400);
+    expect(lineCount(handoffScoresSource)).toBeLessThanOrEqual(1_000);
   });
 });
 
 declare global {
   var HhrPrescriptionCenterRuntime: RuntimeOwner;
   var HhrHospitalizedDocumentsCenterRuntime: RuntimeOwner;
+  var HhrHandoffScoresCenterRuntime: RuntimeOwner;
 }

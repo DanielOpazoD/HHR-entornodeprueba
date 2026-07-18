@@ -14,6 +14,7 @@ const contentSource = [
   'content-prescription-print.js',
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
+  'hhr-handoff-scores-center.js',
 ]
   .map(readExtension)
   .join('\n');
