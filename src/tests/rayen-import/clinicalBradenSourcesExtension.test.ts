@@ -7,6 +7,10 @@ const backgroundSource = readFileSync(
   new URL('../../../extension/background.js', import.meta.url),
   'utf8'
 );
+const clinicalScoreRuntimeSource = readFileSync(
+  new URL('../../../extension/clinical-score-runtime.js', import.meta.url),
+  'utf8'
+);
 const contentSource = [
   '../../../extension/content-prescription-print.js',
   '../../../extension/hhr-handoff-scores-center.js',
@@ -14,16 +18,17 @@ const contentSource = [
   .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');
 
-const sliceBetween = (startMarker: string, endMarker: string) => {
-  const start = backgroundSource.indexOf(startMarker);
-  const end = backgroundSource.indexOf(endMarker, start + startMarker.length);
+const sliceBetween = (source: string, startMarker: string, endMarker: string) => {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
   if (start < 0 || end < 0) throw new Error(`No se encontró ${startMarker}.`);
-  return backgroundSource.slice(start, end);
+  return source.slice(start, end);
 };
 
 describe('extension BRADEN source reconciliation', () => {
   it('always reads history and forms for the integrated regimen PDF', () => {
     const source = sliceBetween(
+      backgroundSource,
       'const fetchHospitalizedRegimenSummaries = async',
       'const getActiveHospitalizedPatientsWithFallback = async'
     );
@@ -36,14 +41,15 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('always reconciles both sources in the global Scores table', () => {
     const source = sliceBetween(
+      clinicalScoreRuntimeSource,
       'const handleScoresOptionsRequest = async',
       'const readScoresBatch = async'
     );
 
     expect(source).toContain('fetchScaleHistoryEvents(patient.encounterId, info, 120)');
     expect(source).toContain('fetchEvaluationForms(patient.encounterId, info)');
-    expect(source).toContain("forms.error ? [] : forms.forms,\n      'BRADEN'");
-    expect(source).toContain("forms.error ? [] : forms.forms,\n      'DOWNTON'");
+    expect(source).toMatch(/forms\.error \? \[\] : forms\.forms,\s*'BRADEN'/);
+    expect(source).toMatch(/forms\.error \? \[\] : forms\.forms,\s*'DOWNTON'/);
     expect(source).toContain('BRADEN: evaluationReadErrors ? [] : bradenHistory.slice(0, 8)');
     expect(source).toContain('DOWNTON: evaluationReadErrors ? [] : downtonHistory.slice(0, 8)');
     expect(source).not.toContain('if (!bradenHistory.length || !downtonHistory.length)');
@@ -59,6 +65,7 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('fails closed when any required form source is unavailable', () => {
     const source = sliceBetween(
+      backgroundSource,
       'const fetchEvaluationForms = async',
       'const fetchScaleHistoryEvents = async'
     );
@@ -70,6 +77,7 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('uses the same two-source read for an ambiguous BRADEN or Downton recovery', () => {
     const source = sliceBetween(
+      backgroundSource,
       'const readClinicalWriteRecoveryReview = async',
       "const PRESCRIPTION_BATCH_PREFIX = 'hhr-prescription-batch-'"
     );

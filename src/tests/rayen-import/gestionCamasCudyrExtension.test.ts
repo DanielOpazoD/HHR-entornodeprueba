@@ -17,19 +17,53 @@ const cudyr = (
   }
 ).HhrGestionCamasCudyr;
 
+const clinicalScoreRuntimeSource = readFileSync(
+  new URL('../../../extension/clinical-score-runtime.js', import.meta.url),
+  'utf8'
+);
+
+const loadClinicalScoreRuntime = () => {
+  const context = vm.createContext({ URL, Date, Set, Map, Promise, encodeURIComponent });
+  vm.runInContext(clinicalScoreRuntimeSource, context, { filename: 'clinical-score-runtime.js' });
+  return (
+    context as unknown as {
+      HhrClinicalScoreRuntime: {
+        create: (dependencies: Record<string, unknown>) => {
+          handleCudyrCategoriesRequest: () => Promise<Record<string, unknown>>;
+        };
+      };
+    }
+  ).HhrClinicalScoreRuntime;
+};
+
+const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => ({
+  chrome: { storage: { session: { get: async () => ({}), set: async () => undefined } } },
+  crypto: { randomUUID: () => '12345678-1234-1234-1234-123456789012' },
+  fetchWithTimeout: async () => ({ ok: true, status: 200, json: async () => [] }),
+  getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
+  resolveGestionCamasSession: async () => ({ error: 'Gestión de Camas no disponible.' }),
+  classifyGestionCamasRejection: async () => '',
+  nursingWorklists: ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'],
+  resolveSessionHandoffKind: () => 'nursing',
+  fetchFichaClaims: async () => ({ claims: [] }),
+  hasFichaClaim: () => false,
+  fetchActiveHospitalizedPatients: async () => ({ patients: [] }),
+  mapWithConcurrency: async () => [],
+  fetchScaleHistoryEvents: async () => ({ events: [] }),
+  fetchEvaluationForms: async () => ({ forms: [] }),
+  serializeClinicalWriteProtection: async () => ({}),
+  verifyEncounterStillHospitalized: async () => ({ encounter: {} }),
+  prescriptionPrint: { deriveScaleHistory: () => [] },
+  gestionCamasCudyr: cudyr,
+  now: () => 123_456,
+  ...overrides,
+});
+
 describe('Gestión de Camas CUDYR normalizer', () => {
   it('preserves official bed history when optional author and definition metadata fail', async () => {
-    const source = readFileSync(
-      new URL('../../../extension/background.js', import.meta.url),
-      'utf8'
-    );
-    const start = source.indexOf('const fetchGestionCamasCudyrCategories = async');
-    const end = source.indexOf('\n\nconst resolveCudyrCategories', start);
-    if (start < 0 || end < 0) throw new Error('No se encontró el lector CUDYR oficial.');
     const beds = [{ bedEncounterMapping: { encounterMapping: { encounter: { id: 901 } } } }];
-    const context = vm.createContext({
-      Date,
-      encodeURIComponent,
+    const runtime = loadClinicalScoreRuntime().create(createRuntimeDependencies({
+      getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
       resolveGestionCamasSession: async () => ({
         record: {
           apiBase: 'https://hospbackend.rayensalud.cl/api',
@@ -46,19 +80,12 @@ describe('Gestión de Camas CUDYR normalizer', () => {
         }
         throw new Error('Definitions unavailable');
       },
-      handleGestionCamasUnauthorized: async () => false,
-      HhrGestionCamasCudyr: {
+      gestionCamasCudyr: {
         buildSnapshot: (input: Record<string, unknown>) => [input],
+        mergeEncounterSnapshots: cudyr.mergeEncounterSnapshots,
       },
-    });
-    Object.assign(context, { self: context });
-    vm.runInContext(
-      `${source.slice(start, end)}\nglobalThis.__fetchCudyr = fetchGestionCamasCudyrCategories;`,
-      context
-    );
-    const result = await (
-      context as unknown as { __fetchCudyr: () => Promise<Record<string, unknown>> }
-    ).__fetchCudyr();
+    }));
+    const result = await runtime.handleCudyrCategoriesRequest();
 
     expect(result).toMatchObject({
       source: 'gestion_camas',
@@ -70,32 +97,23 @@ describe('Gestión de Camas CUDYR normalizer', () => {
   });
 
   it('keeps official metadata warnings when Ficha Médico is unavailable', async () => {
-    const source = readFileSync(
-      new URL('../../../extension/background.js', import.meta.url),
-      'utf8'
-    );
-    const start = source.indexOf('const handleCudyrCategoriesRequest = async');
-    const end = source.indexOf('\n\nconst syslabRuntime', start);
-    if (start < 0 || end < 0) throw new Error('No se encontró el manejador CUDYR.');
-    const context = vm.createContext({
+    const runtime = loadClinicalScoreRuntime().create(createRuntimeDependencies({
       getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
-      fetchGestionCamasCudyrCategories: async () => ({
-        items: [{ encId: '901' }],
-        source: 'gestion_camas',
-        historyAvailable: true,
-        warning: 'Autores CUDYR incompletos.',
+      resolveGestionCamasSession: async () => ({
+        record: {
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+          token: 'fixture',
+        },
       }),
-    });
-    vm.runInContext(
-      `${source.slice(start, end)}\nglobalThis.__handleCudyr = handleCudyrCategoriesRequest;`,
-      context
-    );
-    const result = await (
-      context as unknown as { __handleCudyr: () => Promise<Record<string, unknown>> }
-    ).__handleCudyr();
+      fetchWithTimeout: async (url: string) => url.endsWith('/beds')
+        ? { ok: true, status: 200, json: async () => [] }
+        : { ok: false, status: 503, json: async () => [] },
+    }));
+    const result = await runtime.handleCudyrCategoriesRequest();
 
     expect(result).toMatchObject({ ok: true, source: 'gestion_camas', historyAvailable: true });
-    expect(String(result.warning)).toContain('Autores CUDYR incompletos.');
+    expect(String(result.warning)).toContain('autores CUDYR');
     expect(String(result.warning)).toContain('Ficha Médico no disponible.');
   });
 
