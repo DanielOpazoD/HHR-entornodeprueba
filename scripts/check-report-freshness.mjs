@@ -4,16 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { getDirectMergeParentShas, getGitReportState } from './gitReportState.mjs';
-import { getEvidenceReportDependencyFiles } from './evidenceDependencyGraph.mjs';
 import {
   buildDependencyFingerprint,
   normalizeDependencyFingerprintValue,
 } from './evidenceProvenanceSupport.mjs';
+import { REPORT_FRESHNESS_CONTRACTS } from './reportFreshnessSupport.mjs';
 
 const ROOT = process.cwd();
-const strictMode =
-  process.argv.includes('--strict') || process.env.REPORT_FRESHNESS_STRICT === '1';
-const dependencyFilesFor = reportId => getEvidenceReportDependencyFiles(reportId);
+const strictMode = process.argv.includes('--strict') || process.env.REPORT_FRESHNESS_STRICT === '1';
 
 const readArgValues = flag => {
   const values = [];
@@ -31,64 +29,6 @@ const readArgValues = flag => {
   }
   return values;
 };
-
-const trackedReports = [
-  {
-    id: 'quality-metrics',
-    file: 'reports/quality-metrics.json',
-    field: 'gitSha',
-    refreshScript: 'report:quality-metrics',
-  },
-  {
-    id: 'sync-convergence',
-    file: 'reports/sync-convergence.json',
-    field: 'gitSha',
-    refreshScript: 'report:sync-convergence',
-    dependsOn: dependencyFilesFor('sync-convergence'),
-  },
-  {
-    id: 'system-confidence',
-    file: 'reports/system-confidence.json',
-    field: 'gitSha',
-    refreshScript: 'report:system-confidence',
-    dependsOn: dependencyFilesFor('system-confidence'),
-  },
-  {
-    id: 'operational-health',
-    file: 'reports/operational-health.json',
-    field: 'gitSha',
-    refreshScript: 'report:operational-health',
-    dependsOn: dependencyFilesFor('operational-health'),
-  },
-  {
-    id: 'clinical-release-signoff',
-    file: 'reports/clinical-release-signoff.json',
-    field: 'gitSha',
-    refreshScript: 'report:clinical-release-signoff',
-    dependsOn: dependencyFilesFor('clinical-release-signoff'),
-  },
-  {
-    id: 'release-confidence-matrix',
-    file: 'reports/release-confidence-matrix.json',
-    field: 'gitSha',
-    refreshScript: 'report:release-confidence-matrix',
-    dependsOn: dependencyFilesFor('release-confidence-matrix'),
-  },
-  {
-    id: 'release-readiness-scorecard',
-    file: 'reports/release-readiness-scorecard.json',
-    field: 'gitSha',
-    refreshScript: 'report:release-readiness-scorecard',
-    dependsOn: dependencyFilesFor('release-readiness-scorecard'),
-  },
-  {
-    id: 'maintenance-debt-scorecard',
-    file: 'reports/maintenance-debt-scorecard.json',
-    field: 'gitSha',
-    refreshScript: 'report:maintenance-debt-scorecard',
-    dependsOn: dependencyFilesFor('maintenance-debt-scorecard'),
-  },
-];
 
 const printIssues = (issues, { stream = console.error } = {}) => {
   stream('[report-freshness] Stale report artifacts found:');
@@ -109,11 +49,11 @@ const fail = issues => {
 const onlyReportIds = new Set(readArgValues('--only'));
 const selectedReports =
   onlyReportIds.size === 0
-    ? trackedReports
-    : trackedReports.filter(report => onlyReportIds.has(report.id));
+    ? REPORT_FRESHNESS_CONTRACTS
+    : REPORT_FRESHNESS_CONTRACTS.filter(report => onlyReportIds.has(report.id));
 
 const unknownReportIds = [...onlyReportIds].filter(
-  reportId => !trackedReports.some(report => report.id === reportId)
+  reportId => !REPORT_FRESHNESS_CONTRACTS.some(report => report.id === reportId)
 );
 if (unknownReportIds.length > 0) {
   fail([`Unknown report id(s) for --only: ${unknownReportIds.join(', ')}.`]);
@@ -162,10 +102,7 @@ const getHeadChangedFiles = () => {
 };
 
 const hasOnlyGovernedReportFiles = changedFiles => {
-  return (
-    changedFiles.length > 0 &&
-    changedFiles.every(file => governedReportFiles.has(file))
-  );
+  return changedFiles.length > 0 && changedFiles.every(file => governedReportFiles.has(file));
 };
 
 const currentGitState = getGitReportState(ROOT);
@@ -234,7 +171,8 @@ for (const report of selectedReports) {
     continue;
   }
 
-  const reportSha = typeof parsedReport?.[report.field] === 'string' ? parsedReport[report.field] : '';
+  const reportSha =
+    typeof parsedReport?.[report.field] === 'string' ? parsedReport[report.field] : '';
   if (!reportSha) {
     issues.push(`${report.file} does not declare ${report.field}.`);
     continue;

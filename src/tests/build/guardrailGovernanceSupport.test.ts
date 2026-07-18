@@ -15,12 +15,6 @@ const writeJson = (root: string, relativePath: string, value: unknown) => {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 };
 
-const writeText = (root: string, relativePath: string, value = '') => {
-  const filePath = path.join(root, relativePath);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, value, 'utf8');
-};
-
 const createRoot = () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guardrail-governance-'));
   tempRoots.push(root);
@@ -31,7 +25,7 @@ const createRoot = () => {
       'ci:merge-gate': 'npm run check:quality',
       'check:quality': 'node scripts/check-quality-aggregate.mjs',
       'check:release-evidence': 'node scripts/check-release-evidence.mjs',
-      'report:quality': 'node scripts/report-quality.mjs',
+      'report:quality-metrics': 'node scripts/report-quality-metrics.mjs',
       'test:release-confidence': 'node scripts/run-release-confidence.mjs',
       'release-confidence:core': 'npm run test:rules:ci && npm run test:e2e:critical:ci',
       'test:rules:ci': 'vitest run rules',
@@ -59,9 +53,14 @@ const createRoot = () => {
       script: 'check:quality',
       checks: [{ id: 'check:release-evidence', group: 'governance' }],
     },
-    reportOnly: [{ id: 'quality', script: 'report:quality', artifact: 'reports/quality.md' }],
+    reportOnly: [
+      {
+        id: 'quality',
+        script: 'report:quality-metrics',
+        artifact: 'reports/quality-metrics.md',
+      },
+    ],
   });
-  writeText(root, 'reports/quality.md');
 
   return root;
 };
@@ -73,9 +72,10 @@ afterEach(() => {
 });
 
 describe('guardrail governance support', () => {
-  it('accepts a coherent guardrail governance configuration', () => {
+  it('accepts a coherent configuration without materialized report-only artifacts', () => {
     const root = createRoot();
 
+    expect(fs.existsSync(path.join(root, 'reports/quality-metrics.md'))).toBe(false);
     expect(collectGuardrailGovernanceIssues(root)).toEqual([]);
   });
 
@@ -87,7 +87,7 @@ describe('guardrail governance support', () => {
         'ci:merge-gate': 'npm run check:quality',
         'check:quality': 'node scripts/check-quality-aggregate.mjs',
         'check:release-evidence': 'node scripts/check-release-evidence.mjs',
-        'report:quality': 'node scripts/report-quality.mjs',
+        'report:quality-metrics': 'node scripts/report-quality-metrics.mjs',
         'test:release-confidence': 'node scripts/run-release-confidence.mjs',
         'release-confidence:core': 'npm run test:rules:ci && npm run test:e2e:critical:ci',
         'test:rules:ci': 'vitest run rules',
@@ -100,12 +100,48 @@ describe('guardrail governance support', () => {
     );
   });
 
-  it('detects missing report-only artifacts', () => {
+  it('detects report-only artifacts not produced by their evidence graph command', () => {
     const root = createRoot();
-    fs.rmSync(path.join(root, 'reports/quality.md'));
+    const configPath = path.join(root, 'scripts/config/guardrail-governance.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    config.reportOnly[0].artifact = 'reports/quality-metrics-typo.md';
+    writeJson(root, 'scripts/config/guardrail-governance.json', config);
 
     expect(collectGuardrailGovernanceIssues(root)).toContain(
-      'reportOnly.quality: missing artifact reports/quality.md'
+      'reportOnly.quality: reports/quality-metrics-typo.md is not produced by report:quality-metrics in the evidence dependency graph'
+    );
+  });
+
+  it('detects report-only scripts missing from package.json', () => {
+    const root = createRoot();
+    const packagePath = path.join(root, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    delete packageJson.scripts['report:quality-metrics'];
+    writeJson(root, 'package.json', packageJson);
+
+    expect(collectGuardrailGovernanceIssues(root)).toContain(
+      'reportOnly.quality: missing package.json script report:quality-metrics'
+    );
+  });
+
+  it('detects report-only scripts absent from the evidence dependency graph', () => {
+    const root = createRoot();
+    const packagePath = path.join(root, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    packageJson.scripts['report:unknown'] = 'node scripts/report-unknown.mjs';
+    writeJson(root, 'package.json', packageJson);
+
+    const configPath = path.join(root, 'scripts/config/guardrail-governance.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    config.reportOnly[0] = {
+      id: 'unknown',
+      script: 'report:unknown',
+      artifact: 'reports/unknown.md',
+    };
+    writeJson(root, 'scripts/config/guardrail-governance.json', config);
+
+    expect(collectGuardrailGovernanceIssues(root)).toContain(
+      'reportOnly.unknown: report:unknown is not declared in the evidence dependency graph'
     );
   });
 
