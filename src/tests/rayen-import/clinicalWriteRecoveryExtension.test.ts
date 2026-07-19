@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import '../../../extension/clinical-write-recovery-policy.js';
 import '../../../extension/clinical-write-runtime.js';
 
 type RecoveryMarker = {
@@ -26,6 +27,8 @@ type RecoveryState = {
     details: Record<string, unknown>;
   }>;
   clearCalls: Array<{ key: string; expected: Record<string, string> }>;
+  beforeNextSet?: () => Promise<void>;
+  getError?: Error;
 };
 
 type RecoveryHandler = (request: {
@@ -58,6 +61,9 @@ type RuntimeOwner = {
 };
 const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
   .HhrClinicalWriteRuntime;
+const recoveryPolicy = (
+  globalThis as typeof globalThis & { HhrClinicalWriteRecoveryPolicy: Record<string, unknown> }
+).HhrClinicalWriteRecoveryPolicy;
 const TEST_NOW_MS = Date.UTC(2026, 6, 15, 12, 0, 0);
 
 const loadRecovery = () => {
@@ -80,9 +86,14 @@ const loadRecovery = () => {
     clearCalls: [],
   };
   const storage = {
-    get: async (key: string) =>
-      state.protection.active ? { [key]: { ...state.protection.marker } } : {},
+    get: async (key: string) => {
+      if (state.getError) throw state.getError;
+      return state.protection.active ? { [key]: { ...state.protection.marker } } : {};
+    },
     set: async (entries: Record<string, RecoveryMarker>) => {
+      const beforeNextSet = state.beforeNextSet;
+      state.beforeNextSet = undefined;
+      if (beforeNextSet) await beforeNextSet();
       const marker = Object.values(entries)[0];
       if (!marker) return;
       state.transitionCalls.push({
@@ -143,6 +154,7 @@ const loadRecovery = () => {
       state.freshReads.push(request.kind === 'handoff' ? 'handoff' : request.instrument);
       return state.reviewResult;
     },
+    recoveryPolicy,
   });
   let issuedChallenge = '';
   const recovery: RecoveryHandler = async request => {
@@ -203,6 +215,24 @@ describe('extension clinical write recovery', () => {
     expect(state.clearCalls).toEqual([]);
   });
 
+  it('returns storage read failures without weakening duplicate protection', async () => {
+    state.getError = new Error('storage unavailable');
+
+    const result = await recovery({
+      key: 'handoff:141437',
+      generationId,
+      phase: 'preview',
+    });
+
+    expect(result).toEqual({
+      error: 'No se pudo comprobar la protección contra duplicados: storage unavailable',
+    });
+    expect(state.freshReads).toEqual([]);
+    expect(state.transitionCalls).toEqual([]);
+    expect(state.clearCalls).toEqual([]);
+    expect(state.protection.active).toBe(true);
+  });
+
   it('does not release when the fresh preview read fails', async () => {
     state.reviewResult = { error: 'HTTP 503' };
     const result = await recovery({
@@ -252,6 +282,36 @@ describe('extension clinical write recovery', () => {
     expect(String(persisted.recoveryReviewMac)).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(persisted)).not.toContain(recoveryToken);
     expect(JSON.stringify(persisted)).not.toContain('Paciente estable');
+    expect(state.clearCalls).toEqual([]);
+  });
+
+  it('holds the confirmation lock until the preview transition is persisted', async () => {
+    let signalSetStarted = () => {};
+    let releaseSet = () => {};
+    const setStarted = new Promise<void>(resolve => {
+      signalSetStarted = resolve;
+    });
+    const setBarrier = new Promise<void>(resolve => {
+      releaseSet = resolve;
+    });
+    state.beforeNextSet = async () => {
+      signalSetStarted();
+      await setBarrier;
+    };
+
+    const firstRecovery = recovery({ key: 'handoff:141437', generationId, phase: 'preview' });
+    await setStarted;
+    const overlapping = await recovery({
+      key: 'handoff:141437',
+      generationId,
+      phase: 'preview',
+    });
+    releaseSet();
+    const firstResult = await firstRecovery;
+
+    expect(String(overlapping.error)).toContain('procesando otra operación');
+    expect(firstResult.ok).toBe(true);
+    expect(state.transitionCalls).toHaveLength(1);
     expect(state.clearCalls).toEqual([]);
   });
 
@@ -332,6 +392,29 @@ describe('extension clinical write recovery', () => {
       recoveryTokenHash: '',
       recoveryReviewMac: '',
       recoveryPreviewedAt: 0,
+    });
+  });
+
+  it('expires a reviewed challenge by resetting it without releasing protection', async () => {
+    await recovery({ key: 'handoff:141437', generationId, phase: 'preview' });
+    state.protection.marker.recoveryPreviewExpiresAt = TEST_NOW_MS;
+    const result = await recovery({
+      key: 'handoff:141437',
+      generationId,
+      phase: 'confirm',
+      recoveryToken,
+    });
+
+    expect(String(result.error)).toContain('lectura fresca expiró');
+    expect(state.freshReads).toEqual(['handoff']);
+    expect(state.clearCalls).toEqual([]);
+    expect(state.protection.active).toBe(true);
+    expect(state.transitionCalls.at(-1)?.details).toMatchObject({
+      state: 'ambiguous',
+      recoveryTokenHash: '',
+      recoveryReviewMac: '',
+      recoveryPreviewedAt: 0,
+      recoveryPreviewExpiresAt: 0,
     });
   });
 

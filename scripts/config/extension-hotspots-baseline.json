@@ -74,12 +74,15 @@
         "iife>variable:create>variable:readRecoveryReview": 18
       }
     },
+    "clinical-write-recovery-policy.js": {
+      "maxLines": 182,
+      "hotspots": {}
+    },
     "clinical-write-runtime.js": {
-      "maxLines": 495,
+      "maxLines": 474,
       "hotspots": {
         "iife>variable:create>variable:acknowledge": 18,
         "iife>variable:create>variable:clearAmbiguity": 22,
-        "iife>variable:create>variable:recover": 48,
         "iife>variable:create>variable:withWriteLock": 41
       }
     },
