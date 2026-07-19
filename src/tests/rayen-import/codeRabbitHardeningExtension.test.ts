@@ -13,6 +13,7 @@ const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
+const fichaMedicoPatientContextSource = readExtension('fichamedico-patient-context.js');
 const contentSource = [
   'content-prescription-print.js',
   'hhr-center-shell-runtime.js',
@@ -102,8 +103,11 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(backgroundSource).toContain('getFetchInfo: getFichaFetchInfo');
     expect(fichaMedicoTransportSource).toContain('const getFetchInfo = async sender =>');
     expect(backgroundSource).not.toContain('fichaFetchInfoInflight');
-    expect(backgroundSource).toContain('const fichaSessionCacheKey = async (info, sender) =>');
-    expect(backgroundSource).toContain("self.crypto.subtle.digest('SHA-256'");
+    expect(backgroundSource).toContain('fichaSessionCacheKey,');
+    expect(fichaMedicoPatientContextSource).toContain(
+      'const fichaSessionCacheKey = async (info, sender) =>'
+    );
+    expect(fichaMedicoPatientContextSource).toContain("cryptoApi.subtle.digest('SHA-256'");
     expect(syslabRuntimeSource).toContain('const censusAllowlistCache = new Map()');
     expect(syslabRuntimeSource).toContain('getClinicalReportContext(encId, null, null, sender)');
   });
@@ -146,8 +150,7 @@ describe('CodeRabbit clinical integration hardening', () => {
     expect(prescriptionHandlers).toContain('const sessionKey = await fichaSessionCacheKey');
     expect(prescriptionHandlers).toContain('isPrescriptionBatchSessionValid(batch, sessionKey');
     expect(prescriptionHandlers).not.toContain('30 * 60 * 1000');
-    const refreshedBatchExpression =
-      '[storageKey]: { ...batch, lastUsedAt: ' + 'now() }';
+    const refreshedBatchExpression = '[storageKey]: { ...batch, lastUsedAt: ' + 'now() }';
     expect(prescriptionHandlers).toContain(refreshedBatchExpression);
     expect(prescriptionBatch).toContain('const PRESCRIPTION_BATCH_LIMIT = 24');
     expect(prescriptionBatch).toContain('.slice(Math.max(0, PRESCRIPTION_BATCH_LIMIT))');
