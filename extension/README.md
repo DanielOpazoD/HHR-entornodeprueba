@@ -62,6 +62,8 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `clinical-panel-fetch.js` | Pagina estados farmacológicos y evita presentar fallas parciales como datos vacíos |
 | `clinical-panel-runtime.js` | Lee y normaliza el historial, plan de cuidados, estados farmacológicos y validación vigente del panel clínico |
 | `clinical-handoff-runtime.js` | Orquesta lectura, escritura verificada, recuperación e informe oficial de Entrega de turno |
+| `clinical-score-runtime.js` | Reconcilia fuentes, lotes y formularios de lectura para CUDYR, Braden y Downton |
+| `clinical-score-write-runtime.js` | Orquesta escritura verificada y recuperación de CUDYR, Braden y Downton |
 | `lab-viewer.js` | Parser clínico y organización pura de comparación, alertas y tendencias |
 | `syslab-bridge.js` | Navega la sesión oficial de Syslab y extrae/valida informes dentro de la red local |
 | `pdf.min.mjs`, `pdf.worker.min.mjs` | PDF.js vendorizado para extraer el texto de informes sin servicios auxiliares |

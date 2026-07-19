@@ -310,7 +310,7 @@ describe('extension clinical write protocol', () => {
 
   it('revalidates score attribution and both history sources before beginWrite', () => {
     const source = readFileSync(
-      new URL('../../../extension/background.js', import.meta.url),
+      new URL('../../../extension/clinical-score-write-runtime.js', import.meta.url),
       'utf8'
     );
     const requestStart = source.indexOf('const performScoreSaveRequest = async');
@@ -337,8 +337,13 @@ describe('extension clinical write protocol', () => {
       new URL('../../../extension/clinical-write-runtime.js', import.meta.url),
       'utf8'
     );
+    const scoreWriteOwner = readFileSync(
+      new URL('../../../extension/clinical-score-write-runtime.js', import.meta.url),
+      'utf8'
+    );
     const backgroundLines = background.split('\n').length;
     const ownerLines = owner.split('\n').length;
+    const scoreWriteOwnerLines = scoreWriteOwner.split('\n').length;
 
     expect(background).toContain("'clinical-write-runtime.js'");
     expect(background).toContain('self.HhrClinicalWriteRuntime.create({');
@@ -350,7 +355,11 @@ describe('extension clinical write protocol', () => {
     expect(background).not.toMatch(
       /hashClinicalWriteRecoveryToken|signClinicalWriteRecoveryReview/
     );
+    expect(background).not.toMatch(
+      /const handleCudyrSave|const handleEvaluationScaleSave|const performScoreSaveRequest/
+    );
     expect(backgroundLines).toBeLessThanOrEqual(4_250);
     expect(ownerLines).toBeLessThanOrEqual(525);
+    expect(scoreWriteOwnerLines).toBeLessThanOrEqual(575);
   });
 });
