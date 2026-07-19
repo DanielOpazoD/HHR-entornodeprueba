@@ -7,15 +7,15 @@ import '../../../extension/clinical-panel-fetch.js';
 import '../../../extension/clinical-panel-runtime.js';
 
 type FetchInput = {
-  url: string;
-  fetchImpl: typeof fetch;
+  info: typeof info;
+  path: string;
+  query?: Record<string, unknown>;
   timeoutMs: number;
   [key: string]: unknown;
 };
 
 type ClinicalPanelDependencies = {
-  fetchImpl: typeof fetch;
-  fetchJsonWithTimeout: (input: FetchInput) => Promise<unknown>;
+  fetchClinicalJson: (input: FetchInput) => Promise<unknown>;
   fetchMedicationPages: (input: {
     fetchPage: (page: number, limit: number) => Promise<unknown>;
     pageSize?: number;
@@ -47,18 +47,15 @@ const apiOrigin = 'https://fichamedicoback.rayensalud.cl';
 const sessionValue = 'fixture-session-value';
 const sessionKey = ['to', 'ken'].join('');
 const info = { apiOrigin, [sessionKey]: sessionValue, practitionerId: '81' };
-const fetchImpl = vi.fn() as unknown as typeof fetch;
-
 const createHarness = (overrides: Partial<ClinicalPanelDependencies> = {}) => {
-  const fetchJsonWithTimeout = vi.fn(async ({ url }: FetchInput) => {
-    if (url.includes('getPatientEncounterHistoryReportServer')) return [];
-    if (url.includes('carePlanAssignedCare')) return { carePlanHeader: [] };
-    if (url.includes('carePlanMedication')) return { Medication: [] };
-    throw new Error(`URL inesperada: ${url}`);
+  const fetchClinicalJson = vi.fn(async ({ path }: FetchInput) => {
+    if (path.includes('getPatientEncounterHistoryReportServer')) return [];
+    if (path.includes('carePlanAssignedCare')) return { carePlanHeader: [] };
+    if (path.includes('carePlanMedication')) return { Medication: [] };
+    throw new Error(`Ruta inesperada: ${path}`);
   });
   const dependencies: ClinicalPanelDependencies = {
-    fetchImpl,
-    fetchJsonWithTimeout,
+    fetchClinicalJson,
     fetchMedicationPages: globals.HhrClinicalPanelFetch.fetchMedicationPages,
     unwrapRequiredSources: globals.HhrClinicalPanelFetch.unwrapRequiredSources,
     resolveSession: vi.fn().mockResolvedValue({ info }),
@@ -88,18 +85,29 @@ describe('clinical panel read runtime', () => {
       carePlan: { carePlanHeaders: [], medicationStates: [] },
     });
 
-    expect(dependencies.fetchJsonWithTimeout).toHaveBeenCalledTimes(4);
-    const inputs = vi.mocked(dependencies.fetchJsonWithTimeout).mock.calls.map(call => call[0]);
-    expect(inputs.map(input => input.url)).toEqual([
-      `${apiOrigin}/api/encounter/141%20336/getPatientEncounterHistoryReportServer/false/0/0/-14`,
-      `${apiOrigin}/api/carePlanAssignedCare/141%20336?page=0&limit=100&showAll=false`,
-      `${apiOrigin}/api/carePlanMedication/141%20336?page=0&limit=100&isSuspended=false`,
-      `${apiOrigin}/api/carePlanMedication/141%20336?page=0&limit=100&isSuspended=true`,
+    expect(dependencies.fetchClinicalJson).toHaveBeenCalledTimes(4);
+    const inputs = vi.mocked(dependencies.fetchClinicalJson).mock.calls.map(call => call[0]);
+    expect(inputs.map(input => ({ path: input.path, query: input.query }))).toEqual([
+      {
+        path: '/api/encounter/141%20336/getPatientEncounterHistoryReportServer/false/0/0/-14',
+        query: undefined,
+      },
+      {
+        path: '/api/carePlanAssignedCare/141%20336',
+        query: { page: 0, limit: 100, showAll: false },
+      },
+      {
+        path: '/api/carePlanMedication/141%20336',
+        query: { page: 0, limit: 100, isSuspended: false },
+      },
+      {
+        path: '/api/carePlanMedication/141%20336',
+        query: { page: 0, limit: 100, isSuspended: true },
+      },
     ]);
     inputs.forEach(input => {
       expect(input).toMatchObject({
-        [sessionKey]: sessionValue,
-        fetchImpl,
+        info,
         timeoutMs: 15_000,
       });
     });
@@ -107,8 +115,8 @@ describe('clinical panel read runtime', () => {
   });
 
   it('normalizes only approved history, care-plan and medication fields', async () => {
-    const fetchJsonWithTimeout = vi.fn(async ({ url }: FetchInput) => {
-      if (url.includes('getPatientEncounterHistoryReportServer')) {
+    const fetchClinicalJson = vi.fn(async ({ path, query }: FetchInput) => {
+      if (path.includes('getPatientEncounterHistoryReportServer')) {
         return [
           {
             publishDatetime: '2026-07-18T09:00:00',
@@ -121,7 +129,7 @@ describe('clinical panel read runtime', () => {
           { publishDatetime: '2026-07-17T09:00:00', privatePatientField: 'hidden' },
         ];
       }
-      if (url.includes('carePlanAssignedCare')) {
+      if (path.includes('carePlanAssignedCare')) {
         return {
           carePlanHeader: [
             {
@@ -142,16 +150,16 @@ describe('clinical panel read runtime', () => {
           ],
         };
       }
-      if (url.includes('isSuspended=false')) {
+      if (query?.isSuspended === false) {
         return { Medication: [{ id: 1, suspended: false, descriptor: 'hidden' }] };
       }
-      if (url.includes('isSuspended=true')) {
+      if (query?.isSuspended === true) {
         return { Medication: [{ id: 2, suspended: true, dosage: 'hidden' }] };
       }
-      throw new Error(`URL inesperada: ${url}`);
+      throw new Error(`Ruta inesperada: ${path}`);
     });
     const { runtime } = createHarness({
-      fetchJsonWithTimeout,
+      fetchClinicalJson,
       fetchCurrentValidation: vi.fn().mockResolvedValue({
         validation: { creationDatetime: '2026-07-18T10:00:00', privateValidator: 'hidden' },
       }),
@@ -194,15 +202,15 @@ describe('clinical panel read runtime', () => {
 
   it('does not duplicate a current validation already represented by history', async () => {
     const validationDatetime = '2026-07-18T10:00:00';
-    const fetchJsonWithTimeout = vi.fn(async ({ url }: FetchInput) => {
-      if (url.includes('getPatientEncounterHistoryReportServer')) {
+    const fetchClinicalJson = vi.fn(async ({ path }: FetchInput) => {
+      if (path.includes('getPatientEncounterHistoryReportServer')) {
         return [{ publishDatetime: validationDatetime, healthCarePractitionerValidator: 'Dra.' }];
       }
-      if (url.includes('carePlanAssignedCare')) return null;
+      if (path.includes('carePlanAssignedCare')) return null;
       return { Medication: [] };
     });
     const { runtime } = createHarness({
-      fetchJsonWithTimeout,
+      fetchClinicalJson,
       fetchCurrentValidation: vi.fn().mockResolvedValue({
         validation: { stringTimestamp: validationDatetime },
       }),
@@ -216,9 +224,9 @@ describe('clinical panel read runtime', () => {
 
   it('fails closed with the same source label for rejected or error-valued dependencies', async () => {
     const rejected = createHarness({
-      fetchJsonWithTimeout: vi.fn(async ({ url }: FetchInput) => {
-        if (url.includes('carePlanAssignedCare')) throw new Error('HTTP 503');
-        if (url.includes('getPatientEncounterHistoryReportServer')) return [];
+      fetchClinicalJson: vi.fn(async ({ path }: FetchInput) => {
+        if (path.includes('carePlanAssignedCare')) throw new Error('HTTP 503');
+        if (path.includes('getPatientEncounterHistoryReportServer')) return [];
         return { Medication: [] };
       }),
     }).runtime;
@@ -264,7 +272,11 @@ describe('clinical panel read runtime', () => {
     expect(background).toContain(
       'const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({'
     );
-    expect(background).toContain('resolveSession: () => getFichaFetchInfo()');
+    expect(background).toContain('resolveSession: () => resolveFichaClinicalSession()');
+    expect(background).toContain("'fichamedico-clinical-client.js'");
+    expect(background).toContain(
+      'No se pudo cargar el cliente clínico de lectura de Ficha Médico.'
+    );
     expect(background).toContain('timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS');
     expect(background).toContain(
       'const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest'

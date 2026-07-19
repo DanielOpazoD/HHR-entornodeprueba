@@ -1,0 +1,232 @@
+// @vitest-environment node
+import { readFileSync } from 'node:fs';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import '../../../extension/fichamedico-clinical-client.js';
+
+type SessionInfo = {
+  [key: string]: string | undefined;
+  apiOrigin: string;
+  facId?: string;
+  practitionerId?: string;
+  role?: string;
+};
+
+type ClinicalClient = {
+  resolveSession: (input?: {
+    info?: Partial<SessionInfo>;
+    sender?: unknown;
+    required?: string[];
+    invalidMessage?: string;
+  }) => Promise<{ info?: SessionInfo; error?: string }>;
+  buildUrl: (input: {
+    info: Partial<SessionInfo>;
+    path: string;
+    query?: Record<string, unknown>;
+  }) => string;
+  readJson: (input: Record<string, unknown>) => Promise<{ data: unknown; status: number }>;
+  readBuffer: (input: Record<string, unknown>) => Promise<{ data: ArrayBuffer; status: number }>;
+  fetchDeviceReportBuffer: (input: {
+    encId: string;
+    fecha: string;
+    info?: SessionInfo;
+  }) => Promise<{ buffer?: ArrayBuffer; error?: string }>;
+};
+
+type ClinicalClientFactory = {
+  create: (dependencies: {
+    resolveFetchInfo: (sender?: unknown) => Promise<unknown>;
+    fetchWithTimeout: (...args: unknown[]) => Promise<unknown>;
+    defaultTimeoutMs: number;
+  }) => ClinicalClient;
+};
+
+const factory = (
+  globalThis as typeof globalThis & { HhrFichaMedicoClinicalClient: ClinicalClientFactory }
+).HhrFichaMedicoClinicalClient;
+
+const sessionKey = ['to', 'ken'].join('');
+const sessionValue = ['synthetic', 'test', 'value'].join(':');
+const session = {
+  [sessionKey]: sessionValue,
+  apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+  facId: '9',
+  practitionerId: '81',
+  role: 'Médico',
+} as SessionInfo;
+
+const response = ({
+  status = 200,
+  json = async () => ({}),
+  arrayBuffer = async () => new ArrayBuffer(0),
+}: {
+  status?: number;
+  json?: () => Promise<unknown>;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+} = {}) => ({
+  status,
+  ok: status >= 200 && status < 300,
+  json,
+  arrayBuffer,
+});
+
+describe('Ficha Médico read-only clinical client', () => {
+  let resolveFetchInfo: ReturnType<typeof vi.fn>;
+  let fetchWithTimeout: ReturnType<typeof vi.fn>;
+  let client: ClinicalClient;
+
+  beforeEach(() => {
+    resolveFetchInfo = vi.fn().mockResolvedValue({ info: session });
+    fetchWithTimeout = vi.fn().mockResolvedValue(response());
+    client = factory.create({
+      resolveFetchInfo: resolveFetchInfo as (sender?: unknown) => Promise<unknown>,
+      fetchWithTimeout: fetchWithTimeout as (...args: unknown[]) => Promise<unknown>,
+      defaultTimeoutMs: 45_000,
+    });
+  });
+
+  it('fails closed when required dependencies or timeout are invalid', () => {
+    expect(() => factory.create({} as never)).toThrow('Falta la dependencia resolveFetchInfo.');
+    expect(() =>
+      factory.create({
+        resolveFetchInfo: resolveFetchInfo as (sender?: unknown) => Promise<unknown>,
+        fetchWithTimeout: fetchWithTimeout as (...args: unknown[]) => Promise<unknown>,
+        defaultTimeoutMs: 0,
+      })
+    ).toThrow('El timeout defaultTimeoutMs no es válido.');
+  });
+
+  it('owns session lookup and validates base, facility and practitioner fields', async () => {
+    const sender = { tab: { id: 17 } };
+    await expect(client.resolveSession({ sender })).resolves.toEqual({ info: session });
+    expect(resolveFetchInfo).toHaveBeenCalledWith(sender);
+
+    resolveFetchInfo.mockResolvedValueOnce({ error: 'No hay una pestaña abierta.' });
+    await expect(client.resolveSession()).resolves.toEqual({
+      error: 'No hay una pestaña abierta.',
+    });
+    await expect(
+      client.resolveSession({
+        info: { [sessionKey]: session[sessionKey], apiOrigin: session.apiOrigin },
+        required: ['facId', 'practitionerId'],
+        invalidMessage: 'Sesión clínica incompleta.',
+      })
+    ).resolves.toEqual({ error: 'Sesión clínica incompleta.' });
+  });
+
+  it('constructs encoded same-origin URLs and rejects absolute or cross-origin paths', () => {
+    expect(
+      client.buildUrl({
+        info: session,
+        path: '/api/encounter/141%20336/history',
+        query: { page: 0, showAll: false, label: 'día actual' },
+      })
+    ).toBe(
+      'https://fichamedicoback.rayensalud.cl/api/encounter/141%20336/history' +
+        '?page=0&showAll=false&label=d%C3%ADa+actual'
+    );
+    expect(() =>
+      client.buildUrl({ info: session, path: 'https://example.test/api', query: {} })
+    ).toThrow('La ruta clínica debe ser relativa al origen autorizado.');
+    expect(() => client.buildUrl({ info: session, path: '//example.test/api', query: {} })).toThrow(
+      'La ruta clínica debe ser relativa al origen autorizado.'
+    );
+  });
+
+  it.each([401, 403, 500])('normalizes HTTP %s without losing the status', async status => {
+    fetchWithTimeout.mockResolvedValueOnce(response({ status }));
+    await expect(client.readJson({ info: session, path: '/api/test' })).rejects.toMatchObject({
+      kind: 'http',
+      status,
+      message: `HTTP ${status}`,
+    });
+  });
+
+  it('preserves bounded timeout failures as a normalized network error', async () => {
+    fetchWithTimeout.mockRejectedValueOnce(
+      new Error('Tiempo de espera agotado consultando Ficha Médico.')
+    );
+    await expect(
+      client.readJson({ info: session, path: '/api/test', timeoutMs: 15_000 })
+    ).rejects.toMatchObject({
+      kind: 'network',
+      message: 'Tiempo de espera agotado consultando Ficha Médico.',
+    });
+  });
+
+  it('classifies invalid JSON while preserving the parser diagnostic', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(
+      response({ json: async () => Promise.reject(new SyntaxError('JSON incompleto')) })
+    );
+    await expect(client.readJson({ info: session, path: '/api/test' })).rejects.toMatchObject({
+      kind: 'invalid-json',
+      message: 'JSON incompleto',
+    });
+  });
+
+  it('executes authenticated PDF reads with the shared timeout and omit credentials', async () => {
+    const buffer = Uint8Array.from([0x25, 0x50, 0x44, 0x46]).buffer;
+    fetchWithTimeout.mockResolvedValueOnce(response({ arrayBuffer: async () => buffer }));
+
+    await expect(
+      client.readBuffer({ info: session, path: '/api/report/resumen.pdf' })
+    ).resolves.toEqual({ data: buffer, status: 200 });
+    expect(fetchWithTimeout).toHaveBeenCalledWith(
+      'https://fichamedicoback.rayensalud.cl/api/report/resumen.pdf',
+      {
+        headers: { Authorization: session[sessionKey], Accept: 'application/pdf' },
+        credentials: 'omit',
+      },
+      45_000,
+      'Tiempo de espera agotado consultando Ficha Médico.'
+    );
+  });
+
+  it('keeps the device PDF contract and validates the facility before fetching', async () => {
+    const buffer = Uint8Array.from([1, 2, 3]).buffer;
+    fetchWithTimeout.mockResolvedValueOnce(response({ arrayBuffer: async () => buffer }));
+    await expect(
+      client.fetchDeviceReportBuffer({ encId: '141336', fecha: '2026-07-19', info: session })
+    ).resolves.toEqual({ buffer });
+    expect(fetchWithTimeout.mock.calls[0][0]).toBe(
+      'https://fichamedicoback.rayensalud.cl/api/report/Resumen_diario_paciente.pdf' +
+        '?enc_id=141336&fac_id=9&fecha=2026-07-19'
+    );
+
+    await expect(
+      client.fetchDeviceReportBuffer({
+        encId: '141336',
+        fecha: '2026-07-19',
+        info: { ...session, facId: '' },
+      })
+    ).resolves.toEqual({
+      error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.',
+    });
+  });
+
+  it('keeps background as wiring and the read client free of writes or persistence', () => {
+    const background = readFileSync(
+      new URL('../../../extension/background.js', import.meta.url),
+      'utf8'
+    );
+    const source = readFileSync(
+      new URL('../../../extension/fichamedico-clinical-client.js', import.meta.url),
+      'utf8'
+    );
+
+    expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
+      "'fichamedico-clinical-client.js'"
+    );
+    expect(background).toContain(
+      'const fichaMedicoClinicalClient = self.HhrFichaMedicoClinicalClient.create({'
+    );
+    expect(background).not.toContain('const fetchEvaluationForms = async');
+    expect(background).not.toContain('const fetchScaleHistoryEvents = async');
+    expect(background).not.toContain('const fetchActiveEncounterRows = async');
+    expect(source).not.toMatch(/clinicalWrite|chrome\.storage|localStorage|sessionStorage/);
+    expect(source).not.toMatch(/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_700);
+    expect(source.split('\n').length).toBeLessThanOrEqual(600);
+  });
+});

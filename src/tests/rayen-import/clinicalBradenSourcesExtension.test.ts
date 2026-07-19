@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-const backgroundSource = readFileSync(
-  new URL('../../../extension/background.js', import.meta.url),
+const clinicalClientSource = readFileSync(
+  new URL('../../../extension/fichamedico-clinical-client.js', import.meta.url),
   'utf8'
 );
 const clinicalScoreRuntimeSource = readFileSync(
@@ -75,7 +75,7 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('fails closed when any required form source is unavailable', () => {
     const source = sliceBetween(
-      backgroundSource,
+      clinicalClientSource,
       'const fetchEvaluationForms = async',
       'const fetchScaleHistoryEvents = async'
     );

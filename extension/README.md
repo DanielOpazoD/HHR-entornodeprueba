@@ -37,6 +37,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `inject-fichamedico.js` | MAIN world en Rayen: captura token, lee y **normaliza** al snapshot |
 | `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
+| `fichamedico-clinical-client.js` | Cliente read-only: valida la sesión, construye rutas relativas y centraliza GET JSON/PDF autenticados de Ficha Médico |
 | `hhr-ui.js` | Design system de la extensión: tokens (paleta navy/teal), iconos de trazo, estilos de la barra (Shadow DOM), tooltips y foco por teclado |
 | `hhr-center-styles.js` | Estilos light-DOM del Centro HHR y sus avisos; reutiliza los tokens de `hhr-ui.js` |
 | `hhr-vitals.js` | Parser de formularios `VITAL_SIGNS` de Ficha Médico + umbrales de alerta (port de HHR) para el módulo de signos vitales |
@@ -54,7 +55,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
 | `hhr-connection-center-runtime.js` | Ciclo de vida del panel de conexiones y su badge: solicitudes vigentes, sondeo cancelable e invalidación al cerrar o cambiar de módulo |
 | `content-prescription-print.js` | Orquesta el shell, navegación, contexto de paciente y montaje de los owners del Centro HHR |
-| `background.js` | Enruta lecturas, reportes y escrituras verificadas contra los servicios de Eloísa |
+| `background.js` | Coordina rutas, transforma respuestas para la UI y conecta los runtimes de Eloísa |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
