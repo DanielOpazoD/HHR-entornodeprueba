@@ -42,7 +42,7 @@ const backgroundSource = readFileSync(
   'utf8'
 );
 const contentSource = readFileSync(
-  new URL('../../../extension/content-prescription-print.js', import.meta.url),
+  new URL('../../../extension/hhr-clinical-write-client-runtime.js', import.meta.url),
   'utf8'
 );
 type RuntimeOwner = {
