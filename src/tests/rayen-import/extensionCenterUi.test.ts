@@ -14,6 +14,7 @@ const contentSource = [
   'hhr-lab-center.js',
   'hhr-imaging-center.js',
   'hhr-vitals-center.js',
+  'hhr-discharge-actions-runtime.js',
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
   .join('\n');

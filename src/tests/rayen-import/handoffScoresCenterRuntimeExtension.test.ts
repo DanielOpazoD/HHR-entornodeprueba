@@ -14,6 +14,7 @@ import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-center.js';
 import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
+import '../../../extension/hhr-discharge-actions-runtime.js';
 import '../../../extension/hhr-medication-actions-runtime.js';
 import '../../../extension/prescription-print.js';
 

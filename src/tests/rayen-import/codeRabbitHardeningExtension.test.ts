@@ -21,6 +21,7 @@ const contentSource = [
   'hhr-handoff-center.js',
   'hhr-scores-center.js',
   'hhr-lab-center.js',
+  'hhr-discharge-actions-runtime.js',
 ]
   .map(readExtension)
   .join('\n');
