@@ -19,15 +19,14 @@ const clinicalBatchPrintRuntimeSource = readFileSync(
   new URL('../../../extension/clinical-batch-print-runtime.js', import.meta.url),
   'utf8'
 );
-const contentSource = [
-  '../../../extension/content-prescription-print.js',
-  '../../../extension/hhr-handoff-center.js',
-  '../../../extension/hhr-scores-center.js',
-  '../../../extension/hhr-medication-actions-runtime.js',
-]
-  .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
-  .join('\n');
-
+const scoresPresentationSource = readFileSync(
+  new URL('../../../extension/hhr-scores-presentation.js', import.meta.url),
+  'utf8'
+);
+const scoresCenterSource = readFileSync(
+  new URL('../../../extension/hhr-scores-center.js', import.meta.url),
+  'utf8'
+);
 const sliceBetween = (source: string, startMarker: string, endMarker: string) => {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);
@@ -66,11 +65,12 @@ describe('extension BRADEN source reconciliation', () => {
   });
 
   it('does not render or enable registration from a partial scale read', () => {
-    expect(contentSource).toMatch(/const history = unavailableReason\s*\?\s*\[\]/);
-    expect(contentSource).toContain('if (!unavailableReason && history.length)');
-    expect(contentSource).toContain(
-      'action.disabled = !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
+    expect(scoresPresentationSource).toContain('if (unavailableReason) return [];');
+    expect(scoresPresentationSource).toContain(
+      'disabled: !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
     );
+    expect(scoresCenterSource).toContain('scoresPresentation.buildPatientPresentation({');
+    expect(scoresCenterSource).not.toContain('const history = unavailableReason');
   });
 
   it('fails closed when any required form source is unavailable', () => {

@@ -12,6 +12,7 @@ import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-center.js';
+import '../../../extension/hhr-scores-presentation.js';
 import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
 import '../../../extension/hhr-clinical-write-client-runtime.js';
@@ -41,8 +42,7 @@ const handoffRuntimeOwner = () =>
     .HhrHandoffCenterRuntime;
 
 const scoresRuntimeOwner = () =>
-  (globalThis as unknown as { HhrScoresCenterRuntime: ScoresRuntimeOwner })
-    .HhrScoresCenterRuntime;
+  (globalThis as unknown as { HhrScoresCenterRuntime: ScoresRuntimeOwner }).HhrScoresCenterRuntime;
 
 const runtimeMessages = {
   HANDOFF_OPTIONS_REQUEST: 'RAYEN_HANDOFF_OPTIONS_REQUEST',
@@ -61,7 +61,10 @@ const makeRoot = (module: 'handoff' | 'scores') => {
   return root;
 };
 
-const makeDependencies = (sendMessage: (message: Record<string, unknown>) => Promise<unknown>) => {
+const makeDependencies = (
+  sendMessage: (message: Record<string, unknown>) => Promise<unknown>,
+  overrides: Record<string, unknown> = {}
+) => {
   const uncertainClinicalWrites = new Map<string, unknown>();
   return {
     helper: {
@@ -73,7 +76,10 @@ const makeDependencies = (sendMessage: (message: Record<string, unknown>) => Pro
       action();
       return true;
     },
-    normalizedText: (value: unknown) => String(value || '').trim().toLowerCase(),
+    normalizedText: (value: unknown) =>
+      String(value || '')
+        .trim()
+        .toLowerCase(),
     sendMessage,
     setLiveRegion: (element: HTMLElement, text: string, state = '') => {
       element.textContent = text;
@@ -89,13 +95,17 @@ const makeDependencies = (sendMessage: (message: Record<string, unknown>) => Pro
     },
     releaseClinicalWriteProtection: vi.fn(async () => ({ ok: true })),
     uncertainClinicalWrites,
-    normalizedClinicalText: (value: unknown) => String(value || '').replace(/\s+/g, ' ').trim(),
+    normalizedClinicalText: (value: unknown) =>
+      String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim(),
     finishRouteChangeWrite: vi.fn(),
     acknowledgeClinicalWrite: vi.fn(async () => ({ ok: true })),
     clinicalWriteRecoveryReady: () => true,
     getActiveUncertainWrite: (key: string) => uncertainClinicalWrites.get(key) || null,
     showPageNotice: vi.fn(),
     trapModalFocus: vi.fn(),
+    ...overrides,
   };
 };
 
@@ -113,10 +123,7 @@ const handoffResponse = (label: string) => ({
 
 const NativeMutationObserver = globalThis.MutationObserver;
 const contentObservers = new Set<MutationObserver>();
-const contentSource = readFileSync(
-  path.resolve('extension/content-prescription-print.js'),
-  'utf8'
-);
+const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
 
 describe('Centro HHR Turno y Scores runtime', () => {
   afterEach(() => {
@@ -141,12 +148,17 @@ describe('Centro HHR Turno y Scores runtime', () => {
         }
       }
     );
-    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     window.history.replaceState({}, '', '/dashboard/encounter-list-nurse/141121');
     const sendMessage = vi.fn(
       (message: { type?: string }, callback: (response: unknown) => void) => {
         if (message.type === 'RAYEN_EXTENSION_HEALTH_REQUEST') {
-          callback({ fichaMedico: { status: 'ready', identity: {} }, gestionCamas: { status: 'missing' } });
+          callback({
+            fichaMedico: { status: 'ready', identity: {} },
+            gestionCamas: { status: 'missing' },
+          });
           return;
         }
         if (message.type === runtimeMessages.HANDOFF_OPTIONS_REQUEST) {
@@ -207,16 +219,16 @@ describe('Centro HHR Turno y Scores runtime', () => {
   it('ignores obsolete handoff renders and detached score renders', async () => {
     const pending: Array<(value: unknown) => void> = [];
     const sendMessage = vi.fn(() => new Promise(resolve => pending.push(resolve)));
-    const handoffRuntime = handoffRuntimeOwner().create(
-      makeDependencies(sendMessage)
-    );
+    const handoffRuntime = handoffRuntimeOwner().create(makeDependencies(sendMessage));
     const handoffRoot = makeRoot('handoff');
 
     handoffRuntime.renderHandoffCenter(handoffRoot, '101');
     handoffRuntime.renderHandoffCenter(handoffRoot, '101');
     pending[1](handoffResponse('Respuesta vigente'));
     await vi.waitFor(() => {
-      expect(handoffRoot.querySelector('.hhr-center-heading')?.textContent).toBe('Respuesta vigente');
+      expect(handoffRoot.querySelector('.hhr-center-heading')?.textContent).toBe(
+        'Respuesta vigente'
+      );
     });
     pending[0](handoffResponse('Respuesta obsoleta'));
     await Promise.resolve();
@@ -228,7 +240,91 @@ describe('Centro HHR Turno y Scores runtime', () => {
     scoresRoot.remove();
     pending[2]({ batchId: 'scores-batch', canWrite: true, patients: [] });
     await Promise.resolve();
-    expect(scoresRoot.querySelector('.hhr-center-empty')?.textContent).toContain('Leyendo instrumentos');
+    expect(scoresRoot.querySelector('.hhr-center-empty')?.textContent).toContain(
+      'Leyendo instrumentos'
+    );
+  });
+
+  it('filters score rows without changing the fetched patient model', async () => {
+    const patients = [
+      {
+        encounterId: '201',
+        name: 'Paciente Alfa',
+        run: '1-9',
+        bed: 'A1',
+        service: 'MQ',
+        scores: { CUDYR: null },
+        scoreProtections: {},
+        scoreUnavailableReasons: {},
+      },
+      {
+        encounterId: '202',
+        name: 'Paciente Beta',
+        run: '2-7',
+        bed: 'B2',
+        service: 'Pediatría',
+        scores: { CUDYR: null },
+        scoreProtections: {},
+        scoreUnavailableReasons: {},
+      },
+    ];
+    const sendMessage = vi.fn(async () => ({ batchId: 'scores-batch', canWrite: true, patients }));
+    const runtime = scoresRuntimeOwner().create(makeDependencies(sendMessage));
+    const root = makeRoot('scores');
+    runtime.renderScoresCenter(root, '201');
+    const search = await vi.waitFor(() => {
+      const element = root.querySelector<HTMLInputElement>('.hhr-center-search');
+      expect(root.querySelectorAll('tbody tr')).toHaveLength(2);
+      return element as HTMLInputElement;
+    });
+
+    search.value = 'beta';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody tr'));
+    expect(rows.map(row => row.hidden)).toEqual([true, false]);
+    expect(patients).toHaveLength(2);
+  });
+
+  it('keeps persisted protection until the existing recovery protocol succeeds', async () => {
+    const protection = { generationId: 'generation-1', expectedValue: 'B2' };
+    const releaseClinicalWriteProtection = vi.fn(async () => ({ ok: true }));
+    const sendMessage = vi.fn(async () => ({
+      batchId: 'scores-batch',
+      canWrite: true,
+      patients: [
+        {
+          encounterId: '203',
+          name: 'Paciente Protegido',
+          run: '3-5',
+          bed: 'C3',
+          service: 'MQ',
+          scores: { CUDYR: { crdValue: 'B2', crdDateTime: '2026-07-18T08:00:00Z' } },
+          scoreProtections: { CUDYR: protection },
+          scoreUnavailableReasons: {},
+        },
+      ],
+    }));
+    const runtime = scoresRuntimeOwner().create(
+      makeDependencies(sendMessage, {
+        hydrateClinicalWriteProtection: () => protection,
+        clinicalWriteRecoveryReady: () => true,
+        releaseClinicalWriteProtection,
+      })
+    );
+    const root = makeRoot('scores');
+    runtime.renderScoresCenter(root, '203');
+    const recovery = await vi.waitFor(() => {
+      const element = root.querySelector<HTMLButtonElement>('.hhr-scores-table .hhr-center-action');
+      expect(element?.textContent).toBe('Actualizar y revisar');
+      expect(element?.disabled).toBe(false);
+      return element as HTMLButtonElement;
+    });
+
+    recovery.click();
+    await vi.waitFor(() => {
+      expect(releaseClinicalWriteProtection).toHaveBeenCalledWith('score:203:CUDYR', protection);
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('sends the unchanged Turno save contract', async () => {
@@ -238,15 +334,17 @@ describe('Centro HHR Turno y Scores runtime', () => {
       if (message.type === runtimeMessages.HANDOFF_OPTIONS_REQUEST) {
         return {
           ...handoffResponse('Entrega médica'),
-          patients: [{
-            encounterId: '303',
-            name: 'Paciente Turno',
-            run: '1-9',
-            bed: 'C1',
-            service: 'MQ',
-            latestMedical: null,
-            latestNursing: null,
-          }],
+          patients: [
+            {
+              encounterId: '303',
+              name: 'Paciente Turno',
+              run: '1-9',
+              bed: 'C1',
+              service: 'MQ',
+              latestMedical: null,
+              latestNursing: null,
+            },
+          ],
         };
       }
       if (message.type === runtimeMessages.HANDOFF_SAVE_REQUEST) {
@@ -288,28 +386,32 @@ describe('Centro HHR Turno y Scores runtime', () => {
           batchId: 'scores-batch',
           canWrite: true,
           currentProfessional: 'Enf. Ana',
-          patients: [{
-            encounterId: '404',
-            name: 'Paciente Score',
-            run: '2-7',
-            bed: 'C2',
-            service: 'MQ',
-            scores: { CUDYR: null },
-            scoreProtections: {},
-            scoreUnavailableReasons: {},
-          }],
+          patients: [
+            {
+              encounterId: '404',
+              name: 'Paciente Score',
+              run: '2-7',
+              bed: 'C2',
+              service: 'MQ',
+              scores: { CUDYR: null },
+              scoreProtections: {},
+              scoreUnavailableReasons: {},
+            },
+          ],
         };
       }
       if (message.type === runtimeMessages.SCORE_FORM_REQUEST) {
         return {
           definition: {
-            fields: [{
-              id: 'dependencia',
-              label: 'Dependencia',
-              type: 1,
-              typeId: 1,
-              options: [{ id: 'dep-2', value: 2, score: 2, description: 'Dependencia leve' }],
-            }],
+            fields: [
+              {
+                id: 'dependencia',
+                label: 'Dependencia',
+                type: 1,
+                typeId: 1,
+                options: [{ id: 'dep-2', value: 2, score: 2, description: 'Dependencia leve' }],
+              },
+            ],
             results: [],
           },
         };

@@ -57,6 +57,7 @@
         "hhr-hospitalized-documents-center.js",
         "hhr-clinical-write-client-runtime.js",
         "hhr-handoff-center.js",
+        "hhr-scores-presentation.js",
         "hhr-scores-center.js",
         "hhr-lab-center.js",
         "hhr-vitals.js",
