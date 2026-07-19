@@ -258,22 +258,26 @@
     };
 
     const verifySelectedEncountersStillHospitalized = async (encIds, info) => {
-      const rowResult = await fetchActiveEncounterRows(info);
-      if (rowResult.error) return rowResult;
-      const activeIds = new Set(rowResult.rows
-        .filter(isEncounterActive)
-        .map(encounterIdFromRow)
-        .filter(id => /^\d+$/.test(id)));
-      const unavailable = (Array.isArray(encIds) ? encIds : [])
-        .map(String)
-        .filter(encId => !activeIds.has(encId));
-      return unavailable.length
-        ? {
-            error: 'La hospitalización cambió para ' + unavailable.length +
-              (unavailable.length === 1 ? ' paciente seleccionado. ' : ' pacientes seleccionados. ') +
-              'Actualiza el módulo antes de imprimir.',
-          }
-        : { ok: true };
+      try {
+        const rowResult = await fetchActiveEncounterRows(info);
+        if (rowResult.error) return rowResult;
+        const activeIds = new Set(rowResult.rows
+          .filter(isEncounterActive)
+          .map(encounterIdFromRow)
+          .filter(id => /^\d+$/.test(id)));
+        const unavailable = (Array.isArray(encIds) ? encIds : [])
+          .map(String)
+          .filter(encId => !activeIds.has(encId));
+        return unavailable.length
+          ? {
+              error: 'La hospitalización cambió para ' + unavailable.length +
+                (unavailable.length === 1 ? ' paciente seleccionado. ' : ' pacientes seleccionados. ') +
+                'Actualiza el módulo antes de imprimir.',
+            }
+          : { ok: true };
+      } catch (error) {
+        return { error: 'No se pudo confirmar la hospitalización: ' + errorMessage(error) };
+      }
     };
 
     const handlePatientHeaderRequest = async ({ encId, sender }) => {

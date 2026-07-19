@@ -327,6 +327,20 @@ describe('Ficha Médico patient-context owner', () => {
     });
   });
 
+  it('returns a structured error when batch hospitalization verification cannot read encounters', async () => {
+    const { context } = createHarness({
+      fetchActiveEncounterRows: vi.fn(async () => {
+        throw new Error('network offline');
+      }),
+    });
+
+    await expect(
+      context.verifySelectedEncountersStillHospitalized(['901'], session)
+    ).resolves.toEqual({
+      error: 'No se pudo confirmar la hospitalización: network offline',
+    });
+  });
+
   it('keeps census and vitals response formats while marking individual read failures', async () => {
     const rows = [
       { id: 901, bedShortName: '12-A', hospitalDepartmentShortName: 'MED' },
