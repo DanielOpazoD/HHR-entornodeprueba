@@ -316,16 +316,17 @@ describe('extension clinical write protocol', () => {
     const requestStart = source.indexOf('const performScoreSaveRequest = async');
     const requestEnd = source.indexOf('\n\nconst handleScoreSaveRequest =', requestStart);
     const request = source.slice(requestStart, requestEnd);
+    const baselineStart = source.indexOf('const readEvaluationBaseline = async');
     const saveStart = source.indexOf('const handleEvaluationScaleSave = async');
     const saveEnd = source.indexOf('\n\nconst performScoreSaveRequest =', saveStart);
-    const scaleSave = source.slice(saveStart, saveEnd);
+    const scalePipeline = source.slice(baselineStart, saveEnd);
 
     expect(request).toContain("!/^\\d+$/.test(String(info.practitionerId || ''))");
-    expect(scaleSave).toContain('fetchScaleHistoryEvents(encId, info, 120)');
-    expect(scaleSave).toContain('fetchEvaluationForms(encId, info)');
-    expect(scaleSave.indexOf('fetchScaleHistoryEvents(encId, info, 120)')).toBeLessThan(
-      scaleSave.indexOf('const begun = await writeGuard.beginWrite()')
-    );
+    expect(scalePipeline).toContain('fetchScaleHistoryEvents(encId, info, 120)');
+    expect(scalePipeline).toContain('fetchEvaluationForms(encId, info)');
+    expect(
+      scalePipeline.indexOf('readEvaluationBaseline({ encId, instrument, definition, info })')
+    ).toBeLessThan(scalePipeline.indexOf('postEvaluationScale({'));
   });
 
   it('keeps background as an orchestrator and enforces bounded owner sizes', () => {
