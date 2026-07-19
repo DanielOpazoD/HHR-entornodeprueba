@@ -57,8 +57,12 @@ describe('extension heavy runtime loading', () => {
     expect(scripts).toContain('hhr-center-styles.js');
     expect(scripts).toContain('exam-request-print.js');
     expect(scripts).toContain('content-exam-request-print.js');
+    expect(scripts).toContain('hhr-discharge-actions-runtime.js');
     expect(scripts).toContain('hhr-medication-actions-runtime.js');
     expect(scripts).toContain('content-prescription-print.js');
+    expect(scripts.indexOf('hhr-discharge-actions-runtime.js')).toBeLessThan(
+      scripts.indexOf('content-prescription-print.js')
+    );
     expect(scripts.indexOf('hhr-medication-actions-runtime.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
