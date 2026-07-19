@@ -23,6 +23,7 @@ importScripts(
   'health-check.js',
   'fichamedico-transport-runtime.js',
   'fichamedico-clinical-client.js',
+  'fichamedico-patient-context.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
   'gestion-camas-cudyr.js',
@@ -87,6 +88,12 @@ if (
   typeof self.HhrFichaMedicoClinicalClient.create !== 'function'
 ) {
   throw new Error('No se pudo cargar el cliente clínico de lectura de Ficha Médico.');
+}
+if (
+  !self.HhrFichaMedicoPatientContext ||
+  typeof self.HhrFichaMedicoPatientContext.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el contexto clínico de pacientes de Ficha Médico.');
 }
 
 const messageContract = self.HhrRayenMessageContract;
@@ -171,6 +178,30 @@ const {
   fetchPatientHeader,
   fetchActiveEncounterRows,
 } = fichaMedicoClinicalClient;
+
+const fichaMedicoPatientContext = self.HhrFichaMedicoPatientContext.create({
+  crypto,
+  TextEncoder,
+  resolveSession: resolveFichaClinicalSession,
+  fetchPatientHeader,
+  fetchActiveEncounterRows,
+  fetchScalesReportWithInfo,
+  prescriptionPrint: self.HhrPrescriptionPrint,
+  warn: (...args) => console.warn(...args),
+  now: () => Date.now(),
+});
+
+const {
+  mapWithConcurrency,
+  fichaSessionCacheKey,
+  getClinicalReportContext,
+  fetchActiveHospitalizedPatients,
+  verifyEncounterStillHospitalized,
+  verifySelectedEncountersStillHospitalized,
+  handlePatientHeaderRequest,
+  handleCensusListRequest,
+  handleVitalsCensusRequest,
+} = fichaMedicoPatientContext;
 
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
@@ -445,101 +476,6 @@ const handleScalesReportRequest = async ({ encId, sender }) => {
   return fetchScalesReportWithInfo(encId, infoResult.info);
 };
 
-// Patient header for the auto-filled request forms (imaging + laboratory). Read-only:
-// resolves the same patientHeaderData context the prescription flows use and formats the RUN.
-// Demographics are stable within a hospitalization: a short cache absorbs the burst of
-// parallel lookups (module + franja de paciente) without re-hitting Eloísa each time.
-const PATIENT_HEADER_CACHE_TTL_MS = 60_000;
-const patientHeaderCache = new Map();
-const fichaSessionCacheKey = async (info, sender) => {
-  const material = [
-    info && info.apiOrigin,
-    info && info.token,
-    info && info.facId,
-    info && info.practitionerId,
-    info && info.practitionerRoleId,
-    info && info.role,
-  ].map(value => String(value || '').trim()).join('\u0000');
-  const digest = await self.crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
-  const fingerprint = Array.from(new Uint8Array(digest).slice(0, 16))
-    .map(byte => byte.toString(16).padStart(2, '0'))
-    .join('');
-  const senderTabId = sender && sender.tab && sender.tab.id;
-  return `${senderTabId == null ? 'fallback' : senderTabId}:${fingerprint}`;
-};
-const handlePatientHeaderRequest = async ({ encId, sender }) => {
-  const infoResult = await resolveFichaClinicalSession({ sender });
-  if (infoResult.error) return infoResult;
-  const encounterId = String(encId || '');
-  const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
-  const cacheKey = `${sessionKey}:${encounterId}`;
-  const cached = patientHeaderCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < PATIENT_HEADER_CACHE_TTL_MS) return cached.payload;
-  const context = await getClinicalReportContext(encounterId, infoResult.info);
-  if (context.error) return context;
-  const patient = context.patient || {};
-  const payload = {
-    ok: true,
-    encId: encounterId,
-    patient: {
-      ...patient,
-      formattedRun: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
-    },
-  };
-  patientHeaderCache.set(cacheKey, { at: Date.now(), payload });
-  if (patientHeaderCache.size > 60) {
-    const oldest = patientHeaderCache.keys().next().value;
-    patientHeaderCache.delete(oldest);
-  }
-  return payload;
-};
-
-// Census list for the shared patient picker of the Centro HHR: every patient-bound module
-// (vitales, laboratorio, imágenes) lets the user pick any hospitalized patient from here.
-const handleCensusListRequest = async ({ currentEncId, sender }) => {
-  const infoResult = await resolveFichaClinicalSession({ sender });
-  if (infoResult.error) return infoResult;
-  const result = await fetchActiveHospitalizedPatients(infoResult.info);
-  if (result.error) return result;
-  return {
-    ok: true,
-    patients: (result.patients || []).map(patient => ({
-      encounterId: String(patient.encounterId),
-      // activeHospitalizedEncounters already assembles the display name.
-      name: String(patient.name || '').trim(),
-      run: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
-      bed: patient.bed || patient.room || '',
-      service: patient.service || '',
-      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
-    })),
-  };
-};
-
-// Census-wide latest-vitals view. The service worker reuses one verified Ficha Médico session and
-// bounds parallel reads so the UI can show every hospitalized patient without opening N independent
-// extension message flows or overwhelming Eloísa.
-const handleVitalsCensusRequest = async ({ currentEncId, sender }) => {
-  const infoResult = await resolveFichaClinicalSession({ sender });
-  if (infoResult.error) return infoResult;
-  const result = await fetchActiveHospitalizedPatients(infoResult.info);
-  if (result.error) return result;
-  const patients = await mapWithConcurrency(result.patients || [], 4, async patient => {
-    const report = await fetchScalesReportWithInfo(patient.encounterId, infoResult.info);
-    return {
-      encounterId: String(patient.encounterId),
-      name: String(patient.name || '').trim(),
-      run: self.HhrPrescriptionPrint.formatRun(patient.run) || String(patient.run || ''),
-      bed: patient.bed || patient.room || '',
-      service: patient.service || '',
-      birthDate: patient.birthDate || '',
-      isCurrent: String(patient.encounterId) === String(currentEncId || ''),
-      forms: report.error ? [] : report.forms,
-      unavailableReason: report.error || '',
-    };
-  });
-  return { ok: true, patients };
-};
-
 // Fill an official imaging-request template (solicitud / encuesta de contraste / consentimiento)
 // with the patient header, the requesting physician and the user's interactive marks, then open
 // the standard print tab. Ported from HHR's imagingRequestPdfService (pdf-lib, Helvetica 10,
@@ -675,60 +611,6 @@ const handlePrescriptionOptionsRequest = async ({ encId }) => {
   };
 };
 
-const getClinicalReportContext = async (encId, knownInfo, referenceDateTime, sender) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = await resolveFichaClinicalSession({
-    info: knownInfo,
-    sender,
-    required: ['practitionerId'],
-    invalidMessage: 'La sesión de Ficha Médico no contiene los datos necesarios para imprimir.',
-  });
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  let patientId = '';
-  let patient = null;
-  try {
-    const header = await fetchPatientHeader(encId, info);
-    const candidate =
-      header && (header.patID || header.patId || header.patientId || (header.patient && header.patient.id));
-    patientId = /^\d+$/.test(String(candidate || '')) ? String(candidate) : '';
-    const calculatedAge = self.HhrPrescriptionPrint.formatAgeLabel(
-      header.birthDate || '',
-      referenceDateTime || new Date()
-    );
-    const estimatedAge = Number(header.estimatedAge);
-    const estimatedAgeUnit = String(header.ageUnit || '').replace(/\s+/g, ' ').trim();
-    const fallbackAge = Number.isFinite(estimatedAge) && estimatedAge > 0 &&
-      estimatedAgeUnit && !/^0+$/.test(estimatedAgeUnit)
-      ? estimatedAge + ' ' + estimatedAgeUnit
-      : '';
-    patient = {
-      name: [header.firstGivenName, header.nextGivenNames, header.firstFamilyName, header.secondFamilyName]
-        .filter(Boolean)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim(),
-      run: header.preferredIdentifierCode || '',
-      sex: header.gendName || '',
-      birthDate: header.birthDate || '',
-      age: calculatedAge || fallbackAge,
-      bed: header.bedShortName || '',
-      room: header.roomShortName || '',
-      service: header.hdeShortName || header.serviceName || '',
-      diagnosis: header.principalDiagName || header.haoDiagName || '',
-    };
-  } catch (error) {
-    if (error && error.kind === 'http') {
-      return { error: 'Eloísa respondió HTTP ' + error.status + ' al identificar al paciente.' };
-    }
-    return { error: 'No se pudo identificar al paciente: ' + String((error && error.message) || error) };
-  }
-  if (!patientId) {
-    return { error: 'Eloísa no informó el identificador interno del paciente.' };
-  }
-  return { info, patientId, patient };
-};
-
 const resolveFichaEncounterId = rawUrl => {
   try {
     const parsed = new URL(String(rawUrl || ''));
@@ -853,20 +735,6 @@ const handleExamRequestCombinePrint = async ({ encId, diteIds, requests, sender 
   return opened.error ? opened : { ...opened, count: selected.length };
 };
 
-const mapWithConcurrency = async (items, limit, worker) => {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-  const runners = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await worker(items[index], index);
-    }
-  });
-  await Promise.all(runners);
-  return results;
-};
-
 const clinicalReportRuntime = self.HhrClinicalReportRuntime.create({
   chrome,
   crypto,
@@ -904,93 +772,6 @@ const {
   handleNursingMedicalEpicrisisPrintRequest,
   createCompletePrescriptionPdf,
 } = clinicalReportRuntime;
-
-const fetchActiveHospitalizedPatients = async info => {
-  const rowResult = await fetchActiveEncounterRows(info);
-  if (rowResult.error) return rowResult;
-  try {
-    const normalized = await mapWithConcurrency(rowResult.rows, 6, async item => {
-      const encId = String(item && item.id || '');
-      const fallback = item && item.patient || {};
-      let header = null;
-      if (/^\d+$/.test(encId)) {
-        try {
-          header = await fetchPatientHeader(encId, info);
-        } catch (_error) {}
-      }
-      const patient = header || fallback;
-      return {
-        encounterId: encId,
-        run: patient.preferredIdentifierCode || fallback.identifier || item && item.patientIdentifier || '',
-        firstGivenName: patient.firstGivenName || patient.givenName || fallback.firstGivenName ||
-          item && item.patientName || '',
-        nextGivenNames: patient.nextGivenNames || fallback.nextGivenNames || '',
-        firstFamilyName: patient.firstFamilyName || patient.familyName || fallback.firstFamilyName || '',
-        secondFamilyName: patient.secondFamilyName || fallback.secondFamilyName || '',
-        service: item && (item.hospitalDepartmentShortName || item.hospitalDepartmentName || item.serviceName) || patient.hdeShortName || '',
-        room: item && (item.roomShortName || item.roomName) || patient.roomShortName || '',
-        bed: item && (item.bedShortName || item.bedName) || patient.bedShortName || '',
-        birthDate: patient.birthDate || fallback.birthDate || item && item.birthDate || '',
-        administrativeSexId: patient.adseId || item && item.patientAdministrativeSexId || '',
-        hospitalDepartmentId: item && item.hospitalDepartmentId || patient.hospitalDepartmentId || '',
-        nurseStationId: item && item.nurseStationId || '',
-        patientId: patient.patID || patient.patientId || item && item.patientId || '',
-        diagnosis: patient.principalDiagName || patient.haoDiagName ||
-          item && (item.principalDiagName || item.haoDiagName || item.diagnosisName) || '',
-        hasMedicalDischarge: Boolean(item && (item.hasMedicalDischarge || item.medicalDischarge)),
-        dischargeDatetime: item && item.medicalDischargeDateTime || '',
-        isDead: Boolean(item && item.isDead),
-      };
-    });
-    return { patients: self.HhrPrescriptionPrint.activeHospitalizedEncounters({ encounters: normalized }) };
-  } catch (error) {
-    return { error: 'No se pudo leer la lista activa: ' + String((error && error.message) || error) };
-  }
-};
-
-const verifyEncounterStillHospitalized = async (encId, info) => {
-  if (!/^\d+$/.test(String(encId || '')) || !info || !info.token) {
-    return { error: 'No se pudo verificar que el paciente siga hospitalizado.' };
-  }
-  try {
-    const rowResult = await fetchActiveEncounterRows(info);
-    if (rowResult.error) return rowResult;
-    const active = rowResult.rows.find(item =>
-      String(item && (item.id || item.encounterId) || '') === String(encId) &&
-      !Boolean(item && (item.hasMedicalDischarge || item.medicalDischarge)) &&
-      !String(item && item.medicalDischargeDateTime || '').trim() &&
-      !Boolean(item && item.isDead)
-    );
-    return active
-      ? { ok: true, encounter: active }
-      : { error: 'El paciente ya no figura hospitalizado. Actualiza el módulo antes de registrar.' };
-  } catch (error) {
-    return { error: 'No se pudo confirmar la hospitalización: ' + String((error && error.message) || error) };
-  }
-};
-
-const verifySelectedEncountersStillHospitalized = async (encIds, info) => {
-  const rowResult = await fetchActiveEncounterRows(info);
-  if (rowResult.error) return rowResult;
-  const activeIds = new Set(rowResult.rows
-    .filter(item => item &&
-      !Boolean(item.hasMedicalDischarge || item.medicalDischarge) &&
-      !String(item.medicalDischargeDateTime || '').trim() &&
-      !Boolean(item.isDead)
-    )
-    .map(item => String(item.id || item.encounterId || ''))
-    .filter(id => /^\d+$/.test(id)));
-  const unavailable = (Array.isArray(encIds) ? encIds : [])
-    .map(String)
-    .filter(encId => !activeIds.has(encId));
-  return unavailable.length
-    ? {
-        error: 'La hospitalización cambió para ' + unavailable.length +
-          (unavailable.length === 1 ? ' paciente seleccionado. ' : ' pacientes seleccionados. ') +
-          'Actualiza el módulo antes de imprimir.',
-      }
-    : { ok: true };
-};
 
 const parseClinicalTimestamp = value => {
   const text = String(value || '').trim();

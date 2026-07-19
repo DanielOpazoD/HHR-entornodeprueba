@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const patientContextSource = readFileSync(
+  path.resolve('extension/fichamedico-patient-context.js'),
+  'utf8'
+);
 const clinicalScoreRuntimeSource = readFileSync(
   path.resolve('extension/clinical-score-runtime.js'),
   'utf8'
@@ -70,9 +74,9 @@ describe('extension heavy runtime loading', () => {
 
   it('keeps clinical writes tied to a verified nursing or medical session role', () => {
     const identityGuards = [
-      ...[backgroundSource, clinicalScoreRuntimeSource, clinicalHandoffRuntimeSource].flatMap(source => [
-        ...source.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2,6}\);/g),
-      ]),
+      ...[backgroundSource, clinicalScoreRuntimeSource, clinicalHandoffRuntimeSource].flatMap(
+        source => [...source.matchAll(/const identityReady = Boolean\(([\s\S]*?)\n {2,6}\);/g)]
+      ),
     ].map(match => match[1]);
 
     expect(identityGuards).toHaveLength(3);
@@ -103,9 +107,7 @@ describe('extension heavy runtime loading', () => {
       'root.HhrClinicalScoreWriteRuntime = Object.freeze({ create, buildClinicalAge });'
     );
     expect(startup).toContain("'clinical-batch-print-runtime.js'");
-    expect(startup).toContain(
-      'No se pudo cargar el runtime batch de documentos hospitalizados.'
-    );
+    expect(startup).toContain('No se pudo cargar el runtime batch de documentos hospitalizados.');
     expect(clinicalBatchPrintRuntimeSource).toContain(
       'root.HhrClinicalBatchPrintRuntime = Object.freeze({ create });'
     );
@@ -209,8 +211,8 @@ describe('extension heavy runtime loading', () => {
     expect((context as unknown as { HhrExamRequestPdf?: unknown }).HhrExamRequestPdf).toBeDefined();
     expect((context as unknown as { HhrPdfPrint?: unknown }).HhrPdfPrint).toBeDefined();
     expect((context as unknown as { XLSX?: unknown }).XLSX).toBeDefined();
-    expect(backgroundSource).toContain("header.birthDate || ''");
-    expect(backgroundSource).toContain('formatAgeLabel');
+    expect(patientContextSource).toContain('firstTruthy(header.birthDate)');
+    expect(patientContextSource).toContain('formatAgeLabel');
   });
 
   it('bounds backend and tab communication and settles every asynchronous message branch', () => {

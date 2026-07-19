@@ -25,6 +25,10 @@ const medicationActionsSource = readFileSync(
 );
 const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const patientContextSource = readFileSync(
+  path.resolve('extension/fichamedico-patient-context.js'),
+  'utf8'
+);
 const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
 
 describe('Centro HHR navigation and vital-signs overview', () => {
@@ -65,8 +69,8 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     );
     expect(contentSource).toContain('row.disabled = Boolean(patient.unavailableReason)');
     expect(contentSource).toContain('if (!patient.unavailableReason) {');
-    expect(backgroundSource).toContain('const handleVitalsCensusRequest');
-    expect(backgroundSource).toContain('mapWithConcurrency(result.patients || [], 4');
+    expect(patientContextSource).toContain('const handleVitalsCensusRequest');
+    expect(patientContextSource).toContain('mapWithConcurrency(result.patients || [], 4');
     expect(backgroundSource).toContain('[RUNTIME_MESSAGES.VITALS_CENSUS_REQUEST]: runtimeRoute(');
   });
 

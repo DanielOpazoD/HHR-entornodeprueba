@@ -38,6 +38,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `fichamedico-clinical-client.js` | Cliente read-only: valida la sesión, construye rutas relativas y centraliza GET JSON/PDF autenticados de Ficha Médico |
+| `fichamedico-patient-context.js` | Contexto clínico read-only: caché de cabeceras, modelo normalizado de hospitalizados y revalidación de episodios activos |
 | `hhr-ui.js` | Design system de la extensión: tokens (paleta navy/teal), iconos de trazo, estilos de la barra (Shadow DOM), tooltips y foco por teclado |
 | `hhr-center-styles.js` | Estilos light-DOM del Centro HHR y sus avisos; reutiliza los tokens de `hhr-ui.js` |
 | `hhr-vitals.js` | Parser de formularios `VITAL_SIGNS` de Ficha Médico + umbrales de alerta (port de HHR) para el módulo de signos vitales |
