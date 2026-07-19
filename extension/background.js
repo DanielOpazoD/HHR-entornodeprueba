@@ -22,6 +22,7 @@ importScripts(
   'hhr-request-forms.js',
   'health-check.js',
   'fichamedico-transport-runtime.js',
+  'fichamedico-clinical-client.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
   'gestion-camas-cudyr.js',
@@ -80,6 +81,12 @@ if (
   typeof self.HhrFichaMedicoTransportRuntime.create !== 'function'
 ) {
   throw new Error('No se pudo cargar el runtime de transporte de Ficha Médico.');
+}
+if (
+  !self.HhrFichaMedicoClinicalClient ||
+  typeof self.HhrFichaMedicoClinicalClient.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el cliente clínico de lectura de Ficha Médico.');
 }
 
 const messageContract = self.HhrRayenMessageContract;
@@ -142,6 +149,28 @@ const {
   health: handleFichaMedicoHealth,
   getFetchInfo: getFichaFetchInfo,
 } = fichaMedicoTransportRuntime;
+
+const fichaMedicoClinicalClient = self.HhrFichaMedicoClinicalClient.create({
+  resolveFetchInfo: getFichaFetchInfo,
+  fetchWithTimeout,
+  defaultTimeoutMs: BACKEND_REQUEST_TIMEOUT_MS,
+});
+
+const {
+  nursingWorklists: fichaMedicoNursingWorklists,
+  resolveSession: resolveFichaClinicalSession,
+  fetchDeviceReportBuffer,
+  fetchScalesReportWithInfo,
+  fetchHistoryScales,
+  fetchPrescriptionEvents,
+  fetchCurrentMedicationEntries,
+  fetchEvaluationForms,
+  fetchScaleHistoryEvents,
+  fetchNutritionOrderEntry,
+  fetchTreatmentValidation,
+  fetchPatientHeader,
+  fetchActiveEncounterRows,
+} = fichaMedicoClinicalClient;
 
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
@@ -361,32 +390,6 @@ const handleReportSave = async args => {
   }
 };
 
-const FM_DEVICE_REPORT_FILE = 'Resumen_diario_paciente.pdf';
-
-// Fetch the per-patient "Resumen diario paciente" PDF (Ficha Médico) — it carries the invasive
-// devices table. Token + backend origin come from the open Ficha Médico tab; the GET runs here in
-// the background, where host_permissions bypass CORS. enc_id = encounter id, fecha = ISO YYYY-MM-DD.
-const fetchDeviceReportBuffer = async ({ encId, fecha }) => {
-  if (!encId || !fecha) return { error: 'Faltan enc_id o fecha para el reporte de dispositivos.' };
-  const infoResp = await getFichaFetchInfo();
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
-  }
-  const url =
-    `${info.apiOrigin}/api/report/${FM_DEVICE_REPORT_FILE}` +
-    `?enc_id=${encodeURIComponent(encId)}&fac_id=${encodeURIComponent(info.facId)}` +
-    `&fecha=${encodeURIComponent(fecha)}`;
-  try {
-    const res = await fetchWithTimeout(url, { headers: { Authorization: info.token }, credentials: 'omit' });
-    if (!res.ok) return { error: 'El servidor de Ficha Médico respondió HTTP ' + res.status + '.' };
-    return { buffer: await res.arrayBuffer() };
-  } catch (error) {
-    return { error: 'Falló la descarga del PDF de dispositivos: ' + String((error && error.message) || error) };
-  }
-};
-
 // Fetch + return the device-report PDF as base64 (for HHR to parse) plus size/first bytes so a
 // diagnostic can confirm the fetch without dumping the whole blob.
 const handleDeviceReportRequest = async args => {
@@ -436,31 +439,8 @@ const handleDeviceReportSave = async args => {
 // `0` (formCodigo) segment returns ALL forms; we keep only the ones HHR uses — INSTRUMENTO (Braden UPP
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
-const FORM_CODIGO_KEEP = new Set(['INSTRUMENTO', 'VITAL_SIGNS']);
-const fetchScalesReportWithInfo = async (encId, info) => {
-  if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
-  const url =
-    `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
-    `${encodeURIComponent(encId)}/1/0/${encodeURIComponent(info.practitionerId || '7941')}`;
-  try {
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-    });
-    if (res.status === 204) return { ok: true, forms: [] };
-    if (!res.ok) return { error: 'El servidor de Ficha Médico respondió HTTP ' + res.status + '.' };
-    const forms = await res.json();
-    const kept = Array.isArray(forms)
-      ? forms.filter(f => f && FORM_CODIGO_KEEP.has(String(f.formCodigo || '').toUpperCase()))
-      : [];
-    return { ok: true, forms: kept };
-  } catch (error) {
-    return { error: 'Falló la descarga de escalas: ' + String((error && error.message) || error) };
-  }
-};
-
 const handleScalesReportRequest = async ({ encId, sender }) => {
-  const infoResult = await getFichaFetchInfo(sender);
+  const infoResult = await resolveFichaClinicalSession({ sender });
   if (infoResult.error) return { error: infoResult.error };
   return fetchScalesReportWithInfo(encId, infoResult.info);
 };
@@ -488,7 +468,7 @@ const fichaSessionCacheKey = async (info, sender) => {
   return `${senderTabId == null ? 'fallback' : senderTabId}:${fingerprint}`;
 };
 const handlePatientHeaderRequest = async ({ encId, sender }) => {
-  const infoResult = await getFichaFetchInfo(sender);
+  const infoResult = await resolveFichaClinicalSession({ sender });
   if (infoResult.error) return infoResult;
   const encounterId = String(encId || '');
   const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
@@ -517,7 +497,7 @@ const handlePatientHeaderRequest = async ({ encId, sender }) => {
 // Census list for the shared patient picker of the Centro HHR: every patient-bound module
 // (vitales, laboratorio, imágenes) lets the user pick any hospitalized patient from here.
 const handleCensusListRequest = async ({ currentEncId, sender }) => {
-  const infoResult = await getFichaFetchInfo(sender);
+  const infoResult = await resolveFichaClinicalSession({ sender });
   if (infoResult.error) return infoResult;
   const result = await fetchActiveHospitalizedPatients(infoResult.info);
   if (result.error) return result;
@@ -539,7 +519,7 @@ const handleCensusListRequest = async ({ currentEncId, sender }) => {
 // bounds parallel reads so the UI can show every hospitalized patient without opening N independent
 // extension message flows or overwhelming Eloísa.
 const handleVitalsCensusRequest = async ({ currentEncId, sender }) => {
-  const infoResult = await getFichaFetchInfo(sender);
+  const infoResult = await resolveFichaClinicalSession({ sender });
   if (infoResult.error) return infoResult;
   const result = await fetchActiveHospitalizedPatients(infoResult.info);
   if (result.error) return result;
@@ -625,260 +605,40 @@ const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sen
 // Unlike encounterFormEntry (which returns stale startDateTimes and misses same-day re-applications),
 // each history event's `publishDatetime` is the real application timestamp — so HHR can pick the last
 // score APPLIED ON the census day being synced. The trailing `/false/0/0/-14` is the 14-day lookback.
-const SCALE_FORM_RE = /braden|downton/i;
 const handleHistoryScalesRequest = async ({ encId }) => {
-  if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
-  const infoResp = await getFichaFetchInfo();
-  if (infoResp.error) return { error: infoResp.error };
-  const info = infoResp.info;
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.' };
-  }
-  const url =
-    `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
-    `getPatientEncounterHistoryReportServer/false/0/0/-14`;
-  try {
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-    });
-    if (res.status === 204) return { ok: true, events: [] };
-    if (!res.ok) return { error: 'El servidor de Ficha Médico respondió HTTP ' + res.status + '.' };
-    const raw = await res.json();
-    const events = [];
-    for (const ev of Array.isArray(raw) ? raw : []) {
-      const resume = ev && Array.isArray(ev.evaluationInstrumentsResume)
-        ? ev.evaluationInstrumentsResume.filter(c => c && SCALE_FORM_RE.test(String(c.FORM_NAME || '')))
-        : [];
-      if (resume.length === 0) continue;
-      events.push({
-        publishDatetime: ev.publishDatetime || '',
-        evaluationInstrumentsResume: resume.map(c => ({
-          FORM_NAME: c.FORM_NAME,
-          LABEL: c.LABEL,
-          VALUE: c.VALUE,
-          ARCHIVED: c.ARCHIVED,
-          MCAM_ID: c.MCAM_ID,
-          PUBLISH_DATE_HCP_NAME: c.PUBLISH_DATE_HCP_NAME,
-          PRACTITIONER_ROLE: c.PRACTITIONER_ROLE,
-        })),
-      });
-    }
-    return { ok: true, events };
-  } catch (error) {
-    return { error: 'Falló la descarga del historial de escalas: ' + String((error && error.message) || error) };
-  }
+  const infoResult = await resolveFichaClinicalSession();
+  if (infoResult.error) return infoResult;
+  return fetchHistoryScales({ encId, info: infoResult.info });
 };
 
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
 // the active groups already normalized by author; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
-const fetchPrescriptionEvents = async (encId, knownInfo) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  const url =
-    `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
-    'getPatientEncounterHistoryReportServer/false/0/0/-120';
-  try {
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-    });
-    if (res.status === 204) return { events: [] };
-    if (!res.ok) return { error: 'Eloísa respondió HTTP ' + res.status + ' al buscar recetas.' };
-    return { events: await res.json() };
-  } catch (error) {
-    return { error: 'No se pudieron leer las fechas de recetas: ' + String((error && error.message) || error) };
-  }
-};
-
 // Eloisa's history report does not consistently include `is_external`. Read the same active
 // medication endpoint that feeds the on-screen table and reconcile only its stable entry id with
 // the history response. This is read-only and uses the event type already authorized for the
 // signed-in clinical role.
-const fetchCurrentMedicationEntries = async (encId, knownInfo) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  if (!info || !info.token || !info.apiOrigin || !info.practitionerId) {
-    return { error: 'La sesión no contiene los datos necesarios para consultar los fármacos activos.' };
-  }
-  const encounterEventTypeId = /enfermer/i.test(String(info.role || '')) ? '2' : '1';
-  try {
-    const response = await fetchWithTimeout(
-      `${info.apiOrigin}/api/encounter/entrySummary/medicationRequestEntry/` +
-        `${encodeURIComponent(encId)}/${encounterEventTypeId}/${encodeURIComponent(info.practitionerId)}`,
-      {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-      }
-    );
-    if (response.status === 204) return { entries: [] };
-    if (!response.ok) {
-      return { error: 'Eloísa respondió HTTP ' + response.status + ' al consultar los fármacos activos.' };
-    }
-    const payload = await response.json();
-    const entries = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload && payload.data) ? payload.data : [];
-    return { entries };
-  } catch (error) {
-    return { error: 'No se pudieron consultar los fármacos activos: ' + String((error && error.message) || error) };
-  }
-};
-
-const fetchEvaluationForms = async (encId, knownInfo) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  if (!info || !info.token || !info.apiOrigin || !info.practitionerId) {
-    return { error: 'La sesión no contiene los datos necesarios para consultar BRADEN.' };
-  }
-  try {
-    const encounterEventTypes = /enfermer/i.test(String(info.role || '')) ? ['2'] : ['2', '1'];
-    const results = await Promise.all(encounterEventTypes.map(async eventType => {
-      const response = await fetchWithTimeout(
-        `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/` +
-          `${encodeURIComponent(encId)}/${eventType}/0/${encodeURIComponent(info.practitionerId)}`,
-        {
-          headers: { Authorization: info.token, Accept: 'application/json' },
-          credentials: 'omit',
-          cache: 'no-store',
-        }
-      );
-      if (response.status === 204) return { forms: [] };
-      if (!response.ok) return { error: 'HTTP ' + response.status };
-      const forms = await response.json();
-      return { forms: Array.isArray(forms) ? forms : [] };
-    }));
-    const failures = results.filter(result => result.error);
-    if (failures.length) {
-      return {
-        error: 'Eloísa no permitió verificar todas las fuentes de instrumentos (' +
-          failures.map(result => result.error).join(', ') + ').',
-      };
-    }
-    const byIdentity = new Map();
-    results.flatMap(result => result.forms).forEach(form => {
-      if (!form) return;
-      const key = String(form.guid || form.id || form.encounterEventId || JSON.stringify(form));
-      byIdentity.set(key, form);
-    });
-    return { forms: [...byIdentity.values()] };
-  } catch (error) {
-    return { error: 'No se pudieron leer los instrumentos: ' + String((error && error.message) || error) };
-  }
-};
-
-const fetchScaleHistoryEvents = async (encId, knownInfo, lookbackDays = 30) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  try {
-    const response = await fetchWithTimeout(
-      `${info.apiOrigin}/api/encounter/${encodeURIComponent(encId)}/` +
-        'getPatientEncounterHistoryReportServer/false/0/0/-' + Math.min(180, Math.max(1, Number(lookbackDays) || 30)),
-      {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-      }
-    );
-    if (response.status === 204) return { events: [] };
-    if (!response.ok) return { error: 'Eloísa respondió HTTP ' + response.status + ' al buscar instrumentos.' };
-    const raw = await response.json();
-    const events = (Array.isArray(raw) ? raw : []).flatMap(event => {
-      const rows = (Array.isArray(event && event.evaluationInstrumentsResume)
-        ? event.evaluationInstrumentsResume
-        : []).filter(row => row && /braden|downton/i.test(String(row.FORM_NAME || '')));
-      if (!rows.length) return [];
-      return [{
-        publishDatetime: event.publishDatetime || '',
-        encounterEventId: event.encounterEventId || event.id || 0,
-        evaluationInstrumentsResume: rows.map(row => ({
-          FORM_NAME: row.FORM_NAME,
-          LABEL: row.LABEL,
-          VALUE: row.VALUE,
-          VALUE_NAME: row.VALUE_NAME,
-          ARCHIVED: row.ARCHIVED,
-          MCAM_ID: row.MCAM_ID,
-          PUBLISH_DATE_HCP_NAME: row.PUBLISH_DATE_HCP_NAME,
-          HCP_NAME: row.HCP_NAME,
-        })),
-      }];
-    });
-    return { events };
-  } catch (error) {
-    return { error: 'No se pudo leer el historial de instrumentos: ' + String((error && error.message) || error) };
-  }
-};
-
 const fetchBradenHistoryEvents = (encId, knownInfo) => fetchScaleHistoryEvents(encId, knownInfo, 30);
 
-const fetchNutritionOrderEntry = async (encId, knownInfo) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  if (!info.practitionerId) return { error: 'La sesión no informó el profesional lector.' };
-  try {
-    const response = await fetchWithTimeout(
-      `${info.apiOrigin}/api/encounter/entrySummary/nutritionOrderEntry/` +
-        `${encodeURIComponent(encId)}/${encodeURIComponent(info.practitionerId)}`,
-      {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-      }
-    );
-    if (response.status === 204) return { entry: null };
-    if (!response.ok) return { error: 'Eloísa respondió HTTP ' + response.status + ' al consultar el régimen.' };
-    return { entry: await response.json() };
-  } catch (error) {
-    return { error: 'No se pudo consultar el régimen: ' + String((error && error.message) || error) };
-  }
-};
-
-const fetchTreatmentValidation = async (encId, knownInfo) => {
-  if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo();
-  if (infoResult.error) return infoResult;
-  const info = infoResult.info;
-  if (!info || !info.token || !info.apiOrigin) return { validation: null };
-  try {
-    const response = await fetchWithTimeout(
-      `${info.apiOrigin}/api/encounter/validateTreatment/${encodeURIComponent(encId)}`,
-      {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-      }
-    );
-    if (response.status === 204 || response.status === 404) return { validation: null };
-    if (!response.ok) return { error: 'Eloísa respondió HTTP ' + response.status + ' al buscar la validación.' };
-    return { validation: await response.json() };
-  } catch (error) {
-    return { error: 'No se pudo leer la última validación: ' + String((error && error.message) || error) };
-  }
-};
-
 const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({
-  fetchImpl: fetch,
-  fetchJsonWithTimeout: self.HhrClinicalPanelFetch.fetchJsonWithTimeout,
+  fetchClinicalJson: ({ info, path, query, timeoutMs }) =>
+    fichaMedicoClinicalClient.readJson({
+      info,
+      path,
+      query,
+      timeoutMs,
+      timeoutMessage: 'Tiempo de espera agotado consultando Ficha Médico.',
+    }).then(result => result.data),
   fetchMedicationPages: self.HhrClinicalPanelFetch.fetchMedicationPages,
   unwrapRequiredSources: self.HhrClinicalPanelFetch.unwrapRequiredSources,
-  resolveSession: () => getFichaFetchInfo(),
+  resolveSession: () => resolveFichaClinicalSession(),
   fetchCurrentValidation: fetchTreatmentValidation,
   timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS,
 });
 const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest;
 
 const handlePrescriptionOptionsRequest = async ({ encId }) => {
-  const infoResult = await getFichaFetchInfo();
+  const infoResult = await resolveFichaClinicalSession();
   if (infoResult.error) return infoResult;
   const [history, validationResult, currentMedicationResult, context] = await Promise.all([
     fetchPrescriptionEvents(encId, infoResult.info),
@@ -917,26 +677,18 @@ const handlePrescriptionOptionsRequest = async ({ encId }) => {
 
 const getClinicalReportContext = async (encId, knownInfo, referenceDateTime, sender) => {
   if (!/^\d+$/.test(String(encId || ''))) return { error: 'El episodio clínico no es válido.' };
-  const infoResult = knownInfo ? { info: knownInfo } : await getFichaFetchInfo(sender);
+  const infoResult = await resolveFichaClinicalSession({
+    info: knownInfo,
+    sender,
+    required: ['practitionerId'],
+    invalidMessage: 'La sesión de Ficha Médico no contiene los datos necesarios para imprimir.',
+  });
   if (infoResult.error) return infoResult;
   const info = infoResult.info;
-  if (!info || !info.token || !info.apiOrigin || !info.practitionerId) {
-    return { error: 'La sesión de Ficha Médico no contiene los datos necesarios para imprimir.' };
-  }
   let patientId = '';
   let patient = null;
   try {
-    const headerResponse = await fetchWithTimeout(
-      `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(encId)}/false`,
-      {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-      }
-    );
-    if (!headerResponse.ok) {
-      return { error: 'Eloísa respondió HTTP ' + headerResponse.status + ' al identificar al paciente.' };
-    }
-    const header = await headerResponse.json();
+    const header = await fetchPatientHeader(encId, info);
     const candidate =
       header && (header.patID || header.patId || header.patientId || (header.patient && header.patient.id));
     patientId = /^\d+$/.test(String(candidate || '')) ? String(candidate) : '';
@@ -966,6 +718,9 @@ const getClinicalReportContext = async (encId, knownInfo, referenceDateTime, sen
       diagnosis: header.principalDiagName || header.haoDiagName || '',
     };
   } catch (error) {
+    if (error && error.kind === 'http') {
+      return { error: 'Eloísa respondió HTTP ' + error.status + ' al identificar al paciente.' };
+    }
     return { error: 'No se pudo identificar al paciente: ' + String((error && error.message) || error) };
   }
   if (!patientId) {
@@ -1150,60 +905,6 @@ const {
   createCompletePrescriptionPdf,
 } = clinicalReportRuntime;
 
-const NURSING_WORKLISTS = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'];
-const fetchNursingWorklistRows = async info => {
-  const results = await Promise.all(NURSING_WORKLISTS.map(async list => {
-    try {
-      const response = await fetchWithTimeout(
-        `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId)}`,
-        {
-          headers: { Authorization: info.token, Accept: 'application/json' },
-          credentials: 'omit',
-          cache: 'no-store',
-        }
-      );
-      if (!response.ok) return { list, error: 'HTTP ' + response.status };
-      const rows = await response.json();
-      return { list, rows: Array.isArray(rows) ? rows : [] };
-    } catch (error) {
-      return { list, error: String((error && error.message) || error) };
-    }
-  }));
-  const failures = results.filter(result => result.error);
-  if (failures.length) {
-    return {
-      error: 'Eloísa no permitió verificar las tres listas de hospitalizados: ' +
-        failures.map(result => result.list + ' (' + result.error + ')').join(', ') + '.',
-    };
-  }
-  const byEncounter = new Map();
-  results.forEach(result => result.rows.forEach(item => {
-    if (item && item.id != null) byEncounter.set(String(item.id), item);
-  }));
-  return { rows: [...byEncounter.values()] };
-};
-
-const fetchActiveEncounterRows = async info => {
-  if (!info || !info.token || !info.apiOrigin) {
-    return { error: 'La sesión no informó el origen clínico activo.' };
-  }
-  if (info.listSource === 'nursing' || !info.listUrl) return fetchNursingWorklistRows(info);
-  try {
-    const listUrl = new URL(info.listUrl);
-    listUrl.searchParams.set('filterType', '3');
-    const response = await fetchWithTimeout(listUrl.toString(), {
-      headers: { Authorization: info.token, Accept: 'application/json' },
-      credentials: 'omit',
-      cache: 'no-store',
-    });
-    if (!response.ok) return { error: 'Eloísa respondió HTTP ' + response.status + ' al listar hospitalizados.' };
-    const rows = await response.json();
-    return { rows: Array.isArray(rows) ? rows : [] };
-  } catch (error) {
-    return { error: 'No se pudo leer la lista activa: ' + String((error && error.message) || error) };
-  }
-};
-
 const fetchActiveHospitalizedPatients = async info => {
   const rowResult = await fetchActiveEncounterRows(info);
   if (rowResult.error) return rowResult;
@@ -1214,14 +915,7 @@ const fetchActiveHospitalizedPatients = async info => {
       let header = null;
       if (/^\d+$/.test(encId)) {
         try {
-          const headerResponse = await fetchWithTimeout(
-            `${info.apiOrigin}/api/encounter/patientHeaderData/${encodeURIComponent(encId)}/false`,
-            {
-              headers: { Authorization: info.token, Accept: 'application/json' },
-              credentials: 'omit',
-            }
-          );
-          if (headerResponse.ok) header = await headerResponse.json();
+          header = await fetchPatientHeader(encId, info);
         } catch (_error) {}
       }
       const patient = header || fallback;
@@ -1479,7 +1173,7 @@ const clinicalScoreRuntime = self.HhrClinicalScoreRuntime.create({
   getFichaFetchInfo,
   resolveGestionCamasSession,
   classifyGestionCamasRejection,
-  nursingWorklists: NURSING_WORKLISTS,
+  nursingWorklists: fichaMedicoNursingWorklists,
   resolveSessionHandoffKind,
   fetchFichaClaims,
   hasFichaClaim,

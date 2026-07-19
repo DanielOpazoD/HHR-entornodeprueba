@@ -83,8 +83,7 @@
 
   const create = dependencies => {
     const {
-      fetchImpl,
-      fetchJsonWithTimeout,
+      fetchClinicalJson,
       fetchMedicationPages,
       unwrapRequiredSources,
       resolveSession,
@@ -93,8 +92,7 @@
     } = dependencies || {};
 
     if (
-      typeof fetchImpl !== 'function' ||
-      typeof fetchJsonWithTimeout !== 'function' ||
+      typeof fetchClinicalJson !== 'function' ||
       typeof fetchMedicationPages !== 'function' ||
       typeof unwrapRequiredSources !== 'function' ||
       typeof resolveSession !== 'function' ||
@@ -104,13 +102,13 @@
       throw new Error('No se pudo inicializar el runtime de lectura del panel clínico.');
     }
 
-    const fetchFichaJson = (url, token) =>
-      fetchJsonWithTimeout({ url, token, fetchImpl, timeoutMs });
+    const fetchFichaJson = (info, path, query) =>
+      fetchClinicalJson({ info, path, query, timeoutMs });
 
-    const fetchMedicationStates = async (baseUrl, isSuspended, token) => {
+    const fetchMedicationStates = async (info, path, isSuspended) => {
       const rows = await fetchMedicationPages({
         fetchPage: (page, limit) =>
-          fetchFichaJson(`${baseUrl}?page=${page}&limit=${limit}&isSuspended=${isSuspended}`, token),
+          fetchFichaJson(info, path, { page, limit, isSuspended }),
       });
       return slimMedicationStates(rows);
     };
@@ -126,18 +124,17 @@
       }
 
       const encodedEncounter = encodeURIComponent(encId);
-      const historyUrl =
-        `${info.apiOrigin}/api/encounter/${encodedEncounter}/` +
+      const historyPath =
+        `/api/encounter/${encodedEncounter}/` +
         'getPatientEncounterHistoryReportServer/false/0/0/-14';
-      const careUrl =
-        `${info.apiOrigin}/api/carePlanAssignedCare/${encodedEncounter}?page=0&limit=100&showAll=false`;
-      const medicationBase = `${info.apiOrigin}/api/carePlanMedication/${encodedEncounter}`;
+      const carePath = `/api/carePlanAssignedCare/${encodedEncounter}`;
+      const medicationPath = `/api/carePlanMedication/${encodedEncounter}`;
 
       const settledSources = await Promise.allSettled([
-        fetchFichaJson(historyUrl, info.token),
-        fetchFichaJson(careUrl, info.token),
-        fetchMedicationStates(medicationBase, false, info.token),
-        fetchMedicationStates(medicationBase, true, info.token),
+        fetchFichaJson(info, historyPath),
+        fetchFichaJson(info, carePath, { page: 0, limit: 100, showAll: false }),
+        fetchMedicationStates(info, medicationPath, false),
+        fetchMedicationStates(info, medicationPath, true),
         fetchCurrentValidation(encId, info),
       ]);
 
