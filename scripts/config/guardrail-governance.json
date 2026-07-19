@@ -208,6 +208,7 @@
       { "id": "check:transfers-module-size", "group": "size" },
       { "id": "check:hook-hotspots", "group": "size" },
       { "id": "check:hotspot-growth", "group": "size" },
+      { "id": "check:extension-hotspots", "group": "size" },
       { "id": "check:census-runtime-boundary", "group": "boundaries" },
       { "id": "check:runtime-adapter-boundary", "group": "boundaries" },
       { "id": "check:native-dialogs", "group": "boundaries" },

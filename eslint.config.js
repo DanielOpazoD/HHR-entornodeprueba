@@ -14,9 +14,12 @@ export default tseslint.config(
       'coverage',
       'dev-dist',
       'dist',
-      // Vendored Chrome extension (Rayen → HHR bridge): authored in its own MV3/service-worker
-      // style with `chrome`/window globals and a minified xlsx lib — linted in its own context.
-      'extension',
+      // Explicit extension vendors. Every other extension/*.js file is authored code and linted.
+      'extension/jspdf.umd.min.js',
+      'extension/pdf-lib.min.js',
+      'extension/xlsx.full.min.js',
+      'extension/pdf.min.mjs',
+      'extension/pdf.worker.min.mjs',
       'node_modules',
       'output',
       'playwright-report',
@@ -24,6 +27,46 @@ export default tseslint.config(
       'test-results',
       '*.config.ts',
     ],
+  },
+  {
+    extends: [js.configs.recommended],
+    files: ['extension/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: {
+        ...globals.browser,
+        ...globals.es2021,
+        ...globals.serviceworker,
+        ...globals.webextensions,
+        module: 'readonly',
+      },
+      sourceType: 'script',
+    },
+    rules: {
+      // Existing empty fallbacks and intentionally exported UMD helpers are governed separately.
+      'no-empty': 'off',
+      'no-extra-boolean-cast': 'off',
+      'no-unused-vars': [
+        'error',
+        {
+          args: 'none',
+          caughtErrors: 'none',
+          // Exact legacy bindings exposed or retained by runtime factories.
+          varsIgnorePattern: '^(sendToMatchingTab|fetchRegimenReportBuffer|delay)$',
+        },
+      ],
+      'no-useless-escape': 'off',
+    },
+  },
+  {
+    files: ['extension/content-prescription-print.js'],
+    languageOptions: {
+      globals: {
+        // Exact baseline for a pre-existing shell navigation reference. Removing this exception
+        // requires the dedicated runtime-owner fix; other undefined names remain blocking here.
+        switchCenterModule: 'readonly',
+      },
+    },
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
