@@ -32,6 +32,7 @@ importScripts(
   'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',
+  'clinical-score-write-model.js',
   'clinical-score-write-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
@@ -49,7 +50,6 @@ importScripts(
   'pdf-print.js',
   'runtime-loader.js',
 );
-
 if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
 }
@@ -72,6 +72,7 @@ if (!self.HhrClinicalScoreRuntime || typeof self.HhrClinicalScoreRuntime.create 
   throw new Error('No se pudo cargar el runtime de lectura de Scores.');
 }
 if (
+  !self.HhrClinicalScoreWriteModel ||
   !self.HhrClinicalScoreWriteRuntime ||
   typeof self.HhrClinicalScoreWriteRuntime.create !== 'function'
 ) {
@@ -148,7 +149,6 @@ const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({
   tabMessageTimeoutMs: TAB_MESSAGE_TIMEOUT_MS,
   healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
 });
-
 const {
   sendToMatchingTab,
   handleSnapshotRequest,
@@ -980,6 +980,7 @@ const {
   handleCudyrCategoriesRequest,
 } = clinicalScoreRuntime;
 const clinicalScoreWriteRuntime = self.HhrClinicalScoreWriteRuntime.create({
+  scoreWriteModel: self.HhrClinicalScoreWriteModel,
   fetchWithTimeout,
   getFichaFetchInfo,
   fetchFichaClaims,
@@ -999,7 +1000,6 @@ const clinicalScoreWriteRuntime = self.HhrClinicalScoreWriteRuntime.create({
   prescriptionPrint: self.HhrPrescriptionPrint,
   wait: delay => new Promise(resolve => setTimeout(resolve, delay)),
 });
-
 const handleScoreSaveRequest = clinicalScoreWriteRuntime.handleSaveRequest;
 
 const readClinicalWriteRecoveryReview = async ({ kind, encId, instrument, info }) => {

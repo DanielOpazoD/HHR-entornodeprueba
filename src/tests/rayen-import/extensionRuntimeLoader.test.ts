@@ -19,6 +19,10 @@ const clinicalScoreWriteRuntimeSource = readFileSync(
   path.resolve('extension/clinical-score-write-runtime.js'),
   'utf8'
 );
+const clinicalScoreWriteModelSource = readFileSync(
+  path.resolve('extension/clinical-score-write-model.js'),
+  'utf8'
+);
 const clinicalHandoffRuntimeSource = readFileSync(
   path.resolve('extension/clinical-handoff-runtime.js'),
   'utf8'
@@ -102,6 +106,11 @@ describe('extension heavy runtime loading', () => {
     expect(startup).toContain("'clinical-score-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime de lectura de Scores.');
     expect(startup).toContain("'clinical-score-write-runtime.js'");
+    expect(startup).toContain("'clinical-score-write-model.js'");
+    expect(startup).toContain('!self.HhrClinicalScoreWriteModel ||');
+    expect(clinicalScoreWriteModelSource).toContain(
+      'root.HhrClinicalScoreWriteModel = Object.freeze({'
+    );
     expect(startup).toContain('No se pudo cargar el runtime de escritura de Scores.');
     expect(clinicalScoreWriteRuntimeSource).toContain(
       'root.HhrClinicalScoreWriteRuntime = Object.freeze({ create, buildClinicalAge });'

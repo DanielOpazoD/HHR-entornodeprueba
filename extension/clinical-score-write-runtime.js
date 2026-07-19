@@ -7,6 +7,14 @@
 (function (root) {
   'use strict';
 
+  const isScoreWriteModel = model => Boolean(
+    model && typeof model.prepareEvaluationSubmission === 'function' &&
+    typeof model.buildEvaluationPayload === 'function' &&
+    typeof model.readCreatedIdentity === 'function' &&
+    typeof model.matchesEvaluationForm === 'function' &&
+    typeof model.buildEvaluationRecord === 'function'
+  );
+
   const buildClinicalAge = (birthDate, referenceDate = new Date()) => {
     const rawBirthDate = String(birthDate || '').trim();
     const dateOnly = rawBirthDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -64,6 +72,7 @@
 
   const create = dependencies => {
     const {
+      scoreWriteModel,
       fetchWithTimeout,
       getFichaFetchInfo,
       fetchFichaClaims,
@@ -84,19 +93,29 @@
       wait,
     } = dependencies || {};
 
+    const requiredFunctions = [
+      fetchWithTimeout,
+      getFichaFetchInfo,
+      fetchFichaClaims,
+      hasFichaClaim,
+      verifyEncounterStillHospitalized,
+      fetchCudyrDefinitions,
+      fetchCudyrCategories,
+      resolveCudyrFormId,
+      getScaleDefinition,
+      readScoresBatch,
+      fetchScaleHistoryEvents,
+      fetchEvaluationForms,
+      withClinicalWriteLock,
+      clinicalRecordKey,
+      collectClinicalTimestampBaseline,
+      hasNewClinicalTimestamp,
+      wait,
+    ];
     if (
-      typeof fetchWithTimeout !== 'function' || typeof getFichaFetchInfo !== 'function' ||
-      typeof fetchFichaClaims !== 'function' || typeof hasFichaClaim !== 'function' ||
-      typeof verifyEncounterStillHospitalized !== 'function' ||
-      typeof fetchCudyrDefinitions !== 'function' || typeof fetchCudyrCategories !== 'function' ||
-      typeof resolveCudyrFormId !== 'function' || typeof getScaleDefinition !== 'function' ||
-      typeof readScoresBatch !== 'function' || typeof fetchScaleHistoryEvents !== 'function' ||
-      typeof fetchEvaluationForms !== 'function' || typeof withClinicalWriteLock !== 'function' ||
-      typeof clinicalRecordKey !== 'function' ||
-      typeof collectClinicalTimestampBaseline !== 'function' ||
-      typeof hasNewClinicalTimestamp !== 'function' ||
+      !isScoreWriteModel(scoreWriteModel) || requiredFunctions.some(item => typeof item !== 'function') ||
       !prescriptionPrint || typeof prescriptionPrint.calculateCudyrCategory !== 'function' ||
-      typeof prescriptionPrint.deriveScaleHistory !== 'function' || typeof wait !== 'function'
+      typeof prescriptionPrint.deriveScaleHistory !== 'function'
     ) {
       throw new Error('No se pudo inicializar el runtime de escritura de Scores.');
     }
@@ -220,82 +239,21 @@
       };
     };
 
-    const handleEvaluationScaleSave = async ({
-      encId,
-      instrument,
-      answers,
-      patient,
-      info,
-      writeGuard,
-    }) => {
-      const definitionResult = await getScaleDefinition(instrument, info);
-      if (definitionResult.error) return definitionResult;
-      const definition = definitionResult.definition;
-      const values = {};
-      let total = 0;
-      for (const field of definition.fields) {
-        const value = String(answers && answers[field.id] != null ? answers[field.id] : '').trim();
-        const required = field.required !== false;
-        if (field.options.length) {
-          if (!value && !required) continue;
-          const selected = field.type === 7 ? value.split(',').filter(Boolean) : [value];
-          if (!selected.length || selected.some(
-            selectedId => !field.options.some(option => option.id === selectedId)
-          )) {
-            return {
-              error: 'Completa todas las respuestas de ' + instrument + ' con opciones válidas.',
-            };
-          }
-          for (const selectedId of selected) {
-            const option = field.options.find(item => item.id === selectedId);
-            if (!Number.isFinite(option && option.score)) {
-              return {
-                error: 'El esquema de ' + instrument + ' no informó el puntaje de una respuesta.',
-              };
-            }
-            total += option.score;
-          }
-          values[field.id] = value;
-        } else {
-          if (!value && required) {
-            return { error: 'Completa todos los campos obligatorios de ' + instrument + '.' };
-          }
-          if (value) values[field.id] = value;
-        }
-      }
-      const result = definition.results.find(item =>
-        total >= item.minScore && total <= item.maxScore
-      );
-      if (!result) {
-        return {
-          error: 'El puntaje calculado no coincide con un rango oficial de ' + instrument + '.',
-        };
-      }
-      values[definition.scoreFieldId] = String(total);
-      values[definition.resultFieldId] = String(result.valueId);
-      const metaCampList = Object.keys(values).map(id => ({ id, value: values[id] }));
-      const clinicalAge = buildClinicalAge(patient.birthDate);
-      const administrativeSexId = Number(patient.administrativeSexId || 0);
-      if (!clinicalAge || !Number.isFinite(administrativeSexId) || administrativeSexId <= 0) {
-        return {
-          error: 'Eloísa no informó edad o sexo administrativo; no se guardó el instrumento.',
-        };
-      }
-      const [historyBaselineResult, baselineResult] = await Promise.all([
+    const readEvaluationBaseline = async ({ encId, instrument, definition, info }) => {
+      const [history, forms] = await Promise.all([
         fetchScaleHistoryEvents(encId, info, 120),
         fetchEvaluationForms(encId, info),
       ]);
-      if (historyBaselineResult.error || baselineResult.error) {
+      if (history.error || forms.error) {
         return {
           error: 'No se pudo establecer el historial completo previo de ' + instrument +
-            '; no se guardó. ' +
-            [historyBaselineResult.error, baselineResult.error].filter(Boolean).join(' '),
+            '; no se guardó. ' + [history.error, forms.error].filter(Boolean).join(' '),
         };
       }
-      const baselineForms = baselineResult.forms.filter(form =>
+      const matchingForms = forms.forms.filter(form =>
         form && String(form.formId || '') === String(definition.formId)
       );
-      const evaluationFormKey = form => clinicalRecordKey(
+      const formKey = form => clinicalRecordKey(
         'evaluation-form',
         form,
         form && (form.createDateTime || form.startDateTime || ''),
@@ -304,17 +262,19 @@
           form && (form.authorHealthCarePractitionerId || form.healthCarePractitionerId),
         ]
       );
-      const baselineKeys = new Set(baselineForms.map(evaluationFormKey));
-      const timestampBaseline = collectClinicalTimestampBaseline(
-        baselineForms,
-        form => form && (form.createDateTime || form.startDateTime || '')
-      );
-      const startedAt = Date.now();
-      let created = null;
-      let postAcknowledged = false;
-      let uncertainPostError = '';
+      return {
+        baselineKeys: new Set(matchingForms.map(formKey)),
+        formKey,
+        timestampBaseline: collectClinicalTimestampBaseline(
+          matchingForms,
+          form => form && (form.createDateTime || form.startDateTime || '')
+        ),
+      };
+    };
+
+    const postEvaluationScale = async ({ encId, instrument, payload, info, writeGuard }) => {
       const begun = await writeGuard.beginWrite();
-      if (begun.error) return begun;
+      if (begun.error) return { terminalResult: begun };
       try {
         const response = await fetchWithTimeout(
           `${info.apiOrigin}/api/encounter/entrySummary/encounterFormEntry/${encodeURIComponent(encId)}`,
@@ -326,96 +286,135 @@
               'Content-Type': 'application/json',
             },
             credentials: 'omit',
-            body: JSON.stringify({
-              encounterFormEntryTransport: {
-                administrativeSexId,
-                age: clinicalAge,
-                facilityId: Number(info.facId),
-                healthCarePractitionerId: Number(info.practitionerId),
-                healthCarePractitionerRoleId: Number(info.practitionerRoleId),
-                metaFormId: Number(definition.metaFormId),
-                formId: Number(definition.formId),
-                metaCampList,
-                isRedo: false,
-                encounterEventTypeId: 2,
-              },
-              confidentialityLevelId: 4,
-              encounterEventId: 0,
-              healthCarePractitionerRoleId: Number(info.practitionerRoleId),
-              authorHealthCarePractitionerId: Number(info.practitionerId),
-              authorHealthCarePractitionerRoleId: Number(info.practitionerRoleId),
-              healthCarePractitionerId: Number(info.practitionerId),
-              encounterId: Number(encId),
-            }),
+            body: JSON.stringify(payload),
           }
         );
-        if (!response.ok) {
-          const message = 'Eloísa respondió HTTP ' + response.status +
-            ' al guardar ' + instrument + '.';
-          if (response.status >= 400 && response.status < 500 && response.status !== 408) {
-            return { error: message, definitelyNotApplied: true };
-          }
-          uncertainPostError = message;
-        } else {
-          postAcknowledged = true;
-          created = await parseJsonResponseSafely(response);
+        const message = 'Eloísa respondió HTTP ' + response.status +
+          ' al guardar ' + instrument + '.';
+        if (!response.ok && response.status >= 400 && response.status < 500 &&
+            response.status !== 408) {
+          return { terminalResult: { error: message, definitelyNotApplied: true } };
         }
+        if (!response.ok) return { postAcknowledged: false, uncertainPostError: message };
+        return {
+          postAcknowledged: true,
+          created: await parseJsonResponseSafely(response),
+          uncertainPostError: '',
+        };
       } catch (error) {
-        uncertainPostError = 'Se perdió la confirmación al guardar ' + instrument + ': ' +
-          String((error && error.message) || error);
+        return {
+          postAcknowledged: false,
+          uncertainPostError: 'Se perdió la confirmación al guardar ' + instrument + ': ' +
+            String((error && error.message) || error),
+        };
       }
-      const createdId = String(created && (created.id || created.data && created.data.id) || '');
-      const createdGuid = String(
-        created && (created.guid || created.data && created.data.guid) || ''
-      );
+    };
+
+    const verifyEvaluationScale = async ({
+      encId,
+      instrument,
+      definition,
+      submission,
+      baseline,
+      writeResult,
+      info,
+      startedAt,
+    }) => {
+      const createdIdentity = scoreWriteModel.readCreatedIdentity(writeResult.created);
       for (let attempt = 0; attempt < 3; attempt += 1) {
         if (attempt) await wait(250 * attempt);
         const refreshed = await fetchEvaluationForms(encId, info);
         if (refreshed.error) continue;
-        const matches = refreshed.forms.filter(form => {
-          if (!postAcknowledged) return false;
-          if (!form || String(form.formId || '') !== String(definition.formId)) return false;
-          if (createdId && String(form.id || '') !== createdId) return false;
-          if (createdGuid && String(form.guid || '') !== createdGuid) return false;
-          if (baselineKeys.has(evaluationFormKey(form))) return false;
-          const authorId = String(
-            form.authorHealthCarePractitionerId || form.healthCarePractitionerId || ''
-          );
-          if (!createdId && !createdGuid && authorId !== String(info.practitionerId)) return false;
-          if (authorId && authorId !== String(info.practitionerId)) return false;
-          const formValues = new Map((
-            Array.isArray(form.metaCampList) ? form.metaCampList : []
-          ).map(item => [
-            String(item && (item.id || item.metaFieldName) || ''),
-            String(item && (item.value != null ? item.value : item.VALUE) || ''),
-          ]));
-          if (metaCampList.some(item => formValues.get(item.id) !== item.value)) return false;
-          return hasNewClinicalTimestamp(
-            form.createDateTime || form.startDateTime || '',
-            timestampBaseline,
-            startedAt
-          );
-        });
-        if (matches.length === 1) {
+        const matches = writeResult.postAcknowledged
+          ? refreshed.forms.filter(form => scoreWriteModel.matchesEvaluationForm({
+              form,
+              formId: definition.formId,
+              createdIdentity,
+              baselineContains: baseline.baselineKeys.has(baseline.formKey(form)),
+              practitionerId: info.practitionerId,
+              expectedValues: submission.metaCampList,
+              hasNewTimestamp: hasNewClinicalTimestamp(
+                form && (form.createDateTime || form.startDateTime || ''),
+                baseline.timestampBaseline,
+                startedAt
+              ),
+            }))
+          : [];
+        if (writeResult.postAcknowledged && matches.length === 1) {
           return {
             ok: true,
             verified: true,
-            record: {
-              total,
-              severity: result.valueName,
-              dateTime: matches[0].createDateTime || matches[0].startDateTime ||
-                new Date().toISOString(),
-              author: matches[0].authorHealthCarePractitionerName || info.fullName,
-            },
+            record: scoreWriteModel.buildEvaluationRecord({
+              form: matches[0],
+              total: submission.total,
+              result: submission.result,
+              fallbackAuthor: info.fullName,
+              fallbackDateTime: new Date().toISOString(),
+            }),
           };
         }
       }
       return {
-        error: (uncertainPostError ? uncertainPostError + ' ' : '') + instrument +
-          ' pudo haberse guardado, pero Eloísa aún no permitió verificarlo. ' +
+        error: (writeResult.uncertainPostError ? writeResult.uncertainPostError + ' ' : '') +
+          instrument + ' pudo haberse guardado, pero Eloísa aún no permitió verificarlo. ' +
           'Actualiza antes de reintentar.',
         writeMayHaveSucceeded: true,
       };
+    };
+
+    const handleEvaluationScaleSave = async ({
+      encId,
+      instrument,
+      answers,
+      patient,
+      info,
+      writeGuard,
+    }) => {
+      const definitionResult = await getScaleDefinition(instrument, info);
+      if (definitionResult.error) return definitionResult;
+      const definition = definitionResult.definition;
+      const submission = scoreWriteModel.prepareEvaluationSubmission({
+        definition,
+        answers,
+        instrument,
+      });
+      if (submission.error) return submission;
+      const clinicalAge = buildClinicalAge(patient.birthDate);
+      const administrativeSexId = Number(patient.administrativeSexId || 0);
+      if (!clinicalAge || !Number.isFinite(administrativeSexId) || administrativeSexId <= 0) {
+        return {
+          error: 'Eloísa no informó edad o sexo administrativo; no se guardó el instrumento.',
+        };
+      }
+      const baseline = await readEvaluationBaseline({ encId, instrument, definition, info });
+      if (baseline.error) return baseline;
+      const payload = scoreWriteModel.buildEvaluationPayload({
+        encId,
+        definition,
+        metaCampList: submission.metaCampList,
+        clinicalAge,
+        administrativeSexId,
+        info,
+      });
+      const startedAt = Date.now();
+      const writeResult = await postEvaluationScale({
+        encId,
+        instrument,
+        payload,
+        info,
+        writeGuard,
+      });
+      if (writeResult.terminalResult) return writeResult.terminalResult;
+      return verifyEvaluationScale({
+        encId,
+        instrument,
+        definition,
+        submission,
+        baseline,
+        writeResult,
+        info,
+        startedAt,
+      });
     };
 
     const performScoreSaveRequest = async ({

@@ -62,13 +62,14 @@
         "iife>variable:create>variable:resolveClinicalFieldRequired": 21
       }
     },
+    "clinical-score-write-model.js": {
+      "maxLines": 152,
+      "hotspots": {}
+    },
     "clinical-score-write-runtime.js": {
-      "maxLines": 537,
+      "maxLines": 536,
       "hotspots": {
-        "iife>variable:create": 22,
         "iife>variable:create>variable:handleCudyrSave": 29,
-        "iife>variable:create>variable:handleEvaluationScaleSave": 48,
-        "iife>variable:create>variable:handleEvaluationScaleSave>callback:refreshed.forms.filter:0": 23,
         "iife>variable:create>variable:performScoreSaveRequest": 24,
         "iife>variable:create>variable:readRecoveryReview": 18
       }

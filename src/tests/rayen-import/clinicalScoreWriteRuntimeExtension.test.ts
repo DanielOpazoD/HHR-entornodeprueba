@@ -10,6 +10,7 @@ const runtimeSource = readFileSync(
   path.resolve('extension/clinical-score-write-runtime.js'),
   'utf8'
 );
+const modelSource = readFileSync(path.resolve('extension/clinical-score-write-model.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 
 type RuntimeDependencies = Record<string, unknown>;
@@ -30,6 +31,7 @@ type RuntimeApi = {
 
 const loadOwner = () => {
   const context = vm.createContext({ Date, Map, Set, Promise, URL, encodeURIComponent });
+  vm.runInContext(modelSource, context, { filename: 'clinical-score-write-model.js' });
   vm.runInContext(runtimeSource, context, { filename: 'clinical-score-write-runtime.js' });
   return (
     context as unknown as {
@@ -74,6 +76,12 @@ const response = (status = 200, body = '{}') => ({
 });
 
 const createDependencies = (overrides: RuntimeDependencies = {}) => ({
+  scoreWriteModel: (() => {
+    const context = vm.createContext({ Map });
+    vm.runInContext(modelSource, context, { filename: 'clinical-score-write-model.js' });
+    return (context as unknown as { HhrClinicalScoreWriteModel: Record<string, unknown> })
+      .HhrClinicalScoreWriteModel;
+  })(),
   fetchWithTimeout: vi.fn(async () => response()),
   getFichaFetchInfo: vi.fn(async () => ({ info: sessionInfo })),
   fetchFichaClaims: vi.fn(async () => ({ claims: [] })),
@@ -130,6 +138,8 @@ describe('clinical Scores write runtime owner', () => {
     const startup = backgroundSource.slice(0, backgroundSource.indexOf('const REPORT_FILE'));
 
     expect(startup).toContain("'clinical-score-write-runtime.js'");
+    expect(startup).toContain("'clinical-score-write-model.js'");
+    expect(startup).toContain('!self.HhrClinicalScoreWriteModel ||');
     expect(startup).toContain('No se pudo cargar el runtime de escritura de Scores.');
     expect(backgroundSource).toContain('self.HhrClinicalScoreWriteRuntime.create({');
     expect(backgroundSource).toContain(
@@ -140,6 +150,7 @@ describe('clinical Scores write runtime owner', () => {
     expect(backgroundSource).not.toContain('const performScoreSaveRequest = async');
     expect(runtimeSource).toContain('const handleCudyrSave = async');
     expect(runtimeSource).toContain('const handleEvaluationScaleSave = async');
+    expect(modelSource).toContain('const prepareEvaluationSubmission =');
     expect(runtimeSource).toContain('const performScoreSaveRequest = async');
   });
 
@@ -247,6 +258,107 @@ describe('clinical Scores write runtime owner', () => {
       { id: 'total', value: '2' },
       { id: 'classification', value: '99' },
     ]);
+  });
+
+  it('rejects invalid evaluation answers before baseline reads or write protection', async () => {
+    const fetchScaleHistoryEvents = vi.fn(async () => ({ events: [] }));
+    const fetchEvaluationForms = vi.fn(async () => ({ forms: [] }));
+    const fetchWithTimeout = vi.fn(async () => response());
+    const beginWrite = vi.fn(async () => ({ ok: true }));
+    const runtime = loadOwner().create(
+      createDependencies({
+        fetchScaleHistoryEvents,
+        fetchEvaluationForms,
+        fetchWithTimeout,
+        withClinicalWriteLock: vi.fn(
+          async (
+            _key: string,
+            worker: (guard: {
+              beginWrite: () => Promise<Record<string, unknown>>;
+            }) => Promise<unknown>
+          ) => worker({ beginWrite })
+        ),
+      })
+    );
+
+    const result = await runtime.handleSaveRequest({
+      batchId: 'batch-invalid-scale',
+      encId: '902',
+      instrument: 'BRADEN',
+      answers: { risk: 'unknown' },
+    });
+
+    expect(String(result.error)).toContain('opciones válidas');
+    expect(fetchScaleHistoryEvents).not.toHaveBeenCalled();
+    expect(fetchEvaluationForms).not.toHaveBeenCalled();
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+    expect(beginWrite).not.toHaveBeenCalled();
+  });
+
+  it('treats an evaluation 4xx as definitely rejected without readback retries', async () => {
+    const fetchEvaluationForms = vi.fn(async () => ({ forms: [] }));
+    const fetchWithTimeout = vi.fn(async () => response(422, ''));
+    const wait = vi.fn(async () => undefined);
+    const runtime = loadOwner().create(
+      createDependencies({
+        fetchEvaluationForms,
+        fetchWithTimeout,
+        wait,
+      })
+    );
+
+    const result = await runtime.handleSaveRequest({
+      batchId: 'batch-rejected-scale',
+      encId: '902',
+      instrument: 'BRADEN',
+      answers: { risk: 'yes' },
+    });
+
+    expect(result).toMatchObject({ definitelyNotApplied: true });
+    expect(String(result.error)).toContain('HTTP 422');
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(fetchEvaluationForms).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it('never verifies an evaluation after an ambiguous POST response', async () => {
+    const matchingForm = {
+      id: '55',
+      formId: '20',
+      createDateTime: '18-07-2026 12:31:00',
+      authorHealthCarePractitionerId: '77',
+      metaCampList: [
+        { id: 'risk', value: 'yes' },
+        { id: 'total', value: '2' },
+        { id: 'classification', value: '99' },
+      ],
+    };
+    const fetchEvaluationForms = vi
+      .fn()
+      .mockResolvedValueOnce({ forms: [] })
+      .mockResolvedValue({ forms: [matchingForm] });
+    const fetchWithTimeout = vi.fn(async () => response(503, ''));
+    const wait = vi.fn(async () => undefined);
+    const runtime = loadOwner().create(
+      createDependencies({
+        fetchEvaluationForms,
+        fetchWithTimeout,
+        wait,
+      })
+    );
+
+    const result = await runtime.handleSaveRequest({
+      batchId: 'batch-ambiguous-scale',
+      encId: '902',
+      instrument: 'BRADEN',
+      answers: { risk: 'yes' },
+    });
+
+    expect(result).toMatchObject({ writeMayHaveSucceeded: true });
+    expect(String(result.error)).toContain('HTTP 503');
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(fetchEvaluationForms).toHaveBeenCalledTimes(4);
+    expect(wait).toHaveBeenCalledTimes(2);
   });
 
   it('marks a clinical 4xx as definitely not applied and performs no readback retry', async () => {
