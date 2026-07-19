@@ -64,6 +64,16 @@ const activeRows = [
   },
 ];
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
 const createHarness = (overrides: Record<string, unknown> = {}) => {
   const resolveSession = vi.fn(
     async ({ info }: { info?: Record<string, unknown> } = {}): Promise<{
@@ -249,28 +259,79 @@ describe('Ficha Médico patient-context owner', () => {
       id: 100 + index,
       patient: { identifier: `fallback-${index}`, firstGivenName: `Fallback ${index}` },
     }));
+    const headerReads = rows.map(() => createDeferred<Record<string, unknown>>());
+    const readStarted = rows.map(() => createDeferred<void>());
+    const startedEncounterIds: string[] = [];
     let activeReads = 0;
     let maximumReads = 0;
     const fetchPatientHeader = vi.fn(async (encId: string) => {
+      const index = Number(encId) - 100;
       activeReads += 1;
       maximumReads = Math.max(maximumReads, activeReads);
-      await new Promise(resolve => setTimeout(resolve, 2));
-      activeReads -= 1;
-      if (encId === '104') throw new Error('cabecera temporalmente indisponible');
-      return { patID: encId, preferredIdentifierCode: `run-${encId}`, firstGivenName: encId };
+      startedEncounterIds.push(encId);
+      readStarted[index].resolve();
+      try {
+        return await headerReads[index].promise;
+      } finally {
+        activeReads -= 1;
+      }
     });
     const { context, warn } = createHarness({
       fetchPatientHeader,
       fetchActiveEncounterRows: vi.fn(async () => ({ rows })),
     });
 
-    const result = await context.fetchActiveHospitalizedPatients(session);
+    const resultPromise = context.fetchActiveHospitalizedPatients(session);
+    await Promise.all(readStarted.slice(0, 6).map(started => started.promise));
 
-    expect(maximumReads).toBeGreaterThan(1);
-    expect(maximumReads).toBeLessThanOrEqual(6);
+    expect(startedEncounterIds).toEqual(['100', '101', '102', '103', '104', '105']);
+    expect(fetchPatientHeader).toHaveBeenCalledTimes(6);
+    expect(activeReads).toBe(6);
+    expect(maximumReads).toBe(6);
+
+    headerReads[4].reject(new Error('cabecera temporalmente indisponible'));
+    await readStarted[6].promise;
+    expect(startedEncounterIds).toEqual(['100', '101', '102', '103', '104', '105', '106']);
+    expect(activeReads).toBe(6);
+
+    headerReads[2].resolve({
+      patID: '102',
+      preferredIdentifierCode: 'run-102',
+      firstGivenName: '102',
+    });
+    await readStarted[7].promise;
+    headerReads[0].resolve({
+      patID: '100',
+      preferredIdentifierCode: 'run-100',
+      firstGivenName: '100',
+    });
+    await readStarted[8].promise;
+
+    for (const index of [8, 6, 7, 5, 3, 1]) {
+      headerReads[index].resolve({
+        patID: String(100 + index),
+        preferredIdentifierCode: `run-${100 + index}`,
+        firstGivenName: String(100 + index),
+      });
+    }
+    const result = await resultPromise;
+
+    expect(maximumReads).toBe(6);
+    expect(activeReads).toBe(0);
     expect(result.patients.map((patient: Record<string, unknown>) => patient.encounterId)).toEqual(
       rows.map(row => String(row.id))
     );
+    expect(result.patients.map((patient: Record<string, unknown>) => patient.run)).toEqual([
+      'run-100',
+      'run-101',
+      'run-102',
+      'run-103',
+      'fallback-4',
+      'run-105',
+      'run-106',
+      'run-107',
+      'run-108',
+    ]);
     expect(result.patients[4]).toMatchObject({
       run: 'fallback-4',
       firstGivenName: 'Fallback 4',
