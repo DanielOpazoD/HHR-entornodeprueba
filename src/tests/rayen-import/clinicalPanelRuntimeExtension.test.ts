@@ -123,19 +123,23 @@ describe('clinical panel read runtime', () => {
       }
       if (url.includes('carePlanAssignedCare')) {
         return {
-          carePlanHeader: [{
-            label: 'Hoy',
-            labelDate: '2026-07-18',
-            scheduledDate: '2026-07-18T12:00:00',
-            isSuspended: false,
-            privateHeaderField: 'hidden',
-            carePlanBody: [{
-              entryGuid: 'care-1',
-              title: 'Control de signos vitales',
-              isPerformed: true,
-              privateCareField: 'hidden',
-            }],
-          }],
+          carePlanHeader: [
+            {
+              label: 'Hoy',
+              labelDate: '2026-07-18',
+              scheduledDate: '2026-07-18T12:00:00',
+              isSuspended: false,
+              privateHeaderField: 'hidden',
+              carePlanBody: [
+                {
+                  entryGuid: 'care-1',
+                  title: 'Control de signos vitales',
+                  isPerformed: true,
+                  privateCareField: 'hidden',
+                },
+              ],
+            },
+          ],
         };
       }
       if (url.includes('isSuspended=false')) {
@@ -257,9 +261,15 @@ describe('clinical panel read runtime', () => {
     expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
       "'clinical-panel-runtime.js'"
     );
-    expect(background).toContain('const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({');
+    expect(background).toContain(
+      'const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({'
+    );
+    expect(background).toContain('resolveSession: () => getFichaFetchInfo()');
     expect(background).toContain('timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS');
-    expect(background).toContain('const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest');
+    expect(background).toContain(
+      'const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest'
+    );
+    expect(background).not.toContain('FICHAMEDICO_MATCH');
     expect(background).not.toContain('const CLINICAL_PANEL_RESUMES');
     expect(background).not.toContain('/api/carePlanAssignedCare/');
     expect(runtime).toContain('/api/carePlanAssignedCare/');
