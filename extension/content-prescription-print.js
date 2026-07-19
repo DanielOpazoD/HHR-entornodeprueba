@@ -22,6 +22,7 @@
   const clinicalWriteClientOwner = globalThis.HhrClinicalWriteClientRuntime;
   const dischargeActionsOwner = globalThis.HhrDischargeActionsRuntime;
   const medicationActionsOwner = globalThis.HhrMedicationActionsRuntime;
+  const connectionCenterOwner = globalThis.HhrConnectionCenterRuntime;
   const imagingCenterOwner = globalThis.HhrImagingCenterRuntime;
   // Imaging interaction contracts are implemented by hhr-imaging-center.js. Keep this compact
   // ownership note so repository-wide structural guards can verify the extracted behavior without
@@ -50,6 +51,7 @@
     !clinicalWriteClientOwner ||
     !dischargeActionsOwner ||
     !medicationActionsOwner ||
+    !connectionCenterOwner ||
     !runtimeMessages ||
     globalThis.__hhrPrescriptionPrintInjected
   ) return;
@@ -286,6 +288,7 @@
     const modal = document.getElementById(MODAL_ID);
     if (!modal) return true;
     if (!force && typeof modal.__hhrDismiss === 'function') return modal.__hhrDismiss();
+    if (typeof modal.__hhrConnectionDispose === 'function') modal.__hhrConnectionDispose();
     modal.remove();
     return true;
   };
@@ -485,6 +488,24 @@
     return 'Vence en ' + hours + ' h' + (rest ? ' ' + rest + ' min' : '');
   };
 
+  const connectionCenterRuntime = connectionCenterOwner.create({
+    documentRef: document,
+    windowRef: window,
+    runtimeMessages,
+    sendMessage,
+    setLiveRegion,
+    connectionInitials,
+    connectionTimeLabel,
+    handoffLabelForIdentity: (role, practitionerRoleId) =>
+      helper.handoffLabelForIdentity(role, practitionerRoleId),
+    operationsBarId: OPERATIONS_BAR_ID,
+  });
+  const {
+    renderConnectionCenter,
+    refreshOperationsConnectionBadge,
+    invalidateConnectionState,
+  } = connectionCenterRuntime;
+
   const fetchPatientHeaderView = async encId => {
     const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
     if (!response || response.error) {
@@ -580,209 +601,15 @@
     });
   };
 
-  const renderConnectionCenter = (root, _encId) => {
-    const main = root.querySelector('.hhr-center-main');
-    main.innerHTML = `
-      <div class="hhr-center-toolbar">
-        <h2 class="hhr-center-heading">Conexiones</h2>
-        <button class="hhr-center-action hhr-connection-refresh" type="button">Comprobar</button>
-      </div>
-      <div class="hhr-center-content">
-        <div class="hhr-connection-grid">
-          <section class="hhr-connection-card hhr-connection-ficha">
-            <div class="hhr-connection-card-header"><span class="hhr-connection-icon">FM</span><div><h3>Ficha Médico</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
-            <div class="hhr-connection-user">Sesión clínica<span class="hhr-connection-detail">Leyendo identidad vigente…</span></div>
-          </section>
-          <section class="hhr-connection-card hhr-connection-camas">
-            <div class="hhr-connection-card-header"><span class="hhr-connection-icon">GC</span><div><h3>Gestión de Camas</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
-            <div class="hhr-connection-user">Cuenta Rayen<span class="hhr-connection-detail">Necesaria para egresos, Alta Administrativa e historial CUDYR.</span></div>
-            <div class="hhr-connection-actions">
-              <button class="hhr-center-action hhr-center-action-primary hhr-connection-connect" type="button">Conectar</button>
-              <button class="hhr-center-action hhr-connection-forget" type="button" hidden>Olvidar</button>
-            </div>
-          </section>
-        </div>
-        <div class="hhr-connection-privacy"><strong>Acceso protegido.</strong> La contraseña se ingresa únicamente en la página oficial de Rayen. La extensión conserva temporalmente el token de acceso durante esta sesión de Chrome y lo elimina al olvidar la conexión, recargar la extensión o cerrar el navegador.</div>
-        <div class="hhr-connection-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
-      </div>
-    `;
-    const fichaCard = main.querySelector('.hhr-connection-ficha');
-    const camasCard = main.querySelector('.hhr-connection-camas');
-    const connect = main.querySelector('.hhr-connection-connect');
-    const forget = main.querySelector('.hhr-connection-forget');
-    const refresh = main.querySelector('.hhr-connection-refresh');
-    const feedback = main.querySelector('.hhr-connection-feedback');
-    let pollingGeneration = 0;
-    let shouldRenewSession = false;
-
-    const setFeedback = (message, error = false) => {
-      feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
-      setLiveRegion(feedback, message, error ? 'error' : '');
-    };
-
-    const renderSource = (card, source, fallbackName) => {
-      const ready = source && source.status === 'ready';
-      const stale = source && source.status === 'stale';
-      card.className = card.className.replace(/\s+is-(?:ready|stale|missing)/g, '') +
-        (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
-      card.querySelector('.hhr-connection-status').textContent = ready
-        ? 'Conectado'
-        : stale
-          ? source && source.remainingSeconds != null && Number(source.remainingSeconds) === 0
-            ? 'Sesión vencida'
-            : 'Requiere comprobación'
-          : 'No conectado';
-      const identity = source && source.identity || {};
-      const name = identity.fullName || identity.username || fallbackName;
-      const user = card.querySelector('.hhr-connection-user');
-      user.childNodes[0].nodeValue = name || 'Cuenta no identificada';
-      const role = identity.role || '';
-      user.querySelector('.hhr-connection-detail').textContent = ready
-        ? [role, connectionTimeLabel(source)].filter(Boolean).join(' · ')
-        : String(source && source.message || 'Inicia sesión para continuar.');
-    };
-
-    const load = async () => {
-      refresh.disabled = true;
-      const report = await sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
-      refresh.disabled = false;
-      if (!root.isConnected) return null;
-      if (!report || report.error) {
-        setFeedback((report && report.error) || 'No se pudo comprobar la conexión.', true);
-        return null;
-      }
-      const ficha = report.fichaMedico || {};
-      const camas = report.gestionCamas || {};
-      const fichaName = ficha.identity && ficha.identity.fullName || 'Sesión de Ficha Médico';
-      renderSource(fichaCard, ficha, fichaName);
-      renderSource(camasCard, camas, 'Cuenta autenticada en Gestión de Camas');
-      shouldRenewSession = camas.connectionSource === 'session';
-      connect.textContent = camas.status === 'ready' ? 'Renovar' : 'Conectar';
-      forget.hidden = camas.status !== 'ready' && camas.status !== 'stale';
-      refreshOperationsConnectionBadge(document.getElementById(OPERATIONS_BAR_ID), true, report);
-      return report;
-    };
-
-    const pollUntilConnected = generation => {
-      let attempts = 0;
-      const poll = async () => {
-        if (!root.isConnected || generation !== pollingGeneration) return;
-        const report = await load();
-        if (report && report.gestionCamas && report.gestionCamas.status === 'ready') {
-          connect.disabled = false;
-          setFeedback('Gestión de Camas quedó conectada. Puedes continuar trabajando solo en Ficha Médico.');
-          return;
-        }
-        attempts += 1;
-        if (attempts >= 120) {
-          connect.disabled = false;
-          setFeedback('No se detectó una sesión. Completa el acceso en la ventana oficial y vuelve a comprobar.', true);
-          return;
-        }
-        window.setTimeout(poll, 1000);
-      };
-      window.setTimeout(poll, 700);
-    };
-
-    refresh.addEventListener('click', () => { void load(); });
-    connect.addEventListener('click', async () => {
-      connect.disabled = true;
-      setFeedback('Abriendo la página oficial de Gestión de Camas…');
-      const response = await sendMessage({
-        type: runtimeMessages.GC_CONNECT_REQUEST,
-        renew: shouldRenewSession,
-      });
-      if (!response || response.error) {
-        connect.disabled = false;
-        setFeedback((response && response.error) || 'No se pudo abrir Gestión de Camas.', true);
-        return;
-      }
-      setFeedback(response.message || 'Completa el acceso en la ventana oficial de Rayen.');
-      pollingGeneration += 1;
-      pollUntilConnected(pollingGeneration);
-    });
-    forget.addEventListener('click', async () => {
-      pollingGeneration += 1;
-      const response = await sendMessage({ type: runtimeMessages.GC_DISCONNECT_REQUEST });
-      connect.disabled = false;
-      if (!response || response.error) {
-        setFeedback((response && response.error) || 'No se pudo olvidar la conexión.', true);
-        return;
-      }
-      setFeedback('La sesión temporal de Gestión de Camas fue eliminada de la extensión.');
-      await load();
-    });
-    void load();
-  };
-
   const barPart = (bar, selector) => {
     const root = bar && bar.__hhrRoot;
     return root ? root.querySelector(selector) : null;
   };
 
-  let operationsConnectionCheckAt = 0;
-  let operationsConnectionCheck = null;
-  const refreshOperationsConnectionBadge = (bar, force = false, knownReport = null) => {
-    if (!bar) return Promise.resolve(null);
-    const button = barPart(bar, '.hhr-ops-session');
-    if (!button) return Promise.resolve(null);
-    const apply = report => {
-      if (!report || !bar.isConnected) return report;
-      const ficha = report.fichaMedico || {};
-      const camas = report.gestionCamas || {};
-      const identity = ficha.identity || {};
-      const name = identity.fullName || 'Sesión HHR';
-      const role = String(identity.role || '');
-      const handoffButton = barPart(bar, '.hhr-ops-handoff');
-      if (handoffButton) {
-        const handoffTitle = globalThis.HhrPrescriptionPrint.handoffLabelForIdentity(
-          role,
-          identity.practitionerRoleId
-        );
-        handoffButton.dataset.tip = handoffTitle;
-        handoffButton.setAttribute('aria-label', handoffTitle);
-      }
-      const state = ficha.status !== 'ready'
-        ? 'is-offline'
-        : camas.status === 'ready' ? 'is-ready' : 'is-degraded';
-      button.classList.remove('is-ready', 'is-degraded', 'is-offline');
-      button.classList.add(state);
-      button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
-      const sessionName = button.querySelector('.session-name');
-      if (sessionName) sessionName.textContent = name;
-      const sessionState = button.querySelector('.session-state');
-      if (sessionState) {
-        sessionState.textContent = state === 'is-ready'
-          ? 'Conectado'
-          : state === 'is-degraded' ? 'Conexión parcial' : 'Sin conexión';
-      }
-      const details = [
-        ficha.status === 'ready' ? 'Ficha Médico conectada' : 'Ficha Médico no conectada',
-        camas.status === 'ready'
-          ? 'Gestión de Camas · ' + connectionTimeLabel(camas)
-          : 'Gestión de Camas no conectada',
-      ];
-      button.dataset.tip = name;
-      button.dataset.tipNote = details.join(' · ');
-      button.setAttribute('aria-label', [name, ...details].join(' · '));
-      return report;
-    };
-    if (knownReport) {
-      operationsConnectionCheckAt = Date.now();
-      return Promise.resolve(apply(knownReport));
-    }
-    if (!force && Date.now() - operationsConnectionCheckAt < 30 * 1000) return Promise.resolve(null);
-    if (operationsConnectionCheck) return operationsConnectionCheck;
-    operationsConnectionCheck = sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST })
-      .then(report => apply(report && !report.error ? report : null))
-      .finally(() => {
-        operationsConnectionCheckAt = Date.now();
-        operationsConnectionCheck = null;
-      });
-    return operationsConnectionCheck;
-  };
-
   const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null, options = {}) => {
+    if (existingRoot && typeof existingRoot.__hhrConnectionDispose === 'function') {
+      invalidateConnectionState(existingRoot);
+    }
     const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
       ? existingRoot.__hhrFocusReturnTarget
       : returnFocusTarget || document.activeElement;
@@ -1018,6 +845,9 @@
               'El episodio cambió. Los datos sin guardar se descartaron para evitar asociarlos al paciente equivocado.',
               { title: 'Cambio de paciente' }
             );
+          }
+          if (typeof modal.__hhrConnectionDispose === 'function') {
+            modal.__hhrConnectionDispose();
           }
           modal.remove();
         }
