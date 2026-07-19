@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import '../../../extension/clinical-write-recovery-policy.js';
 import '../../../extension/clinical-write-runtime.js';
 
 type WriteGuard = {
@@ -28,6 +29,9 @@ type RuntimeOwner = {
 
 const runtimeOwner = (globalThis as typeof globalThis & { HhrClinicalWriteRuntime: RuntimeOwner })
   .HhrClinicalWriteRuntime;
+const recoveryPolicy = (
+  globalThis as typeof globalThis & { HhrClinicalWriteRecoveryPolicy: Record<string, unknown> }
+).HhrClinicalWriteRecoveryPolicy;
 const TEST_NOW_MS = Date.UTC(2026, 6, 15, 12, 0, 0);
 
 type StorageHarness = {
@@ -75,6 +79,7 @@ const loadProtocol = () => {
     now: () => TEST_NOW_MS,
     authorizeRecovery: async () => ({ info: {} }),
     readRecoveryReview: async () => ({ review: {} }),
+    recoveryPolicy,
   });
   return { protocol, harness };
 };
@@ -93,6 +98,19 @@ describe('extension clinical write protocol', () => {
 
   beforeEach(() => {
     ({ protocol, harness } = loadProtocol());
+  });
+
+  it('fails closed when the pure recovery policy is unavailable', () => {
+    expect(() =>
+      runtimeOwner.create({
+        chrome: { storage: { local: {} } },
+        storage: { get: async () => ({}), set: async () => {}, remove: async () => {} },
+        crypto: globalThis.crypto,
+        now: () => TEST_NOW_MS,
+        authorizeRecovery: async () => ({ info: {} }),
+        readRecoveryReview: async () => ({ review: {} }),
+      })
+    ).toThrow('No se pudo inicializar el runtime de escrituras clínicas.');
   });
 
   it('persists an in-flight generation before allowing the clinical POST', async () => {
@@ -338,15 +356,22 @@ describe('extension clinical write protocol', () => {
       new URL('../../../extension/clinical-write-runtime.js', import.meta.url),
       'utf8'
     );
+    const recoveryPolicyOwner = readFileSync(
+      new URL('../../../extension/clinical-write-recovery-policy.js', import.meta.url),
+      'utf8'
+    );
     const scoreWriteOwner = readFileSync(
       new URL('../../../extension/clinical-score-write-runtime.js', import.meta.url),
       'utf8'
     );
     const backgroundLines = background.split('\n').length;
     const ownerLines = owner.split('\n').length;
+    const recoveryPolicyOwnerLines = recoveryPolicyOwner.split('\n').length;
     const scoreWriteOwnerLines = scoreWriteOwner.split('\n').length;
 
     expect(background).toContain("'clinical-write-runtime.js'");
+    expect(background).toContain("'clinical-write-recovery-policy.js'");
+    expect(background).toContain('recoveryPolicy: self.HhrClinicalWriteRecoveryPolicy');
     expect(background).toContain('self.HhrClinicalWriteRuntime.create({');
     expect(background).toContain(
       "throw new Error('No se pudo cargar el runtime de escrituras clínicas.')"
@@ -356,11 +381,15 @@ describe('extension clinical write protocol', () => {
     expect(background).not.toMatch(
       /hashClinicalWriteRecoveryToken|signClinicalWriteRecoveryReview/
     );
+    expect(recoveryPolicyOwner).not.toMatch(/\b(?:chrome|storage|fetch)\b/);
+    expect(recoveryPolicyOwner).toContain('const parseRecoveryRequest = request =>');
+    expect(recoveryPolicyOwner).toContain('const evaluateConfirmationState =');
     expect(background).not.toMatch(
       /const handleCudyrSave|const handleEvaluationScaleSave|const performScoreSaveRequest/
     );
     expect(backgroundLines).toBeLessThanOrEqual(4_250);
     expect(ownerLines).toBeLessThanOrEqual(525);
+    expect(recoveryPolicyOwnerLines).toBeLessThanOrEqual(200);
     expect(scoreWriteOwnerLines).toBeLessThanOrEqual(575);
   });
 });

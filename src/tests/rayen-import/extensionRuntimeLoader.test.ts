@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 const loaderSource = readFileSync(path.resolve('extension/runtime-loader.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
+const clinicalWriteRecoveryPolicySource = readFileSync(
+  path.resolve('extension/clinical-write-recovery-policy.js'),
+  'utf8'
+);
 const patientContextSource = readFileSync(
   path.resolve('extension/fichamedico-patient-context.js'),
   'utf8'
@@ -104,6 +108,14 @@ describe('extension heavy runtime loading', () => {
     expect(startup).toContain("'gestion-camas-runtime.js'");
     expect(startup).toContain("'fichamedico-transport-runtime.js'");
     expect(startup).toContain("'clinical-score-runtime.js'");
+    expect(startup).toContain("'clinical-write-recovery-policy.js'");
+    expect(startup.indexOf("'clinical-write-recovery-policy.js'")).toBeLessThan(
+      startup.indexOf("'clinical-write-runtime.js'")
+    );
+    expect(startup).toContain('!self.HhrClinicalWriteRecoveryPolicy ||');
+    expect(clinicalWriteRecoveryPolicySource).toContain(
+      'root.HhrClinicalWriteRecoveryPolicy = Object.freeze({'
+    );
     expect(startup).toContain('No se pudo cargar el runtime de lectura de Scores.');
     expect(startup).toContain("'clinical-score-write-runtime.js'");
     expect(startup).toContain("'clinical-score-write-model.js'");

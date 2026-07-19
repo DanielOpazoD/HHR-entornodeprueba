@@ -29,7 +29,7 @@ importScripts(
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
-  'clinical-write-runtime.js',
+  'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',
   'clinical-score-write-model.js',
@@ -50,7 +50,7 @@ importScripts(
   'pdf-print.js',
   'runtime-loader.js',
 );
-if (!self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
+if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
 }
 if (!self.HhrClinicalHandoffRuntime || typeof self.HhrClinicalHandoffRuntime.create !== 'function') {
@@ -865,7 +865,6 @@ const authorizeClinicalWriteRecovery = async ({ kind, encId, requiredHandoffKind
   }
   return { info };
 };
-
 const clinicalWriteRuntime = self.HhrClinicalWriteRuntime.create({
   chrome,
   storage: chrome.storage.local,
@@ -873,6 +872,7 @@ const clinicalWriteRuntime = self.HhrClinicalWriteRuntime.create({
   now: () => Date.now(),
   authorizeRecovery: authorizeClinicalWriteRecovery,
   readRecoveryReview: request => readClinicalWriteRecoveryReview(request),
+  recoveryPolicy: self.HhrClinicalWriteRecoveryPolicy,
 });
 
 const {

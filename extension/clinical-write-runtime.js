@@ -2,8 +2,19 @@
 (function (root) {
   'use strict';
 
-  const RECOVERY_DELAY_MS = 60 * 1000;
-  const RECOVERY_PREVIEW_TTL_MS = 5 * 60 * 1000;
+  const REQUIRED_RECOVERY_POLICY_FUNCTIONS = [
+    'evaluateConfirmationState',
+    'evaluatePreviewState',
+    'evaluateRecoveryTiming',
+    'parseRecoveryRequest',
+    'validateConfirmationChallenge',
+    'validateRecoveryMarker',
+  ];
+
+  const isRecoveryPolicyReady = policy => Boolean(
+    policy && Number.isFinite(policy.RECOVERY_PREVIEW_TTL_MS) &&
+    REQUIRED_RECOVERY_POLICY_FUNCTIONS.every(name => typeof policy[name] === 'function')
+  );
 
   const create = dependencies => {
     const {
@@ -13,6 +24,7 @@
       now,
       authorizeRecovery,
       readRecoveryReview,
+      recoveryPolicy,
     } = dependencies || {};
 
     if (
@@ -20,7 +32,7 @@
       typeof storage.set !== 'function' || typeof storage.remove !== 'function' ||
       !cryptoApi || !cryptoApi.subtle || typeof cryptoApi.getRandomValues !== 'function' ||
       typeof now !== 'function' || typeof authorizeRecovery !== 'function' ||
-      typeof readRecoveryReview !== 'function'
+      typeof readRecoveryReview !== 'function' || !isRecoveryPolicyReady(recoveryPolicy)
     ) {
       throw new Error('No se pudo inicializar el runtime de escrituras clínicas.');
     }
@@ -336,154 +348,121 @@
       ).join('');
     };
 
-    const recover = async ({ key, generationId, phase, recoveryToken }) => {
-      const normalizedKey = String(key || '');
-      const normalizedGenerationId = String(generationId || '');
-      const normalizedPhase = String(phase || '');
-      const normalizedRecoveryToken = String(recoveryToken || '');
-      const handoffMatch = normalizedKey.match(/^handoff(?::(medical))?:(\d+)$/);
-      const scoreMatch = normalizedKey.match(/^score:(\d+):(CUDYR|BRADEN|DOWNTON)$/);
-      const recoveryKind = handoffMatch ? 'handoff' : scoreMatch ? 'score' : '';
-      const recoveryEncId = handoffMatch ? handoffMatch[2] : scoreMatch ? scoreMatch[1] : '';
-      const recoveryInstrument = scoreMatch ? scoreMatch[2] : '';
-      const requiredHandoffKind = handoffMatch ? handoffMatch[1] || 'nursing' : '';
-      if (!recoveryKind || !/^[a-f0-9-]{20,}$/i.test(normalizedGenerationId) ||
-          !['preview', 'confirm'].includes(normalizedPhase) ||
-          normalizedPhase === 'confirm' &&
-            !/^[a-f0-9-]{20,}$/i.test(normalizedRecoveryToken)) {
-        return { error: 'La solicitud para liberar la protección clínica no es válida.' };
+    const resetRecoveryProtection = async ({ recovery, decision }) => {
+      const reset = await transitionAmbiguity(
+        recovery.key,
+        recovery.generationId,
+        decision.resetTransition
+      );
+      return { error: decision.error + (reset.error ? ' ' + reset.error : '') };
+    };
+
+    const validateRecoveryConfirmation = async ({ recovery, marker }) => {
+      if (recovery.phase !== 'confirm') return { confirmedTokenHash: '' };
+      const confirmedTokenHash = await hashRecoveryToken(recovery.recoveryToken);
+      const decision = recoveryPolicy.validateConfirmationChallenge({
+        marker,
+        confirmedTokenHash,
+        currentTime: now(),
+      });
+      if (decision.resetTransition) {
+        return { response: await resetRecoveryProtection({ recovery, decision }) };
       }
-      if (writeLocks.has(normalizedKey) || confirmationLocks.has(normalizedKey)) {
+      if (decision.error) return { response: { error: decision.error } };
+      return { confirmedTokenHash };
+    };
+
+    const persistRecoveryPreview = async ({ recovery, review }) => {
+      const previewToken = createRecoveryToken();
+      const [tokenHash, reviewMac] = await Promise.all([
+        hashRecoveryToken(previewToken),
+        signRecoveryReview(review, previewToken, recovery.generationId),
+      ]);
+      const decision = recoveryPolicy.evaluatePreviewState({
+        previewToken,
+        tokenHash,
+        reviewMac,
+        review,
+        previewedAt: now(),
+        expiresAt: now() + recoveryPolicy.RECOVERY_PREVIEW_TTL_MS,
+      });
+      const persisted = await transitionAmbiguity(
+        recovery.key,
+        recovery.generationId,
+        decision.transition
+      );
+      return persisted.error ? persisted : decision.response;
+    };
+
+    const confirmRecoveryReview = async ({ recovery, marker, review, confirmedTokenHash }) => {
+      const currentReviewMac = await signRecoveryReview(
+        review,
+        recovery.recoveryToken,
+        recovery.generationId
+      );
+      const decision = recoveryPolicy.evaluateConfirmationState({
+        marker,
+        confirmedTokenHash,
+        currentReviewMac,
+      });
+      if (decision.resetTransition) {
+        return resetRecoveryProtection({ recovery, decision });
+      }
+      const cleared = await clearAmbiguity(recovery.key, decision.clearExpected);
+      return cleared.error ? cleared : { ok: true };
+    };
+
+    const recover = async request => {
+      const parsed = recoveryPolicy.parseRecoveryRequest(request);
+      if (parsed.error) return parsed;
+      const recovery = parsed.recovery;
+      if (writeLocks.has(recovery.key) || confirmationLocks.has(recovery.key)) {
         return { error: 'La escritura clínica todavía está procesando otra operación.' };
       }
-      confirmationLocks.add(normalizedKey);
+      confirmationLocks.add(recovery.key);
       try {
-        const protection = await readAmbiguity(normalizedKey);
-        const marker = protection.marker || {};
-        const markerState = String(marker.state || '');
-        const allowedPreviewStates = [
-          'in-flight',
-          'ambiguous',
-          'awaiting-client-ack',
-          'awaiting-recovery-confirm',
-        ];
-        if (!protection.active || marker.generationId !== normalizedGenerationId ||
-            normalizedPhase === 'preview' && !allowedPreviewStates.includes(markerState) ||
-            normalizedPhase === 'confirm' && markerState !== 'awaiting-recovery-confirm') {
-          return { error: 'La protección cambió y no se liberó.' };
-        }
-        let confirmedTokenHash = '';
-        if (normalizedPhase === 'confirm') {
-          confirmedTokenHash = await hashRecoveryToken(normalizedRecoveryToken);
-          if (!marker.recoveryTokenHash || !marker.recoveryReviewMac ||
-              confirmedTokenHash !== marker.recoveryTokenHash) {
-            return {
-              error: 'La lectura revisada ya no coincide con esta protección. ' +
-                'Actualiza y revísala nuevamente.',
-            };
-          }
-          const previewExpiresAt = Number(marker.recoveryPreviewExpiresAt);
-          if (!Number.isFinite(previewExpiresAt) || previewExpiresAt <= now()) {
-            const reset = await transitionAmbiguity(normalizedKey, normalizedGenerationId, {
-              state: 'ambiguous',
-              receiptId: '',
-              recoveryTokenHash: '',
-              recoveryReviewMac: '',
-              recoveryPreviewedAt: 0,
-              recoveryPreviewExpiresAt: 0,
-            });
-            return {
-              error: 'La lectura fresca expiró y la protección se mantuvo. ' +
-                'Actualiza y revísala nuevamente.' + (reset.error ? ' ' + reset.error : ''),
-            };
-          }
-        }
-        const markerCreatedAt = Number(marker.createdAt);
-        if (!Number.isFinite(markerCreatedAt) || markerCreatedAt <= 0) {
-          return {
-            error: 'La protección no informó una fecha válida y no se liberó. ' +
-              'Recarga la extensión para conservar el bloqueo preventivo.',
-          };
-        }
-        const recoveryAge = now() - markerCreatedAt;
-        if (!Number.isFinite(recoveryAge) || recoveryAge < RECOVERY_DELAY_MS) {
-          const waitSeconds = Math.max(
-            1,
-            Math.ceil((RECOVERY_DELAY_MS - Math.max(0, recoveryAge)) / 1000)
-          );
-          return {
-            error: 'Eloísa aún puede estar actualizando el registro. Espera ' + waitSeconds +
-              ' s, actualiza la tabla y vuelve a revisar antes de liberar.',
-          };
-        }
+        const protection = await readAmbiguity(recovery.key);
+        const markerValidation = recoveryPolicy.validateRecoveryMarker({
+          protection,
+          generationId: recovery.generationId,
+          phase: recovery.phase,
+        });
+        if (markerValidation.error) return markerValidation;
+        const marker = markerValidation.marker;
+        const confirmation = await validateRecoveryConfirmation({ recovery, marker });
+        if (confirmation.response) return confirmation.response;
+        const timing = recoveryPolicy.evaluateRecoveryTiming({ marker, currentTime: now() });
+        if (timing.error) return timing;
         const authorized = await authorizeRecovery({
-          kind: recoveryKind,
-          encId: recoveryEncId,
-          instrument: recoveryInstrument,
-          requiredHandoffKind,
+          kind: recovery.kind,
+          encId: recovery.encId,
+          instrument: recovery.instrument,
+          requiredHandoffKind: recovery.requiredHandoffKind,
         });
         if (authorized.error) return authorized;
         const reviewResult = await readRecoveryReview({
-          kind: recoveryKind,
-          encId: recoveryEncId,
-          instrument: recoveryInstrument,
+          kind: recovery.kind,
+          encId: recovery.encId,
+          instrument: recovery.instrument,
           info: authorized.info,
         });
         if (reviewResult.error) return reviewResult;
-        if (normalizedPhase === 'preview') {
-          const previewToken = createRecoveryToken();
-          const [tokenHash, reviewMac] = await Promise.all([
-            hashRecoveryToken(previewToken),
-            signRecoveryReview(reviewResult.review, previewToken, normalizedGenerationId),
-          ]);
-          const persisted = await transitionAmbiguity(normalizedKey, normalizedGenerationId, {
-            state: 'awaiting-recovery-confirm',
-            receiptId: '',
-            recoveryTokenHash: tokenHash,
-            recoveryReviewMac: reviewMac,
-            recoveryPreviewedAt: now(),
-            recoveryPreviewExpiresAt: now() + RECOVERY_PREVIEW_TTL_MS,
-          });
-          if (persisted.error) return persisted;
-          return {
-            ok: true,
-            recoveryPreview: { challenge: previewToken, review: reviewResult.review },
-          };
+        if (recovery.phase === 'preview') {
+          return await persistRecoveryPreview({ recovery, review: reviewResult.review });
         }
-        const reviewMac = await signRecoveryReview(
-          reviewResult.review,
-          normalizedRecoveryToken,
-          normalizedGenerationId
-        );
-        if (reviewMac !== marker.recoveryReviewMac) {
-          const reset = await transitionAmbiguity(normalizedKey, normalizedGenerationId, {
-            state: 'ambiguous',
-            receiptId: '',
-            recoveryTokenHash: '',
-            recoveryReviewMac: '',
-            recoveryPreviewedAt: 0,
-            recoveryPreviewExpiresAt: 0,
-          });
-          return {
-            error: 'El registro cambió después de mostrar la lectura fresca. ' +
-              'La protección se mantuvo; actualiza y revisa nuevamente.' +
-              (reset.error ? ' ' + reset.error : ''),
-          };
-        }
-        const cleared = await clearAmbiguity(normalizedKey, {
-          state: 'awaiting-recovery-confirm',
-          generationId: normalizedGenerationId,
-          recoveryTokenHash: confirmedTokenHash,
-          recoveryReviewMac: reviewMac,
+        return await confirmRecoveryReview({
+          recovery,
+          marker,
+          review: reviewResult.review,
+          confirmedTokenHash: confirmation.confirmedTokenHash,
         });
-        return cleared.error ? cleared : { ok: true };
       } catch (error) {
         return {
           error: 'No se pudo verificar y liberar la protección: ' +
             String((error && error.message) || error),
         };
       } finally {
-        confirmationLocks.delete(normalizedKey);
+        confirmationLocks.delete(recovery.key);
       }
     };
 
