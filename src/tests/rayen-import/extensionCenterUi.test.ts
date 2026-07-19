@@ -9,6 +9,7 @@ const contentSource = [
   'hhr-center-shell-runtime.js',
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
+  'hhr-clinical-write-client-runtime.js',
   'hhr-handoff-center.js',
   'hhr-scores-center.js',
   'hhr-lab-center.js',
