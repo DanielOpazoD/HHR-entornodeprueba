@@ -100,9 +100,10 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Centro HHR** con el logo
 oficial del Hospital Hanga Roa. La barra detecta la altura real del encabezado de Eloísa y se ubica en el
-extremo derecho de la primera franja gris, sin cubrir la segunda fila de navegación. Es compacta y su
-contenedor modular permite incorporar nuevas herramientas. Incluye **Recetas**, **Regímenes**,
-**Indicaciones**, **Entrega de turno**, **Scores**, **Conexiones** y **Lab**. En pantallas pequeñas se
+extremo derecho de la primera franja gris, sin cubrir la segunda fila de navegación. Agrupa Laboratorio e
+Imágenes en el menú accesible **Exámenes**, destaca el módulo abierto y puede contraerse a un acceso HHR;
+la preferencia queda guardada solo en Chrome. Tras cuatro segundos sin interacción reduce su presencia
+visual, excepto cuando hay foco, un menú abierto o una conexión fuera de línea. En pantallas pequeñas se
 convierte en un control flotante para no cubrir la navegación.
 
 ### Visor de exámenes de laboratorio

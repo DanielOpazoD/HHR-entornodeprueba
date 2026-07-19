@@ -180,7 +180,12 @@ describe('Centro HHR Turno y Scores runtime', () => {
           lastError: undefined,
           sendMessage,
         },
-        storage: { local: { get: vi.fn(), set: vi.fn() } },
+        storage: {
+          local: {
+            get: vi.fn((_key, callback: (value: object) => void) => callback({})),
+            set: vi.fn(),
+          },
+        },
       },
     });
 
@@ -202,18 +207,26 @@ describe('Centro HHR Turno y Scores runtime', () => {
     await vi.waitFor(() => {
       expect(root.querySelector('.hhr-center-heading')?.textContent).toBe('Entrega médica');
       expect(document.getElementById('hhr-prescription-print-modal')).toBe(root);
+      expect(
+        bar.shadowRoot?.querySelector('.hhr-ops-handoff')?.classList.contains('is-active')
+      ).toBe(true);
     });
     root.querySelector<HTMLButtonElement>('[data-module="scores"]')?.click();
     await vi.waitFor(() => {
       expect(root.querySelector('.hhr-center-heading')?.textContent).toBe('Scores');
       expect(document.getElementById('hhr-prescription-print-modal')).toBe(root);
+      expect(
+        bar.shadowRoot?.querySelector('.hhr-ops-scores')?.classList.contains('is-active')
+      ).toBe(true);
     });
     root.querySelector<HTMLButtonElement>('[data-module="home"]')?.click();
     expect(root.querySelector('.hhr-center-heading')?.textContent).toBe('Inicio');
     expect(document.getElementById('hhr-prescription-print-modal')).toBe(root);
+    expect(bar.shadowRoot?.querySelector('.is-active')).toBeNull();
 
     root.querySelector<HTMLButtonElement>('.hhr-rx-close')?.click();
     expect(root.isConnected).toBe(false);
+    expect(bar.shadowRoot?.querySelector('.is-active')).toBeNull();
   });
 
   it('ignores obsolete handoff renders and detached score renders', async () => {

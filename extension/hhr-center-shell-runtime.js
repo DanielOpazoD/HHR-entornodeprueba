@@ -1,9 +1,4 @@
-/**
- * hhr-center-shell-runtime.js
- *
- * Owns the shared Centro HHR shell, navigation and patient selector. Clinical
- * modules keep their rendering workflows in their dedicated runtime owners.
- */
+/** Shared Centro HHR shell, navigation and patient selector. */
 (() => {
   'use strict';
 
@@ -25,6 +20,8 @@
       openHospitalizedDocuments,
       openOperationsCenter,
       openRegimenQuickDialog,
+      onCenterDismiss,
+      onCenterModuleChange,
     } = dependencies || {};
 
     if (
@@ -183,6 +180,7 @@
             root.__hhrConnectionDispose();
           }
           root.remove();
+          if (typeof onCenterDismiss === 'function') onCenterDismiss();
           const target = root.__hhrFocusReturnTarget;
           if (target && target.isConnected && typeof target.focus === 'function') {
             window.setTimeout(() => target.focus(), 0);
@@ -199,6 +197,7 @@
       }
       if (isNew) root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
       root.dataset.activeModule = activeModule;
+      if (typeof onCenterModuleChange === 'function') onCenterModuleChange(activeModule);
       root.innerHTML = centerShellMarkup(activeModule);
       applyCenterShellLogo(root);
       getClinicalGuard(root);

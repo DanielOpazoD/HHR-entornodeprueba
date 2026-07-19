@@ -91,118 +91,32 @@
     star: strokeIcon(
       '<path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1L3.2 9.4l6.1-.8L12 3Z"/>'
     ),
+    chevronDown: strokeIcon('<path d="m7 10 5 5 5-5"/>'),
+    chevronsRight: strokeIcon('<path d="m7 7 5 5-5 5"/><path d="m13 7 5 5-5 5"/>'),
   };
 
   // --- Operations-bar stylesheet (lives inside its Shadow DOM) ---
   const barCss = `
-    :host {${tokenVars}
-      position: fixed; top: var(--hhr-ops-top, 70px); right: 18px; z-index: 2147483000;
-      display: flex; align-items: center; gap: 5px; height: 44px; padding: 5px 7px 5px 11px;
-      border: 1px solid rgba(16,42,67,.11); border-radius: var(--hhr-radius);
-      background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(247,251,250,.93));
-      box-shadow: var(--hhr-shadow-float);
-      backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
-      color: var(--hhr-ink-700); font-family: var(--hhr-font); line-height: 1.2;
-      contain: layout style;
-      animation: hhr-bar-enter .3s cubic-bezier(.2,.8,.3,1);
-    }
-    @keyframes hhr-bar-enter { from { opacity: 0; transform: translateY(-7px); } }
-    *, *::before, *::after { box-sizing: border-box; }
-    button { appearance: none; border: 0; background: transparent; margin: 0; color: inherit; font: inherit; }
-    button:focus { outline: none; }
-    button:focus-visible { outline: none; box-shadow: var(--hhr-focus-ring); }
-
-    .brand {
-      display: flex; align-items: center; gap: 7px; padding: 3px 8px 3px 4px; cursor: pointer;
-      border-radius: var(--hhr-radius-sm); transition: background-color .16s ease;
-    }
-    .brand:hover { background: var(--hhr-teal-050); }
-    .brand-logo { width: 24px; height: 21px; object-fit: contain; flex: 0 0 auto; }
-    .brand-name { color: var(--hhr-ink-900); font-size: 11.5px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
-
-    .divider { width: 1px; height: 22px; flex: 0 0 auto; background: linear-gradient(180deg, transparent, var(--hhr-line-200) 30%, var(--hhr-line-200) 70%, transparent); }
-
-    .modules { display: flex; align-items: center; gap: 1px; }
-    .module {
-      display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 9px;
-      border-radius: var(--hhr-radius-sm); color: var(--hhr-ink-700); cursor: pointer;
-      font-size: 11.5px; font-weight: 600; white-space: nowrap;
-      transition: background-color .16s ease, color .16s ease, transform .16s ease;
-    }
-    .module:hover { background: var(--hhr-teal-050); color: var(--hhr-teal-ink); }
-    .module:active { transform: translateY(.5px); }
-    .module:disabled, .module.is-disabled { opacity: .38; cursor: not-allowed; }
-    .module:disabled:hover, .module.is-disabled:hover { background: transparent; color: var(--hhr-ink-700); transform: none; }
-    .module.is-disabled:active { transform: none; }
-    .module-icon { padding: 0 7px; }
-    .module-icon svg { width: 15px; height: 15px; }
-    .module svg { width: 16px; height: 16px; flex: 0 0 auto; }
-
-    .session {
-      display: flex; align-items: center; gap: 8px; height: 34px; padding: 2px 10px 2px 4px;
-      border-radius: var(--hhr-radius-sm); cursor: pointer; text-align: left;
-      transition: background-color .16s ease;
-    }
-    .session:hover { background: var(--hhr-teal-050); }
-    .avatar-wrap { position: relative; flex: 0 0 auto; display: grid; }
-    .avatar {
-      width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center;
-      background: linear-gradient(160deg, #e6f2f0, #d8ebe8); color: var(--hhr-ink-500);
-      font-size: 9.5px; font-weight: 700; letter-spacing: .03em;
-    }
-    .dot {
-      position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
-      border: 2px solid #fff; background: #a9b3b1; transition: background-color .2s ease;
-    }
-    .session-copy { display: grid; gap: 1px; min-width: 0; }
-    .session-name {
-      max-width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      color: var(--hhr-ink-900); font-size: 11px; font-weight: 650;
-    }
-    .session-state { font-size: 9.5px; font-weight: 600; letter-spacing: .015em; color: var(--hhr-ink-500); }
-    .session.is-ready .avatar { background: linear-gradient(160deg, #dff3ee, #c9ebe4); color: var(--hhr-teal-ink); }
-    .session.is-ready .dot { background: var(--hhr-green-600); }
-    .session.is-ready .session-state { color: var(--hhr-green-ink); }
-    .session.is-degraded .dot { background: var(--hhr-amber-600); }
-    .session.is-degraded .session-state { color: var(--hhr-amber-ink); }
-    .session.is-offline .dot { background: var(--hhr-red-600); }
-    .session.is-offline .session-state { color: var(--hhr-red-ink); }
-
-    .tip {
-      position: absolute; top: calc(100% + 9px); left: 0; z-index: 5; max-width: 264px;
-      padding: 8px 11px 9px; border-radius: var(--hhr-radius-sm);
-      background: var(--hhr-navy-900); color: #eaf3f7; font-size: 11px; line-height: 1.45;
-      box-shadow: 0 12px 30px rgba(7,27,49,.35);
-      opacity: 0; transform: translateY(-3px); pointer-events: none;
-      transition: opacity .14s ease, transform .14s ease;
-    }
-    .tip.is-above { top: auto; bottom: calc(100% + 9px); transform: translateY(3px); }
-    .tip.is-visible { opacity: 1; transform: none; }
-    .tip strong { display: block; color: #fff; font-size: 11.5px; font-weight: 650; }
-    .tip span { display: block; margin-top: 2px; color: #b8cdd9; font-size: 10.5px; }
-    .tip span:empty { display: none; }
-
-    @media (max-width: 1280px) {
-      .brand-name, .module span, .session-copy { display: none; }
-      .module { padding: 0 8px; }
-      .session { padding-right: 5px; }
-    }
-    @media (max-width: 820px) { :host { right: 10px; } }
-    @media (max-width: 560px) {
-      :host {
-        top: auto; right: auto; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-        max-width: calc(100vw - 32px); height: 42px; overflow-x: auto;
-      }
-      .tip { display: none; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      :host { animation: none; }
-      .module, .session, .dot, .tip { transition: none; }
-    }
-    @media (forced-colors: active) {
-      :host { border: 1px solid CanvasText; background: Canvas; }
-      button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; box-shadow: none; }
-    }
+    :host {${tokenVars} position:fixed;top:var(--hhr-ops-top,70px);right:18px;z-index:2147483000;display:flex;align-items:center;gap:6px;height:46px;padding:5px 7px;border:1px solid rgba(16,42,67,.14);border-radius:13px;background:rgba(255,255,255,.98);box-shadow:0 1px 2px rgba(16,42,67,.08),0 9px 24px rgba(16,42,67,.14);color:var(--hhr-ink-700);font-family:var(--hhr-font);line-height:1.2;contain:layout style;transition:opacity .22s ease,filter .22s ease,box-shadow .22s ease;animation:hhr-bar-enter .24s cubic-bezier(.2,.8,.3,1)}
+    :host(.is-idle){opacity:.45;filter:saturate(.6);box-shadow:0 1px 2px rgba(16,42,67,.08),0 5px 14px rgba(16,42,67,.08)}
+    :host(.is-collapsed){height:44px;padding:5px;border-radius:999px}:host(.is-collapsed) .modules,:host(.is-collapsed) .divider,:host(.is-collapsed) .session,:host(.is-collapsed) .collapse,:host(.is-collapsed) .exams-menu{display:none}
+    @keyframes hhr-bar-enter{from{opacity:0;transform:translateY(-7px)}}
+    *,*::before,*::after{box-sizing:border-box}button{appearance:none;border:0;background:transparent;margin:0;color:inherit;font:inherit}button:focus{outline:none}button:focus-visible{outline:none;box-shadow:var(--hhr-focus-ring)}
+    .brand{position:relative;display:flex;align-items:center;justify-content:center;min-width:40px;height:34px;padding:3px 5px;cursor:pointer;border-radius:10px;transition:background-color .16s ease,color .16s ease}.brand:hover{background:var(--hhr-teal-050);color:var(--hhr-teal-ink)}.brand-logo{width:30px;height:24px;object-fit:contain;flex:0 0 auto}.brand-status{position:absolute;right:4px;bottom:3px;width:7px;height:7px;border:1.5px solid #fff;border-radius:50%;background:var(--hhr-amber-600)}:host([data-connection-state="ready"]) .brand-status{background:var(--hhr-green-600)}:host([data-connection-state="offline"]) .brand-status{background:var(--hhr-red-600)}
+    .divider{width:1px;height:24px;flex:0 0 auto;background:var(--hhr-line-200)}
+    .modules{position:relative;display:flex;align-items:center;gap:3px;padding:3px;border-radius:11px;background:rgba(15,147,140,.06)}
+    .module,.collapse{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 11px;border-radius:9px;color:var(--hhr-ink-700);cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease}
+    .module:hover,.collapse:hover{background:#fff;color:var(--hhr-teal-ink);box-shadow:0 2px 8px rgba(16,42,67,.11);transform:translateY(-1px)}.module:active,.collapse:active{transform:none}.module.is-active,.session.is-active{background:#fff;color:var(--hhr-teal-700);box-shadow:inset 0 -2px var(--hhr-teal-600),0 1px 5px rgba(16,42,67,.09)}
+    .module:disabled,.module.is-disabled{opacity:.38;cursor:not-allowed}.module:disabled:hover,.module.is-disabled:hover{background:transparent;color:var(--hhr-ink-700);box-shadow:none;transform:none}.module-icon{padding:0 8px}.module svg,.collapse svg{width:18px;height:18px;flex:0 0 auto}.module-caret{width:13px!important;height:13px!important;margin-left:-2px}.collapse{width:28px;padding:0}.collapse svg{width:16px;height:16px}
+    .exams-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:6;min-width:198px;padding:5px;border:1px solid rgba(16,42,67,.14);border-radius:11px;background:#fff;box-shadow:0 14px 34px rgba(7,27,49,.2)}.exams-menu[hidden]{display:none}.exams-menu.is-above{top:auto;bottom:calc(100% + 8px)}.exam-item{display:grid;grid-template-columns:22px 1fr;gap:2px 8px;width:100%;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left}.exam-item:hover,.exam-item:focus-visible{background:var(--hhr-teal-050);color:var(--hhr-teal-ink)}.exam-item svg{grid-row:1/3;width:18px;height:18px}.exam-item strong{font-size:12px}.exam-item small{color:var(--hhr-ink-500);font-size:10.5px}.exam-item[aria-disabled="true"]{opacity:.42;cursor:not-allowed}
+    .session{display:flex;align-items:center;gap:8px;height:34px;padding:2px 10px 2px 4px;border-radius:9px;cursor:pointer;text-align:left;transition:background-color .16s ease}.session:hover{background:var(--hhr-teal-050)}.avatar-wrap{position:relative;flex:0 0 auto;display:grid}.avatar{width:27px;height:27px;border:2px solid rgba(216,167,46,.42);border-radius:50%;display:grid;place-items:center;background:#e6f2f0;color:var(--hhr-ink-500);font-size:9.5px;font-weight:700}.dot{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#a9b3b1}.session-copy{display:grid;gap:1px;min-width:0}.session-name{max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--hhr-ink-900);font-size:11px;font-weight:650}.session-state{font-size:9.5px;font-weight:600;color:var(--hhr-ink-500)}.session.is-ready .avatar{border-color:rgba(30,168,109,.45);color:var(--hhr-teal-ink)}.session.is-ready .dot{background:var(--hhr-green-600)}.session.is-ready .session-state{color:var(--hhr-green-ink)}.session.is-degraded .dot{background:var(--hhr-amber-600)}.session.is-degraded .session-state{color:var(--hhr-amber-ink)}.session.is-offline .avatar{border-color:rgba(201,76,67,.48)}.session.is-offline .dot{background:var(--hhr-red-600)}.session.is-offline .session-state{color:var(--hhr-red-ink)}
+    .tip{position:absolute;top:calc(100% + 9px);left:0;z-index:7;max-width:264px;padding:8px 11px 9px;border-radius:9px;background:var(--hhr-navy-900);color:#eaf3f7;font-size:11px;line-height:1.45;box-shadow:0 12px 30px rgba(7,27,49,.35);opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity .14s ease,transform .14s ease}.tip.is-above{top:auto;bottom:calc(100% + 9px);transform:translateY(3px)}.tip.is-visible{opacity:1;transform:none}.tip strong{display:block;color:#fff;font-size:11.5px}.tip span{display:block;margin-top:2px;color:#b8cdd9;font-size:10.5px}.tip span:empty{display:none}
+    @media(max-width:1280px){.module span,.module-caret,.session-copy{display:none}.module{padding:0 8px}.session{padding-right:5px}}
+    @media(max-width:820px){:host{right:10px}}
+    @media(max-width:560px){:host{top:auto;right:auto;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:calc(100vw - 32px)}.session,.hhr-ops-favorites{display:none}.exams-menu{top:auto;bottom:calc(100% + 8px)}.tip{display:none}}
+    @media(max-width:340px){:host{gap:3px;padding:4px}.divider,.collapse{display:none}.brand{min-width:34px;padding-inline:2px}.modules{gap:1px;padding:2px}.module{width:28px;padding:0 5px}.module svg{width:17px;height:17px}}
+    @media(prefers-reduced-motion:reduce){:host,.module,.collapse,.session,.tip{animation:none;transition:none}}
+    @media(forced-colors:active){:host,.exams-menu{border:1px solid CanvasText;background:Canvas}:host(.is-idle){opacity:1;filter:none}.module.is-active,.session.is-active{outline:2px solid Highlight;box-shadow:none}button:focus-visible{outline:2px solid Highlight;outline-offset:2px;box-shadow:none}}
   `;
 
   /**
@@ -222,6 +136,7 @@
       tip.classList.remove('is-visible');
     };
     const show = target => {
+      if (target.getAttribute('aria-expanded') === 'true') return;
       const text = target.dataset.tip;
       if (!text) return;
       title.textContent = text;
@@ -269,9 +184,10 @@
   const enableRovingFocus = root => {
     root.addEventListener('keydown', event => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (root.host?.classList.contains('is-collapsed') || !root.querySelector('.exams-menu')?.hidden) return;
       const items = Array.from(
-        root.querySelectorAll('button:not(:disabled):not(.is-disabled)')
-      );
+        root.querySelectorAll('.brand, .modules > button:not(:disabled):not(.is-disabled), .session, .collapse')
+      ).filter(item => window.getComputedStyle(item).display !== 'none');
       const index = items.indexOf(root.activeElement);
       if (index === -1 || items.length < 2) return;
       event.preventDefault();
@@ -280,5 +196,89 @@
     });
   };
 
-  globalThis.HhrUI = { tokens, tokenRule, icons, barCss, enableBarTooltips, enableRovingFocus };
+  const createOperationsBarController = ({ root, host, storageArea, onOpenBrand, onExamSelect }) => {
+    const brand = root.querySelector('.brand'), collapse = root.querySelector('.collapse');
+    const exams = root.querySelector('.hhr-ops-exams'), menu = root.querySelector('.exams-menu');
+    let preferenceReady = !storageArea?.get, preferenceDirty = false, queuedBrandOpen = false;
+    const enabledMenuItems = () => Array.from(menu.querySelectorAll('[role="menuitem"]'))
+      .filter(item => item.getAttribute('aria-disabled') !== 'true');
+    const closeMenu = (restoreFocus = false) => {
+      menu.hidden = true;
+      exams.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) exams.focus();
+      scheduleIdle();
+    };
+    const openMenu = (focusFirst = false) => {
+      menu.hidden = false;
+      menu.classList.toggle('is-above', window.innerWidth <= 560 || host.getBoundingClientRect().bottom + 160 > window.innerHeight);
+      exams.setAttribute('aria-expanded', 'true');
+      host.classList.remove('is-idle');
+      if (focusFirst) enabledMenuItems()[0]?.focus();
+    };
+    const idleBlocked = () => !menu.hidden || host.matches(':hover') || root.activeElement || root.querySelector('.session.is-offline');
+    function scheduleIdle() {
+      window.clearTimeout(host.__hhrIdleTimer);
+      host.classList.remove('is-idle');
+      if (idleBlocked()) return;
+      host.__hhrIdleTimer = window.setTimeout(() => {
+        if (!idleBlocked()) host.classList.add('is-idle');
+      }, 4000);
+    }
+    const setCollapsed = (collapsed, persist = true) => {
+      host.classList.toggle('is-collapsed', collapsed);
+      brand.setAttribute('aria-label', collapsed ? 'Expandir barra HHR' : 'Abrir Centro HHR');
+      if (collapsed) closeMenu();
+      if (collapsed && root.activeElement && root.activeElement !== brand) brand.focus();
+      if (persist) { preferenceDirty = true; storageArea?.set({ hhrOperationsBarCollapsed: collapsed }); }
+      scheduleIdle();
+    };
+    const setActive = moduleKey => {
+      root.querySelectorAll('.module.is-active, .session.is-active').forEach(item => { item.classList.remove('is-active'); item.removeAttribute('aria-current'); });
+      const barKey = ({ lab: 'exams', imaging: 'exams', connection: 'session' })[moduleKey] || moduleKey;
+      const button = barKey && root.querySelector('.hhr-ops-' + barKey);
+      button?.classList?.add('is-active'); button?.setAttribute?.('aria-current', 'page');
+    };
+    const moveMenuFocus = event => {
+      const items = enabledMenuItems();
+      if (!items.length) return;
+      const index = items.indexOf(root.activeElement);
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+      items[next].focus();
+    };
+    const activateBrand = () => host.classList.contains('is-collapsed') ? setCollapsed(false) : onOpenBrand();
+    collapse.addEventListener('click', () => setCollapsed(true));
+    brand.addEventListener('click', () => { if (!preferenceReady) { queuedBrandOpen = true; return; } activateBrand(); });
+    exams.addEventListener('click', event => menu.hidden ? openMenu(event.detail === 0) : closeMenu());
+    exams.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown') { event.preventDefault(); openMenu(true); }
+      else if (event.key === 'Escape' && !menu.hidden) { event.preventDefault(); closeMenu(true); }
+    });
+    menu.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeMenu(true); }
+      else if (event.key === 'Tab') closeMenu();
+      else moveMenuFocus(event);
+    });
+    menu.addEventListener('click', event => {
+      const item = event.target.closest('[role="menuitem"]');
+      if (!item || item.getAttribute('aria-disabled') === 'true') return;
+      closeMenu();
+      onExamSelect(item.dataset.module, exams);
+    });
+    root.addEventListener('click', event => { if (!event.target.closest('.hhr-ops-exams, .exams-menu')) closeMenu(); });
+    document.addEventListener('pointerdown', event => {
+      if (!menu.hidden && !event.composedPath().includes(host)) closeMenu();
+    });
+    host.addEventListener('pointerenter', () => { window.clearTimeout(host.__hhrIdleTimer); host.classList.remove('is-idle'); });
+    host.addEventListener('pointerleave', scheduleIdle);
+    root.addEventListener('focusin', () => { window.clearTimeout(host.__hhrIdleTimer); host.classList.remove('is-idle'); });
+    root.addEventListener('focusout', () => window.setTimeout(() => { if (!menu.contains(root.activeElement) && root.activeElement !== exams) closeMenu(); scheduleIdle(); }, 0));
+    storageArea?.get('hhrOperationsBarCollapsed', value => { if (!preferenceDirty) setCollapsed(Boolean(value?.hhrOperationsBarCollapsed), false); preferenceReady = true; if (queuedBrandOpen) activateBrand(); });
+    scheduleIdle();
+    return { closeMenu, scheduleIdle, setActive, setCollapsed };
+  };
+
+  globalThis.HhrUI = { tokens, tokenRule, icons, barCss, enableBarTooltips, enableRovingFocus, createOperationsBarController };
 })();
