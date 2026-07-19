@@ -135,7 +135,12 @@ describe('HHR discharge actions runtime', () => {
 
   it('captures a corrected discharge once and forwards the exact patient-bound request', async () => {
     document.body.innerHTML = `
-      <table><tbody>${rowMarkup()}</tbody></table>
+      <table><tbody>
+        <tr role="row">
+          <td><span aria-label="RUN: 15.066.726-7">RUN del paciente</span></td>
+          <td><button id="open-actions" aria-expanded="true">Acciones</button></td>
+        </tr>
+      </tbody></table>
       <div role="menu">
         <button id="native-print" type="button">
           <span class="MuiListItemText-primary">Imprimir Alta Médica</span>
@@ -281,6 +286,30 @@ describe('HHR discharge actions runtime', () => {
 
     dispatchCaptureResult(String(captureArm(postMessage)?.reqId));
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+  });
+
+  it('sends nursing medical epicrisis only with the exact complete patient context', async () => {
+    window.history.replaceState({}, '', '/dashboard/encounter-list-nurse?tab=3');
+    document.body.innerHTML = `
+      <table><tbody>${rowMarkup()}</tbody></table>
+      <div role="menu">
+        <button type="button">
+          <span class="MuiListItemText-primary">Revertir alta de enfermería</span>
+        </button>
+      </div>
+    `;
+    const { runtime, sendMessage } = makeRuntime();
+    runtime.ensureNursingMedicalEpicrisisPrintItem(true);
+
+    document.querySelector<HTMLElement>('[data-hhr-nursing-medical-epicrisis="true"]')?.click();
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST',
+        encId: '141987',
+        patientRun: '15.066.726-7',
+      });
+    });
   });
 
   it('rejects stale nursing patient context and injects each portal action idempotently', async () => {

@@ -48,10 +48,10 @@
 
     const runFromPatientRow = row => {
       if (!row) return '';
-      const labeledRun = Array.from(row.querySelectorAll('[aria-label]')).find(element =>
-        /^RUN\s*:?/i.test(String(element.textContent || '').trim())
-      );
-      if (labeledRun) return String(labeledRun.getAttribute('aria-label') || '').trim();
+      const labeledRun = Array.from(row.querySelectorAll('[aria-label]'))
+        .map(element => runFromText(element.getAttribute('aria-label')))
+        .find(Boolean);
+      if (labeledRun) return labeledRun;
       const visibleRun = Array.from(row.querySelectorAll('p,span,div')).find(element =>
         /^RUN\s*:?/i.test(String(element.textContent || '').trim())
       );
@@ -252,8 +252,9 @@
       const encounterId = openMenuPatient.encounterId;
       const expectedRun = String(item.dataset.hhrPatientRun || '');
       const expectedEncounterId = String(item.dataset.hhrEncounterId || '');
-      const contextChanged = !openMenuPatient.found || !patientRun || patientRun !== expectedRun ||
-        (expectedEncounterId && encounterId !== expectedEncounterId);
+      const contextChanged = !openMenuPatient.found || !patientRun || !encounterId ||
+        !expectedRun || !expectedEncounterId || patientRun !== expectedRun ||
+        encounterId !== expectedEncounterId;
       if (contextChanged) {
         showPageNotice(
           'No se pudo identificar al paciente de esta alta. Cierra el menú y vuelve a abrirlo desde su fila.',
@@ -300,7 +301,7 @@
         !/\?tab=3(?:&|$)/.test(windowRef.location.search || '?tab=3')
       ) return;
       const patientContext = dischargePatientFromOpenMenu();
-      if (!patientContext.found || !patientContext.patientRun) return;
+      if (!patientContext.found || !patientContext.patientRun || !patientContext.encounterId) return;
       const menu = nursingMedicalEpicrisisMenu();
       if (!menu || menu.querySelector('[data-hhr-nursing-medical-epicrisis="true"]')) return;
       const template = menu.querySelector('button,[role="menuitem"]');
