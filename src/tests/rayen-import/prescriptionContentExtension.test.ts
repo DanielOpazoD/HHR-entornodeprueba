@@ -12,6 +12,7 @@ import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
 import '../../../extension/hhr-handoff-center.js';
+import '../../../extension/hhr-scores-presentation.js';
 import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
 import '../../../extension/hhr-clinical-write-client-runtime.js';
@@ -25,14 +26,8 @@ const hospitalizedDocumentsSource = readFileSync(
   path.resolve('extension/hhr-hospitalized-documents-center.js'),
   'utf8'
 );
-const handoffSource = readFileSync(
-  path.resolve('extension/hhr-handoff-center.js'),
-  'utf8'
-);
-const scoresSource = readFileSync(
-  path.resolve('extension/hhr-scores-center.js'),
-  'utf8'
-);
+const handoffSource = readFileSync(path.resolve('extension/hhr-handoff-center.js'), 'utf8');
+const scoresSource = readFileSync(path.resolve('extension/hhr-scores-center.js'), 'utf8');
 const connectionCenterSource = readFileSync(
   path.resolve('extension/hhr-connection-center-runtime.js'),
   'utf8'

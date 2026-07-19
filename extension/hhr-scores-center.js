@@ -7,6 +7,8 @@
 (() => {
   'use strict';
 
+  const scoresPresentation = globalThis.HhrScoresPresentation;
+
   const create = dependencies => {
     const {
       helper,
@@ -28,27 +30,40 @@
       trapModalFocus,
     } = dependencies || {};
 
-    if (
-      !helper ||
-      !runtimeMessages ||
-      typeof runClinicalTransition !== 'function' ||
-      typeof normalizedText !== 'function' ||
-      typeof sendMessage !== 'function' ||
-      typeof setLiveRegion !== 'function' ||
-      typeof clinicalWriteKey !== 'function' ||
-      typeof hydrateClinicalWriteProtection !== 'function' ||
-      typeof setClinicalGuardState !== 'function' ||
-      typeof releaseClinicalWriteProtection !== 'function' ||
-      !(uncertainClinicalWrites instanceof Map) ||
-      typeof finishRouteChangeWrite !== 'function' ||
-      typeof acknowledgeClinicalWrite !== 'function' ||
-      typeof clinicalWriteRecoveryReady !== 'function' ||
-      typeof getActiveUncertainWrite !== 'function' ||
-      typeof showPageNotice !== 'function' ||
-      typeof trapModalFocus !== 'function'
-    ) {
+    const presentationFunctions = [
+      'buildPatientPresentation', 'scoreFieldPresentation', 'mergeSavedScore',
+      'recoveryResultPresentation',
+    ];
+    const dependencyFunctions = [
+      runClinicalTransition, normalizedText, sendMessage, setLiveRegion, clinicalWriteKey,
+      hydrateClinicalWriteProtection, setClinicalGuardState, releaseClinicalWriteProtection,
+      finishRouteChangeWrite, acknowledgeClinicalWrite, clinicalWriteRecoveryReady,
+      getActiveUncertainWrite, showPageNotice, trapModalFocus,
+    ];
+    if (!scoresPresentation || !helper || !runtimeMessages ||
+      presentationFunctions.some(name => typeof scoresPresentation[name] !== 'function') ||
+      dependencyFunctions.some(value => typeof value !== 'function') ||
+      !(uncertainClinicalWrites instanceof Map)) {
       throw new Error('No se pudo inicializar el Centro de Scores HHR.');
     }
+
+  const renderDescriptor = descriptor => {
+    const element = document.createElement(descriptor.tag);
+    if (descriptor.className) element.className = descriptor.className;
+    if (descriptor.title) element.title = descriptor.title;
+    element.textContent = descriptor.text || '';
+    Object.assign(element, descriptor.properties || {});
+    Object.entries(descriptor.attributes || {}).forEach(([name, value]) => {
+      element.setAttribute(name, value);
+    });
+    Object.entries(descriptor.dataset || {}).forEach(([key, value]) => {
+      element.dataset[key] = value;
+    });
+    (descriptor.children || []).forEach(child => {
+      element.appendChild(renderDescriptor(child));
+    });
+    return element;
+  };
 
   const renderScoresCenter = (root, encId) => {
     const main = root.querySelector('.hhr-center-main');
@@ -74,9 +89,10 @@
       if (!root.isConnected || root.dataset.activeModule !== 'scores') return;
       if (!response || response.error) {
         content.innerHTML = '';
-        const error = document.createElement('div');
-        error.className = 'hhr-rx-error';
-        error.textContent = (response && response.error) || 'No se pudieron leer los instrumentos.';
+        const error = renderDescriptor({
+          tag: 'div', className: 'hhr-rx-error',
+          text: (response && response.error) || 'No se pudieron leer los instrumentos.',
+        });
         content.appendChild(error);
         return;
       }
@@ -144,10 +160,11 @@
           const preview = panel.querySelector('.hhr-score-preview');
           body.innerHTML = '';
           if (!formResponse || formResponse.error) {
-            const error = document.createElement('div');
-            error.className = 'hhr-rx-error';
+            const error = renderDescriptor({
+              tag: 'div', className: 'hhr-rx-error',
+              text: (formResponse && formResponse.error) || 'No se pudo cargar el instrumento.',
+            });
             error.setAttribute('role', 'alert');
-            error.textContent = (formResponse && formResponse.error) || 'No se pudo cargar el instrumento.';
             body.appendChild(error);
             return;
           }
@@ -155,68 +172,23 @@
           const controls = [];
           let calculatedValue = '';
           (Array.isArray(definition.fields) ? definition.fields : []).forEach((field, index) => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'hhr-score-field';
-            const label = document.createElement('label');
-            label.textContent = (index + 1) + '. ' + (field.label || field.id) +
-              (field.required === false ? ' (opcional)' : '');
-            const safeFieldId = String(field.id || index).replace(/[^a-z0-9_-]/gi, '-');
-            const controlId = 'hhr-score-' + patient.encounterId + '-' + instrument.toLowerCase() + '-' + safeFieldId + '-' + index;
-            label.htmlFor = controlId;
-            wrapper.appendChild(label);
-            let explanation = null;
-            if (field.explanation) {
-              explanation = document.createElement('span');
-              explanation.className = 'hhr-score-explanation';
-              explanation.id = controlId + '-help';
-              explanation.textContent = field.explanation;
-              wrapper.appendChild(explanation);
-            }
-            let control;
-            if (Array.isArray(field.options) && field.options.length) {
-              control = document.createElement('select');
-              control.className = 'hhr-score-control';
-              if (field.type === 7) control.multiple = true;
-              const placeholder = document.createElement('option');
-              placeholder.value = '';
-              placeholder.textContent = 'Seleccionar…';
-              if (!control.multiple) control.appendChild(placeholder);
-              field.options.forEach(option => {
-                const item = document.createElement('option');
-                item.value = String(instrument === 'CUDYR' ? option.value : option.id);
-                item.dataset.optionId = String(option.id);
-                item.dataset.score = option.score == null ? '' : String(option.score);
-                item.textContent = (instrument === 'CUDYR' ? '[' + option.value + '] ' : '') + option.description;
-                control.appendChild(item);
-              });
-            } else {
-              control = document.createElement('input');
-              control.className = 'hhr-score-control';
-              control.type = field.type === 3 || field.type === 6 ? 'number' : field.type === 4 ? 'date' : field.type === 5 ? 'datetime-local' : 'text';
-            }
-            control.id = controlId;
-            control.required = field.required !== false;
-            if (explanation) control.setAttribute('aria-describedby', explanation.id);
-            control.dataset.fieldId = field.id;
-            control.dataset.typeId = field.typeId == null ? '' : String(field.typeId);
-            wrapper.appendChild(control);
+            const fieldView = scoresPresentation.scoreFieldPresentation({
+              field, index, encounterId: patient.encounterId, instrument,
+            });
+            const wrapper = renderDescriptor(fieldView.descriptor);
+            const control = wrapper.querySelector('.hhr-score-control');
             body.appendChild(wrapper);
             controls.push({ field, control });
           });
-          const readAnswers = () => {
-            const answers = {};
-            controls.forEach(({ field, control }) => {
-              if (control.multiple) {
-                answers[field.id] = Array.from(control.selectedOptions).map(option => option.value).join(',');
-              } else {
-                answers[field.id] = control.value;
-              }
-            });
-            return answers;
-          };
-          const setControlsDisabled = disabled => {
-            controls.forEach(({ control }) => { control.disabled = disabled; });
-          };
+          const readAnswers = () => Object.fromEntries(controls.map(({ field, control }) => [
+            field.id,
+            control.multiple
+              ? Array.from(control.selectedOptions).map(option => option.value).join(',')
+              : control.value,
+          ]));
+          const setControlsDisabled = disabled => controls.forEach(({ control }) => {
+            control.disabled = disabled;
+          });
           const updatePreview = () => {
             if (state.saving || state.saved || state.uncertain) {
               save.disabled = true;
@@ -307,10 +279,11 @@
                 mayHaveSucceeded ? 'No verificado · protegido' : 'Error al guardar',
                 mayHaveSucceeded ? 'uncertain' : 'error'
               );
-              const error = document.createElement('div');
-              error.className = 'hhr-center-notice';
+              const error = renderDescriptor({
+                tag: 'div', className: 'hhr-center-notice',
+                text: (result && result.error) || 'No se pudo guardar el instrumento.',
+              });
               error.setAttribute('role', 'alert');
-              error.textContent = (result && result.error) || 'No se pudo guardar el instrumento.';
               body.prepend(error);
               finishRouteChangeWrite(root, mayHaveSucceeded ? 'uncertain' : 'error');
               if (mayHaveSucceeded) renderScoresCenter(root, encId);
@@ -322,31 +295,12 @@
             setClinicalGuardState(root, 'uncertain', scoreKey, false);
             setClinicalGuardState(root, 'dirty', scoreKey, false);
             setControlsDisabled(true);
-            if (instrument === 'CUDYR') {
-              const savedHistoryEntry = {
-                category: String(result.record.total),
-                recordedAt: result.record.dateTime,
-                author: response.currentProfessional || '',
-                authorRole: 'Enfermería',
-                dependencyScore: result.record.dependency,
-                riskScore: result.record.risk,
-                items: [],
-              };
-              patient.scores.CUDYR = {
-                crdValue: savedHistoryEntry.category,
-                crdDateTime: savedHistoryEntry.recordedAt,
-                author: savedHistoryEntry.author,
-                authorRole: savedHistoryEntry.authorRole,
-                source: 'ficha_medico',
-                history: [savedHistoryEntry].concat(
-                  patient.scores.CUDYR && Array.isArray(patient.scores.CUDYR.history)
-                    ? patient.scores.CUDYR.history
-                    : []
-                ).slice(0, 20),
-              };
-            } else {
-              patient.scores[instrument] = [result.record].concat(patient.scores[instrument] || []).slice(0, 8);
-            }
+            patient.scores[instrument] = scoresPresentation.mergeSavedScore({
+              instrument,
+              currentScore: patient.scores[instrument],
+              record: result.record,
+              currentProfessional: response.currentProfessional,
+            });
             const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt);
             if (!panel.isConnected) return;
             if (acknowledged.error) {
@@ -382,15 +336,18 @@
           ? Boolean(response.canWriteByInstrument[selector.value])
           : Boolean(response.canWrite);
         if (!canWriteInstrument) {
-          const notice = document.createElement('div');
-          notice.className = 'hhr-center-notice';
-          notice.textContent = response.writeBlockedReason || 'La sesión permite lectura, pero no registro de este instrumento.';
+          const notice = renderDescriptor({
+            tag: 'div', className: 'hhr-center-notice',
+            text: response.writeBlockedReason ||
+              'La sesión permite lectura, pero no registro de este instrumento.',
+          });
           content.appendChild(notice);
         }
         if (selector.value === 'CUDYR') {
-          const notice = document.createElement('div');
-          notice.className = 'hhr-center-notice';
-          notice.textContent = globalThis.HhrPrescriptionPrint.cudyrSourceNotice(response);
+          const notice = renderDescriptor({
+            tag: 'div', className: 'hhr-center-notice',
+            text: globalThis.HhrPrescriptionPrint.cudyrSourceNotice(response),
+          });
           content.appendChild(notice);
         }
         const table = document.createElement('table');
@@ -404,122 +361,39 @@
           const instrument = selector.value;
           const scoreKey = clinicalWriteKey('score', patient.encounterId, instrument);
           const persistedProtection = patient.scoreProtections && patient.scoreProtections[instrument] || null;
-          const raw = patient.scores && patient.scores[instrument];
           const unavailableReason = patient.scoreUnavailableReasons && patient.scoreUnavailableReasons[instrument] || '';
-          const history = unavailableReason
-            ? []
-            : instrument === 'CUDYR'
-              ? raw && Array.isArray(raw.history) && raw.history.length
-                ? raw.history.map(item => ({
-                    total: item.category,
-                    dateTime: item.recordedAt,
-                    author: item.author || '',
-                    authorRole: item.authorRole || '',
-                    dependencyScore: item.dependencyScore,
-                    riskScore: item.riskScore,
-                  }))
-                : raw && raw.crdValue
-                  ? [{
-                      total: raw.crdValue,
-                      dateTime: raw.crdDateTime,
-                      author: raw.author || '',
-                      authorRole: raw.authorRole || '',
-                    }]
-                  : []
-              : Array.isArray(raw) ? raw : [];
-          const latest = history[0] || null;
           const uncertainWrite = hydrateClinicalWriteProtection(scoreKey, persistedProtection);
           setClinicalGuardState(root, 'uncertain', scoreKey, Boolean(uncertainWrite));
+          const presentation = scoresPresentation.buildPatientPresentation({
+            patient,
+            instrument,
+            unavailableReason,
+            persistedProtection,
+            uncertainWrite,
+            canWriteInstrument,
+            recoveryReady: persistedProtection
+              ? clinicalWriteRecoveryReady(persistedProtection)
+              : false,
+            formatDateTimeLabel: helper.formatDateTimeLabel,
+          });
           const row = document.createElement('tr');
-          row.dataset.search = normalizedText([patient.name, patient.run, patient.bed, patient.room, patient.service].join(' '));
-          const values = [
-            patient.bed || patient.room || '-',
-            '',
-            unavailableReason ? 'No verificable' : latest ? String(latest.total) + (latest.severity ? ' · ' + latest.severity : '') : 'Sin aplicación',
-            unavailableReason ? '-' : latest ? helper.formatDateTimeLabel(latest.dateTime) || '-' : '-',
-            unavailableReason ? '-' : latest && latest.author ? latest.author : '-',
-          ];
-          const bed = document.createElement('td'); bed.dataset.label = 'Cama'; bed.textContent = values[0];
-          const patientCell = document.createElement('td');
-          patientCell.dataset.label = 'Paciente';
-          const name = document.createElement('span'); name.className = 'hhr-center-patient'; name.textContent = patient.name || 'Paciente sin nombre';
-          const meta = document.createElement('span'); meta.className = 'hhr-center-meta'; meta.textContent = [patient.run, patient.service].filter(Boolean).join(' · ');
-          patientCell.append(name, meta);
-          const valueCell = document.createElement('td'); valueCell.dataset.label = 'Último valor'; valueCell.textContent = values[2];
-          const dateCell = document.createElement('td'); dateCell.dataset.label = 'Última aplicación'; dateCell.textContent = values[3];
-          const authorCell = document.createElement('td');
-          authorCell.dataset.label = 'Profesional';
-          authorCell.textContent = latest && (latest.author || latest.authorRole) && !unavailableReason
-            ? latest.author || latest.authorRole
-            : values[4];
-          if (!unavailableReason && latest && latest.author && latest.authorRole) {
-            const roleMeta = document.createElement('span');
-            roleMeta.className = 'hhr-center-meta';
-            roleMeta.textContent = latest.authorRole;
-            authorCell.appendChild(roleMeta);
-          }
-          const historyCell = document.createElement('td');
-          historyCell.dataset.label = 'Historia';
-          const details = document.createElement('details'); details.className = 'hhr-history';
-          const summary = document.createElement('summary');
-          summary.textContent = uncertainWrite
-            ? 'Protegido · revisa el último valor'
-            : unavailableReason
-            ? 'Lectura no disponible'
-            : instrument === 'CUDYR'
-              ? history.length + (history.length === 1 ? ' categorización' : ' categorizaciones')
-              : history.length + (history.length === 1 ? ' visible' : ' visibles') + ' · máx. 8/120 días';
-          if (uncertainWrite) details.title = uncertainWrite.error || 'La escritura permanece protegida hasta confirmar su estado en Eloísa.';
-          else if (unavailableReason) details.title = unavailableReason;
-          details.appendChild(summary);
-          if (!unavailableReason && history.length) {
-            const list = document.createElement('ol');
-            history.forEach(item => {
-              const li = document.createElement('li');
-              li.textContent = String(item.total) +
-                (item.severity ? ' · ' + item.severity : '') + ' · ' +
-                helper.formatDateTimeLabel(item.dateTime) +
-                (item.author ? ' · ' + item.author : '') +
-                (item.authorRole ? ' (' + item.authorRole + ')' : '') +
-                (item.dependencyScore != null && item.riskScore != null
-                  ? ' · Dependencia ' + item.dependencyScore + ' / Riesgo ' + item.riskScore
-                  : '');
-              list.appendChild(li);
-            });
-            details.appendChild(list);
-          }
-          historyCell.appendChild(details);
-          const actionCell = document.createElement('td');
-          actionCell.dataset.label = 'Acción';
+          row.dataset.search = normalizedText(presentation.identity.search);
           const action = document.createElement('button');
           action.type = 'button';
           action.className = 'hhr-center-action';
-          if (persistedProtection) {
-            action.textContent = clinicalWriteRecoveryReady(persistedProtection)
-              ? 'Actualizar y revisar'
-              : 'Espera y actualiza';
-            action.disabled = Boolean(
-              unavailableReason || persistedProtection.error ||
-                !persistedProtection.generationId ||
-                !clinicalWriteRecoveryReady(persistedProtection)
-            );
-            action.title = action.disabled
-              ? 'La lectura o la protección no pudo verificarse; actualiza antes de liberar.'
-              : 'Libera únicamente después de revisar el último valor e historial visibles.';
+          action.textContent = presentation.action.text;
+          action.disabled = presentation.action.disabled;
+          if (presentation.action.title) action.title = presentation.action.title;
+          if (presentation.action.kind === 'recovery') {
             action.addEventListener('click', async () => {
               action.disabled = true;
               action.textContent = 'Verificando…';
               const result = await releaseClinicalWriteProtection(scoreKey, persistedProtection);
               if (!root.isConnected) return;
-              if (result && result.cancelled) {
-                action.textContent = 'Protegido';
-                action.title = 'La protección se mantuvo porque no se confirmó la lectura fresca.';
-                action.disabled = false;
-                return;
-              }
-              if (!result || result.error) {
-                action.textContent = 'No se liberó';
-                action.title = String(result && result.error || 'No fue posible liberar la protección.');
+              const recoveryResult = scoresPresentation.recoveryResultPresentation(result);
+              if (!recoveryResult.complete) {
+                action.textContent = recoveryResult.text;
+                action.title = recoveryResult.title;
                 action.disabled = false;
                 return;
               }
@@ -528,14 +402,11 @@
               renderScoresCenter(root, encId);
             });
           } else {
-            action.textContent = 'Registrar';
-            action.disabled = !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason);
-            if (uncertainWrite) action.title = 'Revisa el estado en Eloísa antes de registrar otra aplicación.';
-            else if (unavailableReason) action.title = 'No se puede registrar mientras el historial completo no sea verificable.';
             action.addEventListener('click', () => openScoreForm(patient, instrument, renderTable));
           }
+          const actionCell = renderDescriptor({ tag: 'td', dataset: { label: 'Acción' } });
           actionCell.appendChild(action);
-          row.append(bed, patientCell, valueCell, dateCell, authorCell, historyCell, actionCell);
+          row.append(...presentation.rowCells.map(renderDescriptor), actionCell);
           tbody.appendChild(row);
         });
         content.appendChild(table);
