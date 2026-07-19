@@ -87,7 +87,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain("createHospitalizedDocumentsModal('regimen', encId, root)");
     const home = contentSource.slice(
       contentSource.indexOf('const renderHomeCenter'),
-      contentSource.indexOf('const renderConnectionCenter')
+      contentSource.indexOf('const barPart')
     );
     expect(home).not.toContain('root.remove()');
     expect(home).not.toContain('createRegimenQuickDialog()');

@@ -52,6 +52,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones y Regímenes + BRADEN |
 | `hhr-handoff-center.js`, `hhr-scores-center.js` | Superficies separadas de Entrega de turno y Scores |
 | `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
+| `hhr-connection-center-runtime.js` | Ciclo de vida del panel de conexiones y su badge: solicitudes vigentes, sondeo cancelable e invalidación al cerrar o cambiar de módulo |
 | `content-prescription-print.js` | Orquesta el shell, navegación, contexto de paciente y montaje de los owners del Centro HHR |
 | `background.js` | Enruta lecturas, reportes y escrituras verificadas contra los servicios de Eloísa |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |

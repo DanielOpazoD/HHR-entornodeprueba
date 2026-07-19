@@ -64,6 +64,7 @@
         "hhr-imaging-center.js",
         "hhr-discharge-actions-runtime.js",
         "hhr-medication-actions-runtime.js",
+        "hhr-connection-center-runtime.js",
         "prescription-print.js",
         "lab-viewer.js",
         "exam-request-print.js",

@@ -135,6 +135,9 @@
     };
 
     const switchCenterModule = (root, module, encId, focusReturnTarget) => {
+      if (root && typeof root.__hhrConnectionDispose === 'function') {
+        root.__hhrConnectionDispose();
+      }
       if (module === 'recipes') openPrescriptionCenter(encId, '', root);
       else if (module === 'regimen' || module === 'indications') {
         openHospitalizedDocuments(module, encId, root);
@@ -156,6 +159,9 @@
       if (regimenButton) {
         regimenButton.addEventListener('click', () => {
           runClinicalTransition(root, () => {
+            if (typeof root.__hhrConnectionDispose === 'function') {
+              root.__hhrConnectionDispose();
+            }
             root.__hhrDismiss = null;
             root.remove();
             openRegimenQuickDialog();
@@ -173,6 +179,9 @@
         root.id = modalId;
         root.__hhrFocusReturnTarget = focusReturnTarget;
         root.__hhrDismiss = () => runClinicalTransition(root, () => {
+          if (typeof root.__hhrConnectionDispose === 'function') {
+            root.__hhrConnectionDispose();
+          }
           root.remove();
           const target = root.__hhrFocusReturnTarget;
           if (target && target.isConnected && typeof target.focus === 'function') {

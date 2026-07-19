@@ -17,6 +17,7 @@ import '../../../extension/hhr-lab-center.js';
 import '../../../extension/hhr-clinical-write-client-runtime.js';
 import '../../../extension/hhr-discharge-actions-runtime.js';
 import '../../../extension/hhr-medication-actions-runtime.js';
+import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
@@ -30,6 +31,10 @@ const handoffSource = readFileSync(
 );
 const scoresSource = readFileSync(
   path.resolve('extension/hhr-scores-center.js'),
+  'utf8'
+);
+const connectionCenterSource = readFileSync(
+  path.resolve('extension/hhr-connection-center-runtime.js'),
   'utf8'
 );
 const NativeMutationObserver = globalThis.MutationObserver;
@@ -281,18 +286,14 @@ describe('extension prescription print content flow', () => {
   });
 
   it('keeps credentials on the official Rayen page and exposes session controls in Centro HHR', () => {
-    expect(contentSource).toContain('type: runtimeMessages.GC_CONNECT_REQUEST');
-    expect(contentSource).toContain('type: runtimeMessages.GC_DISCONNECT_REQUEST');
-    expect(contentSource).toContain(
+    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_CONNECT_REQUEST');
+    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_DISCONNECT_REQUEST');
+    expect(connectionCenterSource).toContain(
       'La contraseña se ingresa únicamente en la página oficial de Rayen'
     );
     expect(contentSource).toContain("createOperationsCenterModal('connection'");
     expect(contentSource).toContain('hhr-ops-connection-dot');
-    const gestionCamasConnection = contentSource.slice(
-      contentSource.indexOf('const renderConnectionCenter'),
-      contentSource.indexOf('const renderHomeCenter')
-    );
-    expect(gestionCamasConnection).not.toMatch(/type=["']password["']/i);
+    expect(connectionCenterSource).not.toMatch(/type=["']password["']/i);
   });
 
   it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {
