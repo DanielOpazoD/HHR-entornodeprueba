@@ -234,7 +234,11 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 
 ## Requisitos y notas
 
-- Chrome 111+ (usa `world: "MAIN"` y el selector CSS `:has()`).
+- Chrome 118+. Este mínimo coincide con el soporte declarado por PDF.js 5.6.205 para su build
+  `legacy`, que es el artefacto vendorizado para leer informes Syslab. Antes de distribuir una
+  versión que eleve este mínimo, confirma que todos los equipos clínicos usan Chrome 118 o superior:
+  Chrome deja silenciosamente sin futuras actualizaciones a instalaciones que permanezcan bajo el
+  valor de `minimum_chrome_version`.
 - Debe existir **una pestaña de Rayen abierta y logueada**; si no, el HHR muestra el error
   "No hay una pestaña de Rayen abierta".
 - El token se captura de las llamadas que hace la propia app de Rayen. Si acabas de instalar la
@@ -244,9 +248,10 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 
 ## Verificación
 
-- `npm run check:rayen-extension-release` valida Manifest V3, recursos declarados, permisos de host,
-  sintaxis de todos los scripts, integridad SHA-256 de los vendors y que PDF/XLS se registren durante
-  la evaluación inicial del service worker, sin `importScripts()` tardío prohibido por Chrome.
+- `npm run check:rayen-extension-release` valida Manifest V3, Chrome 118+, recursos declarados,
+  permisos de host, sintaxis de todos los scripts, integridad SHA-256 de los vendors, el origen
+  `legacy` de PDF.js y que PDF/XLS se registren durante la evaluación inicial del service worker,
+  sin `importScripts()` tardío prohibido por Chrome.
 - El núcleo de lectura+normalización se probó contra datos reales de Rayen y produce un
   `RayenCensusSnapshot` con apellidos separados, RUN, cama, diagnóstico principal, CIE-10 e
   `isComplete`.

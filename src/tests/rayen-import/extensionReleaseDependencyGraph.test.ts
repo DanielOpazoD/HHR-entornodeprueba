@@ -44,6 +44,38 @@ describe('Rayen extension release dependency graph', () => {
     expect(result.stdout).toContain('dependencias verificadas');
   });
 
+  it('rejects a Chrome minimum below the supported PDF.js legacy baseline', () => {
+    const root = createPackageFixture();
+    const manifestPath = path.join(root, 'extension/manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.minimum_chrome_version = '111';
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+
+    const result = runChecker(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('minimum_chrome_version 118 para el contrato legacy de PDF.js');
+  });
+
+  it('rejects PDF.js vendors without the reviewed legacy provenance', () => {
+    const root = createPackageFixture();
+    const lockPath = path.join(root, 'extension/vendor-lock.json');
+    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    const pdfVendor = lock.vendors.find(
+      (vendor: { file?: string }) => vendor.file === 'pdf.min.mjs'
+    );
+    pdfVendor.variant = 'modern';
+    pdfVendor.source = 'pdfjs-dist/build/pdf.min.mjs';
+    fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
+
+    const result = runChecker(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'extension/pdf.min.mjs debe provenir del build legacy de pdfjs-dist 5.6.205.'
+    );
+  });
+
   it('rejects a startup runtime that was renamed without updating importScripts', () => {
     const root = createPackageFixture();
     fs.renameSync(

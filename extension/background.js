@@ -368,12 +368,7 @@ const FM_DEVICE_REPORT_FILE = 'Resumen_diario_paciente.pdf';
 // the background, where host_permissions bypass CORS. enc_id = encounter id, fecha = ISO YYYY-MM-DD.
 const fetchDeviceReportBuffer = async ({ encId, fecha }) => {
   if (!encId || !fecha) return { error: 'Faltan enc_id o fecha para el reporte de dispositivos.' };
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
+  const infoResp = await getFichaFetchInfo();
   if (infoResp.error) return { error: infoResp.error };
   const info = infoResp.info;
   if (!info || !info.token || !info.apiOrigin) {
@@ -633,12 +628,7 @@ const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sen
 const SCALE_FORM_RE = /braden|downton/i;
 const handleHistoryScalesRequest = async ({ encId }) => {
   if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
-  const infoResp = await sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  );
+  const infoResp = await getFichaFetchInfo();
   if (infoResp.error) return { error: infoResp.error };
   const info = infoResp.info;
   if (!info || !info.token || !info.apiOrigin) {
@@ -881,12 +871,7 @@ const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({
   fetchJsonWithTimeout: self.HhrClinicalPanelFetch.fetchJsonWithTimeout,
   fetchMedicationPages: self.HhrClinicalPanelFetch.fetchMedicationPages,
   unwrapRequiredSources: self.HhrClinicalPanelFetch.unwrapRequiredSources,
-  resolveSession: () => sendToMatchingTab(
-    FICHAMEDICO_MATCH,
-    { type: 'RAYEN_FM_GET_FETCH_INFO' },
-    'No hay una pestaña de Ficha Médico abierta. Ábrela e inicia sesión.',
-    'No se pudo obtener el token de Ficha Médico. Recarga la lista de pacientes (Cmd+R) y reintenta.'
-  ),
+  resolveSession: () => getFichaFetchInfo(),
   fetchCurrentValidation: fetchTreatmentValidation,
   timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS,
 });

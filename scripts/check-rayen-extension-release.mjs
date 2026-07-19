@@ -159,6 +159,9 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (manifest.manifest_version !== 3) fail('La extensión debe usar Manifest V3.');
 if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ''))) fail('La versión debe usar formato semver X.Y.Z.');
+if (manifest.minimum_chrome_version !== '118') {
+  fail('La extensión debe declarar minimum_chrome_version 118 para el contrato legacy de PDF.js.');
+}
 
 const backgroundWorker = manifest.background?.service_worker;
 if (backgroundWorker) {
@@ -216,6 +219,25 @@ if (existsSync(vendorLockPath)) {
       if (actualHash !== vendor.sha256) fail(`Integridad SHA-256 inválida: extension/${vendor.file}`);
       if (!vendor.package || !vendor.version || !vendor.license) {
         fail(`Trazabilidad incompleta para extension/${vendor.file}`);
+      }
+    }
+    const expectedPdfJsSources = new Map([
+      ['pdf.min.mjs', 'pdfjs-dist/legacy/build/pdf.min.mjs'],
+      ['pdf.worker.min.mjs', 'pdfjs-dist/legacy/build/pdf.worker.min.mjs'],
+    ]);
+    for (const [file, source] of expectedPdfJsSources) {
+      const vendor = vendorLock.vendors.find(candidate => candidate.file === file);
+      if (!vendor || vendor.package !== 'pdfjs-dist' || vendor.version !== '5.6.205' ||
+          vendor.variant !== 'legacy' || vendor.source !== source) {
+        fail(`extension/${file} debe provenir del build legacy de pdfjs-dist 5.6.205.`);
+      }
+      const vendorPath = path.join(extensionDir, file);
+      if (isRegularFile(vendorPath)) {
+        const sourceText = readFileSync(vendorPath, 'utf8');
+        if (!sourceText.includes('pdfjsVersion = 5.6.205') ||
+            !sourceText.includes('__core-js_shared__')) {
+          fail(`extension/${file} no contiene el artefacto legacy trazable de PDF.js 5.6.205.`);
+        }
       }
     }
   }
