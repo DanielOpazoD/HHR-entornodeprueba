@@ -47,7 +47,11 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'operational-health': reportNode({
     command: 'report:operational-health',
     artifacts: ['reports/operational-health.json', 'reports/operational-health.md'],
-    dependencies: ['critical-coverage', 'reports/e2e/preview-bootstrap/report.json'],
+    dependencies: [
+      'critical-coverage',
+      'reports/e2e/preview-bootstrap/report.json',
+      'reports/e2e/preview-bootstrap/ci-provenance.json',
+    ],
   }),
   'system-confidence': reportNode({
     command: 'report:system-confidence',

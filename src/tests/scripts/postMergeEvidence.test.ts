@@ -12,6 +12,7 @@ import {
 describe('postMergeEvidenceSupport', () => {
   it('defines the release evidence commands that must be refreshed after merge', () => {
     expect(POST_MERGE_EVIDENCE_COMMANDS.map(command => command.name)).toEqual([
+      'preview-bootstrap-evidence',
       'quality-metrics',
       'sync-convergence',
       'system-confidence',

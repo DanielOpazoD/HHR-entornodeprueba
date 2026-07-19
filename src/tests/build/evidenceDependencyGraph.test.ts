@@ -156,6 +156,7 @@ describe('evidence dependency graph', () => {
         'scripts/config/critical-coverage-thresholds.json',
         'scripts/report-critical-coverage.mjs',
         'reports/e2e/preview-bootstrap/report.json',
+        'reports/e2e/preview-bootstrap/ci-provenance.json',
       ])
     );
   });

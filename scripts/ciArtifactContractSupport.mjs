@@ -1,3 +1,8 @@
+import {
+  PREVIEW_BOOTSTRAP_ARTIFACT,
+  PREVIEW_BOOTSTRAP_PRODUCER_JOB,
+} from './previewBootstrapEvidenceSupport.mjs';
+
 const parseScalar = value =>
   String(value || '')
     .trim()
@@ -103,6 +108,7 @@ export const collectArtifactUploads = jobs =>
       name: getField(action.block, 'name'),
       path: getField(action.block, 'path'),
       beforeActionBody: action.beforeActionBody,
+      block: action.block,
     }))
   );
 
@@ -113,6 +119,7 @@ export const collectArtifactDownloads = jobs =>
       line: action.line,
       name: getField(action.block, 'name'),
       path: getField(action.block, 'path'),
+      block: action.block,
     }))
   );
 
@@ -145,7 +152,9 @@ export const collectCiArtifactContractIssues = workflowText => {
 
   for (const download of downloads) {
     if (!download.name) {
-      issues.push(`${download.jobName}: download-artifact at line ${download.line} is missing name.`);
+      issues.push(
+        `${download.jobName}: download-artifact at line ${download.line} is missing name.`
+      );
       continue;
     }
 
@@ -158,7 +167,9 @@ export const collectCiArtifactContractIssues = workflowText => {
     }
 
     const orderedProducerJobs = collectTransitiveNeeds(jobs, download.jobName);
-    const orderedProducers = producers.filter(producer => orderedProducerJobs.has(producer.jobName));
+    const orderedProducers = producers.filter(producer =>
+      orderedProducerJobs.has(producer.jobName)
+    );
     if (orderedProducers.length === 0) {
       issues.push(
         `${download.jobName}: downloads artifact "${download.name}" before declaring a needs chain to one of its producers (${producers
@@ -187,10 +198,81 @@ export const collectCiArtifactContractIssues = workflowText => {
   const postmergeJob = jobs.get('postmerge-evidence');
   if (postmergeJob) {
     if (!postmergeJob.body.includes('npm run check:ci-artifact-contracts')) {
-      issues.push('postmerge-evidence: must run check:ci-artifact-contracts before downloading dist.');
+      issues.push(
+        'postmerge-evidence: must run check:ci-artifact-contracts before downloading dist.'
+      );
     }
     if (!postmergeJob.body.includes('scripts/verify-github-run-artifact.mjs')) {
-      issues.push('postmerge-evidence: must verify artifact availability before download-artifact.');
+      issues.push(
+        'postmerge-evidence: must verify artifact availability before download-artifact.'
+      );
+    }
+
+    const previewDownload = downloads.find(
+      download =>
+        download.jobName === 'postmerge-evidence' && download.name === PREVIEW_BOOTSTRAP_ARTIFACT
+    );
+    if (!previewDownload) {
+      issues.push(`postmerge-evidence: must download artifact "${PREVIEW_BOOTSTRAP_ARTIFACT}".`);
+    } else if (normalizePath(previewDownload.path) !== 'reports/e2e/preview-bootstrap') {
+      issues.push(
+        'postmerge-evidence: preview bootstrap must download to ' +
+          '"reports/e2e/preview-bootstrap".'
+      );
+    }
+
+    const verifyPreviewCommand =
+      `scripts/verify-github-run-artifact.mjs --artifact ${PREVIEW_BOOTSTRAP_ARTIFACT} ` +
+      `--producer ${PREVIEW_BOOTSTRAP_PRODUCER_JOB}`;
+    const verifyPreviewIndex = postmergeJob.body.indexOf(verifyPreviewCommand);
+    const downloadPreviewIndex = postmergeJob.body.indexOf(`name: ${PREVIEW_BOOTSTRAP_ARTIFACT}`);
+    const validatePreviewIndex = postmergeJob.body.indexOf(
+      'npm run check:preview-bootstrap-evidence'
+    );
+    const generateEvidenceIndex = postmergeJob.body.indexOf('npm run postmerge:evidence');
+
+    if (verifyPreviewIndex === -1) {
+      issues.push(
+        `postmerge-evidence: must verify "${PREVIEW_BOOTSTRAP_ARTIFACT}" from producer ` +
+          `"${PREVIEW_BOOTSTRAP_PRODUCER_JOB}".`
+      );
+    } else if (downloadPreviewIndex !== -1 && verifyPreviewIndex > downloadPreviewIndex) {
+      issues.push(`postmerge-evidence: must verify preview bootstrap before downloading it.`);
+    }
+    if (validatePreviewIndex === -1) {
+      issues.push('postmerge-evidence: must validate downloaded preview bootstrap evidence.');
+    } else {
+      if (downloadPreviewIndex !== -1 && validatePreviewIndex < downloadPreviewIndex) {
+        issues.push('postmerge-evidence: validates preview bootstrap before downloading it.');
+      }
+      if (generateEvidenceIndex !== -1 && validatePreviewIndex > generateEvidenceIndex) {
+        issues.push('postmerge-evidence: validates preview bootstrap after generating evidence.');
+      }
+    }
+  }
+
+  const previewUploads = uploads.filter(upload => upload.name === PREVIEW_BOOTSTRAP_ARTIFACT);
+  if (previewUploads.length === 0) {
+    issues.push(`No job uploads required artifact "${PREVIEW_BOOTSTRAP_ARTIFACT}".`);
+  }
+  for (const upload of previewUploads) {
+    if (upload.jobName !== PREVIEW_BOOTSTRAP_PRODUCER_JOB) {
+      issues.push(
+        `${upload.jobName}: uploads "${PREVIEW_BOOTSTRAP_ARTIFACT}"; expected producer ` +
+          `"${PREVIEW_BOOTSTRAP_PRODUCER_JOB}".`
+      );
+    }
+    if (!upload.beforeActionBody.includes('npm run write:preview-bootstrap-provenance')) {
+      issues.push(`${upload.jobName}: uploads preview bootstrap without recording provenance.`);
+    }
+    if (!upload.beforeActionBody.includes('npm run check:preview-bootstrap-evidence')) {
+      issues.push(`${upload.jobName}: uploads preview bootstrap without validating its evidence.`);
+    }
+    if (normalizePath(upload.path) !== 'reports/e2e/preview-bootstrap') {
+      issues.push(
+        `${upload.jobName}: preview bootstrap artifact must upload from ` +
+          `"reports/e2e/preview-bootstrap/" so downloads preserve the canonical layout.`
+      );
     }
   }
 
