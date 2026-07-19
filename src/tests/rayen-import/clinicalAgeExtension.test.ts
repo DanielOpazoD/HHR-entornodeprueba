@@ -7,20 +7,17 @@ import { describe, expect, it } from 'vitest';
 type BuildClinicalAge = (birthDate: string, referenceDate: Date) => string;
 
 const loadBuildClinicalAge = (): BuildClinicalAge => {
-  const source = readFileSync(new URL('../../../extension/background.js', import.meta.url), 'utf8');
-  const start = source.indexOf('const buildClinicalAge =');
-  const end = source.indexOf('\n\nconst parseJsonResponseSafely', start);
-  if (start < 0 || end < 0) throw new Error('No se encontró buildClinicalAge.');
-  const context = vm.createContext({});
-  vm.runInContext(
-    `
-    'use strict';
-    ${source.slice(start, end)}
-    globalThis.__buildClinicalAge = buildClinicalAge;
-  `,
-    context
+  const source = readFileSync(
+    new URL('../../../extension/clinical-score-write-runtime.js', import.meta.url),
+    'utf8'
   );
-  return (context as unknown as { __buildClinicalAge: BuildClinicalAge }).__buildClinicalAge;
+  const context = vm.createContext({});
+  vm.runInContext(source, context, { filename: 'clinical-score-write-runtime.js' });
+  return (
+    context as unknown as {
+      HhrClinicalScoreWriteRuntime: { buildClinicalAge: BuildClinicalAge };
+    }
+  ).HhrClinicalScoreWriteRuntime.buildClinicalAge;
 };
 
 describe('extension clinical age encoding', () => {

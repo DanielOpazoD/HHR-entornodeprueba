@@ -558,6 +558,7 @@
     };
 
     return Object.freeze({
+      fetchCudyrCategories,
       fetchCudyrDefinitions,
       getScaleDefinition,
       resolveCudyrFormId,

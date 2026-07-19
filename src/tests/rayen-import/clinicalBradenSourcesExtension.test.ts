@@ -11,6 +11,10 @@ const clinicalScoreRuntimeSource = readFileSync(
   new URL('../../../extension/clinical-score-runtime.js', import.meta.url),
   'utf8'
 );
+const clinicalScoreWriteRuntimeSource = readFileSync(
+  new URL('../../../extension/clinical-score-write-runtime.js', import.meta.url),
+  'utf8'
+);
 const clinicalBatchPrintRuntimeSource = readFileSync(
   new URL('../../../extension/clinical-batch-print-runtime.js', import.meta.url),
   'utf8'
@@ -83,9 +87,9 @@ describe('extension BRADEN source reconciliation', () => {
 
   it('uses the same two-source read for an ambiguous BRADEN or Downton recovery', () => {
     const source = sliceBetween(
-      backgroundSource,
-      'const readClinicalWriteRecoveryReview = async',
-      'const clinicalBatchPrintRuntime = self.HhrClinicalBatchPrintRuntime.create({'
+      clinicalScoreWriteRuntimeSource,
+      'const readRecoveryReview = async',
+      'return Object.freeze({'
     );
 
     expect(source).toContain('fetchScaleHistoryEvents(encId, info, 120)');
