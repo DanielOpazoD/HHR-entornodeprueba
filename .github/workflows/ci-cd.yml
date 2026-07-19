@@ -448,15 +448,18 @@ jobs:
       - name: Enforce preview bootstrap report artifact
         run: test -f reports/e2e/preview-bootstrap/report.json
 
+      - name: Record preview bootstrap artifact provenance
+        run: npm run write:preview-bootstrap-provenance
+
+      - name: Validate preview bootstrap artifact evidence
+        run: npm run check:preview-bootstrap-evidence
+
       - name: Upload preview bootstrap artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: preview-bootstrap-artifacts
-          path: |
-            reports/e2e/preview-bootstrap/**
-            playwright-report/**
-            test-results/**
+          path: reports/e2e/preview-bootstrap/
           retention-days: 14
 
       - name: Upload production build artifact
@@ -599,11 +602,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Verify preview bootstrap artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist
+
+      - name: Download preview bootstrap artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-bootstrap-artifacts
+          path: reports/e2e/preview-bootstrap
+
+      - name: Validate downloaded preview bootstrap evidence
+        run: npm run check:preview-bootstrap-evidence
 
       - name: Generate post-merge release evidence
         run: npm run postmerge:evidence

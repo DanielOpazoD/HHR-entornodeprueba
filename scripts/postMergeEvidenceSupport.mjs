@@ -1,6 +1,7 @@
 import { REPORT_FRESHNESS_CONTRACTS } from './reportFreshnessSupport.mjs';
 
 export const POST_MERGE_EVIDENCE_COMMANDS = [
+  { name: 'preview-bootstrap-evidence', command: 'npm run check:preview-bootstrap-evidence' },
   { name: 'quality-metrics', command: 'npm run report:quality-metrics' },
   { name: 'sync-convergence', command: 'npm run report:sync-convergence' },
   { name: 'system-confidence', command: 'npm run report:system-confidence' },

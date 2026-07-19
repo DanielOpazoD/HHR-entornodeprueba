@@ -49,6 +49,8 @@
     "test:e2e:critical:ci": "bash scripts/run-e2e-critical-emulator-ci.sh",
     "test:e2e:preview:census-bootstrap": "playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts --project=chromium",
     "test:e2e:preview:census-bootstrap:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts --project=chromium",
+    "write:preview-bootstrap-provenance": "node scripts/write-preview-bootstrap-provenance.mjs",
+    "check:preview-bootstrap-evidence": "node scripts/check-preview-bootstrap-evidence.mjs",
     "test:netlify-function-dev-smoke": "node scripts/smoke-netlify-function-dev-module.mjs",
     "smoke:prescription-image-proxy": "node scripts/smoke-prescription-image-proxy.mjs",
     "test:vrt": "playwright test e2e/visual-regression.spec.ts",

@@ -194,10 +194,24 @@ describe('CI workflow governance', () => {
     );
     const postmergeJob = workflow.slice(workflow.indexOf('postmerge-evidence:'));
     const buildStep = buildJob.indexOf('npm run build');
+    const recordPreviewProvenanceStep = buildJob.indexOf(
+      'npm run write:preview-bootstrap-provenance'
+    );
+    const validateProducedPreviewStep = buildJob.indexOf(
+      'npm run check:preview-bootstrap-evidence'
+    );
+    const uploadPreviewStep = buildJob.indexOf('name: preview-bootstrap-artifacts');
     const uploadDistStep = buildJob.indexOf('name: dist');
     const artifactContractStep = postmergeJob.indexOf('npm run check:ci-artifact-contracts');
     const availabilityStep = postmergeJob.indexOf('scripts/verify-github-run-artifact.mjs');
+    const previewAvailabilityStep = postmergeJob.indexOf(
+      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build'
+    );
     const downloadDistStep = postmergeJob.indexOf('name: dist');
+    const downloadPreviewStep = postmergeJob.indexOf('name: Download preview bootstrap artifacts');
+    const validateDownloadedPreviewStep = postmergeJob.indexOf(
+      'npm run check:preview-bootstrap-evidence'
+    );
     const generateStep = postmergeJob.indexOf('npm run postmerge:evidence');
     const checkStep = postmergeJob.indexOf('npm run check:postmerge-evidence:strict');
     const uploadStep = postmergeJob.indexOf('name: postmerge-release-evidence');
@@ -207,6 +221,9 @@ describe('CI workflow governance', () => {
     );
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
     expect(buildStep).toBeGreaterThanOrEqual(0);
+    expect(recordPreviewProvenanceStep).toBeGreaterThan(buildStep);
+    expect(validateProducedPreviewStep).toBeGreaterThan(recordPreviewProvenanceStep);
+    expect(uploadPreviewStep).toBeGreaterThan(validateProducedPreviewStep);
     expect(uploadDistStep).toBeGreaterThan(buildStep);
     expect(summaryJob).not.toContain('actions/upload-artifact@v7');
     expect(postmergeJob).toContain('postmerge-evidence:');
@@ -220,10 +237,40 @@ describe('CI workflow governance', () => {
     expect(availabilityStep).toBeGreaterThan(artifactContractStep);
     expect(downloadDistStep).toBeGreaterThanOrEqual(0);
     expect(downloadDistStep).toBeGreaterThan(availabilityStep);
+    expect(previewAvailabilityStep).toBeGreaterThan(artifactContractStep);
+    expect(downloadPreviewStep).toBeGreaterThan(previewAvailabilityStep);
+    expect(validateDownloadedPreviewStep).toBeGreaterThan(downloadPreviewStep);
     expect(generateStep).toBeGreaterThanOrEqual(0);
     expect(generateStep).toBeGreaterThan(downloadDistStep);
+    expect(generateStep).toBeGreaterThan(validateDownloadedPreviewStep);
     expect(checkStep).toBeGreaterThan(generateStep);
     expect(uploadStep).toBeGreaterThan(checkStep);
+  });
+
+  it('rejects a missing preview bootstrap download or incorrect producer contract', () => {
+    const workflow = readText('.github/workflows/ci-cd.yml');
+    const withoutDownload = workflow.replace(
+      /\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
+      '\n      - name: Validate downloaded preview bootstrap evidence'
+    );
+    const wrongProducer = workflow.replace(
+      '--artifact preview-bootstrap-artifacts --producer build',
+      '--artifact preview-bootstrap-artifacts --producer other-job'
+    );
+    const wrongDownloadPath = workflow.replace(
+      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: reports/e2e/preview-bootstrap',
+      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: .'
+    );
+
+    expect(collectCiArtifactContractIssues(withoutDownload)).toContain(
+      'postmerge-evidence: must download artifact "preview-bootstrap-artifacts".'
+    );
+    expect(collectCiArtifactContractIssues(wrongProducer)).toContain(
+      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "build".'
+    );
+    expect(collectCiArtifactContractIssues(wrongDownloadPath)).toContain(
+      'postmerge-evidence: preview bootstrap must download to "reports/e2e/preview-bootstrap".'
+    );
   });
 
   it('rejects dist artifacts uploaded by jobs that did not build production assets', () => {
@@ -263,6 +310,14 @@ jobs:
     steps:
       - name: Build production bundle
         run: npm run build
+      - name: Record preview bootstrap artifact provenance
+        run: npm run write:preview-bootstrap-provenance
+      - name: Validate preview bootstrap artifact evidence
+        run: npm run check:preview-bootstrap-evidence
+      - uses: actions/upload-artifact@v7
+        with:
+          name: preview-bootstrap-artifacts
+          path: reports/e2e/preview-bootstrap/
       - uses: actions/upload-artifact@v7
         with:
           name: dist
@@ -278,10 +333,19 @@ jobs:
         run: npm run check:ci-artifact-contracts
       - name: Verify build artifact availability
         run: node scripts/verify-github-run-artifact.mjs --artifact dist --producer build-budget
+      - name: Verify preview bootstrap artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build
       - uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist
+      - name: Download preview bootstrap artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-bootstrap-artifacts
+          path: reports/e2e/preview-bootstrap
+      - name: Validate downloaded preview bootstrap evidence
+        run: npm run check:preview-bootstrap-evidence
 `;
 
     expect(collectCiArtifactContractIssues(brokenWorkflow)).toEqual([]);
