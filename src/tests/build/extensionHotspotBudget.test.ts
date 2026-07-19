@@ -234,6 +234,7 @@ describe('extension hotspot CI wiring', () => {
 
     expect(eslintConfig).not.toMatch(/['"]extension['"]/);
     expect(eslintConfig).toContain("files: ['extension/*.js']");
+    expect(eslintConfig).toContain("'no-unused-vars': [\n        'error'");
     expect(packageJson.scripts['lint:extension']).toContain('extension/*.js');
     expect(packageJson.scripts['check:extension-hotspots']).toBe(
       'node scripts/check-extension-hotspots.mjs'

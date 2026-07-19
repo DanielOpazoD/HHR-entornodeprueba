@@ -46,7 +46,15 @@ export default tseslint.config(
       // Existing empty fallbacks and intentionally exported UMD helpers are governed separately.
       'no-empty': 'off',
       'no-extra-boolean-cast': 'off',
-      'no-unused-vars': 'off',
+      'no-unused-vars': [
+        'error',
+        {
+          args: 'none',
+          caughtErrors: 'none',
+          // Exact legacy bindings exposed or retained by runtime factories.
+          varsIgnorePattern: '^(sendToMatchingTab|fetchRegimenReportBuffer|delay)$',
+        },
+      ],
       'no-useless-escape': 'off',
     },
   },
