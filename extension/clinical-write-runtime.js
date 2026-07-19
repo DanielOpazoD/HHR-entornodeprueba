@@ -422,6 +422,7 @@
       confirmationLocks.add(recovery.key);
       try {
         const protection = await readAmbiguity(recovery.key);
+        if (protection.error) return protection;
         const markerValidation = recoveryPolicy.validateRecoveryMarker({
           protection,
           generationId: recovery.generationId,
@@ -465,7 +466,6 @@
         confirmationLocks.delete(recovery.key);
       }
     };
-
     return Object.freeze({ acknowledge, recover, serializeProtection, withWriteLock });
   };
 

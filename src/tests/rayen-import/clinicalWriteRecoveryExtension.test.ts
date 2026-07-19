@@ -28,6 +28,7 @@ type RecoveryState = {
   }>;
   clearCalls: Array<{ key: string; expected: Record<string, string> }>;
   beforeNextSet?: () => Promise<void>;
+  getError?: Error;
 };
 
 type RecoveryHandler = (request: {
@@ -85,8 +86,10 @@ const loadRecovery = () => {
     clearCalls: [],
   };
   const storage = {
-    get: async (key: string) =>
-      state.protection.active ? { [key]: { ...state.protection.marker } } : {},
+    get: async (key: string) => {
+      if (state.getError) throw state.getError;
+      return state.protection.active ? { [key]: { ...state.protection.marker } } : {};
+    },
     set: async (entries: Record<string, RecoveryMarker>) => {
       const beforeNextSet = state.beforeNextSet;
       state.beforeNextSet = undefined;
@@ -210,6 +213,24 @@ describe('extension clinical write recovery', () => {
     expect(state.freshReads).toEqual([]);
     expect(state.transitionCalls).toEqual([]);
     expect(state.clearCalls).toEqual([]);
+  });
+
+  it('returns storage read failures without weakening duplicate protection', async () => {
+    state.getError = new Error('storage unavailable');
+
+    const result = await recovery({
+      key: 'handoff:141437',
+      generationId,
+      phase: 'preview',
+    });
+
+    expect(result).toEqual({
+      error: 'No se pudo comprobar la protección contra duplicados: storage unavailable',
+    });
+    expect(state.freshReads).toEqual([]);
+    expect(state.transitionCalls).toEqual([]);
+    expect(state.clearCalls).toEqual([]);
+    expect(state.protection.active).toBe(true);
   });
 
   it('does not release when the fresh preview read fails', async () => {
