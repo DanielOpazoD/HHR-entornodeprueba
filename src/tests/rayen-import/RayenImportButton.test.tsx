@@ -169,11 +169,19 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conexión parcial · v0.6.0')).toBeInTheDocument();
+    expect(screen.getByText('Parcial · v0.6.0')).toBeInTheDocument();
     expect(screen.getByText('Camas —')).toBeInTheDocument();
-    expect(screen.getByTestId('rayen-extension-health-message')).toHaveTextContent(
-      'validación de egresos será parcial'
+    expect(screen.queryByTestId('rayen-extension-health-message')).not.toBeInTheDocument();
+    expect(screen.getByTestId('rayen-extension-health-help')).toHaveAttribute(
+      'title',
+      expect.stringContaining('validación de egresos será parcial')
     );
+    fireEvent.click(screen.getByTestId('rayen-extension-health-help'));
+    expect(
+      screen.getByText(
+        'Gestión de Camas no está abierta. El censo puede sincronizarse, pero la validación de egresos será parcial.'
+      )
+    ).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sincronizar parcial' }));
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
@@ -254,7 +262,9 @@ describe('RayenImportButton', () => {
     expect(historyButton).toHaveAttribute('title', 'Historial de sincronización · 1 evento');
     fireEvent.click(historyButton);
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
-    expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
+    expect(
+      screen.getByText('Sincronizado: 1 ingresos, 2 act., 0 mov., 0 egresos')
+    ).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
     expect(screen.getAllByText(/1 paciente no se pudo completar/).length).toBeGreaterThan(0);
     expect(
@@ -314,5 +324,74 @@ describe('RayenImportButton', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeNull();
     await waitFor(() => expect(historyButton).toHaveFocus());
+  });
+
+  it('keeps the primary action width stable while the connection is checked', () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenExtensionHealth.mockReturnValue({
+      connection: 'checking',
+      report: null,
+      message: 'Comprobando conexión con la extensión.',
+      canSync: false,
+      refresh: mocks.refreshHealth,
+    });
+
+    render(<RayenImportButton />);
+
+    expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-[10.75rem]');
+    expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('Sincronizado:');
+  });
+
+  it('keeps a completed-change summary in the history instead of expanding the toolbar', () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenImport.mockReturnValue({
+      mode: 'preview',
+      diff: null,
+      isPreviewOpen: false,
+      isBusy: false,
+      isSyncing: false,
+      result: {
+        applied: { admissions: 1, updates: 0, moves: 0, discharges: 0 },
+        skipped: [],
+      },
+      error: null,
+      triggerImport: mocks.triggerImport,
+      confirm: vi.fn(),
+      cancel: vi.fn(),
+    });
+
+    render(<RayenImportButton />);
+
+    expect(screen.queryByTestId('rayen-import-result')).not.toBeInTheDocument();
+    expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent(
+      'Sincronizado: 1 ingresos'
+    );
+  });
+
+  it('keeps an import error compact until its accessible detail is requested', () => {
+    const error = 'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen.';
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenImport.mockReturnValue({
+      mode: 'preview',
+      diff: null,
+      isPreviewOpen: false,
+      isBusy: false,
+      isSyncing: false,
+      result: null,
+      error,
+      triggerImport: mocks.triggerImport,
+      confirm: vi.fn(),
+      cancel: vi.fn(),
+    });
+
+    render(<RayenImportButton />);
+
+    const notice = screen.getByTestId('rayen-import-error');
+    expect(notice).toHaveClass('flex-wrap');
+    expect(screen.queryByText(error)).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: `Ver detalle de sincronización. ${error}` })
+    );
+    expect(screen.getByText(error)).toBeVisible();
   });
 });
