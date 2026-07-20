@@ -11,6 +11,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff, FieldChange } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
+import { stateFromBoolean } from './dischargeVerification';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
@@ -258,6 +259,12 @@ export const reconcileCensus = (
         rut: match.patient.rut,
         patientName: match.patient.patientName,
         signal: 'clinical-closure',
+        encounterId: encounter.encounterId,
+        verification: {
+          medicalEpicrisis: stateFromBoolean(encounter.hasMedicalDischarge),
+          nursingEpicrisis: stateFromBoolean(encounter.hasNurseDischarge),
+          hospitalDischarge: 'unknown',
+        },
         source: encounter,
       });
       continue;
@@ -283,6 +290,12 @@ export const reconcileCensus = (
         rut: patient.rut,
         patientName: patient.patientName,
         signal: 'missing-from-ficha',
+        encounterId: patient.clinicalEpisodeId,
+        verification: {
+          medicalEpicrisis: 'unknown',
+          nursingEpicrisis: 'unknown',
+          hospitalDischarge: 'unknown',
+        },
       });
     }
   }

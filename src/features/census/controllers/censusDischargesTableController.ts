@@ -21,6 +21,7 @@ export const getDischargeStatusBadgeClassName = (status: DischargeData['status']
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void;
   viewClinicalDocuments: (discharge: DischargeData) => void;
+  openHospitalizationReports: (discharge: DischargeData) => void;
   editDischarge: (discharge: DischargeData) => void;
   deleteDischarge: (id: string) => void;
   convertDischargeToCma: (id: string) => void;
@@ -44,8 +45,17 @@ export const buildDischargeRowActions = (
       className: 'text-blue-600 hover:text-blue-700',
       onClick: () => handlers.viewClinicalDocuments(discharge),
     },
-    editAction,
   ];
+
+  if (/^[0-9]{6,8}[0-9K]$/.test((discharge.rut || '').toUpperCase().replace(/[^0-9K]/g, ''))) {
+    actions.push({
+      kind: 'hospitalizationReports' as const,
+      title: 'Informes de hospitalización',
+      className: 'text-sky-600 hover:text-sky-700',
+      onClick: () => handlers.openHospitalizationReports(discharge),
+    });
+  }
+  actions.push(editAction);
 
   if (canReclassifyHomeDischarge(discharge)) {
     if (handlers.convertDischargeToTransfer) {

@@ -37,6 +37,7 @@ describe('censusDischargesTableController', () => {
     let deleteCalledWith = '';
     let convertedId = '';
     let convertedTransferId = '';
+    let hospitalizationReportsId = '';
 
     const actions = buildDischargeRowActions(discharge, {
       undoDischarge: id => {
@@ -47,6 +48,9 @@ describe('censusDischargesTableController', () => {
       },
       viewClinicalDocuments: entry => {
         viewedId = entry.id;
+      },
+      openHospitalizationReports: entry => {
+        hospitalizationReportsId = entry.id;
       },
       deleteDischarge: id => {
         deleteCalledWith = id;
@@ -61,6 +65,7 @@ describe('censusDischargesTableController', () => {
     expect(actions.map(action => action.kind)).toEqual([
       'undo',
       'viewDocuments',
+      'hospitalizationReports',
       'edit',
       'convert',
       'convert',
@@ -75,9 +80,11 @@ describe('censusDischargesTableController', () => {
     actions[3].onClick();
     actions[4].onClick();
     actions[5].onClick();
+    actions[6].onClick();
 
     expect(undoCalledWith).toBe('d-2');
     expect(viewedId).toBe('d-2');
+    expect(hospitalizationReportsId).toBe('d-2');
     expect(editedId).toBe('d-2');
     expect(deleteCalledWith).toBe('d-2');
     expect(convertedId).toBe('d-2');
@@ -91,11 +98,32 @@ describe('censusDischargesTableController', () => {
         undoDischarge: () => undefined,
         editDischarge: () => undefined,
         viewClinicalDocuments: () => undefined,
+        openHospitalizationReports: () => undefined,
         deleteDischarge: () => undefined,
         convertDischargeToCma: () => undefined,
       }
     );
 
-    expect(actions.map(action => action.kind)).toEqual(['undo', 'viewDocuments', 'edit', 'delete']);
+    expect(actions.map(action => action.kind)).toEqual([
+      'undo',
+      'viewDocuments',
+      'hospitalizationReports',
+      'edit',
+      'delete',
+    ]);
+  });
+
+  it('does not expose hospitalization reports when a legacy discharge has no RUT', () => {
+    const discharge = DataFactory.createMockDischarge({ rut: undefined as unknown as string });
+    const actions = buildDischargeRowActions(discharge, {
+      undoDischarge: () => undefined,
+      editDischarge: () => undefined,
+      viewClinicalDocuments: () => undefined,
+      openHospitalizationReports: () => undefined,
+      deleteDischarge: () => undefined,
+      convertDischargeToCma: () => undefined,
+    });
+
+    expect(actions.map(action => action.kind)).not.toContain('hospitalizationReports');
   });
 });

@@ -11,6 +11,14 @@ import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
 import type { ReportEgreso } from './egresoReport';
 
+export type DischargeVerificationState = 'confirmed' | 'not-detected' | 'unknown';
+
+export interface DischargeVerification {
+  medicalEpicrisis: DischargeVerificationState;
+  nursingEpicrisis: DischargeVerificationState;
+  hospitalDischarge: DischargeVerificationState;
+}
+
 /** A single field that differs between the current census patient and the Rayen data. */
 export interface FieldChange {
   field: keyof PatientData;
@@ -58,6 +66,8 @@ export interface DischargeEntry {
   status: 'Vivo' | 'Fallecido';
   /** Only the Gestión de Camas administrative-discharge report may create this movement. */
   reason: 'administrative-discharge';
+  /** Exact Rayen hospitalization when the administrative lookup resolved one episode. */
+  encounterId?: string;
   source?: RayenEncounter;
   /**
    * Rapa Nui day + time of the egreso as printed by the official "Alta Administrativa" report.
@@ -67,6 +77,8 @@ export interface DischargeEntry {
    */
   correctedDay?: string;
   correctedTime?: string;
+  /** Independent evidence for the three documents that participate in the discharge workflow. */
+  verification?: DischargeVerification;
 }
 
 /** One previous day the sync would touch (Capability A: a discharge whose real island day is earlier). */
@@ -94,6 +106,9 @@ export interface PendingAdministrativeDischargeEntry {
   patientName: string;
   /** Signal observed in Ficha Médico. It is informative and never vacates the HHR bed. */
   signal: 'clinical-closure' | 'missing-from-ficha';
+  /** Exact Rayen hospitalization. Required by the individual fallback to avoid cross-episode matches. */
+  encounterId?: string;
+  verification: DischargeVerification;
   source?: RayenEncounter;
 }
 

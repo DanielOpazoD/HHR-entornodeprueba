@@ -3,13 +3,14 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyEgresoReport';
+import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { requiresReview } from '../domain/reconcileCensus';
 import { computePreviousDayEdits } from '../domain/previousDayCorrections';
 import {
   isHistoricalCensusDay,
   toHistoricalClinicalOnlyDiff,
 } from '../domain/historicalCensusSync';
-import { requestEgresoReport } from '../bridge/rayenImportBridge';
+import { requestEgresoLookup, requestEgresoReport } from '../bridge/rayenImportBridge';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -94,6 +95,14 @@ export const useRayenSnapshotPreview = ({
       diff = reportAvailable
         ? applyEgresoReport(diff, reportResult.rows, currentRecord)
         : markEgresoReportUnavailable(diff);
+
+      const lookupTargets = diff.pendingAdministrativeDischarges
+        .filter(entry => entry.rut && entry.encounterId)
+        .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+      if (lookupTargets.length > 0) {
+        const lookupResults = await requestEgresoLookup(lookupTargets);
+        diff = applyEgresoLookupFallback(diff, lookupResults, currentRecord);
+      }
 
       const previousDayPlan = await computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin);
       const previousDayEdits = previousDayPlan.edits;

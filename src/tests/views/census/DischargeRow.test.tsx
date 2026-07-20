@@ -4,6 +4,29 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DischargeRow } from '@/features/census/components/DischargeRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
+vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () => ({
+  PatientHospitalizationReportsDialog: ({
+    isOpen,
+    patientName,
+    patientRun,
+    currentEpisodeId,
+    censusDate,
+  }: {
+    isOpen: boolean;
+    patientName: string;
+    patientRun: string;
+    currentEpisodeId?: string;
+    censusDate?: string;
+  }) =>
+    isOpen ? (
+      <tr>
+        <td data-testid="hospitalization-reports-dialog">
+          {patientName} {patientRun} {currentEpisodeId} {censusDate}
+        </td>
+      </tr>
+    ) : null,
+}));
+
 vi.mock('@/features/census/components/FugaNotificationModal', () => ({
   FugaNotificationModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? (
@@ -124,6 +147,39 @@ describe('DischargeRow', () => {
 
     expect(await screen.findByTestId('clinical-documents-modal')).toHaveTextContent(
       'Docs Paciente Alta Snapshot 22.222.222-2 ep_discharge_case 2026-02-14 R2'
+    );
+  });
+
+  it('opens episode-aware hospitalization reports from the three-dot menu', async () => {
+    const item = DataFactory.createMockDischarge({
+      id: 'd-epicrisis',
+      patientName: 'Paciente Alta',
+      rut: '17.752.753-1',
+      clinicalEpisodeId: '141336',
+      movementDate: '2026-07-19',
+    });
+
+    render(
+      <table>
+        <tbody>
+          <DischargeRow
+            item={item}
+            recordDate="2026-07-19"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onUpdate={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+            onConvertToCma={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /informes de hospitalización/i }));
+
+    expect(await screen.findByTestId('hospitalization-reports-dialog')).toHaveTextContent(
+      'Paciente Alta 17.752.753-1 141336 2026-07-19'
     );
   });
 

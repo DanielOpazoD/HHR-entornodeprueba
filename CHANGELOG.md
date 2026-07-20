@@ -34,6 +34,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Añadido
 
+- **Extensión — informes por hospitalización 0.34.0:** lista los episodios oficiales de
+  cada paciente y permite obtener por episodio la epicrisis o abrir la ficha clínica
+  completa, validando RUN y fechas sin exponer sesión ni documentos al runtime de HHR.
 - **Extensión — barra de operaciones 0.33.0:** navegación más compacta con menú Exámenes,
   estado activo, colapso persistente, atenuación segura y soporte completo de teclado.
 - Virtualización de tablas para optimizar rendimiento con >50 pacientes.
@@ -41,6 +44,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Corregido
 
+- **Sincronización Eloísa — verificación de egreso por episodio:** cuando el listado masivo
+  de altas administrativas aún no incluye un caso, HHR confirma el egreso en Gestión de
+  Camas usando el `ENC_ID` exacto. La vista previa distingue Epicrisis médica, Epicrisis de
+  enfermería y Egreso hospitalario, evitando falsos pendientes y cruces entre hospitalizaciones.
 - **Documentos clínicos — panel de formato:** el panel avanzado no se desplegaba en
   pantalla (quedaba recortado por la coerción `overflow-x:auto` → `overflow-y:auto` del
   header del modal). Ahora se renderiza por portal a `<body>` con posición fija; los

@@ -14,12 +14,18 @@ export type {
   MoveEntry,
   DischargeEntry,
   PendingAdministrativeDischargeEntry,
+  DischargeVerification,
+  DischargeVerificationState,
   ConflictEntry,
   CensusImportSummary,
   CensusImportDiff,
 } from './contracts/censusImportDiff';
 
-export type { EgresoRecord, EgresoLookupResult } from './contracts/egresoLookup';
+export type {
+  EgresoRecord,
+  EgresoLookupResult,
+  EgresoLookupTarget,
+} from './contracts/egresoLookup';
 
 export type { EgresoReportRow, ReportEgreso } from './contracts/egresoReport';
 
@@ -52,6 +58,17 @@ export type {
   RayenClinicalPanelResult,
 } from './bridge/clinicalPanelBridge';
 export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
+export type {
+  RayenHospitalizationDocumentType,
+  RayenHospitalizationEpisode,
+  RayenHospitalizationReportResult,
+} from './bridge/hospitalizationReportsBridge';
+export {
+  RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
+  RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+  requestRayenHospitalizationDocument,
+  requestRayenHospitalizationEpisodes,
+} from './bridge/hospitalizationReportsBridge';
 export type { RayenEncounterNavigationResult } from './bridge/encounterNavigationBridge';
 export {
   RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE,
@@ -104,6 +121,7 @@ export {
   collectRecordedMovementRuns,
   markEgresoReportUnavailable,
 } from './domain/applyEgresoReport';
+export { applyEgresoLookupFallback } from './domain/applyEgresoLookupFallback';
 
 export type { MergeDevicesContext } from './domain/mergeReportDevices';
 export { mergeReportDevices } from './domain/mergeReportDevices';
@@ -132,6 +150,7 @@ export {
   pushRayenSnapshot,
   requestRayenSnapshot,
   requestEgresoReport,
+  requestEgresoLookup,
   requestDeviceReport,
   requestScalesReport,
   requestHistoryScales,

@@ -1,4 +1,10 @@
-export type CensusMovementActionKind = 'undo' | 'viewDocuments' | 'edit' | 'delete' | 'convert';
+export type CensusMovementActionKind =
+  | 'undo'
+  | 'viewDocuments'
+  | 'hospitalizationReports'
+  | 'edit'
+  | 'delete'
+  | 'convert';
 
 export interface CensusMovementActionDescriptor {
   kind: CensusMovementActionKind;

@@ -192,6 +192,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <ClinicalPanelTrigger
               bedId={data.bedId}
               patientName={fullName}
+              patientRun={data.rut}
               clinicalEpisodeId={data.clinicalEpisodeId}
             />
           )}

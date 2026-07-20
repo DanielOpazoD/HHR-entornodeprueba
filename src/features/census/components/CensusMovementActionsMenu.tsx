@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, MoreVertical, Pencil, Repeat2, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  FileClock,
+  FileText,
+  MoreVertical,
+  Pencil,
+  Repeat2,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import type { CensusMovementActionViewModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 
 interface CensusMovementActionsMenuProps {
@@ -10,6 +18,7 @@ interface CensusMovementActionsMenuProps {
 const iconByKind: Record<CensusMovementActionViewModel['iconName'], React.ReactNode> = {
   undo: <RotateCcw size={14} />,
   viewDocuments: <FileText size={14} />,
+  hospitalizationReports: <FileClock size={14} />,
   edit: <Pencil size={14} />,
   delete: <Trash2 size={14} />,
   convert: <Repeat2 size={14} />,
@@ -18,6 +27,7 @@ const iconByKind: Record<CensusMovementActionViewModel['iconName'], React.ReactN
 const actionTextClassName = (kind: CensusMovementActionViewModel['kind']): string => {
   if (kind === 'delete') return 'text-red-700 hover:bg-red-50';
   if (kind === 'viewDocuments') return 'text-blue-700 hover:bg-blue-50';
+  if (kind === 'hospitalizationReports') return 'text-sky-700 hover:bg-sky-50';
   if (kind === 'convert') return 'text-orange-700 hover:bg-orange-50';
   if (kind === 'edit') return 'text-medical-700 hover:bg-medical-50';
   return 'text-slate-700 hover:bg-slate-50';

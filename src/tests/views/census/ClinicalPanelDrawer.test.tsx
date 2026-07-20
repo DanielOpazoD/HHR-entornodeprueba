@@ -1,12 +1,25 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ request: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  request: vi.fn(),
+  navigate: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+}));
 
 vi.mock('@/features/rayen-import', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/rayen-import')>();
-  return { ...actual, requestClinicalPanel: (...args: unknown[]) => mocks.request(...args) };
+  return {
+    ...actual,
+    requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
+    requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
+  };
 });
+
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({ success: mocks.success, error: mocks.error }),
+}));
 
 import { ClinicalPanelDrawer } from '@/features/census/components/patient-row/ClinicalPanelDrawer';
 
@@ -84,6 +97,10 @@ describe('ClinicalPanelDrawer', () => {
   beforeEach(() => {
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelResult);
+    mocks.navigate.mockReset();
+    mocks.navigate.mockResolvedValue({ ok: true, reused: true });
+    mocks.success.mockReset();
+    mocks.error.mockReset();
   });
 
   it('separates handoffs, labels inactive medications, and renders care execution', async () => {
@@ -162,5 +179,26 @@ describe('ClinicalPanelDrawer', () => {
 
     expect(onPrevious).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('opens the exact episode from the Rayen mark beside the patient name', async () => {
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onClose={vi.fn()}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Abrir a Paciente de prueba en Eloísa' });
+    expect(button.querySelector('img')).toHaveAttribute('src', '/images/logos/rayen-mark.png');
+    fireEvent.click(button);
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('141121'));
+    expect(mocks.success).toHaveBeenCalledWith(
+      'Eloísa abierta',
+      'Se activó la pestaña de Ficha Médico en el episodio seleccionado.'
+    );
   });
 });

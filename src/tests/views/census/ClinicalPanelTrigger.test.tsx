@@ -1,20 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  resolveNavigation: vi.fn(),
-  success: vi.fn(),
-  error: vi.fn(),
-}));
-
-vi.mock('@/features/rayen-import', () => ({
-  requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
-}));
-
-vi.mock('@/context/UIContext', () => ({
-  useNotification: () => ({ success: mocks.success, error: mocks.error }),
-}));
+const mocks = vi.hoisted(() => ({ resolveNavigation: vi.fn() }));
 
 vi.mock('@/features/census/controllers/clinicalPanelNavigationController', () => ({
   resolveClinicalPanelNavigation: (...args: unknown[]) => mocks.resolveNavigation(...args),
@@ -37,15 +24,22 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
   ),
 }));
 
+vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () => ({
+  PatientHospitalizationReportsDialog: ({
+    isOpen,
+    patientName,
+  }: {
+    isOpen: boolean;
+    patientName: string;
+  }) => (isOpen ? <div data-testid="reports-dialog">Informes de {patientName}</div> : null),
+}));
+
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
 
 describe('ClinicalPanelTrigger', () => {
   beforeEach(() => {
-    mocks.navigate.mockReset();
     mocks.resolveNavigation.mockReset();
     mocks.resolveNavigation.mockReturnValue({ previous: null, next: null });
-    mocks.success.mockReset();
-    mocks.error.mockReset();
   });
 
   it('preserves the live clinical panel action', () => {
@@ -53,14 +47,13 @@ describe('ClinicalPanelTrigger', () => {
       <ClinicalPanelTrigger
         bedId="R2"
         patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
         clinicalEpisodeId="141336"
       />
     );
-
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
-
     expect(screen.getByRole('dialog')).toHaveTextContent('Panel de Paciente de prueba');
   });
 
@@ -79,6 +72,7 @@ describe('ClinicalPanelTrigger', () => {
       <ClinicalPanelTrigger
         bedId="R2"
         patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
         clinicalEpisodeId="141336"
       />
     );
@@ -92,56 +86,52 @@ describe('ClinicalPanelTrigger', () => {
     expect(activeClick).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the exact synced encounter and reports a reused tab', async () => {
-    mocks.navigate.mockResolvedValue({ ok: true, reused: true });
+  it('opens the episode-aware reports menu', () => {
     render(
       <ClinicalPanelTrigger
         bedId="R2"
         patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
         clinicalEpisodeId="141336"
       />
     );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir a Paciente de prueba en Eloísa' }));
-
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('141336'));
-    expect(mocks.success).toHaveBeenCalledWith(
-      'Eloísa abierta',
-      'Se activó la pestaña de Ficha Médico en el episodio seleccionado.'
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Abrir informes de hospitalización de Paciente de prueba',
+      })
     );
-    expect(mocks.error).not.toHaveBeenCalled();
-  });
-
-  it('shows the extension error without opening the clinical drawer', async () => {
-    mocks.navigate.mockResolvedValue({
-      ok: false,
-      reused: false,
-      error: 'No hay una pestaña disponible.',
-    });
-    render(
-      <ClinicalPanelTrigger
-        bedId="R2"
-        patientName="Paciente de prueba"
-        clinicalEpisodeId="141336"
-      />
+    expect(screen.getByTestId('reports-dialog')).toHaveTextContent(
+      'Informes de Paciente de prueba'
     );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir a Paciente de prueba en Eloísa' }));
-
-    await waitFor(() =>
-      expect(mocks.error).toHaveBeenCalledWith(
-        'No se pudo abrir Eloísa',
-        'No hay una pestaña disponible.'
-      )
-    );
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /abrir a .* en eloísa/i })).not.toBeInTheDocument();
   });
 
   it('does not render bridge actions without a synced episode', () => {
     const { container } = render(
-      <ClinicalPanelTrigger bedId="R2" patientName="Paciente de prueba" clinicalEpisodeId="" />
+      <ClinicalPanelTrigger
+        bedId="R2"
+        patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
+        clinicalEpisodeId=""
+      />
     );
-
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('keeps the clinical panel but hides reports when the patient has no valid RUN', () => {
+    render(
+      <ClinicalPanelTrigger
+        bedId="R2"
+        patientName="Paciente sin RUN"
+        patientRun="ID temporal"
+        clinicalEpisodeId="141336"
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente sin RUN' })
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: /informes de hospitalización/i })
+    ).not.toBeInTheDocument();
   });
 });
