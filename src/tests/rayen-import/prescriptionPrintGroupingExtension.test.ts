@@ -4,6 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { prescriptionPrint } from './prescriptionPrintTestHarness';
 
 describe('extension prescription operations', () => {
+  it('uses indication time as emission only when its source is explicit', () => {
+    expect(
+      prescriptionPrint.resolvePrescriptionEmissionDateTime(
+        { printDateSource: 'indication', printDateTime: '2026-07-20T14:40:00-06:00' },
+        '2026-07-20T09:15:00-06:00'
+      )
+    ).toBe('2026-07-20T14:40:00-06:00');
+    expect(
+      prescriptionPrint.resolvePrescriptionEmissionDateTime(
+        { printDateSource: 'validation', printDateTime: '2026-07-20T14:40:00-06:00' },
+        '2026-07-20T09:15:00-06:00'
+      )
+    ).toBe('2026-07-20T09:15:00-06:00');
+    expect(
+      prescriptionPrint.resolvePrescriptionEmissionDateTime(
+        { printDateSource: 'indication', printDateTime: '' },
+        '2026-07-20T09:15:00-06:00'
+      )
+    ).toBe('2026-07-20T09:15:00-06:00');
+  });
+
   it('deduplicates active medications and groups them by their actual professional', () => {
     const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
       {
@@ -48,19 +69,133 @@ describe('extension prescription operations', () => {
     ]);
 
     expect(groups.map(group => [group.professional, group.count])).toEqual([
-      ['Daniel Opazo', 1],
       ['Elena Díaz', 1],
+      ['Daniel Opazo', 1],
     ]);
-    expect(groups[0]?.medications[0]).toMatchObject({
+    expect(groups[1]?.medications[0]).toMatchObject({
       medication: 'Losartán 50 mg',
       posology: '1 cada 12 horas',
       date: '2026-07-09',
       dateTime: '2026-07-09T11:15:00',
     });
-    expect(groups[0]?.professionalRun).toBe('17.752.753-K');
-    expect(groups[0]?.latestDateTime).toBe('2026-07-09T11:15:00');
-    expect(groups[0]?.externalCount).toBe(0);
-    expect(groups[1]?.key).toBe('professional:elena-diaz');
+    expect(groups[1]?.professionalRun).toBe('17.752.753-K');
+    expect(groups[1]?.latestDateTime).toBe('2026-07-09T11:15:00');
+    expect(groups[1]?.externalCount).toBe(0);
+    expect(groups[0]?.key).toBe(
+      `professional:elena-diaz-emission-${Date.parse('2026-07-14T19:48:00')}`
+    );
+  });
+
+  it('separates later changes by issuance time and prints only the active rows from that change', () => {
+    const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
+      {
+        encounterEventId: 10,
+        patientPharmaIndicationResume: [
+          {
+            MRE_ID: 501,
+            DESCRIPTOR: 'Losartán 50 mg',
+            POSOLOGY: '1 cada 12 horas',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T09:15:00-06:00',
+          },
+          {
+            MRE_ID: 502,
+            DESCRIPTOR: 'Omeprazol 20 mg',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T09:15:00-06:00',
+          },
+        ],
+      },
+      {
+        encounterEventId: 11,
+        patientPharmaIndicationResume: [
+          {
+            MRE_ID: 501,
+            DESCRIPTOR: 'Losartán 50 mg',
+            POSOLOGY: '1 cada 24 horas',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T14:40:00-06:00',
+          },
+        ],
+      },
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.map(group => [group.latestDateTime, group.count])).toEqual([
+      ['2026-07-20T14:40:00-06:00', 1],
+      ['2026-07-20T09:15:00-06:00', 1],
+    ]);
+    expect(groups[0]?.medications).toEqual([
+      expect.objectContaining({ medication: 'Losartán 50 mg', posology: '1 cada 24 horas' }),
+    ]);
+    expect(groups[1]?.medications).toEqual([
+      expect.objectContaining({ medication: 'Omeprazol 20 mg' }),
+    ]);
+  });
+
+  it('orders emission groups by absolute instant when timezone offsets differ', () => {
+    const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
+      {
+        patientPharmaIndicationResume: [
+          {
+            MRE_ID: 601,
+            DESCRIPTOR: 'Indicación anterior',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-04-04T23:30:00-05:00',
+          },
+          {
+            MRE_ID: 602,
+            DESCRIPTOR: 'Indicación posterior',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-04-04T23:15:00-06:00',
+          },
+        ],
+      },
+    ]);
+
+    expect(groups.map(group => group.latestDateTime)).toEqual([
+      '2026-04-04T23:15:00-06:00',
+      '2026-04-04T23:30:00-05:00',
+    ]);
+  });
+
+  it('uses canonical instants without merging opposite timezone offsets', () => {
+    const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
+      {
+        patientPharmaIndicationResume: [
+          {
+            MRE_ID: 603,
+            DESCRIPTOR: 'Indicación oeste',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T09:15:00-06:00',
+          },
+          {
+            MRE_ID: 604,
+            DESCRIPTOR: 'Indicación este',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T09:15:00+06:00',
+          },
+          {
+            MRE_ID: 605,
+            DESCRIPTOR: 'Mismo instante',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '2026-07-20T15:15:00Z',
+          },
+        ],
+      },
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.map(group => group.count)).toEqual([2, 1]);
+    expect(new Set(groups.map(group => group.key)).size).toBe(2);
   });
 
   it('keeps clinically distinct fallback rows when Eloísa omits MRE_ID', () => {

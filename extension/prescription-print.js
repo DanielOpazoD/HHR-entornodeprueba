@@ -221,7 +221,8 @@
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'sin-profesional';
   };
-
+  var prescriptionEmissionKey = function (value) { var normalized = String(normalizeClinicalDateTime(value) || value || 'sin-fecha'); var epoch = Date.parse(normalized); return Number.isNaN(epoch) ? encodeURIComponent(normalized) : String(epoch); };
+  var resolvePrescriptionEmissionDateTime = function (group, officialDateTime) { return group && group.printDateSource === 'indication' && group.printDateTime ? group.printDateTime : officialDateTime || ''; };
   var deriveProfessionalPrescriptionGroups = function (events) {
     var latestRows = new Map();
     for (var i = 0; i < (Array.isArray(events) ? events.length : 0); i += 1) {
@@ -296,9 +297,8 @@
       var normalizedName = authorKey(row.author);
       var resolvedRun = row.professionalRun || '';
       var runIdentity = String(resolvedRun || '').replace(/[^0-9kK]/g, '').toUpperCase();
-      var key = runIdentity
-        ? 'professional-run:' + runIdentity.toLowerCase()
-        : 'professional:' + normalizedName;
+      var key = (runIdentity ? 'professional-run:' + runIdentity.toLowerCase() : 'professional:' + normalizedName) +
+        '-emission-' + prescriptionEmissionKey(row.dateTime);
       var group = groupsByKey.get(key) || {
         key: key,
         professional: row.author,
@@ -345,7 +345,7 @@
           medications: group.medications,
         };
       })
-      .sort(function (a, b) { return a.professional.localeCompare(b.professional); });
+      .sort(function (a, b) { return (Date.parse(b.latestDateTime) || 0) - (Date.parse(a.latestDateTime) || 0) || a.professional.localeCompare(b.professional); });
   };
 
   // The history report is the best source for authorship and validation chronology, but some
@@ -1517,7 +1517,7 @@
     formatAgeLabel: formatAgeLabel,
     formatRun: formatRun,
     derivePrescriptionDates: derivePrescriptionDates,
-    deriveProfessionalPrescriptionGroups: deriveProfessionalPrescriptionGroups,
+    deriveProfessionalPrescriptionGroups: deriveProfessionalPrescriptionGroups, resolvePrescriptionEmissionDateTime: resolvePrescriptionEmissionDateTime,
     applyCurrentMedicationMetadata: applyCurrentMedicationMetadata,
     deriveExternalPrescriptionGroups: deriveExternalPrescriptionGroups,
     applyProfessionalValidationDates: applyProfessionalValidationDates,
