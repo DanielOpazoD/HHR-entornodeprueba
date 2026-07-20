@@ -1,7 +1,11 @@
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
+import { CheckCircle2, CircleHelp, CircleMinus, RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type {
+  CensusImportDiff,
+  DischargeVerification,
+  DischargeVerificationState,
+} from '../contracts/censusImportDiff';
 
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
@@ -62,6 +66,54 @@ const Section: React.FC<{ title: string; count: number; children: React.ReactNod
         {title} <span className="text-gray-400">({count})</span>
       </h4>
       <ul className="space-y-1 text-sm text-gray-600">{children}</ul>
+    </div>
+  );
+};
+
+const verificationPresentation: Record<
+  DischargeVerificationState,
+  { Icon: typeof CheckCircle2; className: string; suffix: string }
+> = {
+  confirmed: {
+    Icon: CheckCircle2,
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    suffix: 'confirmado',
+  },
+  'not-detected': {
+    Icon: CircleMinus,
+    className: 'border-slate-200 bg-slate-50 text-slate-500',
+    suffix: 'no detectado',
+  },
+  unknown: {
+    Icon: CircleHelp,
+    className: 'border-slate-200 bg-white text-slate-500',
+    suffix: 'sin dato',
+  },
+};
+
+const VerificationBadges: React.FC<{ verification: DischargeVerification }> = ({
+  verification,
+}) => {
+  const items = [
+    ['Epicrisis médica', verification.medicalEpicrisis],
+    ['Epicrisis enfermería', verification.nursingEpicrisis],
+    ['Egreso hospitalario', verification.hospitalDischarge],
+  ] as const;
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5" aria-label="Verificación documental del egreso">
+      {items.map(([label, state]) => {
+        const { Icon, className, suffix } = verificationPresentation[state];
+        return (
+          <span
+            key={label}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${className}`}
+            title={`${label}: ${suffix}`}
+          >
+            <Icon size={13} aria-hidden="true" />
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 };
@@ -166,17 +218,20 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             <Section title="Egresos" count={diff.discharges.length}>
               {diff.discharges.map(entry => (
                 <li key={`dis-${entry.bedId}-${entry.rut}`}>
-                  <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
-                  {dischargeKindLabel[entry.kind] ?? entry.kind}
-                  {entry.status === 'Fallecido' && (
-                    <span className="ml-1 text-red-600">(Fallecido)</span>
-                  )}
-                  {previousDays.has(entry.correctedDay ?? '') && (
-                    <span className="ml-1 font-medium text-amber-700">
-                      → se grabará el {ddmmyyyy(entry.correctedDay)}
-                      {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
-                    </span>
-                  )}
+                  <div>
+                    <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
+                    {dischargeKindLabel[entry.kind] ?? entry.kind}
+                    {entry.status === 'Fallecido' && (
+                      <span className="ml-1 text-red-600">(Fallecido)</span>
+                    )}
+                    {previousDays.has(entry.correctedDay ?? '') && (
+                      <span className="ml-1 font-medium text-amber-700">
+                        → se grabará el {ddmmyyyy(entry.correctedDay)}
+                        {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
+                      </span>
+                    )}
+                  </div>
+                  {entry.verification && <VerificationBadges verification={entry.verification} />}
                 </li>
               ))}
             </Section>
@@ -187,12 +242,15 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             >
               {diff.pendingAdministrativeDischarges.map(entry => (
                 <li key={`pnd-${entry.bedId}-${entry.rut}`}>
-                  <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
-                  <span className="text-gray-500">
-                    {entry.signal === 'clinical-closure'
-                      ? 'cierre clínico registrado; falta egreso en Gestión de Camas'
-                      : 'ausente en Ficha Médico; no confirmado en Gestión de Camas'}
-                  </span>
+                  <div>
+                    <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
+                    <span className="text-gray-500">
+                      {entry.signal === 'clinical-closure'
+                        ? 'cierre clínico registrado; egreso hospitalario aún no detectado'
+                        : 'no aparece en Ficha Médico; se conserva en cama hasta confirmar el egreso'}
+                    </span>
+                  </div>
+                  <VerificationBadges verification={entry.verification} />
                 </li>
               ))}
             </Section>
@@ -228,6 +286,13 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
                     </span>
                   )}
+                  <VerificationBadges
+                    verification={{
+                      medicalEpicrisis: 'unknown',
+                      nursingEpicrisis: 'unknown',
+                      hospitalDischarge: 'confirmed',
+                    }}
+                  />
                 </li>
               ))}
             </Section>

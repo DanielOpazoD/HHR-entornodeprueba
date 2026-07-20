@@ -33,10 +33,18 @@ export interface EgresoRecord {
   [key: string]: unknown;
 }
 
+export interface EgresoLookupTarget {
+  run: string;
+  /** Exact hospitalization to verify. The fallback must never use another episode for the same RUN. */
+  encounterId: string;
+}
+
 /** Result of looking up one RUN in gestión de camas. */
 export interface EgresoLookupResult {
   /** The RUN that was looked up (as sent). */
   run: string;
+  /** Episode requested and selected by the extension. */
+  encounterId?: string;
   /** The egreso record, when found. */
   egreso?: EgresoRecord;
   /** Error message, when the lookup failed for this RUN. */

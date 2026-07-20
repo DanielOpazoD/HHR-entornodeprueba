@@ -26,6 +26,7 @@ importScripts(
   'fichamedico-patient-context.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
+  'gestion-camas-egreso-lookup.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -34,6 +35,8 @@ importScripts(
   'clinical-score-runtime.js',
   'clinical-score-write-model.js',
   'clinical-score-write-runtime.js',
+  'hospitalization-reports-runtime.js',
+  'epicrisis-download-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
@@ -52,6 +55,9 @@ importScripts(
 );
 if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
+}
+if (!self.HhrGestionCamasEgresoLookup) {
+  throw new Error('No se pudo cargar la política de verificación de egresos.');
 }
 if (!self.HhrClinicalHandoffRuntime || typeof self.HhrClinicalHandoffRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime clínico de entrega de turno.');
@@ -240,38 +246,7 @@ const handleExtensionHealth = async () => {
   };
 };
 
-const GESTION_CAMAS_EGRESO_METADATA_FIELDS = [
-  'id',
-  'endPeriod',
-  'dateDischarge',
-  'isDead',
-  'hasMedicalDischarge',
-  'hasNurseDischarge',
-  'hasNursingDischarge',
-  'hasAdministrativeDischarge',
-  'dischargeDestination',
-  'dischargeDestinationName',
-  'destinationSystemName',
-  'dischargeReasonName',
-  'dischargeTypeName',
-  'bedDestination',
-  'destinationBed',
-];
-
-const pickGestionCamasEncounterMetadata = value => {
-  const result = {};
-  if (!value || typeof value !== 'object') return result;
-  for (const key of GESTION_CAMAS_EGRESO_METADATA_FIELDS) {
-    const field = value[key];
-    if (field !== undefined && field !== null &&
-        typeof field !== 'object' && typeof field !== 'function') {
-      result[key] = field;
-    }
-  }
-  return result;
-};
-
-const handleEgresoLookup = async runs => {
+const handleEgresoLookup = async (runs, targets) => {
   const session = await resolveGestionCamasSession();
   if (!session.record) {
     return { error: session.error || 'Conecta Gestión de Camas para consultar egresos.' };
@@ -279,9 +254,8 @@ const handleEgresoLookup = async runs => {
   const record = session.record;
   if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
   const results = [];
-  for (const sourceRun of Array.isArray(runs) ? runs : []) {
-    const run = String(sourceRun || '').replace(/[^0-9kK]/g, '');
-    if (!run) continue;
+  for (const target of self.HhrGestionCamasEgresoLookup.normalizeTargets(runs, targets)) {
+    const { run, encounterId } = target;
     const url =
       `${record.apiBase}/facility/${record.facId}/encounter` +
       `?facId=0&prefferedIdentifierCode=${encodeURIComponent(run)}&prefferedPeridentId=2`;
@@ -311,8 +285,12 @@ const handleEgresoLookup = async runs => {
         });
         break;
       }
-      const item = Array.isArray(payload) ? payload[0] : payload;
-      results.push({ run, egreso: item ? pickGestionCamasEncounterMetadata(item) : null });
+      const item = self.HhrGestionCamasEgresoLookup.selectEncounter(payload, encounterId);
+      results.push({
+        run,
+        encounterId,
+        egreso: item ? self.HhrGestionCamasEgresoLookup.pickMetadata(item) : null,
+      });
     } catch (error) {
       results.push({ run, error: String((error && error.message) || error) });
     }
@@ -1186,7 +1164,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo abrir el episodio clínico.'
   ),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
-    message => handleEgresoLookup(message.runs),
+    message => handleEgresoLookup(message.runs, message.targets),
     'No se pudo consultar el egreso.'
   ),
   [RUNTIME_MESSAGES.EGRESO_REPORT_REQUEST]: runtimeRoute(
@@ -1288,11 +1266,7 @@ const runtimeMessageRoutes = Object.freeze({
   ),
   [RUNTIME_MESSAGES.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: runtimeRoute(
     (message, sender) =>
-      handleNursingMedicalEpicrisisPrintRequest({
-        encId: message.encId,
-        patientRun: message.patientRun,
-        sender,
-      }),
+      handleNursingMedicalEpicrisisPrintRequest({ ...message, sender }),
     'No se pudo imprimir la epicrisis médica.'
   ),
   [RUNTIME_MESSAGES.EXAM_REQUEST_COMBINE_PRINT_REQUEST]: runtimeRoute(

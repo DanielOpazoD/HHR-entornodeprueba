@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1418,
+      "maxLines": 1415,
       "hotspots": {
         "variable:handleEgresoLookup": 20,
         "variable:handleExamRequestCombinePrint": 25,
@@ -47,7 +47,7 @@
       "hotspots": {
         "iife>variable:create": 26,
         "iife>variable:create>variable:createCompletePrescriptionPdf": 16,
-        "iife>variable:create>variable:handleNursingMedicalEpicrisisPrintRequest": 30,
+        "iife>variable:create>variable:handleNursingMedicalEpicrisisPrintRequest": 28,
         "iife>variable:create>variable:resolveDischargedEncounterIdByRun": 17
       }
     },
@@ -98,6 +98,10 @@
       "maxLines": 166,
       "hotspots": {}
     },
+    "content-hhr-epicrisis.js": {
+      "maxLines": 39,
+      "hotspots": {}
+    },
     "content-hhr.js": {
       "maxLines": 252,
       "hotspots": {}
@@ -111,6 +115,10 @@
     },
     "encounter-navigation.js": {
       "maxLines": 60,
+      "hotspots": {}
+    },
+    "epicrisis-download-runtime.js": {
+      "maxLines": 112,
       "hotspots": {}
     },
     "epicrisis-pdf.js": {
@@ -153,6 +161,10 @@
       "maxLines": 158,
       "hotspots": {}
     },
+    "gestion-camas-egreso-lookup.js": {
+      "maxLines": 68,
+      "hotspots": {}
+    },
     "gestion-camas-runtime.js": {
       "maxLines": 498,
       "hotspots": {
@@ -171,7 +183,7 @@
       "hotspots": {}
     },
     "hhr-center-shell-runtime.js": {
-      "maxLines": 374,
+      "maxLines": 373,
       "hotspots": {
         "iife>variable:create": 16
       }
@@ -272,6 +284,10 @@
         "iife>variable:parseVitalSigns": 28
       }
     },
+    "hospitalization-reports-runtime.js": {
+      "maxLines": 144,
+      "hotspots": {}
+    },
     "inject-fichamedico.js": {
       "maxLines": 526,
       "hotspots": {
@@ -296,7 +312,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 272,
+      "maxLines": 270,
       "hotspots": {}
     },
     "pdf-print.js": {

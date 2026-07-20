@@ -23,6 +23,7 @@ import {
   type EvolutionProfession,
 } from '@/features/rayen-import';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
+import { RayenEncounterButton } from './RayenEncounterButton';
 
 interface ClinicalPanelDrawerProps {
   bedId: string;
@@ -73,28 +74,32 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // The initial state is already 'loading', so the mount effect only fetches (no sync setState);
-  // `reload` (refresh/retry buttons) is the one that flips back to 'loading' first.
-  const load = useCallback(async () => {
-    const result = await requestClinicalPanel(clinicalEpisodeId);
-    // Clinical sources form one required snapshot. Never present a partial response as complete,
-    // including responses from an older extension version that may still include partial arrays.
-    if (result.error) {
-      setState({ phase: 'error', message: result.error });
-      return;
-    }
-    setState({ phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) });
-  }, [clinicalEpisodeId]);
-
   const reload = useCallback(() => {
     setState({ phase: 'loading' });
-    void load();
-  }, [load]);
+    void requestClinicalPanel(clinicalEpisodeId).then(result => {
+      setState(
+        result.error
+          ? { phase: 'error', message: result.error }
+          : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) }
+      );
+    });
+  }, [clinicalEpisodeId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fetch-on-open; state only settles after the async response (same idiom as wound-care hooks)
-    void load();
-  }, [load]);
+    let active = true;
+    void requestClinicalPanel(clinicalEpisodeId).then(result => {
+      if (!active) return;
+      // Clinical sources form one required snapshot. Never present an old partial response as full.
+      setState(
+        result.error
+          ? { phase: 'error', message: result.error }
+          : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) }
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [clinicalEpisodeId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -160,7 +165,14 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
       >
         <header className="flex items-start gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[14px] font-bold text-slate-800">{patientName}</h2>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h2 className="truncate text-[14px] font-bold text-slate-800">{patientName}</h2>
+              <RayenEncounterButton
+                bedId={bedId}
+                patientName={patientName}
+                clinicalEpisodeId={clinicalEpisodeId}
+              />
+            </div>
             <p className="text-[10px] text-slate-400">
               Cama {bedId} · Eloísa en vivo · no se guarda en HHR
             </p>

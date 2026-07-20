@@ -9,8 +9,10 @@ import {
 } from '@/features/rayen-import';
 import {
   RAYEN_EGRESO_REPORT_RESULT_TYPE,
+  RAYEN_EGRESO_LOOKUP_RESULT_TYPE,
   RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
   requestEgresoReport,
+  requestEgresoLookup,
   subscribeToRayenImportErrors,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
 
@@ -129,5 +131,35 @@ describe('administrative-discharge report bridge', () => {
 
     await expect(pending).resolves.toEqual({ ok: false, reason: 'timeout' });
     vi.useRealTimers();
+  });
+});
+
+describe('exact-episode egreso lookup bridge', () => {
+  it('sends both the normalized compatibility RUN list and the exact hospitalization target', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const pending = requestEgresoLookup([{ run: '22.025.389-9', encounterId: '141704' }], 1000);
+    const request = postMessage.mock.calls[0]?.[0] as {
+      reqId: string;
+      runs: string[];
+      targets: Array<{ run: string; encounterId: string }>;
+    };
+
+    expect(request.runs).toEqual(['22.025.389-9']);
+    expect(request.targets).toEqual([{ run: '22.025.389-9', encounterId: '141704' }]);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_EGRESO_LOOKUP_RESULT_TYPE,
+          reqId: request.reqId,
+          results: [{ run: '220253899', encounterId: '141704', egreso: { id: 141704 } }],
+        },
+      })
+    );
+
+    await expect(pending).resolves.toEqual([
+      { run: '220253899', encounterId: '141704', egreso: { id: 141704 } },
+    ]);
+    postMessage.mockRestore();
   });
 });

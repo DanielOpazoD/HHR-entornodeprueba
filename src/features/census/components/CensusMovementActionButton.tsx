@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Pencil, Repeat2, RotateCcw, Trash2 } from 'lucide-react';
+import { FileClock, FileText, Pencil, Repeat2, RotateCcw, Trash2 } from 'lucide-react';
 import type { CensusMovementActionViewModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 
 interface CensusMovementActionButtonProps {
@@ -9,6 +9,7 @@ interface CensusMovementActionButtonProps {
 const renderIcon = (iconName: CensusMovementActionViewModel['iconName']) => {
   if (iconName === 'undo') return <RotateCcw size={14} />;
   if (iconName === 'viewDocuments') return <FileText size={14} />;
+  if (iconName === 'hospitalizationReports') return <FileClock size={14} />;
   if (iconName === 'edit') return <Pencil size={14} />;
   if (iconName === 'convert') return <Repeat2 size={14} />;
   return <Trash2 size={14} />;

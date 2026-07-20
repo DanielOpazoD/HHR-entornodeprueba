@@ -8,7 +8,7 @@
  * Only the message SHAPE is trusted here; the app still previews/confirms before writing.
  */
 
-import type { EgresoLookupResult } from '../contracts/egresoLookup';
+import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 
 export {
@@ -74,14 +74,18 @@ export interface RayenHistoryScaleEvent {
  * degrades gracefully (keeps the inferred discharges).
  */
 export const requestEgresoLookup = (
-  runs: string[],
+  requested: Array<string | EgresoLookupTarget>,
   timeoutMs = 30000
 ): Promise<EgresoLookupResult[]> =>
   new Promise(resolve => {
-    if (typeof window === 'undefined' || !Array.isArray(runs) || runs.length === 0) {
+    if (typeof window === 'undefined' || !Array.isArray(requested) || requested.length === 0) {
       resolve([]);
       return;
     }
+    const targets = requested
+      .map(value => (typeof value === 'string' ? { run: value, encounterId: '' } : value))
+      .filter(value => value && typeof value.run === 'string');
+    const runs = targets.map(target => target.run);
     const reqId = `egreso-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
 
@@ -101,7 +105,7 @@ export const requestEgresoLookup = (
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_EGRESO_LOOKUP_REQUEST_TYPE, reqId, runs },
+      { type: RAYEN_EGRESO_LOOKUP_REQUEST_TYPE, reqId, runs, targets },
       window.location.origin
     );
     setTimeout(() => {

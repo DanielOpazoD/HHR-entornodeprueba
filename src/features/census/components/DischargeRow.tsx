@@ -5,6 +5,7 @@ import type { DischargeData } from '@/features/census/contracts/censusMovementCo
 import { resolveDischargeRowViewModel } from '@/features/census/controllers/dischargeRowViewController';
 import { DischargeRowView } from '@/features/census/components/DischargeRowView';
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
+import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
 
 const LazyClinicalDocumentsModal = lazy(() =>
   import('@/features/clinical-documents').then(module => ({
@@ -35,6 +36,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
     onConvertToTransfer,
   }) => {
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
+    const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const clinicalDocumentsPatient = useMemo(
       () => buildDischargeClinicalDocumentsPatientSnapshot(item, recordDate),
       [item, recordDate]
@@ -42,6 +44,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
     const viewModel = resolveDischargeRowViewModel(item, {
       undoDischarge: onUndo,
       viewClinicalDocuments: () => setShowClinicalDocuments(true),
+      openHospitalizationReports: () => setShowHospitalizationReports(true),
       editDischarge: onEdit,
       deleteDischarge: onDelete,
       convertDischargeToCma: onConvertToCma,
@@ -69,6 +72,14 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
             </Suspense>,
             document.body
           )}
+        <PatientHospitalizationReportsDialog
+          isOpen={showHospitalizationReports}
+          onClose={() => setShowHospitalizationReports(false)}
+          patientName={item.patientName}
+          patientRun={item.rut}
+          currentEpisodeId={item.clinicalEpisodeId}
+          censusDate={item.movementDate || recordDate}
+        />
       </>
     );
   }
