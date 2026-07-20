@@ -36,7 +36,7 @@ const ensureStringArray = (value?: string[] | null, expectedLength = 0): string[
 
 const getRoleCollectionKey = (role: DetailedStaffingRole): 'nurses' | 'tens' =>
   role === 'nurse' ? 'nurses' : 'tens';
-const getShiftRoleAssignments = (
+export const getDetailedShiftRoleAssignments = (
   detail: DailyRecordStaffingDetailsV1,
   shift: DetailedStaffingShift,
   role: DetailedStaffingRole
@@ -218,12 +218,12 @@ export const resolveDetailedStaffingState = (
 
 const cloneDetail = (detail: DailyRecordStaffingDetailsV1): DailyRecordStaffingDetailsV1 => ({
   day: {
-    nurses: getShiftRoleAssignments(detail, 'day', 'nurse').map(cloneAssignment),
-    tens: getShiftRoleAssignments(detail, 'day', 'tens').map(cloneAssignment),
+    nurses: getDetailedShiftRoleAssignments(detail, 'day', 'nurse').map(cloneAssignment),
+    tens: getDetailedShiftRoleAssignments(detail, 'day', 'tens').map(cloneAssignment),
   },
   night: {
-    nurses: getShiftRoleAssignments(detail, 'night', 'nurse').map(cloneAssignment),
-    tens: getShiftRoleAssignments(detail, 'night', 'tens').map(cloneAssignment),
+    nurses: getDetailedShiftRoleAssignments(detail, 'night', 'nurse').map(cloneAssignment),
+    tens: getDetailedShiftRoleAssignments(detail, 'night', 'tens').map(cloneAssignment),
   },
 });
 

@@ -6,6 +6,7 @@ import type {
 } from '../contracts/nursingShiftInference';
 import {
   buildDetailedStaffingPatch,
+  getDetailedShiftRoleAssignments,
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
@@ -21,7 +22,7 @@ const resolveCurrentNames = (
   shift: 'day' | 'night'
 ): string[] => {
   const names = ['', ''];
-  for (const assignment of detail[shift].nurses) {
+  for (const assignment of getDetailedShiftRoleAssignments(detail, shift, 'nurse')) {
     if (
       assignment.slotType === 'standard' &&
       typeof assignment.standardSlotIndex === 'number' &&
@@ -37,7 +38,10 @@ const resolveCurrentNames = (
 const resolveOccupiedNames = (
   detail: ReturnType<typeof resolveDetailedStaffingState>,
   shift: 'day' | 'night'
-): string[] => detail[shift].nurses.map(assignment => assignment.name || '').filter(Boolean);
+): string[] =>
+  getDetailedShiftRoleAssignments(detail, shift, 'nurse')
+    .map(assignment => assignment.name || '')
+    .filter(Boolean);
 
 const knownIdentityKeys = (suggestion: NursingShiftSuggestion, name: string): Set<string> => {
   const evidence = suggestion.candidates.find(candidate => candidate.name === name);
