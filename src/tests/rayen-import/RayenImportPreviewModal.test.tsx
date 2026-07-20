@@ -68,6 +68,8 @@ describe('RayenImportPreviewModal discharge verification', () => {
     expect(screen.getByTitle('Egreso hospitalario: confirmado')).toBeInTheDocument();
     expect(screen.getByTitle('Epicrisis enfermería: no detectado')).toBeInTheDocument();
     expect(screen.getByTitle('Egreso hospitalario: no detectado')).toBeInTheDocument();
+    expect(screen.getAllByRole('group', { name: 'Verificación documental del egreso' })).toHaveLength(2);
+    expect(screen.getAllByText(': confirmado')).toHaveLength(4);
     expect(
       screen.getByText('cierre clínico registrado; egreso hospitalario aún no detectado')
     ).toBeInTheDocument();

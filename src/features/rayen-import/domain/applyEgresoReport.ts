@@ -19,8 +19,7 @@ import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { isCmaBedLabel, isCmaLocation } from '../mapping/bedMapping';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { confirmHospitalDischarge } from './dischargeVerification';
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+import { normalizeRut } from '@/utils/rutUtils';
 
 const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
   if (diff.pendingAdministrativeDischarges.length === 0) return diff;
@@ -279,6 +278,7 @@ export const applyEgresoReport = (
         kind: mapped.kind,
         status: mapped.status,
         reason: 'administrative-discharge',
+        encounterId: row.encounterId,
         verification: confirmHospitalDischarge(pending?.verification),
         ...correctedStamp(row.fechaEgreso),
       });

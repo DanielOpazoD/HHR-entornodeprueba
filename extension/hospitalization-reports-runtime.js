@@ -44,10 +44,10 @@
 
   const matchingRows = (rows, patientRun) => {
     const expectedRun = normalizeRun(patientRun);
-    return rows.filter(row =>
-      isEncounter(row && row.encounterId) &&
-      normalizeRun(row && row.patientIdentifier) === expectedRun
-    );
+    const rowRuns = row => [row && row.patientIdentifier, row && row.preferredIdentifierCode,
+      row && row.identifier, row && row.patient && row.patient.identifier,
+      row && row.patient && row.patient.preferredIdentifierCode].map(normalizeRun);
+    return rows.filter(row => isEncounter(row && row.encounterId) && rowRuns(row).includes(expectedRun));
   };
   const sortRowsNewestFirst = rows => [...rows].sort((left, right) =>
     normalizeDate(right && (right.startPeriod || right.endPeriod))
@@ -112,17 +112,20 @@
   };
 
   const openHistoryReport = async ({ chrome, now, resolved }) => {
+    const chromeApi = chrome || root.chrome;
+    if (!chromeApi || !chromeApi.tabs || typeof chromeApi.tabs.create !== 'function')
+      return { error: 'No se pudo acceder al navegador para abrir la ficha clínica completa.' };
+    const currentTime = typeof now === 'function' ? now() : Date.now();
     const url = buildHistoryReportUrl({
       encId: resolved.encId,
-      startPeriod: resolved.row && resolved.row.startPeriod,
-      endPeriod: resolved.row && resolved.row.endPeriod,
-      now: new Date(now()).toISOString(),
+      startPeriod: resolved.row && resolved.row.startPeriod, endPeriod: resolved.row && resolved.row.endPeriod,
+      now: new Date(currentTime).toISOString(),
     });
     if (!url) return { error: 'El episodio no contiene fechas válidas para abrir la ficha completa.' };
     try {
-      const tab = await chrome.tabs.create({ url, active: true });
+      const tab = await chromeApi.tabs.create({ url, active: true });
       if (tab && tab.windowId != null) {
-        try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_error) {}
+        try { await chromeApi.windows.update(tab.windowId, { focused: true }); } catch (_error) {}
       }
       return { ok: true, opened: true, encId: resolved.encId };
     } catch (error) {
@@ -132,12 +135,7 @@
   };
 
   root.HhrHospitalizationReportsRuntime = {
-    buildHistoryReportUrl,
-    isValidRun,
-    listEpisodes,
-    normalizeRun,
-    openHistoryReport,
-    resolveRows,
-    selectEncounter,
+    buildHistoryReportUrl, isValidRun, listEpisodes, normalizeRun,
+    openHistoryReport, resolveRows, selectEncounter,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

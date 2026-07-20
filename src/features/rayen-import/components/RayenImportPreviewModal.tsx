@@ -100,7 +100,11 @@ const VerificationBadges: React.FC<{ verification: DischargeVerification }> = ({
     ['Egreso hospitalario', verification.hospitalDischarge],
   ] as const;
   return (
-    <div className="mt-1 flex flex-wrap gap-1.5" aria-label="Verificación documental del egreso">
+    <div
+      className="mt-1 flex flex-wrap gap-1.5"
+      role="group"
+      aria-label="Verificación documental del egreso"
+    >
       {items.map(([label, state]) => {
         const { Icon, className, suffix } = verificationPresentation[state];
         return (
@@ -110,7 +114,8 @@ const VerificationBadges: React.FC<{ verification: DischargeVerification }> = ({
             title={`${label}: ${suffix}`}
           >
             <Icon size={13} aria-hidden="true" />
-            {label}
+            <span>{label}</span>
+            <span className="sr-only">: {suffix}</span>
           </span>
         );
       })}

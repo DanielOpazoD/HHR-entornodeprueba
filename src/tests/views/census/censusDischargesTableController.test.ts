@@ -112,4 +112,18 @@ describe('censusDischargesTableController', () => {
       'delete',
     ]);
   });
+
+  it('does not expose hospitalization reports when a legacy discharge has no RUT', () => {
+    const discharge = DataFactory.createMockDischarge({ rut: undefined as unknown as string });
+    const actions = buildDischargeRowActions(discharge, {
+      undoDischarge: () => undefined,
+      editDischarge: () => undefined,
+      viewClinicalDocuments: () => undefined,
+      openHospitalizationReports: () => undefined,
+      deleteDischarge: () => undefined,
+      convertDischargeToCma: () => undefined,
+    });
+
+    expect(actions.map(action => action.kind)).not.toContain('hospitalizationReports');
+  });
 });

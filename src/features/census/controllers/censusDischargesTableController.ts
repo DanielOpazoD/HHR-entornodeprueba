@@ -47,7 +47,7 @@ export const buildDischargeRowActions = (
     },
   ];
 
-  if (/^[0-9]{6,8}[0-9K]$/.test(discharge.rut.toUpperCase().replace(/[^0-9K]/g, ''))) {
+  if (/^[0-9]{6,8}[0-9K]$/.test((discharge.rut || '').toUpperCase().replace(/[^0-9K]/g, ''))) {
     actions.push({
       kind: 'hospitalizationReports' as const,
       title: 'Informes de hospitalización',

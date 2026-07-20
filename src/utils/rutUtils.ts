@@ -10,6 +10,10 @@ export const cleanRut = (rut: string): string => {
     return rut.replace(/[.-]/g, '').toUpperCase();
 };
 
+/** Canonical comparison key for RUT/RUN values from external systems. */
+export const normalizeRut = (rut?: string): string =>
+    (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+
 /**
  * Format RUT with dots and dash
  * Example: "123456789" -> "12.345.678-9"

@@ -4,8 +4,10 @@ import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
+import { normalizeRut } from '@/utils/rutUtils';
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const lookupKey = (rut: string | undefined, encounterId: string | undefined): string =>
+  `${normalizeRut(rut)}::${String(encounterId || '').trim()}`;
 
 const lookupStamp = (egreso: EgresoRecord): string => {
   const raw = String(egreso.dateDischarge || egreso.endPeriod || '').trim();
@@ -40,17 +42,16 @@ const eligibleLookups = (
   const eligible = new Map<string, EligibleLookup>();
   for (const result of lookupResults) {
     const pending = diff.pendingAdministrativeDischarges.find(
-      entry => normalizeRut(entry.rut) === normalizeRut(result.run)
+      entry => lookupKey(entry.rut, entry.encounterId) === lookupKey(result.run, result.encounterId)
     );
     if (
       !pending?.encounterId ||
-      result.encounterId !== pending.encounterId ||
       !result.egreso ||
       !hasConfirmedAdministrativeDischarge(result.egreso)
     ) {
       continue;
     }
-    eligible.set(normalizeRut(result.run), { result, pending });
+    eligible.set(lookupKey(result.run, result.encounterId), { result, pending });
   }
   return eligible;
 };
@@ -59,6 +60,7 @@ const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportR
   const egreso = result.egreso as EgresoRecord;
   return {
     run: result.run,
+    encounterId: result.encounterId,
     patientName: pending.patientName,
     bedLabel: pending.bedId,
     servicio: '',
@@ -85,7 +87,7 @@ export const applyEgresoLookupFallback = (
   return {
     ...enriched,
     discharges: enriched.discharges.map(discharge => {
-      const match = eligible.get(normalizeRut(discharge.rut));
+      const match = eligible.get(lookupKey(discharge.rut, discharge.encounterId));
       return match
         ? {
             ...discharge,

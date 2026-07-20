@@ -78,6 +78,7 @@ describe('applyEgresoLookupFallback', () => {
     expect(enriched.pendingAdministrativeDischarges).toHaveLength(0);
     expect(enriched.discharges[0]).toMatchObject({
       bedId: 'R2',
+      encounterId: '141704',
       correctedDay: '2026-07-19',
       correctedTime: '17:10',
       verification: {
@@ -104,6 +105,35 @@ describe('applyEgresoLookupFallback', () => {
 
     expect(enriched).toBe(diff);
     expect(enriched.discharges).toHaveLength(0);
+  });
+
+  it('selects the exact episode when the same RUN has multiple pending hospitalizations', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges.unshift({
+      ...diff.pendingAdministrativeDischarges[0],
+      bedId: 'R1',
+      encounterId: '120001',
+    });
+
+    const enriched = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges).toContainEqual(
+      expect.objectContaining({ bedId: 'R2', encounterId: '141704' })
+    );
   });
 
   it('respects an explicit administrative-discharge false even when an end date exists', () => {

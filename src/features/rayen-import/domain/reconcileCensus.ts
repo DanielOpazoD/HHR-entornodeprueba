@@ -11,6 +11,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff, FieldChange } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
+import { stateFromBoolean } from './dischargeVerification';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
@@ -41,13 +42,6 @@ const isDischarged = (encounter: RayenEncounter): boolean =>
   !!encounter.hasNurseDischarge ||
   !!encounter.dischargeDatetime ||
   !!encounter.isDead;
-
-const verificationState = (value: boolean | undefined) =>
-  value === true
-    ? ('confirmed' as const)
-    : value === false
-      ? ('not-detected' as const)
-      : ('unknown' as const);
 
 /** Extract a YYYY-MM-DD day from a record date / admission datetime (ISO or DD/MM/YYYY). '' if none. */
 const toIsoDay = (raw: string | undefined): string => {
@@ -267,8 +261,8 @@ export const reconcileCensus = (
         signal: 'clinical-closure',
         encounterId: encounter.encounterId,
         verification: {
-          medicalEpicrisis: verificationState(encounter.hasMedicalDischarge),
-          nursingEpicrisis: verificationState(encounter.hasNurseDischarge),
+          medicalEpicrisis: stateFromBoolean(encounter.hasMedicalDischarge),
+          nursingEpicrisis: stateFromBoolean(encounter.hasNurseDischarge),
           hospitalDischarge: 'unknown',
         },
         source: encounter,

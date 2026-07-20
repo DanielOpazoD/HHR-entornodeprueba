@@ -215,7 +215,8 @@ describe('clinical report runtime owner', () => {
           JSON.stringify([
             {
               encounterId: 141336,
-              patientIdentifier: '17.752.753-1',
+              patientIdentifier: 'OTRO-IDENTIFICADOR',
+              preferredIdentifierCode: '17.752.753-1',
               startPeriod: '2026-07-18T12:00:00.000Z',
               endPeriod: null,
             },
@@ -467,5 +468,30 @@ describe('clinical report runtime owner', () => {
     });
     expect(focusWindow).toHaveBeenCalledWith(7, { focused: true });
     expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails safely when complete-history browser dependencies are unavailable', async () => {
+    const context = vm.createContext({ URL, Date });
+    vm.runInContext(hospitalizationReportsSource, context, {
+      filename: 'hospitalization-reports-runtime.js',
+    });
+    const reports = (
+      context as unknown as {
+        HhrHospitalizationReportsRuntime: {
+          openHistoryReport: (request: Record<string, unknown>) => Promise<{ error?: string }>;
+        };
+      }
+    ).HhrHospitalizationReportsRuntime;
+
+    await expect(
+      reports.openHistoryReport({
+        resolved: {
+          encId: '141336',
+          row: { startPeriod: '2026-07-18T08:00:00-04:00', endPeriod: null },
+        },
+      })
+    ).resolves.toEqual({
+      error: 'No se pudo acceder al navegador para abrir la ficha clínica completa.',
+    });
   });
 });

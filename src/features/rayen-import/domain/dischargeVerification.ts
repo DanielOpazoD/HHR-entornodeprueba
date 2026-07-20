@@ -1,7 +1,10 @@
-import type { DischargeVerification } from '../contracts/censusImportDiff';
+import type {
+  DischargeVerification,
+  DischargeVerificationState,
+} from '../contracts/censusImportDiff';
 import type { EgresoRecord } from '../contracts/egresoLookup';
 
-const stateFromBoolean = (value: unknown): DischargeVerification['medicalEpicrisis'] =>
+export const stateFromBoolean = (value: unknown): DischargeVerificationState =>
   value === true ? 'confirmed' : value === false ? 'not-detected' : 'unknown';
 
 export const confirmHospitalDischarge = (

@@ -66,6 +66,8 @@ export interface DischargeEntry {
   status: 'Vivo' | 'Fallecido';
   /** Only the Gestión de Camas administrative-discharge report may create this movement. */
   reason: 'administrative-discharge';
+  /** Exact Rayen hospitalization when the administrative lookup resolved one episode. */
+  encounterId?: string;
   source?: RayenEncounter;
   /**
    * Rapa Nui day + time of the egreso as printed by the official "Alta Administrativa" report.

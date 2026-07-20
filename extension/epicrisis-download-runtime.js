@@ -38,7 +38,11 @@
     if (resolved.error) return resolved;
     const documentType = request.documentType || 'epicrisis';
     if (documentType === 'history') {
-      return reports.openHistoryReport({ chrome: request.chrome, now: request.now, resolved });
+      return reports.openHistoryReport({
+        chrome: request.chrome || root.chrome,
+        now: request.now,
+        resolved,
+      });
     }
     if (documentType !== 'epicrisis') return { error: 'El tipo de informe no es válido.' };
     return downloadEpicrisis(withSession, resolved);
