@@ -2,7 +2,6 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2, CircleX, Clock3, History } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
-import { rayenSyncChangeCount } from '../domain/rayenSyncHistory';
 import {
   presentRayenCoverage,
   presentRayenSyncOutcome,
@@ -64,14 +63,7 @@ const statusPresentation = (event: RayenSyncEvent) => {
 
 const changesLabel = (event: RayenSyncEvent): string => {
   if (!event.changes) return 'Sin resumen de cambios';
-  if (rayenSyncChangeCount(event) === 0) return 'Sin cambios en el censo';
-  const parts = [
-    event.changes.admissions > 0 ? `${event.changes.admissions} ingresos` : '',
-    event.changes.updates > 0 ? `${event.changes.updates} actualizaciones` : '',
-    event.changes.moves > 0 ? `${event.changes.moves} movimientos` : '',
-    event.changes.discharges > 0 ? `${event.changes.discharges} egresos` : '',
-  ].filter(Boolean);
-  return parts.join(' · ');
+  return `Sincronizado: ${event.changes.admissions} ingresos, ${event.changes.updates} act., ${event.changes.moves} mov., ${event.changes.discharges} egresos`;
 };
 
 const sourceLabel = (event: RayenSyncEvent): string | null => {

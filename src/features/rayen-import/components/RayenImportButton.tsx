@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   CheckCircle2,
-  CircleAlert,
+  CircleHelp,
   Clock3,
   DatabaseZap,
   History,
@@ -52,19 +52,11 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
 export const RayenImportButton: React.FC = () => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
+  const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
+  const [errorGuidanceOpen, setErrorGuidanceOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
-  const {
-    mode,
-    diff,
-    isPreviewOpen,
-    isBusy,
-    isSyncing,
-    result,
-    error,
-    triggerImport,
-    confirm,
-    cancel,
-  } = useRayenImport();
+  const { mode, diff, isPreviewOpen, isBusy, isSyncing, error, triggerImport, confirm, cancel } =
+    useRayenImport();
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
@@ -96,15 +88,15 @@ export const RayenImportButton: React.FC = () => {
 
   const sourceState =
     extension.connection === 'checking'
-      ? 'Comprobando conexión'
+      ? 'Comprobando'
       : extension.connection === 'ready'
         ? `Conectada · v${extension.report?.version ?? ''}`
         : extension.connection === 'degraded'
-          ? `Conexión parcial · v${extension.report?.version ?? ''}`
+          ? `Parcial · v${extension.report?.version ?? ''}`
           : extension.connection === 'incompatible'
-            ? 'Extensión incompatible'
+            ? 'Actualizar extensión'
             : extension.connection === 'blocked'
-              ? 'Ficha Médico no disponible'
+              ? 'Revisar Ficha Médico'
               : 'Extensión sin respuesta';
   const responsibleState = lastSync ? (record?.rayenSync?.by ?? 'Sin identificar') : 'Sin registro';
   const persistedCoverage = presentRayenCoverage(
@@ -131,14 +123,11 @@ export const RayenImportButton: React.FC = () => {
 
   const fichaReady = extension.report?.fichaMedico.status === 'ready';
   const camasReady = extension.report?.gestionCamas.status === 'ready';
-  const healthTone =
-    extension.connection === 'ready'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-      : extension.connection === 'checking'
-        ? 'border-slate-200 bg-slate-50 text-slate-500'
-        : extension.connection === 'degraded'
-          ? 'border-amber-200 bg-amber-50 text-amber-700'
-          : 'border-red-200 bg-red-50 text-red-700';
+  const needsConnectionGuidance =
+    extension.connection !== 'ready' && extension.connection !== 'checking';
+  const connectionGuidance = needsConnectionGuidance
+    ? `Eloísa requiere atención. ${extension.message}`
+    : 'Eloísa está disponible para sincronizar.';
 
   const handleSync = async (): Promise<void> => {
     const health = await extension.refresh();
@@ -176,7 +165,7 @@ export const RayenImportButton: React.FC = () => {
       className="w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
       data-testid="rayen-operations-bar"
     >
-      <div className="grid min-h-14 grid-cols-1 items-center gap-2 px-3 py-2 md:grid-cols-[minmax(205px,0.9fr)_minmax(280px,1.55fr)_auto]">
+      <div className="grid min-h-14 grid-cols-1 items-center gap-2 px-3 py-2 md:grid-cols-[minmax(205px,0.9fr)_minmax(280px,1.55fr)_13.5rem]">
         <div className="flex min-w-[205px] items-center gap-2.5">
           <span
             className={`inline-flex size-9 shrink-0 items-center justify-center rounded-lg border ${
@@ -186,7 +175,7 @@ export const RayenImportButton: React.FC = () => {
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : extension.connection === 'degraded'
                     ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
             }`}
             aria-hidden="true"
           >
@@ -206,18 +195,37 @@ export const RayenImportButton: React.FC = () => {
                       ? 'bg-emerald-500'
                       : extension.connection === 'degraded'
                         ? 'bg-amber-500'
-                        : 'bg-red-500'
+                        : 'bg-amber-500'
                 }`}
                 aria-hidden="true"
               />
               <span className="text-[11px] font-medium text-slate-500">{sourceState}</span>
+              {needsConnectionGuidance && (
+                <button
+                  type="button"
+                  onClick={() => setConnectionGuidanceOpen(open => !open)}
+                  aria-expanded={connectionGuidanceOpen}
+                  aria-controls="rayen-connection-guidance"
+                  className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                  title={connectionGuidance}
+                  aria-label={connectionGuidance}
+                  data-testid="rayen-extension-health-help"
+                >
+                  <CircleHelp size={14} aria-hidden="true" />
+                </button>
+              )}
             </div>
+            {needsConnectionGuidance && (
+              <span className="sr-only" role="status">
+                {connectionGuidance}
+              </span>
+            )}
             <p
               className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"
               title={extension.message}
               data-testid="rayen-extension-health"
             >
-              <span className={fichaReady ? 'text-emerald-700' : 'text-red-700'}>
+              <span className={fichaReady ? 'text-emerald-700' : 'text-amber-700'}>
                 Ficha {fichaReady ? '✓' : '—'}
               </span>
               <span aria-hidden="true">·</span>
@@ -225,6 +233,14 @@ export const RayenImportButton: React.FC = () => {
                 Camas {camasReady ? '✓' : '—'}
               </span>
             </p>
+            {needsConnectionGuidance && connectionGuidanceOpen && (
+              <p
+                id="rayen-connection-guidance"
+                className="mt-1 rounded-md bg-amber-50/80 px-2 py-1 text-[10px] leading-relaxed text-amber-900"
+              >
+                {extension.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -282,7 +298,7 @@ export const RayenImportButton: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
+        <div className="flex w-[13.5rem] shrink-0 items-center justify-end gap-2">
           <button
             ref={historyTriggerRef}
             type="button"
@@ -314,7 +330,7 @@ export const RayenImportButton: React.FC = () => {
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"
-            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-teal-700 px-3.5 py-2 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
+            className="inline-flex min-h-9 w-[10.75rem] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
             <RefreshCw size={15} strokeWidth={2.5} className={working ? 'animate-spin' : ''} />
             {primaryActionLabel}
@@ -344,35 +360,34 @@ export const RayenImportButton: React.FC = () => {
         onRecoveryAction={() => void handleRecoveryAction()}
       />
 
-      {extension.connection !== 'ready' && extension.connection !== 'checking' && (
-        <p
-          className={`flex items-center gap-1.5 border-t px-3 py-1.5 text-xs font-medium ${healthTone}`}
-          data-testid="rayen-extension-health-message"
+      {error && !isPreviewOpen && (
+        <div
+          className="flex flex-wrap items-center gap-1.5 border-t border-amber-100 bg-amber-50/70 px-3 py-1.5 text-xs font-medium text-amber-800"
+          data-testid="rayen-import-error"
           role="status"
         >
-          <CircleAlert size={13} aria-hidden="true" />
-          {extension.message}
-        </p>
-      )}
-
-      {error && !isPreviewOpen && (
-        <p
-          className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700"
-          data-testid="rayen-import-error"
-        >
-          {error}
-        </p>
-      )}
-
-      {result && !isPreviewOpen && !error && (
-        <p
-          className="border-t border-slate-100 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-600"
-          data-testid="rayen-import-result"
-        >
-          Sincronizado: {result.applied.admissions} ingresos, {result.applied.updates} act.,{' '}
-          {result.applied.moves} mov., {result.applied.discharges} egresos
-          {result.skipped.length > 0 && ` · ${result.skipped.length} omitidos`}
-        </p>
+          <CircleHelp size={14} aria-hidden="true" />
+          Sincronización requiere revisión
+          <button
+            type="button"
+            onClick={() => setErrorGuidanceOpen(open => !open)}
+            aria-expanded={errorGuidanceOpen}
+            aria-controls="rayen-import-error-guidance"
+            className="ml-auto inline-flex size-5 shrink-0 items-center justify-center rounded-full text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+            title={error}
+            aria-label={`Ver detalle de sincronización. ${error}`}
+          >
+            <CircleHelp size={14} aria-hidden="true" />
+          </button>
+          {errorGuidanceOpen && (
+            <p
+              id="rayen-import-error-guidance"
+              className="basis-full border-t border-amber-100 pt-1 text-[11px] leading-relaxed text-amber-900"
+            >
+              {error}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
