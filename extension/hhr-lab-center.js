@@ -8,26 +8,6 @@
   'use strict';
 
   const LAB_MAX_SELECTED_EXAMS = 24;
-  const syslabLoginFrameHandlers = new WeakMap();
-  let syslabLoginListenerInstalled = false;
-
-  const ensureSyslabLoginListener = () => {
-    if (syslabLoginListenerInstalled) return;
-    syslabLoginListenerInstalled = true;
-    window.addEventListener('message', event => {
-      const handler = event.source && syslabLoginFrameHandlers.get(event.source);
-      if (!handler) return;
-      let extensionOrigin = '';
-      try {
-        extensionOrigin = chrome.runtime.getURL('').replace(/\/$/, '');
-      } catch (_error) {
-        return;
-      }
-      const data = event.data || {};
-      if (event.origin !== extensionOrigin || data.type !== 'HHR_SYSLAB_LOGIN_STATE') return;
-      handler(data);
-    });
-  };
 
   const create = dependencies => {
     const {
@@ -51,8 +31,6 @@
     ) {
       throw new Error('No se pudo inicializar el Centro de Laboratorio HHR.');
     }
-    ensureSyslabLoginListener();
-
     const copyText = async text => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
@@ -309,7 +287,13 @@
         </div>
         <div class="hhr-center-content">
           <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
-          <iframe class="hhr-syslab-login" title="Acceso seguro a Syslab" hidden></iframe>
+          <div class="hhr-syslab-access" role="region" aria-label="Acceso seguro a Syslab" hidden>
+            <div>
+              <strong>Inicio de sesión requerido</strong>
+              <span class="hhr-syslab-access-message">Ingresa tus credenciales de Syslab. No se guardan.</span>
+            </div>
+            <form class="hhr-syslab-access-form"><input name="username" type="text" autocomplete="username" placeholder="Usuario" aria-label="Usuario Syslab" maxlength="120" required><input name="password" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña Syslab" maxlength="256" required><button class="hhr-center-action hhr-center-action-primary" type="submit">Conectar</button></form>
+          </div>
           <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
           <div class="hhr-lab-exam-list"></div>
           <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -323,8 +307,12 @@
       const selectAll = main.querySelector('.hhr-lab-select-all');
       const analyze = main.querySelector('.hhr-lab-analyze');
       const refresh = main.querySelector('.hhr-center-refresh');
-      const syslabLogin = main.querySelector('.hhr-syslab-login');
-      syslabLogin.src = chrome.runtime.getURL('syslab-login.html');
+      const syslabAccess = main.querySelector('.hhr-syslab-access');
+      const syslabAccessMessage = main.querySelector('.hhr-syslab-access-message');
+      const syslabAccessForm = main.querySelector('.hhr-syslab-access-form');
+      const syslabUsername = syslabAccessForm.querySelector('[name="username"]');
+      const syslabPassword = syslabAccessForm.querySelector('[name="password"]');
+      const syslabSubmit = syslabAccessForm.querySelector('[type="submit"]');
       main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
         renderLabRequestView(root, encId)
       );
@@ -337,10 +325,10 @@
       let isAnalyzing = false;
 
       const setSyslabAccess = (connected, message = '') => {
-        syslabLogin.hidden = connected;
+        syslabAccess.hidden = connected;
         const badge = patientHost.querySelector('.hhr-lab-status');
         if (badge) badge.textContent = connected ? 'Syslab conectado' : 'Syslab requiere acceso';
-        if (message) syslabLogin.title = message;
+        syslabAccessMessage.textContent = message || 'Ingresa tus credenciales de Syslab. No se guardan.';
       };
 
       const checkSyslabAccess = async () => {
@@ -349,6 +337,25 @@
         setSyslabAccess(connected, report && (report.error || report.message) || 'No se pudo comprobar Syslab.');
         return connected;
       };
+      syslabAccessForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const username = syslabUsername.value.trim();
+        const password = syslabPassword.value;
+        if (!username || !password) return;
+        syslabSubmit.disabled = true; syslabAccessMessage.textContent = 'Verificando credenciales en Syslab…';
+        let response;
+        try {
+          response = await sendMessage({ type: runtimeMessages.SYSLAB_LOGIN_REQUEST, username, password });
+        } catch (error) { response = { error: String(error && error.message || error || 'La extensión no respondió.') };
+        } finally {
+          syslabPassword.value = ''; syslabSubmit.disabled = false;
+        }
+        const connected = Boolean(response && !response.error && response.connected);
+        if (connected) syslabUsername.value = '';
+        setSyslabAccess(connected, connected ? 'Syslab conectado.' : String(response && response.error || 'Syslab no confirmó el acceso.'));
+        if (connected) void load();
+        else syslabPassword.focus();
+      });
 
       const invalidateLabAnalysis = () => {
         analysis = null;
@@ -499,13 +506,6 @@
         patientHost.append(patientName, patientMeta, connection);
         renderList();
       };
-      if (syslabLogin.contentWindow) {
-        syslabLoginFrameHandlers.set(syslabLogin.contentWindow, data => {
-          const connected = Boolean(data.connected);
-          setSyslabAccess(connected, String(data.message || ''));
-          if (connected) void load();
-        });
-      }
       filter.addEventListener('input', renderList);
       selectAll.addEventListener('click', () => {
         const selectionBefore = [...selected].sort().join('|');
