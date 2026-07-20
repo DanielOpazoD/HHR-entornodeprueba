@@ -164,6 +164,34 @@ describe('extension prescription operations', () => {
     ]);
   });
 
+  it('orders supported display-form timestamps chronologically', () => {
+    const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
+      {
+        patientPharmaIndicationResume: [
+          {
+            MRE_ID: 606,
+            DESCRIPTOR: 'Indicación anterior',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '14-07-2026 19:48',
+          },
+          {
+            MRE_ID: 607,
+            DESCRIPTOR: 'Indicación posterior',
+            HCP_NAME: 'Daniel Opazo',
+            PREFERRED_IDENTIFIER_CODE: '17752753K',
+            PUBLISH_DATETIME: '15-07-2026 08:10',
+          },
+        ],
+      },
+    ]);
+
+    expect(groups.map(group => group.latestDateTime)).toEqual([
+      '15-07-2026 08:10',
+      '14-07-2026 19:48',
+    ]);
+  });
+
   it('uses canonical instants without merging opposite timezone offsets', () => {
     const groups = prescriptionPrint.deriveProfessionalPrescriptionGroups([
       {

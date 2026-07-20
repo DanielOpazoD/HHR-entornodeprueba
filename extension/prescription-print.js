@@ -345,7 +345,7 @@
           medications: group.medications,
         };
       })
-      .sort(function (a, b) { return (Date.parse(b.latestDateTime) || 0) - (Date.parse(a.latestDateTime) || 0) || a.professional.localeCompare(b.professional); });
+      .sort(function (a, b) { return (Date.parse(normalizeClinicalDateTime(b.latestDateTime)) || 0) - (Date.parse(normalizeClinicalDateTime(a.latestDateTime)) || 0) || a.professional.localeCompare(b.professional); });
   };
 
   // The history report is the best source for authorship and validation chronology, but some
