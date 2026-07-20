@@ -2,6 +2,10 @@
 
 export const RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST';
 export const RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_RESULT';
+export const RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE =
+  'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST';
+export const RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE =
+  'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_RESULT';
 
 export interface RayenHospitalizationEpisode {
   encId: string;
@@ -119,3 +123,54 @@ export const requestRayenHospitalizationDocument = (
   timeoutMs = 30000
 ): Promise<RayenHospitalizationReportResult> =>
   requestHospitalizationReport({ ...request, operation: 'download' }, timeoutMs);
+
+export const requestRayenStatisticalDischargeReport = (
+  clinicalEpisodeId: string,
+  timeoutMs = 30000
+): Promise<RayenHospitalizationReportResult> =>
+  new Promise(resolve => {
+    const encId = clinicalEpisodeId.trim();
+    if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
+      resolve({ ok: false, error: 'El alta no tiene un episodio válido para descargar su informe.' });
+      return;
+    }
+
+    const reqId = `statistical-discharge-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      window.removeEventListener('message', onMessage);
+    };
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (
+        !data ||
+        data.type !== RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE ||
+        data.reqId !== reqId
+      ) {
+        return;
+      }
+      cleanup();
+      resolve({
+        ok: data.ok === true,
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE, reqId, encId },
+      window.location.origin
+    );
+    timeoutId = setTimeout(() => {
+      cleanup();
+      resolve({
+        ok: false,
+        error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
+      });
+    }, timeoutMs);
+  });

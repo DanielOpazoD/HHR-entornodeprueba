@@ -163,8 +163,8 @@ export const buildCma = (
 };
 
 /**
- * The official statistical egreso time. Gestión de Camas already prints the Rapa Nui wall clock;
- * normalize it without applying a second timezone shift.
+ * The official statistical egreso time, normalized from Gestión de Camas to the Rapa Nui clock.
+ * Pre-normalized API results carry correctedTime and therefore do not pass through this fallback.
  */
 const reportEgresoTime = (fechaEgreso: string): string =>
   parseStatisticalEgresoStamp(fechaEgreso)?.hhmm ?? '';

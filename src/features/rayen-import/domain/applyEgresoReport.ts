@@ -33,7 +33,14 @@ const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
 };
 
 /** Official Rapa Nui egreso day + time as printed by Gestión de Camas. */
-const correctedStamp = (fechaEgreso: string): { correctedDay?: string; correctedTime?: string } => {
+const correctedStamp = (
+  fechaEgreso: string,
+  correctedDay?: string,
+  correctedTime?: string
+): { correctedDay?: string; correctedTime?: string } => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(correctedDay || '') && /^\d{2}:\d{2}$/.test(correctedTime || '')) {
+    return { correctedDay, correctedTime };
+  }
   const stamp = parseStatisticalEgresoStamp(fechaEgreso);
   return { correctedDay: stamp?.iso, correctedTime: stamp?.hhmm };
 };
@@ -92,7 +99,11 @@ const reportPredatesAdmission = (
 
 const resolveReportDischarge = (row: EgresoReportRow, evidence: CmaOriginEvidence = {}) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
-  const dischargeDay = correctedStamp(row.fechaEgreso).correctedDay;
+  const dischargeDay = correctedStamp(
+    row.fechaEgreso,
+    row.correctedDay,
+    row.correctedTime
+  ).correctedDay;
   const hasExactCmaBed = isCmaLocation(evidence.location) || isCmaBedLabel(row.bedLabel);
   const isSameDayCma =
     mapped.kind === 'alta' &&
@@ -155,7 +166,7 @@ const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
     edad: row.edad,
     servicio: row.servicio,
     diagnostico: row.diagnostico,
-    ...correctedStamp(row.fechaEgreso),
+    ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
   };
 };
 
@@ -194,7 +205,10 @@ export const applyEgresoReport = (
   for (const row of reportRows) {
     const run = normalizeRut(row.run);
     if (!run) continue;
-    const stamp = parseStatisticalEgresoStamp(row.fechaEgreso);
+    const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+    const stamp = normalized.correctedDay && normalized.correctedTime
+      ? { iso: normalized.correctedDay, hhmm: normalized.correctedTime }
+      : null;
     if (!stamp) {
       diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
         bedId: null,
@@ -219,7 +233,14 @@ export const applyEgresoReport = (
     // Report ordering is not a domain guarantee. Keep the latest eligible statistical event for
     // a RUN so repeated rows cannot make reconciliation depend on workbook row order.
     const previous = byRun.get(run);
-    const previousStamp = previous && parseStatisticalEgresoStamp(previous.fechaEgreso);
+    const previousNormalized = previous && correctedStamp(
+      previous.fechaEgreso,
+      previous.correctedDay,
+      previous.correctedTime
+    );
+    const previousStamp = previousNormalized?.correctedDay && previousNormalized.correctedTime
+      ? { iso: previousNormalized.correctedDay, hhmm: previousNormalized.correctedTime }
+      : null;
     if (
       !previousStamp ||
       `${stamp.iso}T${stamp.hhmm}` > `${previousStamp.iso}T${previousStamp.hhmm}`
@@ -280,7 +301,7 @@ export const applyEgresoReport = (
         reason: 'administrative-discharge',
         encounterId: row.encounterId,
         verification: confirmHospitalDischarge(pending?.verification),
-        ...correctedStamp(row.fechaEgreso),
+        ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
       });
       continue;
     }

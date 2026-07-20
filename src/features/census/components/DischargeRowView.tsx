@@ -56,6 +56,15 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
           movementDate={viewModel.movementDate}
           movementTime={viewModel.movementTime}
           movementProvenance={viewModel.movementProvenance}
+          statisticalDischargeReport={
+            viewModel.movementProvenance?.source === 'gestion_camas' &&
+            /^\d+$/.test(dischargeItem?.clinicalEpisodeId || '')
+              ? {
+                  clinicalEpisodeId: dischargeItem?.clinicalEpisodeId || '',
+                  patientName: viewModel.patientName,
+                }
+              : undefined
+          }
           actions={viewModel.actions}
           actionsPresentation="menu"
         >

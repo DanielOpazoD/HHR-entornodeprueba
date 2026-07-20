@@ -27,6 +27,7 @@ importScripts(
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js',
+  'gestion-camas-discharge-report-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -58,6 +59,12 @@ if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typ
 }
 if (!self.HhrGestionCamasEgresoLookup) {
   throw new Error('No se pudo cargar la política de verificación de egresos.');
+}
+if (
+  !self.HhrGestionCamasDischargeReportRuntime ||
+  typeof self.HhrGestionCamasDischargeReportRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime del informe estadístico de egreso.');
 }
 if (!self.HhrClinicalHandoffRuntime || typeof self.HhrClinicalHandoffRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime clínico de entrega de turno.');
@@ -751,6 +758,14 @@ const {
   createCompletePrescriptionPdf,
 } = clinicalReportRuntime;
 
+const { download: handleStatisticalDischargeReportDownload } =
+  self.HhrGestionCamasDischargeReportRuntime.create({
+    resolveSession: resolveGestionCamasSession,
+    fetchOfficialPdf,
+    markSessionVerified: markGestionCamasSessionVerified,
+    downloadPdfBuffer,
+  });
+
 const parseClinicalTimestamp = value => {
   const text = String(value || '').trim();
   const match = text.match(
@@ -1174,6 +1189,10 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.EGRESO_REPORT_SAVE]: runtimeRoute(
     message => handleReportSave({ dateStart: message.dateStart, dateEnd: message.dateEnd }),
     'No se pudo guardar el reporte de egresos.'
+  ),
+  [RUNTIME_MESSAGES.STATISTICAL_DISCHARGE_REPORT_REQUEST]: runtimeRoute(
+    message => handleStatisticalDischargeReportDownload({ encId: message.encId }),
+    'No se pudo descargar el informe estadístico de egreso.'
   ),
   [RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
