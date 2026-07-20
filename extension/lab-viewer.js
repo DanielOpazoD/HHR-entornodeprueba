@@ -8,7 +8,6 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
   'use strict';
-
   const IMPORTANT_ANALYSES = [
     'Recuento Leucocitos', 'Hemoglobina', 'Hematocrito', 'VCM', 'HCM',
     'Recuento de Plaquetas', 'Segmentados', 'Linfocitos', 'Proteina C Reactiva',
@@ -19,18 +18,31 @@
     'Dimero', 'CK Total', 'Magnesio', 'TSH', 'T4L', 'Acido Urico', 'Glicemia',
     'Hb glicosilada', 'Colesterol Total', 'LDL', 'HDL', 'TG', 'RAC', 'RPC',
   ];
-
   const cleanText = value => String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   const comparisonToken = value => cleanText(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
   const normalizeRutBody = value => cleanText(value)
     .replace(/\./g, '')
     .replace(/-.*$/, '')
     .replace(/\D/g, '');
-
+  const normalizePatientRutBody = value => {
+    const raw = cleanText(value).toUpperCase();
+    if (raw.includes('-')) return normalizeRutBody(raw);
+    const compact = raw.replace(/[^0-9K]/g, '');
+    if (!/^\d{6,8}[0-9K]$/.test(compact)) return normalizeRutBody(raw);
+    const body = compact.slice(0, -1);
+    let sum = 0;
+    let multiplier = 2;
+    for (let index = body.length - 1; index >= 0; index -= 1) {
+      sum += Number(body[index]) * multiplier;
+      multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+    const remainder = 11 - (sum % 11);
+    const verifier = remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
+    return verifier === compact.slice(-1) ? body : normalizeRutBody(raw);
+  };
   const normalizeAnalysisName = (value, section) => {
     let name = cleanText(value);
     const token = comparisonToken(name);
@@ -54,7 +66,6 @@
     }
     return name;
   };
-
   const parseDate = (date, time) => {
     const match = cleanText(date).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (!match) return 0;
@@ -66,7 +77,6 @@
       timeMatch && timeMatch[3] ? Number(timeMatch[3]) : 0
     ).getTime();
   };
-
   const sanitizeExamList = exams => (Array.isArray(exams) ? exams : [])
     .filter(exam => exam && /^\d+$/.test(String(exam.id || '')))
     .map(exam => ({
@@ -79,14 +89,12 @@
     }))
     .sort((a, b) => parseDate(b.date, b.time) - parseDate(a.date, a.time))
     .slice(0, 100);
-
   const examRowsMatchRut = (exams, expectedRutBody) => {
     const expected = normalizeRutBody(expectedRutBody);
     return /^\d{5,9}$/.test(expected) && Array.isArray(exams) && exams.every(exam =>
       exam && normalizeRutBody(exam.rutBody) === expected
     );
   };
-
   const validateDetailBatch = (details, expectedExamIds, expectedRutBody) => {
     const examIds = (Array.isArray(expectedExamIds) ? expectedExamIds : []).map(String);
     const expectedRut = normalizeRutBody(expectedRutBody);
@@ -115,14 +123,12 @@
       ? examIds.map(examId => detailsByExamId.get(examId))
       : null;
   };
-
   const parseMeasurement = value => {
     const normalized = cleanText(value).replace(/\s/g, '').replace(',', '.');
     const match = normalized.match(/^([<>]=?|[≤≥])?([-+]?\d+(?:\.\d+)?)$/);
     if (!match) return null;
     return { comparator: match[1] || '=', value: Number(match[2]) };
   };
-
   const referenceBounds = value => {
     const ref = cleanText(value).replace(/,/g, '.');
     let match = ref.match(/(-?\d+(?:\.\d+)?)\s*[-–]\s*(-?\d+(?:\.\d+)?)/);
@@ -145,7 +151,6 @@
       minInclusive: match[1] === '>=' || match[1] === '≥',
     };
   };
-
   const findingAlert = finding => {
     const result = cleanText(finding && finding.result);
     const measurement = parseMeasurement(result);
@@ -189,7 +194,6 @@
       ? resultToken !== referenceToken
       : false;
   };
-
   const analysisSort = (a, b) => {
     const indexA = IMPORTANT_ANALYSES.indexOf(a);
     const indexB = IMPORTANT_ANALYSES.indexOf(b);
@@ -200,7 +204,6 @@
     }
     return a.localeCompare(b, 'es');
   };
-
   const sanitizeFinding = value => {
     if (!value || typeof value !== 'object') return null;
     const section = cleanText(value.section) || 'GENERAL';
@@ -218,7 +221,6 @@
     finding.alert = findingAlert(finding);
     return finding;
   };
-
   const REPORT_SKIP_PATTERNS = [
     /^HOSPITAL\s+DE\s+/i,
     /^Laboratorio\s+Cl[íi]nico/i,
@@ -262,7 +264,6 @@
     /^Reci[ée]n\s+nacidos?(\s+.+)?$/i,
     /^Lactantes?(\s+.+)?$/i,
   ];
-
   const extractRutBodyFromReportText = text => {
     const line = String(text || '').split(/\r?\n/)
       .find(value => /^\s*Rut\/?Fic\s*:/i.test(value));
@@ -270,7 +271,6 @@
     const match = line.replace(/^\s*Rut\/?Fic\s*:/i, '').match(/\d[\d.]*/);
     return match ? match[0].replace(/\D/g, '') : '';
   };
-
   const splitReportUnitAndReference = rest => {
     const cleaned = String(rest || '').replace(/^\s*\|+\s*|\s*\|+\s*$/g, '').trim();
     if (!cleaned) return { unit: '', refValue: '' };
@@ -333,7 +333,6 @@
     }
     return parsedData;
   };
-
   const buildAnalysis = (details, exams) => {
     const safeExams = sanitizeExamList(exams);
     const examById = new Map(safeExams.map(exam => [exam.id, exam]));
@@ -436,6 +435,7 @@
     findingAlert,
     extractRutBodyFromReportText,
     normalizeAnalysisName,
+    normalizePatientRutBody,
     normalizeRutBody,
     parseReportText,
     sanitizeExamList,

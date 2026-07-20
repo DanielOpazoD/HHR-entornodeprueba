@@ -39,6 +39,10 @@ const createHarness = (
   const dependencies = {
     chrome: chromeApi,
     labViewer: {
+      normalizePatientRutBody: (value: unknown) => {
+        const compact = String(value || '').replace(/\D/g, '');
+        return compact.length === 9 ? compact.slice(0, -1) : compact;
+      },
       normalizeRutBody: (value: unknown) =>
         String(value || '')
           .replace(/\./g, '')
