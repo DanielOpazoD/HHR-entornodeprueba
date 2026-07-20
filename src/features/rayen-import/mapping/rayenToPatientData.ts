@@ -61,6 +61,15 @@ export const toTitleCaseName = (value?: string): string =>
     .toLowerCase()
     .replace(/(^|[\s'’-])(\p{L})/gu, (_match, sep: string, ch: string) => sep + ch.toUpperCase());
 
+/**
+ * Rayen sometimes serializes a missing optional surname as a display placeholder.
+ * Placeholders are absence, not clinical identity data, so they must never be persisted in HHR.
+ */
+export const normalizeOptionalPersonName = (value?: string): string => {
+  const normalized = toTitleCaseName(value);
+  return /^(?:no\s*informad[oa]?|sin\s+informaci[oó]n)$/i.test(normalized) ? '' : normalized;
+};
+
 /** Extract "HH:MM" from an ISO datetime, if present. */
 export const extractTime = (isoDatetime?: string): string => {
   if (!isoDatetime) return '';
@@ -92,7 +101,7 @@ export const rayenToPatientData = (
     [encounter.firstGivenName, encounter.nextGivenNames].filter(Boolean).join(' ')
   );
   const firstFamily = toTitleCaseName(encounter.firstFamilyName);
-  const secondFamily = toTitleCaseName(encounter.secondFamilyName);
+  const secondFamily = normalizeOptionalPersonName(encounter.secondFamilyName);
   const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();
 
   const patient: PatientData = {
