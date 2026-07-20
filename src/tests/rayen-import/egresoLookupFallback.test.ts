@@ -55,6 +55,29 @@ const makeRecord = (): DailyRecord => ({
 });
 
 describe('applyEgresoLookupFallback', () => {
+  it('converts an offset API timestamp to the Rapa Nui census clock', () => {
+    const enriched = applyEgresoLookupFallback(
+      makeDiff(),
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: {
+            hasAdministrativeDischarge: true,
+            dateDischarge: '2026-07-20T01:37:00.000Z',
+            dischargeDestination: 'Domicilio',
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges[0]).toMatchObject({
+      correctedDay: '2026-07-19',
+      correctedTime: '19:37',
+    });
+  });
+
   it('recovers the official egreso missed by the bulk report for exact encounter 141704', () => {
     const enriched = applyEgresoLookupFallback(
       makeDiff(),
@@ -80,7 +103,7 @@ describe('applyEgresoLookupFallback', () => {
       bedId: 'R2',
       encounterId: '141704',
       correctedDay: '2026-07-19',
-      correctedTime: '17:10',
+      correctedTime: '15:10',
       verification: {
         medicalEpicrisis: 'confirmed',
         nursingEpicrisis: 'confirmed',

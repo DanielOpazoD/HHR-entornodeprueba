@@ -2,29 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { parseStatisticalEgresoStamp } from '@/features/rayen-import/mapping/reportEgresoDateTime';
 
 describe('parseStatisticalEgresoStamp', () => {
-  it('preserves the official statistical egreso hour already printed in Rapa Nui time', () => {
-    // Live evidence: the individual statistical report prints EGRESO 18:20 and the underlying
-    // administrative-discharge event represents the same 18:20 island wall-clock instant.
+  it('converts the mainland report clock to Rapa Nui time', () => {
+    // Live 2026-07-19 evidence showed the statistical report two hours ahead of the real island
+    // discharge time. Named zones preserve that rule across DST instead of hard-coding -2.
     expect(parseStatisticalEgresoStamp('14-07-2026 18:20')).toEqual({
       iso: '2026-07-14',
-      hhmm: '18:20',
-      text: '14-07-2026 18:20',
+      hhmm: '16:20',
+      text: '14-07-2026 16:20',
     });
   });
 
-  it('does not pull a genuine D+1 timestamp back into D', () => {
+  it('moves the calendar day back when mainland midnight is still the prior island day', () => {
     expect(parseStatisticalEgresoStamp('15-07-2026 00:54')).toEqual({
-      iso: '2026-07-15',
-      hhmm: '00:54',
-      text: '15-07-2026 00:54',
+      iso: '2026-07-14',
+      hhmm: '22:54',
+      text: '14-07-2026 22:54',
     });
   });
 
   it('accepts PDF line breaks, slash separators and trailing seconds', () => {
     expect(parseStatisticalEgresoStamp('9/7/2026\n5:04:00')).toEqual({
       iso: '2026-07-09',
-      hhmm: '05:04',
-      text: '09-07-2026 05:04',
+      hhmm: '03:04',
+      text: '09-07-2026 03:04',
     });
   });
 

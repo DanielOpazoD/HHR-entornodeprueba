@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(45);
+    expect(values).toHaveLength(46);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -60,6 +60,18 @@ describe('shared Rayen runtime-message contract', () => {
         currentEncId: '',
       })
     ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.STATISTICAL_DISCHARGE_REPORT_REQUEST,
+        encId: '141704',
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.STATISTICAL_DISCHARGE_REPORT_REQUEST,
+        encId: '',
+      })
+    ).toMatchObject({ ok: false, known: true });
 
     expect(
       contract.validateRuntimeMessage({
@@ -204,6 +216,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-gestioncamas.js',
       'content-hhr.js',
       'content-hhr-epicrisis.js',
+      'content-hhr-statistical-discharge.js',
       'content-exam-request-print.js',
       'content-prescription-print.js',
     ]);
@@ -220,6 +233,14 @@ describe('shared Rayen runtime-message contract', () => {
       'chrome.runtime.onMessage.addListener(messageContract.createRuntimeRouter(runtimeMessageRoutes))'
     );
     expect(background).not.toMatch(/msg\.type\s*===\s*['"]RAYEN_/);
+    const dischargeReportRuntime = readFileSync(
+      path.resolve('extension/gestion-camas-discharge-report-runtime.js'),
+      'utf8'
+    );
+    expect(background).toContain("'gestion-camas-discharge-report-runtime.js'");
+    expect(dischargeReportRuntime).toContain('Informe_Estadistico_Egreso_Hospitalario_CARTA.pdf');
+    expect(dischargeReportRuntime).toContain("reportUrl.searchParams.set('ENC_ID', encounterId)");
+    expect(dischargeReportRuntime).toContain('await markSessionVerified(result)');
     expect(syslabLogin.indexOf('message-contract.js')).toBeLessThan(
       syslabLogin.indexOf('syslab-login.js')
     );

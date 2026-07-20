@@ -91,5 +91,6 @@ describe('HHR epicrisis content bridge', () => {
         'http://localhost:3000'
       )
     );
+
   });
 });
