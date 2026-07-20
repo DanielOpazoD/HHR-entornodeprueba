@@ -5,6 +5,7 @@ import {
   mapBiologicalSex,
   cleanDiagnosis,
   rayenToPatientData,
+  normalizeOptionalPersonName,
   toTitleCaseName,
   type RayenEncounter,
 } from '@/features/rayen-import';
@@ -57,6 +58,13 @@ describe('helpers', () => {
     expect(toTitleCaseName('JUAN PÉREZ')).toBe('Juan Pérez');
     expect(toTitleCaseName('maría-josé del pino')).toBe('María-José Del Pino');
     expect(toTitleCaseName(undefined)).toBe('');
+  });
+
+  it('treats Rayen missing-name placeholders as an empty optional name', () => {
+    expect(normalizeOptionalPersonName('Noinformado')).toBe('');
+    expect(normalizeOptionalPersonName('NO INFORMADO')).toBe('');
+    expect(normalizeOptionalPersonName('Sin información')).toBe('');
+    expect(normalizeOptionalPersonName('ÑIREHUAO')).toBe('Ñirehuao');
   });
 });
 
@@ -126,6 +134,20 @@ describe('rayenToPatientData', () => {
     expect(patient.lastName).toBe('De La Fuente');
     expect(patient.secondLastName).toBe('Ñirehuao');
     expect(patient.patientName).toBe('Juan Carlos De La Fuente Ñirehuao');
+  });
+
+  it('omits a missing second surname placeholder from identity fields and full name', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        firstGivenName: 'LAURADELCARMEN',
+        firstFamilyName: 'TUKI',
+        secondFamilyName: 'Noinformado',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.secondLastName).toBe('');
+    expect(patient.patientName).toBe('Lauradelcarmen Tuki');
   });
 
   it('defaults a synced patient to status "Estable"', () => {

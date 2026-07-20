@@ -108,6 +108,7 @@ export {
   mapBiologicalSex,
   cleanDiagnosis,
   toTitleCaseName,
+  normalizeOptionalPersonName,
 } from './mapping/rayenToPatientData';
 
 export type { ReconcileOptions } from './domain/reconcileCensus';

@@ -148,6 +148,28 @@ describe('reconcileCensus', () => {
     expect(diff.updates[0].changes.map(c => c.field)).toContain('pathology');
   });
 
+  it('cleans a previously persisted missing-surname placeholder on the next sync', () => {
+    const encounter = makeEncounter({ secondFamilyName: 'Noinformado' });
+    const [bedId, patient] = seedBed(encounter);
+    const stale = {
+      ...patient,
+      patientName: 'Ana Perez Noinformado',
+      secondLastName: 'Noinformado',
+    };
+
+    const diff = reconcileCensus(makeRecord({ [bedId]: stale }), snapshotOf([encounter]), {
+      reference: REFERENCE,
+    });
+
+    expect(diff.updates).toHaveLength(1);
+    expect(diff.updates[0].changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'patientName', to: 'Ana Perez' }),
+        expect.objectContaining({ field: 'secondLastName', to: '' }),
+      ])
+    );
+  });
+
   it('updates principal diagnosis and CIE-10 together without erasing local coding on lookup failure', () => {
     const coded = makeEncounter({
       diagnosis: 'Neumonía bacteriana',
