@@ -61,7 +61,7 @@ export const resolveToggleBedModeCommand = ({
       confirm: {
         title: 'Cambiar a modo Cuna',
         message:
-          "El 'Modo Cuna clínica' (Paciente principal) no suele ser compatible con 'RN Sano' (Acompañante). ¿Desea desactivar RN Sano y continuar?",
+          'Se eliminará la configuración neonatal heredada antes de cambiar a Cuna clínica. ¿Desea continuar?',
         confirmText: 'Sí, continuar',
         cancelText: 'Cancelar',
         variant: 'warning',
@@ -84,7 +84,7 @@ export const resolveToggleCompanionCribCommand = ({
       code: 'COMPANION_NOT_ALLOWED_IN_CUNA',
       title: 'Acción no permitida',
       message:
-        "No se puede agregar 'RN Sano' si la cama principal está en 'Modo Cuna clínica'. Use el modo Cama para la madre.",
+        'La configuración neonatal heredada no está disponible en modo Cuna clínica.',
     });
   }
 

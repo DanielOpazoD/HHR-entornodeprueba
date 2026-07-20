@@ -27,6 +27,7 @@ importScripts(
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js',
+  'gestion-camas-clinical-cribs.js',
   'gestion-camas-discharge-report-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
@@ -60,6 +61,7 @@ if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typ
 if (!self.HhrGestionCamasEgresoLookup) {
   throw new Error('No se pudo cargar la política de verificación de egresos.');
 }
+if (!self.HhrGestionCamasClinicalCribs) throw new Error('No se pudo cargar el mapeo de cunas clínicas.');
 if (
   !self.HhrGestionCamasDischargeReportRuntime ||
   typeof self.HhrGestionCamasDischargeReportRuntime.create !== 'function'
@@ -1171,7 +1173,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    () => handleSnapshotRequest(),
+    () => self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout),
     'No se pudo leer el censo de Ficha Médico.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(

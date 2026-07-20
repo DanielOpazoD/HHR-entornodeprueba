@@ -54,6 +54,7 @@ describe('patientBedConfigSectionsController', () => {
         showMenu: true,
         showClinicalCribToggle: true,
         showClinicalCribActions: true,
+        showLegacyCribCleanup: true,
       },
       handlers: {
         handleToggleMode: vi.fn(),
@@ -66,6 +67,7 @@ describe('patientBedConfigSectionsController', () => {
     expect(sections.display.bedName).toBe(BEDS[0].name);
     expect(sections.display.daysHospitalized).toBe(3);
     expect(sections.menu.align).toBe('bottom');
+    expect(sections.menu.showLegacyCribCleanup).toBe(true);
     expect(sections.extraLocation.shouldRender).toBe(true);
     expect(sections.extraLocation.value).toBe('Sala Norte');
     expect(onTextChange).toHaveBeenCalledWith('location');

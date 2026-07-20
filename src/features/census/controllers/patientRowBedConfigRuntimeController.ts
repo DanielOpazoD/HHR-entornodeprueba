@@ -120,7 +120,7 @@ export const executeToggleCompanionCribController = async ({
     try {
       await dialogs.alert(resolution.error.message, resolution.error.title);
     } catch {
-      return failWithCode('ALERT_FAILED', 'No se pudo mostrar la alerta para RN Sano.');
+      return failWithCode('ALERT_FAILED', 'No se pudo mostrar la alerta de configuración neonatal.');
     }
     return fail(resolution.error);
   }

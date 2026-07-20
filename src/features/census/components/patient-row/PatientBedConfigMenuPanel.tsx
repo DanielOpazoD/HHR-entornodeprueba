@@ -21,6 +21,7 @@ interface PatientBedConfigMenuPanelProps {
   };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
+  showLegacyCribCleanup: boolean;
   onToggleMode: () => void;
   onToggleCompanion: () => void;
   onToggleClinicalCrib: () => void;
@@ -30,10 +31,10 @@ interface PatientBedConfigMenuPanelProps {
 export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps> = ({
   align,
   bedModeModel,
-  companionModel,
   clinicalCribModel,
   showClinicalCribToggle,
   showClinicalCribActions,
+  showLegacyCribCleanup,
   onToggleMode,
   onToggleCompanion,
   onToggleClinicalCrib,
@@ -59,14 +60,6 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         <div className={bedModeModel.dotClassName} />
       </button>
 
-      <button onClick={onToggleCompanion} className={companionModel.className}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">🤱</span>
-          <span>RN Sano</span>
-        </div>
-        <div className={companionModel.dotClassName} />
-      </button>
-
       {showClinicalCribToggle && (
         <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>
           <div className="flex items-center gap-2">
@@ -74,6 +67,17 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
             <span>Agregar Cuna Clínica</span>
           </div>
           <div className={clinicalCribModel.dotClassName} />
+        </button>
+      )}
+
+      {showLegacyCribCleanup && (
+        <button
+          onClick={onToggleCompanion}
+          className="text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center gap-2 w-full bg-amber-50 text-amber-800 hover:bg-amber-100"
+          title="Elimina una marca antigua; no clasifica al recién nacido"
+        >
+          <span className="text-sm">🧹</span>
+          <span className="text-left">Limpiar marca histórica de cuna</span>
         </button>
       )}
 

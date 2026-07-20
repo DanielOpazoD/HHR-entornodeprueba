@@ -41,6 +41,7 @@ describe('mapRayenBed', () => {
     expect(mapRayenBed({ room: 'H1', bed: 'C2' })).toEqual({
       bedId: 'H1C2',
       isCma: false,
+      isClinicalCrib: false,
       matchedBy: 'general',
     });
     expect(mapRayenBed({ room: 'H6', bed: 'C1' }).bedId).toBe('H6C1');
@@ -54,6 +55,7 @@ describe('mapRayenBed', () => {
     expect(mapRayenBed({ room: 'Recuperacion 1', bed: 'R1' })).toEqual({
       bedId: 'R1',
       isCma: false,
+      isClinicalCrib: false,
       matchedBy: 'recovery',
     });
     expect(mapRayenBed({ bed: 'R4' }).bedId).toBe('R4');
@@ -63,6 +65,7 @@ describe('mapRayenBed', () => {
     expect(mapRayenBed({ room: 'Neo 2', bed: 'Neo2' })).toEqual({
       bedId: 'NEO2',
       isCma: false,
+      isClinicalCrib: false,
       matchedBy: 'neo',
     });
   });
@@ -71,11 +74,13 @@ describe('mapRayenBed', () => {
     expect(mapRayenBed({ room: 'CMA R1', bed: 'CMAR1' })).toEqual({
       bedId: 'R1',
       isCma: true,
+      isClinicalCrib: false,
       matchedBy: 'recovery',
     });
     expect(mapRayenBed({ bed: 'CMAN1' })).toEqual({
       bedId: 'NEO1',
       isCma: true,
+      isClinicalCrib: false,
       matchedBy: 'neo',
     });
   });
@@ -121,7 +126,28 @@ describe('mapRayenBed', () => {
     expect(mapRayenBed({ room: 'X', bed: 'Y' })).toEqual({
       bedId: null,
       isCma: false,
+      isClinicalCrib: false,
       matchedBy: 'none',
     });
+  });
+
+  it.each([
+    ['CH4C1', 'H4C1'], ['CH5C2', 'H5C2'], ['CH6C1', 'H6C1'],
+    ['C-R1', 'R1'], ['C-R4', 'R4'], ['CNEO1', 'NEO1'], ['CNeo2', 'NEO2'],
+  ])('maps attached crib %s to parent bed %s', (cribLabel, parentBedId) => {
+    expect(mapRayenBed({ bed: cribLabel })).toEqual({
+      bedId: parentBedId,
+      isCma: false,
+      isClinicalCrib: true,
+      matchedBy: 'clinical-crib',
+    });
+  });
+
+  it('prefers the parent verified by Gestión de Camas and rejects non-installed cribs', () => {
+    expect(mapRayenBed({ bed: 'unknown', clinicalCribParentBedId: 'H5C1' })).toMatchObject({
+      bedId: 'H5C1',
+      isClinicalCrib: true,
+    });
+    expect(mapRayenBed({ bed: 'CH3C1' }).bedId).toBeNull();
   });
 });

@@ -13,7 +13,7 @@ import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
  * @property {number} occupiedBeds - Main patients (Bed or Cuna mode)
  * @property {number} occupiedCribs - Nested patients only (internal count)
  * @property {number} clinicalCribsCount - Display count: Main(Cuna) + Nested
- * @property {number} companionCribs - RN Sano (healthy newborn) count
+ * @property {number} companionCribs - Deprecated compatibility field; always zero
  * @property {number} totalCribsUsed - Physical crib resources being used
  * @property {number} totalHospitalized - Total patient count (main + nested)
  * @property {number} blockedBeds - Number of blocked/unavailable beds
@@ -24,7 +24,7 @@ export interface CensusStatistics {
   occupiedBeds: number; // Main patients (Bed or Cuna mode)
   occupiedCribs: number; // Nested patients only (internal)
   clinicalCribsCount: number; // Display: Main(Cuna) + Nested
-  companionCribs: number; // RN Sano count
+  companionCribs: number; // Deprecated compatibility field; always zero
   totalCribsUsed: number; // Physical crib count
   totalHospitalized: number; // Total patients
   blockedBeds: number; // Blocked beds
@@ -55,7 +55,6 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
   let occupiedBeds = 0;
   let occupiedCribs = 0;
   let blockedBeds = 0;
-  let companionCribs = 0;
   let resourceCribs = 0;
   let clinicalCribsCount = 0;
 
@@ -97,11 +96,11 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
         resourceCribs++;
       }
 
-      // D) Companion Crib (RN Sano)
-      if (data.hasCompanionCrib) {
-        companionCribs++;
+      // Preserve physical resource truth for old records until an Eloísa clinical crib replaces it.
+      if (data.hasCompanionCrib && !data.clinicalCrib?.patientName?.trim()) {
         resourceCribs++;
       }
+
     }
   });
 
@@ -109,7 +108,7 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
     occupiedBeds,
     occupiedCribs,
     clinicalCribsCount,
-    companionCribs,
+    companionCribs: 0,
     totalCribsUsed: resourceCribs,
     totalHospitalized: occupiedBeds + occupiedCribs,
     blockedBeds,

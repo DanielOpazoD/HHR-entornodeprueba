@@ -39,7 +39,6 @@ const generatePatientRow = (
     escapeCsvValue(locationOverride || patient.location || ''),
     escapeCsvValue(bedType),
     escapeCsvValue(patient.bedMode || 'Cama'),
-    escapeCsvValue(patient.hasCompanionCrib ? 'SI' : 'NO'),
     escapeCsvValue(patient.isBlocked ? 'SI' : 'NO'),
     escapeCsvValue(patient.blockedReason || ''),
     escapeCsvValue(patient.patientName),

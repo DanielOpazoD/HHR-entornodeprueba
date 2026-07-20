@@ -53,5 +53,7 @@ export const buildPatientBedConfigCardState = ({
     showMenu: !isBlocked && !readOnly,
     showClinicalCribToggle: !isCunaMode,
     showClinicalCribActions: hasClinicalCrib,
+    // Migration affordance: the old classification is retired, but persisted flags remain clearable.
+    showLegacyCribCleanup: hasCompanion,
   };
 };

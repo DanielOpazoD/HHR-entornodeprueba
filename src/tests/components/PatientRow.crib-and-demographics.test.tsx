@@ -94,8 +94,8 @@ describe('PatientRow crib and demographics', () => {
     expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'bedMode', 'Cuna');
   });
 
-  it('toggles companion crib when RN Sano button is clicked', () => {
-    const { mockContext } = render(
+  it('does not offer the retired RN Sano classification', () => {
+    render(
       <table>
         <tbody>
           <PatientRow
@@ -110,9 +110,28 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/^RN Sano$/i));
+    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
+  });
 
-    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', true);
+  it('allows clearing a persisted legacy crib mark without restoring RN sano', () => {
+    const { mockContext } = render(
+      <table>
+        <tbody>
+          <PatientRow
+            data={{ ...mockPatient, hasCompanionCrib: true }}
+            bed={mockBedDef}
+            currentDateString="2023-01-01"
+            onAction={mockOnAction}
+            bedType={BedType.UTI}
+          />
+        </tbody>
+      </table>
+    );
+    fireEvent.click(screen.getByTitle('Configuración de cama'));
+
+    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Limpiar marca histórica de cuna'));
+    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', false);
   });
 
   it('toggles clinical crib when Cuna Clínica button is clicked', () => {
@@ -208,7 +227,7 @@ describe('PatientRow crib and demographics', () => {
     expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
   });
 
-  it('does not allow companion crib if in Cuna mode', async () => {
+  it('does not expose the retired companion-crib action in Cuna mode', () => {
     const cunaPatient = { ...mockPatient, bedMode: 'Cuna' as const };
 
     const { mockContext } = render(
@@ -226,9 +245,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/^RN Sano$/i));
-
-    expect(mockAlert).toHaveBeenCalled();
+    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
     expect(mockContext.updatePatient).not.toHaveBeenCalledWith('R1', 'hasCompanionCrib', true);
   });
 

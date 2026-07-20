@@ -362,6 +362,7 @@ describe('reconcileCensus', () => {
     expect(diff.conflicts).toHaveLength(1);
     expect(diff.conflicts[0].bedId).toBeNull();
   });
+
 });
 
 describe('requiresReview (auto-mode safety gate)', () => {

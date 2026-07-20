@@ -9,27 +9,11 @@
 
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
-import type { CensusImportDiff, FieldChange } from '../contracts/censusImportDiff';
+import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { stateFromBoolean } from './dischargeVerification';
-
-/** PatientData fields that the sync is allowed to source from Rayen. */
-const SYNCABLE_FIELDS: Array<keyof PatientData> = [
-  'patientName',
-  'firstName',
-  'lastName',
-  'secondLastName',
-  'rut',
-  'birthDate',
-  'age',
-  'biologicalSex',
-  'admissionDate',
-  'admissionTime',
-  'pathology',
-  'cie10Code',
-  'cie10Description',
-  'isIsolated',
-];
+import { reconcileClinicalCribs } from './reconcileClinicalCribs';
+import { diffSyncablePatientFields } from './patientSyncPolicy';
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
@@ -69,21 +53,6 @@ interface CurrentPatientRef {
   bedId: string;
   patient: PatientData;
 }
-
-const diffFields = (current: PatientData, incoming: PatientData): FieldChange[] => {
-  const changes: FieldChange[] = [];
-  for (const field of SYNCABLE_FIELDS) {
-    const from = current[field];
-    const to = incoming[field];
-    // A failed/legacy extension lookup has no CIE-10 value. Preserve any local coding instead of
-    // treating missing bridge data as an instruction to erase it.
-    if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
-    if (String(from ?? '') !== String(to ?? '')) {
-      changes.push({ field, from, to });
-    }
-  }
-  return changes;
-};
 
 export interface ReconcileOptions {
   /** Reference date for age computation (defaults to now). */
@@ -154,6 +123,7 @@ export const reconcileCensus = (
   // Current beds consumed by a matched Rayen encounter (so they are not later treated as
   // "missing in Rayen"). Includes the source bed of updates, transfers and discharges.
   const consumedBedIds = new Set<string>();
+  const confirmedPrincipalBedIds = new Set<string>();
   // Target beds each incoming admission/transfer claims, to detect collisions.
   const claimedTargets = new Map<string, string>(); // bedId -> patientName
 
@@ -176,8 +146,8 @@ export const reconcileCensus = (
   // patient is admitted as a NORMAL inpatient (isCma: false): "CMA" is a DISCHARGE type, resolved at
   // egreso — not an admission attribute. So a patient in the virtual CMA service occupies their real
   // bed like anyone else until they leave.
-  const tryAdmit = (encounter: RayenEncounter, patient: PatientData, bedId: string): void => {
-    if (!claimTarget(bedId, patient.patientName, encounter)) return;
+  const tryAdmit = (encounter: RayenEncounter, patient: PatientData, bedId: string): boolean => {
+    if (!claimTarget(bedId, patient.patientName, encounter)) return false;
     const occupant = current.beds[bedId];
     if (isOccupied(occupant) && !consumedBedIds.has(bedId)) {
       diff.conflicts.push({
@@ -187,17 +157,22 @@ export const reconcileCensus = (
         reason: `La cama ${bedId} ya está ocupada por ${occupant.patientName} en el censo local.`,
         source: encounter,
       });
-      return;
+      return false;
     }
     diff.admissions.push({ bedId, patient, isCma: false, source: encounter });
+    return true;
   };
 
   const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
   const discharged = snapshot.encounters.filter(isDischarged);
+  const activeMapped = active.map(encounter => ({
+    encounter,
+    mapped: rayenToPatientData(encounter, reference),
+  }));
 
   // ---- Active encounters → admissions / updates / transfers ----
-  for (const encounter of active) {
-    const { patient, bedId } = rayenToPatientData(encounter, reference);
+  for (const { encounter, mapped } of activeMapped.filter(item => !item.mapped.isClinicalCrib)) {
+    const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
 
     if (!bedId) {
@@ -214,7 +189,8 @@ export const reconcileCensus = (
     if (match) {
       consumedBedIds.add(match.bedId);
       if (match.bedId === bedId) {
-        const changes = diffFields(match.patient, patient);
+        confirmedPrincipalBedIds.add(bedId);
+        const changes = diffSyncablePatientFields(match.patient, patient);
         if (changes.length === 0) {
           diff.unchangedCount += 1;
         } else {
@@ -235,6 +211,7 @@ export const reconcileCensus = (
           patientName: patient.patientName,
           source: encounter,
         });
+        confirmedPrincipalBedIds.add(bedId);
       }
       continue;
     }
@@ -242,7 +219,7 @@ export const reconcileCensus = (
     // New patient not yet in the census → admit into the mapped bed if it is free, UNLESS they were
     // admitted after the census day being synced (they don't belong in a past day's census).
     if (admittedAfterCensusDay(encounter, censusDay)) continue;
-    tryAdmit(encounter, patient, bedId);
+    if (tryAdmit(encounter, patient, bedId)) confirmedPrincipalBedIds.add(bedId);
   }
 
   // ---- Clinically closed encounters (epicrisis médica / enfermería) ----
@@ -250,10 +227,19 @@ export const reconcileCensus = (
   // closures are complete, the patient stays in the HHR bed until the Gestión de Camas
   // administrative-discharge report confirms the departure and its destination.
   for (const encounter of discharged) {
+    const mapped = rayenToPatientData(encounter, reference);
+    // A clinical closure never promotes an attached crib into an independent HHR bed.
+    // Preserve any current nested record until the administrative workflow resolves it.
+    if (mapped.isClinicalCrib) continue;
     const match = findCurrent(encounter);
     if (match) {
       if (consumedBedIds.has(match.bedId)) continue;
       consumedBedIds.add(match.bedId);
+      // Old Ficha responses may omit room/bed on closure. An omitted location is compatible with
+      // the matched local patient; an explicit different location is not authoritative here.
+      if (!mapped.bedId || mapped.bedId === match.bedId) {
+        confirmedPrincipalBedIds.add(match.bedId);
+      }
       diff.pendingAdministrativeDischarges.push({
         bedId: match.bedId,
         rut: match.patient.rut,
@@ -273,9 +259,22 @@ export const reconcileCensus = (
     // the clinically closed encounter if its bed can be resolved; the administrative report may
     // later replace that provisional admission with the definitive statistical movement.
     if (wasDischargedInHhr(encounter)) continue;
-    const { patient, bedId } = rayenToPatientData(encounter, reference);
-    if (bedId) tryAdmit(encounter, patient, bedId);
+    const { patient, bedId } = mapped;
+    if (bedId && tryAdmit(encounter, patient, bedId)) {
+      confirmedPrincipalBedIds.add(bedId);
+    }
   }
+
+  // Reconcile cribs only after both active and clinically closed principal patients have been
+  // resolved. This lets a provisional principal admission receive its newborn in the same diff.
+  reconcileClinicalCribs(
+    current,
+    activeMapped.filter(
+      item => item.mapped.isClinicalCrib && !admittedAfterCensusDay(item.encounter, censusDay)
+    ),
+    diff,
+    confirmedPrincipalBedIds
+  );
 
   // ---- Current patients absent from the snapshot → administrative confirmation pending ----
   // Absence from Ficha Médico is only a signal. It never creates a movement or vacates a bed;

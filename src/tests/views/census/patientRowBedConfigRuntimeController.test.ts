@@ -96,7 +96,7 @@ describe('patientRowBedConfigRuntimeController', () => {
             expect(result.error.code).toBe('COMPANION_NOT_ALLOWED_IN_CUNA');
         }
         expect(alert).toHaveBeenCalledWith(
-            expect.stringContaining('No se puede agregar'),
+            expect.stringContaining('configuración neonatal heredada'),
             'Acción no permitida'
         );
     });

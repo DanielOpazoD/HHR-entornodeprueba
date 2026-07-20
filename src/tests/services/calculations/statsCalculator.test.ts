@@ -76,6 +76,7 @@ describe('statsCalculator', () => {
         patientName: 'Mother',
         bedMode: 'Cama',
         clinicalCrib: { patientName: 'Baby' },
+        hasCompanionCrib: true,
       } as unknown as BedValue,
       R2: {
         patientName: 'RN Solo',
@@ -91,14 +92,14 @@ describe('statsCalculator', () => {
 
     // R1: 1 Bed + 1 Nested Crib
     // R2: 1 Bed (Cuna mode)
-    // R3: 1 Bed + 1 Companion Crib
+    // R3: the legacy flag remains a physical-resource fallback until it is migrated.
 
     expect(stats.occupiedBeds).toBe(3);
     expect(stats.occupiedCribs).toBe(1);
     expect(stats.totalHospitalized).toBe(4);
     expect(stats.clinicalCribsCount).toBe(2); // R1 nested + R2 main
-    expect(stats.companionCribs).toBe(1); // R3
-    expect(stats.totalCribsUsed).toBe(3); // R1 nested + R2 main + R3 companion
+    expect(stats.companionCribs).toBe(0);
+    expect(stats.totalCribsUsed).toBe(3); // R1 nested + R2 main + R3 legacy fallback
   });
 
   it('should count empty beds in Cuna mode as crib usage', () => {

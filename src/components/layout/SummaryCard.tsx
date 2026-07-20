@@ -63,10 +63,6 @@ export const CribSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => (
         <span className="text-slate-500 text-[10px]">Clínicas</span>
         <span className="font-bold text-accent-600 text-[11px]">{stats.clinicalCribsCount}</span>
       </div>
-      <div className="flex justify-between items-center px-1">
-        <span className="text-slate-500 text-[10px]">RN Sano</span>
-        <span className="font-bold text-green-600 text-[11px]">{stats.companionCribs}</span>
-      </div>
       <div className="flex justify-between items-center mt-1 px-1 pt-1 border-t border-slate-200/50 border-dashed">
         <span className="text-accent-900 font-bold text-[10px]">Total Uso</span>
         <span className="font-bold text-accent-800 text-[11px] leading-none">
@@ -194,17 +190,13 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
             Recursos Cuna
           </span>
         </div>
-        {/* Row 1: Clínicas + RN Sano */}
+        {/* Row 1: cunas clínicas con registro electrónico */}
         <div className="flex items-center gap-3 mt-0.5">
           <div className="flex items-center gap-1">
             <span className="text-slate-500 text-[9px]">Clínicas</span>
             <span className="font-bold text-accent-600 text-[10px]">
               {stats.clinicalCribsCount}
             </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500 text-[9px]">RN Sano</span>
-            <span className="font-bold text-green-600 text-[10px]">{stats.companionCribs}</span>
           </div>
         </div>
         {/* Row 2: Total */}

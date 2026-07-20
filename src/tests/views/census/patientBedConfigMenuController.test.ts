@@ -14,8 +14,8 @@ describe('patientBedConfigMenuController', () => {
       hasClinicalCrib: true,
     });
 
-    expect(indicators.map(item => item.key)).toEqual(['cuna', 'rn', 'cc']);
-    expect(indicators.map(item => item.label)).toEqual(['CUNA', 'RN', '+CC']);
+    expect(indicators.map(item => item.key)).toEqual(['cuna', 'cc']);
+    expect(indicators.map(item => item.label)).toEqual(['CUNA', '+CC']);
   });
 
   it('resolves bed mode/companion/clinical crib visual models', () => {
