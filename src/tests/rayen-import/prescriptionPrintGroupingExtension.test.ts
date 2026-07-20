@@ -48,19 +48,21 @@ describe('extension prescription operations', () => {
     ]);
 
     expect(groups.map(group => [group.professional, group.count])).toEqual([
-      ['Daniel Opazo', 1],
       ['Elena Díaz', 1],
+      ['Daniel Opazo', 1],
     ]);
-    expect(groups[0]?.medications[0]).toMatchObject({
+    expect(groups[1]?.medications[0]).toMatchObject({
       medication: 'Losartán 50 mg',
       posology: '1 cada 12 horas',
       date: '2026-07-09',
       dateTime: '2026-07-09T11:15:00',
     });
-    expect(groups[0]?.professionalRun).toBe('17.752.753-K');
-    expect(groups[0]?.latestDateTime).toBe('2026-07-09T11:15:00');
-    expect(groups[0]?.externalCount).toBe(0);
-    expect(groups[1]?.key).toBe('professional:elena-diaz');
+    expect(groups[1]?.professionalRun).toBe('17.752.753-K');
+    expect(groups[1]?.latestDateTime).toBe('2026-07-09T11:15:00');
+    expect(groups[1]?.externalCount).toBe(0);
+    expect(groups[0]?.key).toBe(
+      `professional:elena-diaz-emission-${Date.parse('2026-07-14T19:48:00')}`
+    );
   });
 
   it('keeps clinically distinct fallback rows when Eloísa omits MRE_ID', () => {

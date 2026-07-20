@@ -533,7 +533,7 @@ const handleHistoryScalesRequest = async ({ encId }) => {
 };
 
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
-// the active groups already normalized by author; print requests re-fetch the source instead of
+// the active groups already normalized by prescriber and issuance time; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
 // Eloisa's history report does not consistently include `is_external`. Read the same active
 // medication endpoint that feeds the on-screen table and reconcile only its stable entry id with
@@ -1091,15 +1091,17 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
   } catch (error) {
     return { error: 'No se pudieron conservar los datos de emisión de la receta oficial: ' + String((error && error.message) || error) };
   }
-  if (!officialMetadata.emissionDateTime) {
-    return { error: 'La receta oficial no informó su fecha y hora de emisión.' };
-  }
   const group = selectedGroup;
+  const groupDateTime = [group.printDateTime, group.validationDateTime].find(Boolean);
+  const emissionDateTime = self.HhrPrescriptionPrint.resolvePrescriptionEmissionDateTime(
+    group, officialMetadata.emissionDateTime
+  );
+  if (!emissionDateTime) return { error: 'La receta no informó su fecha y hora de emisión.' };
   if (group.medications.length === 0) return { error: 'No se encontraron fármacos activos.' };
   const context = await getClinicalReportContext(
     encId,
     infoResult.info,
-    group.printDateTime || group.validationDateTime
+    groupDateTime
   );
   if (context.error) return context;
   let buffer;
@@ -1112,7 +1114,7 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
       validationDate: group.printDate || group.validationDate,
       validationDateTime: group.printDateTime || group.validationDateTime,
       dateSource: group.printDateSource || 'validation',
-      emissionDateTime: officialMetadata.emissionDateTime,
+      emissionDateTime: self.HhrPrescriptionPrint.formatDateTimeLabel(emissionDateTime),
       folio: '',
       printFormat: format,
       isExternalPrescription: Boolean(group.external),
@@ -1124,7 +1126,8 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
     buffer,
     filename: self.HhrPrescriptionPrint.buildPrescriptionFilename(
       encId,
-      group.external ? 'externa-' + group.medication + '-' + group.professional : group.professional,
+      group.external ? 'externa-' + group.medication + '-' + group.professional :
+        group.professional + '-' + emissionDateTime,
       format
     ),
   });
