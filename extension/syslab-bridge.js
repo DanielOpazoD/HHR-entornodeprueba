@@ -17,15 +17,15 @@
   const MAX_BODY_BYTES = 6 * 1024 * 1024;
   const REQUEST_TIMEOUT_MS = 30_000;
   const DETAILS_CONCURRENCY = 3;
-  const BRIDGE_ID = crypto.randomUUID();
+  const BRIDGE_ID = globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : `syslab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`; // HTTP fallback; correlation only.
   const FRAME_REQUEST = 'HHR_SYSLAB_FRAME_REQUEST';
   const FRAME_RESULT = 'HHR_SYSLAB_FRAME_RESULT';
   const EXTENSION_ORIGIN = chrome.runtime.getURL('').replace(/\/$/, '');
-
   const cleanText = value => String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   const normalizeRutBody = value => self.HhrLabViewer.normalizeRutBody(value);
   const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-
   const isAllowedSyslabUrl = value => {
     try {
       const url = new URL(String(value || ''), location.href);
@@ -39,7 +39,6 @@
     if (!isAllowedSyslabUrl(value)) return false;
     return /\/detalleexamenes\.php$/i.test(new URL(String(value), location.href).pathname);
   };
-
   const loginRequired = () => Boolean(
     document.querySelector('input[name="password"], input[type="password"]')
   );
@@ -54,14 +53,9 @@
     }
     dispatchFieldValue(usernameInput, username);
     dispatchFieldValue(passwordInput, password);
-    const submit = clickableByText(/iniciar\s+sesi[oó]n|ingresar|entrar|aceptar/i);
-    const form = passwordInput.closest('form') || usernameInput.closest('form');
-    if (!submit && !form) return { error: 'No se encontró el botón de acceso de Syslab.' };
-    setTimeout(() => {
-      if (submit) submit.click();
-      else if (typeof form.requestSubmit === 'function') form.requestSubmit();
-      else form.submit();
-    }, 0);
+    if (!submitFormControl(passwordInput, /iniciar\s+sesi[oó]n|ingresar|entrar|aceptar/i)) {
+      return { error: 'No se encontró el botón de acceso de Syslab.' };
+    }
     return { ok: true, bridgeId: BRIDGE_ID, navigated: true };
   };
 
@@ -75,7 +69,15 @@
   const clickableByText = pattern => Array.from(document.querySelectorAll(
     'input[type="submit"], input[type="button"], button, a'
   )).find(element => pattern.test(cleanText(element.value || element.textContent)));
-
+  const submitFormControl = (input, pattern) => {
+    const form = input.closest('form');
+    const controls = Array.from((form || document).querySelectorAll('input[type="submit"], input[type="button"], button, a'));
+    const submit = controls.find(element => pattern.test(cleanText(element.value || element.textContent))) ||
+      controls.find(element => /submit/i.test(element.type || '')) || (!form && clickableByText(pattern));
+    if (!submit && !form) return false;
+    setTimeout(() => submit ? submit.click() : typeof form.requestSubmit === 'function' ? form.requestSubmit() : form.submit(), 0);
+    return true;
+  };
   const extractExams = () => Array.from(document.querySelectorAll('table.narrow tr'))
     .map(row => {
       const cells = row.querySelectorAll('td');
@@ -320,9 +322,7 @@
         Array.from(document.querySelectorAll('input[type="text"]')).find(field => !/usuario/i.test(field.name || ''));
       if (!input || !/^\d{5,9}$/.test(rutBody)) return { error: 'El formulario de búsqueda por RUT no está disponible.' };
       dispatchFieldValue(input, rutBody);
-      const acceptButton = clickableByText(/aceptar/i);
-      if (!acceptButton) return { error: 'No se encontró el botón Aceptar de Syslab.' };
-      setTimeout(() => acceptButton.click(), 0);
+      if (!submitFormControl(input, /aceptar|buscar|consultar/i)) return { error: 'No se pudo enviar la búsqueda por RUT en Syslab.' };
       return { ok: true, bridgeId: BRIDGE_ID, navigated: true };
     }
     if (message.type === 'RAYEN_SYSLAB_READ_RESULTS') {

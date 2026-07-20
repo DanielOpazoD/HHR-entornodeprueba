@@ -67,7 +67,7 @@ describe('Syslab login bridge', () => {
     expect(bridgeSource).not.toContain('sessionStorage');
   });
 
-  it('accepts frame relay requests only from the extension parent and correlates responses', async () => {
+  it('starts without Web Crypto on legacy HTTP and accepts only extension-parent relays', async () => {
     const frameListeners: { message?: (event: MessageEvent) => void } = {};
     const parentPostMessage = vi.fn();
     const extensionParent = { postMessage: parentPostMessage };
@@ -79,7 +79,6 @@ describe('Syslab login bridge', () => {
       },
       document: { querySelector: () => null, querySelectorAll: () => [] },
       location: { href: 'http://10.4.69.90/syslab/' },
-      crypto: { randomUUID: () => '22222222-2222-4222-8222-222222222222' },
       setTimeout,
       clearTimeout,
       console,
@@ -132,10 +131,54 @@ describe('Syslab login bridge', () => {
         expect.objectContaining({
           type: 'HHR_SYSLAB_FRAME_RESULT',
           reqId: request.reqId,
-          response: expect.objectContaining({ ok: true }),
+          response: expect.objectContaining({
+            ok: true,
+            bridgeId: expect.stringMatching(/^syslab-/),
+          }),
         }),
         'chrome-extension://test'
       )
     );
+  });
+
+  it('reuses the results-page RUT form when Syslab no longer renders Aceptar', async () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="rut" type="text">
+      </form>
+      <button type="button">Buscar</button>
+    `;
+    const form = document.querySelector('form') as HTMLFormElement;
+    const requestSubmitSpy = vi.spyOn(form, 'requestSubmit').mockImplementation(() => undefined);
+    const unrelatedClickSpy = vi.spyOn(document.querySelector('button')!, 'click');
+    let listener: (
+      message: Record<string, unknown>,
+      sender: unknown,
+      sendResponse: (response: unknown) => void
+    ) => boolean = () => false;
+    (globalThis as typeof globalThis & { chrome: unknown }).chrome = {
+      runtime: {
+        getURL: (value: string) => `chrome-extension://test/${value}`,
+        onMessage: {
+          addListener: (registered: typeof listener) => {
+            listener = registered;
+          },
+        },
+      },
+    };
+
+    vm.runInThisContext(bridgeSource, { filename: 'syslab-bridge.js' });
+    const response = await new Promise<Record<string, unknown>>(resolve => {
+      listener({ type: 'RAYEN_SYSLAB_SUBMIT_SEARCH', rutBody: '12345678' }, {}, value =>
+        resolve(value as Record<string, unknown>)
+      );
+    });
+
+    expect(response).toMatchObject({ ok: true, navigated: true });
+    expect((document.querySelector('input[name="rut"]') as HTMLInputElement).value).toBe(
+      '12345678'
+    );
+    await vi.waitFor(() => expect(requestSubmitSpy).toHaveBeenCalledTimes(1));
+    expect(unrelatedClickSpy).not.toHaveBeenCalled();
   });
 });

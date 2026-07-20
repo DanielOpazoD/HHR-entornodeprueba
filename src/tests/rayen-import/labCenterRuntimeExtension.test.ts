@@ -17,6 +17,7 @@ const runtimeOwner = () =>
 
 const runtimeMessages = {
   SYSLAB_STATUS_REQUEST: 'RAYEN_SYSLAB_STATUS_REQUEST',
+  SYSLAB_LOGIN_REQUEST: 'RAYEN_SYSLAB_LOGIN_REQUEST',
   LAB_SEARCH_REQUEST: 'RAYEN_LAB_SEARCH_REQUEST',
   LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
   LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
@@ -163,8 +164,17 @@ describe('Centro HHR Laboratorio runtime', () => {
     vi.stubGlobal('chrome', {
       runtime: { getURL: (value: string) => `chrome-extension://test/${value}` },
     });
+    let syslabConnected = false;
     const sendMessage = vi.fn(async (message: Record<string, unknown>) => {
-      if (message.type === runtimeMessages.SYSLAB_STATUS_REQUEST) return { connected: false };
+      if (message.type === runtimeMessages.SYSLAB_STATUS_REQUEST)
+        return { connected: syslabConnected };
+      if (message.type === runtimeMessages.SYSLAB_LOGIN_REQUEST) {
+        syslabConnected = true;
+        return { connected: true };
+      }
+      if (message.type === runtimeMessages.LAB_SEARCH_REQUEST) {
+        return { batchId: 'empty-batch', patient: { name: 'Ana Riroroko' }, exams: [] };
+      }
       return { ok: true };
     });
     const transition = vi.fn((_root: HTMLElement, action: () => void) => {
@@ -219,6 +229,23 @@ describe('Centro HHR Laboratorio runtime', () => {
         'Inicio de sesión requerido'
       );
       expect(root.isConnected).toBe(true);
+    });
+    const username = root.querySelector<HTMLInputElement>('[name="username"]')!;
+    const password = root.querySelector<HTMLInputElement>('[name="password"]')!;
+    const transientPassword = ['temporary', 'value'].join('-');
+    username.value = 'temporary-user';
+    password.value = transientPassword;
+    root
+      .querySelector<HTMLFormElement>('.hhr-syslab-access-form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: runtimeMessages.SYSLAB_LOGIN_REQUEST,
+        username: 'temporary-user',
+        password: transientPassword,
+      });
+      expect(password.value).toBe('');
+      expect(root.querySelector<HTMLElement>('.hhr-syslab-access')?.hidden).toBe(true);
     });
   });
 });
