@@ -315,7 +315,7 @@ describe('applyCensusImportDiff', () => {
       rut: '11.044.046-4',
       diagnosis: 'Herida de la pierna',
       dischargeType: 'Domicilio (Habitual)',
-      time: '19:11', // official statistical time from the report, not the sync execution time
+      time: '17:11', // mainland report time converted to the Rapa Nui census clock
       status: 'Vivo',
     });
     expect(result.applied.discharges).toBe(1);
@@ -391,7 +391,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.cma).toHaveLength(1);
     expect(result.record.cma[0]).toMatchObject({
       patientName: 'Paciente Cma',
-      dischargeTime: '12:30', // official statistical time from the report
+      dischargeTime: '10:30', // mainland report time converted to the Rapa Nui census clock
     });
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.transfers).toHaveLength(0);
@@ -415,7 +415,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.transfers).toHaveLength(1);
     expect(result.record.transfers[0]).toMatchObject({
       patientName: 'Paciente Traslado',
-      time: '10:00', // official statistical time from the report
+      time: '08:00', // mainland report time converted to the Rapa Nui census clock
     });
     expect(result.record.discharges).toHaveLength(0);
   });

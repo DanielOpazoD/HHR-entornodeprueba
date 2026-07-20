@@ -28,6 +28,9 @@ export interface EgresoReportRow {
   fechaEgreso: string;
   /** Principal discharge diagnosis (present once the extension parses that column). */
   diagnostico?: string;
+  /** Pre-normalized Rapa Nui stamp when the source was an offset-bearing API timestamp. */
+  correctedDay?: string;
+  correctedTime?: string;
 }
 
 /**

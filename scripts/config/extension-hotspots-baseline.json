@@ -102,6 +102,10 @@
       "maxLines": 39,
       "hotspots": {}
     },
+    "content-hhr-statistical-discharge.js": {
+      "maxLines": 31,
+      "hotspots": {}
+    },
     "content-hhr.js": {
       "maxLines": 252,
       "hotspots": {}
@@ -159,6 +163,10 @@
     },
     "gestion-camas-cudyr.js": {
       "maxLines": 158,
+      "hotspots": {}
+    },
+    "gestion-camas-discharge-report-runtime.js": {
+      "maxLines": 42,
       "hotspots": {}
     },
     "gestion-camas-egreso-lookup.js": {

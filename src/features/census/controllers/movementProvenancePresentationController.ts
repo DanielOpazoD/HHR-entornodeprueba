@@ -24,6 +24,11 @@ const withDetails = (base: string, provenance: MovementProvenance): string => {
   return details.length > 0 ? `${base} · ${details.join(' · ')}` : base;
 };
 
+const withTimestamp = (base: string, provenance: MovementProvenance): string => {
+  const stamp = formatStamp(provenance.classifiedAt);
+  return stamp ? `${base} · ${stamp}` : base;
+};
+
 const classificationLabel = (value?: MovementProvenance['previousClassification']): string => {
   if (value === 'discharge') return 'alta domicilio';
   if (value === 'transfer') return 'traslado';
@@ -45,7 +50,7 @@ export const resolveMovementProvenancePresentation = (
   if (provenance.source === 'gestion_camas') {
     return {
       label: 'Egreso estad.',
-      title: withDetails(
+      title: withTimestamp(
         'Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa',
         provenance
       ),

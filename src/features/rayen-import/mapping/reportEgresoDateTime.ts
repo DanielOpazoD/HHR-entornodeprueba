@@ -1,11 +1,9 @@
 /**
  * Parser for the official statistical discharge stamp printed by Gestión de Camas.
  *
- * Live evidence from the individual "Informe Estadístico de Egreso Hospitalario" and the
- * administrative-discharge API event confirms that the report already prints the Rapa Nui wall
- * clock. Therefore this parser NORMALIZES the value but never shifts it by timezone. The known D+1
- * workaround belongs only to the report search range; it must not alter the timestamp printed in a
- * row.
+ * Gestión de Camas prints report timestamps in the mainland Chile wall clock. HHR's census is
+ * owned by Rapa Nui, so the value must be converted between named zones (including DST and day
+ * rollover) rather than corrected with a fixed number of hours.
  */
 
 export interface StatisticalEgresoStamp {
@@ -18,6 +16,64 @@ export interface StatisticalEgresoStamp {
 }
 
 const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+const SOURCE_TIME_ZONE = 'America/Santiago';
+const CENSUS_TIME_ZONE = 'Pacific/Easter';
+
+interface DateTimeParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+}
+
+const partsInZone = (date: Date, timeZone: string): DateTimeParts => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find(part => part.type === type)?.value ?? 0);
+  return {
+    year: value('year'),
+    month: value('month'),
+    day: value('day'),
+    hour: value('hour'),
+    minute: value('minute'),
+  };
+};
+
+const mainlandWallClockInstant = (parts: DateTimeParts): Date => {
+  const target = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  let instant = target;
+  // Two passes cover DST offset changes without depending on the computer's local zone.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const observed = partsInZone(new Date(instant), SOURCE_TIME_ZONE);
+    const observedAsUtc = Date.UTC(
+      observed.year,
+      observed.month - 1,
+      observed.day,
+      observed.hour,
+      observed.minute
+    );
+    instant += target - observedAsUtc;
+  }
+  return new Date(instant);
+};
+
+const stampFromInstant = (date: Date): StatisticalEgresoStamp | null => {
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = partsInZone(date, CENSUS_TIME_ZONE);
+  const iso = `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
+  const hhmm = `${pad2(parts.hour)}:${pad2(parts.minute)}`;
+  return { iso, hhmm, text: `${pad2(parts.day)}-${pad2(parts.month)}-${parts.year} ${hhmm}` };
+};
 
 export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgresoStamp | null => {
   const match = (fechaEgreso || '')
@@ -44,8 +100,12 @@ export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgr
     calendarProbe.getUTCDate() === day;
   if (!isValid) return null;
 
-  const iso = `${year}-${pad2(month)}-${pad2(day)}`;
-  const hhmm = `${pad2(hour)}:${pad2(minute)}`;
-  const text = `${pad2(day)}-${pad2(month)}-${year} ${hhmm}`;
-  return { iso, hhmm, text };
+  return stampFromInstant(mainlandWallClockInstant({ year, month, day, hour, minute }));
+};
+
+/** Converts an API timestamp carrying an explicit offset/UTC marker into the Rapa Nui census zone. */
+export const parseStatisticalEgresoInstant = (value: string): StatisticalEgresoStamp | null => {
+  const normalized = (value || '').trim();
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return null;
+  return stampFromInstant(new Date(normalized));
 };
