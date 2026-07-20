@@ -4,7 +4,7 @@
  * Now integrated with TanStack Query for data fetching and sync.
  */
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
 import {
   useNursesQuery,
   useTensQuery,
@@ -14,6 +14,7 @@ import {
   useSaveProfessionalsMutation,
 } from '@/hooks/useStaffQuery';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+import { reconcileNurseCatalogNames } from '@/services/staff/nurseIdentity';
 
 // ============================================================================
 // Types
@@ -57,6 +58,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   const { data: nurses = [], isLoading: nursesLoading } = useNursesQuery();
   const { data: tens = [], isLoading: tensLoading } = useTensQuery();
   const { data: professionals = [], isLoading: professionalsLoading } = useProfessionalsQuery();
+  const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
 
   // 2. Mutations for saving
   const saveNursesMutation = useSaveNursesMutation();
@@ -69,7 +71,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
 
   // Compatibility setters (now trigger mutations)
   const setNursesList = (updatedNurses: string[]) => {
-    saveNursesMutation.mutate(updatedNurses);
+    saveNursesMutation.mutate(reconcileNurseCatalogNames(updatedNurses));
   };
 
   const setTensList = (updatedTens: string[]) => {
@@ -81,7 +83,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   };
 
   const value: StaffContextType = {
-    nursesList: nurses,
+    nursesList: reconciledNurses,
     setNursesList,
     nursesLoading,
     tensList: tens,

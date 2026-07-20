@@ -17,8 +17,15 @@ import {
   requestHistoryScales,
   requestScalesReport,
 } from '../bridge/rayenImportBridge';
+import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
+import { hasNursingShiftSuggestions } from '../domain/inferNursingShifts';
+import {
+  hasNursingShiftReview,
+  reconcileNursingShiftProposal,
+} from '../domain/applyNursingShiftProposal';
 
 interface UseRayenClinicalFillInput {
+  nurseCatalog: string[];
   patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
@@ -26,15 +33,18 @@ interface UseRayenClinicalFillInput {
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
   completeRun: (record: DailyRecord, summary: ClinicalFillSummary) => Promise<void>;
+  onStaffingProposal: (proposal: NursingStaffingProposal) => void;
   onSettled: () => void;
   createId: () => string;
 }
 
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
+  nurseCatalog,
   patchDailyRecord,
   applyHistoricalCudyr,
   completeRun,
+  onStaffingProposal,
   onSettled,
   createId,
 }: UseRayenClinicalFillInput) =>
@@ -76,6 +86,7 @@ export const useRayenClinicalFill = ({
             applyHistoricalCudyr,
             now: () => new Date(),
             createId,
+            nurseCatalog,
           },
           ({ done, total }) => reportRayenFillProgress(done, total)
         );
@@ -91,6 +102,10 @@ export const useRayenClinicalFill = ({
       if (summary.errors.length > 0) {
         console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
       }
+      if (summary.staffingProposal && hasNursingShiftSuggestions(summary.staffingProposal)) {
+        const reviewProposal = reconcileNursingShiftProposal(record, summary.staffingProposal);
+        if (hasNursingShiftReview(reviewProposal)) onStaffingProposal(reviewProposal);
+      }
       const failedPatients = new Set(
         summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
       ).size;
@@ -102,5 +117,13 @@ export const useRayenClinicalFill = ({
       }
       onSettled();
     },
-    [applyHistoricalCudyr, completeRun, createId, onSettled, patchDailyRecord]
+    [
+      applyHistoricalCudyr,
+      completeRun,
+      createId,
+      nurseCatalog,
+      onSettled,
+      onStaffingProposal,
+      patchDailyRecord,
+    ]
   );

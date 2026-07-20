@@ -140,10 +140,14 @@
       "hotspots": {}
     },
     "fichamedico-clinical-client.js": {
-      "maxLines": 566,
+      "maxLines": 548,
       "hotspots": {
         "iife>variable:create>variable:request": 17
       }
+    },
+    "fichamedico-history-read-model.js": {
+      "maxLines": 88,
+      "hotspots": {}
     },
     "fichamedico-normalization.js": {
       "maxLines": 134,

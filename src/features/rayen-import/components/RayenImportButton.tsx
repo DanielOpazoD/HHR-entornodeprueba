@@ -14,6 +14,7 @@ import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
+import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import {
   presentRayenCoverage,
   presentRayenSyncRecovery,
@@ -55,13 +56,27 @@ export const RayenImportButton: React.FC = () => {
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
   const [errorGuidanceOpen, setErrorGuidanceOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
-  const { mode, diff, isPreviewOpen, isBusy, isSyncing, error, triggerImport, confirm, cancel } =
-    useRayenImport();
+  const {
+    mode,
+    diff,
+    isPreviewOpen,
+    isBusy,
+    isSyncing,
+    error,
+    staffingProposal,
+    isStaffingProposalBusy,
+    staffingProposalError,
+    triggerImport,
+    confirm,
+    cancel,
+    confirmStaffingProposal,
+    dismissStaffingProposal,
+  } = useRayenImport();
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy || fill.running || recoveryBusy;
+  const working = isSyncing || isBusy || fill.running || recoveryBusy || isStaffingProposalBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -358,6 +373,13 @@ export const RayenImportButton: React.FC = () => {
         recovery={recovery}
         recoveryBusy={working}
         onRecoveryAction={() => void handleRecoveryAction()}
+      />
+      <RayenNursingShiftProposalModal
+        proposal={staffingProposal}
+        isBusy={isStaffingProposalBusy}
+        error={staffingProposalError}
+        onConfirm={() => void confirmStaffingProposal()}
+        onCancel={dismissStaffingProposal}
       />
 
       {error && !isPreviewOpen && (

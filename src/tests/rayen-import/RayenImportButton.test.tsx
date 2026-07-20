@@ -44,9 +44,14 @@ describe('RayenImportButton', () => {
       isSyncing: false,
       result: null,
       error: null,
+      staffingProposal: null,
+      isStaffingProposalBusy: false,
+      staffingProposalError: null,
       triggerImport: mocks.triggerImport,
       confirm: vi.fn(),
       cancel: vi.fn(),
+      confirmStaffingProposal: vi.fn(),
+      dismissStaffingProposal: vi.fn(),
     });
     mocks.useRayenFillProgress.mockReturnValue({
       running: false,

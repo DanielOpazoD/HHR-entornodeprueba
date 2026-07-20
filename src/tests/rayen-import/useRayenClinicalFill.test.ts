@@ -31,9 +31,11 @@ describe('useRayenClinicalFill', () => {
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
+        nurseCatalog: [],
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
+        onStaffingProposal: vi.fn(),
         onSettled,
         createId: () => 'id',
       })

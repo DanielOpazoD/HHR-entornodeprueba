@@ -22,6 +22,7 @@ importScripts(
   'hhr-request-forms.js',
   'health-check.js',
   'fichamedico-transport-runtime.js',
+  'fichamedico-history-read-model.js',
   'fichamedico-clinical-client.js',
   'fichamedico-patient-context.js',
   'gestion-camas-session.js',
@@ -96,6 +97,9 @@ if (
   typeof self.HhrFichaMedicoTransportRuntime.create !== 'function'
 ) {
   throw new Error('No se pudo cargar el runtime de transporte de Ficha Médico.');
+}
+if (!self.HhrFichaMedicoHistoryReadModel || typeof self.HhrFichaMedicoHistoryReadModel.project !== 'function') {
+  throw new Error('No se pudo cargar el modelo de historial clínico de Ficha Médico.');
 }
 if (
   !self.HhrFichaMedicoClinicalClient ||

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/fichamedico-history-read-model.js';
 import '../../../extension/fichamedico-clinical-client.js';
 
 type SessionInfo = {
@@ -32,6 +33,10 @@ type ClinicalClient = {
     fecha: string;
     info?: SessionInfo;
   }) => Promise<{ buffer?: ArrayBuffer; error?: string }>;
+  fetchHistoryScales: (input: {
+    encId: string;
+    info?: SessionInfo;
+  }) => Promise<{ events?: unknown[]; nursingActivity?: unknown[]; error?: string }>;
 };
 
 type ClinicalClientFactory = {
@@ -203,6 +208,80 @@ describe('Ficha Médico read-only clinical client', () => {
     ).resolves.toEqual({
       error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.',
     });
+  });
+
+  it('returns text-free nursing activity together with scale history', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(
+      response({
+        json: async () => [
+          {
+            publishDatetime: '2026-07-20T10:15:00',
+            evolutionResume: [
+              {
+                OBE_NOTES: 'texto clínico que no debe cruzar',
+                OBE_PUBLISH_DATETIME: '2026-07-20T10:15:00',
+                HCPR_NAME: 'Enfermera(o)',
+                HCP_FGN: 'ANA',
+                HCP_NGN: 'MARIA',
+                HCP_FFN: 'PEREZ',
+                HCP_SFN: 'SOTO',
+                HCP_LEGAL: '11.111.111-1',
+              },
+            ],
+            shiftChangeResume: [],
+            evaluationInstrumentsResume: [
+              {
+                FORM_NAME: 'Escala de riesgo UPP (Braden)',
+                LABEL: 'Puntaje',
+                VALUE: '16',
+                PUBLISH_DATE_HCP_NAME: '20-07-2026 - 10:15:00 - Ana Perez - Enfermera(o)',
+                PRACTITIONER_ROLE: 'Enfermera(o)',
+              },
+              {
+                FORM_NAME: 'Escala de riesgo de caídas (Downton)',
+                LABEL: 'Puntaje',
+                VALUE: '2',
+                PUBLISH_DATE_HCP_NAME: '20-07-2026 - 10:18:00 - Beatriz Soto - Enfermera(o)',
+                PRACTITIONER_ROLE: 'Enfermera(o)',
+              },
+            ],
+          },
+        ],
+      })
+    );
+
+    const result = await client.fetchHistoryScales({ encId: '141336', info: session });
+
+    expect(result.events).toHaveLength(1);
+    expect(result.nursingActivity).toEqual([
+      {
+        author: 'ANA MARIA PEREZ SOTO',
+        authorIdentity: { firstGivenName: 'ANA', firstSurname: 'PEREZ' },
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T10:15:00',
+        source: 'evolution',
+        archived: false,
+        crossedOut: false,
+      },
+      {
+        author: 'Ana Perez',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T10:15:00',
+        source: 'evaluation-scale',
+        archived: false,
+        crossedOut: false,
+      },
+      {
+        author: 'Beatriz Soto',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T10:18:00',
+        source: 'evaluation-scale',
+        archived: false,
+        crossedOut: false,
+      },
+    ]);
+    expect(JSON.stringify(result.nursingActivity)).not.toContain('texto clínico');
+    expect(JSON.stringify(result.nursingActivity)).not.toContain('11.111.111-1');
   });
 
   it('keeps background as wiring and the read client free of writes or persistence', () => {

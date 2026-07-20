@@ -31,17 +31,30 @@ import { mergeReportVitals } from './domain/mergeReportVitals';
 import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import type {
+  NursingStaffingProposal,
+  RayenNursingActivity,
+} from './contracts/nursingShiftInference';
+import {
+  hasNursingShiftSuggestions,
+  inferNursingShifts,
+  type NursingActivityObservation,
+} from './domain/inferNursingShifts';
 
 export interface ClinicalFillDeps {
+  /** Curated HHR nurse catalog used to reconcile Eloísa identities and strengthen confidence. */
+  nurseCatalog?: string[];
   fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
   /**
    * Read one patient's risk scales as clinical-history events (real `publishDatetime` per event), so
    * `parseHistoryScales` can pick the last score applied on the census day — see `parseHistoryScales`.
    */
-  fetchHistoryScales: (
-    encId: string
-  ) => Promise<{ events: RayenHistoryScaleEvent[]; error?: string }>;
+  fetchHistoryScales: (encId: string) => Promise<{
+    events: RayenHistoryScaleEvent[];
+    nursingActivity?: RayenNursingActivity[];
+    error?: string;
+  }>;
   /**
    * Read the same patient's risk scales from the "Instrumentos de evaluación" summary
    * (`encounterFormEntry`). Neither source is complete on its own, so the runner UNIONS both — some
@@ -86,6 +99,8 @@ export interface ClinicalFillSummary {
   /** Patients whose patch was applied (had at least one change). */
   patched: number;
   errors: ClinicalFillError[];
+  /** Reviewable, high-confidence staffing suggestions derived from text-free clinical metadata. */
+  staffingProposal?: NursingStaffingProposal;
 }
 
 export interface ClinicalFillProgress {
@@ -110,6 +125,7 @@ export const runClinicalFill = async (
   );
   const summary: ClinicalFillSummary = { total: eligible.length, patched: 0, errors: [] };
   if (eligible.length === 0) return summary;
+  const nursingObservations: NursingActivityObservation[] = [];
 
   // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
   // writes share one census version and can otherwise conflict with another write from this same
@@ -183,6 +199,11 @@ export const runClinicalFill = async (
     }
     const forms =
       formsResult.status === 'fulfilled' && !formsReadError ? formsResult.value.forms : [];
+    if (historyResult.status === 'fulfilled' && !historyResult.value.error) {
+      for (const activity of historyResult.value.nursingActivity ?? []) {
+        nursingObservations.push({ ...activity, encounterId: encId });
+      }
+    }
 
     try {
       // Union BOTH scale sources — neither is complete on its own.
@@ -292,6 +313,11 @@ export const runClinicalFill = async (
   for (let start = 0; start < eligible.length; start += CONCURRENCY) {
     const batch = eligible.slice(start, start + CONCURRENCY);
     await Promise.all(batch.map(([bedId, patient]) => fillPatient(bedId, patient).finally(report)));
+  }
+
+  const staffingProposal = inferNursingShifts(nursingObservations, fecha, deps.nurseCatalog ?? []);
+  if (hasNursingShiftSuggestions(staffingProposal)) {
+    summary.staffingProposal = staffingProposal;
   }
 
   return summary;

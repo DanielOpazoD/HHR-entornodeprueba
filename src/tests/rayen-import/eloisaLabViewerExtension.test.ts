@@ -449,6 +449,6 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.35.0"');
+    expect(manifest).toContain('"version": "0.36.0"');
   });
 });

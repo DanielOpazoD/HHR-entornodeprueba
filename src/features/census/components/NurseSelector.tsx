@@ -7,6 +7,10 @@ import {
   normalizeStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
+import {
+  reconcileNurseCatalogNames,
+  reconcileSelectedNurseName,
+} from '@/services/staff/nurseIdentity';
 
 interface NurseSelectorProps {
   nursesDayShift: string[];
@@ -30,9 +34,25 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
   const { setShowNurseManager } = useStaffContext();
   const selectClassName =
     'py-0 pl-1 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[75px] appearance-none transition-all';
+  const reconciledCatalog = React.useMemo(
+    () => reconcileNurseCatalogNames(nursesList),
+    [nursesList]
+  );
+  const reconciledDayShift = React.useMemo(
+    () => nursesDayShift.map(name => reconcileSelectedNurseName(name, reconciledCatalog)),
+    [nursesDayShift, reconciledCatalog]
+  );
+  const reconciledNightShift = React.useMemo(
+    () => nursesNightShift.map(name => reconcileSelectedNurseName(name, reconciledCatalog)),
+    [nursesNightShift, reconciledCatalog]
+  );
   const resolvedNurseOptions = React.useMemo(
-    () => buildResolvedStaffSelectionOptions(nursesList, [...nursesDayShift, ...nursesNightShift]),
-    [nursesList, nursesDayShift, nursesNightShift]
+    () =>
+      buildResolvedStaffSelectionOptions(reconciledCatalog, [
+        ...reconciledDayShift,
+        ...reconciledNightShift,
+      ]),
+    [reconciledCatalog, reconciledDayShift, reconciledNightShift]
   );
   const hasDayAdjustments = Boolean(
     shiftIndicators?.day?.hasSpecialSchedule || (shiftIndicators?.day?.extraCount ?? 0) > 0
@@ -81,7 +101,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 selectionValue: nursesDayShift[idx],
                 tone: 'day',
               })}
-              value={normalizeStaffSelectionValue(nursesDayShift[idx])}
+              value={normalizeStaffSelectionValue(reconciledDayShift[idx])}
               onChange={e => onUpdateNurse('day', idx, e.target.value)}
             >
               {resolvedNurseOptions.map(n => (
@@ -115,7 +135,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 selectionValue: nursesNightShift[idx],
                 tone: 'night',
               })}
-              value={normalizeStaffSelectionValue(nursesNightShift[idx])}
+              value={normalizeStaffSelectionValue(reconciledNightShift[idx])}
               onChange={e => onUpdateNurse('night', idx, e.target.value)}
             >
               {resolvedNurseOptions.map(n => (
