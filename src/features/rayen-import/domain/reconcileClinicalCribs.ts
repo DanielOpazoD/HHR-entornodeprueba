@@ -151,7 +151,7 @@ export const reconcileClinicalCribs = (
       };
       continue;
     }
-    const effectiveParent = isOccupied(currentParent) ? currentParent : movingParent;
+    const effectiveParent = parentMove ? movingParent : currentParent;
     if (!isOccupied(effectiveParent)) {
       diff.conflicts.push({
         bedId: parentBedId,

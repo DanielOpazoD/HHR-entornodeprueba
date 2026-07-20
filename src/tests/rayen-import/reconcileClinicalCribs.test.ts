@@ -195,6 +195,43 @@ describe('reconcileClinicalCribs', () => {
     expect(diff.conflicts).toHaveLength(0);
   });
 
+  it('uses the incoming principal when the destination bed is vacated in the same sync', () => {
+    const priorMother = makeEncounter({ room: 'H4', bed: 'C1' });
+    const movedMother = makeEncounter({ room: 'H5', bed: 'C1' });
+    const priorOccupant = makeEncounter({
+      encounterId: 'OUTGOING',
+      run: '999999999',
+      firstGivenName: 'Paciente',
+      room: 'H5',
+      bed: 'C1',
+    });
+    const movedOccupant = { ...priorOccupant, room: 'H6', bed: 'C1' };
+    const diff = reconcileCensus(
+      makeRecord({
+        H4C1: { ...seed(priorMother), hasCompanionCrib: true },
+        H5C1: seed(priorOccupant),
+      }),
+      snapshotOf([movedMother, movedOccupant, newborn()]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.moves).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromBedId: 'H4C1', toBedId: 'H5C1' }),
+      expect.objectContaining({ fromBedId: 'H5C1', toBedId: 'H6C1' }),
+    ]));
+    expect(diff.updates).toEqual([
+      expect.objectContaining({
+        bedId: 'H5C1',
+        patient: expect.objectContaining({ clinicalEpisodeId: 'MOTHER' }),
+        changes: expect.arrayContaining([
+          expect.objectContaining({ field: 'clinicalCrib' }),
+          expect.objectContaining({ field: 'hasCompanionCrib', to: false }),
+        ]),
+      }),
+    ]);
+    expect(diff.conflicts).toHaveLength(0);
+  });
+
   it('carries an existing clinical crib when its principal patient moves', () => {
     const priorMother = makeEncounter({ room: 'H4', bed: 'C1' });
     const movedMother = makeEncounter({ room: 'H5', bed: 'C1' });
