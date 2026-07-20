@@ -286,7 +286,7 @@ describe('extension prescription print content flow', () => {
     expect(connectionCenterSource).toContain(
       'La contraseña se ingresa únicamente en la página oficial de Rayen'
     );
-    expect(contentSource).toContain("createOperationsCenterModal('connection'");
+    expect(contentSource).toContain("openCenterModule('connection'");
     expect(contentSource).toContain('hhr-ops-connection-dot');
     expect(connectionCenterSource).not.toMatch(/type=["']password["']/i);
   });

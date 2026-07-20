@@ -34,6 +34,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Añadido
 
+- **Extensión — barra de operaciones 0.33.0:** navegación más compacta con menú Exámenes,
+  estado activo, colapso persistente, atenuación segura y soporte completo de teclado.
 - Virtualización de tablas para optimizar rendimiento con >50 pacientes.
 - Integración directa con API externa de validación de RUT.
 

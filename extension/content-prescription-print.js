@@ -24,16 +24,13 @@
   const medicationActionsOwner = globalThis.HhrMedicationActionsRuntime;
   const connectionCenterOwner = globalThis.HhrConnectionCenterRuntime;
   const imagingCenterOwner = globalThis.HhrImagingCenterRuntime;
-  // Imaging interaction contracts are implemented by hhr-imaging-center.js. Keep this compact
-  // ownership note so repository-wide structural guards can verify the extracted behavior without
-  // duplicating its implementation in the orchestrator:
+  // Imaging interaction contracts (owned by hhr-imaging-center.js):
   // class="hhr-imaging-canvas" role="group" tabindex="0"
   // event.key === 'Enter' || event.key === ' '
   // editor.addEventListener('keydown' -> event.stopPropagation(); restoreCanvasFocus = true;
   // canvas.focus({ preventScroll: true }); overlaysHost.appendChild(editor)
   const vitalsHelper = globalThis.HhrVitals;
   const vitalsCenterOwner = globalThis.HhrVitalsCenterRuntime;
-  // Detail stale-render ownership lives in hhr-vitals-center.js:
   // root.dataset.vitalsRequestGeneration !== requestGeneration
   const requestForms = globalThis.HhrRequestForms;
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
@@ -283,6 +280,9 @@
   } = clinicalWriteClientRuntime;
 
   const ensureStyles = () => centerStyles.ensureCenterStyles(document, ui);
+  const setActiveOperationsModule = moduleKey =>
+    document.getElementById(OPERATIONS_BAR_ID)?.__hhrUi?.setActive(moduleKey);
+  const clearActiveOperationsModule = () => setActiveOperationsModule('');
 
   const closeModal = (force = false) => {
     const modal = document.getElementById(MODAL_ID);
@@ -290,11 +290,13 @@
     if (!force && typeof modal.__hhrDismiss === 'function') return modal.__hhrDismiss();
     if (typeof modal.__hhrConnectionDispose === 'function') modal.__hhrConnectionDispose();
     modal.remove();
+    clearActiveOperationsModule();
     return true;
   };
 
   const modalDismissWithFocusRestore = (root, focusReturnTarget) => () => {
     if (root && root.isConnected) root.remove();
+    clearActiveOperationsModule();
     if (focusReturnTarget && focusReturnTarget.isConnected && typeof focusReturnTarget.focus === 'function') {
       window.setTimeout(() => focusReturnTarget.focus(), 0);
     }
@@ -341,8 +343,7 @@
     root.querySelector('.hhr-rx-close').focus();
   };
 
-  // Initialized after the shared Centro shell is defined. Keeping only these references here
-  // makes this file the orchestrator while each extracted module owns its rendering workflow.
+  // Initialized after the shared Centro shell; each extracted module owns its workflow.
   let createModal;
   let createHospitalizedDocumentsModal;
 
@@ -406,6 +407,8 @@
     openHospitalizedDocuments: (...args) => createHospitalizedDocumentsModal(...args),
     openOperationsCenter: (...args) => createOperationsCenterModal(...args),
     openRegimenQuickDialog: () => createRegimenQuickDialog(),
+    onCenterDismiss: clearActiveOperationsModule,
+    onCenterModuleChange: setActiveOperationsModule,
   });
   const { prepareCenterModalRoot, setupCenterPatientContext } = centerShellRuntime;
 
@@ -553,8 +556,6 @@
       })
     : null;
 
-  // Inicio: resumen del Centro con accesos directos a cada módulo y a los documentos del
-  // censo (Reg+BRADEN vive aquí como acción de un clic).
   const HOME_SHORTCUTS = [
     { module: 'recipes', icon: 'recipes', title: 'Recetas', desc: 'Imprime recetas del paciente actual o de todos los hospitalizados.' },
     { module: 'handoff', icon: 'handoff', title: 'Entrega de turno', desc: 'Entregas médicas y de enfermería, visibles para todo el equipo.' },
@@ -705,16 +706,9 @@
       aria: 'Scores de enfermería',
     },
     {
-      key: 'lab', label: 'Lab', icon: 'lab',
-      tip: 'Laboratorio Syslab',
-      note: 'Resultados de exámenes con comparación y tendencias.',
-      aria: 'Exámenes de laboratorio',
-    },
-    {
-      key: 'imaging', label: 'Imágenes', icon: 'imaging',
-      tip: 'Imágenes',
-      note: 'Solicitud de imágenes con formularios oficiales y, próximamente, informes.',
-      aria: 'Imágenes y radiología',
+      key: 'exams', label: 'Exámenes', icon: 'lab',
+      tip: 'Exámenes', note: 'Laboratorio e imágenes del paciente.',
+      aria: 'Exámenes: laboratorio e imágenes', hasMenu: true,
     },
   ];
 
@@ -733,21 +727,31 @@
         <button class="brand" type="button" aria-label="Abrir Centro HHR"
           data-tip="Centro HHR" data-tip-note="Abre el centro completo en el último módulo que usaste.">
           <img class="brand-logo" alt="" aria-hidden="true">
-          <span class="brand-name">Centro HHR</span>
+          <span class="brand-status" aria-hidden="true"></span>
         </button>
         <span class="divider" aria-hidden="true"></span>
         <div class="modules" role="group" aria-label="Módulos clínicos">
           ${OPERATIONS_MODULES.map(module => `
             <button class="module hhr-ops-${module.key}" type="button"
-              aria-label="${module.aria}" data-tip="${module.tip}" data-tip-note="${module.note}">
+              aria-label="${module.aria}" data-tip="${module.tip}" data-tip-note="${module.note}"
+              ${module.hasMenu ? 'aria-haspopup="menu" aria-expanded="false" aria-controls="hhr-exams-menu"' : ''}>
               ${ui.icons[module.icon]}
               <span>${module.label}</span>
+              ${module.hasMenu ? `<span class="module-caret">${ui.icons.chevronDown}</span>` : ''}
             </button>
           `).join('')}
           <button class="module module-icon hhr-ops-favorites" type="button" aria-label="Favoritos"
             data-tip="Favoritos" data-tip-note="Tus páginas web frecuentes, siempre a un clic.">
             ${ui.icons.star}
           </button>
+          <div class="exams-menu" id="hhr-exams-menu" role="menu" aria-label="Tipos de exámenes" hidden>
+            <button class="exam-item hhr-exams-lab" type="button" role="menuitem" tabindex="-1" data-module="lab">
+              ${ui.icons.lab}<strong>Laboratorio</strong><small>Resultados y solicitudes Syslab</small>
+            </button>
+            <button class="exam-item hhr-exams-imaging" type="button" role="menuitem" tabindex="-1" data-module="imaging">
+              ${ui.icons.imaging}<strong>Imágenes</strong><small>Solicitudes y formularios oficiales</small>
+            </button>
+          </div>
         </div>
         <span class="divider" aria-hidden="true"></span>
         <button class="session hhr-ops-session is-degraded" type="button"
@@ -762,6 +766,8 @@
             <span class="session-state">Comprobando…</span>
           </span>
         </button>
+        <button class="collapse" type="button" aria-label="Contraer barra HHR"
+          data-tip="Contraer" data-tip-note="Deja visible solo el acceso HHR.">${ui.icons.chevronsRight}</button>
         <div class="tip" role="tooltip"><strong></strong><span></span></div>
       `;
       try {
@@ -770,56 +776,50 @@
         shadow.querySelector('.brand-logo').remove();
       }
       const brandButton = shadow.querySelector('.brand');
-      brandButton.addEventListener('click', () =>
-        centerShellRuntime.openCenterModule(undefined, bar.dataset.encounterId, brandButton)
-      );
       shadow.querySelector('.hhr-ops-recipes').addEventListener('click', () =>
-        createModal(bar.dataset.encounterId)
+        centerShellRuntime.openCenterModule('recipes', bar.dataset.encounterId, shadow.querySelector('.hhr-ops-recipes'))
       );
       const sessionButton = shadow.querySelector('.hhr-ops-session');
       const handoffButton = shadow.querySelector('.hhr-ops-handoff');
       const vitalsButton = shadow.querySelector('.hhr-ops-vitals');
       const scoresButton = shadow.querySelector('.hhr-ops-scores');
-      const labButton = shadow.querySelector('.hhr-ops-lab');
-      const imagingButton = shadow.querySelector('.hhr-ops-imaging');
       sessionButton.addEventListener('click', () =>
-        createOperationsCenterModal('connection', bar.dataset.encounterId, sessionButton)
+        centerShellRuntime.openCenterModule('connection', bar.dataset.encounterId, sessionButton)
       );
       handoffButton.addEventListener('click', () =>
-        createOperationsCenterModal('handoff', bar.dataset.encounterId, handoffButton)
+        centerShellRuntime.openCenterModule('handoff', bar.dataset.encounterId, handoffButton)
       );
       scoresButton.addEventListener('click', () =>
-        createOperationsCenterModal('scores', bar.dataset.encounterId, scoresButton)
-      );
-      labButton.addEventListener('click', () => {
-        if (labButton.classList.contains('is-disabled')) return;
-        createOperationsCenterModal('lab', bar.dataset.encounterId, labButton);
-      });
-      imagingButton.addEventListener('click', () =>
-        createOperationsCenterModal('imaging', bar.dataset.encounterId, imagingButton)
+        centerShellRuntime.openCenterModule('scores', bar.dataset.encounterId, scoresButton)
       );
       vitalsButton.addEventListener('click', () =>
-        createOperationsCenterModal('vitals', bar.dataset.encounterId, vitalsButton)
+        centerShellRuntime.openCenterModule('vitals', bar.dataset.encounterId, vitalsButton)
       );
       shadow.querySelector('.hhr-ops-favorites').addEventListener('click', () =>
         createFavoritesDialog()
       );
       ui.enableBarTooltips(shadow, bar);
       ui.enableRovingFocus(shadow);
+      bar.__hhrUi = ui.createOperationsBarController({
+        root: shadow, host: bar, storageArea: chrome.storage?.local,
+        onOpenBrand: () => centerShellRuntime.openCenterModule(undefined, bar.dataset.encounterId, brandButton),
+        onExamSelect: (module, trigger) => centerShellRuntime.openCenterModule(module, bar.dataset.encounterId, trigger),
+      });
       document.body.appendChild(bar);
     }
     bar.dataset.encounterId = encId || '';
-    const labButton = barPart(bar, '.hhr-ops-lab');
+    const labButton = barPart(bar, '.hhr-exams-lab');
     if (labButton) {
       const labDisabled = !labHelper;
-      labButton.classList.toggle('is-disabled', labDisabled);
       labButton.setAttribute('aria-disabled', String(labDisabled));
-      labButton.dataset.tipNote = labDisabled
-        ? 'Recarga la extensión para activar laboratorio.'
-        : 'Resultados de exámenes con comparación y tendencias.';
+      labButton.querySelector('small').textContent = labDisabled
+        ? 'Recarga la extensión para activar laboratorio' : 'Resultados y solicitudes Syslab';
     }
     updateOperationsBarPosition(bar);
-    void refreshOperationsConnectionBadge(bar);
+    void refreshOperationsConnectionBadge(bar).finally(() => {
+      bar.dataset.connectionState = ['ready', 'degraded', 'offline'].find(state => barPart(bar, '.hhr-ops-session')?.classList.contains('is-' + state)) || 'degraded';
+      bar.__hhrUi?.scheduleIdle();
+    });
   };
 
   const ensureButton = () => {

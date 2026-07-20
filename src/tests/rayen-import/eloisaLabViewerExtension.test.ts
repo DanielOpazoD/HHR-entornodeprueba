@@ -343,10 +343,9 @@ describe('native Eloisa laboratory viewer', () => {
   it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
-    const content = [
-      'content-prescription-print.js',
-      'hhr-center-shell-runtime.js',
-    ].map(file => readFileSync(path.resolve('extension', file), 'utf8')).join('\n');
+    const content = ['content-prescription-print.js', 'hhr-center-shell-runtime.js']
+      .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
+      .join('\n');
     const labCenter = readFileSync(path.resolve('extension/hhr-lab-center.js'), 'utf8');
     const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
     const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
@@ -419,7 +418,9 @@ describe('native Eloisa laboratory viewer', () => {
     expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
     expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
     expect(offscreen).not.toContain('Math.min(1_500');
-    expect(content).toContain('hhr-ops-lab');
+    expect(content).toContain("key: 'exams'");
+    expect(content).toContain('hhr-exams-lab');
+    expect(content).not.toContain('class="module hhr-ops-lab"');
     expect(labCenter).toContain('hhr-syslab-login');
     expect(labCenter).toContain("chrome.runtime.getURL('syslab-login.html')");
     expect(content).not.toContain('input name="password"');
@@ -448,6 +449,6 @@ describe('native Eloisa laboratory viewer', () => {
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.31.0"');
+    expect(manifest).toContain('"version": "0.33.0"');
   });
 });
