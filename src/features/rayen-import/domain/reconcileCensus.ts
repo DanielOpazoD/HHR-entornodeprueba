@@ -42,6 +42,13 @@ const isDischarged = (encounter: RayenEncounter): boolean =>
   !!encounter.dischargeDatetime ||
   !!encounter.isDead;
 
+const verificationState = (value: boolean | undefined) =>
+  value === true
+    ? ('confirmed' as const)
+    : value === false
+      ? ('not-detected' as const)
+      : ('unknown' as const);
+
 /** Extract a YYYY-MM-DD day from a record date / admission datetime (ISO or DD/MM/YYYY). '' if none. */
 const toIsoDay = (raw: string | undefined): string => {
   const value = (raw ?? '').trim();
@@ -258,6 +265,12 @@ export const reconcileCensus = (
         rut: match.patient.rut,
         patientName: match.patient.patientName,
         signal: 'clinical-closure',
+        encounterId: encounter.encounterId,
+        verification: {
+          medicalEpicrisis: verificationState(encounter.hasMedicalDischarge),
+          nursingEpicrisis: verificationState(encounter.hasNurseDischarge),
+          hospitalDischarge: 'unknown',
+        },
         source: encounter,
       });
       continue;
@@ -283,6 +296,12 @@ export const reconcileCensus = (
         rut: patient.rut,
         patientName: patient.patientName,
         signal: 'missing-from-ficha',
+        encounterId: patient.clinicalEpisodeId,
+        verification: {
+          medicalEpicrisis: 'unknown',
+          nursingEpicrisis: 'unknown',
+          hospitalDischarge: 'unknown',
+        },
       });
     }
   }

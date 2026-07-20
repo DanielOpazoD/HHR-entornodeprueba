@@ -6,28 +6,31 @@
  */
 
 import React, { useState } from 'react';
-import { BookOpenText, ExternalLink, Loader2 } from 'lucide-react';
+import { BookOpenText, FileDown } from 'lucide-react';
 
-import { useNotification } from '@/context/UIContext';
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
-import { requestRayenEncounterNavigation } from '@/features/rayen-import';
+import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
 import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
 
 interface ClinicalPanelTriggerProps {
   bedId: string;
   patientName: string;
+  patientRun: string;
   clinicalEpisodeId?: string;
 }
 
 export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   bedId,
   patientName,
+  patientRun,
   clinicalEpisodeId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isOpeningEncounter, setIsOpeningEncounter] = useState(false);
-  const { success, error: notifyError } = useNotification();
+  const [areReportsOpen, setAreReportsOpen] = useState(false);
   const episode = (clinicalEpisodeId || '').trim();
+  const canOpenReports = /^[0-9]{6,8}[0-9K]$/.test(
+    patientRun.toUpperCase().replace(/[^0-9K]/g, '')
+  );
   if (!episode || !patientName.trim()) return null;
   const panelKey = `${bedId}:${episode}`;
   const navigation = isOpen
@@ -39,32 +42,6 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
     if (!target) return;
     setIsOpen(false);
     target.click();
-  };
-
-  const handleOpenEncounter = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (isOpeningEncounter) return;
-    setIsOpeningEncounter(true);
-    try {
-      const result = await requestRayenEncounterNavigation(episode);
-      if (result.ok) {
-        success(
-          'Eloísa abierta',
-          result.reused
-            ? 'Se activó la pestaña de Ficha Médico en el episodio seleccionado.'
-            : 'Se abrió Ficha Médico en el episodio seleccionado.'
-        );
-      } else {
-        notifyError('No se pudo abrir Eloísa', result.error || 'Error de navegación desconocido.');
-      }
-    } catch (error) {
-      notifyError(
-        'No se pudo abrir Eloísa',
-        error instanceof Error ? error.message : String(error)
-      );
-    } finally {
-      setIsOpeningEncounter(false);
-    }
   };
 
   return (
@@ -84,22 +61,21 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         >
           <BookOpenText size={14} />
         </button>
-        <button
-          type="button"
-          data-testid={`rayen-encounter-trigger-${bedId}`}
-          onClick={handleOpenEncounter}
-          disabled={isOpeningEncounter}
-          aria-busy={isOpeningEncounter}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-60"
-          title="Abrir este episodio en Ficha Médico"
-          aria-label={`Abrir a ${patientName} en Eloísa`}
-        >
-          {isOpeningEncounter ? (
-            <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-          ) : (
-            <ExternalLink size={14} aria-hidden="true" />
-          )}
-        </button>
+        {canOpenReports && (
+          <button
+            type="button"
+            data-testid={`hospitalization-reports-trigger-${bedId}`}
+            onClick={event => {
+              event.stopPropagation();
+              setAreReportsOpen(true);
+            }}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-sky-50 hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600 disabled:cursor-progress disabled:opacity-60"
+            title="Informes de hospitalización"
+            aria-label={`Abrir informes de hospitalización de ${patientName}`}
+          >
+            <FileDown size={14} aria-hidden="true" />
+          </button>
+        )}
       </span>
       {isOpen && (
         <ClinicalPanelDrawer
@@ -113,6 +89,13 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           onClose={() => setIsOpen(false)}
         />
       )}
+      <PatientHospitalizationReportsDialog
+        isOpen={areReportsOpen}
+        onClose={() => setAreReportsOpen(false)}
+        patientName={patientName}
+        patientRun={patientRun}
+        currentEpisodeId={episode}
+      />
     </>
   );
 };

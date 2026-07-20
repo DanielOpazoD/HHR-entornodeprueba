@@ -71,6 +71,17 @@ describe('shared Rayen runtime-message contract', () => {
       known: true,
       response: { code: 'INVALID_MESSAGE', error: expect.stringContaining('runs') },
     });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST,
+        encId: '141121',
+        patientRun: '17.752.753-1',
+        censusDate: '2026-07-19',
+        delivery: 'download',
+        operation: 'list',
+        documentType: 'history',
+      })
+    ).toMatchObject({ ok: true, known: true });
   });
 
   it('leaves unknown messages untouched for other extension listeners', () => {
@@ -192,6 +203,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-fichamedico.js',
       'content-gestioncamas.js',
       'content-hhr.js',
+      'content-hhr-epicrisis.js',
       'content-exam-request-print.js',
       'content-prescription-print.js',
     ]);

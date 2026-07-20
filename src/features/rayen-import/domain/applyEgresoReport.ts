@@ -18,8 +18,20 @@ import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { isCmaBedLabel, isCmaLocation } from '../mapping/bedMapping';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import { confirmHospitalDischarge } from './dischargeVerification';
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+
+const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
+  if (diff.pendingAdministrativeDischarges.length === 0) return diff;
+  return {
+    ...diff,
+    pendingAdministrativeDischarges: diff.pendingAdministrativeDischarges.map(entry => ({
+      ...entry,
+      verification: { ...entry.verification, hospitalDischarge: 'not-detected' },
+    })),
+  };
+};
 
 /** Official Rapa Nui egreso day + time as printed by Gestión de Camas. */
 const correctedStamp = (fechaEgreso: string): { correctedDay?: string; correctedTime?: string } => {
@@ -173,12 +185,13 @@ export const applyEgresoReport = (
   reportRows: EgresoReportRow[],
   record: DailyRecord
 ): CensusImportDiff => {
-  if (reportRows.length === 0) return diff;
+  const checkedDiff = markReportChecked(diff);
+  if (reportRows.length === 0) return checkedDiff;
 
   const recordDay = toIsoDay(record.date);
   const occupied = occupiedBedsByRun(record);
   const byRun = new Map<string, EgresoReportRow>();
-  let diffWithReportConflicts = diff;
+  let diffWithReportConflicts = checkedDiff;
   for (const row of reportRows) {
     const run = normalizeRut(row.run);
     if (!run) continue;
@@ -224,26 +237,28 @@ export const applyEgresoReport = (
     const run = normalizeRut(rut);
     if (run) plannedRuns.add(run);
   };
-  diff.admissions.forEach(entry => addPlannedRun(entry.patient.rut));
-  diff.updates.forEach(entry => addPlannedRun(entry.rut));
-  diff.moves.forEach(entry => addPlannedRun(entry.rut));
-  diff.pendingAdministrativeDischarges.forEach(entry => addPlannedRun(entry.rut));
-  diff.conflicts.forEach(entry => addPlannedRun(entry.rut));
+  checkedDiff.admissions.forEach(entry => addPlannedRun(entry.patient.rut));
+  checkedDiff.updates.forEach(entry => addPlannedRun(entry.rut));
+  checkedDiff.moves.forEach(entry => addPlannedRun(entry.rut));
+  checkedDiff.pendingAdministrativeDischarges.forEach(entry => addPlannedRun(entry.rut));
+  checkedDiff.conflicts.forEach(entry => addPlannedRun(entry.rut));
 
   // Remove provisional Ficha-derived operations for administratively discharged RUNs.
-  const admissions = diff.admissions.filter(
+  const admissions = checkedDiff.admissions.filter(
     entry => !confirmedRuns.has(normalizeRut(entry.patient.rut))
   );
-  const updates = diff.updates.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
-  const moves = diff.moves.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
-  const pendingAdministrativeDischarges = diff.pendingAdministrativeDischarges.filter(
+  const updates = checkedDiff.updates.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
+  const moves = checkedDiff.moves.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
+  const pendingAdministrativeDischarges = checkedDiff.pendingAdministrativeDischarges.filter(
     entry => !confirmedRuns.has(normalizeRut(entry.rut))
   );
   const conflicts = diffWithReportConflicts.conflicts.filter(
     entry => !entry.rut || !confirmedRuns.has(normalizeRut(entry.rut))
   );
 
-  const discharges = diff.discharges.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
+  const discharges = checkedDiff.discharges.filter(
+    entry => !confirmedRuns.has(normalizeRut(entry.rut))
+  );
   const reportEgresos: ReportEgreso[] = [];
   let overriddenUnchanged = 0;
 
@@ -251,6 +266,9 @@ export const applyEgresoReport = (
     const current = occupied.get(run);
     const mapped = resolveReportDischarge(row, current);
     if (current) {
+      const pending = checkedDiff.pendingAdministrativeDischarges.find(
+        entry => normalizeRut(entry.rut) === run
+      );
       // An active, unchanged Ficha encounter has no explicit diff entry. Once Gestión de Camas
       // confirms its departure it must stop contributing to the "sin cambios" aggregate.
       if (!plannedRuns.has(run)) overriddenUnchanged += 1;
@@ -261,6 +279,7 @@ export const applyEgresoReport = (
         kind: mapped.kind,
         status: mapped.status,
         reason: 'administrative-discharge',
+        verification: confirmHospitalDischarge(pending?.verification),
         ...correctedStamp(row.fechaEgreso),
       });
       continue;
@@ -270,7 +289,7 @@ export const applyEgresoReport = (
   }
 
   return {
-    ...diff,
+    ...checkedDiff,
     admissions,
     updates,
     moves,
@@ -278,16 +297,16 @@ export const applyEgresoReport = (
     pendingAdministrativeDischarges,
     conflicts,
     reportEgresos,
-    unchangedCount: Math.max(0, diff.unchangedCount - overriddenUnchanged),
+    unchangedCount: Math.max(0, checkedDiff.unchangedCount - overriddenUnchanged),
     summary: {
-      ...diff.summary,
+      ...checkedDiff.summary,
       admissions: admissions.length,
       updates: updates.length,
       moves: moves.length,
       discharges: discharges.length,
       pendingAdministrativeDischarges: pendingAdministrativeDischarges.length,
       conflicts: conflicts.length,
-      unchanged: Math.max(0, diff.summary.unchanged - overriddenUnchanged),
+      unchanged: Math.max(0, checkedDiff.summary.unchanged - overriddenUnchanged),
     },
   };
 };
