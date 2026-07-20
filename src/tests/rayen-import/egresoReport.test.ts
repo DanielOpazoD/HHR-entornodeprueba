@@ -313,16 +313,16 @@ describe('applyEgresoReport', () => {
     ]);
   });
 
-  it('preserves the official statistical egreso date and time without shifting them', () => {
+  it('converts the mainland report wall clock to the Rapa Nui census clock', () => {
     const current = makeRecord({ R2: patient('1-9') });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '1-9', fechaEgreso: '14-07-2026  18:20', destino: 'Domicilio' })],
+      [row({ run: '1-9', fechaEgreso: '14-07-2026  23:37', destino: 'Domicilio' })],
       current
     );
     expect(enriched.discharges[0]).toMatchObject({
       correctedDay: '2026-07-14',
-      correctedTime: '18:20',
+      correctedTime: '21:37',
     });
   });
 

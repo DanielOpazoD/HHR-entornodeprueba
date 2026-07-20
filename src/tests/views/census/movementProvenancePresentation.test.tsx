@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 import { resolveMovementProvenancePresentation } from '@/features/census/controllers/movementProvenancePresentationController';
 
@@ -21,11 +21,12 @@ describe('movement provenance presentation', () => {
 
     expect(presentation).toEqual({
       label: 'Egreso estad.',
-      title: `Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa · Enfermera Uno · ${localStamp(classifiedAt)}`,
+      title: `Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa · ${localStamp(classifiedAt)}`,
       tone: 'teal',
       icon: 'verified',
     });
     expect(JSON.stringify(presentation)).not.toContain('run-1');
+    expect(JSON.stringify(presentation)).not.toContain('Enfermera Uno');
   });
 
   it('renders a compact accessible badge for a reclassification', () => {
@@ -49,6 +50,25 @@ describe('movement provenance presentation', () => {
         `Reclasificado desde alta domicilio · Enfermera Dos · ${localStamp(classifiedAt)}`
       )
     ).toBeInTheDocument();
+  });
+
+  it('turns an authoritative badge into an accessible download action', () => {
+    const onClick = vi.fn();
+    render(
+      <MovementProvenanceBadge
+        provenance={{
+          source: 'gestion_camas',
+          lineageId: 'movement-1',
+          classifiedAt: '2026-07-14T18:20:00.000Z',
+          syncRunId: 'run-1',
+        }}
+        onClick={onClick}
+      />
+    );
+
+    const action = screen.getByRole('button', { name: /Descargar PDF del egreso/i });
+    action.click();
+    expect(onClick).toHaveBeenCalledOnce();
   });
 
   it('omits an invalid classification timestamp instead of displaying raw text', () => {

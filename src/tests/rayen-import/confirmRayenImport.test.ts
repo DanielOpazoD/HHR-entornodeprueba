@@ -17,8 +17,7 @@ const record = (lastUpdated: string): DailyRecord =>
   }) as DailyRecord;
 
 describe('applyConfirmedRayenImport', () => {
-  it('retries a named concurrency conflict with a record freshly loaded from persistence', async () => {
-    vi.useFakeTimers();
+  it('retries a named concurrency conflict with a record freshly loaded into the query path', async () => {
     const stale = record('stale');
     const fresh = record('fresh');
     const expected = { record: fresh, applied: {}, skipped: [] } as unknown as ApplyResult;
@@ -27,22 +26,80 @@ describe('applyConfirmedRayenImport', () => {
     const applyDiff = vi.fn().mockRejectedValueOnce(conflict).mockResolvedValueOnce(expected);
     const getFreshRecord = vi.fn().mockResolvedValue(fresh);
 
-    const pending = applyConfirmedRayenImport({
-      applyPreviousDays: false,
-      base: stale,
-      diff: {} as CensusImportDiff,
-      dailyRecord: {} as DailyRecordRepositoryPort,
-      isAdmin: false,
-      ensureRun: vi.fn(),
-      applyDiff,
-      getFreshRecord,
-      createId: () => 'id',
-    });
-
-    await vi.advanceTimersByTimeAsync(900);
-    await expect(pending).resolves.toBe(expected);
+    await expect(
+      applyConfirmedRayenImport({
+        applyPreviousDays: false,
+        base: stale,
+        diff: {} as CensusImportDiff,
+        dailyRecord: {} as DailyRecordRepositoryPort,
+        isAdmin: false,
+        ensureRun: vi.fn(),
+        applyDiff,
+        getFreshRecord,
+        createId: () => 'id',
+      })
+    ).resolves.toBe(expected);
     expect(getFreshRecord).toHaveBeenCalledTimes(1);
     expect(applyDiff).toHaveBeenNthCalledWith(2, fresh, expect.anything());
-    vi.useRealTimers();
+  });
+
+  it('rebases twice when the census changes again during confirmation', async () => {
+    const stale = record('stale');
+    const fresh1 = record('fresh-1');
+    const fresh2 = record('fresh-2');
+    const expected = { record: fresh2, applied: {}, skipped: [] } as unknown as ApplyResult;
+    const conflict = new Error('El censo se actualizó hace un momento.');
+    conflict.name = 'ConcurrencyError';
+    const applyDiff = vi
+      .fn()
+      .mockRejectedValueOnce(conflict)
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce(expected);
+    const getFreshRecord = vi.fn().mockResolvedValueOnce(fresh1).mockResolvedValueOnce(fresh2);
+
+    await expect(
+      applyConfirmedRayenImport({
+        applyPreviousDays: false,
+        base: stale,
+        diff: {} as CensusImportDiff,
+        dailyRecord: {} as DailyRecordRepositoryPort,
+        isAdmin: false,
+        ensureRun: vi.fn(),
+        applyDiff,
+        getFreshRecord,
+        createId: () => 'id',
+      })
+    ).resolves.toBe(expected);
+
+    expect(getFreshRecord).toHaveBeenCalledTimes(2);
+    expect(applyDiff).toHaveBeenNthCalledWith(2, fresh1, expect.anything());
+    expect(applyDiff).toHaveBeenNthCalledWith(3, fresh2, expect.anything());
+  });
+
+  it('stops after bounded retries when concurrent writes continue', async () => {
+    const conflict = new Error('Remote is newer');
+    conflict.name = 'ConcurrencyError';
+    const applyDiff = vi.fn().mockRejectedValue(conflict);
+    const getFreshRecord = vi
+      .fn()
+      .mockResolvedValueOnce(record('fresh-1'))
+      .mockResolvedValueOnce(record('fresh-2'));
+
+    await expect(
+      applyConfirmedRayenImport({
+        applyPreviousDays: false,
+        base: record('stale'),
+        diff: {} as CensusImportDiff,
+        dailyRecord: {} as DailyRecordRepositoryPort,
+        isAdmin: false,
+        ensureRun: vi.fn(),
+        applyDiff,
+        getFreshRecord,
+        createId: () => 'id',
+      })
+    ).rejects.toBe(conflict);
+
+    expect(applyDiff).toHaveBeenCalledTimes(3);
+    expect(getFreshRecord).toHaveBeenCalledTimes(2);
   });
 });

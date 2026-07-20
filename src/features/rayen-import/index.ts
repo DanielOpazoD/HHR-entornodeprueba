@@ -28,6 +28,10 @@ export type {
 } from './contracts/egresoLookup';
 
 export type { EgresoReportRow, ReportEgreso } from './contracts/egresoReport';
+export {
+  parseStatisticalEgresoInstant,
+  parseStatisticalEgresoStamp,
+} from './mapping/reportEgresoDateTime';
 
 export type { DischargeKind, DischargeIntent } from './mapping/dischargeMapping';
 export { resolveDischargeIntent } from './mapping/dischargeMapping';
@@ -66,8 +70,11 @@ export type {
 export {
   RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
   RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+  RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE,
+  RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE,
   requestRayenHospitalizationDocument,
   requestRayenHospitalizationEpisodes,
+  requestRayenStatisticalDischargeReport,
 } from './bridge/hospitalizationReportsBridge';
 export type { RayenEncounterNavigationResult } from './bridge/encounterNavigationBridge';
 export {
@@ -108,6 +115,7 @@ export {
   mapBiologicalSex,
   cleanDiagnosis,
   toTitleCaseName,
+  normalizeOptionalPersonName,
 } from './mapping/rayenToPatientData';
 
 export type { ReconcileOptions } from './domain/reconcileCensus';

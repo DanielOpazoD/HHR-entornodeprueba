@@ -2,6 +2,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';
+import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -9,10 +10,18 @@ import { normalizeRut } from '@/utils/rutUtils';
 const lookupKey = (rut: string | undefined, encounterId: string | undefined): string =>
   `${normalizeRut(rut)}::${String(encounterId || '').trim()}`;
 
-const lookupStamp = (egreso: EgresoRecord): string => {
+const lookupStamp = (
+  egreso: EgresoRecord
+): { fechaEgreso: string; correctedDay?: string; correctedTime?: string } => {
   const raw = String(egreso.dateDischarge || egreso.endPeriod || '').trim();
+  const instant = parseStatisticalEgresoInstant(raw);
+  if (instant) {
+    return { fechaEgreso: raw, correctedDay: instant.iso, correctedTime: instant.hhmm };
+  }
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T\s]+(\d{1,2}):(\d{2})/);
-  return iso ? `${iso[3]}-${iso[2]}-${iso[1]} ${iso[4]}:${iso[5]}` : raw;
+  return {
+    fechaEgreso: iso ? `${iso[3]}-${iso[2]}-${iso[1]} ${iso[4]}:${iso[5]}` : raw,
+  };
 };
 
 const lookupDestination = (egreso: EgresoRecord): string =>
@@ -58,6 +67,7 @@ const eligibleLookups = (
 
 const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportRow => {
   const egreso = result.egreso as EgresoRecord;
+  const stamp = lookupStamp(egreso);
   return {
     run: result.run,
     encounterId: result.encounterId,
@@ -67,7 +77,7 @@ const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportR
     edad: '',
     destino: lookupDestination(egreso),
     motivo: String(egreso.dischargeReasonName || ''),
-    fechaEgreso: lookupStamp(egreso),
+    ...stamp,
   };
 };
 

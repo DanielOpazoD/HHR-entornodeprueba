@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
   RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+  RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE,
+  RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE,
   requestRayenHospitalizationDocument,
   requestRayenHospitalizationEpisodes,
+  requestRayenStatisticalDischargeReport,
 } from '@/features/rayen-import/bridge/hospitalizationReportsBridge';
 
 const captureOutgoingRequest = async (request: Promise<unknown>) => {
@@ -89,5 +92,41 @@ describe('hospitalization reports bridge', () => {
       ok: false,
       error: 'El paciente no tiene un RUN válido para buscar informes.',
     });
+  });
+
+  it('requests the exact statistical-discharge episode without exposing patient data', async () => {
+    const posted: unknown[] = [];
+    const listener = (event: MessageEvent) => posted.push(event.data);
+    window.addEventListener('message', listener);
+    const pending = requestRayenStatisticalDischargeReport('141704');
+    await vi.waitFor(() =>
+      expect(
+        posted.some(
+          value =>
+            (value as { type?: string }).type ===
+            RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
+        )
+      ).toBe(true)
+    );
+    const outgoing = posted.find(
+      value =>
+        (value as { type?: string }).type === RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
+    ) as Record<string, unknown>;
+    window.removeEventListener('message', listener);
+
+    expect(outgoing).toMatchObject({ encId: '141704' });
+    expect(outgoing).not.toHaveProperty('patientRun');
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_STATISTICAL_DISCHARGE_REPORT_RESULT_TYPE,
+          reqId: outgoing.reqId,
+          ok: true,
+        },
+      })
+    );
+    await expect(pending).resolves.toEqual({ ok: true, error: undefined });
   });
 });

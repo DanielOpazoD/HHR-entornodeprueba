@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuthState } from '@/hooks/useAuthState';
 import {
@@ -19,7 +20,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
-import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import {
+  ensureFreshDailyRecordQuery,
+  patchDailyRecordWithCompatibility,
+} from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { ClinicalFillPatchTarget } from '../clinicalFillRunner';
 import {
   subscribeToRayenSnapshots,
@@ -45,6 +49,7 @@ import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
+  const queryClient = useQueryClient();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
@@ -229,8 +234,16 @@ export const useRayenImport = () => {
           isAdmin,
           ensureRun,
           applyDiff,
+          // Refresh through the same QueryClient path used by the save guard. A repository-only
+          // read leaves React Query stale, causing the retry to reject until a full page reload.
           getFreshRecord: async () =>
-            (await dailyRecord.getForDateWithMeta(base.date, true)).record,
+            (
+              await ensureFreshDailyRecordQuery(
+                base.date,
+                { dailyRecord, queryClient },
+                'clinical_save'
+              )
+            ).record,
           createId: makeId,
         });
         setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
@@ -255,6 +268,7 @@ export const useRayenImport = () => {
       isAdmin,
       ensureRun,
       failRun,
+      queryClient,
     ]
   );
 
