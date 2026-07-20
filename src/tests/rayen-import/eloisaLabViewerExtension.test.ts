@@ -15,6 +15,7 @@ interface LabFinding {
 }
 
 interface LabViewerApi {
+  normalizePatientRutBody: (value: string) => string;
   normalizeRutBody: (value: string) => string;
   extractRutBodyFromReportText: (value: string) => string;
   parseReportText: (value: string) => LabFinding[];
@@ -46,6 +47,9 @@ describe('native Eloisa laboratory viewer', () => {
   it('uses only the numeric RUT body expected by Syslab', () => {
     expect(labViewer.normalizeRutBody('17.752.753-2')).toBe('17752753');
     expect(labViewer.normalizeRutBody(' 10.096.004-4 ')).toBe('10096004');
+    expect(labViewer.normalizePatientRutBody('8.528.847-4')).toBe('8528847');
+    expect(labViewer.normalizePatientRutBody('85288474')).toBe('8528847');
+    expect(labViewer.normalizePatientRutBody('8528847')).toBe('8528847');
   });
 
   it('parses the Syslab report text locally and extracts its patient RUN', () => {
@@ -415,6 +419,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(bridge).toContain('event.origin !== EXTENSION_ORIGIN');
     expect(bridge).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
     expect(offscreenHtml).toContain('src="http://10.4.69.90/syslab/"');
+    expect(offscreenHtml).toContain('sandbox="allow-forms allow-same-origin allow-scripts"');
+    expect(offscreenHtml).not.toContain('allow-modals');
     expect(offscreenHtml).toContain('syslab-offscreen.js');
     expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
     expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
@@ -423,10 +429,11 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain('hhr-exams-lab');
     expect(content).not.toContain('class="module hhr-ops-lab"');
     expect(labCenter).toContain('hhr-syslab-access');
-    expect(labCenter).toContain('Abrir acceso seguro');
-    expect(labCenter).toContain("chrome.runtime.getURL('syslab-login.html')");
-    expect(labCenter).toContain('target="_blank"');
-    expect(labCenter).toContain('rel="noopener noreferrer"');
+    expect(labCenter).toContain('hhr-syslab-access-form');
+    expect(labCenter).toContain('type="password"');
+    expect(labCenter).toContain('runtimeMessages.SYSLAB_LOGIN_REQUEST');
+    expect(labCenter).toContain("syslabPassword.value = ''");
+    expect(labCenter).not.toContain('target="_blank"');
     expect(labCenter).not.toContain('<iframe class="hhr-syslab-login"');
     expect(content).not.toContain('input name="password"');
     expect(loginHtml).toContain('No se guardan en la extensión');

@@ -290,9 +290,9 @@
           <div class="hhr-syslab-access" role="region" aria-label="Acceso seguro a Syslab" hidden>
             <div>
               <strong>Inicio de sesión requerido</strong>
-              <span class="hhr-syslab-access-message">Abre el acceso seguro de la extensión para conectarte.</span>
+              <span class="hhr-syslab-access-message">Ingresa tus credenciales de Syslab. No se guardan.</span>
             </div>
-            <a class="hhr-center-action hhr-center-action-primary hhr-syslab-access-link" target="_blank" rel="noopener noreferrer">Abrir acceso seguro</a>
+            <form class="hhr-syslab-access-form"><input name="username" type="text" autocomplete="username" placeholder="Usuario" aria-label="Usuario Syslab" maxlength="120" required><input name="password" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña Syslab" maxlength="256" required><button class="hhr-center-action hhr-center-action-primary" type="submit">Conectar</button></form>
           </div>
           <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
           <div class="hhr-lab-exam-list"></div>
@@ -308,9 +308,11 @@
       const analyze = main.querySelector('.hhr-lab-analyze');
       const refresh = main.querySelector('.hhr-center-refresh');
       const syslabAccess = main.querySelector('.hhr-syslab-access');
-      const syslabAccessLink = main.querySelector('.hhr-syslab-access-link');
       const syslabAccessMessage = main.querySelector('.hhr-syslab-access-message');
-      syslabAccessLink.href = chrome.runtime.getURL('syslab-login.html');
+      const syslabAccessForm = main.querySelector('.hhr-syslab-access-form');
+      const syslabUsername = syslabAccessForm.querySelector('[name="username"]');
+      const syslabPassword = syslabAccessForm.querySelector('[name="password"]');
+      const syslabSubmit = syslabAccessForm.querySelector('[type="submit"]');
       main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
         renderLabRequestView(root, encId)
       );
@@ -326,7 +328,7 @@
         syslabAccess.hidden = connected;
         const badge = patientHost.querySelector('.hhr-lab-status');
         if (badge) badge.textContent = connected ? 'Syslab conectado' : 'Syslab requiere acceso';
-        syslabAccessMessage.textContent = message || 'Abre el acceso seguro de la extensión para conectarte.';
+        syslabAccessMessage.textContent = message || 'Ingresa tus credenciales de Syslab. No se guardan.';
       };
 
       const checkSyslabAccess = async () => {
@@ -335,6 +337,25 @@
         setSyslabAccess(connected, report && (report.error || report.message) || 'No se pudo comprobar Syslab.');
         return connected;
       };
+      syslabAccessForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const username = syslabUsername.value.trim();
+        const password = syslabPassword.value;
+        if (!username || !password) return;
+        syslabSubmit.disabled = true; syslabAccessMessage.textContent = 'Verificando credenciales en Syslab…';
+        let response;
+        try {
+          response = await sendMessage({ type: runtimeMessages.SYSLAB_LOGIN_REQUEST, username, password });
+        } catch (error) { response = { error: String(error && error.message || error || 'La extensión no respondió.') };
+        } finally {
+          syslabPassword.value = ''; syslabSubmit.disabled = false;
+        }
+        const connected = Boolean(response && !response.error && response.connected);
+        if (connected) syslabUsername.value = '';
+        setSyslabAccess(connected, connected ? 'Syslab conectado.' : String(response && response.error || 'Syslab no confirmó el acceso.'));
+        if (connected) void load();
+        else syslabPassword.focus();
+      });
 
       const invalidateLabAnalysis = () => {
         analysis = null;
