@@ -405,7 +405,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(bridge).toContain("credentials: 'include'");
     expect(bridge).toContain('MAX_BODY_BYTES = 6 * 1024 * 1024');
     expect(bridge).toContain("import(chrome.runtime.getURL('pdf.min.mjs'))");
-    expect(bridge).toContain('BRIDGE_ID = crypto.randomUUID()');
+    expect(bridge).toContain("typeof globalThis.crypto.randomUUID === 'function'");
+    expect(bridge).toContain('HTTP fallback; correlation only.');
     expect(bridge).toContain("message.type === 'RAYEN_SYSLAB_LOGIN'");
     expect(bridge).toContain('extractRutBodyFromReportText');
     expect(bridge).toContain('includeValidatedPdf: true');

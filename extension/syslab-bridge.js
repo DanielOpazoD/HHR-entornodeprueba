@@ -17,15 +17,15 @@
   const MAX_BODY_BYTES = 6 * 1024 * 1024;
   const REQUEST_TIMEOUT_MS = 30_000;
   const DETAILS_CONCURRENCY = 3;
-  const BRIDGE_ID = crypto.randomUUID();
+  const BRIDGE_ID = globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : `syslab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`; // HTTP fallback; correlation only.
   const FRAME_REQUEST = 'HHR_SYSLAB_FRAME_REQUEST';
   const FRAME_RESULT = 'HHR_SYSLAB_FRAME_RESULT';
   const EXTENSION_ORIGIN = chrome.runtime.getURL('').replace(/\/$/, '');
-
   const cleanText = value => String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   const normalizeRutBody = value => self.HhrLabViewer.normalizeRutBody(value);
   const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-
   const isAllowedSyslabUrl = value => {
     try {
       const url = new URL(String(value || ''), location.href);

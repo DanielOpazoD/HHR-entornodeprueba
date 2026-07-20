@@ -67,7 +67,7 @@ describe('Syslab login bridge', () => {
     expect(bridgeSource).not.toContain('sessionStorage');
   });
 
-  it('accepts frame relay requests only from the extension parent and correlates responses', async () => {
+  it('starts without Web Crypto on legacy HTTP and accepts only extension-parent relays', async () => {
     const frameListeners: { message?: (event: MessageEvent) => void } = {};
     const parentPostMessage = vi.fn();
     const extensionParent = { postMessage: parentPostMessage };
@@ -79,7 +79,6 @@ describe('Syslab login bridge', () => {
       },
       document: { querySelector: () => null, querySelectorAll: () => [] },
       location: { href: 'http://10.4.69.90/syslab/' },
-      crypto: { randomUUID: () => '22222222-2222-4222-8222-222222222222' },
       setTimeout,
       clearTimeout,
       console,
@@ -132,7 +131,10 @@ describe('Syslab login bridge', () => {
         expect.objectContaining({
           type: 'HHR_SYSLAB_FRAME_RESULT',
           reqId: request.reqId,
-          response: expect.objectContaining({ ok: true }),
+          response: expect.objectContaining({
+            ok: true,
+            bridgeId: expect.stringMatching(/^syslab-/),
+          }),
         }),
         'chrome-extension://test'
       )
