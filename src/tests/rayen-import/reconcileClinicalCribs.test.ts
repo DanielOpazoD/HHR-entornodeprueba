@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyCensusImportDiff,
   reconcileCensus,
   rayenToPatientData,
   type RayenCensusSnapshot,
@@ -230,6 +231,53 @@ describe('reconcileClinicalCribs', () => {
       }),
     ]);
     expect(diff.conflicts).toHaveLength(0);
+  });
+
+  it('reparents an existing crib when principal patients exchange the destination bed', () => {
+    const priorMother = makeEncounter({ room: 'H4', bed: 'C1' });
+    const movedMother = makeEncounter({ room: 'H5', bed: 'C1' });
+    const priorOccupant = makeEncounter({
+      encounterId: 'OUTGOING',
+      run: '999999999',
+      firstGivenName: 'Paciente',
+      room: 'H5',
+      bed: 'C1',
+    });
+    const movedOccupant = { ...priorOccupant, room: 'H6', bed: 'C1' };
+    const child = newborn();
+    const current = makeRecord({
+      H4C1: seed(priorMother),
+      H5C1: { ...seed(priorOccupant), clinicalCrib: seed(child) },
+    });
+    const diff = reconcileCensus(
+      current,
+      snapshotOf([movedMother, movedOccupant, child]),
+      { reference: REFERENCE }
+    );
+    const applied = applyCensusImportDiff(current, diff, {
+      idFactory: () => 'movement-id',
+      now: REFERENCE,
+      syncRunId: 'crib-reparent-sync',
+    });
+
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.updates).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        bedId: 'H6C1',
+        changes: [expect.objectContaining({ field: 'clinicalCrib', to: undefined })],
+      }),
+      expect.objectContaining({
+        bedId: 'H5C1',
+        changes: [expect.objectContaining({ field: 'clinicalCrib' })],
+      }),
+    ]));
+    expect(applied.skipped).toHaveLength(0);
+    expect(applied.record.beds.H5C1).toMatchObject({
+      clinicalEpisodeId: 'MOTHER',
+      clinicalCrib: { clinicalEpisodeId: 'NEWBORN' },
+    });
+    expect(applied.record.beds.H6C1).toMatchObject({ clinicalEpisodeId: 'OUTGOING' });
+    expect(applied.record.beds.H6C1.clinicalCrib).toBeUndefined();
   });
 
   it('carries an existing clinical crib when its principal patient moves', () => {

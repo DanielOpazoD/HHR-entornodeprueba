@@ -89,7 +89,22 @@ export const reconcileClinicalCribs = (
 
     const parentAdmission = diff.admissions.find(entry => entry.bedId === parentBedId);
     const currentParent = current.beds[parentBedId];
-    if (existingCrib) {
+    const outgoingParentMove = diff.moves.find(entry => entry.fromBedId === parentBedId);
+    const reparentsExistingCrib = !!existingCrib && !!outgoingParentMove &&
+      (!!parentMove || !!parentAdmission) && !cribMovesWithParent;
+    const outgoingParent = outgoingParentMove ? current.beds[outgoingParentMove.fromBedId] : undefined;
+    const outgoingCribUpdate: CensusImportDiff['updates'][number] | undefined =
+      reparentsExistingCrib && isOccupied(outgoingParent)
+        ? {
+            bedId: outgoingParentMove.toBedId,
+            rut: outgoingParent.rut,
+            patientName: outgoingParent.patientName,
+            changes: [{ field: 'clinicalCrib', from: existingCrib.patient, to: undefined }],
+            patient: outgoingParent,
+            source: outgoingParentMove.source,
+          }
+        : undefined;
+    if (existingCrib && !reparentsExistingCrib) {
       const existingParent = current.beds[existingCrib.parentBedId];
       if (!isOccupied(existingParent)) {
         diff.conflicts.push({
@@ -149,6 +164,7 @@ export const reconcileClinicalCribs = (
         hasCompanionCrib: false,
         clinicalCrib: incomingCrib,
       };
+      if (outgoingCribUpdate) diff.updates.push(outgoingCribUpdate);
       continue;
     }
     const effectiveParent = parentMove ? movingParent : currentParent;
@@ -172,6 +188,7 @@ export const reconcileClinicalCribs = (
       });
       continue;
     }
+    if (outgoingCribUpdate) diff.updates.push(outgoingCribUpdate);
     diff.updates.push({
       bedId: parentBedId,
       rut: incomingCrib.rut,
