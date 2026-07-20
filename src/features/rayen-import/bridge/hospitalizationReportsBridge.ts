@@ -137,11 +137,10 @@ export const requestRayenStatisticalDischargeReport = (
 
     const reqId = `statistical-discharge-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const cleanup = (): void => {
       if (settled) return;
       settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
       window.removeEventListener('message', onMessage);
     };
     const onMessage = (event: MessageEvent): void => {
@@ -162,15 +161,15 @@ export const requestRayenStatisticalDischargeReport = (
     };
 
     window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE, reqId, encId },
-      window.location.origin
-    );
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       cleanup();
       resolve({
         ok: false,
         error: 'La extensión Eloísa no respondió. Recárgala y vuelve a intentarlo.',
       });
     }, timeoutMs);
+    window.postMessage(
+      { type: RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE, reqId, encId },
+      window.location.origin
+    );
   });
