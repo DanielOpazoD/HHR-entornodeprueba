@@ -11,6 +11,8 @@ const isVersionConflict = (error: unknown): boolean =>
   (error instanceof Error && error.name === 'ConcurrencyError') ||
   /actualizó hace un momento/i.test(getRayenImportErrorMessage(error));
 
+const MAX_FRESH_RECORD_RETRIES = 2;
+
 export const applyConfirmedRayenImport = async ({
   applyPreviousDays,
   base,
@@ -45,13 +47,20 @@ export const applyConfirmedRayenImport = async ({
     );
   }
 
-  try {
-    return await applyDiff(base, diff);
-  } catch (error) {
-    if (!isVersionConflict(error)) throw error;
-    await new Promise(resolve => setTimeout(resolve, 900));
-    const fresh = await getFreshRecord();
-    if (!fresh) throw error;
-    return applyDiff(fresh, diff);
+  let candidate = base;
+  let lastConflict: unknown;
+  for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
+    try {
+      return await applyDiff(candidate, diff);
+    } catch (error) {
+      if (!isVersionConflict(error)) throw error;
+      lastConflict = error;
+      if (attempt === MAX_FRESH_RECORD_RETRIES) break;
+      const fresh = await getFreshRecord();
+      if (!fresh) throw error;
+      candidate = fresh;
+    }
   }
+
+  throw lastConflict;
 };
