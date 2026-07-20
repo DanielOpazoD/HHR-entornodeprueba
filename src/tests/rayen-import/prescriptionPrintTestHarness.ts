@@ -37,6 +37,10 @@ export const prescriptionPrint = (
           external?: boolean;
         }>;
       }>;
+      resolvePrescriptionEmissionDateTime: (
+        group: { printDateSource?: string; printDateTime?: string } | null,
+        officialDateTime: string
+      ) => string;
       applyCurrentMedicationMetadata: (events: unknown[], entries: unknown[]) => unknown[];
       deriveExternalPrescriptionGroups: (groups: Array<Record<string, unknown>>) => Array<{
         key: string;
