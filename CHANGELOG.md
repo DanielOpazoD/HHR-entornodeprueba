@@ -34,7 +34,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Añadido
 
-- **Extensión — informes por hospitalización 0.33.0:** lista los episodios oficiales de
+- **Extensión — informes por hospitalización 0.34.0:** lista los episodios oficiales de
   cada paciente y permite obtener por episodio la epicrisis o abrir la ficha clínica
   completa, validando RUN y fechas sin exponer sesión ni documentos al runtime de HHR.
 - **Extensión — barra de operaciones 0.33.0:** navegación más compacta con menú Exámenes,
