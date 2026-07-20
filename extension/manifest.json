@@ -95,7 +95,7 @@
     },
     {
       "matches": ["http://localhost/*", "https://testinghhr.netlify.app/*"],
-      "js": ["message-contract.js", "content-hhr.js"],
+      "js": ["message-contract.js", "content-hhr.js", "content-hhr-epicrisis.js"],
       "run_at": "document_idle"
     }
   ]

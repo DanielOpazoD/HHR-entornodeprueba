@@ -59,7 +59,7 @@
     [types.GC_SESSION_CAPTURED]: { info: 'object' },
     [types.GC_CONNECT_REQUEST]: { renew: 'boolean?' },
     [types.OPEN_ENCOUNTER_REQUEST]: { encId: 'id' },
-    [types.EGRESO_LOOKUP_REQUEST]: { runs: 'array' },
+    [types.EGRESO_LOOKUP_REQUEST]: { runs: 'array', targets: 'array?' },
     [types.EGRESO_REPORT_REQUEST]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?' },
@@ -90,10 +90,7 @@
       pdfBase64: 'string',
       patientRun: 'string',
     },
-    [types.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: {
-      encId: 'id?',
-      patientRun: 'string',
-    },
+    [types.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: { encId: 'id?', patientRun: 'string', censusDate: 'string?', delivery: 'string?', operation: 'string?', documentType: 'string?' },
     [types.EXAM_REQUEST_COMBINE_PRINT_REQUEST]: {
       encId: 'id',
       diteIds: 'array',

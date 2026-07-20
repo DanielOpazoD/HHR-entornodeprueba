@@ -11,6 +11,7 @@ describe('dischargeRowViewController', () => {
     });
     const undoDischarge = vi.fn();
     const viewClinicalDocuments = vi.fn();
+    const openHospitalizationReports = vi.fn();
     const editDischarge = vi.fn();
     const deleteDischarge = vi.fn();
     const convertDischargeToCma = vi.fn();
@@ -18,6 +19,7 @@ describe('dischargeRowViewController', () => {
     const viewModel = resolveDischargeRowViewModel(discharge, {
       undoDischarge,
       viewClinicalDocuments,
+      openHospitalizationReports,
       editDischarge,
       deleteDischarge,
       convertDischargeToCma,
@@ -28,18 +30,20 @@ describe('dischargeRowViewController', () => {
     expect(viewModel.statusLabel).toBe('Vivo');
     expect(viewModel.dischargeTypeLabel).toBe('Domicilio (Habitual)');
     expect(viewModel.statusBadgeClassName).toContain('bg-green');
-    expect(viewModel.actions).toHaveLength(5);
+    expect(viewModel.actions).toHaveLength(6);
 
     viewModel.actions[0]?.onClick();
     viewModel.actions[1]?.onClick();
     viewModel.actions[2]?.onClick();
     viewModel.actions[3]?.onClick();
     viewModel.actions[4]?.onClick();
+    viewModel.actions[5]?.onClick();
 
     expect(undoDischarge).toHaveBeenCalledWith('d-1');
     expect(editDischarge).toHaveBeenCalledWith(discharge);
     expect(deleteDischarge).toHaveBeenCalledWith('d-1');
     expect(viewClinicalDocuments).toHaveBeenCalledWith(discharge);
+    expect(openHospitalizationReports).toHaveBeenCalledWith(discharge);
     expect(convertDischargeToCma).toHaveBeenCalledWith('d-1');
   });
 });

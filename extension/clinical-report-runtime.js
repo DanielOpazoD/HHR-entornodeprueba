@@ -56,6 +56,7 @@
     ) {
       throw new Error('No se pudo inicializar el runtime de informes clínicos.');
     }
+    const normalizeRun = root.HhrHospitalizationReportsRuntime.normalizeRun;
 
     const fetchOfficialPdf = async ({ url, token, label }) => {
       try {
@@ -222,12 +223,8 @@
       }
     };
 
-    const normalizedRunKey = value => String(value || '')
-      .toUpperCase()
-      .replace(/[^0-9K]/g, '');
-
     const resolveDischargedEncounterIdByRun = async (info, patientRun) => {
-      const expectedRun = normalizedRunKey(patientRun);
+      const expectedRun = normalizeRun(patientRun);
       if (!info || !info.apiOrigin || !info.token || !/^\d+$/.test(String(info.facId || ''))) {
         return { error: 'La sesión no permite consultar los pacientes egresados.' };
       }
@@ -258,7 +255,7 @@
         };
       }
 
-      const rowRun = row => normalizedRunKey(
+      const rowRun = row => normalizeRun(
         row && (row.patientIdentifier || row.preferredIdentifierCode || row.identifier ||
           row.patient && (row.patient.identifier || row.patient.preferredIdentifierCode))
       );
@@ -290,7 +287,7 @@
           );
           if (!response.ok) return '';
           const header = await response.json();
-          return normalizedRunKey(header && header.preferredIdentifierCode) === expectedRun
+          return normalizeRun(header && header.preferredIdentifierCode) === expectedRun
             ? String(row.id)
             : '';
         } catch (_error) {
@@ -309,9 +306,7 @@
     };
 
     const handleNursingMedicalEpicrisisPrintRequest = async ({ encId, patientRun, sender }) => {
-      const normalizedPatientRun = String(patientRun || '')
-        .toUpperCase()
-        .replace(/[^0-9K]/g, '');
+      const normalizedPatientRun = normalizeRun(patientRun);
       if (!/^[0-9]{6,8}[0-9K]$/.test(normalizedPatientRun)) {
         return { error: 'No se pudo validar el RUN del paciente seleccionado.' };
       }
@@ -321,7 +316,7 @@
       let context = resolvedEncounterId
         ? await getClinicalReportContext(resolvedEncounterId, infoResult.info, null, sender)
         : null;
-      const initialContextRun = normalizedRunKey(context && context.patient && context.patient.run);
+      const initialContextRun = normalizeRun(context && context.patient && context.patient.run);
       if (!resolvedEncounterId || context && (
         context.error || initialContextRun !== normalizedPatientRun
       )) {
@@ -342,9 +337,7 @@
         );
       }
       if (context.error) return context;
-      const contextRun = String(context.patient && context.patient.run || '')
-        .toUpperCase()
-        .replace(/[^0-9K]/g, '');
+      const contextRun = normalizeRun(context.patient && context.patient.run);
       if (!contextRun || contextRun !== normalizedPatientRun) {
         return {
           error: 'El episodio ya no corresponde al RUN seleccionado. ' +
@@ -395,6 +388,12 @@
           (lastError ? ' Detalle: ' + lastError : ''),
       };
     };
+
+    const routeNursingMedicalEpicrisisRequest = request =>
+      root.HhrEpicrisisDownloadRuntime.handleRequest({
+        ...request, fetchWithTimeout, getFichaFetchInfo, fetchOfficialPdf, downloadPdfBuffer,
+        chrome: chromeApi, now, printFallback: handleNursingMedicalEpicrisisPrintRequest,
+      });
 
     const createCompletePrescriptionPdf = async ({
       encId,
@@ -476,7 +475,7 @@
       downloadPdfBuffer,
       openPdfPrintDialog,
       handleCorrectedEpicrisisPrintRequest,
-      handleNursingMedicalEpicrisisPrintRequest,
+      handleNursingMedicalEpicrisisPrintRequest: routeNursingMedicalEpicrisisRequest,
       createCompletePrescriptionPdf,
     };
   };

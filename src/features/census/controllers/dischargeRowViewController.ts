@@ -8,6 +8,7 @@ import {
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void | Promise<void>;
   viewClinicalDocuments: (discharge: DischargeData) => void | Promise<void>;
+  openHospitalizationReports: (discharge: DischargeData) => void | Promise<void>;
   editDischarge: (discharge: DischargeData) => void | Promise<void>;
   deleteDischarge: (id: string) => void | Promise<void>;
   convertDischargeToCma: (id: string) => void | Promise<void>;

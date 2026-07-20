@@ -100,12 +100,12 @@
         });
       return;
     }
-
     if (data.type === 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST') {
       const reqId = data.reqId;
       const runs = Array.isArray(data.runs) ? data.runs : [];
+      const targets = Array.isArray(data.targets) ? data.targets : [];
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.EGRESO_LOOKUP_REQUEST, runs })
+        .sendMessage({ type: runtimeMessages.EGRESO_LOOKUP_REQUEST, runs, targets })
         .then(response => {
           const results = (response && Array.isArray(response.results) && response.results) || [];
           post({ type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId, results });

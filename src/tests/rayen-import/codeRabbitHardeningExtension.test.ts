@@ -11,6 +11,7 @@ const backgroundSource = readExtension('background.js');
 const clinicalHandoffRuntimeSource = readExtension('clinical-handoff-runtime.js');
 const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
+const gestionCamasEgresoLookupSource = readExtension('gestion-camas-egreso-lookup.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
 const fichaMedicoPatientContextSource = readExtension('fichamedico-patient-context.js');
@@ -42,11 +43,11 @@ describe('CodeRabbit clinical integration hardening', () => {
   it('separates expired and forbidden sessions and only forwards approved egreso metadata', () => {
     expect(gestionCamasRuntimeSource).toContain('if (response.status === 401)');
     expect(gestionCamasRuntimeSource).toContain("if (response.status === 403) return 'forbidden'");
-    expect(backgroundSource).toContain('GESTION_CAMAS_EGRESO_METADATA_FIELDS');
-    expect(backgroundSource).not.toContain('GESTION_CAMAS_PHI_FIELDS');
-    const picker = backgroundSource.slice(
-      backgroundSource.indexOf('const pickGestionCamasEncounterMetadata'),
-      backgroundSource.indexOf('const handleEgresoLookup')
+    expect(gestionCamasEgresoLookupSource).toContain('METADATA_FIELDS');
+    expect(gestionCamasEgresoLookupSource).not.toContain('GESTION_CAMAS_PHI_FIELDS');
+    const picker = gestionCamasEgresoLookupSource.slice(
+      gestionCamasEgresoLookupSource.indexOf('const pickMetadata'),
+      gestionCamasEgresoLookupSource.indexOf('return Object.freeze')
     );
     expect(picker).not.toContain('Object.keys');
   });

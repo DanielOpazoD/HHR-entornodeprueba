@@ -96,6 +96,12 @@ describe('applyEgresoReport', () => {
           rut: '28.663.707-8',
           patientName: 'Isidora Soto',
           signal: 'clinical-closure',
+          encounterId: '141704',
+          verification: {
+            medicalEpicrisis: 'confirmed',
+            nursingEpicrisis: 'confirmed',
+            hospitalDischarge: 'unknown',
+          },
         },
       ],
     });
@@ -360,6 +366,12 @@ describe('applyEgresoReport', () => {
       rut: '1-9',
       patientName: 'Paciente Reingresado',
       signal: 'clinical-closure' as const,
+      encounterId: '141704',
+      verification: {
+        medicalEpicrisis: 'confirmed' as const,
+        nursingEpicrisis: 'not-detected' as const,
+        hospitalDischarge: 'unknown' as const,
+      },
     };
     const enriched = applyEgresoReport(
       makeDiff({ pendingAdministrativeDischarges: [pending] }),
@@ -368,7 +380,12 @@ describe('applyEgresoReport', () => {
     );
 
     expect(enriched.discharges).toHaveLength(0);
-    expect(enriched.pendingAdministrativeDischarges).toEqual([pending]);
+    expect(enriched.pendingAdministrativeDischarges).toEqual([
+      {
+        ...pending,
+        verification: { ...pending.verification, hospitalDischarge: 'not-detected' },
+      },
+    ]);
     expect(enriched.conflicts).toEqual([
       expect.objectContaining({ bedId: 'R2', reason: expect.stringContaining('ingreso activo') }),
     ]);
@@ -402,9 +419,27 @@ describe('applyEgresoReport', () => {
     expect(requiresReview(enriched)).toBe(true);
   });
 
-  it('returns the diff untouched for an empty report', () => {
-    const diff = makeDiff();
-    expect(applyEgresoReport(diff, [], makeRecord())).toBe(diff);
+  it('marks the administrative document as not detected after an empty report', () => {
+    const pending = {
+      bedId: 'H2C1',
+      rut: '22.025.389-9',
+      patientName: 'Paciente',
+      signal: 'clinical-closure' as const,
+      encounterId: '141704',
+      verification: {
+        medicalEpicrisis: 'confirmed' as const,
+        nursingEpicrisis: 'confirmed' as const,
+        hospitalDischarge: 'unknown' as const,
+      },
+    };
+    const enriched = applyEgresoReport(
+      makeDiff({ pendingAdministrativeDischarges: [pending] }),
+      [],
+      makeRecord()
+    );
+    expect(enriched.pendingAdministrativeDischarges[0]?.verification.hospitalDischarge).toBe(
+      'not-detected'
+    );
   });
 });
 
