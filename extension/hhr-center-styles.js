@@ -440,8 +440,8 @@
       #hhr-prescription-print-modal .hhr-lab-report { margin-bottom: 8px; border: 1px solid #dfe6e5; border-radius: 7px; overflow: hidden; }
       #hhr-prescription-print-modal .hhr-lab-report summary { padding: 9px 11px; background: #f7f9f9; color: #34413f; cursor: pointer; font-size: 11.5px; font-weight: 700; }
       #hhr-prescription-print-modal .hhr-lab-report table { margin: 0; }
-      #hhr-prescription-print-modal .hhr-syslab-login { display: block; width: 100%; height: 92px; margin: 8px 0; border: 0; border-radius: 9px; background: #fffaf0; }
-      #hhr-prescription-print-modal .hhr-syslab-login[hidden] { display: none; }
+      #hhr-prescription-print-modal .hhr-syslab-access { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid #ead18d; border-radius: 9px; background: #fffaf0; } #hhr-prescription-print-modal .hhr-syslab-access[hidden] { display: none; }
+      #hhr-prescription-print-modal .hhr-syslab-access > div { display: grid; gap: 3px; min-width: 0; } #hhr-prescription-print-modal .hhr-syslab-access strong { color: #594719; font-size: 11.5px; } #hhr-prescription-print-modal .hhr-syslab-access-message { color: #765c15; font-size: 10.5px; line-height: 1.35; } #hhr-prescription-print-modal .hhr-syslab-access-link { flex: 0 0 auto; color: #fff; text-decoration: none; }
       #hhr-prescription-print-modal .hhr-connection-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding-top: 12px; }
       #hhr-prescription-print-modal .hhr-connection-card {
         border: 1px solid #e0e8e6; border-radius: 12px; background: #fff; padding: 14px 15px;
@@ -604,7 +604,7 @@
         #hhr-prescription-print-modal .hhr-vitals-values { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
         #hhr-prescription-print-modal .hhr-vitals-summary-time { grid-column: 1 / -1; justify-self: end; }
         #hhr-prescription-print-modal .hhr-connection-grid { grid-template-columns: 1fr; }
-        #hhr-prescription-print-modal .hhr-syslab-login { height: 170px; }
+        #hhr-prescription-print-modal .hhr-syslab-access { align-items: stretch; flex-direction: column; } #hhr-prescription-print-modal .hhr-syslab-access-link { align-self: flex-start; }
         #hhr-prescription-print-modal .hhr-center-table { min-width: 0; display: block; }
         #hhr-prescription-print-modal .hhr-center-table colgroup, #hhr-prescription-print-modal .hhr-center-table thead { display: none; }
         #hhr-prescription-print-modal .hhr-center-table tbody { display: grid; gap: 9px; padding-top: 9px; }

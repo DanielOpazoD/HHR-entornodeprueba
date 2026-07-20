@@ -422,12 +422,17 @@ describe('native Eloisa laboratory viewer', () => {
     expect(content).toContain("key: 'exams'");
     expect(content).toContain('hhr-exams-lab');
     expect(content).not.toContain('class="module hhr-ops-lab"');
-    expect(labCenter).toContain('hhr-syslab-login');
+    expect(labCenter).toContain('hhr-syslab-access');
+    expect(labCenter).toContain('Abrir acceso seguro');
     expect(labCenter).toContain("chrome.runtime.getURL('syslab-login.html')");
+    expect(labCenter).toContain('target="_blank"');
+    expect(labCenter).toContain('rel="noopener noreferrer"');
+    expect(labCenter).not.toContain('<iframe class="hhr-syslab-login"');
     expect(content).not.toContain('input name="password"');
     expect(loginHtml).toContain('No se guardan en la extensión');
     expect(login).toContain('type: runtimeMessages.SYSLAB_LOGIN_REQUEST');
     expect(login).toContain("candidate === 'https://fichamedico.rayensalud.cl'");
+    expect(login).toContain('Vuelve a Eloísa y pulsa Actualizar.');
     expect(login).not.toContain('localStorage');
     expect(login).not.toContain('sessionStorage');
     expect(content).toContain("key: 'connection'");

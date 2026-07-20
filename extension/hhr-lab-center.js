@@ -8,26 +8,6 @@
   'use strict';
 
   const LAB_MAX_SELECTED_EXAMS = 24;
-  const syslabLoginFrameHandlers = new WeakMap();
-  let syslabLoginListenerInstalled = false;
-
-  const ensureSyslabLoginListener = () => {
-    if (syslabLoginListenerInstalled) return;
-    syslabLoginListenerInstalled = true;
-    window.addEventListener('message', event => {
-      const handler = event.source && syslabLoginFrameHandlers.get(event.source);
-      if (!handler) return;
-      let extensionOrigin = '';
-      try {
-        extensionOrigin = chrome.runtime.getURL('').replace(/\/$/, '');
-      } catch (_error) {
-        return;
-      }
-      const data = event.data || {};
-      if (event.origin !== extensionOrigin || data.type !== 'HHR_SYSLAB_LOGIN_STATE') return;
-      handler(data);
-    });
-  };
 
   const create = dependencies => {
     const {
@@ -51,8 +31,6 @@
     ) {
       throw new Error('No se pudo inicializar el Centro de Laboratorio HHR.');
     }
-    ensureSyslabLoginListener();
-
     const copyText = async text => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
@@ -309,7 +287,13 @@
         </div>
         <div class="hhr-center-content">
           <div class="hhr-lab-patient"><strong>Verificación Syslab</strong><span>Cruzando identidad Eloísa ↔ Syslab…</span><span class="hhr-lab-status">Conectando a Syslab local</span></div>
-          <iframe class="hhr-syslab-login" title="Acceso seguro a Syslab" hidden></iframe>
+          <div class="hhr-syslab-access" role="region" aria-label="Acceso seguro a Syslab" hidden>
+            <div>
+              <strong>Inicio de sesión requerido</strong>
+              <span class="hhr-syslab-access-message">Abre el acceso seguro de la extensión para conectarte.</span>
+            </div>
+            <a class="hhr-center-action hhr-center-action-primary hhr-syslab-access-link" target="_blank" rel="noopener noreferrer">Abrir acceso seguro</a>
+          </div>
           <div class="hhr-lab-selection" role="status" aria-live="polite">Buscando exámenes en Syslab…</div>
           <div class="hhr-lab-exam-list"></div>
           <section class="hhr-lab-results" aria-label="Análisis de laboratorio"></section>
@@ -323,8 +307,10 @@
       const selectAll = main.querySelector('.hhr-lab-select-all');
       const analyze = main.querySelector('.hhr-lab-analyze');
       const refresh = main.querySelector('.hhr-center-refresh');
-      const syslabLogin = main.querySelector('.hhr-syslab-login');
-      syslabLogin.src = chrome.runtime.getURL('syslab-login.html');
+      const syslabAccess = main.querySelector('.hhr-syslab-access');
+      const syslabAccessLink = main.querySelector('.hhr-syslab-access-link');
+      const syslabAccessMessage = main.querySelector('.hhr-syslab-access-message');
+      syslabAccessLink.href = chrome.runtime.getURL('syslab-login.html');
       main.querySelector('.hhr-flow-tabs [data-flow="request"]').addEventListener('click', () =>
         renderLabRequestView(root, encId)
       );
@@ -337,10 +323,10 @@
       let isAnalyzing = false;
 
       const setSyslabAccess = (connected, message = '') => {
-        syslabLogin.hidden = connected;
+        syslabAccess.hidden = connected;
         const badge = patientHost.querySelector('.hhr-lab-status');
         if (badge) badge.textContent = connected ? 'Syslab conectado' : 'Syslab requiere acceso';
-        if (message) syslabLogin.title = message;
+        syslabAccessMessage.textContent = message || 'Abre el acceso seguro de la extensión para conectarte.';
       };
 
       const checkSyslabAccess = async () => {
@@ -499,13 +485,6 @@
         patientHost.append(patientName, patientMeta, connection);
         renderList();
       };
-      if (syslabLogin.contentWindow) {
-        syslabLoginFrameHandlers.set(syslabLogin.contentWindow, data => {
-          const connected = Boolean(data.connected);
-          setSyslabAccess(connected, String(data.message || ''));
-          if (connected) void load();
-        });
-      }
       filter.addEventListener('input', renderList);
       selectAll.addEventListener('click', () => {
         const selectionBefore = [...selected].sort().join('|');
