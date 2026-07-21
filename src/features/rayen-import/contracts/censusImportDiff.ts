@@ -31,6 +31,16 @@ export interface AdmissionEntry {
   bedId: string;
   patient: PatientData;
   isCma: boolean;
+  /** Rayen evidence when the admission comes from the snapshot; absent for HHR-only retention. */
+  source?: RayenEncounter;
+}
+
+/** Active newborn observed in an attached Rayen crib, keyed by its mother's physical bed. */
+export interface ActiveClinicalCribEntry {
+  parentBedId: string;
+  /** Principal patient associated with that bed in the same Rayen snapshot/reconciliation. */
+  principalRut?: string;
+  patient: PatientData;
   source: RayenEncounter;
 }
 
@@ -41,7 +51,7 @@ export interface UpdateEntry {
   patientName: string;
   changes: FieldChange[];
   patient: PatientData;
-  source: RayenEncounter;
+  source?: RayenEncounter;
 }
 
 /**
@@ -141,6 +151,11 @@ export interface CensusImportDiff {
   /** Clinical closure signals kept in bed until Gestión de Camas confirms administrative discharge. */
   pendingAdministrativeDischarges: PendingAdministrativeDischargeEntry[];
   conflicts: ConflictEntry[];
+  /**
+   * Active attached cribs observed in Ficha Médico. The administrative-discharge enrichment uses
+   * this evidence to promote a newborn to the physical bed when its mother leaves first.
+   */
+  activeClinicalCribs?: ActiveClinicalCribEntry[];
   /**
    * Egresos from the bulk "Alta Administrativa" report whose RUN is unknown to HHR (patients
    * admitted and discharged between two syncs, so they never occupied an HHR bed). Informational

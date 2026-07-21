@@ -247,7 +247,10 @@ describe('reconcileClinicalCribs', () => {
     const child = newborn();
     const current = makeRecord({
       H4C1: seed(priorMother),
-      H5C1: { ...seed(priorOccupant), clinicalCrib: seed(child) },
+      H5C1: {
+        ...seed(priorOccupant),
+        clinicalCrib: { ...seed(child), handoffNote: 'Dato neonatal local' },
+      },
     });
     const diff = reconcileCensus(
       current,
@@ -274,7 +277,10 @@ describe('reconcileClinicalCribs', () => {
     expect(applied.skipped).toHaveLength(0);
     expect(applied.record.beds.H5C1).toMatchObject({
       clinicalEpisodeId: 'MOTHER',
-      clinicalCrib: { clinicalEpisodeId: 'NEWBORN' },
+      clinicalCrib: {
+        clinicalEpisodeId: 'NEWBORN',
+        handoffNote: 'Dato neonatal local',
+      },
     });
     expect(applied.record.beds.H6C1).toMatchObject({ clinicalEpisodeId: 'OUTGOING' });
     expect(applied.record.beds.H6C1.clinicalCrib).toBeUndefined();
@@ -374,4 +380,5 @@ describe('reconcileClinicalCribs', () => {
     ]);
     expect(diff.conflicts).toHaveLength(0);
   });
+
 });

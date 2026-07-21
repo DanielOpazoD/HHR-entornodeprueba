@@ -113,27 +113,6 @@ describe('PatientRow crib and demographics', () => {
     expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
   });
 
-  it('allows clearing a persisted legacy crib mark without restoring RN sano', () => {
-    const { mockContext } = render(
-      <table>
-        <tbody>
-          <PatientRow
-            data={{ ...mockPatient, bedMode: 'Cuna', hasCompanionCrib: true }}
-            bed={mockBedDef}
-            currentDateString="2023-01-01"
-            onAction={mockOnAction}
-            bedType={BedType.UTI}
-          />
-        </tbody>
-      </table>
-    );
-    fireEvent.click(screen.getByTitle('Configuración de cama'));
-
-    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Limpiar marca histórica de cuna'));
-    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', false);
-  });
-
   it('toggles clinical crib when Cuna Clínica button is clicked', () => {
     const { mockContext } = render(
       <table>

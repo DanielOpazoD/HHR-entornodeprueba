@@ -13,13 +13,21 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
-import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
-import { toTitleCaseName } from '../mapping/rayenToPatientData';
-import { resolveReportBedId } from '../mapping/resolveReportBed';
-import { isCmaBedLabel, isCmaLocation } from '../mapping/bedMapping';
-import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { confirmHospitalDischarge } from './dischargeVerification';
+import {
+  correctedStamp,
+  hasRecordedMovement,
+  occupiedBedsByRun,
+  occupiedClinicalCribsByRun,
+  reportEgresoFromRow,
+  reportPredatesAdmission,
+  resolveReportDischarge,
+  toIsoDay,
+} from './egresoReportPolicy';
+import { mergeSyncablePatient } from './patientSyncPolicy';
 import { normalizeRut } from '@/utils/rutUtils';
+
+export { collectRecordedMovementRuns } from './egresoReportPolicy';
 
 const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
   if (diff.pendingAdministrativeDischarges.length === 0) return diff;
@@ -29,144 +37,6 @@ const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
       ...entry,
       verification: { ...entry.verification, hospitalDischarge: 'not-detected' },
     })),
-  };
-};
-
-/** Official Rapa Nui egreso day + time as printed by Gestión de Camas. */
-const correctedStamp = (
-  fechaEgreso: string,
-  correctedDay?: string,
-  correctedTime?: string
-): { correctedDay?: string; correctedTime?: string } => {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(correctedDay || '') && /^\d{2}:\d{2}$/.test(correctedTime || '')) {
-    return { correctedDay, correctedTime };
-  }
-  const stamp = parseStatisticalEgresoStamp(fechaEgreso);
-  return { correctedDay: stamp?.iso, correctedTime: stamp?.hhmm };
-};
-
-/** Every RUN already represented by a statistical movement, including tombstones. */
-export const collectRecordedMovementRuns = (record: DailyRecord): Set<string> => {
-  const runs = new Set<string>();
-  const add = (rut?: string): void => {
-    const run = normalizeRut(rut);
-    if (run) runs.add(run);
-  };
-  for (const record_ of [
-    ...(record.discharges ?? []),
-    ...(record.cma ?? []),
-    ...(record.transfers ?? []),
-  ]) {
-    add(record_.rut);
-  }
-  return runs;
-};
-
-const toIsoDay = (raw: string): string => {
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-  return '';
-};
-
-interface CmaOriginEvidence {
-  admissionDate?: string;
-  admissionTime?: string;
-  /** Eloísa location stored when the patient occupied the bed. */
-  location?: string;
-}
-
-const timeFrom = (raw?: string): string | undefined => {
-  const match = (raw ?? '').match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
-  if (!match) return undefined;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) return undefined;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-};
-
-const reportPredatesAdmission = (
-  stamp: { iso: string; hhmm: string },
-  evidence: CmaOriginEvidence
-): boolean => {
-  const admissionDay = toIsoDay(evidence.admissionDate ?? '');
-  if (!admissionDay) return false;
-  if (stamp.iso !== admissionDay) return stamp.iso < admissionDay;
-  const admissionTime = timeFrom(evidence.admissionTime) ?? timeFrom(evidence.admissionDate);
-  return admissionTime ? stamp.hhmm < admissionTime : false;
-};
-
-const resolveReportDischarge = (row: EgresoReportRow, evidence: CmaOriginEvidence = {}) => {
-  const mapped = mapDestinoDeAlta(row.destino, row.motivo);
-  const dischargeDay = correctedStamp(
-    row.fechaEgreso,
-    row.correctedDay,
-    row.correctedTime
-  ).correctedDay;
-  const hasExactCmaBed = isCmaLocation(evidence.location) || isCmaBedLabel(row.bedLabel);
-  const isSameDayCma =
-    mapped.kind === 'alta' &&
-    mapped.status === 'Vivo' &&
-    hasExactCmaBed &&
-    Boolean(evidence.admissionDate) &&
-    toIsoDay(evidence.admissionDate ?? '') === dischargeDay;
-
-  return isSameDayCma ? { ...mapped, kind: 'cma' as const } : mapped;
-};
-
-const occupiedBedsByRun = (
-  record: DailyRecord
-): Map<
-  string,
-  {
-    bedId: string;
-    patientName: string;
-    admissionDate?: string;
-    admissionTime?: string;
-    location?: string;
-  }
-> => {
-  const byRun = new Map<
-    string,
-    {
-      bedId: string;
-      patientName: string;
-      admissionDate?: string;
-      admissionTime?: string;
-      location?: string;
-    }
-  >();
-  for (const [bedId, patient] of Object.entries(record.beds)) {
-    if (!patient?.patientName?.trim() || patient.isBlocked) continue;
-    const run = normalizeRut(patient.rut);
-    if (run) {
-      byRun.set(run, {
-        bedId,
-        patientName: patient.patientName,
-        admissionDate: patient.admissionDate,
-        admissionTime: patient.admissionTime,
-        location: patient.location,
-      });
-    }
-  }
-  return byRun;
-};
-
-const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
-  const mapped = mapDestinoDeAlta(row.destino, row.motivo);
-  return {
-    run: row.run,
-    patientName: toTitleCaseName(row.patientName.replace(/\s+/g, ' ')),
-    bedLabel: resolveReportBedId(row.bedLabel),
-    destino: row.destino,
-    fechaEgreso: row.fechaEgreso,
-    kind: mapped.kind,
-    status: mapped.status,
-    edad: row.edad,
-    servicio: row.servicio,
-    diagnostico: row.diagnostico,
-    ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
   };
 };
 
@@ -200,6 +70,7 @@ export const applyEgresoReport = (
 
   const recordDay = toIsoDay(record.date);
   const occupied = occupiedBedsByRun(record);
+  const occupiedCribs = occupiedClinicalCribsByRun(record);
   const byRun = new Map<string, EgresoReportRow>();
   let diffWithReportConflicts = checkedDiff;
   for (const row of reportRows) {
@@ -221,12 +92,14 @@ export const applyEgresoReport = (
     // next-island-day discharge must never be pulled backwards into the current census.
     if (!recordDay || stamp.iso > recordDay) continue;
     const current = occupied.get(run);
-    if (current && reportPredatesAdmission(stamp, current)) {
+    const currentCrib = occupiedCribs.get(run);
+    const admissionEvidence = current ?? currentCrib?.patient;
+    if (admissionEvidence && reportPredatesAdmission(stamp, admissionEvidence)) {
       diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
-        bedId: current.bedId,
+        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
         rut: row.run,
-        patientName: current.patientName,
-        reason: `El egreso informado para ${current.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
+        patientName: current?.patientName ?? currentCrib?.patient.patientName,
+        reason: `El egreso informado para ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
       });
       continue;
     }
@@ -251,7 +124,60 @@ export const applyEgresoReport = (
   if (byRun.size === 0) return diffWithReportConflicts;
 
   const confirmedRuns = new Set(byRun.keys());
-  const recordedRuns = collectRecordedMovementRuns(record);
+  type PromotionCandidate = {
+    principalRut?: string;
+    patient: NonNullable<DailyRecord['beds'][string]>;
+    source?: CensusImportDiff['admissions'][number]['source'];
+  };
+  const activeCribsByParent = new Map<string, PromotionCandidate>();
+  for (const crib of checkedDiff.activeClinicalCribs ?? []) {
+    activeCribsByParent.set(crib.parentBedId, crib);
+  }
+  for (const crib of occupiedCribs.values()) {
+    const parentRun = normalizeRut(crib.parent?.rut);
+    const parentMove = checkedDiff.moves.find(
+      entry => entry.fromBedId === crib.parentBedId && normalizeRut(entry.rut) === parentRun
+    );
+    const effectiveParentBedId = parentMove?.toBedId ?? crib.parentBedId;
+    if (!activeCribsByParent.has(effectiveParentBedId)) {
+      activeCribsByParent.set(effectiveParentBedId, {
+        principalRut: crib.parent.rut,
+        patient: crib.patient,
+      });
+    }
+  }
+  const principalBedByRun = new Map<string, string>();
+  for (const [run, current] of occupied) principalBedByRun.set(run, current.bedId);
+  for (const admission of checkedDiff.admissions) {
+    principalBedByRun.set(normalizeRut(admission.patient.rut), admission.bedId);
+  }
+  for (const move of checkedDiff.moves) {
+    principalBedByRun.set(normalizeRut(move.rut), move.toBedId);
+  }
+  const promotedCribs = new Map<string, PromotionCandidate>();
+  for (const [run] of byRun) {
+    const parentBedId = principalBedByRun.get(run);
+    if (!parentBedId) continue;
+    const crib = activeCribsByParent.get(parentBedId);
+    const hasDifferentIncomingPrincipal =
+      checkedDiff.admissions.some(
+        entry => entry.bedId === parentBedId && normalizeRut(entry.patient.rut) !== run
+      ) ||
+      checkedDiff.moves.some(
+        entry => entry.toBedId === parentBedId && normalizeRut(entry.rut) !== run
+      );
+    if (
+      crib &&
+      normalizeRut(crib.principalRut) === run &&
+      !hasDifferentIncomingPrincipal &&
+      !confirmedRuns.has(normalizeRut(crib.patient.rut))
+    ) {
+      promotedCribs.set(parentBedId, crib);
+    }
+  }
+  const promotedCribRuns = new Set(
+    [...promotedCribs.values()].map(crib => normalizeRut(crib.patient.rut))
+  );
   const plannedRuns = new Set<string>();
   const addPlannedRun = (rut?: string): void => {
     const run = normalizeRut(rut);
@@ -262,25 +188,74 @@ export const applyEgresoReport = (
   checkedDiff.moves.forEach(entry => addPlannedRun(entry.rut));
   checkedDiff.pendingAdministrativeDischarges.forEach(entry => addPlannedRun(entry.rut));
   checkedDiff.conflicts.forEach(entry => addPlannedRun(entry.rut));
+  const unchangedCribRuns = new Set(
+    (checkedDiff.activeClinicalCribs ?? [])
+      .map(crib => normalizeRut(crib.patient.rut))
+      .filter(run => occupiedCribs.has(run) && !plannedRuns.has(run))
+  );
 
   // Remove provisional Ficha-derived operations for administratively discharged RUNs.
-  const admissions = checkedDiff.admissions.filter(
-    entry => !confirmedRuns.has(normalizeRut(entry.patient.rut))
-  );
-  const updates = checkedDiff.updates.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
+  const admissions = checkedDiff.admissions
+    .filter(entry => !confirmedRuns.has(normalizeRut(entry.patient.rut)))
+    .map(entry => {
+      const cribRun = normalizeRut(entry.patient.clinicalCrib?.rut);
+      if (!cribRun || !confirmedRuns.has(cribRun)) return entry;
+      return {
+        ...entry,
+        patient: { ...entry.patient, clinicalCrib: undefined },
+      };
+    });
+  for (const [bedId, crib] of promotedCribs) {
+    const currentCrib = occupiedCribs.get(normalizeRut(crib.patient.rut))?.patient;
+    const promotedPatient = currentCrib
+      ? mergeSyncablePatient(currentCrib, crib.patient)
+      : crib.patient;
+    admissions.push({
+      bedId,
+      patient: {
+        ...promotedPatient,
+        bedId,
+        bedMode: 'Cuna',
+        hasCompanionCrib: false,
+        clinicalCrib: undefined,
+        clinicalEpisodeId: crib.patient.clinicalEpisodeId || promotedPatient.clinicalEpisodeId,
+      },
+      isCma: false,
+      source: crib.source,
+    });
+  }
+  const updates = checkedDiff.updates.filter(entry => {
+    const run = normalizeRut(entry.rut);
+    if (confirmedRuns.has(run)) return false;
+    return !(
+      promotedCribs.has(entry.bedId) &&
+      promotedCribRuns.has(run) &&
+      entry.changes.some(change => change.field === 'clinicalCrib')
+    );
+  });
   const moves = checkedDiff.moves.filter(entry => !confirmedRuns.has(normalizeRut(entry.rut)));
   const pendingAdministrativeDischarges = checkedDiff.pendingAdministrativeDischarges.filter(
     entry => !confirmedRuns.has(normalizeRut(entry.rut))
   );
-  const conflicts = diffWithReportConflicts.conflicts.filter(
-    entry => !entry.rut || !confirmedRuns.has(normalizeRut(entry.rut))
-  );
+  const conflicts = diffWithReportConflicts.conflicts.filter(entry => {
+    const run = normalizeRut(entry.rut);
+    if (run && confirmedRuns.has(run)) return false;
+    return !(
+      entry.bedId !== null &&
+      promotedCribs.has(entry.bedId) &&
+      promotedCribRuns.has(run) &&
+      entry.reason === `La cama principal ${entry.bedId} no fue confirmada en el censo activo de Rayen.`
+    );
+  });
 
   const discharges = checkedDiff.discharges.filter(
     entry => !confirmedRuns.has(normalizeRut(entry.rut))
   );
   const reportEgresos: ReportEgreso[] = [];
   let overriddenUnchanged = 0;
+  for (const cribRun of unchangedCribRuns) {
+    if (confirmedRuns.has(cribRun)) overriddenUnchanged += 1;
+  }
 
   for (const [run, row] of byRun) {
     const current = occupied.get(run);
@@ -292,6 +267,10 @@ export const applyEgresoReport = (
       // An active, unchanged Ficha encounter has no explicit diff entry. Once Gestión de Camas
       // confirms its departure it must stop contributing to the "sin cambios" aggregate.
       if (!plannedRuns.has(run)) overriddenUnchanged += 1;
+      const promotedCrib = promotedCribs.get(current.bedId);
+      if (promotedCrib && unchangedCribRuns.has(normalizeRut(promotedCrib.patient.rut))) {
+        overriddenUnchanged += 1;
+      }
       discharges.push({
         bedId: current.bedId,
         rut: row.run,
@@ -299,13 +278,44 @@ export const applyEgresoReport = (
         kind: mapped.kind,
         status: mapped.status,
         reason: 'administrative-discharge',
-        encounterId: row.encounterId,
+        encounterId: row.encounterId ?? current.clinicalEpisodeId,
         verification: confirmHospitalDischarge(pending?.verification),
         ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
       });
       continue;
     }
-    if (recordedRuns.has(run)) continue;
+    const currentCrib = occupiedCribs.get(run);
+    if (currentCrib) {
+      const parentRun = normalizeRut(currentCrib.parent.rut);
+      if (!confirmedRuns.has(parentRun)) {
+        const parentMove = checkedDiff.moves.find(entry => normalizeRut(entry.rut) === parentRun);
+        const targetBedId = parentMove?.toBedId ?? currentCrib.parentBedId;
+        const source =
+          checkedDiff.pendingAdministrativeDischarges.find(
+            entry => normalizeRut(entry.rut) === run
+          )?.source ??
+          checkedDiff.activeClinicalCribs?.find(
+            crib => normalizeRut(crib.patient.rut) === run
+          )?.source;
+        updates.push({
+          bedId: targetBedId,
+          rut: currentCrib.patient.rut,
+          patientName: currentCrib.patient.patientName,
+          changes: [{
+            field: 'clinicalCrib',
+            from: currentCrib.patient,
+            to: undefined,
+          }],
+          patient: { ...currentCrib.parent, bedId: targetBedId },
+          source,
+        });
+      }
+      const encounterId = row.encounterId ?? currentCrib.patient.clinicalEpisodeId;
+      if (hasRecordedMovement(record, row.run, encounterId)) continue;
+      reportEgresos.push(reportEgresoFromRow({ ...row, encounterId }));
+      continue;
+    }
+    if (hasRecordedMovement(record, row.run, row.encounterId)) continue;
     reportEgresos.push(reportEgresoFromRow(row));
   }
 

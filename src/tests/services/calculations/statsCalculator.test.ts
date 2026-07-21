@@ -92,14 +92,14 @@ describe('statsCalculator', () => {
 
     // R1: 1 Bed + 1 Nested Crib
     // R2: 1 Bed (Cuna mode)
-    // R3: the legacy flag remains a physical-resource fallback until it is migrated.
+    // R3: the retired legacy flag is ignored and cannot inflate current crib occupancy.
 
     expect(stats.occupiedBeds).toBe(3);
     expect(stats.occupiedCribs).toBe(1);
     expect(stats.totalHospitalized).toBe(4);
     expect(stats.clinicalCribsCount).toBe(2); // R1 nested + R2 main
     expect(stats.companionCribs).toBe(0);
-    expect(stats.totalCribsUsed).toBe(3); // R1 nested + R2 main + R3 legacy fallback
+    expect(stats.totalCribsUsed).toBe(2); // R1 nested + R2 main
   });
 
   it('should count empty beds in Cuna mode as crib usage', () => {

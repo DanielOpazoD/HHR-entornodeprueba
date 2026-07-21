@@ -1,7 +1,6 @@
 import {
   resolveBedModeButtonModel,
   resolveClinicalCribButtonModel,
-  resolveCompanionButtonModel,
   resolvePatientBedIndicators,
 } from '@/features/census/controllers/patientBedConfigMenuController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
@@ -38,7 +37,6 @@ export const buildPatientBedConfigCardState = ({
     hasClinicalCrib,
   });
   const bedModeModel = resolveBedModeButtonModel(isCunaMode);
-  const companionModel = resolveCompanionButtonModel(hasCompanion);
   const clinicalCribModel = resolveClinicalCribButtonModel(hasClinicalCrib);
 
   return {
@@ -46,14 +44,11 @@ export const buildPatientBedConfigCardState = ({
     hasPatient,
     indicators,
     bedModeModel,
-    companionModel,
     clinicalCribModel,
     showDaysCounter: !isBlocked && hasPatient && daysHospitalized !== null,
     showIndicators: !isBlocked,
     showMenu: !isBlocked && !readOnly,
     showClinicalCribToggle: !isCunaMode,
     showClinicalCribActions: hasClinicalCrib,
-    // Migration affordance: the old classification is retired, but persisted flags remain clearable.
-    showLegacyCribCleanup: hasCompanion,
   };
 };

@@ -12,19 +12,13 @@ interface PatientBedConfigMenuBindings {
     className: string;
     dotClassName: string;
   };
-  companionModel: {
-    className: string;
-    dotClassName: string;
-  };
   clinicalCribModel: {
     className: string;
     dotClassName: string;
   };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
-  showLegacyCribCleanup: boolean;
   onToggleMode: () => void;
-  onToggleCompanion: () => void;
   onToggleClinicalCrib: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
 }
@@ -67,14 +61,12 @@ interface BuildPatientBedConfigSectionsParams {
       label: string;
     }>;
     bedModeModel: PatientBedConfigMenuBindings['bedModeModel'];
-    companionModel: PatientBedConfigMenuBindings['companionModel'];
     clinicalCribModel: PatientBedConfigMenuBindings['clinicalCribModel'];
     showDaysCounter: boolean;
     showIndicators: boolean;
     showMenu: boolean;
     showClinicalCribToggle: boolean;
     showClinicalCribActions: boolean;
-    showLegacyCribCleanup: boolean;
   };
   handlers: {
     handleToggleMode: () => void;
@@ -100,13 +92,10 @@ export const buildPatientBedConfigSections = ({
   menu: {
     align: props.align || 'top',
     bedModeModel: viewState.bedModeModel,
-    companionModel: viewState.companionModel,
     clinicalCribModel: viewState.clinicalCribModel,
     showClinicalCribToggle: viewState.showClinicalCribToggle,
     showClinicalCribActions: viewState.showClinicalCribActions,
-    showLegacyCribCleanup: viewState.showLegacyCribCleanup,
     onToggleMode: handlers.handleToggleMode,
-    onToggleCompanion: handlers.handleToggleCompanion,
     onToggleClinicalCrib: handlers.handleToggleClinicalCrib,
     onRemoveClinicalCrib: handlers.handleRemoveClinicalCrib,
   },

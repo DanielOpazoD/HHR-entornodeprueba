@@ -96,11 +96,6 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
         resourceCribs++;
       }
 
-      // Preserve physical resource truth for old records until an Eloísa clinical crib replaces it.
-      if (data.hasCompanionCrib && !data.clinicalCrib?.patientName?.trim()) {
-        resourceCribs++;
-      }
-
     }
   });
 
