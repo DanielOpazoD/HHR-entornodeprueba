@@ -8,6 +8,8 @@ export interface CudyrPendingStatus {
   detail: string;
 }
 
+const CUDYR_WAITING_LABEL = 'Programado · turno noche';
+
 const rapaNuiClock = (now: Date): { day: string; minutes: number } => {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -46,7 +48,7 @@ export const resolveCudyrPendingStatus = (
   if (current.day < censusIsoDay || (current.day === censusIsoDay && current.minutes < 20 * 60)) {
     return {
       phase: 'scheduled',
-      label: 'Programado',
+      label: CUDYR_WAITING_LABEL,
       detail: `Aún no corresponde aplicarlo. El CUDYR del ${censusLabel} se completa durante el turno noche y la madrugada del ${applicationLabel}.`,
     };
   }
@@ -56,7 +58,7 @@ export const resolveCudyrPendingStatus = (
   ) {
     return {
       phase: 'application_window',
-      label: 'Pendiente',
+      label: CUDYR_WAITING_LABEL,
       detail: `Turno noche en curso. Se sincronizará cuando el CUDYR sea registrado en Eloísa durante la madrugada del ${applicationLabel}.`,
     };
   }

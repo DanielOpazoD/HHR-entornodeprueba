@@ -247,7 +247,9 @@ describe('ClinicalConflictCenterControl', () => {
     );
 
     const button = screen.getByTestId('conflict-versions-button');
-    expect(button).toHaveAccessibleName('Centro de conflictos clínicos de Censo diario');
+    expect(button).toHaveAccessibleName(
+      'Centro de conflictos clínicos de Censo diario · revisión requerida'
+    );
     expect(button).not.toHaveTextContent('Conflictos');
     expect(button).toHaveTextContent('2');
   });
@@ -267,7 +269,7 @@ describe('ClinicalConflictCenterControl', () => {
 
     const button = screen.getByTestId('conflict-versions-button');
     expect(button).toHaveTextContent('Conflictos HHR');
-    expect(button).toHaveClass('h-[30px]', 'min-w-[96px]', 'border-amber-200');
+    expect(button).toHaveClass('h-[30px]', 'min-w-[96px]', 'border-slate-200');
   });
 
   it('shows anti-rollback impact and disables preserving a version that would remove a later movement', () => {

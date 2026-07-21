@@ -62,6 +62,10 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
   }, [labPatients.length]);
 
   const isDisabled = labPatients.length === 0 || connectionStatus !== 'available';
+  const buttonTone =
+    connectionStatus === 'unavailable' && labPatients.length > 0
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-700';
 
   return (
     <>
@@ -73,7 +77,7 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
         }}
         data-testid="lab-quick-action"
         disabled={isDisabled}
-        className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-default disabled:opacity-50`}
+        className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} ${buttonTone} transition-colors disabled:cursor-default disabled:opacity-60`}
         title={connectionMessage}
         aria-disabled={isDisabled}
       >
