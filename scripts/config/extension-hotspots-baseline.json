@@ -169,6 +169,10 @@
       "maxLines": 158,
       "hotspots": {}
     },
+    "gestion-camas-clinical-cribs.js": {
+      "maxLines": 102,
+      "hotspots": {}
+    },
     "gestion-camas-discharge-report-runtime.js": {
       "maxLines": 42,
       "hotspots": {}

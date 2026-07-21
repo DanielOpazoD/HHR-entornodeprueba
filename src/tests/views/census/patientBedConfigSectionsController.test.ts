@@ -41,10 +41,6 @@ describe('patientBedConfigSectionsController', () => {
           className: 'bed',
           dotClassName: 'dot',
         },
-        companionModel: {
-          className: 'companion',
-          dotClassName: 'companion-dot',
-        },
         clinicalCribModel: {
           className: 'crib',
           dotClassName: 'crib-dot',
@@ -54,6 +50,7 @@ describe('patientBedConfigSectionsController', () => {
         showMenu: true,
         showClinicalCribToggle: true,
         showClinicalCribActions: true,
+        showLegacyCompanionCleanup: true,
       },
       handlers: {
         handleToggleMode: vi.fn(),
@@ -66,6 +63,7 @@ describe('patientBedConfigSectionsController', () => {
     expect(sections.display.bedName).toBe(BEDS[0].name);
     expect(sections.display.daysHospitalized).toBe(3);
     expect(sections.menu.align).toBe('bottom');
+    expect(sections.menu.showLegacyCompanionCleanup).toBe(true);
     expect(sections.extraLocation.shouldRender).toBe(true);
     expect(sections.extraLocation.value).toBe('Sala Norte');
     expect(onTextChange).toHaveBeenCalledWith('location');

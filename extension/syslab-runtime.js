@@ -255,7 +255,7 @@
       if (senderError) return senderError;
       const context = await getClinicalReportContext(encId, null, null, sender);
       if (context.error) return context;
-      const rutBody = labViewer.normalizeRutBody(context.patient && context.patient.run);
+      const rutBody = labViewer.normalizePatientRutBody(context.patient && context.patient.run);
       if (!/^\d{5,9}$/.test(rutBody)) {
         return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
       }

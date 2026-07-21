@@ -27,7 +27,7 @@ importScripts(
   'fichamedico-patient-context.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
-  'gestion-camas-egreso-lookup.js',
+  'gestion-camas-egreso-lookup.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-discharge-report-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
@@ -61,6 +61,7 @@ if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typ
 if (!self.HhrGestionCamasEgresoLookup) {
   throw new Error('No se pudo cargar la política de verificación de egresos.');
 }
+if (!self.HhrGestionCamasClinicalCribs) throw new Error('No se pudo cargar el mapeo de cunas clínicas.');
 if (
   !self.HhrGestionCamasDischargeReportRuntime ||
   typeof self.HhrGestionCamasDischargeReportRuntime.create !== 'function'
@@ -537,7 +538,7 @@ const handleHistoryScalesRequest = async ({ encId }) => {
 };
 
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
-// the active groups already normalized by author; print requests re-fetch the source instead of
+// the active groups already normalized by prescriber and issuance time; print requests re-fetch the source instead of
 // trusting rows sent back by the DOM.
 // Eloisa's history report does not consistently include `is_external`. Read the same active
 // medication endpoint that feeds the on-screen table and reconcile only its stable entry id with
@@ -1095,15 +1096,17 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
   } catch (error) {
     return { error: 'No se pudieron conservar los datos de emisión de la receta oficial: ' + String((error && error.message) || error) };
   }
-  if (!officialMetadata.emissionDateTime) {
-    return { error: 'La receta oficial no informó su fecha y hora de emisión.' };
-  }
   const group = selectedGroup;
+  const groupDateTime = [group.printDateTime, group.validationDateTime].find(Boolean);
+  const emissionDateTime = self.HhrPrescriptionPrint.resolvePrescriptionEmissionDateTime(
+    group, officialMetadata.emissionDateTime
+  );
+  if (!emissionDateTime) return { error: 'La receta no informó su fecha y hora de emisión.' };
   if (group.medications.length === 0) return { error: 'No se encontraron fármacos activos.' };
   const context = await getClinicalReportContext(
     encId,
     infoResult.info,
-    group.printDateTime || group.validationDateTime
+    groupDateTime
   );
   if (context.error) return context;
   let buffer;
@@ -1116,7 +1119,7 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
       validationDate: group.printDate || group.validationDate,
       validationDateTime: group.printDateTime || group.validationDateTime,
       dateSource: group.printDateSource || 'validation',
-      emissionDateTime: officialMetadata.emissionDateTime,
+      emissionDateTime: self.HhrPrescriptionPrint.formatDateTimeLabel(emissionDateTime),
       folio: '',
       printFormat: format,
       isExternalPrescription: Boolean(group.external),
@@ -1128,7 +1131,8 @@ const handlePrescriptionPrintRequest = async ({ encId, selectionKey, printFormat
     buffer,
     filename: self.HhrPrescriptionPrint.buildPrescriptionFilename(
       encId,
-      group.external ? 'externa-' + group.medication + '-' + group.professional : group.professional,
+      group.external ? 'externa-' + group.medication + '-' + group.professional :
+        group.professional + '-' + emissionDateTime,
       format
     ),
   });
@@ -1175,7 +1179,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    () => handleSnapshotRequest(),
+    () => self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout),
     'No se pudo leer el censo de Ficha Médico.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(

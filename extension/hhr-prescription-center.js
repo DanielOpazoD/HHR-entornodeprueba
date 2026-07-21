@@ -282,7 +282,7 @@
               helper.formatDateTimeLabel(group.printDateTime || group.validationDateTime) ||
               helper.formatDateLabel(group.printDate || group.validationDate);
             const printDateLabel =
-              group.printDateSource === 'indication' ? 'última indicación ' : 'última validación ';
+              group.printDateSource === 'indication' ? 'emisión ' : 'última validación ';
             const identityReady = Boolean(group.prescriberVerified && group.professionalRun);
             const dateReady = Boolean(printDateTime);
             addOption({
@@ -302,7 +302,7 @@
           });
           const professionalTitle = document.createElement('div');
           professionalTitle.className = 'hhr-rx-format-title';
-          professionalTitle.textContent = 'Recetas por prescriptor';
+          professionalTitle.textContent = 'Recetas por fecha y hora de emisión';
           list.appendChild(professionalTitle);
         }
         groups.forEach(group => {
@@ -311,7 +311,7 @@
             helper.formatDateTimeLabel(group.printDateTime || group.validationDateTime) ||
             helper.formatDateLabel(group.printDate || group.validationDate);
           const printDateLabel =
-            group.printDateSource === 'indication' ? 'última indicación ' : 'última validación ';
+            group.printDateSource === 'indication' ? 'emisión ' : 'última validación ';
           const identityReady = Boolean(group.prescriberVerified && group.professionalRun);
           const dateReady = Boolean(printDateTime);
           addOption({

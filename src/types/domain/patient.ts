@@ -54,7 +54,8 @@ export interface PatientData {
 
   // Dynamic Furniture Configuration
   bedMode: 'Cama' | 'Cuna'; // Defines if the physical spot is set up as a Bed or a Crib (Census relevant)
-  hasCompanionCrib: boolean; // Defines if there is an EXTRA crib for a healthy RN (Resource relevant)
+  /** @deprecated Legacy RN-sano flag. Kept only to read older records; new RNs use clinicalCrib. */
+  hasCompanionCrib: boolean;
 
   // Nested Patient Data for Clinical Crib (Sick Newborn sharing room with Mother)
   clinicalCrib?: PatientData;

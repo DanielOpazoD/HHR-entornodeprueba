@@ -11,32 +11,29 @@ interface PatientBedConfigMenuPanelProps {
     className: string;
     dotClassName: string;
   };
-  companionModel: {
-    className: string;
-    dotClassName: string;
-  };
   clinicalCribModel: {
     className: string;
     dotClassName: string;
   };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
+  showLegacyCompanionCleanup: boolean;
   onToggleMode: () => void;
-  onToggleCompanion: () => void;
   onToggleClinicalCrib: () => void;
+  onClearLegacyCompanion: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
 }
 
 export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps> = ({
   align,
   bedModeModel,
-  companionModel,
   clinicalCribModel,
   showClinicalCribToggle,
   showClinicalCribActions,
+  showLegacyCompanionCleanup,
   onToggleMode,
-  onToggleCompanion,
   onToggleClinicalCrib,
+  onClearLegacyCompanion,
   onRemoveClinicalCrib,
 }) => (
   <div
@@ -59,13 +56,12 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         <div className={bedModeModel.dotClassName} />
       </button>
 
-      <button onClick={onToggleCompanion} className={companionModel.className}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">🤱</span>
-          <span>RN Sano</span>
-        </div>
-        <div className={companionModel.dotClassName} />
-      </button>
+      {showLegacyCompanionCleanup && (
+        <button onClick={onClearLegacyCompanion} className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+          <span>Quitar dato RN sano antiguo</span>
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
 
       {showClinicalCribToggle && (
         <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>

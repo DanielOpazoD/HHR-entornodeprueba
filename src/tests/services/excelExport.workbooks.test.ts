@@ -141,7 +141,8 @@ describe('censusRawWorkbook', () => {
     });
 
     it('exports detailed UPC classification in raw rows when checklist data exists', async () => {
-      const { extractRowsFromRecord } = await import('@/services/exporters/censusRawWorkbook');
+      const { extractRowsFromRecord, getCensusRawHeader } =
+        await import('@/services/exporters/censusRawWorkbook');
 
       const bedId = 'R1';
       const mockRecord = {
@@ -161,11 +162,12 @@ describe('censusRawWorkbook', () => {
 
       const rows = extractRowsFromRecord(mockRecord);
 
-      expect(rows[0]?.[23]).toBe('UPC-UCI');
+      expect(rows[0]?.[getCensusRawHeader().indexOf('UPC')]).toBe('UPC-UCI');
     });
 
     it('treats mixed UCI + UTI criteria as UPC-UCI in raw export even if the stored field is stale', async () => {
-      const { extractRowsFromRecord } = await import('@/services/exporters/censusRawWorkbook');
+      const { extractRowsFromRecord, getCensusRawHeader } =
+        await import('@/services/exporters/censusRawWorkbook');
 
       const bedId = 'R1';
       const mockRecord = {
@@ -190,7 +192,7 @@ describe('censusRawWorkbook', () => {
 
       const rows = extractRowsFromRecord(mockRecord);
 
-      expect(rows[0]?.[23]).toBe('UPC-UCI');
+      expect(rows[0]?.[getCensusRawHeader().indexOf('UPC')]).toBe('UPC-UCI');
     });
 
     it('exports canonical vacancy labels in the raw nurses column', async () => {

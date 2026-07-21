@@ -110,7 +110,7 @@ describe('extension prescription print content flow', () => {
             },
             groups: [
               {
-                key: 'professional:elena-diaz',
+                key: 'professional:elena-diaz-emission-1784124600000',
                 professional: 'Elena Díaz',
                 professionalRun: '17.752.753-K',
                 prescriberVerified: true,
@@ -120,7 +120,7 @@ describe('extension prescription print content flow', () => {
                 validationDateTime: '15-07-2026 08:10',
               },
               {
-                key: 'professional-run:189809670',
+                key: 'professional-run:189809670-emission-2026-07-14t09-40-00-06-00',
                 professional: 'Antonio Hernández',
                 professionalRun: '18.980.967-0',
                 prescriberVerified: true,
@@ -208,12 +208,13 @@ describe('extension prescription print content flow', () => {
     expect(externalOption).not.toBeNull();
     expect(externalOption?.disabled).toBe(false);
     expect(externalOption?.closest('label')?.textContent).toContain('Externa · Mometasona');
-    expect(externalOption?.closest('label')?.textContent).toContain('última indicación');
+    expect(externalOption?.closest('label')?.textContent).toContain('emisión');
     const antonioOption = document.querySelector<HTMLInputElement>(
-      'input[value="professional-run:189809670"]'
+      'input[value="professional-run:189809670-emission-2026-07-14t09-40-00-06-00"]'
     );
     expect(antonioOption?.disabled).toBe(false);
-    expect(antonioOption?.closest('label')?.textContent).toContain('última indicación');
+    expect(antonioOption?.closest('label')?.textContent).toContain('Antonio Hernández');
+    expect(antonioOption?.closest('label')?.textContent).toContain('emisión 14-07-2026 09:40');
     const completeOption = document.querySelector<HTMLInputElement>('input[value="complete"]');
     expect(completeOption?.closest('label')?.textContent).toContain('incluye 1 receta externa');
     firstPrint.click();

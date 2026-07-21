@@ -83,6 +83,8 @@ export interface MappedPatient {
   patient: PatientData;
   /** True when the encounter comes from the CMA virtual service. */
   isCma: boolean;
+  /** True when this encounter occupies a crib attached to `bedId`. */
+  isClinicalCrib: boolean;
   /** Resolved HHR bedId, or null if the Rayen location could not be mapped. */
   bedId: string | null;
 }
@@ -91,10 +93,11 @@ export const rayenToPatientData = (
   encounter: RayenEncounter,
   reference: Date = new Date()
 ): MappedPatient => {
-  const { bedId, isCma } = mapRayenBed({
+  const { bedId, isCma, isClinicalCrib } = mapRayenBed({
     room: encounter.room,
     bed: encounter.bed,
     service: encounter.service,
+    clinicalCribParentBedId: encounter.clinicalCribParentBedId,
   });
 
   const givenNames = toTitleCaseName(
@@ -133,7 +136,9 @@ export const rayenToPatientData = (
     // Aislamiento (precaución de contacto/gotitas/aéreo): Ficha Médico lo marca por paciente.
     isIsolated: !!encounter.isIsolated,
     location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
+    bedMode: isClinicalCrib ? 'Cuna' : EMPTY_PATIENT.bedMode,
+    hasCompanionCrib: false,
   };
 
-  return { patient, isCma, bedId };
+  return { patient, isCma, isClinicalCrib, bedId };
 };

@@ -96,7 +96,7 @@ describe('patientRowBedConfigRuntimeController', () => {
             expect(result.error.code).toBe('COMPANION_NOT_ALLOWED_IN_CUNA');
         }
         expect(alert).toHaveBeenCalledWith(
-            expect.stringContaining('No se puede agregar'),
+            expect.stringContaining('configuración neonatal heredada'),
             'Acción no permitida'
         );
     });
@@ -123,6 +123,26 @@ describe('patientRowBedConfigRuntimeController', () => {
         const result = await executeToggleCompanionCribController({
             bedId: 'R1',
             isCunaMode: false,
+            hasCompanion: true,
+            actions: { updatePatient },
+            dialogs: { alert: vi.fn() }
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            value: {
+                outcome: 'updated',
+                nextValue: false
+            }
+        });
+        expect(updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', false);
+    });
+
+    it('clears a persisted companion crib mark in Cuna mode', async () => {
+        const updatePatient = vi.fn();
+        const result = await executeToggleCompanionCribController({
+            bedId: 'R1',
+            isCunaMode: true,
             hasCompanion: true,
             actions: { updatePatient },
             dialogs: { alert: vi.fn() }

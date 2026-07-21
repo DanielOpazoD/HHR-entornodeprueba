@@ -13,7 +13,7 @@ import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
  * @property {number} occupiedBeds - Main patients (Bed or Cuna mode)
  * @property {number} occupiedCribs - Nested patients only (internal count)
  * @property {number} clinicalCribsCount - Display count: Main(Cuna) + Nested
- * @property {number} companionCribs - RN Sano (healthy newborn) count
+ * @property {number} companionCribs - Legacy RN-sano occupancy retained for old records
  * @property {number} totalCribsUsed - Physical crib resources being used
  * @property {number} totalHospitalized - Total patient count (main + nested)
  * @property {number} blockedBeds - Number of blocked/unavailable beds
@@ -24,7 +24,7 @@ export interface CensusStatistics {
   occupiedBeds: number; // Main patients (Bed or Cuna mode)
   occupiedCribs: number; // Nested patients only (internal)
   clinicalCribsCount: number; // Display: Main(Cuna) + Nested
-  companionCribs: number; // RN Sano count
+  companionCribs: number; // Legacy RN-sano occupancy retained for old records
   totalCribsUsed: number; // Physical crib count
   totalHospitalized: number; // Total patients
   blockedBeds: number; // Blocked beds
@@ -97,11 +97,13 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
         resourceCribs++;
       }
 
-      // D) Companion Crib (RN Sano)
-      if (data.hasCompanionCrib) {
+      // Legacy read compatibility: new RN-sano assignments are disabled, but persisted flags
+      // remain countable until an explicit data migration converts or clears them.
+      if (data.hasCompanionCrib && !data.clinicalCrib?.patientName) {
         companionCribs++;
         resourceCribs++;
       }
+
     }
   });
 

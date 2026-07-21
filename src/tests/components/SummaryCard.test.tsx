@@ -39,12 +39,11 @@ describe('SummaryCard Components', () => {
   });
 
   describe('CribSummaryCard', () => {
-    it('renders crib statistics correctly', () => {
+    it('renders only clinical-crib statistics', () => {
       render(<CribSummaryCard stats={mockStats} />);
       expect(screen.getByText('Recursos Cuna')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument(); // Clinical
-      expect(screen.getByText('3')).toBeInTheDocument(); // Companion
-      expect(screen.getByText('8')).toBeInTheDocument(); // Total
+      expect(screen.queryByText('RN sano')).not.toBeInTheDocument();
     });
   });
 

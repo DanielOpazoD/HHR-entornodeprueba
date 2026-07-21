@@ -94,8 +94,8 @@ describe('PatientRow crib and demographics', () => {
     expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'bedMode', 'Cuna');
   });
 
-  it('toggles companion crib when RN Sano button is clicked', () => {
-    const { mockContext } = render(
+  it('does not offer the retired RN Sano classification', () => {
+    render(
       <table>
         <tbody>
           <PatientRow
@@ -110,9 +110,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/^RN Sano$/i));
-
-    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', true);
+    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
   });
 
   it('toggles clinical crib when Cuna Clínica button is clicked', () => {
@@ -208,7 +206,7 @@ describe('PatientRow crib and demographics', () => {
     expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
   });
 
-  it('does not allow companion crib if in Cuna mode', async () => {
+  it('does not expose the retired companion-crib action in Cuna mode', () => {
     const cunaPatient = { ...mockPatient, bedMode: 'Cuna' as const };
 
     const { mockContext } = render(
@@ -226,9 +224,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/^RN Sano$/i));
-
-    expect(mockAlert).toHaveBeenCalled();
+    expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
     expect(mockContext.updatePatient).not.toHaveBeenCalledWith('R1', 'hasCompanionCrib', true);
   });
 

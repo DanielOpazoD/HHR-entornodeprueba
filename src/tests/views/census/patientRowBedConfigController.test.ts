@@ -58,6 +58,21 @@ describe('patientRowBedConfigController', () => {
         });
     });
 
+    it('allows clearing a persisted companion crib mark in Cuna mode', () => {
+        const result = resolveToggleCompanionCribCommand({
+            isCunaMode: true,
+            hasCompanion: true
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            value: {
+                kind: 'toggleCompanion',
+                nextValue: false
+            }
+        });
+    });
+
     it('resolves clinical crib action based on current state', () => {
         expect(resolveToggleClinicalCribCommand({ hasClinicalCrib: false })).toEqual({
             kind: 'toggleClinicalCrib',
