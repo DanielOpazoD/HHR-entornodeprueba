@@ -7,7 +7,7 @@ export interface PatientBedIndicatorsParams {
 }
 
 export interface PatientBedIndicator {
-  key: 'cuna' | 'rn' | 'cc';
+  key: 'cuna' | 'cc';
   label: string;
   title?: string;
   className: string;
@@ -15,7 +15,7 @@ export interface PatientBedIndicator {
 
 export const resolvePatientBedIndicators = ({
   isCunaMode,
-  hasCompanion,
+  hasCompanion: _hasCompanion,
   hasClinicalCrib,
 }: PatientBedIndicatorsParams): PatientBedIndicator[] => {
   const indicators: PatientBedIndicator[] = [];
@@ -26,16 +26,6 @@ export const resolvePatientBedIndicators = ({
       label: 'CUNA',
       className:
         'text-[8px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200',
-    });
-  }
-
-  if (hasCompanion) {
-    indicators.push({
-      key: 'rn',
-      label: 'RN',
-      title: 'RN Sano',
-      className:
-        'text-[8px] bg-emerald-100 text-emerald-700 font-bold px-1 rounded-sm border border-emerald-200',
     });
   }
 

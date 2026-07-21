@@ -34,6 +34,11 @@ export interface RayenEncounter {
   room?: string;
   /** Bed short name — Rayen `bedShortName` (e.g. "C2", "R1", "CMAR1"). */
   bed?: string;
+  /**
+   * HHR parent bed for an occupied physical crib, verified against Gestion de Camas `/beds`.
+   * The newborn is represented as `beds[parent].clinicalCrib`, never as an independent HHR bed.
+   */
+  clinicalCribParentBedId?: string;
   /** Admission datetime — Rayen `encStartPeriod` (ISO). */
   admissionDatetime?: string;
   /** Admission diagnosis text — Rayen `haoDiagName` / `diagnosisName`. */

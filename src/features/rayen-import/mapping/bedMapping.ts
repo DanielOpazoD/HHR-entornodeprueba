@@ -17,13 +17,15 @@
  */
 
 /** Reason the bed was resolved — useful for diagnostics and preview UI. */
-export type BedMatchKind = 'general' | 'recovery' | 'neo' | 'none';
+export type BedMatchKind = 'general' | 'recovery' | 'neo' | 'clinical-crib' | 'none';
 
 export interface BedMappingResult {
   /** HHR `bedId`, or `null` if the location could not be mapped. */
   bedId: string | null;
   /** True when the source is the CMA (ambulatory surgery) virtual service. */
   isCma: boolean;
+  /** True when the source location is an attached newborn crib. `bedId` is its parent HHR bed. */
+  isClinicalCrib: boolean;
   /** How the mapping was resolved. */
   matchedBy: BedMatchKind;
 }
@@ -69,7 +71,14 @@ export interface RayenBedLocation {
   room?: string;
   bed?: string;
   service?: string;
+  clinicalCribParentBedId?: string;
 }
+
+export const CLINICAL_CRIB_PARENT_BEDS = new Set([
+  'R1', 'R2', 'R3', 'R4',
+  'H4C1', 'H4C2', 'H5C1', 'H5C2', 'H6C1', 'H6C2',
+  'NEO1', 'NEO2',
+]);
 
 export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const roomRaw = normalize(location.room);
@@ -79,6 +88,11 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const isCma =
     isCmaBedLabel(location.room) || isCmaBedLabel(location.bed) || isCmaService(serviceNorm);
 
+  const verifiedCribParent = normalize(location.clinicalCribParentBedId);
+  const clinicalCribParent = CLINICAL_CRIB_PARENT_BEDS.has(verifiedCribParent)
+    ? verifiedCribParent
+    : null;
+
   // Strip the CMA prefix so the underlying physical bed can be matched.
   const room = roomRaw.replace(/^CMA/, '');
   const bed = bedRaw.replace(/^CMA/, '');
@@ -86,13 +100,21 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const fail = (matchedBy: BedMatchKind = 'none'): BedMappingResult => ({
     bedId: null,
     isCma,
+    isClinicalCrib: false,
     matchedBy,
   });
-  const ok = (bedId: string, matchedBy: BedMatchKind): BedMappingResult => ({
+  const ok = (
+    bedId: string,
+    matchedBy: BedMatchKind,
+    isClinicalCrib = false
+  ): BedMappingResult => ({
     bedId,
     isCma,
+    isClinicalCrib,
     matchedBy,
   });
+
+  if (clinicalCribParent) return ok(clinicalCribParent, 'clinical-crib', true);
 
   // Recovery / UTI: R1–R4 (bed code "R1", room "Rk" or "Recuperacion k").
   let m = /^R([1-4])$/.exec(bed) || /^R([1-4])$/.exec(room) || /RECUPERACION0*([1-4])$/.exec(room);

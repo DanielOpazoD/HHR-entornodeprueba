@@ -40,6 +40,8 @@ export interface EgresoReportRow {
  */
 export interface ReportEgreso {
   run: string;
+  /** Exact hospitalization when the per-patient authority lookup supplied it. */
+  encounterId?: string;
   patientName: string;
   bedLabel: string;
   destino: string;

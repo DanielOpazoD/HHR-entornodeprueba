@@ -178,6 +178,7 @@ export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     pathology: egreso.diagnostico ?? '',
     specialty: egreso.servicio ?? '',
     age: egreso.edad ?? undefined,
+    clinicalEpisodeId: egreso.encounterId,
   }) as unknown as PatientData;
 
 export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({

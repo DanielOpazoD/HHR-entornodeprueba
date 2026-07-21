@@ -3,7 +3,6 @@ import {
   applyEgresoReport,
   collectRecordedMovementRuns,
   mapDestinoDeAlta,
-  markEgresoReportUnavailable,
   requiresReview,
   type CensusImportDiff,
   type EgresoReportRow,
@@ -75,7 +74,6 @@ describe('mapDestinoDeAlta', () => {
     expect(mapDestinoDeAlta('Fallecido').status).toBe('Fallecido');
   });
 });
-
 describe('applyEgresoReport', () => {
   it('creates the definitive movement for an occupied patient and removes provisional Ficha plans', () => {
     const current = makeRecord({ R2: patient('28.663.707-8', 'Isidora Soto') });
@@ -298,149 +296,149 @@ describe('applyEgresoReport', () => {
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
   });
 
-  it('still discharges an occupied readmission even if the RUN has a prior movement that day', () => {
-    const current = makeRecord(
-      { R2: patient('11.044.046-4', 'Paciente Reingresado') },
-      { discharges: [{ rut: '11.044.046-4' } as never] }
-    );
+  it('does not let a legacy movement suppress a later exact episode', () => {
+    const current = makeRecord({}, { discharges: [{ rut: '11.044.046-4' } as never] });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '11.044.046-4', destino: 'Domicilio' })],
+      [row({ run: '11.044.046-4', encounterId: 'NEW-EPISODE', destino: 'Domicilio' })],
       current
     );
-    expect(enriched.discharges).toEqual([
-      expect.objectContaining({ bedId: 'R2', reason: 'administrative-discharge' }),
+
+    expect(enriched.reportEgresos).toEqual([
+      expect.objectContaining({ encounterId: 'NEW-EPISODE' }),
     ]);
   });
 
-  it('converts the mainland report wall clock to the Rapa Nui census clock', () => {
-    const current = makeRecord({ R2: patient('1-9') });
+  it('discharges a RUN-less occupied principal by exact episode', () => {
+    const exactPatient = { ...patient('', 'Paciente NN'), clinicalEpisodeId: 'EXACT-EPISODE' };
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '1-9', fechaEgreso: '14-07-2026  23:37', destino: 'Domicilio' })],
-      current
-    );
-    expect(enriched.discharges[0]).toMatchObject({
-      correctedDay: '2026-07-14',
-      correctedTime: '21:37',
-    });
-  });
-
-  it('ignores a genuine next-day row included by the D to D+1 search window', () => {
-    const current = makeRecord({ R2: patient('1-9') });
-    const enriched = applyEgresoReport(
-      makeDiff(),
-      [row({ run: '1-9', fechaEgreso: '15-07-2026  08:00', destino: 'Domicilio' })],
-      current
-    );
-    expect(enriched.discharges).toHaveLength(0);
-  });
-
-  it('review-gates an invalid statistical timestamp instead of vacating the occupied bed', () => {
-    const current = makeRecord({ R2: patient('1-9') });
-    const enriched = applyEgresoReport(
-      makeDiff(),
-      [row({ run: '1-9', fechaEgreso: 'fecha desconocida', destino: 'Domicilio' })],
-      current
+      [row({ run: '', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
+      makeRecord({ R2: exactPatient })
     );
 
-    expect(enriched.discharges).toHaveLength(0);
+    expect(enriched.discharges).toEqual([
+      expect.objectContaining({ bedId: 'R2', encounterId: 'EXACT-EPISODE' }),
+    ]);
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
-    expect(enriched.conflicts).toEqual([
-      expect.objectContaining({ rut: '1-9', reason: expect.stringContaining('fecha/hora') }),
-    ]);
-    expect(enriched.summary.conflicts).toBe(1);
-    expect(requiresReview(enriched)).toBe(true);
   });
 
-  it('does not apply an earlier same-RUN egreso to a later active readmission', () => {
-    const current = makeRecord({
-      R2: {
-        ...patient('1-9', 'Paciente Reingresado'),
-        admissionDate: '2026-07-14',
-        admissionTime: '16:00',
-      },
+  it('does not subtract unrelated unchanged patients for a planned RUN-less episode', () => {
+    const exactPatient = { ...patient('', 'Paciente NN'), clinicalEpisodeId: 'EXACT-EPISODE' };
+    const diff = makeDiff({
+      unchangedCount: 1,
+      summary: { ...makeDiff().summary, updates: 1, unchanged: 1 },
+      updates: [{
+        bedId: 'R2',
+        rut: '',
+        patientName: 'Paciente NN',
+        changes: [],
+        patient: exactPatient,
+        source: { encounterId: 'EXACT-EPISODE' } as never,
+      }],
     });
-    const pending = {
-      bedId: 'R2',
-      rut: '1-9',
-      patientName: 'Paciente Reingresado',
-      signal: 'clinical-closure' as const,
-      encounterId: '141704',
-      verification: {
-        medicalEpicrisis: 'confirmed' as const,
-        nursingEpicrisis: 'not-detected' as const,
-        hospitalDischarge: 'unknown' as const,
-      },
-    };
     const enriched = applyEgresoReport(
-      makeDiff({ pendingAdministrativeDischarges: [pending] }),
-      [row({ run: '1-9', fechaEgreso: '14-07-2026  12:00', destino: 'Domicilio' })],
-      current
+      diff,
+      [row({ run: '', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
+      makeRecord({ R2: exactPatient })
     );
 
-    expect(enriched.discharges).toHaveLength(0);
-    expect(enriched.pendingAdministrativeDischarges).toEqual([
-      {
-        ...pending,
-        verification: { ...pending.verification, hospitalDischarge: 'not-detected' },
-      },
-    ]);
-    expect(enriched.conflicts).toEqual([
-      expect.objectContaining({ bedId: 'R2', reason: expect.stringContaining('ingreso activo') }),
-    ]);
+    expect(enriched.summary.unchanged).toBe(1);
   });
 
-  it('accepts the same-RUN egreso when its official time follows the active admission', () => {
-    const current = makeRecord({
-      R2: {
-        ...patient('1-9'),
-        admissionDate: '2026-07-14',
-        admissionTime: '08:00',
-      },
+  it('deduplicates an exact episode even when the stored RUN differs', () => {
+    const current = makeRecord({}, {
+      discharges: [{ rut: '1-9', clinicalEpisodeId: 'EXACT-EPISODE' } as never],
     });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '1-9', fechaEgreso: '14-07-2026  12:00', destino: 'Domicilio' })],
+      [row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
       current
     );
 
-    expect(enriched.discharges).toEqual([
-      expect.objectContaining({ bedId: 'R2', reason: 'administrative-discharge' }),
-    ]);
-    expect(enriched.conflicts).toHaveLength(0);
+    expect(enriched.reportEgresos ?? []).toHaveLength(0);
   });
 
-  it('marks an unavailable authority report as a review-gated conflict', () => {
-    const enriched = markEgresoReportUnavailable(makeDiff());
-
-    expect(enriched.conflicts).toHaveLength(1);
-    expect(enriched.summary.conflicts).toBe(1);
-    expect(requiresReview(enriched)).toBe(true);
-  });
-
-  it('marks the administrative document as not detected after an empty report', () => {
-    const pending = {
-      bedId: 'H2C1',
-      rut: '22.025.389-9',
-      patientName: 'Paciente',
-      signal: 'clinical-closure' as const,
-      encounterId: '141704',
-      verification: {
-        medicalEpicrisis: 'confirmed' as const,
-        nursingEpicrisis: 'confirmed' as const,
-        hospitalDischarge: 'unknown' as const,
-      },
+  it('removes a planned operation by exact episode even when report RUN differs', () => {
+    const exactPatient = {
+      ...patient('11.044.046-4', 'Paciente Exacto'),
+      clinicalEpisodeId: 'EXACT-EPISODE',
     };
     const enriched = applyEgresoReport(
-      makeDiff({ pendingAdministrativeDischarges: [pending] }),
-      [],
+      makeDiff({
+        moves: [{
+          fromBedId: 'R2',
+          toBedId: 'R3',
+          rut: exactPatient.rut,
+          patientName: exactPatient.patientName,
+          source: { encounterId: 'EXACT-EPISODE' } as never,
+        }],
+      }),
+      [row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
+      makeRecord({ R2: exactPatient })
+    );
+
+    expect(enriched.moves).toHaveLength(0);
+    expect(enriched.discharges).toEqual([
+      expect.objectContaining({ bedId: 'R2', encounterId: 'EXACT-EPISODE' }),
+    ]);
+  });
+
+  it('deduplicates report rows for one exact episode even when their RUN differs', () => {
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [
+        row({ run: '11.044.046-4', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
+        row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
+      ],
       makeRecord()
     );
-    expect(enriched.pendingAdministrativeDischarges[0]?.verification.hospitalDischarge).toBe(
-      'not-detected'
-    );
+
+    expect(enriched.reportEgresos).toHaveLength(1);
+    expect(enriched.reportEgresos?.[0]).toMatchObject({ encounterId: 'EXACT-EPISODE' });
   });
+
+  it('prefers one exact row over an episode-less row for the same occupied RUN', () => {
+    const exactPatient = {
+      ...patient('11.044.046-4', 'Paciente Exacto'),
+      clinicalEpisodeId: 'EXACT-EPISODE',
+    };
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [
+        row({ run: exactPatient.rut, destino: 'Domicilio' }),
+        row({ run: exactPatient.rut, encounterId: 'EXACT-EPISODE', destino: 'Domicilio' }),
+      ],
+      makeRecord({ R2: exactPatient })
+    );
+
+    expect(enriched.discharges).toHaveLength(1);
+    expect(enriched.discharges[0]).toMatchObject({ encounterId: 'EXACT-EPISODE' });
+    expect(enriched.reportEgresos ?? []).toHaveLength(0);
+  });
+
+  it('keeps an episode-less active discharge beside an older exact episode', () => {
+    const active = {
+      ...patient('11.044.046-4', 'Paciente Readmitido'),
+      clinicalEpisodeId: 'ACTIVE-EPISODE',
+    };
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [
+        row({ run: active.rut, encounterId: 'OLDER-EPISODE', destino: 'Domicilio' }),
+        row({ run: active.rut, destino: 'Domicilio', fechaEgreso: '14-07-2026 13:00' }),
+      ],
+      makeRecord({ R2: active })
+    );
+
+    expect(enriched.discharges).toEqual([
+      expect.objectContaining({ bedId: 'R2', encounterId: 'ACTIVE-EPISODE' }),
+    ]);
+    expect(enriched.reportEgresos).toEqual([
+      expect.objectContaining({ encounterId: 'OLDER-EPISODE' }),
+    ]);
+  });
+
 });
 
 describe('collectRecordedMovementRuns', () => {

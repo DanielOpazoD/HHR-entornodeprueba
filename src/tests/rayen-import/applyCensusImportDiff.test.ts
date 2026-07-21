@@ -105,6 +105,37 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds[bedId].handoffNote).toBe('nota clínica');
   });
 
+  it('applies an occupied attached crib as the principal bed clinicalCrib', () => {
+    const mother = makeEncounter({ encounterId: 'MOTHER', room: 'H5', bed: 'C1' });
+    const [bedId, parent] = seedBed(mother);
+    const newborn = makeEncounter({
+      encounterId: 'NEWBORN',
+      run: '222222222',
+      firstGivenName: 'Bebe',
+      firstFamilyName: 'Perez',
+      birthDate: '2026-07-08',
+      room: 'Cunas',
+      bed: 'CH5C1',
+      clinicalCribParentBedId: 'H5C1',
+    });
+
+    const result = planAndApply(
+      makeRecord({ [bedId]: parent }),
+      snapshotOf([mother, newborn])
+    );
+
+    expect(result.applied.updates).toBe(1);
+    expect(result.record.beds.H5C1).toMatchObject({
+      clinicalEpisodeId: 'MOTHER',
+      clinicalCrib: {
+        patientName: 'Bebe Perez',
+        clinicalEpisodeId: 'NEWBORN',
+        bedMode: 'Cuna',
+      },
+    });
+    expect(result.record.beds.CH5C1).toBeUndefined();
+  });
+
   it('applies a move, freeing the source bed', () => {
     const [, patient] = seedBed(makeEncounter());
     const result = planAndApply(
