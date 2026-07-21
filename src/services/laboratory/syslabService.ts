@@ -2,9 +2,9 @@
  * @module syslabService
  * @description Client-side service for the Syslab laboratory API.
  *
- * In development, communicates directly with the Express proxy server
- * (API-laboratorioHHR) that runs on the hospital LAN and scrapes the
- * Syslab web portal via Playwright.
+ * For patients in the HHR census, uses the Eloísa extension session and its
+ * existing episode-bound Syslab runtime. Direct Express/Netlify access is a
+ * legacy compatibility path and must be configured explicitly.
  *
  * In production (Netlify), calls the `syslab-proxy` Netlify Function
  * which forwards requests server-side to the Express proxy exposed via
@@ -21,6 +21,12 @@
 
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import {
+  fetchSyslabDetailsThroughExtension,
+  isSyslabExtensionLink,
+  requestSyslabExtensionStatus,
+  searchSyslabThroughExtension,
+} from './syslabExtensionBridge';
 import type { SyslabSearchResponse, SyslabDetailsResponse } from '@/types/domain/labExamTypes';
 
 const syslabLogger = createScopedLogger('syslabService');
@@ -41,9 +47,13 @@ const isNetlifyDevRuntime = (): boolean =>
 /** True when requests should go through the Netlify Function proxy. */
 const shouldUseNetlifyProxy = (): boolean => import.meta.env.PROD || isNetlifyDevRuntime();
 
-/** Return the Syslab Express server base URL from env or default. */
-export const getSyslabBaseUrl = (): string =>
-  import.meta.env.VITE_SYSLAB_API_URL || 'http://localhost:3000';
+/** Return the explicitly configured legacy Syslab Express proxy URL. */
+export const getSyslabBaseUrl = (): string => {
+  const configured = import.meta.env.VITE_SYSLAB_API_URL;
+  return typeof configured === 'string' && configured !== 'undefined' && configured !== 'null'
+    ? configured.trim()
+    : '';
+};
 
 const buildSyslabProxyUrl = (query: string): string => `/.netlify/functions/syslab-proxy${query}`;
 
@@ -72,6 +82,45 @@ const shouldSkipPlainViteLocalHealthCheck = (url: string): boolean =>
   isPlainViteLocalRuntime() &&
   isCrossOriginLocalhostUrl(url) &&
   import.meta.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL !== 'true';
+
+const directWebTransportConfigured = (): boolean =>
+  shouldUseNetlifyProxy() || Boolean(getSyslabBaseUrl());
+
+const DIRECT_WEB_UNAVAILABLE_MESSAGE =
+  'El acceso web directo a Syslab no está configurado. Activa la extensión Eloísa, recarga HHR y vuelve a intentar.';
+
+const classifyHtmlResponse = (body: string, response: Response): Error => {
+  const text = body.toLowerCase();
+  if (
+    response.redirected ||
+    /(?:login|iniciar\s+sesión|usuario|contrase(?:ñ|n)a)/i.test(text.slice(0, 12_000))
+  ) {
+    return new Error(
+      'Syslab solicitó iniciar sesión. Conéctalo desde el módulo Laboratorio de la extensión Eloísa y vuelve a intentar.'
+    );
+  }
+  return new Error(
+    'Syslab respondió con una página web en vez de datos. Usa el acceso LAB mediante la extensión Eloísa.'
+  );
+};
+
+const readSyslabJson = async <T>(response: Response): Promise<T> => {
+  const contentType = response.headers?.get?.('content-type')?.toLowerCase() || '';
+  if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
+    return Promise.reject(classifyHtmlResponse(await response.text(), response));
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError && /unexpected token\s*[<']|not valid json/i.test(error.message)) {
+      throw new Error(
+        'Syslab respondió con un formato inesperado. Comprueba la extensión Eloísa y vuelve a intentar.'
+      );
+    }
+    throw error;
+  }
+};
 
 /**
  * Strip a Chilean RUT to its numeric body only (no dots, dash, or check digit).
@@ -111,9 +160,14 @@ const fetchWithRetry = async (
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(error => {
+        const errorData = await readSyslabJson<{ error?: string }>(response).catch(error => {
           syslabLogger.warn('Failed to parse Syslab error response body', error);
-          return { error: 'Error de conexión' };
+          return {
+            error:
+              error instanceof Error && error.message.startsWith('Syslab ')
+                ? error.message
+                : 'Error de conexión',
+          };
         });
         throw new Error(errorData.error || `Error ${response.status}`);
       }
@@ -138,6 +192,22 @@ const fetchWithRetry = async (
 };
 
 export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> => {
+  const extensionStatus = await requestSyslabExtensionStatus();
+  if (extensionStatus.bridgeAvailable) {
+    return {
+      available: extensionStatus.connected,
+      message: extensionStatus.connected
+        ? 'Conectado mediante la extensión Eloísa'
+        : extensionStatus.loginRequired
+          ? 'Conecta Syslab desde el módulo Laboratorio de la extensión Eloísa.'
+          : extensionStatus.message,
+    };
+  }
+
+  if (!directWebTransportConfigured()) {
+    return { available: false, message: DIRECT_WEB_UNAVAILABLE_MESSAGE };
+  }
+
   const authHeaders = await resolveCurrentUserAuthHeaders();
   const url = shouldUseNetlifyProxy()
     ? buildSyslabProxyUrl('?action=health')
@@ -153,7 +223,12 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
 
   try {
     const response = await fetchWithRetry(url, { headers: authHeaders }, 5_000);
-    const data = await response.json().catch(() => ({ connected: response.ok }));
+    const data = await readSyslabJson<{ connected?: boolean; success?: boolean; error?: string }>(
+      response
+    ).catch(error => ({
+      connected: false,
+      error: error instanceof Error ? error.message : 'Syslab no disponible',
+    }));
     const connected = Boolean(data.connected ?? data.success ?? response.ok);
 
     return {
@@ -172,11 +247,23 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
 /**
  * Search for patient lab exams in Syslab by RUT.
  *
- * In production, calls the Netlify Function `syslab-proxy?action=search`.
- * In development, calls the Express proxy directly.
+ * Uses the extension when the selected patient has an Eloísa clinical episode.
+ * The legacy Netlify/Express proxy is used only when explicitly configured.
  */
-export const searchSyslabExams = async (rut: string): Promise<SyslabSearchResponse> => {
+export const searchSyslabExams = async (
+  rut: string,
+  clinicalEpisodeId?: string
+): Promise<SyslabSearchResponse> => {
   const cleanRut = cleanRutForSyslab(rut);
+  const extensionResult = await searchSyslabThroughExtension(rut, clinicalEpisodeId);
+  if (extensionResult.bridgeAvailable) {
+    if (extensionResult.error) throw new Error(extensionResult.error);
+    if (extensionResult.data) return extensionResult.data;
+    throw new Error('La extensión Eloísa respondió sin resultados reconocibles.');
+  }
+
+  if (!directWebTransportConfigured()) throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
+
   const authHeaders = await resolveCurrentUserAuthHeaders();
 
   const url = shouldUseNetlifyProxy()
@@ -185,7 +272,7 @@ export const searchSyslabExams = async (rut: string): Promise<SyslabSearchRespon
 
   try {
     const response = await fetchWithRetry(url, { headers: authHeaders });
-    return await response.json();
+    return await readSyslabJson<SyslabSearchResponse>(response);
   } catch (error) {
     syslabLogger.error('Syslab exam search failed', error);
     throw error;
@@ -195,10 +282,20 @@ export const searchSyslabExams = async (rut: string): Promise<SyslabSearchRespon
 /**
  * Fetch structured lab results by parsing exam PDFs server-side.
  *
- * In production, calls the Netlify Function `syslab-proxy?action=details`.
- * In development, calls the Express proxy directly.
+ * Extension search results remain bound to their opaque, expiring batch.
+ * Legacy web links use the explicitly configured Netlify/Express proxy.
  */
 export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDetailsResponse> => {
+  const extensionLinks = links.filter(isSyslabExtensionLink);
+  if (extensionLinks.length > 0) {
+    if (extensionLinks.length !== links.length) {
+      throw new Error('La selección mezcla búsquedas de laboratorio incompatibles. Actualiza el visor.');
+    }
+    return fetchSyslabDetailsThroughExtension(links);
+  }
+
+  if (!directWebTransportConfigured()) throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
+
   const authHeaders = await resolveCurrentUserAuthHeaders();
   const url = shouldUseNetlifyProxy()
     ? buildSyslabProxyUrl('?action=details')
@@ -214,7 +311,7 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
       },
       60_000 // 60s timeout for PDF parsing
     );
-    return await response.json();
+    return await readSyslabJson<SyslabDetailsResponse>(response);
   };
 
   try {
@@ -249,8 +346,8 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
 /**
  * Build a URL that proxies an exam PDF for inline viewing.
  *
- * In production, routes through the Netlify Function.
- * In development, uses the Express proxy directly.
+ * Legacy web links route through the explicitly configured Netlify/Express proxy.
+ * Extension links are opened by the secure extension viewer instead.
  */
 export const buildSyslabPdfUrl = (examLink: string): string =>
   shouldUseNetlifyProxy()
@@ -258,6 +355,12 @@ export const buildSyslabPdfUrl = (examLink: string): string =>
     : `${getSyslabBaseUrl()}/api/exams/pdf?link=${encodeURIComponent(examLink)}`;
 
 const buildSyslabPdfBlob = async (examLink: string): Promise<Blob> => {
+  if (isSyslabExtensionLink(examLink)) {
+    throw new Error('Este informe se abre de forma segura mediante la extensión Eloísa.');
+  }
+
+  if (!directWebTransportConfigured()) throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
+
   const authHeaders = await resolveCurrentUserAuthHeaders();
   const response = await fetchWithRetry(
     buildSyslabPdfUrl(examLink),
@@ -269,6 +372,9 @@ const buildSyslabPdfBlob = async (examLink: string): Promise<Blob> => {
 };
 
 export const fetchSyslabPdfArrayBuffer = async (examLink: string): Promise<ArrayBuffer> => {
+  if (isSyslabExtensionLink(examLink)) {
+    throw new Error('Este informe se abre de forma segura mediante la extensión Eloísa.');
+  }
   const pdfBlob = await buildSyslabPdfBlob(examLink);
   return pdfBlob.arrayBuffer();
 };

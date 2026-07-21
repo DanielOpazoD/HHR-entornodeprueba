@@ -76,10 +76,12 @@ La exportación de comparación genera una hoja `Comparación Lab` con:
 ## Flujo de datos
 
 ```
+Paciente del censo HHR
+  ↓ episodio clínico + RUN
+Extensión Eloísa
+  ↓ sesión institucional en la red local
 Syslab (10.4.69.90)
-  ↓ Playwright scraping
-Express proxy (localhost:3000)
-  ↓ REST API (con timeout 30s + retry)
+  ↓ lote opaco con caducidad y RUN verificado
 syslabService.ts
   ↓ TanStack Query cache (10 min staleTime)
 useLabViewer hook
@@ -111,8 +113,12 @@ import {
 
 ## Configuración
 
-- `VITE_SYSLAB_API_URL` — URL del servidor Express proxy (default: `http://localhost:3000`)
-- Requiere servidor Express de API-laboratorioHHR corriendo en la red del hospital
+- El flujo principal requiere la extensión Eloísa 0.37.0 o posterior y una sesión Syslab activa.
+- `VITE_SYSLAB_API_URL` — URL opcional y explícita del proxy Express heredado; no tiene valor por defecto.
+- HHR en `localhost:3000` nunca debe tratarse como proxy de Syslab.
+- `Buscar por RUT externo` no tiene un episodio Eloísa verificable: usa el fallback Netlify/Express
+  solo cuando está configurado. En Vite local sin proxy muestra una instrucción guiada y no intenta
+  interpretar el HTML de HHR como JSON.
 
 ## Tests
 

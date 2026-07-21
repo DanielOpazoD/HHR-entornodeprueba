@@ -12,11 +12,17 @@ import userEvent from '@testing-library/user-event';
 /* ------------------------------------------------------------------ */
 
 const mockExportChartsAsPng = vi.hoisted(() => vi.fn());
+const mockOpenSyslabPdfThroughExtension = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/laboratory/syslabService', () => ({
   buildSyslabPdfUrl: (link: string) =>
     `http://localhost:3000/api/exams/pdf?link=${encodeURIComponent(link)}`,
   fetchSyslabPdfBlobUrl: vi.fn(async () => 'blob:syslab-test'),
+}));
+
+vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
+  isSyslabExtensionLink: (link: string) => link.startsWith('hhr-syslab-extension://'),
+  openSyslabPdfThroughExtension: mockOpenSyslabPdfThroughExtension,
 }));
 
 vi.mock('@/features/laboratory/controllers/labFormattingController', () => ({
@@ -301,6 +307,27 @@ describe('LabViewerPdf', () => {
     });
     await userEvent.click(screen.getByText('Volver a lista de examenes'));
     expect(defaultProps.onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens extension reports in the secure viewer instead of requesting a web PDF', async () => {
+    mockOpenSyslabPdfThroughExtension.mockResolvedValue(undefined);
+    render(
+      <LabViewerPdf
+        {...defaultProps}
+        exam={{
+          ...MOCK_EXAM,
+          link: 'hhr-syslab-extension://batch/123e4567-e89b-12d3-a456-426614174000/exam/123',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockOpenSyslabPdfThroughExtension).toHaveBeenCalledOnce();
+    });
+    expect(
+      screen.getByText('El informe se abrió en una pestaña segura de la extensión Eloísa.')
+    ).toBeInTheDocument();
+    expect(screen.queryByTitle('PDF Examen 123')).not.toBeInTheDocument();
   });
 });
 

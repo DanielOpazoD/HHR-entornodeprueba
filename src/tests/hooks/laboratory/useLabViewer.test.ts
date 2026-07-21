@@ -111,6 +111,7 @@ const PATIENTS: LabPatient[] = [
     label: 'R1 · Juan Pérez',
     patientName: 'Juan Pérez',
     rut: '12345678-9',
+    clinicalEpisodeId: '141814',
     birthDate: '1980-04-12',
     diagnosis: 'Neumonía',
   },
@@ -127,6 +128,7 @@ const PATIENTS: LabPatient[] = [
     label: 'R3 · Juan Pérez',
     patientName: 'Juan Pérez',
     rut: '12345678-9',
+    clinicalEpisodeId: '141814',
     birthDate: '1980-04-12',
     diagnosis: 'Neumonía',
   },
@@ -198,6 +200,57 @@ describe('useLabViewer', () => {
       await result.current.search();
     });
     await waitFor(() => expect(result.current.examList).toHaveLength(1));
+    expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141814');
+  });
+
+  it('starts a fresh lookup when the same RUN moves to a different clinical episode', async () => {
+    mockSearchSyslabExams.mockResolvedValue({ success: true, data: [MOCK_EXAM] });
+    const { result, rerender } = renderHook(
+      ({ clinicalEpisodeId }: { clinicalEpisodeId: string }) =>
+        useLabViewer([
+          {
+            ...PATIENTS[0],
+            clinicalEpisodeId,
+          },
+        ]),
+      {
+        initialProps: { clinicalEpisodeId: '141814' },
+        wrapper: createWrapper(),
+      }
+    );
+
+    await act(async () => {
+      await result.current.search();
+    });
+    await waitFor(() =>
+      expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141814')
+    );
+
+    rerender({ clinicalEpisodeId: '141900' });
+
+    await waitFor(() =>
+      expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141900')
+    );
+  });
+
+  it('fails closed when the same RUN has two different active clinical episodes', async () => {
+    const ambiguousPatients = [
+      { ...PATIENTS[0], clinicalEpisodeId: '141814' },
+      { ...PATIENTS[0], bedId: 'R2', clinicalEpisodeId: '141900' },
+    ];
+    const { result } = renderHook(
+      () => useLabViewer(ambiguousPatients),
+      { wrapper: createWrapper() }
+    );
+
+    await act(async () => {
+      await result.current.search();
+    });
+
+    await waitFor(() => expect(result.current.error).toContain('más de un episodio activo'), {
+      timeout: 3_000,
+    });
+    expect(mockSearchSyslabExams).not.toHaveBeenCalled();
   });
 
   it('hydrates external RUT birth date from the first Syslab PDF when the patient is not in hospital census', async () => {

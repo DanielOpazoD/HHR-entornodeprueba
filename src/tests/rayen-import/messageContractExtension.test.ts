@@ -217,6 +217,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-hhr.js',
       'content-hhr-epicrisis.js',
       'content-hhr-statistical-discharge.js',
+      'content-hhr-syslab.js',
       'content-exam-request-print.js',
       'content-prescription-print.js',
     ]);

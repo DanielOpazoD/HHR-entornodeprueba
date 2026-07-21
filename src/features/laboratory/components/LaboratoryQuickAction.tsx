@@ -25,6 +25,7 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
           label: patient.label,
           patientName: patient.patientName,
           rut: patient.rut,
+          clinicalEpisodeId: patient.clinicalEpisodeId,
           birthDate: patient.birthDate,
           diagnosis: patient.diagnosis,
         })),
