@@ -45,11 +45,19 @@ import { assertClinicalFillPatchTarget } from '../domain/clinicalFillPatchTarget
 import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHistoricalCudyr';
 import { applyConfirmedRayenImport } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
+import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
+import { buildNursingShiftProposalPatch } from '../domain/applyNursingShiftProposal';
+import { useNursesQuery } from '@/hooks/useStaffQuery';
+import { canWritePreviousDay } from '../domain/previousDayCorrections';
 
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
+  // Read the shared TanStack cache directly here. The import button can be mounted
+  // independently from the census staff controls, so it must not depend on their
+  // presentation context just to reconcile an Eloisa author with the local catalog.
+  const { data: nursesList = [] } = useNursesQuery();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
@@ -63,6 +71,9 @@ export const useRayenImport = () => {
   // nurse can only write a previous day within that window — older days are surfaced but skipped.
   const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
+  const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
+  const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
+  const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
   // Fallback timer for the "sincronizando" indicator: if the extension never answers the snapshot
   // request, clear the spinner and surface a hint instead of spinning forever.
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,10 +151,20 @@ export const useRayenImport = () => {
       }),
     [dailyRecord, isAdmin]
   );
+  const presentStaffingProposal = useCallback(
+    (proposal: NursingStaffingProposal) => {
+      // Do not offer a write that Firestore will reject for a non-admin user.
+      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) return;
+      setStaffingProposal(proposal);
+    },
+    [isAdmin]
+  );
   const fillDevicesInBackground = useRayenClinicalFill({
+    nurseCatalog: nursesList,
     patchDailyRecord: patchFreshClinicalRecord,
     applyHistoricalCudyr,
     completeRun,
+    onStaffingProposal: presentStaffingProposal,
     onSettled: finishSyncing,
     createId: makeId,
   });
@@ -187,6 +208,8 @@ export const useRayenImport = () => {
   const triggerImport = useCallback(
     (health?: RayenExtensionHealthState) => {
       clearSyncTimeout();
+      setStaffingProposal(null);
+      setStaffingProposalError(null);
       startRun(health);
       if (health && !health.canSync) {
         void failRun(failureReasonFromHealth(health));
@@ -212,6 +235,62 @@ export const useRayenImport = () => {
     },
     [clearSyncTimeout, failRun, startRun]
   );
+
+  const dismissStaffingProposal = useCallback(() => {
+    if (isStaffingProposalBusy) return;
+    setStaffingProposal(null);
+    setStaffingProposalError(null);
+  }, [isStaffingProposalBusy]);
+
+  const confirmStaffingProposal = useCallback(async () => {
+    if (!staffingProposal) return;
+    setIsStaffingProposalBusy(true);
+    setStaffingProposalError(null);
+    try {
+      if (currentRecordRef.current?.date !== staffingProposal.censusDate) {
+        throw new Error(
+          'La propuesta corresponde a otra fecha del censo. Vuelve a sincronizar el día actual.'
+        );
+      }
+      if (!canWritePreviousDay(staffingProposal.censusDate, isAdmin)) {
+        throw new Error(
+          'Este censo está fuera de la ventana de edición. Solicita la actualización a un administrador.'
+        );
+      }
+      const fresh = await ensureFreshDailyRecordQuery(
+        staffingProposal.censusDate,
+        { dailyRecord, queryClient },
+        'clinical_patch'
+      );
+      if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      const patch = buildNursingShiftProposalPatch(fresh.record, staffingProposal);
+      if (!patch) {
+        throw new Error(
+          'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
+        );
+      }
+      const result = await patchDailyRecordWithCompatibility(
+        dailyRecord,
+        staffingProposal.censusDate,
+        patch,
+        { baseRecord: fresh.record }
+      );
+      if (result?.blockingError) throw result.blockingError;
+      if (isDailyRecordWriteBlockedResult(result)) {
+        throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
+      }
+      await ensureFreshDailyRecordQuery(
+        staffingProposal.censusDate,
+        { dailyRecord, queryClient },
+        'clinical_patch'
+      );
+      setStaffingProposal(null);
+    } catch (error) {
+      setStaffingProposalError(getRayenImportErrorMessage(error));
+    } finally {
+      setIsStaffingProposalBusy(false);
+    }
+  }, [dailyRecord, isAdmin, queryClient, staffingProposal]);
 
   // `applyPreviousDays` (default true) gates ONLY the cross-day corrections. Today's census changes
   // (admissions, moves, discharges) ALWAYS apply — the previous-day acknowledgment must never block
@@ -286,11 +365,28 @@ export const useRayenImport = () => {
       isSyncing: state.isSyncing,
       result: state.result,
       error: state.error,
+      staffingProposal,
+      isStaffingProposalBusy,
+      staffingProposalError,
       triggerImport,
       previewSnapshot,
       confirm,
       cancel,
+      confirmStaffingProposal,
+      dismissStaffingProposal,
     }),
-    [mode, state, triggerImport, previewSnapshot, confirm, cancel]
+    [
+      mode,
+      state,
+      staffingProposal,
+      isStaffingProposalBusy,
+      staffingProposalError,
+      triggerImport,
+      previewSnapshot,
+      confirm,
+      cancel,
+      confirmStaffingProposal,
+      dismissStaffingProposal,
+    ]
   );
 };

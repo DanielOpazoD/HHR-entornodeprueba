@@ -26,6 +26,23 @@ describe('NurseSelector', () => {
     expect(screen.getAllByDisplayValue('Enfermera Claudia')).toHaveLength(1);
   });
 
+  it('reconciles the selected Eloísa alias without deleting possible catalog homonyms', () => {
+    render(
+      <NurseSelector
+        nursesDayShift={['Pedro Moreno Opazo', '']}
+        nursesNightShift={['', '']}
+        nursesList={['Pedro Moreno', 'Pedro Moreno Opazo', 'Camila Soto', 'Camila Soto Alegria']}
+        onUpdateNurse={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByDisplayValue('Pedro Moreno Opazo')).toHaveLength(1);
+    expect(screen.getAllByRole('option', { name: 'Pedro Moreno' })).toHaveLength(4);
+    expect(screen.getAllByRole('option', { name: 'Pedro Moreno Opazo' })).toHaveLength(4);
+    expect(screen.getAllByRole('option', { name: 'Camila Soto' })).toHaveLength(4);
+    expect(screen.getAllByRole('option', { name: 'Camila Soto Alegria' })).toHaveLength(4);
+  });
+
   it('opens the catalog from the title area and shows a superscript marker only for adjusted shifts', () => {
     const onOpenDetailedStaffing = vi.fn();
 

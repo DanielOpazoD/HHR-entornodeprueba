@@ -202,30 +202,12 @@
             `/api/encounter/${encodeURIComponent(encId)}/` +
             'getPatientEncounterHistoryReportServer/false/0/0/-14',
         });
-        const events = [];
-        for (const event of Array.isArray(result.data) ? result.data : []) {
-          const resume = event && Array.isArray(event.evaluationInstrumentsResume)
-            ? event.evaluationInstrumentsResume.filter(
-                item => item && SCALE_FORM_RE.test(String(item.FORM_NAME || ''))
-              )
-            : [];
-          if (!resume.length) continue;
-          events.push({
-            publishDatetime: event.publishDatetime || '',
-            evaluationInstrumentsResume: resume.map(item => ({
-              FORM_NAME: item.FORM_NAME,
-              LABEL: item.LABEL,
-              VALUE: item.VALUE,
-              ARCHIVED: item.ARCHIVED,
-              MCAM_ID: item.MCAM_ID,
-              PUBLISH_DATE_HCP_NAME: item.PUBLISH_DATE_HCP_NAME,
-              PRACTITIONER_ROLE: item.PRACTITIONER_ROLE,
-            })),
-          });
-        }
-        return { ok: true, events };
+        const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
+        return { ok: true, ...projection };
       } catch (error) {
-        if (error.kind === 'http' && error.status === 204) return { ok: true, events: [] };
+        if (error.kind === 'http' && error.status === 204) {
+          return { ok: true, events: [], nursingActivity: [] };
+        }
         if (error.kind === 'http') {
           return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };
         }

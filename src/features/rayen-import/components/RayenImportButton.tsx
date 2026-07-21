@@ -14,6 +14,8 @@ import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
+import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
+import { RayenImportErrorNotice } from './RayenImportErrorNotice';
 import {
   presentRayenCoverage,
   presentRayenSyncRecovery,
@@ -53,15 +55,28 @@ export const RayenImportButton: React.FC = () => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
-  const [errorGuidanceOpen, setErrorGuidanceOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
-  const { mode, diff, isPreviewOpen, isBusy, isSyncing, error, triggerImport, confirm, cancel } =
-    useRayenImport();
+  const {
+    mode,
+    diff,
+    isPreviewOpen,
+    isBusy,
+    isSyncing,
+    error,
+    staffingProposal,
+    isStaffingProposalBusy,
+    staffingProposalError,
+    triggerImport,
+    confirm,
+    cancel,
+    confirmStaffingProposal,
+    dismissStaffingProposal,
+  } = useRayenImport();
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy || fill.running || recoveryBusy;
+  const working = isSyncing || isBusy || fill.running || recoveryBusy || isStaffingProposalBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -359,36 +374,15 @@ export const RayenImportButton: React.FC = () => {
         recoveryBusy={working}
         onRecoveryAction={() => void handleRecoveryAction()}
       />
+      <RayenNursingShiftProposalModal
+        proposal={staffingProposal}
+        isBusy={isStaffingProposalBusy}
+        error={staffingProposalError}
+        onConfirm={() => void confirmStaffingProposal()}
+        onCancel={dismissStaffingProposal}
+      />
 
-      {error && !isPreviewOpen && (
-        <div
-          className="flex flex-wrap items-center gap-1.5 border-t border-amber-100 bg-amber-50/70 px-3 py-1.5 text-xs font-medium text-amber-800"
-          data-testid="rayen-import-error"
-          role="status"
-        >
-          <CircleHelp size={14} aria-hidden="true" />
-          Sincronización requiere revisión
-          <button
-            type="button"
-            onClick={() => setErrorGuidanceOpen(open => !open)}
-            aria-expanded={errorGuidanceOpen}
-            aria-controls="rayen-import-error-guidance"
-            className="ml-auto inline-flex size-5 shrink-0 items-center justify-center rounded-full text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
-            title={error}
-            aria-label={`Ver detalle de sincronización. ${error}`}
-          >
-            <CircleHelp size={14} aria-hidden="true" />
-          </button>
-          {errorGuidanceOpen && (
-            <p
-              id="rayen-import-error-guidance"
-              className="basis-full border-t border-amber-100 pt-1 text-[11px] leading-relaxed text-amber-900"
-            >
-              {error}
-            </p>
-          )}
-        </div>
-      )}
+      <RayenImportErrorNotice error={error} isPreviewOpen={isPreviewOpen} />
     </div>
   );
 };

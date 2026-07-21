@@ -10,6 +10,7 @@
 
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
+import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
 
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
@@ -272,10 +273,14 @@ export const requestScalesReport = (
 export const requestHistoryScales = (
   encId: string,
   timeoutMs = 30000
-): Promise<{ events: RayenHistoryScaleEvent[]; error?: string }> =>
+): Promise<{
+  events: RayenHistoryScaleEvent[];
+  nursingActivity: RayenNursingActivity[];
+  error?: string;
+}> =>
   new Promise(resolve => {
     if (typeof window === 'undefined' || !encId) {
-      resolve({ events: [] });
+      resolve({ events: [], nursingActivity: [] });
       return;
     }
     const reqId = `hist-scales-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
@@ -294,6 +299,9 @@ export const requestHistoryScales = (
       cleanup();
       resolve({
         events: Array.isArray(data.events) ? (data.events as RayenHistoryScaleEvent[]) : [],
+        nursingActivity: Array.isArray(data.nursingActivity)
+          ? (data.nursingActivity as RayenNursingActivity[])
+          : [],
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };
@@ -305,7 +313,11 @@ export const requestHistoryScales = (
     );
     setTimeout(() => {
       cleanup();
-      resolve({ events: [], error: 'Tiempo de espera agotado bajando el historial de escalas.' });
+      resolve({
+        events: [],
+        nursingActivity: [],
+        error: 'Tiempo de espera agotado bajando el historial clínico.',
+      });
     }, timeoutMs);
   });
 

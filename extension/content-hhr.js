@@ -177,7 +177,6 @@
         });
       return;
     }
-
     if (data.type === 'HHR_RAYEN_HISTORY_SCALES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
@@ -187,13 +186,14 @@
             type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',
             reqId,
             events: (response && Array.isArray(response.events) && response.events) || [],
+            nursingActivity: (response && Array.isArray(response.nursingActivity) && response.nursingActivity) || [],
             error: response && response.error,
           });
         })
         .catch(error => {
           // Degrade gracefully: no events → no scales synced for this patient.
           console.warn('[Rayen→HHR] History scales error:', error);
-          post({ type: 'HHR_RAYEN_HISTORY_SCALES_RESULT', reqId, events: [], error: String(error) });
+          post({ type: 'HHR_RAYEN_HISTORY_SCALES_RESULT', reqId, events: [], nursingActivity: [], error: String(error) });
         });
       return;
     }
