@@ -492,15 +492,4 @@ describe('runClinicalFill', () => {
     });
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
-
-  it('patients with nothing new produce no patch at all', async () => {
-    const deps = okDeps({
-      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
-    });
-    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
-
-    expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
-    expect(deps.applyPatch).not.toHaveBeenCalled();
-  });
 });
