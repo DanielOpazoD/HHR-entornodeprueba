@@ -82,12 +82,14 @@ export const PatientHospitalizationReportsDialog: React.FC<
         ) : (
           episodes.map(episode => {
             const isCurrent = episode.encId === currentEpisodeId;
+            const episodeAdmissionDate =
+              episode.startDate || (isCurrent ? admissionDate : undefined);
             const dateLabel = episode.endDate
-              ? `${formatDate(episode.startDate)} – ${formatDate(episode.endDate)}`
+              ? `${formatDate(episodeAdmissionDate)} – ${formatDate(episode.endDate)}`
               : episode.active === true
-                ? `${formatDate(episode.startDate)} – hospitalización vigente`
-                : episode.startDate
-                  ? `${formatDate(episode.startDate)} – estado no verificado`
+                ? `${formatDate(episodeAdmissionDate)} – hospitalización vigente`
+                : episodeAdmissionDate
+                  ? `${formatDate(episodeAdmissionDate)} – estado no verificado`
                   : 'Fecha de ingreso no disponible';
             return (
               <article
@@ -132,9 +134,9 @@ export const PatientHospitalizationReportsDialog: React.FC<
                     <button
                       type="button"
                       onClick={() => void download(context, episode, 'history')}
-                      disabled={downloadingKey !== null || !episode.startDate}
+                      disabled={downloadingKey !== null || !episodeAdmissionDate}
                       title={
-                        episode.startDate
+                        episodeAdmissionDate
                           ? undefined
                           : 'La ficha completa requiere la fecha de ingreso del episodio.'
                       }

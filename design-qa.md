@@ -1,6 +1,6 @@
 # Design QA — identidad de cuna clínica
 
-- Source visual truth path: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-5c805a8a-f648-47d4-913c-7ba04d13d877.png`
+- Source visual truth: user-provided clinical census screenshot; intentionally not tracked to avoid versioning potentially identifiable patient data.
 - Implementation screenshot path: in-app Browser capture emitted in the current task (`focusedIdentityShot`)
 - Viewport: desktop, 1264 × 711
 - State: censo diario del 21-07-2026, cuna clínica H5C1 visible
