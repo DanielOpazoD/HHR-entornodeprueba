@@ -341,6 +341,7 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
         onClick={recovery.open}
         scopeLabel={SCOPE_LABEL[scope]}
         snapshotCount={recovery.snapshots.length}
+        requiresAttention={centerModel.hasReviewableConflicts}
         testId={buttonTestId}
         className={className}
         hideLabel={hideButtonLabel}

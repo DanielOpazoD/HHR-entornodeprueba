@@ -2,11 +2,9 @@ import React from 'react';
 import {
   CheckCircle2,
   CircleHelp,
-  Clock3,
   DatabaseZap,
   History,
   RefreshCw,
-  UserRound,
 } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
@@ -16,6 +14,7 @@ import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenImportErrorNotice } from './RayenImportErrorNotice';
+import { RayenSyncDetailsPopover } from './RayenSyncDetailsPopover';
 import {
   presentRayenCoverage,
   presentRayenSyncRecovery,
@@ -77,6 +76,8 @@ export const RayenImportButton: React.FC = () => {
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
   const working = isSyncing || isBusy || fill.running || recoveryBusy || isStaffingProposalBusy;
+  const fillProgressPercent =
+    fill.total > 0 ? Math.min(100, Math.max(0, Math.round((fill.done / fill.total) * 100))) : 0;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -94,7 +95,7 @@ export const RayenImportButton: React.FC = () => {
   // Visible, verifiable fill status: live progress while running, then a completion summary with
   // the per-patient error count — so the user can tell whether devices/scores actually synced.
   const fillNote = fill.running
-    ? `Datos clínicos ${fill.done}/${fill.total}…`
+    ? `Datos clínicos ${fillProgressPercent}%…`
     : fill.lastCompletedAt
       ? fill.errors > 0
         ? `Datos clínicos: ${Math.max(fill.total - fill.errors, 0)}/${fill.total} · ${fill.errors} con error`
@@ -177,7 +178,7 @@ export const RayenImportButton: React.FC = () => {
 
   return (
     <div
-      className="w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+      className="w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
       data-testid="rayen-operations-bar"
     >
       <div className="grid min-h-14 grid-cols-1 items-center gap-2 px-3 py-2 md:grid-cols-[minmax(205px,0.9fr)_minmax(280px,1.55fr)_13.5rem]">
@@ -260,56 +261,58 @@ export const RayenImportButton: React.FC = () => {
         </div>
 
         <div
-          className="grid min-w-0 grid-cols-1 gap-x-0 gap-y-1 border-slate-200 md:border-l md:pl-3 lg:grid-cols-[minmax(155px,1fr)_minmax(135px,0.9fr)_minmax(125px,0.8fr)] lg:divide-x lg:divide-slate-100"
+          className="grid min-w-0 grid-cols-1 gap-x-0 gap-y-1 border-slate-200 md:border-l md:pl-3 lg:grid-cols-[minmax(190px,1.1fr)_minmax(150px,0.9fr)] lg:divide-x lg:divide-slate-100"
           data-testid="rayen-last-sync"
-          title={
-            lastSync
-              ? `Última sincronización con Eloísa · ${record?.rayenSync?.by ?? ''}`
-              : undefined
-          }
+          title={lastSync ? 'Última sincronización con Eloísa' : undefined}
         >
-          <div className="min-w-[155px] lg:pr-4">
-            <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">
-              <Clock3 size={11} aria-hidden="true" />
-              Última sincronización
-            </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[11px] font-semibold tabular-nums text-slate-700">
-              {lastSync ?? 'Sin sincronización registrada'}
-              {lastSync && persistedStatusLabel && (
-                <span className={persistedStatusClass}>· {persistedStatusLabel}</span>
-              )}
-            </p>
-          </div>
-
-          <div className="min-w-0 lg:px-4">
-            <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">
-              <UserRound size={11} aria-hidden="true" />
-              Responsable
-            </p>
-            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-600">
-              {responsibleState}
-            </p>
-          </div>
+          <RayenSyncDetailsPopover
+            lastSync={lastSync}
+            statusLabel={persistedStatusLabel}
+            statusClassName={persistedStatusClass}
+            responsible={responsibleState}
+            coverage={coverageState}
+          />
 
           <div className="min-w-0 lg:pl-4">
             <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">
               <CheckCircle2 size={11} aria-hidden="true" />
               Cobertura clínica
             </p>
-            <p
-              className={`mt-0.5 truncate text-[11px] font-semibold ${
-                coverageTone === 'running'
-                  ? 'animate-pulse text-teal-700 motion-reduce:animate-none'
-                  : coverageTone === 'warning'
+            {fill.running ? (
+              <div className="mt-0.5" data-testid="rayen-fill-status">
+                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-teal-700">
+                  <span>Datos clínicos</span>
+                  <span className="tabular-nums">{fillProgressPercent}%</span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="Sincronización de datos clínicos"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={fillProgressPercent}
+                  className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200"
+                >
+                  <span
+                    className="block h-full rounded-full bg-teal-600 transition-[width] duration-300 motion-reduce:transition-none"
+                    style={{ width: `${fillProgressPercent}%` }}
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+            ) : (
+              <p
+                className={`mt-0.5 truncate text-[11px] font-semibold ${
+                  coverageTone === 'warning'
                     ? 'text-amber-700'
                     : coverageTone === 'success'
                       ? 'text-emerald-700'
                       : 'text-slate-400'
-              }`}
-              data-testid="rayen-fill-status"
-            >
-              {coverageState}
-            </p>
+                }`}
+                data-testid="rayen-fill-status"
+              >
+                {coverageState}
+              </p>
+            )}
           </div>
         </div>
 

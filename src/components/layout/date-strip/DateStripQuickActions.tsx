@@ -92,7 +92,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
             <>
               <button
                 onClick={() => setIsRadiologyOpen(true)}
-                className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-violet-200 bg-violet-50 text-violet-700 transition-colors hover:bg-violet-100`}
+                className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-700`}
                 title="Radiología / Imagenología"
               >
                 <Radio size={13} />

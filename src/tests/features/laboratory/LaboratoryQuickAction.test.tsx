@@ -56,6 +56,7 @@ describe('LaboratoryQuickAction', () => {
     await waitFor(() => {
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('title', 'Syslab no disponible: Failed to fetch');
+      expect(button).toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
     });
   });
 
@@ -70,6 +71,7 @@ describe('LaboratoryQuickAction', () => {
     const button = screen.getByRole('button', { name: /lab/i });
     await waitFor(() => {
       expect(button).toBeEnabled();
+      expect(button).toHaveClass('border-slate-200', 'bg-slate-50', 'text-slate-600');
     });
   });
 });
