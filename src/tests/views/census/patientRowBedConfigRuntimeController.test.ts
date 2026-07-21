@@ -138,6 +138,26 @@ describe('patientRowBedConfigRuntimeController', () => {
         expect(updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', false);
     });
 
+    it('clears a persisted companion crib mark in Cuna mode', async () => {
+        const updatePatient = vi.fn();
+        const result = await executeToggleCompanionCribController({
+            bedId: 'R1',
+            isCunaMode: true,
+            hasCompanion: true,
+            actions: { updatePatient },
+            dialogs: { alert: vi.fn() }
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            value: {
+                outcome: 'updated',
+                nextValue: false
+            }
+        });
+        expect(updatePatient).toHaveBeenCalledWith('R1', 'hasCompanionCrib', false);
+    });
+
     it('toggles clinical crib with explicit create/remove action', () => {
         const updateClinicalCrib = vi.fn();
 

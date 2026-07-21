@@ -79,7 +79,7 @@ export const resolveToggleCompanionCribCommand = ({
   isCunaMode,
   hasCompanion,
 }: ResolveCompanionParams): PatientRowCompanionResult => {
-  if (isCunaMode) {
+  if (isCunaMode && !hasCompanion) {
     return fail({
       code: 'COMPANION_NOT_ALLOWED_IN_CUNA',
       title: 'Acción no permitida',

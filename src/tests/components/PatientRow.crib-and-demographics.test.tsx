@@ -118,7 +118,7 @@ describe('PatientRow crib and demographics', () => {
       <table>
         <tbody>
           <PatientRow
-            data={{ ...mockPatient, hasCompanionCrib: true }}
+            data={{ ...mockPatient, bedMode: 'Cuna', hasCompanionCrib: true }}
             bed={mockBedDef}
             currentDateString="2023-01-01"
             onAction={mockOnAction}
