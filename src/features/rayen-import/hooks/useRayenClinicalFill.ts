@@ -5,6 +5,7 @@ import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import {
   runClinicalFill,
+  countClinicalFillEligiblePatients,
   type ClinicalFillSummary,
   type ClinicalFillPatchTarget,
   type HistoricalCudyrApplyResult,
@@ -50,9 +51,7 @@ export const useRayenClinicalFill = ({
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (record: DailyRecord): Promise<void> => {
-      const eligibleCount = Object.values(record.beds).filter(
-        patient => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
-      ).length;
+      const eligibleCount = countClinicalFillEligiblePatients(record);
       if (!beginRayenFill(eligibleCount)) {
         // A deliberate run was already applied, so it must not remain indefinitely
         // at `applied` when the single-flight guard rejects its enrichment pass.

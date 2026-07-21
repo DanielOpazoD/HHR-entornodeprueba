@@ -90,7 +90,7 @@
       pdfBase64: 'string',
       patientRun: 'string',
     },
-    [types.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: { encId: 'id?', patientRun: 'string', censusDate: 'string?', delivery: 'string?', operation: 'string?', documentType: 'string?' },
+    [types.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST]: { encId: 'id?', patientRun: 'string', admissionDate: 'string?', censusDate: 'string?', delivery: 'string?', operation: 'string?', documentType: 'string?' },
     [types.EXAM_REQUEST_COMBINE_PRINT_REQUEST]: {
       encId: 'id',
       diteIds: 'array',

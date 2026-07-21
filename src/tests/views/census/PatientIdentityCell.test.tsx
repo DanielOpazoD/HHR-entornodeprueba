@@ -76,6 +76,35 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByText('FI:')).toBeInTheDocument();
   });
 
+  it('shows Pediatría and the clinical actions for an attached newborn without RUN', () => {
+    const data = DataFactory.createMockPatient('H5C1', {
+      patientName: 'RN de Fernanda Valladares',
+      rut: '',
+      age: '1d',
+      admissionDate: '2026-07-20',
+      specialty: 'Pediatría',
+      clinicalEpisodeId: '141814',
+    });
+
+    const { container } = renderCell({ data, isSubRow: true });
+
+    const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
+    const ageBadge = screen.getByText('(1d)');
+    expect(nameInput.parentElement).toBe(ageBadge.parentElement);
+    expect(nameInput.parentElement).toHaveClass('border-slate-200', 'bg-slate-50', 'h-7');
+    expect(container.querySelector('svg.lucide-baby')).not.toBeInTheDocument();
+
+    expect(screen.getByTitle('Especialidad: Pediatría')).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Abrir panel clínico de RN de Fernanda Valladares' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', {
+        name: 'Abrir informes de hospitalización de RN de Fernanda Valladares',
+      })
+    ).toBeVisible();
+  });
+
   it('shows a "Pendiente asignar" chip when the patient has no specialty, and assigns on click', () => {
     const assign = vi.fn();
     const onNameChange: DebouncedTextHandler = field => (field === 'specialty' ? assign : vi.fn());

@@ -10,6 +10,7 @@ interface PatientHospitalizationReportsDialogProps {
   patientName: string;
   patientRun: string;
   currentEpisodeId?: string;
+  admissionDate?: string;
   censusDate?: string;
 }
 
@@ -21,12 +22,18 @@ const formatDate = (value?: string): string => {
 
 export const PatientHospitalizationReportsDialog: React.FC<
   PatientHospitalizationReportsDialogProps
-> = ({ isOpen, onClose, patientName, patientRun, currentEpisodeId, censusDate }) => {
+> = ({ isOpen, onClose, patientName, patientRun, currentEpisodeId, admissionDate, censusDate }) => {
   const reports = usePatientHospitalizationReports();
   const { load, download, isLoading, error, episodes, downloadingKey } = reports;
   const context = useMemo(
-    () => ({ patientName, patientRun, censusDate }),
-    [censusDate, patientName, patientRun]
+    () => ({
+      patientName,
+      patientRun,
+      clinicalEpisodeId: currentEpisodeId,
+      admissionDate,
+      censusDate,
+    }),
+    [admissionDate, censusDate, currentEpisodeId, patientName, patientRun]
   );
 
   useEffect(() => {
@@ -70,14 +77,20 @@ export const PatientHospitalizationReportsDialog: React.FC<
           </div>
         ) : episodes.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-            No se encontraron hospitalizaciones para este RUN.
+            No se encontraron hospitalizaciones para este paciente.
           </div>
         ) : (
           episodes.map(episode => {
             const isCurrent = episode.encId === currentEpisodeId;
+            const episodeAdmissionDate =
+              episode.startDate || (isCurrent ? admissionDate : undefined);
             const dateLabel = episode.endDate
-              ? `${formatDate(episode.startDate)} – ${formatDate(episode.endDate)}`
-              : `${formatDate(episode.startDate)} – hospitalización vigente`;
+              ? `${formatDate(episodeAdmissionDate)} – ${formatDate(episode.endDate)}`
+              : episode.active === true
+                ? `${formatDate(episodeAdmissionDate)} – hospitalización vigente`
+                : episodeAdmissionDate
+                  ? `${formatDate(episodeAdmissionDate)} – estado no verificado`
+                  : 'Fecha de ingreso no disponible';
             return (
               <article
                 key={episode.encId}
@@ -121,7 +134,12 @@ export const PatientHospitalizationReportsDialog: React.FC<
                     <button
                       type="button"
                       onClick={() => void download(context, episode, 'history')}
-                      disabled={downloadingKey !== null}
+                      disabled={downloadingKey !== null || !episodeAdmissionDate}
+                      title={
+                        episodeAdmissionDate
+                          ? undefined
+                          : 'La ficha completa requiere la fecha de ingreso del episodio.'
+                      }
                       className="inline-flex h-8 items-center gap-1.5 rounded-md bg-teal-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
                     >
                       {downloadingKey === `${episode.encId}:history` ? (

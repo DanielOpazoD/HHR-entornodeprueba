@@ -6,10 +6,7 @@ import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyE
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { requiresReview } from '../domain/reconcileCensus';
 import { computePreviousDayEdits } from '../domain/previousDayCorrections';
-import {
-  isHistoricalCensusDay,
-  toHistoricalClinicalOnlyDiff,
-} from '../domain/historicalCensusSync';
+import { isHistoricalCensusDay, toSafeHistoricalDiff } from '../domain/historicalCensusSync';
 import { requestEgresoLookup, requestEgresoReport } from '../bridge/rayenImportBridge';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -61,9 +58,20 @@ export const useRayenSnapshotPreview = ({
       const reportDate = toIsoReportDate(currentRecord);
 
       if (isHistoricalCensusDay(reportDate)) {
+        diff = toSafeHistoricalDiff(diff, currentRecord);
+        if (diff.updates.length > 0) {
+          setState({
+            diff,
+            isPreviewOpen: true,
+            isBusy: false,
+            isSyncing: false,
+            result: null,
+            error: null,
+          });
+          return;
+        }
         if (autoApplyingRef.current) return;
         autoApplyingRef.current = true;
-        diff = toHistoricalClinicalOnlyDiff(diff, currentRecord);
         setState({
           diff,
           isPreviewOpen: false,

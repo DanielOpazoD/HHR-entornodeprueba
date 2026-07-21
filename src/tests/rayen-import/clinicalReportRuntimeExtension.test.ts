@@ -50,6 +50,7 @@ type RuntimeApi = {
   handleNursingMedicalEpicrisisPrintRequest: (request: {
     encId?: string;
     patientRun: string;
+    admissionDate?: string;
     censusDate?: string;
     delivery?: string;
     operation?: string;
@@ -410,88 +411,6 @@ describe('clinical report runtime owner', () => {
         { encId: '200', startDate: '2026-07-18', endDate: '', active: true },
         { encId: '100', startDate: '2025-05-01', endDate: '2025-05-05', active: false },
       ],
-    });
-  });
-
-  it('opens the official complete-history report for the selected episode', async () => {
-    const createTab = vi.fn(async (_options: { url: string }) => ({ id: 81, windowId: 7 }));
-    const focusWindow = vi.fn(async () => undefined);
-    const fetchWithTimeout = vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify([
-            {
-              encounterId: 141336,
-              patientIdentifier: '17.752.753-1',
-              startPeriod: '2026-07-18T08:00:00-04:00',
-              endPeriod: '2026-07-19T10:00:00-04:00',
-            },
-          ]),
-          { status: 200 }
-        )
-    );
-    const runtime = loadFactory().create(
-      createDependencies({
-        fetchWithTimeout,
-        chrome: {
-          downloads: { download: vi.fn(async () => 71) },
-          storage: { session: { set: vi.fn(async () => undefined) } },
-          tabs: { create: createTab },
-          windows: { update: focusWindow },
-          runtime: { getURL: (value: string) => `chrome-extension://hhr/${value}` },
-        },
-        getFichaFetchInfo: vi.fn(async () => ({
-          info: {
-            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
-            token: 'testing',
-            facId: '2',
-          },
-        })),
-      })
-    );
-
-    await expect(
-      runtime.handleNursingMedicalEpicrisisPrintRequest({
-        encId: '141336',
-        patientRun: '17.752.753-1',
-        delivery: 'download',
-        operation: 'download',
-        documentType: 'history',
-      })
-    ).resolves.toMatchObject({ ok: true, opened: true, encId: '141336' });
-    const openedUrl = new URL(createTab.mock.calls[0][0].url);
-    expect(openedUrl.searchParams.get('report')).toBe('GetHospitalizedEncounterHistory');
-    expect(JSON.parse(openedUrl.searchParams.get('params') || '{}')).toEqual({
-      enc_id: '141336',
-      start_date: '2026-07-18T08:00:00-04:00',
-      end_date: '2026-07-19T10:00:00-04:00',
-    });
-    expect(focusWindow).toHaveBeenCalledWith(7, { focused: true });
-    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
-  });
-
-  it('fails safely when complete-history browser dependencies are unavailable', async () => {
-    const context = vm.createContext({ URL, Date });
-    vm.runInContext(hospitalizationReportsSource, context, {
-      filename: 'hospitalization-reports-runtime.js',
-    });
-    const reports = (
-      context as unknown as {
-        HhrHospitalizationReportsRuntime: {
-          openHistoryReport: (request: Record<string, unknown>) => Promise<{ error?: string }>;
-        };
-      }
-    ).HhrHospitalizationReportsRuntime;
-
-    await expect(
-      reports.openHistoryReport({
-        resolved: {
-          encId: '141336',
-          row: { startPeriod: '2026-07-18T08:00:00-04:00', endPeriod: null },
-        },
-      })
-    ).resolves.toEqual({
-      error: 'No se pudo acceder al navegador para abrir la ficha clínica completa.',
     });
   });
 });

@@ -9,6 +9,7 @@ import {
   type RayenEncounter,
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { Specialty } from '@/types/domain/patientClassification';
 
 const REFERENCE = new Date(2026, 6, 8);
 
@@ -37,10 +38,14 @@ const child: RayenEncounter = {
 };
 
 const seed = (encounter: RayenEncounter) => rayenToPatientData(encounter, REFERENCE).patient;
+const clinicalCribSeed = (encounter: RayenEncounter) => ({
+  ...seed(encounter),
+  specialty: Specialty.PEDIATRIA,
+});
 
 const record: DailyRecord = {
   date: '2026-07-08',
-  beds: { H5C1: { ...seed(mother), clinicalCrib: seed(child) } },
+  beds: { H5C1: { ...seed(mother), clinicalCrib: clinicalCribSeed(child) } },
   discharges: [],
   transfers: [],
   cma: [],
@@ -71,9 +76,13 @@ describe('clinical crib snapshot omission', () => {
     const promoted = { ...seed(child), bedId: 'H5C1', bedMode: 'Cuna' as const };
     const current: DailyRecord = { ...record, beds: { H5C1: promoted } };
     const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
-    const diff = reconcileCensus(current, { ...snapshot, encounters: [unenrichedChild] }, {
-      reference: REFERENCE,
-    });
+    const diff = reconcileCensus(
+      current,
+      { ...snapshot, encounters: [unenrichedChild] },
+      {
+        reference: REFERENCE,
+      }
+    );
 
     expect(diff.conflicts).toHaveLength(0);
     expect(diff.admissions).toHaveLength(0);
@@ -82,9 +91,13 @@ describe('clinical crib snapshot omission', () => {
 
   it('retains a known crib when verified bed enrichment is temporarily unavailable', () => {
     const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
-    const diff = reconcileCensus(record, { ...snapshot, encounters: [mother, unenrichedChild] }, {
-      reference: REFERENCE,
-    });
+    const diff = reconcileCensus(
+      record,
+      { ...snapshot, encounters: [mother, unenrichedChild] },
+      {
+        reference: REFERENCE,
+      }
+    );
 
     expect(diff.conflicts).toHaveLength(0);
     expect(diff.admissions).toHaveLength(0);
@@ -96,14 +109,21 @@ describe('clinical crib snapshot omission', () => {
     const priorMother = { ...mother, room: 'H4' };
     const current: DailyRecord = {
       ...record,
-      beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(child) } },
+      beds: { H4C1: { ...seed(priorMother), clinicalCrib: clinicalCribSeed(child) } },
     };
     const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
-    const diff = reconcileCensus(current, {
-      ...snapshot, encounters: [mother, unenrichedChild],
-    }, { reference: REFERENCE });
+    const diff = reconcileCensus(
+      current,
+      {
+        ...snapshot,
+        encounters: [mother, unenrichedChild],
+      },
+      { reference: REFERENCE }
+    );
     const applied = applyCensusImportDiff(current, diff, {
-      idFactory: () => 'unenriched-parent-move', now: REFERENCE, syncRunId: 'unenriched-parent-move',
+      idFactory: () => 'unenriched-parent-move',
+      now: REFERENCE,
+      syncRunId: 'unenriched-parent-move',
     });
 
     expect(diff.conflicts).toHaveLength(0);
@@ -142,7 +162,10 @@ describe('clinical crib snapshot omission', () => {
       beds: {
         H5C1: {
           ...seed(mother),
-          clinicalCrib: { ...seed(childWithoutRun), handoffNote: 'Vigilancia neonatal' },
+          clinicalCrib: {
+            ...clinicalCribSeed(childWithoutRun),
+            handoffNote: 'Vigilancia neonatal',
+          },
         },
       },
     };
@@ -170,7 +193,7 @@ describe('clinical crib snapshot omission', () => {
       beds: {
         H5C1: {
           ...seed(mother),
-          clinicalCrib: { ...seed(childWithoutRun), handoffNote: 'Control térmico' },
+          clinicalCrib: { ...clinicalCribSeed(childWithoutRun), handoffNote: 'Control térmico' },
         },
       },
     };
@@ -196,7 +219,7 @@ describe('clinical crib snapshot omission', () => {
     const priorMother = { ...mother, room: 'H4' };
     const current: DailyRecord = {
       ...record,
-      beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(child) } },
+      beds: { H4C1: { ...seed(priorMother), clinicalCrib: clinicalCribSeed(child) } },
     };
     const diff = reconcileCensus(current, snapshot, { reference: REFERENCE });
     const enriched = applyEgresoReport(diff, [motherDischarge], current);

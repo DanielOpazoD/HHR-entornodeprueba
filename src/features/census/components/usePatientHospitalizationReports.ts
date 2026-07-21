@@ -11,6 +11,8 @@ import {
 interface PatientReportContext {
   patientRun: string;
   patientName: string;
+  clinicalEpisodeId?: string;
+  admissionDate?: string;
   censusDate?: string;
 }
 
@@ -60,8 +62,12 @@ export const usePatientHospitalizationReports = (): PatientHospitalizationReport
       if (downloadingKey) return;
       setDownloadingKey(key);
       try {
+        const episodeAdmissionDate =
+          episode.startDate ||
+          (episode.encId === context.clinicalEpisodeId ? context.admissionDate : undefined);
         const result = await requestRayenHospitalizationDocument({
           patientRun: context.patientRun,
+          ...(episodeAdmissionDate ? { admissionDate: episodeAdmissionDate } : {}),
           censusDate: context.censusDate,
           clinicalEpisodeId: episode.encId,
           documentType,

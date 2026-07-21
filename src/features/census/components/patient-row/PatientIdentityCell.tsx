@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight, Baby, Biohazard } from 'lucide-react';
+import { ArrowRight, Biohazard } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -138,21 +138,36 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           </div>
         )}
         <div className="flex items-center gap-1">
-          {canEditInlineName || isEmpty ? (
+          {canEditInlineName ? (
+            <div
+              className={clsx(
+                'flex h-7 w-full min-w-0 flex-1 items-center gap-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
+              )}
+            >
+              <DebouncedInput
+                type="text"
+                name="patientName"
+                className="h-full min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-[13px] font-semibold text-inherit focus:outline-none"
+                placeholder="Nombre RN / Niño"
+                value={fullName}
+                onChange={handlePatientNameChange}
+                debounceMs={350}
+              />
+              {ageBadge}
+            </div>
+          ) : isEmpty ? (
             <DebouncedInput
               type="text"
               name="patientName"
               className={clsx(
                 'w-full min-w-0 flex-1 p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold',
-                canEditInlineName
-                  ? 'bg-white text-slate-800 focus:ring-2 focus:ring-pink-200 focus:border-pink-400'
-                  : 'bg-slate-50 text-slate-700 cursor-default',
-                isSubRow ? 'border-pink-100 text-xs h-6' : 'border-slate-200',
+                'bg-slate-50 text-slate-700 cursor-default border-slate-200',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
-              placeholder={isSubRow ? 'Nombre RN / Niño' : isEmpty ? '' : 'Nombre Paciente'}
+              placeholder=""
               value={fullName}
-              readOnly={!canEditInlineName}
+              readOnly
               onChange={handlePatientNameChange}
               debounceMs={350}
             />
@@ -160,7 +175,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <div
               className={clsx(
                 'flex w-full min-w-0 flex-1 items-center gap-1 overflow-hidden p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold bg-slate-50 text-slate-700 cursor-default',
-                isSubRow ? 'border-pink-100 text-xs h-6' : 'border-slate-200',
+                'border-slate-200',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
@@ -187,13 +202,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               {ageBadge}
             </div>
           )}
-          {canEditInlineName && ageBadge}
-          {!isSubRow && !isEmpty && (
+          {!isEmpty && (
             <ClinicalPanelTrigger
               bedId={data.bedId}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
               patientName={fullName}
               patientRun={data.rut}
               clinicalEpisodeId={data.clinicalEpisodeId}
+              admissionDate={data.admissionDate}
             />
           )}
           {data.isIsolated && (
@@ -204,11 +220,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             >
               <Biohazard size={10} strokeWidth={2.5} />
               Aisl.
-            </span>
-          )}
-          {isSubRow && (
-            <span className="shrink-0 text-pink-400 pointer-events-none">
-              <Baby size={12} />
             </span>
           )}
         </div>
@@ -271,16 +282,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 {admissionShort}
               </span>
             )}
-            {!isSubRow && (
-              <span className="flex min-w-0 items-center gap-1">
-                {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
-                <SpecialtyChip
-                  specialty={specialtyLabel}
-                  readOnly={readOnly}
-                  onAssign={handleSpecialtyAssign}
-                />
-              </span>
-            )}
+            <span className="flex min-w-0 items-center gap-1">
+              {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
+              <SpecialtyChip
+                specialty={specialtyLabel}
+                readOnly={readOnly}
+                onAssign={handleSpecialtyAssign}
+              />
+            </span>
           </div>
         )}
       </div>

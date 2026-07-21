@@ -29,9 +29,6 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
       style={style}
       data-testid="patient-row"
     >
-      <td className="border-r border-slate-200 text-center p-0 w-10">
-        {/* Action Column Spacer */}
-      </td>
       <td className="p-0 text-right border-r border-slate-200 align-middle group/crib-config">
         <div className="flex justify-center items-center h-full gap-1">
           {showDemographicsButton && (

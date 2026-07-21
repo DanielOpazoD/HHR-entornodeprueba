@@ -11,7 +11,8 @@ export interface RayenHospitalizationEpisode {
   encId: string;
   startDate: string;
   endDate?: string;
-  active: boolean;
+  /** Absent when a direct episode lookup cannot prove whether the hospitalization is still active. */
+  active?: boolean;
 }
 
 export type RayenHospitalizationDocumentType = 'epicrisis' | 'history';
@@ -27,6 +28,7 @@ interface RayenHospitalizationReportRequest {
   operation: 'list' | 'download';
   patientRun: string;
   clinicalEpisodeId?: string;
+  admissionDate?: string;
   censusDate?: string;
   documentType?: RayenHospitalizationDocumentType;
 }
@@ -39,8 +41,13 @@ const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
   const encId = typeof row.encId === 'string' ? row.encId : '';
   const startDate = typeof row.startDate === 'string' ? row.startDate : '';
   const endDate = typeof row.endDate === 'string' ? row.endDate : undefined;
-  if (!/^\d+$/.test(encId) || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
-  return { encId, startDate, endDate, active: row.active === true };
+  if (!/^\d+$/.test(encId) || (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate))) return null;
+  return {
+    encId,
+    startDate,
+    endDate,
+    ...(typeof row.active === 'boolean' ? { active: row.active } : {}),
+  };
 };
 
 const requestHospitalizationReport = (
@@ -49,8 +56,14 @@ const requestHospitalizationReport = (
 ): Promise<RayenHospitalizationReportResult> =>
   new Promise(resolve => {
     const patientRun = normalizeRun(request.patientRun);
-    if (typeof window === 'undefined' || !/^[0-9]{6,8}[0-9K]$/.test(patientRun)) {
-      resolve({ ok: false, error: 'El paciente no tiene un RUN válido para buscar informes.' });
+    const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
+    const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
+    const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
+    if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode)) {
+      resolve({
+        ok: false,
+        error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+      });
       return;
     }
 
@@ -94,8 +107,9 @@ const requestHospitalizationReport = (
         reqId,
         operation: request.operation,
         documentType: request.documentType,
-        encId: request.clinicalEpisodeId?.trim() || undefined,
+        encId: clinicalEpisodeId || undefined,
         patientRun,
+        admissionDate: request.admissionDate,
         censusDate: request.censusDate,
       },
       window.location.origin
@@ -111,7 +125,10 @@ const requestHospitalizationReport = (
   });
 
 export const requestRayenHospitalizationEpisodes = (
-  request: Pick<RayenHospitalizationReportRequest, 'patientRun' | 'censusDate'>,
+  request: Pick<
+    RayenHospitalizationReportRequest,
+    'patientRun' | 'clinicalEpisodeId' | 'admissionDate' | 'censusDate'
+  >,
   timeoutMs = 15000
 ): Promise<RayenHospitalizationReportResult> =>
   requestHospitalizationReport({ ...request, operation: 'list' }, timeoutMs);
@@ -131,7 +148,10 @@ export const requestRayenStatisticalDischargeReport = (
   new Promise(resolve => {
     const encId = clinicalEpisodeId.trim();
     if (typeof window === 'undefined' || !/^\d+$/.test(encId)) {
-      resolve({ ok: false, error: 'El alta no tiene un episodio válido para descargar su informe.' });
+      resolve({
+        ok: false,
+        error: 'El alta no tiene un episodio válido para descargar su informe.',
+      });
       return;
     }
 

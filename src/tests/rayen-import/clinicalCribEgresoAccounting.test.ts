@@ -26,15 +26,16 @@ const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => (
   ...overrides,
 });
 
-const newborn = (encounterId = 'NEWBORN'): RayenEncounter => encounter({
-  encounterId,
-  run: '222222222',
-  firstGivenName: 'Bebe',
-  birthDate: '2026-07-08',
-  room: 'Cunas',
-  bed: 'CH5C1',
-  clinicalCribParentBedId: 'H5C1',
-});
+const newborn = (encounterId = 'NEWBORN'): RayenEncounter =>
+  encounter({
+    encounterId,
+    run: '222222222',
+    firstGivenName: 'Bebe',
+    birthDate: '2026-07-08',
+    room: 'Cunas',
+    bed: 'CH5C1',
+    clinicalCribParentBedId: 'H5C1',
+  });
 
 const seed = (source: RayenEncounter) => rayenToPatientData(source, REFERENCE).patient;
 
@@ -78,12 +79,14 @@ describe('clinical crib egreso accounting', () => {
     const { encounterId: _omittedByBulkReport, ...bulkRow } = dischargeRow(child);
     const enriched = applyEgresoReport(diff, [bulkRow], current);
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        rut: child.run,
-        reason: expect.stringContaining('no identifica el episodio activo'),
-      }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rut: child.run,
+          reason: expect.stringContaining('no identifica el episodio activo'),
+        }),
+      ])
+    );
     const applied = applyCensusImportDiff(current, enriched, {
       idFactory: () => 'should-not-be-used',
       now: REFERENCE,
@@ -111,12 +114,14 @@ describe('clinical crib egreso accounting', () => {
 
     expect(diff.admissions).toHaveLength(1);
     expect(enriched.admissions).toHaveLength(1);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        rut: readmission.run,
-        reason: expect.stringContaining('no identifica el episodio activo'),
-      }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rut: readmission.run,
+          reason: expect.stringContaining('no identifica el episodio activo'),
+        }),
+      ])
+    );
   });
 
   it('keeps a provisional principal admission when an episode-less egreso predates it', () => {
@@ -131,9 +136,13 @@ describe('clinical crib egreso accounting', () => {
 
     expect(enriched.admissions).toHaveLength(1);
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ reason: expect.stringContaining('anterior a su ingreso activo') }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: expect.stringContaining('anterior a su ingreso activo'),
+        }),
+      ])
+    );
   });
 
   it('records an exact older episode without conflicting with the active readmission', () => {
@@ -164,10 +173,12 @@ describe('clinical crib egreso accounting', () => {
       current
     );
 
-    expect(enriched.reportEgresos).toEqual(expect.arrayContaining([
-      expect.objectContaining({ encounterId: 'NEWBORN-OLD-1' }),
-      expect.objectContaining({ encounterId: 'NEWBORN-OLD-2' }),
-    ]));
+    expect(enriched.reportEgresos).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ encounterId: 'NEWBORN-OLD-1' }),
+        expect.objectContaining({ encounterId: 'NEWBORN-OLD-2' }),
+      ])
+    );
     expect(enriched.reportEgresos).toHaveLength(2);
   });
 
@@ -183,17 +194,21 @@ describe('clinical crib egreso accounting', () => {
     );
 
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        rut: child.run,
-        reason: expect.stringContaining('anterior a su ingreso activo'),
-      }),
-    ]));
-    expect(enriched.updates).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        changes: expect.arrayContaining([expect.objectContaining({ field: 'clinicalCrib' })]),
-      }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rut: child.run,
+          reason: expect.stringContaining('anterior a su ingreso activo'),
+        }),
+      ])
+    );
+    expect(enriched.updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          changes: expect.arrayContaining([expect.objectContaining({ field: 'clinicalCrib' })]),
+        }),
+      ])
+    );
   });
 
   it('does not clear a readmitted newborn when the report repeats its older episode', () => {
@@ -214,16 +229,16 @@ describe('clinical crib egreso accounting', () => {
     });
 
     expect(enriched.reportEgresos).toHaveLength(0);
-    expect(enriched.updates).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        changes: expect.arrayContaining([
-          expect.objectContaining({ field: 'clinicalCrib' }),
-        ]),
-      }),
-    ]));
+    expect(enriched.updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          changes: expect.arrayContaining([expect.objectContaining({ field: 'clinicalCrib' })]),
+        }),
+      ])
+    );
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN-READMISSION',
-      patientName: 'Bebe Perez',
+      patientName: 'Bebe Antiguo',
     });
   });
 
@@ -264,9 +279,9 @@ describe('clinical crib egreso accounting', () => {
     });
 
     expect(applied.record.beds.H5C1.clinicalCrib).toBeUndefined();
-    expect(applied.record.discharges).toEqual(expect.arrayContaining([
-      expect.objectContaining({ clinicalEpisodeId: 'NEWBORN' }),
-    ]));
+    expect(applied.record.discharges).toEqual(
+      expect.arrayContaining([expect.objectContaining({ clinicalEpisodeId: 'NEWBORN' })])
+    );
   });
 
   it('keeps a legacy crib when an exact report cannot confirm its active episode', () => {
@@ -278,11 +293,14 @@ describe('clinical crib egreso accounting', () => {
     const enriched = applyEgresoReport(diff, [dischargeRow(child)], current);
 
     expect(enriched.updates).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        bedId: 'H5C1', reason: expect.stringContaining('episodio activo de la cuna'),
-      }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          bedId: 'H5C1',
+          reason: expect.stringContaining('episodio activo de la cuna'),
+        }),
+      ])
+    );
   });
 
   it('discharges a RUN-less newborn by its exact Eloísa episode', () => {
@@ -331,11 +349,9 @@ describe('clinical crib egreso accounting', () => {
       H5C1: { ...seed(motherA), clinicalCrib: seed(childA) },
       H4C1: { ...seed(motherB), clinicalCrib: seed(childB) },
     });
-    const diff = reconcileCensus(
-      current,
-      snapshotOf([motherA, motherB, childA, childB]),
-      { reference: REFERENCE }
-    );
+    const diff = reconcileCensus(current, snapshotOf([motherA, motherB, childA, childB]), {
+      reference: REFERENCE,
+    });
     const applied = applyCensusImportDiff(
       current,
       applyEgresoReport(diff, [dischargeRow(childB)], current),
@@ -361,9 +377,14 @@ describe('clinical crib egreso accounting', () => {
     });
 
     expect(enriched.discharges).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ bedId: 'H5C1', reason: expect.stringContaining('episodio activo') }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          bedId: 'H5C1',
+          reason: expect.stringContaining('episodio activo'),
+        }),
+      ])
+    );
     expect(applied.record.beds.H5C1).toMatchObject({ rut: legacyMother.rut });
   });
 
