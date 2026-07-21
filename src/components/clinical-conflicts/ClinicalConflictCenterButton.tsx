@@ -31,7 +31,7 @@ export function ClinicalConflictCenterButton({
       type="button"
       onClick={onClick}
       title={`Centro de conflictos clínicos · ${scopeLabel}`}
-      aria-label={`Centro de conflictos clínicos de ${scopeLabel}`}
+      aria-label={`Centro de conflictos clínicos de ${scopeLabel}${requiresAttention ? ' · revisión requerida' : ''}`}
       data-testid={testId}
       className={clsx(
         'relative inline-flex items-center justify-center gap-1.5 border font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
