@@ -13,8 +13,6 @@ const epicrisisDownloadSource = readFileSync(
   path.resolve('extension/epicrisis-download-runtime.js'),
   'utf8'
 );
-const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
-
 type RuntimeDependencies = Record<string, unknown>;
 
 const loadFactory = () => {
