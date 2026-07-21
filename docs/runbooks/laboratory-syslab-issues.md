@@ -4,7 +4,7 @@
 
 Flujo principal en HHR:
 
-```
+```text
 HHR → content-hhr-syslab → extensión Eloísa → sesión Syslab de la LAN (10.4.69.90)
 ```
 
