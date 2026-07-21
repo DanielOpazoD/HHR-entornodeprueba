@@ -264,23 +264,26 @@ export const useRayenImport = () => {
       );
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
       const patch = buildNursingShiftProposalPatch(fresh.record, staffingProposal);
-      if (patch) {
-        const result = await patchDailyRecordWithCompatibility(
-          dailyRecord,
-          staffingProposal.censusDate,
-          patch,
-          { baseRecord: fresh.record }
-        );
-        if (result?.blockingError) throw result.blockingError;
-        if (isDailyRecordWriteBlockedResult(result)) {
-          throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
-        }
-        await ensureFreshDailyRecordQuery(
-          staffingProposal.censusDate,
-          { dailyRecord, queryClient },
-          'clinical_patch'
+      if (!patch) {
+        throw new Error(
+          'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
         );
       }
+      const result = await patchDailyRecordWithCompatibility(
+        dailyRecord,
+        staffingProposal.censusDate,
+        patch,
+        { baseRecord: fresh.record }
+      );
+      if (result?.blockingError) throw result.blockingError;
+      if (isDailyRecordWriteBlockedResult(result)) {
+        throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
+      }
+      await ensureFreshDailyRecordQuery(
+        staffingProposal.censusDate,
+        { dailyRecord, queryClient },
+        'clinical_patch'
+      );
       setStaffingProposal(null);
     } catch (error) {
       setStaffingProposalError(getRayenImportErrorMessage(error));

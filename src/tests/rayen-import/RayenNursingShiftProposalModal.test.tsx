@@ -108,4 +108,22 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText(/Un cupo quedó sin sugerencia/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Completar vacantes' })).not.toBeInTheDocument();
   });
+
+  it('keeps a concurrent no-op visible so the user can review the current assignment', () => {
+    const error =
+      'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.';
+
+    render(
+      <RayenNursingShiftProposalModal
+        proposal={proposal}
+        isBusy={false}
+        error={error}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(error)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Completar vacantes' })).toBeEnabled();
+  });
 });
