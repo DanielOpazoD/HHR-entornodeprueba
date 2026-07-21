@@ -4,6 +4,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 import { describe, expect, it } from 'vitest';
+import { mapRayenBed } from '@/features/rayen-import';
+import { CLINICAL_CRIB_PARENT_BEDS } from '@/features/rayen-import/mapping/bedMapping';
 
 interface ClinicalCribRuntime {
   parentBedIdFromLabel: (value: string) => string | null;
@@ -30,8 +32,31 @@ vm.runInContext(
 );
 const runtime = (context as unknown as { HhrGestionCamasClinicalCribs: ClinicalCribRuntime })
   .HhrGestionCamasClinicalCribs;
+const extensionSource = readFileSync(
+  path.resolve('extension/gestion-camas-clinical-cribs.js'),
+  'utf8'
+);
+
+const extensionParentBedIds = (): string[] => {
+  const declaration = /const PARENT_BEDS = new Set\(\[([\s\S]*?)\]\);/.exec(extensionSource)?.[1];
+  if (!declaration) throw new Error('No se encontró el inventario PARENT_BEDS de la extensión');
+  return [...declaration.matchAll(/'([^']+)'/g)].map(match => match[1]);
+};
 
 describe('Gestión de Camas clinical-crib mapping', () => {
+  it('keeps the extension inventory and normalization contract aligned with the app', () => {
+    const extensionInventory = extensionParentBedIds();
+    expect(extensionInventory.sort()).toEqual([...CLINICAL_CRIB_PARENT_BEDS].sort());
+    for (const parentBedId of extensionInventory) {
+      const label = `Cuna ${parentBedId}`;
+      expect(runtime.parentBedIdFromLabel(label)).toBe(parentBedId);
+      expect(mapRayenBed({ bed: label, clinicalCribParentBedId: parentBedId })).toMatchObject({
+        bedId: parentBedId,
+        isClinicalCrib: true,
+      });
+    }
+  });
+
   it('wires the verified bed inventory into the snapshot route', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     expect(background).toContain("'gestion-camas-clinical-cribs.js'");
@@ -70,7 +95,10 @@ describe('Gestión de Camas clinical-crib mapping', () => {
   it('adds only the verified parent relation to the matching Ficha encounter', () => {
     const snapshot = {
       capturedAt: '2026-07-20T13:00:00-06:00',
-      encounters: [{ encounterId: '141814' }, { encounterId: '141815' }],
+      encounters: [
+        { encounterId: '141814', bed: 'CH5C1' },
+        { encounterId: '141815', bed: 'CH3C1' },
+      ],
     };
 
     expect(runtime.enrichSnapshot(snapshot, [
@@ -79,14 +107,21 @@ describe('Gestión de Camas clinical-crib mapping', () => {
     ])).toEqual({
       ...snapshot,
       encounters: [
-        { encounterId: '141814', clinicalCribParentBedId: 'H5C1' },
-        { encounterId: '141815' },
+        { encounterId: '141814', bed: 'CH5C1', clinicalCribParentBedId: 'H5C1' },
+        { encounterId: '141815', bed: 'CH3C1' },
       ],
     });
   });
 
+  it('does not join a later bed assignment to a snapshot captured before a crib move', () => {
+    const snapshot = { encounters: [{ encounterId: '141814', bed: 'CH5C2' }] };
+    expect(runtime.enrichSnapshot(snapshot, [
+      { encounterId: '141814', parentBedId: 'H5C1' },
+    ])).toEqual(snapshot);
+  });
+
   it('enriches from an authenticated bed inventory and degrades safely when unavailable', async () => {
-    const snapshotResponse = { snapshot: { encounters: [{ encounterId: '141814' }] } };
+    const snapshotResponse = { snapshot: { encounters: [{ encounterId: '141814', bed: 'CH5C1' }] } };
     const gestionCamasRuntime = {
       resolveSession: async () => ({
         record: { apiBase: 'https://hospital.test/api', facId: 1342, token: 'secret' },
@@ -105,7 +140,11 @@ describe('Gestión de Camas clinical-crib mapping', () => {
       fetchWithTimeout
     )).resolves.toEqual({
       snapshot: {
-        encounters: [{ encounterId: '141814', clinicalCribParentBedId: 'H5C1' }],
+        encounters: [{
+          encounterId: '141814',
+          bed: 'CH5C1',
+          clinicalCribParentBedId: 'H5C1',
+        }],
       },
     });
 

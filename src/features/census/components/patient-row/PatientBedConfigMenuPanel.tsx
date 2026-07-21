@@ -17,8 +17,10 @@ interface PatientBedConfigMenuPanelProps {
   };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
+  showLegacyCompanionCleanup: boolean;
   onToggleMode: () => void;
   onToggleClinicalCrib: () => void;
+  onClearLegacyCompanion: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
 }
 
@@ -28,8 +30,10 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
   clinicalCribModel,
   showClinicalCribToggle,
   showClinicalCribActions,
+  showLegacyCompanionCleanup,
   onToggleMode,
   onToggleClinicalCrib,
+  onClearLegacyCompanion,
   onRemoveClinicalCrib,
 }) => (
   <div
@@ -51,6 +55,13 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         </div>
         <div className={bedModeModel.dotClassName} />
       </button>
+
+      {showLegacyCompanionCleanup && (
+        <button onClick={onClearLegacyCompanion} className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+          <span>Quitar dato RN sano antiguo</span>
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
 
       {showClinicalCribToggle && (
         <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>

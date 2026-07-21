@@ -42,25 +42,36 @@ export const reconcileClinicalCribs = (
   candidates: ClinicalCribCandidate[],
   diff: CensusImportDiff,
   confirmedPrincipalBedIds: ReadonlySet<string>,
-  pendingDischargeRuns: ReadonlySet<string> = new Set()
+  pendingDischargeIdentities: ReadonlySet<string> = new Set()
 ): void => {
   const currentCribs = indexCurrentClinicalCribs(current);
-  const claimedParents = new Set<string>();
+  const claimsByParent = new Map<string, number>();
+  for (const { mapped } of candidates) {
+    if (mapped.bedId) claimsByParent.set(mapped.bedId, (claimsByParent.get(mapped.bedId) ?? 0) + 1);
+  }
+  const reportedDuplicateParents = new Set<string>();
 
   for (const { encounter, mapped } of candidates) {
-    const { patient: incomingCrib, bedId: parentBedId } = mapped;
+    const { patient: incomingCrib } = mapped;
+    const existingRef = currentCribs.byEpisode.get(encounter.encounterId) ??
+      currentCribs.byRut.get(normalizeRut(incomingCrib.rut));
+    const retainedParentMove = !encounter.clinicalCribParentBedId && existingRef?.parentBedId === mapped.bedId
+      ? diff.moves.find(entry => entry.fromBedId === mapped.bedId) : undefined;
+    const parentBedId = retainedParentMove?.toBedId ?? mapped.bedId;
     if (!parentBedId) continue;
-    if (claimedParents.has(parentBedId)) {
+    if ((claimsByParent.get(parentBedId) ?? 0) > 1) {
+      if (reportedDuplicateParents.has(parentBedId)) continue;
+      reportedDuplicateParents.add(parentBedId);
       diff.conflicts.push({
         bedId: parentBedId,
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
         reason: `Dos recién nacidos de Rayen apuntan a la cuna clínica de ${parentBedId}.`,
         source: encounter,
       });
       continue;
     }
-    claimedParents.add(parentBedId);
     const parentMove = diff.moves.find(entry => entry.toBedId === parentBedId);
     const movingParent = parentMove ? current.beds[parentMove.fromBedId] : undefined;
     const parentAdmission = diff.admissions.find(entry => entry.bedId === parentBedId);
@@ -73,6 +84,7 @@ export const reconcileClinicalCribs = (
     const principalRut =
       parentAdmission?.patient.rut ??
       movingParent?.rut ??
+      incomingPrincipalConflict?.source?.run ??
       incomingPrincipalConflict?.rut ??
       currentParent?.rut;
     const recordActiveCrib = (): void => {
@@ -91,6 +103,7 @@ export const reconcileClinicalCribs = (
         bedId: parentBedId,
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
         reason: `La cuna clínica ya está asociada a ${existingCrib.parentBedId}; el cambio requiere revisión.`,
         source: encounter,
       });
@@ -102,6 +115,8 @@ export const reconcileClinicalCribs = (
         bedId: parentBedId,
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
+        code: 'unconfirmed-principal-bed',
         reason: `La cama principal ${parentBedId} no fue confirmada en el censo activo de Rayen.`,
         source: encounter,
       });
@@ -138,25 +153,18 @@ export const reconcileClinicalCribs = (
           bedId: parentBedId,
           rut: incomingCrib.rut,
           patientName: incomingCrib.patientName,
+          scope: 'clinical-crib',
           reason: `La cuna clínica de ${parentBedId} no tiene una cama principal ocupada en HHR.`,
           source: encounter,
         });
         continue;
       }
       const childChanges = diffSyncablePatientFields(existingCrib.patient, incomingCrib);
-      if (
-        incomingCrib.clinicalEpisodeId &&
-        existingCrib.patient.clinicalEpisodeId !== incomingCrib.clinicalEpisodeId
-      ) {
-        childChanges.push({
-          field: 'clinicalEpisodeId',
-          from: existingCrib.patient.clinicalEpisodeId,
-          to: incomingCrib.clinicalEpisodeId,
-        });
-      }
       const clearsLegacyFlag = existingParent.hasCompanionCrib === true;
       if (childChanges.length === 0 && !clearsLegacyFlag) {
-        if (!pendingDischargeRuns.has(normalizeRut(incomingCrib.rut))) {
+        const identity = encounter.encounterId
+          ? `episode:${encounter.encounterId}` : `run:${normalizeRut(incomingCrib.rut)}`;
+        if (!pendingDischargeIdentities.has(identity)) {
           diff.unchangedCount += 1;
         }
       } else {
@@ -204,6 +212,7 @@ export const reconcileClinicalCribs = (
         bedId: parentBedId,
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
         reason: `La cuna clínica ${parentBedId} no tiene una cama principal ocupada en HHR.`,
         source: encounter,
       });
@@ -214,6 +223,7 @@ export const reconcileClinicalCribs = (
         bedId: parentBedId,
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
         reason: `La cuna clínica de ${parentBedId} ya está ocupada por ${effectiveParent.clinicalCrib.patientName}.`,
         source: encounter,
       });

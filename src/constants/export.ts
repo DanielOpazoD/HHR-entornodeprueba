@@ -9,6 +9,7 @@ export const CSV_HEADERS = [
     'Ubicación',
     'Tipo Cama',
     'Mobiliario',
+    'Cuna RN Sano',
     'Bloqueada',
     'Motivo Bloqueo',
     'Paciente',

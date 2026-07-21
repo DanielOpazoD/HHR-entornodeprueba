@@ -50,5 +50,6 @@ export const buildPatientBedConfigCardState = ({
     showMenu: !isBlocked && !readOnly,
     showClinicalCribToggle: !isCunaMode,
     showClinicalCribActions: hasClinicalCrib,
+    showLegacyCompanionCleanup: hasCompanion,
   };
 };

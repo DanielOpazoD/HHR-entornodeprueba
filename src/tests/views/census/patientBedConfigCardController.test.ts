@@ -20,6 +20,7 @@ describe('patientBedConfigCardController', () => {
     expect(result.showMenu).toBe(true);
     expect(result.showClinicalCribToggle).toBe(true);
     expect(result.showClinicalCribActions).toBe(false);
+    expect(result.showLegacyCompanionCleanup).toBe(true);
   });
 
   it('hides interactive blocks when row is blocked/readOnly', () => {
@@ -39,5 +40,6 @@ describe('patientBedConfigCardController', () => {
     expect(blocked.showMenu).toBe(false);
     expect(blocked.showClinicalCribToggle).toBe(false);
     expect(blocked.showClinicalCribActions).toBe(true);
+    expect(blocked.showLegacyCompanionCleanup).toBe(false);
   });
 });

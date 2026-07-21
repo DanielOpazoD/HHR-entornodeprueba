@@ -11,19 +11,15 @@ import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { stateFromBoolean } from './dischargeVerification';
 import { reconcileClinicalCribs } from './reconcileClinicalCribs';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
-
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
-
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
-
 /** A patient leaving Rayen: medical/nurse discharge, an explicit discharge datetime, or deceased. */
 const isDischarged = (encounter: RayenEncounter): boolean =>
   !!encounter.hasMedicalDischarge ||
   !!encounter.hasNurseDischarge ||
   !!encounter.dischargeDatetime ||
   !!encounter.isDead;
-
 /** Extract a YYYY-MM-DD day from a record date / admission datetime (ISO or DD/MM/YYYY). '' if none. */
 const toIsoDay = (raw: string | undefined): string => {
   const value = (raw ?? '').trim();
@@ -96,7 +92,6 @@ export const reconcileCensus = (
 
   // A statistical HHR movement makes the matching absence from beds intentional. A patient
   // merely deleted from HHR has no movement and can still be restored provisionally.
-  const dischargedInHhr = new Set<string>();
   const dischargedEpisodes = new Set<string>();
   const dischargedRunsWithoutEpisode = new Set<string>();
   for (const record of [
@@ -105,9 +100,7 @@ export const reconcileCensus = (
     ...(current.transfers ?? []),
   ]) {
     const recordRut = normalizeRut(record.rut);
-    if (recordRut) dischargedInHhr.add(`rut:${recordRut}`);
     if (record.clinicalEpisodeId) {
-      dischargedInHhr.add(`ep:${record.clinicalEpisodeId}`);
       dischargedEpisodes.add(record.clinicalEpisodeId);
     } else if (recordRut) {
       // Older movements lack the Rayen episode: use RUN only for those legacy records.
@@ -115,8 +108,8 @@ export const reconcileCensus = (
     }
   }
   const wasDischargedInHhr = (encounter: RayenEncounter): boolean =>
-    dischargedInHhr.has(`ep:${encounter.encounterId}`) ||
-    dischargedInHhr.has(`rut:${normalizeRut(encounter.run)}`);
+    dischargedEpisodes.has(encounter.encounterId) ||
+    dischargedRunsWithoutEpisode.has(normalizeRut(encounter.run));
   const wasClinicalCribDischargedInHhr = (encounter: RayenEncounter): boolean =>
     dischargedEpisodes.has(encounter.encounterId) ||
     dischargedRunsWithoutEpisode.has(normalizeRut(encounter.run));
@@ -147,9 +140,11 @@ export const reconcileCensus = (
   const claimTarget = (bedId: string, patientName: string, source: RayenEncounter): boolean => {
     const existing = claimedTargets.get(bedId);
     if (existing) {
+      confirmedPrincipalBedIds.delete(bedId);
       diff.conflicts.push({
         bedId,
         patientName,
+        code: 'principal-bed-collision',
         reason: `Dos pacientes de Rayen apuntan a la misma cama ${bedId} (${existing} y ${patientName}).`,
         source,
       });
@@ -158,7 +153,6 @@ export const reconcileCensus = (
     claimedTargets.set(bedId, patientName);
     return true;
   };
-
   // Place a Rayen patient into their mapped bed as an admission, if the target is free. A CMA
   // patient is admitted as a NORMAL inpatient (isCma: false): "CMA" is a DISCHARGE type, resolved at
   // egreso — not an admission attribute. So a patient in the virtual CMA service occupies their real
@@ -179,20 +173,22 @@ export const reconcileCensus = (
     diff.admissions.push({ bedId, patient, isCma: false, source: encounter });
     return true;
   };
-
   const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
   const discharged = snapshot.encounters.filter(isDischarged);
-  const activeMapped = active.map(encounter => ({
-    encounter,
-    mapped: rayenToPatientData(encounter, reference),
-  }));
+  const activeMapped = active.map(encounter => {
+    const mapped = rayenToPatientData(encounter, reference);
+    const currentMatch = !mapped.bedId ? findCurrent(encounter) : undefined;
+    const retained = !mapped.bedId ? findCurrentCrib(encounter) ?? (currentMatch?.patient.bedMode === 'Cuna' ? currentMatch : undefined) : undefined;
+    return { encounter, mapped: retained ? { ...mapped, bedId: retained.bedId,
+      isClinicalCrib: true, patient: { ...mapped.patient, bedId: retained.bedId,
+        bedMode: 'Cuna' as const } } : mapped };
+  });
   const retainedClosedCribs: typeof activeMapped = [];
   const isPromotedClinicalCrib = ({ encounter, mapped }: (typeof activeMapped)[number]): boolean => {
     if (!mapped.isClinicalCrib || !mapped.bedId) return false;
     const match = findCurrent(encounter);
     return match?.patient.bedMode === 'Cuna';
   };
-
   for (const { encounter, mapped } of activeMapped.filter(
     item =>
       (!item.mapped.isClinicalCrib || isPromotedClinicalCrib(item)) &&
@@ -200,7 +196,11 @@ export const reconcileCensus = (
   )) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
-
+    const movingNestedCrib = bedId && !mapped.isClinicalCrib ? findCurrentCrib(encounter) : undefined;
+    if (movingNestedCrib) {
+      diff.conflicts.push({ bedId, rut: patient.rut, patientName: patient.patientName, scope: 'clinical-crib', reason: `El recién nacido sigue asociado a ${movingNestedCrib.bedId}; su traslado a ${bedId} requiere revisión.`, source: encounter });
+      continue;
+    }
     if (!bedId) {
       diff.conflicts.push({
         bedId: null,
@@ -215,6 +215,7 @@ export const reconcileCensus = (
     if (match) {
       consumedBedIds.add(match.bedId);
       if (match.bedId === bedId) {
+        if (!claimTarget(bedId, patient.patientName, encounter)) continue;
         confirmedPrincipalBedIds.add(bedId);
         const changes = diffSyncablePatientFields(match.patient, patient);
         if (changes.length === 0) {
@@ -349,9 +350,9 @@ export const reconcileCensus = (
     ],
     diff,
     confirmedPrincipalBedIds,
-    new Set(retainedClosedCribs.map(item => normalizeRut(item.mapped.patient.rut)))
+    new Set(retainedClosedCribs.map(item => item.encounter.encounterId
+      ? `episode:${item.encounter.encounterId}` : `run:${normalizeRut(item.mapped.patient.rut)}`))
   );
-
   // ---- Current patients absent from the snapshot → administrative confirmation pending ----
   // Absence from Ficha Médico is only a signal. It never creates a movement or vacates a bed;
   // the authoritative Gestión de Camas report must confirm the statistical discharge.

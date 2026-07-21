@@ -136,6 +136,26 @@ describe('reconcileCensus', () => {
     expect(diff.updates).toHaveLength(0);
   });
 
+  it('hydrates authoritative episode identity for an otherwise unchanged legacy patient', () => {
+    const encounter = makeEncounter({ encounterId: 'CURRENT-EPISODE' });
+    const [bedId, patient] = seedBed(encounter);
+    const diff = reconcileCensus(
+      makeRecord({ [bedId]: { ...patient, clinicalEpisodeId: undefined } }),
+      snapshotOf([encounter]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.unchangedCount).toBe(0);
+    expect(diff.updates).toEqual([
+      expect.objectContaining({
+        source: expect.objectContaining({ encounterId: 'CURRENT-EPISODE' }),
+        changes: expect.arrayContaining([
+          expect.objectContaining({ field: 'clinicalEpisodeId', to: 'CURRENT-EPISODE' }),
+        ]),
+      }),
+    ]);
+  });
+
   it('detects an update when a Rayen-sourced field changed', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const stale = { ...patient, pathology: 'Diagnóstico viejo' };
@@ -278,6 +298,27 @@ describe('reconcileCensus', () => {
     expect(diff.discharges).toHaveLength(0);
   });
 
+  it('restores a readmitted patient when only an older episode has an HHR movement', () => {
+    const encounter = makeEncounter({
+      encounterId: 'READMISSION',
+      run: '14.470.055-4',
+      room: 'Recuperacion 2',
+      bed: 'R2',
+    });
+    const diff = reconcileCensus(
+      makeRecord({}, { discharges: [hhrDischarge(encounter.run, 'OLD-EPISODE')] }),
+      snapshotOf([encounter], true),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.admissions).toEqual([
+      expect.objectContaining({
+        bedId: 'R2',
+        patient: expect.objectContaining({ clinicalEpisodeId: 'READMISSION' }),
+      }),
+    ]);
+  });
+
   it('does not record an egreso even when both clinical closures are complete', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(
@@ -351,6 +392,26 @@ describe('reconcileCensus', () => {
     expect(diff.conflicts).toHaveLength(1);
     expect(diff.conflicts[0].bedId).toBe('H1C2');
     expect(diff.admissions).toHaveLength(0);
+  });
+
+  it('reserves a confirmed principal bed against a second snapshot claimant', () => {
+    const principal = makeEncounter();
+    const [bedId, patient] = seedBed(principal);
+    const duplicate = makeEncounter({
+      encounterId: 'DUPLICATE',
+      run: '111111111',
+      firstGivenName: 'Otra',
+    });
+    const diff = reconcileCensus(
+      makeRecord({ [bedId]: patient }),
+      snapshotOf([principal, duplicate]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.conflicts).toEqual([
+      expect.objectContaining({ bedId, code: 'principal-bed-collision' }),
+    ]);
   });
 
   it('reports a conflict when the Rayen bed cannot be mapped', () => {

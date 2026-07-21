@@ -28,8 +28,8 @@ const mother: RayenEncounter = {
 const child: RayenEncounter = {
   ...mother,
   encounterId: 'NEWBORN',
-  run: '222222222',
-  firstGivenName: 'Bebe',
+  run: '',
+  firstGivenName: 'RN de Ana',
   birthDate: '2026-07-08',
   room: 'Cunas',
   bed: 'CH5C1',
@@ -67,6 +67,49 @@ const motherDischarge: EgresoReportRow = {
 };
 
 describe('clinical crib snapshot omission', () => {
+  it('retains a promoted newborn when verified bed enrichment is temporarily unavailable', () => {
+    const promoted = { ...seed(child), bedId: 'H5C1', bedMode: 'Cuna' as const };
+    const current: DailyRecord = { ...record, beds: { H5C1: promoted } };
+    const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
+    const diff = reconcileCensus(current, { ...snapshot, encounters: [unenrichedChild] }, {
+      reference: REFERENCE,
+    });
+
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.summary.unchanged).toBe(1);
+  });
+
+  it('retains a known crib when verified bed enrichment is temporarily unavailable', () => {
+    const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
+    const diff = reconcileCensus(record, { ...snapshot, encounters: [mother, unenrichedChild] }, {
+      reference: REFERENCE,
+    });
+
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.summary.unchanged).toBe(2);
+  });
+
+  it('carries an unenriched known crib with its principal patient move', () => {
+    const priorMother = { ...mother, room: 'H4' };
+    const current: DailyRecord = {
+      ...record,
+      beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(child) } },
+    };
+    const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
+    const diff = reconcileCensus(current, {
+      ...snapshot, encounters: [mother, unenrichedChild],
+    }, { reference: REFERENCE });
+    const applied = applyCensusImportDiff(current, diff, {
+      idFactory: () => 'unenriched-parent-move', now: REFERENCE, syncRunId: 'unenriched-parent-move',
+    });
+
+    expect(diff.conflicts).toHaveLength(0);
+    expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({ clinicalEpisodeId: 'NEWBORN' });
+  });
+
   it('retains and promotes the nested newborn when one snapshot omits it', () => {
     const diff = reconcileCensus(record, snapshot, { reference: REFERENCE });
     const enriched = applyEgresoReport(diff, [motherDischarge], record);
@@ -89,6 +132,63 @@ describe('clinical crib snapshot omission', () => {
     expect(applied.record.beds.H5C1).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',
       bedMode: 'Cuna',
+    });
+  });
+
+  it('promotes an omitted newborn without RUN and preserves its local clinical notes', () => {
+    const childWithoutRun = { ...child, run: '' };
+    const current: DailyRecord = {
+      ...record,
+      beds: {
+        H5C1: {
+          ...seed(mother),
+          clinicalCrib: { ...seed(childWithoutRun), handoffNote: 'Vigilancia neonatal' },
+        },
+      },
+    };
+    const diff = reconcileCensus(current, snapshot, { reference: REFERENCE });
+    const enriched = applyEgresoReport(diff, [motherDischarge], current);
+    const applied = applyCensusImportDiff(current, enriched, {
+      idFactory: () => 'movement-without-run',
+      now: REFERENCE,
+      syncRunId: 'crib-without-run',
+    });
+
+    expect(enriched.conflicts).toHaveLength(0);
+    expect(enriched.summary.unchanged).toBe(0);
+    expect(applied.record.beds.H5C1).toMatchObject({
+      clinicalEpisodeId: 'NEWBORN',
+      bedMode: 'Cuna',
+      handoffNote: 'Vigilancia neonatal',
+    });
+  });
+
+  it('matches a visible newborn without RUN by episode and preserves local notes', () => {
+    const childWithoutRun = { ...child, run: '' };
+    const current: DailyRecord = {
+      ...record,
+      beds: {
+        H5C1: {
+          ...seed(mother),
+          clinicalCrib: { ...seed(childWithoutRun), handoffNote: 'Control térmico' },
+        },
+      },
+    };
+    const currentSnapshot = { ...snapshot, encounters: [mother, childWithoutRun] };
+    const diff = reconcileCensus(current, currentSnapshot, { reference: REFERENCE });
+    const enriched = applyEgresoReport(diff, [motherDischarge], current);
+    const applied = applyCensusImportDiff(current, enriched, {
+      idFactory: () => 'movement-by-episode',
+      now: REFERENCE,
+      syncRunId: 'crib-without-run-by-episode',
+    });
+
+    expect(enriched.conflicts).toHaveLength(0);
+    expect(enriched.summary.unchanged).toBe(0);
+    expect(applied.record.beds.H5C1).toMatchObject({
+      clinicalEpisodeId: 'NEWBORN',
+      bedMode: 'Cuna',
+      handoffNote: 'Control térmico',
     });
   });
 

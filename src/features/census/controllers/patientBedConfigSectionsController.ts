@@ -18,8 +18,10 @@ interface PatientBedConfigMenuBindings {
   };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
+  showLegacyCompanionCleanup: boolean;
   onToggleMode: () => void;
   onToggleClinicalCrib: () => void;
+  onClearLegacyCompanion: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
 }
 
@@ -67,6 +69,7 @@ interface BuildPatientBedConfigSectionsParams {
     showMenu: boolean;
     showClinicalCribToggle: boolean;
     showClinicalCribActions: boolean;
+    showLegacyCompanionCleanup: boolean;
   };
   handlers: {
     handleToggleMode: () => void;
@@ -95,8 +98,10 @@ export const buildPatientBedConfigSections = ({
     clinicalCribModel: viewState.clinicalCribModel,
     showClinicalCribToggle: viewState.showClinicalCribToggle,
     showClinicalCribActions: viewState.showClinicalCribActions,
+    showLegacyCompanionCleanup: viewState.showLegacyCompanionCleanup,
     onToggleMode: handlers.handleToggleMode,
     onToggleClinicalCrib: handlers.handleToggleClinicalCrib,
+    onClearLegacyCompanion: handlers.handleToggleCompanion,
     onRemoveClinicalCrib: handlers.handleRemoveClinicalCrib,
   },
   extraLocation: {

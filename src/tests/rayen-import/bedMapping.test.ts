@@ -135,7 +135,7 @@ describe('mapRayenBed', () => {
     ['CH4C1', 'H4C1'], ['CH5C2', 'H5C2'], ['CH6C1', 'H6C1'],
     ['C-R1', 'R1'], ['C-R4', 'R4'], ['CNEO1', 'NEO1'], ['CNeo2', 'NEO2'],
   ])('maps attached crib %s to parent bed %s', (cribLabel, parentBedId) => {
-    expect(mapRayenBed({ bed: cribLabel })).toEqual({
+    expect(mapRayenBed({ bed: cribLabel, clinicalCribParentBedId: parentBedId })).toEqual({
       bedId: parentBedId,
       isCma: false,
       isClinicalCrib: true,
@@ -149,5 +149,12 @@ describe('mapRayenBed', () => {
       isClinicalCrib: true,
     });
     expect(mapRayenBed({ bed: 'CH3C1' }).bedId).toBeNull();
+  });
+
+  it('does not infer a clinical crib from an unverified snapshot label', () => {
+    expect(mapRayenBed({ bed: 'CH5C1' })).toMatchObject({
+      bedId: null,
+      isClinicalCrib: false,
+    });
   });
 });

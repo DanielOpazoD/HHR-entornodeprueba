@@ -92,14 +92,15 @@ describe('statsCalculator', () => {
 
     // R1: 1 Bed + 1 Nested Crib
     // R2: 1 Bed (Cuna mode)
-    // R3: the retired legacy flag is ignored and cannot inflate current crib occupancy.
+    // R3: the legacy flag remains visible until stored records are migrated.
+    // R1 is not double-counted because it already has a real nested clinical crib.
 
     expect(stats.occupiedBeds).toBe(3);
     expect(stats.occupiedCribs).toBe(1);
     expect(stats.totalHospitalized).toBe(4);
     expect(stats.clinicalCribsCount).toBe(2); // R1 nested + R2 main
-    expect(stats.companionCribs).toBe(0);
-    expect(stats.totalCribsUsed).toBe(2); // R1 nested + R2 main
+    expect(stats.companionCribs).toBe(1);
+    expect(stats.totalCribsUsed).toBe(3); // R1 nested + R2 main + R3 legacy
   });
 
   it('should count empty beds in Cuna mode as crib usage', () => {

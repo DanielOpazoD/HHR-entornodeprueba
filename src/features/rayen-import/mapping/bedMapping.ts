@@ -80,11 +80,6 @@ export const CLINICAL_CRIB_PARENT_BEDS = new Set([
   'NEO1', 'NEO2',
 ]);
 
-const normalizeClinicalCribParent = (value?: string): string | null => {
-  const match = /^(?:CUNA|C)(H[456]C[12]|R[1-4]|NEO[12])$/.exec(normalize(value));
-  return match && CLINICAL_CRIB_PARENT_BEDS.has(match[1]) ? match[1] : null;
-};
-
 export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const roomRaw = normalize(location.room);
   const bedRaw = normalize(location.bed);
@@ -96,7 +91,7 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const verifiedCribParent = normalize(location.clinicalCribParentBedId);
   const clinicalCribParent = CLINICAL_CRIB_PARENT_BEDS.has(verifiedCribParent)
     ? verifiedCribParent
-    : normalizeClinicalCribParent(location.bed) || normalizeClinicalCribParent(location.room);
+    : null;
 
   // Strip the CMA prefix so the underlying physical bed can be matched.
   const room = roomRaw.replace(/^CMA/, '');

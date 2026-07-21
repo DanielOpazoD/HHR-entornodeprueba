@@ -17,6 +17,7 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'cie10Code',
   'cie10Description',
   'isIsolated',
+  'clinicalEpisodeId',
 ];
 
 export const diffSyncablePatientFields = (
@@ -27,6 +28,7 @@ export const diffSyncablePatientFields = (
   for (const field of SYNCABLE_FIELDS) {
     const from = current[field];
     const to = incoming[field];
+    if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;
     // Missing bridge coding is not an instruction to erase locally curated CIE-10 data.
     if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
     if (String(from ?? '') !== String(to ?? '')) changes.push({ field, from, to });

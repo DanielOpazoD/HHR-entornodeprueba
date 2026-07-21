@@ -7,25 +7,21 @@
  */
 (function (root) {
   'use strict';
-
   const PARENT_BEDS = new Set([
     'R1', 'R2', 'R3', 'R4',
     'H4C1', 'H4C2', 'H5C1', 'H5C2', 'H6C1', 'H6C2',
     'NEO1', 'NEO2',
   ]);
-
   const normalize = value => String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
-
   const parentBedIdFromLabel = value => {
     const match = /^(?:CUNA|C)(H[456]C[12]|R[1-4]|NEO[12])$/.exec(normalize(value));
     if (match && PARENT_BEDS.has(match[1])) return match[1];
     return null;
   };
-
   const parentBedIdFromRecord = record => {
     if (!record || typeof record !== 'object') return null;
     return parentBedIdFromLabel(record.shortName) || parentBedIdFromLabel(record.name);
@@ -41,17 +37,21 @@
 
   const enrichSnapshot = (snapshot, assignments) => {
     if (!snapshot || !Array.isArray(snapshot.encounters)) return snapshot;
-    const parentByEncounter = new Map(
+    const assignmentByEncounter = new Map(
       (Array.isArray(assignments) ? assignments : [])
-        .map(item => [String(item.encounterId || ''), item.parentBedId])
-        .filter(([encounterId, parentBedId]) => /^\d+$/.test(encounterId) && PARENT_BEDS.has(parentBedId))
+        .map(item => [String(item.encounterId || ''), item])
+        .filter(([encounterId, item]) => /^\d+$/.test(encounterId) && PARENT_BEDS.has(item.parentBedId))
     );
-    if (parentByEncounter.size === 0) return snapshot;
+    if (assignmentByEncounter.size === 0) return snapshot;
     return {
       ...snapshot,
       encounters: snapshot.encounters.map(encounter => {
-        const parentBedId = parentByEncounter.get(String(encounter && encounter.encounterId || ''));
-        return parentBedId ? { ...encounter, clinicalCribParentBedId: parentBedId } : encounter;
+        const assignment = assignmentByEncounter.get(String(encounter && encounter.encounterId || ''));
+        const snapshotParent = parentBedIdFromLabel(encounter && encounter.bed) ||
+          parentBedIdFromLabel(encounter && encounter.room);
+        return assignment && snapshotParent === assignment.parentBedId
+          ? { ...encounter, clinicalCribParentBedId: assignment.parentBedId }
+          : encounter;
       }),
     };
   };

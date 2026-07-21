@@ -55,6 +55,81 @@ const seed = (encounter: RayenEncounter): PatientData =>
   rayenToPatientData(encounter, REFERENCE).patient;
 
 describe('reconcileClinicalCribs', () => {
+  it('review-gates a nested newborn moving to an ordinary bed without duplicating it', () => {
+    const mother = makeEncounter();
+    const child = newborn();
+    const movedChild = {
+      ...child,
+      room: 'Neo 1',
+      bed: 'NEO1',
+      clinicalCribParentBedId: undefined,
+    };
+    const current = makeRecord({ H5C1: { ...seed(mother), clinicalCrib: seed(child) } });
+    const diff = reconcileCensus(current, snapshotOf([mother, movedChild]), {
+      reference: REFERENCE,
+    });
+    const applied = applyCensusImportDiff(current, diff, {
+      idFactory: () => 'should-not-admit',
+      now: REFERENCE,
+      syncRunId: 'crib-to-ordinary-bed',
+    });
+
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.conflicts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bedId: 'NEO1', scope: 'clinical-crib' }),
+    ]));
+    expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
+      clinicalEpisodeId: 'NEWBORN',
+    });
+    expect(applied.record.beds.NEO1?.patientName).toBeFalsy();
+  });
+
+  it('does not attach an arbitrary newborn when two snapshot cribs claim a new mother bed', () => {
+    const mother = makeEncounter();
+    const firstChild = newborn();
+    const secondChild = {
+      ...newborn(),
+      encounterId: 'NEWBORN-2',
+      run: '333333333',
+      firstGivenName: 'Otro bebe',
+    };
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([mother, firstChild, secondChild]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.conflicts).toEqual([
+      expect.objectContaining({ bedId: 'H5C1', scope: 'clinical-crib' }),
+    ]);
+    expect(diff.admissions).toEqual([
+      expect.objectContaining({
+        bedId: 'H5C1',
+        patient: expect.not.objectContaining({ clinicalCrib: expect.anything() }),
+      }),
+    ]);
+  });
+
+  it('does not attach a newborn when two principal encounters claim its parent bed', () => {
+    const firstMother = makeEncounter();
+    const secondMother = makeEncounter({
+      encounterId: 'MOTHER-2',
+      run: '333333333',
+      firstGivenName: 'Otra madre',
+    });
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([firstMother, secondMother, newborn()]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.conflicts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bedId: 'H5C1', code: 'principal-bed-collision' }),
+      expect.objectContaining({ bedId: 'H5C1', code: 'unconfirmed-principal-bed' }),
+    ]));
+    expect(diff.admissions[0].patient.clinicalCrib).toBeUndefined();
+  });
+
   it('attaches an occupied Gestion de Camas crib to its existing principal bed', () => {
     const mother = makeEncounter();
     const diff = reconcileCensus(
@@ -139,6 +214,8 @@ describe('reconcileClinicalCribs', () => {
     expect(diff.conflicts).toEqual([
       expect.objectContaining({
         bedId: 'H5C1',
+        scope: 'clinical-crib',
+        code: 'unconfirmed-principal-bed',
         reason: expect.stringContaining('no fue confirmada'),
       }),
     ]);

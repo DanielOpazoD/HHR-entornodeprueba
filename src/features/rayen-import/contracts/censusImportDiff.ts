@@ -127,6 +127,10 @@ export interface ConflictEntry {
   bedId: string | null;
   rut?: string;
   patientName?: string;
+  /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
+  scope?: 'clinical-crib';
+  /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
+  code?: 'unconfirmed-principal-bed' | 'principal-bed-collision';
   reason: string;
   source?: RayenEncounter;
 }
