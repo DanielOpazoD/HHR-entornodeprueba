@@ -118,7 +118,7 @@ describe('Syslab service extension transport', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
     await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(
-      'El acceso web directo a Syslab no está configurado'
+      'Buscar por RUT externo requiere el acceso web de Syslab'
     );
     expect(fetchSpy).not.toHaveBeenCalled();
   });

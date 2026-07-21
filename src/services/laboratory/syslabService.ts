@@ -88,6 +88,8 @@ const directWebTransportConfigured = (): boolean =>
 
 const DIRECT_WEB_UNAVAILABLE_MESSAGE =
   'El acceso web directo a Syslab no está configurado. Activa la extensión Eloísa, recarga HHR y vuelve a intentar.';
+const EXTERNAL_SEARCH_UNAVAILABLE_MESSAGE =
+  'Buscar por RUT externo requiere el acceso web de Syslab. En desarrollo local, abre HHR con Netlify Dev o configura VITE_SYSLAB_API_URL.';
 
 const classifyHtmlResponse = (body: string, response: Response): Error => {
   const text = body.toLowerCase();
@@ -262,7 +264,11 @@ export const searchSyslabExams = async (
     throw new Error('La extensión Eloísa respondió sin resultados reconocibles.');
   }
 
-  if (!directWebTransportConfigured()) throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
+  if (!directWebTransportConfigured()) {
+    throw new Error(
+      clinicalEpisodeId ? DIRECT_WEB_UNAVAILABLE_MESSAGE : EXTERNAL_SEARCH_UNAVAILABLE_MESSAGE
+    );
+  }
 
   const authHeaders = await resolveCurrentUserAuthHeaders();
 

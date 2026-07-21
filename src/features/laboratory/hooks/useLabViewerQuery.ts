@@ -61,12 +61,12 @@ export const useLabViewerQuery = ({
   const selectedEpisodeIsAmbiguous = selectedEpisodeIds.size > 1;
   const selectedClinicalEpisodeId =
     selectedEpisodeIds.size === 1 ? [...selectedEpisodeIds][0] : undefined;
+  const selectedEpisodeQueryScope = selectedEpisodeIsAmbiguous
+    ? 'ambiguous'
+    : selectedClinicalEpisodeId || 'external';
   const labQueryKey = useMemo(
-    () => [
-      ...queryKeys.laboratory.byPatient(selectedRut),
-      selectedClinicalEpisodeId || 'external',
-    ],
-    [selectedClinicalEpisodeId, selectedRut]
+    () => [...queryKeys.laboratory.byPatient(selectedRut), selectedEpisodeQueryScope],
+    [selectedEpisodeQueryScope, selectedRut]
   );
 
   const examQuery = useQuery({

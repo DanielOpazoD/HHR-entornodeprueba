@@ -253,6 +253,37 @@ describe('useLabViewer', () => {
     expect(mockSearchSyslabExams).not.toHaveBeenCalled();
   });
 
+  it('does not reuse cached external results after the RUN becomes episode-ambiguous', async () => {
+    mockSearchSyslabExams.mockResolvedValue({ success: true, data: [MOCK_EXAM] });
+    const externalPatients: LabPatient[] = [
+      { ...PATIENTS[0], clinicalEpisodeId: undefined },
+    ];
+    const ambiguousPatients: LabPatient[] = [
+      { ...PATIENTS[0], clinicalEpisodeId: '141814' },
+      { ...PATIENTS[0], bedId: 'R2', clinicalEpisodeId: '141900' },
+    ];
+    const { result, rerender } = renderHook(
+      ({ patients }: { patients: LabPatient[] }) => useLabViewer(patients),
+      {
+        initialProps: { patients: externalPatients },
+        wrapper: createWrapper(),
+      }
+    );
+
+    await act(async () => {
+      await result.current.search();
+    });
+    await waitFor(() => expect(result.current.examList).toHaveLength(1));
+
+    rerender({ patients: ambiguousPatients });
+
+    await waitFor(() => expect(result.current.error).toContain('más de un episodio activo'), {
+      timeout: 3_000,
+    });
+    expect(result.current.examList).toHaveLength(0);
+    expect(mockSearchSyslabExams).toHaveBeenCalledTimes(1);
+  });
+
   it('hydrates external RUT birth date from the first Syslab PDF when the patient is not in hospital census', async () => {
     mockSearchSyslabExams.mockResolvedValue({
       success: true,
