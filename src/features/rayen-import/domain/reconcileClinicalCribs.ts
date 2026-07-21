@@ -2,6 +2,7 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
+import { Specialty } from '@/types/domain/patientClassification';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
 
 interface ClinicalCribCandidate {
@@ -18,6 +19,32 @@ const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, 
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
+
+const preserveExistingCribName = (current: PatientData, incoming: PatientData): PatientData => ({
+  ...incoming,
+  patientName: current.patientName,
+  firstName: current.firstName,
+  lastName: current.lastName,
+  secondLastName: current.secondLastName,
+});
+
+const withClinicalCribDefaults = (patient: PatientData): PatientData => ({
+  ...patient,
+  specialty: Specialty.PEDIATRIA,
+});
+
+const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => {
+  const changes = diffSyncablePatientFields(current, incoming);
+  if (current.specialty !== Specialty.PEDIATRIA) {
+    changes.push({ field: 'specialty', from: current.specialty, to: Specialty.PEDIATRIA });
+  }
+  return changes;
+};
+
+const mergeClinicalCrib = (current: PatientData, incoming: PatientData): PatientData => ({
+  ...mergeSyncablePatient(current, incoming),
+  specialty: Specialty.PEDIATRIA,
+});
 
 const indexCurrentClinicalCribs = (current: DailyRecord) => {
   const byEpisode = new Map<string, CurrentClinicalCribRef>();
@@ -52,11 +79,20 @@ export const reconcileClinicalCribs = (
   const reportedDuplicateParents = new Set<string>();
 
   for (const { encounter, mapped } of candidates) {
-    const { patient: incomingCrib } = mapped;
-    const existingRef = currentCribs.byEpisode.get(encounter.encounterId) ??
-      currentCribs.byRut.get(normalizeRut(incomingCrib.rut));
-    const retainedParentMove = !encounter.clinicalCribParentBedId && existingRef?.parentBedId === mapped.bedId
-      ? diff.moves.find(entry => entry.fromBedId === mapped.bedId) : undefined;
+    const rawIncomingCrib = withClinicalCribDefaults(mapped.patient);
+    const existingRef =
+      currentCribs.byEpisode.get(encounter.encounterId) ??
+      currentCribs.byRut.get(normalizeRut(rawIncomingCrib.rut));
+    // The first import seeds the newborn identity from Eloisa. From then on, staff commonly replace
+    // the verbose provisional label with the chosen local name, so HHR becomes authoritative for
+    // name fields while the remaining clinical fields continue to synchronize.
+    const incomingCrib = existingRef
+      ? preserveExistingCribName(existingRef.patient, rawIncomingCrib)
+      : rawIncomingCrib;
+    const retainedParentMove =
+      !encounter.clinicalCribParentBedId && existingRef?.parentBedId === mapped.bedId
+        ? diff.moves.find(entry => entry.fromBedId === mapped.bedId)
+        : undefined;
     const parentBedId = retainedParentMove?.toBedId ?? mapped.bedId;
     if (!parentBedId) continue;
     if ((claimsByParent.get(parentBedId) ?? 0) > 1) {
@@ -76,11 +112,14 @@ export const reconcileClinicalCribs = (
     const movingParent = parentMove ? current.beds[parentMove.fromBedId] : undefined;
     const parentAdmission = diff.admissions.find(entry => entry.bedId === parentBedId);
     const currentParent = current.beds[parentBedId];
-    const incomingPrincipalConflict = [...diff.conflicts].reverse().find(entry =>
-      entry.bedId === parentBedId &&
-      normalizeRut(entry.rut) !== normalizeRut(incomingCrib.rut) &&
-      entry.source
-    );
+    const incomingPrincipalConflict = [...diff.conflicts]
+      .reverse()
+      .find(
+        entry =>
+          entry.bedId === parentBedId &&
+          normalizeRut(entry.rut) !== normalizeRut(incomingCrib.rut) &&
+          entry.source
+      );
     const principalRut =
       parentAdmission?.patient.rut ??
       movingParent?.rut ??
@@ -95,7 +134,8 @@ export const reconcileClinicalCribs = (
         source: encounter,
       });
     };
-    const existingCrib = currentCribs.byEpisode.get(encounter.encounterId) ??
+    const existingCrib =
+      currentCribs.byEpisode.get(encounter.encounterId) ??
       currentCribs.byRut.get(normalizeRut(encounter.run));
     const cribMovesWithParent = !!parentMove && existingCrib?.parentBedId === parentMove.fromBedId;
     if (existingCrib && existingCrib.parentBedId !== parentBedId && !cribMovesWithParent) {
@@ -124,9 +164,14 @@ export const reconcileClinicalCribs = (
     }
 
     const outgoingParentMove = diff.moves.find(entry => entry.fromBedId === parentBedId);
-    const reparentsExistingCrib = !!existingCrib && !!outgoingParentMove &&
-      (!!parentMove || !!parentAdmission) && !cribMovesWithParent;
-    const outgoingParent = outgoingParentMove ? current.beds[outgoingParentMove.fromBedId] : undefined;
+    const reparentsExistingCrib =
+      !!existingCrib &&
+      !!outgoingParentMove &&
+      (!!parentMove || !!parentAdmission) &&
+      !cribMovesWithParent;
+    const outgoingParent = outgoingParentMove
+      ? current.beds[outgoingParentMove.fromBedId]
+      : undefined;
     const outgoingCribUpdate: CensusImportDiff['updates'][number] | undefined =
       reparentsExistingCrib && isOccupied(outgoingParent)
         ? {
@@ -136,11 +181,11 @@ export const reconcileClinicalCribs = (
             changes: [{ field: 'clinicalCrib', from: existingCrib.patient, to: undefined }],
             patient: outgoingParent,
             source: outgoingParentMove.source,
-        }
+          }
         : undefined;
     const reparentedCrib = existingCrib
       ? {
-          ...mergeSyncablePatient(existingCrib.patient, incomingCrib),
+          ...mergeClinicalCrib(existingCrib.patient, incomingCrib),
           bedId: parentBedId,
           clinicalEpisodeId:
             incomingCrib.clinicalEpisodeId || existingCrib.patient.clinicalEpisodeId,
@@ -159,16 +204,17 @@ export const reconcileClinicalCribs = (
         });
         continue;
       }
-      const childChanges = diffSyncablePatientFields(existingCrib.patient, incomingCrib);
+      const childChanges = diffClinicalCribFields(existingCrib.patient, incomingCrib);
       const clearsLegacyFlag = existingParent.hasCompanionCrib === true;
       if (childChanges.length === 0 && !clearsLegacyFlag) {
         const identity = encounter.encounterId
-          ? `episode:${encounter.encounterId}` : `run:${normalizeRut(incomingCrib.rut)}`;
+          ? `episode:${encounter.encounterId}`
+          : `run:${normalizeRut(incomingCrib.rut)}`;
         if (!pendingDischargeIdentities.has(identity)) {
           diff.unchangedCount += 1;
         }
       } else {
-        const mergedCrib = mergeSyncablePatient(existingCrib.patient, incomingCrib);
+        const mergedCrib = mergeClinicalCrib(existingCrib.patient, incomingCrib);
         if (incomingCrib.clinicalEpisodeId) {
           mergedCrib.clinicalEpisodeId = incomingCrib.clinicalEpisodeId;
         }
@@ -177,16 +223,24 @@ export const reconcileClinicalCribs = (
           rut: incomingCrib.rut,
           patientName: incomingCrib.patientName,
           changes: [
-            ...(childChanges.length > 0 ? [{
-              field: 'clinicalCrib' as const,
-              from: existingCrib.patient,
-              to: mergedCrib,
-            }] : []),
-            ...(clearsLegacyFlag ? [{
-              field: 'hasCompanionCrib' as const,
-              from: true,
-              to: false,
-            }] : []),
+            ...(childChanges.length > 0
+              ? [
+                  {
+                    field: 'clinicalCrib' as const,
+                    from: existingCrib.patient,
+                    to: mergedCrib,
+                  },
+                ]
+              : []),
+            ...(clearsLegacyFlag
+              ? [
+                  {
+                    field: 'hasCompanionCrib' as const,
+                    from: true,
+                    to: false,
+                  },
+                ]
+              : []),
           ],
           patient: existingParent,
           source: encounter,
@@ -236,11 +290,15 @@ export const reconcileClinicalCribs = (
       patientName: incomingCrib.patientName,
       changes: [
         { field: 'clinicalCrib', from: effectiveParent.clinicalCrib, to: reparentedCrib },
-        ...(effectiveParent.hasCompanionCrib ? [{
-          field: 'hasCompanionCrib' as const,
-          from: true,
-          to: false,
-        }] : []),
+        ...(effectiveParent.hasCompanionCrib
+          ? [
+              {
+                field: 'hasCompanionCrib' as const,
+                from: true,
+                to: false,
+              },
+            ]
+          : []),
       ],
       patient: effectiveParent,
       source: encounter,

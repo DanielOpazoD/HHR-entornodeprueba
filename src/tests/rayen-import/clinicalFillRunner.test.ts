@@ -266,6 +266,55 @@ describe('runClinicalFill', () => {
     expect(patch['beds.H3C1.vitalSignsHistory']).toHaveLength(1);
   });
 
+  it('syncs vital signs into an attached clinical crib using its own episode', async () => {
+    const VITALS_FORM = {
+      formCodigo: 'VITAL_SIGNS',
+      nameForm: 'Signos vitales RN',
+      encounterEventId: 8670142,
+      createDateTime: '10-07-2026 09:10:00 -06:00',
+      metaCampList: [
+        { id: 'global_PASSent', value: '72' },
+        { id: 'global_PADSent', value: '44' },
+        { id: 'global_Pulso', value: '138' },
+        { id: 'exa_Fisic_G_SaturacionO2', value: '97' },
+      ],
+    };
+    const rec = record({ H5C1: { encId: 'MOTHER-1', name: 'Madre' } });
+    rec.beds.H5C1.clinicalCrib = {
+      ...rec.beds.H5C1,
+      bedId: 'H5C1',
+      patientName: 'RN de prueba',
+      clinicalEpisodeId: '141814',
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn(async (encId: string) => ({
+        forms: encId === '141814' ? [VITALS_FORM] : [],
+      })),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    const summary = await runClinicalFill(rec, '2026-07-10', deps);
+
+    expect(summary).toMatchObject({ total: 2, patched: 1, errors: [] });
+    expect(deps.applyPatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'beds.H5C1.clinicalCrib.vitalSigns': expect.objectContaining({
+          systolic: 72,
+          heartRate: 138,
+          spo2: 97,
+        }),
+        'beds.H5C1.clinicalCrib.vitalSignsHistory': expect.any(Array),
+      }),
+      {
+        censusDate: '2026-07-10',
+        bedId: 'H5C1',
+        clinicalEpisodeId: '141814',
+        clinicalCrib: true,
+      }
+    );
+  });
+
   it('unions both scale sources — a Braden only in the summary form still syncs (Rodrigo case)', async () => {
     // History report has no scales for this patient; the Braden lives only in encounterFormEntry.
     const deps = okDeps({

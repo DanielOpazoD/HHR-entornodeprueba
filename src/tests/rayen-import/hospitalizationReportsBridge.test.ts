@@ -90,7 +90,66 @@ describe('hospitalization reports bridge', () => {
   it('rejects invalid patient identifiers before posting', async () => {
     await expect(requestRayenHospitalizationEpisodes({ patientRun: 'SIN-RUN' })).resolves.toEqual({
       ok: false,
-      error: 'El paciente no tiene un RUN válido para buscar informes.',
+      error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+    });
+  });
+
+  it('uses the synced episode for a newborn without RUN', async () => {
+    const pending = requestRayenHospitalizationEpisodes({
+      patientRun: '',
+      clinicalEpisodeId: '141814',
+      admissionDate: '2026-07-20',
+    });
+    const { outgoing } = await captureOutgoingRequest(pending);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+          reqId: outgoing.reqId,
+          ok: true,
+          episodes: [{ encId: '141814', startDate: '2026-07-20', active: true }],
+        },
+      })
+    );
+
+    await expect(pending).resolves.toMatchObject({
+      ok: true,
+      episodes: [{ encId: '141814', startDate: '2026-07-20', active: true }],
+    });
+    expect(outgoing).toMatchObject({
+      operation: 'list',
+      patientRun: '',
+      encId: '141814',
+      admissionDate: '2026-07-20',
+    });
+  });
+
+  it('preserves an unknown episode state and a missing admission date for direct newborn lookup', async () => {
+    const pending = requestRayenHospitalizationEpisodes({
+      patientRun: '',
+      clinicalEpisodeId: '141814',
+    });
+    const { outgoing } = await captureOutgoingRequest(pending);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+          reqId: outgoing.reqId,
+          ok: true,
+          episodes: [{ encId: '141814', startDate: '', endDate: '' }],
+        },
+      })
+    );
+
+    await expect(pending).resolves.toEqual({
+      ok: true,
+      episodes: [{ encId: '141814', startDate: '', endDate: '' }],
+      opened: false,
+      error: undefined,
     });
   });
 
@@ -103,14 +162,12 @@ describe('hospitalization reports bridge', () => {
       expect(
         posted.some(
           value =>
-            (value as { type?: string }).type ===
-            RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
+            (value as { type?: string }).type === RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
         )
       ).toBe(true)
     );
     const outgoing = posted.find(
-      value =>
-        (value as { type?: string }).type === RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
+      value => (value as { type?: string }).type === RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE
     ) as Record<string, unknown>;
     window.removeEventListener('message', listener);
 

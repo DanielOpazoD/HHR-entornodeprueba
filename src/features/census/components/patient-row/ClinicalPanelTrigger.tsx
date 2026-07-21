@@ -14,23 +14,25 @@ import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
 
 interface ClinicalPanelTriggerProps {
   bedId: string;
+  triggerKey?: string;
   patientName: string;
   patientRun: string;
   clinicalEpisodeId?: string;
+  admissionDate?: string;
 }
 
 export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   bedId,
+  triggerKey = bedId,
   patientName,
   patientRun,
   clinicalEpisodeId,
+  admissionDate,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
   const episode = (clinicalEpisodeId || '').trim();
-  const canOpenReports = /^[0-9]{6,8}[0-9K]$/.test(
-    patientRun.toUpperCase().replace(/[^0-9K]/g, '')
-  );
+  const canOpenReports = !!episode;
   if (!episode || !patientName.trim()) return null;
   const panelKey = `${bedId}:${episode}`;
   const navigation = isOpen
@@ -49,7 +51,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
       <span className="inline-flex shrink-0 items-center gap-0.5">
         <button
           type="button"
-          data-testid={`clinical-panel-trigger-${bedId}`}
+          data-testid={`clinical-panel-trigger-${triggerKey}`}
           data-clinical-panel-key={panelKey}
           onClick={event => {
             event.stopPropagation();
@@ -64,7 +66,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         {canOpenReports && (
           <button
             type="button"
-            data-testid={`hospitalization-reports-trigger-${bedId}`}
+            data-testid={`hospitalization-reports-trigger-${triggerKey}`}
             onClick={event => {
               event.stopPropagation();
               setAreReportsOpen(true);
@@ -95,6 +97,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         patientName={patientName}
         patientRun={patientRun}
         currentEpisodeId={episode}
+        admissionDate={admissionDate}
       />
     </>
   );

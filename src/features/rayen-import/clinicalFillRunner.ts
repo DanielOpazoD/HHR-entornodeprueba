@@ -78,6 +78,8 @@ export interface ClinicalFillPatchTarget {
   censusDate: string;
   bedId: string;
   clinicalEpisodeId: string;
+  /** True when the episode belongs to the nested clinical crib rather than the principal bed. */
+  clinicalCrib?: true;
 }
 
 export interface HistoricalCudyrApplyResult {
@@ -114,15 +116,35 @@ const message = (error: unknown): string =>
 /** How many patients are fetched concurrently (each fetch can take seconds). */
 const CONCURRENCY = 4;
 
+interface ClinicalFillCandidate {
+  bedId: string;
+  patient: PatientData;
+  clinicalCrib: boolean;
+}
+
+const isEligible = (patient: PatientData | undefined): patient is PatientData =>
+  !!patient?.clinicalEpisodeId && !!patient.patientName?.trim();
+
+const collectClinicalFillCandidates = (record: DailyRecord): ClinicalFillCandidate[] =>
+  Object.entries(record.beds).flatMap(([bedId, patient]) => {
+    const candidates: ClinicalFillCandidate[] = [];
+    if (isEligible(patient)) candidates.push({ bedId, patient, clinicalCrib: false });
+    if (isEligible(patient?.clinicalCrib)) {
+      candidates.push({ bedId, patient: patient.clinicalCrib, clinicalCrib: true });
+    }
+    return candidates;
+  });
+
+export const countClinicalFillEligiblePatients = (record: DailyRecord): number =>
+  collectClinicalFillCandidates(record).length;
+
 export const runClinicalFill = async (
   record: DailyRecord,
   fecha: string,
   deps: ClinicalFillDeps,
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
-  const eligible = Object.entries(record.beds).filter(
-    ([, patient]) => !!patient?.clinicalEpisodeId && !!patient.patientName?.trim()
-  );
+  const eligible = collectClinicalFillCandidates(record);
   const summary: ClinicalFillSummary = { total: eligible.length, patched: 0, errors: [] };
   if (eligible.length === 0) return summary;
   const nursingObservations: NursingActivityObservation[] = [];
@@ -162,7 +184,11 @@ export const runClinicalFill = async (
     onProgress?.({ done, total: eligible.length });
   };
 
-  const fillPatient = async (bedId: string, patient: PatientData): Promise<void> => {
+  const fillPatient = async (
+    bedId: string,
+    patient: PatientData,
+    clinicalCrib: boolean
+  ): Promise<void> => {
     const encId = patient.clinicalEpisodeId;
     if (!encId) return;
     let merged = patient;
@@ -283,17 +309,18 @@ export const runClinicalFill = async (
     // Granular patch: only the clinical-fill fields, so a concurrent census edit/confirm on other
     // fields is never clobbered and the full-record freshness guard is never involved.
     const patch: DailyRecordPatch = {};
-    if (merged.devices !== patient.devices) patch[`beds.${bedId}.devices`] = merged.devices;
+    const patchPrefix = `beds.${bedId}${clinicalCrib ? '.clinicalCrib' : ''}`;
+    if (merged.devices !== patient.devices) patch[`${patchPrefix}.devices`] = merged.devices;
     if (merged.deviceDetails !== patient.deviceDetails)
-      patch[`beds.${bedId}.deviceDetails`] = merged.deviceDetails;
+      patch[`${patchPrefix}.deviceDetails`] = merged.deviceDetails;
     if (merged.deviceInstanceHistory !== patient.deviceInstanceHistory)
-      patch[`beds.${bedId}.deviceInstanceHistory`] = merged.deviceInstanceHistory;
+      patch[`${patchPrefix}.deviceInstanceHistory`] = merged.deviceInstanceHistory;
     if (merged.evaluationScores !== patient.evaluationScores)
-      patch[`beds.${bedId}.evaluationScores`] = merged.evaluationScores;
+      patch[`${patchPrefix}.evaluationScores`] = merged.evaluationScores;
     if (merged.vitalSigns !== patient.vitalSigns)
-      patch[`beds.${bedId}.vitalSigns`] = merged.vitalSigns;
+      patch[`${patchPrefix}.vitalSigns`] = merged.vitalSigns;
     if (merged.vitalSignsHistory !== patient.vitalSignsHistory)
-      patch[`beds.${bedId}.vitalSignsHistory`] = merged.vitalSignsHistory;
+      patch[`${patchPrefix}.vitalSignsHistory`] = merged.vitalSignsHistory;
     if (Object.keys(patch).length === 0) return;
 
     try {
@@ -302,6 +329,7 @@ export const runClinicalFill = async (
           censusDate: fecha,
           bedId,
           clinicalEpisodeId: encId,
+          ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
         })
       );
       summary.patched += 1;
@@ -312,7 +340,11 @@ export const runClinicalFill = async (
 
   for (let start = 0; start < eligible.length; start += CONCURRENCY) {
     const batch = eligible.slice(start, start + CONCURRENCY);
-    await Promise.all(batch.map(([bedId, patient]) => fillPatient(bedId, patient).finally(report)));
+    await Promise.all(
+      batch.map(({ bedId, patient, clinicalCrib }) =>
+        fillPatient(bedId, patient, clinicalCrib).finally(report)
+      )
+    );
   }
 
   const staffingProposal = inferNursingShifts(nursingObservations, fecha, deps.nurseCatalog ?? []);

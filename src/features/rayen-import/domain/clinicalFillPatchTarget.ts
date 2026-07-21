@@ -10,7 +10,10 @@ export const assertClinicalFillPatchTarget = (
     throw new Error('El censo activo cambió durante la sincronización clínica.');
   }
 
-  const currentEpisodeId = record.beds[target.bedId]?.clinicalEpisodeId;
+  const bed = record.beds[target.bedId];
+  const currentEpisodeId = target.clinicalCrib
+    ? bed?.clinicalCrib?.clinicalEpisodeId
+    : bed?.clinicalEpisodeId;
   if (currentEpisodeId !== target.clinicalEpisodeId) {
     throw new Error('El paciente o su cama cambiaron durante la sincronización clínica.');
   }

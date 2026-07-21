@@ -7,6 +7,7 @@ import {
   type RayenEncounter,
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { Specialty } from '@/types/domain/patientClassification';
 
 const REFERENCE = new Date(2026, 6, 8);
 
@@ -24,18 +25,23 @@ const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => (
   ...overrides,
 });
 
-const newborn = (): RayenEncounter => encounter({
-  encounterId: 'NEWBORN',
-  run: '222222222',
-  firstGivenName: 'Bebe',
-  birthDate: '2026-07-08',
-  room: 'Cunas',
-  bed: 'CH5C1',
-  clinicalCribParentBedId: 'H5C1',
-  hasMedicalDischarge: true,
-});
+const newborn = (): RayenEncounter =>
+  encounter({
+    encounterId: 'NEWBORN',
+    run: '222222222',
+    firstGivenName: 'Bebe',
+    birthDate: '2026-07-08',
+    room: 'Cunas',
+    bed: 'CH5C1',
+    clinicalCribParentBedId: 'H5C1',
+    hasMedicalDischarge: true,
+  });
 
 const seed = (source: RayenEncounter) => rayenToPatientData(source, REFERENCE).patient;
+const clinicalCribSeed = (source: RayenEncounter) => ({
+  ...seed(source),
+  specialty: Specialty.PEDIATRIA,
+});
 
 const snapshotOf = (encounters: RayenEncounter[]): RayenCensusSnapshot => ({
   capturedAt: '2026-07-08T20:00:00-06:00',
@@ -69,7 +75,7 @@ describe('closed clinical crib placement', () => {
     const child = newborn();
     const current: DailyRecord = {
       ...emptyRecord(),
-      beds: { H5C1: { ...seed(mother), clinicalCrib: seed(child) } },
+      beds: { H5C1: { ...seed(mother), clinicalCrib: clinicalCribSeed(child) } },
     };
 
     const diff = reconcileCensus(current, snapshotOf([mother, child]), { reference: REFERENCE });
@@ -113,16 +119,14 @@ describe('closed clinical crib placement', () => {
       beds: {
         H4C1: {
           ...seed(priorMother),
-          clinicalCrib: seed({ ...child, room: 'Cunas', bed: 'CH4C1' }),
+          clinicalCrib: clinicalCribSeed({ ...child, room: 'Cunas', bed: 'CH4C1' }),
         },
       },
     };
     const { diff, applied } = apply(current, [movedMother, child]);
 
     expect(diff.conflicts).toHaveLength(0);
-    expect(diff.moves).toEqual([
-      expect.objectContaining({ fromBedId: 'H4C1', toBedId: 'H5C1' }),
-    ]);
+    expect(diff.moves).toEqual([expect.objectContaining({ fromBedId: 'H4C1', toBedId: 'H5C1' })]);
     expect(applied.record.beds.H4C1).toBeUndefined();
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',
@@ -141,7 +145,7 @@ describe('closed clinical crib placement', () => {
     };
     const current: DailyRecord = {
       ...emptyRecord(),
-      beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(locatedChild) } },
+      beds: { H4C1: { ...seed(priorMother), clinicalCrib: clinicalCribSeed(locatedChild) } },
     };
     const { diff, applied } = apply(current, [movedMother, locationlessChild]);
 

@@ -5,7 +5,16 @@ import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainC
 const record = {
   date: '2026-07-16',
   beds: {
-    R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' },
+    R1: {
+      bedId: 'R1',
+      patientName: 'Paciente',
+      clinicalEpisodeId: 'episode-1',
+      clinicalCrib: {
+        bedId: 'R1',
+        patientName: 'RN',
+        clinicalEpisodeId: 'episode-rn-1',
+      },
+    },
   },
   discharges: [],
   transfers: [],
@@ -39,6 +48,28 @@ describe('assertClinicalFillPatchTarget', () => {
         censusDate: '2026-07-16',
         bedId: 'R1',
         clinicalEpisodeId: 'episode-2',
+      })
+    ).toThrow('El paciente o su cama cambiaron');
+  });
+
+  it('validates an attached clinical crib against its own episode', () => {
+    expect(() =>
+      assertClinicalFillPatchTarget(record, {
+        censusDate: '2026-07-16',
+        bedId: 'R1',
+        clinicalEpisodeId: 'episode-rn-1',
+        clinicalCrib: true,
+      })
+    ).not.toThrow();
+  });
+
+  it('rejects a delayed clinical-crib response after the newborn changes', () => {
+    expect(() =>
+      assertClinicalFillPatchTarget(record, {
+        censusDate: '2026-07-16',
+        bedId: 'R1',
+        clinicalEpisodeId: 'episode-rn-2',
+        clinicalCrib: true,
       })
     ).toThrow('El paciente o su cama cambiaron');
   });

@@ -78,4 +78,21 @@ describe('PatientSubRowView', () => {
     expect(row).toHaveClass('bg-white');
     expect(row).toHaveClass('hover:bg-white');
   });
+
+  it('keeps the crib action and bed labels aligned with the main census columns', () => {
+    const { container } = render(
+      <table>
+        <tbody>
+          <PatientSubRowView {...baseProps} readOnly={false} />
+        </tbody>
+      </table>
+    );
+
+    const row = container.querySelector('tr[data-testid="patient-row"]');
+
+    // The mocked PatientInputCells contributes one cell. The sub-row must contribute exactly the
+    // two leading table cells used by every main row: actions and bed. A third leading cell shifts
+    // the complete fixed-layout table, which was the regression seen after adding an attached crib.
+    expect(row?.querySelectorAll(':scope > td')).toHaveLength(3);
+  });
 });

@@ -118,7 +118,7 @@ describe('ClinicalPanelTrigger', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('keeps the clinical panel but hides reports when the patient has no valid RUN', () => {
+  it('keeps clinical panel and episode reports available for a newborn without RUN', () => {
     render(
       <ClinicalPanelTrigger
         bedId="R2"
@@ -130,8 +130,6 @@ describe('ClinicalPanelTrigger', () => {
     expect(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente sin RUN' })
     ).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: /informes de hospitalización/i })
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /informes de hospitalización/i })).toBeVisible();
   });
 });

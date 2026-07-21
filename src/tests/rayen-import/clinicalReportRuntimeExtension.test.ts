@@ -50,6 +50,7 @@ type RuntimeApi = {
   handleNursingMedicalEpicrisisPrintRequest: (request: {
     encId?: string;
     patientRun: string;
+    admissionDate?: string;
     censusDate?: string;
     delivery?: string;
     operation?: string;
@@ -411,6 +412,157 @@ describe('clinical report runtime owner', () => {
         { encId: '100', startDate: '2025-05-01', endDate: '2025-05-05', active: false },
       ],
     });
+  });
+
+  it('lists the synced episode for a newborn without RUN and does not perform a RUN search', async () => {
+    const fetchWithTimeout = vi.fn();
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141814',
+        patientRun: '',
+        admissionDate: '2026-07-20',
+        delivery: 'download',
+        operation: 'list',
+      })
+    ).resolves.toEqual({
+      ok: true,
+      episodes: [{ encId: '141814', startDate: '2026-07-20', endDate: '' }],
+    });
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('lists and downloads the exact newborn episode even when a legacy row has no admission date', async () => {
+    const fetchWithTimeout = vi.fn(
+      async () =>
+        new Response(new TextEncoder().encode('%PDF-epicrisis'), {
+          status: 200,
+          headers: { 'content-type': 'application/pdf' },
+        })
+    );
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141814',
+        patientRun: '',
+        delivery: 'download',
+        operation: 'list',
+      })
+    ).resolves.toEqual({
+      ok: true,
+      episodes: [{ encId: '141814', startDate: '', endDate: '' }],
+    });
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141814',
+        patientRun: '',
+        delivery: 'download',
+        operation: 'download',
+        documentType: 'epicrisis',
+      })
+    ).resolves.toMatchObject({ ok: true, encId: '141814' });
+  });
+
+  it('downloads the exact newborn episode without requiring a RUN', async () => {
+    const fetchWithTimeout = vi.fn(
+      async (_url: string) =>
+        new Response(new TextEncoder().encode('%PDF-epicrisis'), {
+          status: 200,
+          headers: { 'content-type': 'application/pdf' },
+        })
+    );
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141814',
+        patientRun: '',
+        admissionDate: '2026-07-20',
+        delivery: 'download',
+        operation: 'download',
+        documentType: 'epicrisis',
+      })
+    ).resolves.toMatchObject({ ok: true, encId: '141814' });
+    const reportUrl = new URL(fetchWithTimeout.mock.calls[0][0]);
+    expect(reportUrl.pathname).toBe('/api/report/Reporte_Epicrisis.pdf');
+    expect(reportUrl.searchParams.get('enc_id')).toBe('141814');
+  });
+
+  it('opens the complete history for a newborn episode without requiring a RUN', async () => {
+    const createTab = vi.fn(async (_options: { url: string }) => ({ id: 81 }));
+    const fetchWithTimeout = vi.fn();
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        chrome: {
+          downloads: { download: vi.fn(async () => 71) },
+          storage: { session: { set: vi.fn(async () => undefined) } },
+          tabs: { create: createTab },
+          runtime: { getURL: (value: string) => `chrome-extension://hhr/${value}` },
+        },
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141814',
+        patientRun: '',
+        admissionDate: '2026-07-20',
+        delivery: 'download',
+        operation: 'download',
+        documentType: 'history',
+      })
+    ).resolves.toMatchObject({ ok: true, opened: true, encId: '141814' });
+    const openedUrl = new URL(createTab.mock.calls[0][0].url);
+    expect(openedUrl.searchParams.get('report')).toBe('GetHospitalizedEncounterHistory');
+    expect(JSON.parse(openedUrl.searchParams.get('params') || '{}')).toMatchObject({
+      enc_id: '141814',
+      start_date: '2026-07-20',
+    });
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
   it('opens the official complete-history report for the selected episode', async () => {
