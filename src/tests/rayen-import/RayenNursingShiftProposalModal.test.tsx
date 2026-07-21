@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RayenNursingShiftProposalModal } from '@/features/rayen-import/components/RayenNursingShiftProposalModal';
@@ -39,19 +40,25 @@ const proposal: NursingStaffingProposal = {
   },
 };
 
+const renderProposal = (props: ComponentProps<typeof RayenNursingShiftProposalModal>) =>
+  render(
+    <>
+      <div id="rayen-nursing-shift-slot" />
+      <RayenNursingShiftProposalModal {...props} />
+    </>
+  );
+
 describe('RayenNursingShiftProposalModal', () => {
   it('shows evidence and requires explicit confirmation before filling vacancies', () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(
-      <RayenNursingShiftProposalModal
-        proposal={proposal}
-        isBusy={false}
-        error={null}
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-      />
-    );
+    renderProposal({
+      proposal,
+      isBusy: false,
+      error: null,
+      onConfirm,
+      onCancel,
+    });
 
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument();
     expect(screen.getByText('Berta Soto')).toBeInTheDocument();
@@ -67,42 +74,41 @@ describe('RayenNursingShiftProposalModal', () => {
   it('reports an already synchronized shift without proposing another write', () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(
-      <RayenNursingShiftProposalModal
-        proposal={{
-          ...proposal,
-          day: { ...proposal.day, names: [], alreadyAssigned: ['Ana Pérez'] },
-          night: { ...proposal.night, names: [], alreadyAssigned: ['Berta Soto'] },
-        }}
-        isBusy={false}
-        error={null}
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-      />
-    );
+    renderProposal({
+      proposal: {
+        ...proposal,
+        day: { ...proposal.day, names: [], alreadyAssigned: ['Ana Pérez'] },
+        night: { ...proposal.night, names: [], alreadyAssigned: ['Berta Soto'] },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm,
+      onCancel,
+    });
 
     expect(screen.getByText('Ya sincronizado en HHR: Ana Pérez.')).toBeInTheDocument();
     expect(screen.getByText('Ya sincronizado en HHR: Berta Soto.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Completar vacantes' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('rayen-nursing-shift-proposal')).not.toHaveAttribute(
+      'role',
+      'dialog'
+    );
+    expect(onCancel).not.toHaveBeenCalled();
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('surfaces an ambiguous shift without offering an unsafe write', () => {
-    render(
-      <RayenNursingShiftProposalModal
-        proposal={{
-          ...proposal,
-          day: { ...proposal.day, names: [], ambiguous: true },
-          night: { ...proposal.night, names: [], candidates: [] },
-        }}
-        isBusy={false}
-        error={null}
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    renderProposal({
+      proposal: {
+        ...proposal,
+        day: { ...proposal.day, names: [], ambiguous: true },
+        night: { ...proposal.night, names: [], candidates: [] },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
 
     expect(screen.getByText(/evidencia insuficiente/)).toBeInTheDocument();
     expect(screen.getByText(/Un cupo quedó sin sugerencia/)).toBeInTheDocument();
@@ -113,17 +119,39 @@ describe('RayenNursingShiftProposalModal', () => {
     const error =
       'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.';
 
-    render(
-      <RayenNursingShiftProposalModal
-        proposal={proposal}
-        isBusy={false}
-        error={error}
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    renderProposal({
+      proposal,
+      isBusy: false,
+      error,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
 
     expect(screen.getByText(error)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Completar vacantes' })).toBeEnabled();
+  });
+
+  it('keeps an explicit no-data result inside the synchronization flow', () => {
+    renderProposal({
+      proposal: {
+        censusDate: proposal.censusDate,
+        day: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+        night: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(
+      screen.getByText(
+        'No se encontraron registros suficientes para proponer cambios de enfermería en este turno.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('rayen-nursing-shift-proposal')).not.toHaveAttribute(
+      'role',
+      'dialog'
+    );
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Moon, Sun, UserRoundCheck } from 'lucide-react';
-import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   NursingStaffingProposal,
   NursingShiftEvidence,
@@ -82,71 +82,85 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   onConfirm,
   onCancel,
 }) => {
+  const [target, setTarget] = React.useState<HTMLElement | null>(null);
+  React.useEffect(() => {
+    setTarget(
+      proposal && typeof document !== 'undefined'
+        ? document.getElementById('rayen-nursing-shift-slot')
+        : null
+    );
+  }, [proposal]);
+
   const hasVacanciesToComplete = Boolean(
     proposal && (proposal.day.names.length > 0 || proposal.night.names.length > 0)
   );
   const hasAmbiguity = Boolean(proposal && (proposal.day.ambiguous || proposal.night.ambiguous));
-  return (
-    <BaseModal
-      isOpen={proposal !== null}
-      onClose={onCancel}
-      title="Enfermería identificada en Eloísa"
-      icon={<UserRoundCheck size={20} />}
-      size="md"
-      variant="white"
-      headerIconColor="text-teal-600"
-      dataModule="rayen-import"
-      dataTestId="rayen-nursing-shift-proposal"
+  if (!proposal || !target) return null;
+
+  return createPortal(
+    <section
+      className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      data-module="rayen-import"
+      data-testid="rayen-nursing-shift-proposal"
+      aria-labelledby="rayen-nursing-shift-title"
     >
-      {proposal && (
-        <div className="space-y-3">
-          <p className="text-sm leading-relaxed text-slate-600">
-            {hasVacanciesToComplete
-              ? 'La sugerencia usa actividad registrada fuera de las ventanas ambiguas del cambio de turno. Al confirmar se completarán únicamente los cupos que continúen vacantes.'
-              : hasAmbiguity
-                ? 'Eloísa entregó evidencia insuficiente para distinguir con seguridad a todos los profesionales. No se aplicarán cambios ambiguos.'
-                : 'Las enfermeras identificadas en Eloísa ya están asignadas en el turno correspondiente de HHR.'}
-          </p>
-          <ShiftSuggestion
-            label="Turno largo"
-            suggestion={proposal.day}
-            icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
-          />
-          <ShiftSuggestion
-            label="Turno noche"
-            suggestion={proposal.night}
-            icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
-          />
-          {error && (
-            <p
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+      <h3
+        id="rayen-nursing-shift-title"
+        className="flex items-center gap-2 text-sm font-semibold text-slate-800"
+      >
+        <UserRoundCheck size={18} className="text-teal-600" aria-hidden="true" />
+        Enfermería
+      </h3>
+      <p className="text-sm leading-relaxed text-slate-600">
+        {hasVacanciesToComplete
+          ? 'La sugerencia usa actividad registrada fuera de las ventanas ambiguas del cambio de turno. Al confirmar se completarán únicamente los cupos que continúen vacantes.'
+          : hasAmbiguity
+            ? 'Eloísa entregó evidencia insuficiente para distinguir con seguridad a todos los profesionales. No se aplicarán cambios ambiguos.'
+            : proposal.day.alreadyAssigned?.length || proposal.night.alreadyAssigned?.length
+              ? 'Las enfermeras identificadas en Eloísa ya están asignadas en el turno correspondiente de HHR.'
+              : 'No se encontraron registros suficientes para proponer cambios de enfermería en este turno.'}
+      </p>
+      <ShiftSuggestion
+        label="Turno largo"
+        suggestion={proposal.day}
+        icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
+      />
+      <ShiftSuggestion
+        label="Turno noche"
+        suggestion={proposal.night}
+        icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
+      />
+      {error && (
+        <p
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+      {(hasVacanciesToComplete || hasAmbiguity) && (
+        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isBusy}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {hasVacanciesToComplete ? 'Mantener actual' : 'Entendido'}
+          </button>
+          {hasVacanciesToComplete && (
             <button
               type="button"
-              onClick={onCancel}
+              onClick={onConfirm}
               disabled={isBusy}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
             >
-              {hasVacanciesToComplete ? 'Mantener actual' : 'Entendido'}
+              {isBusy ? 'Aplicando…' : 'Completar vacantes'}
             </button>
-            {hasVacanciesToComplete && (
-              <button
-                type="button"
-                onClick={onConfirm}
-                disabled={isBusy}
-                className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
-              >
-                {isBusy ? 'Aplicando…' : 'Completar vacantes'}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       )}
-    </BaseModal>
+    </section>,
+    target
   );
 };
