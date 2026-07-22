@@ -7,6 +7,10 @@ import React from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import { fetchSyslabPdfBlobUrl } from '@/services/laboratory/syslabService';
+import {
+  isSyslabExtensionLink,
+  openSyslabPdfThroughExtension,
+} from '@/services/laboratory/syslabExtensionBridge';
 
 interface LabViewerPdfProps {
   exam: SyslabExamItem;
@@ -33,6 +37,14 @@ export const LabViewerPdf: React.FC<LabViewerPdfProps> = ({ exam, onBack }) => {
       setLoadError(null);
 
       try {
+        if (isSyslabExtensionLink(exam.link)) {
+          await openSyslabPdfThroughExtension(exam.link);
+          if (!cancelled) {
+            setPdfUrl(null);
+            setIsLoading(false);
+          }
+          return;
+        }
         objectUrl = await fetchSyslabPdfBlobUrl(exam.link);
         if (cancelled) {
           if (objectUrl) {
@@ -94,6 +106,10 @@ export const LabViewerPdf: React.FC<LabViewerPdfProps> = ({ exam, onBack }) => {
         {loadError ? (
           <div className="flex min-h-[240px] items-center justify-center px-4 py-8 text-center text-[12px] text-rose-600">
             {loadError}
+          </div>
+        ) : !pdfUrl && !isLoading && isSyslabExtensionLink(exam.link || '') ? (
+          <div className="flex min-h-[240px] items-center justify-center px-4 py-8 text-center text-[12px] text-slate-600">
+            El informe se abrió en una pestaña segura de la extensión Eloísa.
           </div>
         ) : (
           <iframe

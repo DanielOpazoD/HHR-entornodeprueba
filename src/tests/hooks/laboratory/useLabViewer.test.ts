@@ -111,6 +111,7 @@ const PATIENTS: LabPatient[] = [
     label: 'R1 · Juan Pérez',
     patientName: 'Juan Pérez',
     rut: '12345678-9',
+    clinicalEpisodeId: '141814',
     birthDate: '1980-04-12',
     diagnosis: 'Neumonía',
   },
@@ -127,6 +128,7 @@ const PATIENTS: LabPatient[] = [
     label: 'R3 · Juan Pérez',
     patientName: 'Juan Pérez',
     rut: '12345678-9',
+    clinicalEpisodeId: '141814',
     birthDate: '1980-04-12',
     diagnosis: 'Neumonía',
   },
@@ -198,6 +200,7 @@ describe('useLabViewer', () => {
       await result.current.search();
     });
     await waitFor(() => expect(result.current.examList).toHaveLength(1));
+    expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141814');
   });
 
   it('hydrates external RUT birth date from the first Syslab PDF when the patient is not in hospital census', async () => {

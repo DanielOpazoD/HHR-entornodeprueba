@@ -46,6 +46,7 @@ export interface LabPatient {
   label: string;
   patientName: string;
   rut: string;
+  clinicalEpisodeId?: string;
   birthDate?: string;
   diagnosis?: string;
 }

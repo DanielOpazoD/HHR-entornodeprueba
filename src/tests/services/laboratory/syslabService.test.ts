@@ -7,6 +7,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.unmock('@/services/laboratory/syslabService');
 
+vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
+  requestSyslabExtensionStatus: vi.fn().mockResolvedValue({
+    bridgeAvailable: false,
+    connected: false,
+    loginRequired: false,
+    message: 'La extensión no respondió.',
+  }),
+  searchSyslabThroughExtension: vi.fn().mockResolvedValue({ bridgeAvailable: false }),
+  fetchSyslabDetailsThroughExtension: vi.fn(),
+  fetchSyslabPdfThroughExtension: vi.fn(),
+  isSyslabExtensionLink: (link: string) => link.startsWith('hhr-syslab-extension://'),
+}));
+
 // Mock the scoped logger to avoid console noise
 vi.mock('@/services/utils/loggerScope', async () => {
   const { createLoggerScopeMock } = await import('@/tests/utils/loggerScopeMock');
@@ -40,10 +53,6 @@ const setRuntimeLocation = (port: string) => {
   });
 };
 
-/* ------------------------------------------------------------------ */
-/*  cleanRutForSyslab                                                  */
-/* ------------------------------------------------------------------ */
-
 describe('cleanRutForSyslab', () => {
   it('strips dots from formatted RUT', () => {
     expect(cleanRutForSyslab('12.345.678-9')).toBe('12345678');
@@ -70,21 +79,12 @@ describe('cleanRutForSyslab', () => {
   });
 });
 
-/* ------------------------------------------------------------------ */
-/*  getSyslabBaseUrl                                                   */
-/* ------------------------------------------------------------------ */
-
 describe('getSyslabBaseUrl', () => {
-  it('returns default URL when env var is not set', () => {
-    const url = getSyslabBaseUrl();
-    // Either the env var value or the default
-    expect(url).toMatch(/^http/);
+  it('does not assume that the HHR dev server is a Syslab proxy', () => {
+    setImportMetaEnv({ VITE_SYSLAB_API_URL: undefined });
+    expect(getSyslabBaseUrl()).toBe('');
   });
 });
-
-/* ------------------------------------------------------------------ */
-/*  buildSyslabPdfUrl                                                  */
-/* ------------------------------------------------------------------ */
 
 describe('buildSyslabPdfUrl', () => {
   beforeEach(() => {
@@ -166,10 +166,6 @@ describe('fetchSyslabPdfBlobUrl', () => {
     );
   });
 });
-
-/* ------------------------------------------------------------------ */
-/*  searchSyslabExams                                                  */
-/* ------------------------------------------------------------------ */
 
 describe('searchSyslabExams', () => {
   const mockFetch = vi.fn();
@@ -354,10 +350,6 @@ describe('checkSyslabConnection', () => {
     );
   });
 });
-
-/* ------------------------------------------------------------------ */
-/*  fetchSyslabExamDetails                                             */
-/* ------------------------------------------------------------------ */
 
 describe('fetchSyslabExamDetails', () => {
   const mockFetch = vi.fn();

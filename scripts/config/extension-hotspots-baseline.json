@@ -106,6 +106,10 @@
       "maxLines": 31,
       "hotspots": {}
     },
+    "content-hhr-syslab.js": {
+      "maxLines": 86,
+      "hotspots": {}
+    },
     "content-hhr.js": {
       "maxLines": 252,
       "hotspots": {}

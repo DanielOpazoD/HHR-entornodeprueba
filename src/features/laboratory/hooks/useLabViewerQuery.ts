@@ -48,10 +48,37 @@ export const useLabViewerQuery = ({
     fullName?: string;
     birthDate?: string;
   } | null>(null);
+  const selectedEpisodeIds = useMemo(
+    () =>
+      new Set(
+        patients
+          .filter(patient => patient.rut === selectedRut)
+          .map(patient => patient.clinicalEpisodeId)
+          .filter((value): value is string => Boolean(value))
+      ),
+    [patients, selectedRut]
+  );
+  const selectedEpisodeIsAmbiguous = selectedEpisodeIds.size > 1;
+  const selectedClinicalEpisodeId =
+    selectedEpisodeIds.size === 1 ? [...selectedEpisodeIds][0] : undefined;
+  const selectedEpisodeQueryScope = selectedEpisodeIsAmbiguous
+    ? 'ambiguous'
+    : selectedClinicalEpisodeId || 'external';
+  const labQueryKey = useMemo(
+    () => [...queryKeys.laboratory.byPatient(selectedRut), selectedEpisodeQueryScope],
+    [selectedEpisodeQueryScope, selectedRut]
+  );
 
   const examQuery = useQuery({
-    queryKey: queryKeys.laboratory.byPatient(selectedRut),
-    queryFn: () => searchSyslabExams(selectedRut),
+    queryKey: labQueryKey,
+    queryFn: () => {
+      if (selectedEpisodeIsAmbiguous) {
+        throw new Error(
+          'El paciente aparece con más de un episodio activo. Selecciona el episodio correcto en el censo antes de consultar laboratorio.'
+        );
+      }
+      return searchSyslabExams(selectedRut, selectedClinicalEpisodeId);
+    },
     enabled: searchEnabled && !!selectedRut,
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -165,8 +192,8 @@ export const useLabViewerQuery = ({
     setError(null);
     setPdfExam(null);
     setSearchEnabled(true);
-    await queryClient.invalidateQueries({ queryKey: queryKeys.laboratory.byPatient(selectedRut) });
-  }, [selectedRut, queryClient]);
+    await queryClient.invalidateQueries({ queryKey: labQueryKey });
+  }, [selectedRut, queryClient, labQueryKey]);
 
   const openPdf = useCallback((exam: SyslabExamItem) => setPdfExam(exam), []);
   const closePdf = useCallback(() => setPdfExam(null), []);
