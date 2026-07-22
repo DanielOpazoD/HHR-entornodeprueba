@@ -1,9 +1,4 @@
-/**
- * Reconciles a Rayen census snapshot against the current HHR `DailyRecord` and
- * produces a `CensusImportDiff` (admissions / updates / transfers / discharges /
- * conflicts). Pure and deterministic — no persistence, no side effects.
- * Matching key: `clinicalEpisodeId` (Rayen encId) first, then RUN; see PLAN-SINCRONIZACION.md §4.
- */
+/** Pure Rayen/HHR census diff; matches by clinical episode first, then RUN. */
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -11,6 +6,11 @@ import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { stateFromBoolean } from './dischargeVerification';
 import { reconcileClinicalCribs } from './reconcileClinicalCribs';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
+import {
+  pendingClinicalCribDischargeIdentities,
+  prepareActiveClinicalPlacements,
+  shouldReconcileAsPrincipal,
+} from './clinicalCribPlacementPolicy';
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
@@ -175,30 +175,31 @@ export const reconcileCensus = (
   };
   const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
   const discharged = snapshot.encounters.filter(isDischarged);
-  const activeMapped = active.map(encounter => {
-    const mapped = rayenToPatientData(encounter, reference);
-    const currentMatch = !mapped.bedId ? findCurrent(encounter) : undefined;
-    const retained = !mapped.bedId ? findCurrentCrib(encounter) ?? (currentMatch?.patient.bedMode === 'Cuna' ? currentMatch : undefined) : undefined;
-    return { encounter, mapped: retained ? { ...mapped, bedId: retained.bedId,
-      isClinicalCrib: true, patient: { ...mapped.patient, bedId: retained.bedId,
-        bedMode: 'Cuna' as const } } : mapped };
-  });
+  const activeMapped = prepareActiveClinicalPlacements(
+    current,
+    active,
+    snapshot.encounters,
+    reference,
+    findCurrent,
+    findCurrentCrib
+  );
   const retainedClosedCribs: typeof activeMapped = [];
-  const isPromotedClinicalCrib = ({ encounter, mapped }: (typeof activeMapped)[number]): boolean => {
-    if (!mapped.isClinicalCrib || !mapped.bedId) return false;
-    const match = findCurrent(encounter);
-    return match?.patient.bedMode === 'Cuna';
-  };
-  for (const { encounter, mapped } of activeMapped.filter(
-    item =>
-      (!item.mapped.isClinicalCrib || isPromotedClinicalCrib(item)) &&
-      !(item.mapped.isClinicalCrib && wasClinicalCribDischargedInHhr(item.encounter))
+  for (const { encounter, mapped } of activeMapped.filter(item =>
+    shouldReconcileAsPrincipal(item, findCurrent, wasClinicalCribDischargedInHhr)
   )) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
-    const movingNestedCrib = bedId && !mapped.isClinicalCrib ? findCurrentCrib(encounter) : undefined;
+    const movingNestedCrib =
+      bedId && !mapped.isClinicalCrib ? findCurrentCrib(encounter) : undefined;
     if (movingNestedCrib) {
-      diff.conflicts.push({ bedId, rut: patient.rut, patientName: patient.patientName, scope: 'clinical-crib', reason: `El recién nacido sigue asociado a ${movingNestedCrib.bedId}; su traslado a ${bedId} requiere revisión.`, source: encounter });
+      diff.conflicts.push({
+        bedId,
+        rut: patient.rut,
+        patientName: patient.patientName,
+        scope: 'clinical-crib',
+        reason: `El recién nacido sigue asociado a ${movingNestedCrib.bedId}; su traslado a ${bedId} requiere revisión.`,
+        source: encounter,
+      });
       continue;
     }
     if (!bedId) {
@@ -264,7 +265,8 @@ export const reconcileCensus = (
         if (admittedAfterCensusDay(encounter, censusDay)) continue;
         const priorParentBedId = existingCribMatch?.bedId;
         const outgoingParentMove = priorParentBedId
-          ? diff.moves.find(entry => entry.fromBedId === priorParentBedId) : undefined;
+          ? diff.moves.find(entry => entry.fromBedId === priorParentBedId)
+          : undefined;
         const parentBedId = mapped.bedId ?? outgoingParentMove?.toBedId ?? priorParentBedId;
         const parent = parentBedId ? current.beds[parentBedId] : undefined;
         const parentAdmission = diff.admissions.find(entry => entry.bedId === parentBedId);
@@ -334,15 +336,14 @@ export const reconcileCensus = (
     }
   }
 
-  // Reconcile cribs only after both active and clinically closed principal patients have been
-  // resolved. This lets a provisional principal admission receive its newborn in the same diff.
+  // Resolve cribs after principals so provisional admissions can receive their newborn.
   reconcileClinicalCribs(
     current,
     [
       ...activeMapped.filter(
         item =>
           item.mapped.isClinicalCrib &&
-          !isPromotedClinicalCrib(item) &&
+          !shouldReconcileAsPrincipal(item, findCurrent, wasClinicalCribDischargedInHhr) &&
           !wasClinicalCribDischargedInHhr(item.encounter) &&
           !admittedAfterCensusDay(item.encounter, censusDay)
       ),
@@ -350,8 +351,7 @@ export const reconcileCensus = (
     ],
     diff,
     confirmedPrincipalBedIds,
-    new Set(retainedClosedCribs.map(item => item.encounter.encounterId
-      ? `episode:${item.encounter.encounterId}` : `run:${normalizeRut(item.mapped.patient.rut)}`))
+    pendingClinicalCribDischargeIdentities(retainedClosedCribs)
   );
   // ---- Current patients absent from the snapshot → administrative confirmation pending ----
   // Absence from Ficha Médico is only a signal. It never creates a movement or vacates a bed;

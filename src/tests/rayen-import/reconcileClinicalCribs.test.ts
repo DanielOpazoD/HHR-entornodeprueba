@@ -345,16 +345,24 @@ describe('reconcileClinicalCribs', () => {
     ]);
   });
 
-  it('does not promote an orphan attached crib into an independent HHR bed', () => {
+  it('promotes an unattached crib into the equivalent physical HHR bed', () => {
     const diff = reconcileCensus(makeRecord({}), snapshotOf([newborn()]), {
       reference: REFERENCE,
     });
 
-    expect(diff.admissions).toHaveLength(0);
-    expect(diff.updates).toHaveLength(0);
-    expect(diff.conflicts).toEqual([
-      expect.objectContaining({ bedId: 'H5C1', patientName: 'Bebe Perez' }),
+    expect(diff.admissions).toEqual([
+      expect.objectContaining({
+        bedId: 'H5C1',
+        patient: expect.objectContaining({
+          patientName: 'Bebe Perez',
+          bedMode: 'Cuna',
+          specialty: Specialty.PEDIATRIA,
+        }),
+      }),
     ]);
+    expect(diff.admissions[0].patient.clinicalCrib).toBeUndefined();
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.conflicts).toHaveLength(0);
   });
 
   it('does not attach a newborn to an unconfirmed local occupant', () => {
