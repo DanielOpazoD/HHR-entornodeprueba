@@ -1,8 +1,8 @@
 /**
  * Syslab/Laboratorio runtime for the MV3 background worker.
  *
- * Owns the offscreen Syslab session and the encounter-bound, expiring batches used by the
- * laboratory viewer. Message routing remains in background.js.
+ * Orchestrates an authenticated Syslab session and the encounter-bound, expiring batches used
+ * by the laboratory viewer. Message routing remains in background.js.
  */
 (function (root) {
   'use strict';
@@ -21,6 +21,7 @@
     const {
       chrome: chromeApi,
       labViewer,
+      syslabSessionTransport,
       withTimeout,
       getClinicalReportContext,
       getFichaFetchInfo,
@@ -30,9 +31,13 @@
     } = dependencies || {};
 
     if (
-      !chromeApi || !labViewer || typeof withTimeout !== 'function' ||
-      typeof getClinicalReportContext !== 'function' || typeof getFichaFetchInfo !== 'function' ||
-      typeof fichaSessionCacheKey !== 'function' || typeof fetchActiveEncounterRows !== 'function' ||
+      !chromeApi || !labViewer || !syslabSessionTransport ||
+      typeof syslabSessionTransport.create !== 'function' ||
+      typeof withTimeout !== 'function' ||
+      typeof getClinicalReportContext !== 'function' ||
+      typeof getFichaFetchInfo !== 'function' ||
+      typeof fichaSessionCacheKey !== 'function' ||
+      typeof fetchActiveEncounterRows !== 'function' ||
       typeof resolveFichaEncounterId !== 'function'
     ) {
       throw new Error('No se pudo inicializar el runtime de Syslab.');
@@ -86,59 +91,18 @@
       );
     };
 
-    const waitForSyslabBridge = async ({
-      timeoutMs = LAB_BRIDGE_TIMEOUT_MS,
-      previousBridgeId = '',
-    } = {}) => {
-      const deadline = Date.now() + timeoutMs;
-      let lastError = 'La sesión interna de Syslab todavía no está disponible.';
-      while (Date.now() < deadline) {
-        try {
-          const response = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 4_000);
-          if (
-            response && response.bridgeId &&
-            (!previousBridgeId || response.bridgeId !== previousBridgeId)
-          ) return response;
-        } catch (error) {
-          lastError = String((error && error.message) || error);
-        }
-        await delay(350);
-      }
-      throw new Error(lastError);
-    };
+    const sessionTransport = syslabSessionTransport.create({
+      chrome: chromeApi,
+      withTimeout,
+      sendToOffscreen: sendToSyslabOffscreen,
+      delay,
+    });
 
-    const currentSession = async () => {
-      try {
-        const bridge = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_STATUS' }, 8_000);
-        if (!bridge || bridge.error) {
-          return {
-            ok: true,
-            status: 'unavailable',
-            connected: false,
-            message: String(bridge && bridge.error || 'La sesión interna de Syslab no responde.'),
-          };
-        }
-        const connected = Boolean(bridge && !bridge.loginRequired);
-        return {
-          ok: true,
-          status: connected ? 'ready' : 'login-required',
-          connected,
-          loginRequired: !connected,
-          message: connected ? 'Sesión de Syslab activa.' : 'Syslab requiere iniciar sesión.',
-        };
-      } catch (_error) {
-        return {
-          ok: true,
-          status: 'unavailable',
-          connected: false,
-          message: 'No se pudo conectar con Syslab en la red local.',
-        };
-      }
-    };
+    const currentSession = () => sessionTransport.currentSession();
 
-    const waitAfterSyslabNavigation = async previousBridgeId => {
-      await delay(250);
-      return waitForSyslabBridge({ previousBridgeId });
+    const requireBridgeResponse = (response, fallback) => {
+      if (!response || response.error) throw new Error(response && response.error || fallback);
+      return response;
     };
 
     const login = async ({ username, password }) => {
@@ -147,13 +111,13 @@
       if (!safeUsername || !safePassword || safeUsername.length > 120 || safePassword.length > 256) {
         return { error: 'Ingresa usuario y contraseña para conectar Syslab.' };
       }
-      let status;
+      let session;
       try {
-        status = await waitForSyslabBridge();
+        session = await sessionTransport.resolveOffscreen({ timeoutMs: LAB_BRIDGE_TIMEOUT_MS });
       } catch (error) {
         return { error: 'No se pudo conectar con Syslab en la red local: ' + String((error && error.message) || error) };
       }
-      if (!status.loginRequired) {
+      if (!session.status.loginRequired) {
         return { ok: true, connected: true, status: 'ready', message: 'Syslab ya estaba conectado.' };
       }
       const submitted = await sendToSyslabOffscreen({
@@ -166,8 +130,10 @@
       }
       if (submitted.navigated) {
         try {
-          const verified = await waitAfterSyslabNavigation(submitted.bridgeId);
-          if (verified && !verified.loginRequired) {
+          session = await sessionTransport.waitAfterNavigation(
+            session, submitted.bridgeId, LAB_BRIDGE_TIMEOUT_MS
+          );
+          if (!session.status.loginRequired) {
             return { ok: true, connected: true, status: 'ready', message: 'Syslab quedó conectado.' };
           }
         } catch (_error) {}
@@ -178,33 +144,53 @@
         : { error: 'Syslab no confirmó el acceso. Revisa el usuario y la contraseña.' };
     };
 
+    const runSyslabSearch = async (session, rutBody) => {
+      if (session.status.loginRequired) {
+        throw new Error('Inicia sesión en el cuadro de Syslab de la extensión y vuelve a pulsar Actualizar.');
+      }
+      const prepare = requireBridgeResponse(
+        await sessionTransport.send(session, { type: 'RAYEN_SYSLAB_PREPARE_SEARCH' }, LAB_BRIDGE_TIMEOUT_MS),
+        'No se pudo abrir la búsqueda por RUT.'
+      );
+      if (prepare.navigated) {
+        session = await sessionTransport.waitAfterNavigation(
+          session,
+          prepare.bridgeId,
+          LAB_BRIDGE_TIMEOUT_MS
+        );
+      }
+      const submit = requireBridgeResponse(
+        await sessionTransport.send(session, { type: 'RAYEN_SYSLAB_SUBMIT_SEARCH', rutBody }, LAB_BRIDGE_TIMEOUT_MS),
+        'No se pudo consultar el RUN en Syslab.'
+      );
+      if (submit.navigated) {
+        session = await sessionTransport.waitAfterNavigation(
+          session,
+          submit.bridgeId,
+          LAB_BRIDGE_TIMEOUT_MS
+        );
+      }
+      const result = requireBridgeResponse(
+        await sessionTransport.send(session, { type: 'RAYEN_SYSLAB_READ_RESULTS', rutBody }, LAB_BRIDGE_TIMEOUT_MS),
+        'Syslab no entregó resultados interpretables.'
+      );
+      return { payload: result };
+    };
+
     const searchSyslabDirectly = async rutBody => {
-      let status;
+      let session;
       try {
-        status = await waitForSyslabBridge();
+        session = await sessionTransport.resolve({ offscreenTimeoutMs: LAB_BRIDGE_TIMEOUT_MS });
+        return await sessionTransport.withVisibleFallback(
+          session,
+          current => runSyslabSearch(current, rutBody),
+          { timeoutMs: LAB_BRIDGE_TIMEOUT_MS }
+        );
       } catch (error) {
         throw new Error(
           'No se pudo acceder a Syslab en la red local: ' + String((error && error.message) || error)
         );
       }
-      if (status.loginRequired) {
-        throw new Error('Inicia sesión en el cuadro de Syslab de la extensión y vuelve a pulsar Actualizar.');
-      }
-      const prepare = await sendToSyslabOffscreen({ type: 'RAYEN_SYSLAB_PREPARE_SEARCH' });
-      if (!prepare || prepare.error) throw new Error(prepare && prepare.error || 'No se pudo abrir la búsqueda por RUT.');
-      if (prepare.navigated) await waitAfterSyslabNavigation(prepare.bridgeId);
-      const submit = await sendToSyslabOffscreen({
-        type: 'RAYEN_SYSLAB_SUBMIT_SEARCH',
-        rutBody,
-      });
-      if (!submit || submit.error) throw new Error(submit && submit.error || 'No se pudo consultar el RUN en Syslab.');
-      if (submit.navigated) await waitAfterSyslabNavigation(submit.bridgeId);
-      const result = await sendToSyslabOffscreen({
-        type: 'RAYEN_SYSLAB_READ_RESULTS',
-        rutBody,
-      });
-      if (!result || result.error) throw new Error(result && result.error || 'Syslab no entregó resultados interpretables.');
-      return { payload: result };
     };
 
     const sweepExpiredLabBatches = async () => {
@@ -343,10 +329,13 @@
       const exams = selectedLabExams(batchResult.batch, requestedIds);
       if (!exams.length) return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
 
-      const session = await currentSession();
-      if (!session.connected) {
-        return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
+      let session;
+      try {
+        session = await sessionTransport.resolve({ offscreenTimeoutMs: LAB_BRIDGE_TIMEOUT_MS });
+      } catch (_error) {
+        return { error: 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
       }
+      if (session.status.loginRequired) return { error: 'Syslab requiere iniciar sesión.' };
       const reportRequests = exams.map(exam => ({
         id: exam.id,
         link: batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exam.id],
@@ -356,11 +345,15 @@
       }
       let payload;
       try {
-        payload = await sendToSyslabOffscreen({
-          type: 'RAYEN_SYSLAB_READ_DETAILS',
-          rutBody: batchResult.batch.rutBody,
-          exams: reportRequests,
-        }, LAB_DETAILS_TIMEOUT_MS);
+        payload = await sessionTransport.sendWithVisibleFallback(
+          session,
+          {
+            type: 'RAYEN_SYSLAB_READ_DETAILS',
+            rutBody: batchResult.batch.rutBody,
+            exams: reportRequests,
+          },
+          LAB_DETAILS_TIMEOUT_MS
+        );
       } catch (error) {
         return { error: 'No se pudieron interpretar los informes en Syslab: ' + String((error && error.message) || error) };
       }
@@ -392,18 +385,25 @@
       }
       const link = batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exams[0].id];
       if (!link) return { error: 'La ruta interna del informe ya no está disponible.' };
-      const session = await currentSession();
-      if (!session.connected) {
-        return { error: session.message || 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
+      let session;
+      try {
+        session = await sessionTransport.resolve({ offscreenTimeoutMs: LAB_BRIDGE_TIMEOUT_MS });
+      } catch (_error) {
+        return { error: 'La sesión de Syslab venció. Inicia sesión desde la extensión.' };
       }
+      if (session.status.loginRequired) return { error: 'Syslab requiere iniciar sesión.' };
       let validation;
       try {
-        validation = await sendToSyslabOffscreen({
-          type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
-          rutBody: batchResult.batch.rutBody,
-          examId: exams[0].id,
-          link,
-        }, LAB_REPORT_TIMEOUT_MS);
+        validation = await sessionTransport.sendWithVisibleFallback(
+          session,
+          {
+            type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
+            rutBody: batchResult.batch.rutBody,
+            examId: exams[0].id,
+            link,
+          },
+          LAB_REPORT_TIMEOUT_MS
+        );
       } catch (error) {
         return { error: 'No se pudo validar el informe en Syslab: ' + String((error && error.message) || error) };
       }

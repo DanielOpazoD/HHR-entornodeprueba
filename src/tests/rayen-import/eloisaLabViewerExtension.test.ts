@@ -347,6 +347,10 @@ describe('native Eloisa laboratory viewer', () => {
   it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
+    const sessionTransport = readFileSync(
+      path.resolve('extension/syslab-session-transport.js'),
+      'utf8'
+    );
     const content = ['content-prescription-print.js', 'hhr-center-shell-runtime.js']
       .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
       .join('\n');
@@ -359,6 +363,7 @@ describe('native Eloisa laboratory viewer', () => {
     const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
 
     expect(background).not.toContain('localhost:3001');
+    expect(background).toContain("'syslab-session-transport.js'");
     expect(background).toContain("'syslab-runtime.js'");
     expect(background).toContain('self.HhrSyslabRuntime.create({');
     expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
@@ -377,8 +382,10 @@ describe('native Eloisa laboratory viewer', () => {
     expect(runtime).toContain('sendToSyslabOffscreen');
     expect(runtime).not.toContain('SYSLAB_TAB_STORAGE_KEY');
     expect(runtime).not.toContain('focusSyslabTab');
-    expect(runtime).toContain('previousBridgeId');
-    expect(runtime).toContain('response.bridgeId !== previousBridgeId');
+    expect(sessionTransport).toContain('previousBridgeId');
+    expect(sessionTransport).toContain('status.bridgeId !== previousBridgeId');
+    expect(sessionTransport).toContain("SYSLAB_TAB_PATTERN = 'http://10.4.69.90/syslab/*'");
+    expect(sessionTransport).toContain("kind: 'visible-tab'");
     expect(runtime).toContain('RAYEN_SYSLAB_READ_DETAILS');
     expect(runtime).toContain('linksByExamId');
     expect(background).toContain('[RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(');

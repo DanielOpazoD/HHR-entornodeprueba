@@ -389,13 +389,16 @@
       "maxLines": 68,
       "hotspots": {}
     },
+    "syslab-session-transport.js": {
+      "maxLines": 202,
+      "hotspots": {}
+    },
     "syslab-runtime.js": {
       "maxLines": 437,
       "hotspots": {
         "iife>variable:create>variable:details": 18,
         "iife>variable:create>variable:login": 20,
-        "iife>variable:create>variable:openPdf": 19,
-        "iife>variable:create>variable:searchSyslabDirectly": 19
+        "iife>variable:create>variable:openPdf": 19
       }
     }
   }
