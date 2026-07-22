@@ -54,7 +54,6 @@ export const useRayenImport = () => {
   const { data: nursesList = [] } = useNursesQuery();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  // currentUser stamps the audit; admins bypass the editing window.
   const { currentUser, role } = useAuthState();
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
@@ -112,7 +111,6 @@ export const useRayenImport = () => {
         actor: run.by,
         syncRunId: run.id,
       });
-      // Stamp the run atomically with the census save.
       const stamped = applyRunToRecord(result.record, diff).record;
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
@@ -149,7 +147,6 @@ export const useRayenImport = () => {
         attemptId
       );
       setStaffingProposal(proposal);
-      // Keep nursing in the same reviewed sync journey.
       setState(prev => ({ ...prev, isPreviewOpen: true }));
     },
     [isAdmin]
@@ -184,7 +181,6 @@ export const useRayenImport = () => {
       subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
         void failRun('snapshot_error');
-        // Upstream details stay out of the audit trail and clinical UI.
         console.warn('[rayen-import] La extensión informó un error de lectura.');
         setState(prev => ({
           ...prev,
@@ -355,7 +351,13 @@ export const useRayenImport = () => {
   const cancel = useCallback(() => {
     invalidateRayenFillAttempt();
     cancelRun();
-    if (staffingProposal) reportRayenStaffingOutcome('declined');
+    const staffingDecisionWasSkipped =
+      !!staffingProposal &&
+      (staffingProposal.day.names.length > 0 ||
+        staffingProposal.night.names.length > 0 ||
+        staffingProposal.day.ambiguous ||
+        staffingProposal.night.ambiguous);
+    if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
