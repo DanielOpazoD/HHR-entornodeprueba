@@ -93,4 +93,22 @@ describe('useRayenFillStatus attempt identity', () => {
       expect(resetRayenFillProgress()).toBe(true);
     });
   });
+
+  it('keeps a global fill failure partial even when no patient-specific error exists', () => {
+    const { result } = renderHook(() => useRayenFillProgress());
+
+    act(() => {
+      expect(beginRayenFill(3)).toBe(true);
+      endRayenFill(0, true);
+    });
+    expect(result.current).toMatchObject({
+      running: false,
+      outcome: 'partial',
+      errors: 0,
+    });
+
+    act(() => {
+      expect(resetRayenFillProgress()).toBe(true);
+    });
+  });
 });

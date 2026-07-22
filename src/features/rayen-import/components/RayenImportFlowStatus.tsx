@@ -38,7 +38,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
         : fill.staffingOutcome === 'applying'
           ? 'Actualizando enfermería'
           : completed
-            ? fill.errors > 0
+            ? fill.outcome === 'partial' || fill.errors > 0
               ? 'Sincronización completada con observaciones'
               : hasUnresolvedConflicts
                 ? 'Sincronización completada con conflictos pendientes'
@@ -100,14 +100,21 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
           );
         })}
       </div>
-      {completed && fill.errors > 0 && (
+      {completed && (fill.outcome === 'partial' || fill.errors > 0) && (
         <details className="mt-2 text-xs text-amber-800">
           <summary className="cursor-pointer font-medium">Ver observaciones</summary>
-          <p className="mt-1 leading-relaxed">
-            {fill.errors} paciente{fill.errors === 1 ? '' : 's'} requiere
-            {fill.errors === 1 ? '' : 'n'} revisión. El detalle permanece disponible en el historial
-            de sincronización.
-          </p>
+          {fill.errors > 0 ? (
+            <p className="mt-1 leading-relaxed">
+              {fill.errors} paciente{fill.errors === 1 ? '' : 's'} requiere
+              {fill.errors === 1 ? '' : 'n'} revisión. El detalle permanece disponible en el
+              historial de sincronización.
+            </p>
+          ) : (
+            <p className="mt-1 leading-relaxed">
+              Parte de la información clínica no pudo revisarse. El detalle permanece disponible
+              en el historial de sincronización.
+            </p>
+          )}
         </details>
       )}
       {completed && hasUnresolvedConflicts && (

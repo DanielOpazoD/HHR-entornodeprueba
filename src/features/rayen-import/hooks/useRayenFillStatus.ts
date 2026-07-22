@@ -114,13 +114,13 @@ export const reportRayenFillProgress = (done: number, total: number): void => {
   emit({ ...progress, done, total });
 };
 
-/** Finish the run, keeping a completion summary visible for the user. */
-export const endRayenFill = (errors: number): void => {
+/** Finish the run, keeping patient counts separate from report-level/global failures. */
+export const endRayenFill = (errors: number, hasAnyError: boolean = errors > 0): void => {
   const completedLatestAttempt = activeAttemptId === progress.attemptId;
   activeAttemptId = null;
   emit({
     running: false,
-    outcome: completedLatestAttempt ? (errors > 0 ? 'partial' : 'complete') : progress.outcome,
+    outcome: completedLatestAttempt ? (hasAnyError ? 'partial' : 'complete') : progress.outcome,
     attemptId: progress.attemptId,
     done: progress.done,
     total: progress.total,

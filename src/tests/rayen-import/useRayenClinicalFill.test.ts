@@ -95,6 +95,6 @@ describe('useRayenClinicalFill', () => {
       }),
       7
     );
-    expect(mocks.endRayenFill).toHaveBeenCalledWith(0);
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
   });
 });

@@ -356,6 +356,35 @@ describe('RayenImportPreviewModal discharge verification', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
   });
 
+  it('shows a global clinical failure as an observation instead of complete success', () => {
+    mocks.useRayenFillProgress.mockReturnValue({
+      running: false,
+      outcome: 'partial',
+      attemptId: 1,
+      done: 8,
+      total: 8,
+      errors: 0,
+      lastCompletedAt: '2026-07-21T17:00:00.000Z',
+      staffingOutcome: 'resolved',
+    });
+
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={diff}
+        isBusy={false}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Todo está actualizado')).not.toBeInTheDocument();
+    expect(screen.getByText('Sincronización completada con observaciones')).toBeVisible();
+    fireEvent.click(screen.getByText('Ver observaciones'));
+    expect(screen.getByText(/Parte de la información clínica no pudo revisarse/)).toBeVisible();
+  });
+
   it('does not report success when the latest clinical fill is rejected by single-flight', () => {
     const onConfirm = vi.fn();
     const { rerender } = render(

@@ -110,7 +110,7 @@ export const useRayenClinicalFill = ({
       const failedPatients = new Set(
         summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
       ).size;
-      endRayenFill(failedPatients);
+      endRayenFill(failedPatients, summary.errors.length > 0);
       try {
         await completeRun(record, summary);
       } catch (error) {

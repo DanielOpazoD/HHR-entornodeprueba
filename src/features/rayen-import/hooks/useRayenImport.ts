@@ -203,7 +203,16 @@ export const useRayenImport = () => {
   const triggerImport = useCallback(
     (health?: RayenExtensionHealthState) => {
       clearSyncTimeout();
-      resetRayenFillProgress();
+      if (!resetRayenFillProgress()) {
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          result: null,
+          error:
+            'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
+        }));
+        return;
+      }
       setStaffingProposal(null);
       setStaffingProposalError(null);
       startRun(health);
