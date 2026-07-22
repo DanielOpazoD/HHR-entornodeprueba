@@ -1,12 +1,3 @@
-/**
- * Orchestrates a Rayen census import in the UI: subscribe to snapshots (from the
- * extension bridge), plan the diff, then either open the preview (default) or apply
- * automatically (experimental mode). Applying persists via `useSaveDailyRecordMutation`.
- *
- * Safety rail: auto mode only auto-applies when the diff has no review-gated signals;
- * otherwise it falls back to the preview so a human can verify them.
- */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
@@ -49,33 +40,29 @@ import type { NursingStaffingProposal } from '../contracts/nursingShiftInference
 import { buildNursingShiftProposalPatch } from '../domain/applyNursingShiftProposal';
 import { useNursesQuery } from '@/hooks/useStaffQuery';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
+import {
+  invalidateRayenFillAttempt,
+  isRayenFillAttemptCurrent,
+  reportRayenStaffingOutcome,
+  resetRayenFillProgress,
+} from './useRayenFillStatus';
 
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
-  // Read the shared TanStack cache directly here. The import button can be mounted
-  // independently from the census staff controls, so it must not depend on their
-  // presentation context just to reconcile an Eloisa author with the local catalog.
   const { data: nursesList = [] } = useNursesQuery();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
   const { currentUser, role } = useAuthState();
-  // Destructure the stable `mutateAsync` reference: depending on the whole mutation
-  // object would change identity each render, recreating applyDiff/previewSnapshot and
-  // needlessly re-running the bridge subscription effect below on every render.
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
-  // nurse can only write a previous day within that window — older days are surfaced but skipped.
+  // Non-admin users can only correct previous days within Firestore's editing window.
   const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
-  // Fallback timer for the "sincronizando" indicator: if the extension never answers the snapshot
-  // request, clear the spinner and surface a hint instead of spinning forever.
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearSyncTimeout = useCallback(() => {
     if (syncTimeoutRef.current) {
@@ -86,17 +73,12 @@ export const useRayenImport = () => {
   useEffect(() => clearSyncTimeout, [clearSyncTimeout]);
 
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
-  // Always-fresh reference for the stale-save retry in `confirm` (the closure record can lag).
   const currentRecordRef = useRef(currentRecord);
   currentRecordRef.current = currentRecord;
-  // Granular per-patient patches for the background fill — never a full-record save.
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
   const patchFreshClinicalRecord = useCallback(
     async (patch: DailyRecordPatch, target: ClinicalFillPatchTarget): Promise<void> => {
       const date = target.censusDate;
-      // Each patient write starts from the latest repository record. The React query cache may
-      // still hold the optimistic version from the previous patient and must not become the CAS
-      // base for the next one in the same synchronization.
       const fresh = await dailyRecord.getForDateWithMeta(date, true);
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
       assertClinicalFillPatchTarget(fresh.record, target);
@@ -129,7 +111,6 @@ export const useRayenImport = () => {
         actor: run.by,
         syncRunId: run.id,
       });
-      // Stamp the applied run + aggregate-only history atomically with the full census save.
       const stamped = applyRunToRecord(result.record, diff).record;
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
@@ -152,10 +133,23 @@ export const useRayenImport = () => {
     [dailyRecord, isAdmin]
   );
   const presentStaffingProposal = useCallback(
-    (proposal: NursingStaffingProposal) => {
-      // Do not offer a write that Firestore will reject for a non-admin user.
-      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) return;
+    (proposal: NursingStaffingProposal, attemptId: number) => {
+      if (!isRayenFillAttemptCurrent(attemptId)) return;
+      const hasVacancies = proposal.day.names.length > 0 || proposal.night.names.length > 0;
+      const hasAmbiguity = proposal.day.ambiguous || proposal.night.ambiguous;
+      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
+        reportRayenStaffingOutcome(
+          hasVacancies || hasAmbiguity ? 'declined' : 'resolved',
+          attemptId
+        );
+        return;
+      }
+      reportRayenStaffingOutcome(
+        hasVacancies ? 'pending' : hasAmbiguity ? 'ambiguous' : 'resolved',
+        attemptId
+      );
       setStaffingProposal(proposal);
+      setState(prev => ({ ...prev, isPreviewOpen: true }));
     },
     [isAdmin]
   );
@@ -189,8 +183,6 @@ export const useRayenImport = () => {
       subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
         void failRun('snapshot_error');
-        // The extension payload may contain upstream details. Keep it out of the
-        // persisted audit trail and out of the clinical UI; log only a category.
         console.warn('[rayen-import] La extensión informó un error de lectura.');
         setState(prev => ({
           ...prev,
@@ -203,11 +195,19 @@ export const useRayenImport = () => {
     [clearSyncTimeout, failRun]
   );
 
-  // Trigger an import: show the spinner immediately, ask the extension for a snapshot, and guard with
-  // a fallback timer so an uninstalled/asleep extension doesn't leave it spinning forever.
   const triggerImport = useCallback(
     (health?: RayenExtensionHealthState) => {
       clearSyncTimeout();
+      if (!resetRayenFillProgress()) {
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          result: null,
+          error:
+            'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
+        }));
+        return;
+      }
       setStaffingProposal(null);
       setStaffingProposalError(null);
       startRun(health);
@@ -238,12 +238,14 @@ export const useRayenImport = () => {
 
   const dismissStaffingProposal = useCallback(() => {
     if (isStaffingProposalBusy) return;
+    reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
   }, [isStaffingProposalBusy]);
 
   const confirmStaffingProposal = useCallback(async () => {
     if (!staffingProposal) return;
+    reportRayenStaffingOutcome('applying');
     setIsStaffingProposalBusy(true);
     setStaffingProposalError(null);
     try {
@@ -285,21 +287,18 @@ export const useRayenImport = () => {
         'clinical_patch'
       );
       setStaffingProposal(null);
+      reportRayenStaffingOutcome('resolved');
     } catch (error) {
+      reportRayenStaffingOutcome('pending');
       setStaffingProposalError(getRayenImportErrorMessage(error));
     } finally {
       setIsStaffingProposalBusy(false);
     }
   }, [dailyRecord, isAdmin, queryClient, staffingProposal]);
 
-  // `applyPreviousDays` (default true) gates ONLY the cross-day corrections. Today's census changes
-  // (admissions, moves, discharges) ALWAYS apply — the previous-day acknowledgment must never block
-  // them (a bed move shouldn't wait on accepting an unrelated past-day egreso).
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
-      // ALWAYS apply against the freshest record (the ref), not the closure: a bed move the user just
-      // did in HHR may not be in the closure's `currentRecord` yet, which would make the move's source
-      // bed look empty and silently skip the move. The ref reflects the latest saved record.
+      // Apply against the ref so recent HHR changes cannot be lost to a stale closure.
       const base = currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
       const diff = state.diff;
@@ -313,8 +312,6 @@ export const useRayenImport = () => {
           isAdmin,
           ensureRun,
           applyDiff,
-          // Refresh through the same QueryClient path used by the save guard. A repository-only
-          // read leaves React Query stale, causing the retry to reject until a full page reload.
           getFreshRecord: async () =>
             (
               await ensureFreshDailyRecordQuery(
@@ -325,7 +322,7 @@ export const useRayenImport = () => {
             ).record,
           createId: makeId,
         });
-        setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: false, result }));
+        setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: true, result }));
         // Keeps `isSyncing` on until the background fill settles it.
         void fillDevicesInBackground(result.record);
       } catch (error) {
@@ -352,9 +349,19 @@ export const useRayenImport = () => {
   );
 
   const cancel = useCallback(() => {
+    invalidateRayenFillAttempt();
     cancelRun();
+    const staffingDecisionWasSkipped =
+      !!staffingProposal &&
+      (staffingProposal.day.names.length > 0 ||
+        staffingProposal.night.names.length > 0 ||
+        staffingProposal.day.ambiguous ||
+        staffingProposal.night.ambiguous);
+    if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
+    setStaffingProposal(null);
+    setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun]);
+  }, [cancelRun, staffingProposal]);
 
   return useMemo(
     () => ({

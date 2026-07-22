@@ -35,11 +35,7 @@ import type {
   NursingStaffingProposal,
   RayenNursingActivity,
 } from './contracts/nursingShiftInference';
-import {
-  hasNursingShiftSuggestions,
-  inferNursingShifts,
-  type NursingActivityObservation,
-} from './domain/inferNursingShifts';
+import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 
 export interface ClinicalFillDeps {
   /** Curated HHR nurse catalog used to reconcile Eloísa identities and strengthen confidence. */
@@ -101,7 +97,7 @@ export interface ClinicalFillSummary {
   /** Patients whose patch was applied (had at least one change). */
   patched: number;
   errors: ClinicalFillError[];
-  /** Reviewable, high-confidence staffing suggestions derived from text-free clinical metadata. */
+  /** Staffing review derived from text-free clinical metadata, including explicit no-data states. */
   staffingProposal?: NursingStaffingProposal;
 }
 
@@ -145,7 +141,12 @@ export const runClinicalFill = async (
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
   const eligible = collectClinicalFillCandidates(record);
-  const summary: ClinicalFillSummary = { total: eligible.length, patched: 0, errors: [] };
+  const summary: ClinicalFillSummary = {
+    total: eligible.length,
+    patched: 0,
+    errors: [],
+    staffingProposal: inferNursingShifts([], fecha, deps.nurseCatalog ?? []),
+  };
   if (eligible.length === 0) return summary;
   const nursingObservations: NursingActivityObservation[] = [];
 
@@ -347,10 +348,11 @@ export const runClinicalFill = async (
     );
   }
 
-  const staffingProposal = inferNursingShifts(nursingObservations, fecha, deps.nurseCatalog ?? []);
-  if (hasNursingShiftSuggestions(staffingProposal)) {
-    summary.staffingProposal = staffingProposal;
-  }
+  summary.staffingProposal = inferNursingShifts(
+    nursingObservations,
+    fecha,
+    deps.nurseCatalog ?? []
+  );
 
   return summary;
 };

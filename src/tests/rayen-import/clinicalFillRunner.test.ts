@@ -236,7 +236,9 @@ describe('runClinicalFill', () => {
       deps
     );
 
-    expect(summary).toEqual({ total: 1, patched: 0, errors: [] });
+    expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
+    expect(summary.staffingProposal?.day.names).toEqual([]);
+    expect(summary.staffingProposal?.night.names).toEqual([]);
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 

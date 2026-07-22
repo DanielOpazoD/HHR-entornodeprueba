@@ -10,7 +10,12 @@ import {
   type ClinicalFillPatchTarget,
   type HistoricalCudyrApplyResult,
 } from '../clinicalFillRunner';
-import { beginRayenFill, endRayenFill, reportRayenFillProgress } from './useRayenFillStatus';
+import {
+  beginRayenFill,
+  endRayenFill,
+  getRayenFillAttemptId,
+  reportRayenFillProgress,
+} from './useRayenFillStatus';
 import { toIsoReportDate } from './reportDateHelpers';
 import {
   requestCudyrCategories,
@@ -19,11 +24,7 @@ import {
   requestScalesReport,
 } from '../bridge/rayenImportBridge';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import { hasNursingShiftSuggestions } from '../domain/inferNursingShifts';
-import {
-  hasNursingShiftReview,
-  reconcileNursingShiftProposal,
-} from '../domain/applyNursingShiftProposal';
+import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -34,7 +35,7 @@ interface UseRayenClinicalFillInput {
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
   completeRun: (record: DailyRecord, summary: ClinicalFillSummary) => Promise<void>;
-  onStaffingProposal: (proposal: NursingStaffingProposal) => void;
+  onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   onSettled: () => void;
   createId: () => string;
 }
@@ -67,6 +68,7 @@ export const useRayenClinicalFill = ({
         onSettled();
         return;
       }
+      const attemptId = getRayenFillAttemptId();
 
       let summary: ClinicalFillSummary;
       try {
@@ -101,19 +103,21 @@ export const useRayenClinicalFill = ({
       if (summary.errors.length > 0) {
         console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
       }
-      if (summary.staffingProposal && hasNursingShiftSuggestions(summary.staffingProposal)) {
-        const reviewProposal = reconcileNursingShiftProposal(record, summary.staffingProposal);
-        if (hasNursingShiftReview(reviewProposal)) onStaffingProposal(reviewProposal);
-      }
+      const reviewProposal = summary.staffingProposal
+        ? reconcileNursingShiftProposal(record, summary.staffingProposal)
+        : null;
       const failedPatients = new Set(
         summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
       ).size;
-      endRayenFill(failedPatients);
+      let completionFailed = false;
       try {
         await completeRun(record, summary);
       } catch (error) {
+        completionFailed = true;
         console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
       }
+      endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
+      if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
       onSettled();
     },
     [
