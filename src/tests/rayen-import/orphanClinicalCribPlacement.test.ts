@@ -104,6 +104,24 @@ describe('orphan clinical crib placement', () => {
     ]);
   });
 
+  it('does not restore an orphan crib already represented by an HHR discharge', () => {
+    const newborn = makeEncounter();
+    const current = makeRecord();
+    current.discharges = [
+      {
+        rut: newborn.run,
+        clinicalEpisodeId: newborn.encounterId,
+      } as DailyRecord['discharges'][number],
+    ];
+
+    const diff = reconcileCensus(current, snapshotOf([newborn]), { reference: REFERENCE });
+
+    expect(diff.admissions).toHaveLength(0);
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.moves).toHaveLength(0);
+    expect(diff.conflicts).toHaveLength(0);
+  });
+
   it('does not attach or overwrite when NEO1 has a confirmed incompatible occupant', () => {
     const occupant = makeEncounter({
       encounterId: 'OTHER-NEO1',

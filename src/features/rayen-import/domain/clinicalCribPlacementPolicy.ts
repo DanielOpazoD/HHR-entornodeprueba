@@ -7,6 +7,7 @@ import { rayenToPatientData, type MappedPatient } from '../mapping/rayenToPatien
 export interface MappedClinicalEncounter {
   encounter: RayenEncounter;
   mapped: MappedPatient;
+  originatedAsClinicalCrib?: boolean;
 }
 
 interface CurrentPatientRef {
@@ -56,6 +57,7 @@ export const prepareActiveClinicalPlacements = (
       : undefined;
     return {
       encounter,
+      originatedAsClinicalCrib: mapped.isClinicalCrib,
       mapped: retained
         ? {
             ...mapped,
@@ -83,7 +85,10 @@ export const shouldReconcileAsPrincipal = (
     !!mapped.isClinicalCrib && !!mapped.bedId && findCurrent(encounter)?.patient.bedMode === 'Cuna';
   return (
     (!mapped.isClinicalCrib || isPromoted) &&
-    !(mapped.isClinicalCrib && wasClinicalCribDischargedInHhr(encounter))
+    !(
+      (candidate.originatedAsClinicalCrib ?? mapped.isClinicalCrib) &&
+      wasClinicalCribDischargedInHhr(encounter)
+    )
   );
 };
 
