@@ -70,11 +70,18 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   const clinicalCompleted = !!diff && !error && confirmationStarted && fillSettled;
   const flowCompleted = !flowActive && !!diff && !error && confirmationStarted && fillSettled;
   const hasUnresolvedConflicts = (diff?.summary.conflicts ?? 0) > 0;
+  const hasSkippedPreviousDayEdits =
+    confirmationStarted &&
+    needsPreviousDayAck &&
+    (!acceptedPreviousDays ||
+      previousDayEdits.some(edit => !edit.recordExists || !edit.withinEditingWindow));
+  const hasSkippedItems = fill.staffingOutcome === 'declined' || hasSkippedPreviousDayEdits;
   const flowSuccessful =
     flowCompleted &&
     fill.outcome === 'complete' &&
     fill.staffingOutcome === 'resolved' &&
-    !hasUnresolvedConflicts;
+    !hasUnresolvedConflicts &&
+    !hasSkippedItems;
   const showReview = hasChanges && (!confirmationStarted || Boolean(error)) && !flowActive;
   const handleClose = (): void => {
     if (!flowActive) onCancel();
@@ -104,6 +111,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               fill={fill}
               completed={clinicalCompleted}
               hasUnresolvedConflicts={hasUnresolvedConflicts}
+              hasSkippedItems={hasSkippedItems}
             />
             {showReview && (
               <div>

@@ -240,7 +240,7 @@ export const useRayenImport = () => {
 
   const dismissStaffingProposal = useCallback(() => {
     if (isStaffingProposalBusy) return;
-    reportRayenStaffingOutcome('resolved');
+    reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
   }, [isStaffingProposalBusy]);
@@ -355,11 +355,11 @@ export const useRayenImport = () => {
   const cancel = useCallback(() => {
     invalidateRayenFillAttempt();
     cancelRun();
-    reportRayenStaffingOutcome('resolved');
+    if (staffingProposal) reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun]);
+  }, [cancelRun, staffingProposal]);
 
   return useMemo(
     () => ({

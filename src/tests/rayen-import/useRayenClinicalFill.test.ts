@@ -97,4 +97,64 @@ describe('useRayenClinicalFill', () => {
     );
     expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
   });
+
+  it('does not publish terminal UI state until run completion persistence settles', async () => {
+    let resolveCompletion: (() => void) | undefined;
+    const completeRun = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          resolveCompletion = resolve;
+        })
+    );
+    const record = {
+      date: '2026-07-14',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    const fillPromise = result.current(record);
+    await vi.waitFor(() => expect(completeRun).toHaveBeenCalledOnce());
+    expect(mocks.endRayenFill).not.toHaveBeenCalled();
+
+    resolveCompletion?.();
+    await act(async () => fillPromise);
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
+  });
+
+  it('settles as partial when run completion persistence fails', async () => {
+    const record = {
+      date: '2026-07-14',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun: vi.fn().mockRejectedValue(new Error('audit unavailable')),
+        onStaffingProposal: vi.fn(),
+        onSettled: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(record));
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, true);
+  });
 });

@@ -40,11 +40,12 @@ describe('useRayenFillStatus attempt identity', () => {
     });
     expect(result.current.staffingOutcome).toBe('idle');
 
-    act(() => endRayenFill(0));
+    act(() => endRayenFill(3));
     expect(result.current).toMatchObject({
       running: false,
       outcome: 'rejected',
       attemptId: 2,
+      errors: 0,
       lastCompletedAt: null,
     });
 

@@ -110,12 +110,14 @@ export const useRayenClinicalFill = ({
       const failedPatients = new Set(
         summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
       ).size;
-      endRayenFill(failedPatients, summary.errors.length > 0);
+      let completionFailed = false;
       try {
         await completeRun(record, summary);
       } catch (error) {
+        completionFailed = true;
         console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
       }
+      endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
       onSettled();
     },
     [

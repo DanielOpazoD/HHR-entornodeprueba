@@ -7,6 +7,7 @@ interface RayenImportFlowStatusProps {
   fill: RayenFillProgress;
   completed: boolean;
   hasUnresolvedConflicts?: boolean;
+  hasSkippedItems?: boolean;
 }
 
 const scopeItems = ['Censo y demografía', 'Signos vitales', 'Dispositivos', 'Enfermería'];
@@ -23,6 +24,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
   fill,
   completed,
   hasUnresolvedConflicts = false,
+  hasSkippedItems = false,
 }) => {
   const percent = progressPercentage(fill, completed);
   const completedScope = completed && fill.outcome !== 'rejected';
@@ -42,9 +44,11 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
               ? 'Sincronización completada con observaciones'
               : hasUnresolvedConflicts
                 ? 'Sincronización completada con conflictos pendientes'
-                : staffingNeedsDecision
-                  ? 'Información revisada · confirma enfermería'
-                  : 'Sincronización completada'
+                : hasSkippedItems
+                  ? 'Sincronización completada con elementos sin aplicar'
+                  : staffingNeedsDecision
+                    ? 'Información revisada · confirma enfermería'
+                    : 'Sincronización completada'
             : 'Se revisará al confirmar';
 
   return (
@@ -111,8 +115,8 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
             </p>
           ) : (
             <p className="mt-1 leading-relaxed">
-              Parte de la información clínica no pudo revisarse. El detalle permanece disponible
-              en el historial de sincronización.
+              Parte de la información clínica no pudo revisarse. El detalle permanece disponible en
+              el historial de sincronización.
             </p>
           )}
         </details>
@@ -124,6 +128,12 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
             Los conflictos del censo no se aplicaron y permanecen disponibles para revisión.
           </p>
         </details>
+      )}
+      {completed && hasSkippedItems && (
+        <p className="mt-2 text-xs leading-relaxed text-amber-800">
+          Algunos cambios se conservaron sin aplicar. Puedes revisarlos en el detalle de esta
+          sincronización.
+        </p>
       )}
       {completed && staffingNeedsDecision && (
         <p className="mt-2 text-xs leading-relaxed text-slate-600">

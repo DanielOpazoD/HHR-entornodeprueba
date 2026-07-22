@@ -23,7 +23,7 @@ export interface RayenFillProgress {
   /** ISO time of the last completed fill; null until one completes. */
   lastCompletedAt: string | null;
   /** User-decision state for the nursing proposal produced by this same synchronization. */
-  staffingOutcome: 'idle' | 'resolved' | 'pending' | 'applying' | 'ambiguous';
+  staffingOutcome: 'idle' | 'resolved' | 'pending' | 'applying' | 'ambiguous' | 'declined';
 }
 
 const IDLE: RayenFillProgress = {
@@ -124,7 +124,7 @@ export const endRayenFill = (errors: number, hasAnyError: boolean = errors > 0):
     attemptId: progress.attemptId,
     done: progress.done,
     total: progress.total,
-    errors,
+    errors: completedLatestAttempt ? errors : progress.errors,
     lastCompletedAt: completedLatestAttempt ? new Date().toISOString() : progress.lastCompletedAt,
     staffingOutcome: progress.staffingOutcome,
   });
