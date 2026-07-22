@@ -82,6 +82,23 @@ export const getRayenFillAttemptId = (): number => progress.attemptId;
 export const isRayenFillAttemptCurrent = (attemptId: number): boolean =>
   progress.attemptId === attemptId && progress.outcome !== 'rejected';
 
+/**
+ * Invalidate the active attempt without aborting its best-effort clinical writes. Late callbacks
+ * can finish their work, but they can no longer publish staffing UI or revive a dismissed flow.
+ * A new fill remains single-flight blocked until the invalidated worker settles.
+ */
+export const invalidateRayenFillAttempt = (): boolean => {
+  if (activeAttemptId === null || !progress.running) return false;
+  activeAttemptId = null;
+  emit({
+    ...progress,
+    attemptId: progress.attemptId + 1,
+    outcome: 'rejected',
+    staffingOutcome: 'resolved',
+  });
+  return true;
+};
+
 export const reportRayenStaffingOutcome = (
   staffingOutcome: RayenFillProgress['staffingOutcome'],
   attemptId: number = progress.attemptId

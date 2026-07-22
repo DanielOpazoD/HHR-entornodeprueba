@@ -41,6 +41,7 @@ import { buildNursingShiftProposalPatch } from '../domain/applyNursingShiftPropo
 import { useNursesQuery } from '@/hooks/useStaffQuery';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import {
+  invalidateRayenFillAttempt,
   isRayenFillAttemptCurrent,
   reportRayenStaffingOutcome,
   resetRayenFillProgress,
@@ -351,6 +352,7 @@ export const useRayenImport = () => {
   );
 
   const cancel = useCallback(() => {
+    invalidateRayenFillAttempt();
     cancelRun();
     reportRayenStaffingOutcome('resolved');
     setStaffingProposal(null);

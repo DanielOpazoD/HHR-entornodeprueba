@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   beginRayenFill,
   endRayenFill,
+  invalidateRayenFillAttempt,
+  isRayenFillAttemptCurrent,
   reportRayenFillProgress,
   reportRayenStaffingOutcome,
   resetRayenFillProgress,
@@ -55,6 +57,40 @@ describe('useRayenFillStatus attempt identity', () => {
       attemptId: 2,
       lastCompletedAt: null,
       staffingOutcome: 'idle',
+    });
+  });
+
+  it('invalidates late staffing callbacks after the active flow is cancelled', () => {
+    const { result } = renderHook(() => useRayenFillProgress());
+
+    act(() => {
+      expect(beginRayenFill(3)).toBe(true);
+    });
+    const cancelledAttemptId = result.current.attemptId;
+
+    act(() => {
+      expect(invalidateRayenFillAttempt()).toBe(true);
+    });
+    expect(result.current).toMatchObject({
+      running: true,
+      outcome: 'rejected',
+      attemptId: cancelledAttemptId + 1,
+      staffingOutcome: 'resolved',
+    });
+    expect(isRayenFillAttemptCurrent(cancelledAttemptId)).toBe(false);
+
+    act(() => {
+      expect(reportRayenStaffingOutcome('pending', cancelledAttemptId)).toBe(false);
+      endRayenFill(0);
+    });
+    expect(result.current).toMatchObject({
+      running: false,
+      outcome: 'rejected',
+      staffingOutcome: 'resolved',
+    });
+
+    act(() => {
+      expect(resetRayenFillProgress()).toBe(true);
     });
   });
 });

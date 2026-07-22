@@ -77,7 +77,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     !hasUnresolvedConflicts;
   const showReview = hasChanges && (!confirmationStarted || Boolean(error)) && !flowActive;
   const handleClose = (): void => {
-    if (!flowActive && !staffingNeedsDecision) onCancel();
+    if (!flowActive) onCancel();
   };
 
   return (
@@ -91,8 +91,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       headerIconColor="text-teal-600"
       dataModule="rayen-import"
       dataTestId="rayen-import-preview"
-      closeOnBackdrop={!flowActive && !staffingNeedsDecision}
-      showCloseButton={!flowActive && !staffingNeedsDecision}
+      closeOnBackdrop={!flowActive}
+      showCloseButton={!flowActive}
     >
       <div className="max-h-[60vh] overflow-y-auto">
         {!diff ? (
@@ -330,10 +330,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         <button
           type="button"
           onClick={handleClose}
-          disabled={flowActive || staffingNeedsDecision}
+          disabled={flowActive}
           className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          {flowCompleted || !hasChanges ? 'Listo' : 'Cancelar'}
+          {staffingNeedsDecision
+            ? 'Mantener actual y cerrar'
+            : flowCompleted || !hasChanges
+              ? 'Listo'
+              : 'Cancelar'}
         </button>
         {showReview && (
           <button

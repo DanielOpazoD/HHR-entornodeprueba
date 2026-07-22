@@ -297,7 +297,7 @@ describe('RayenImportPreviewModal discharge verification', () => {
     expect(screen.getByText('H2C1: La cama cambió durante la revisión.')).toBeVisible();
   });
 
-  it('waits for an explicit nursing decision before reporting complete success', () => {
+  it('allows keeping current staffing without depending on the nursing portal', () => {
     mocks.useRayenFillProgress.mockReturnValue({
       running: false,
       outcome: 'complete',
@@ -308,6 +308,7 @@ describe('RayenImportPreviewModal discharge verification', () => {
       lastCompletedAt: '2026-07-21T17:00:00.000Z',
       staffingOutcome: 'pending',
     });
+    const onCancel = vi.fn();
 
     render(
       <RayenImportPreviewModal
@@ -316,13 +317,16 @@ describe('RayenImportPreviewModal discharge verification', () => {
         isBusy={false}
         error={null}
         onConfirm={vi.fn()}
-        onCancel={vi.fn()}
+        onCancel={onCancel}
       />
     );
 
     expect(screen.queryByText('Todo está actualizado')).not.toBeInTheDocument();
     expect(screen.getByText('Información revisada · confirma enfermería')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Listo' })).toBeDisabled();
+    const keepCurrent = screen.getByRole('button', { name: 'Mantener actual y cerrar' });
+    expect(keepCurrent).toBeEnabled();
+    fireEvent.click(keepCurrent);
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 
   it('keeps completed clinical progress at 100% while applying nursing staffing', () => {
