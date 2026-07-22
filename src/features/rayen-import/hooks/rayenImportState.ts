@@ -7,6 +7,7 @@ export interface RayenImportState {
   isBusy: boolean;
   isSyncing: boolean;
   result: ApplyResult | null;
+  hasSkippedItems: boolean;
   error: string | null;
 }
 
@@ -16,6 +17,7 @@ export const INITIAL_RAYEN_IMPORT_STATE: RayenImportState = {
   isBusy: false,
   isSyncing: false,
   result: null,
+  hasSkippedItems: false,
   error: null,
 };
 

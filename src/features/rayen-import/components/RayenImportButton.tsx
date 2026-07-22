@@ -1,27 +1,20 @@
 import React from 'react';
-import {
-  CheckCircle2,
-  CircleHelp,
-  DatabaseZap,
-  History,
-  RefreshCw,
-} from 'lucide-react';
+import { CircleHelp, History, RefreshCw } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
+import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenImportErrorNotice } from './RayenImportErrorNotice';
-import { RayenSyncDetailsPopover } from './RayenSyncDetailsPopover';
-import {
-  presentRayenCoverage,
-  presentRayenSyncRecovery,
-  rayenPrimaryActionLabel,
-  rayenSyncStatusLabel,
-} from './rayenSyncPresentation';
+import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+
+interface RayenImportButtonProps {
+  attentionControl?: React.ReactNode;
+}
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -50,7 +43,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
 };
 
-export const RayenImportButton: React.FC = () => {
+export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionControl }) => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
@@ -61,6 +54,8 @@ export const RayenImportButton: React.FC = () => {
     isPreviewOpen,
     isBusy,
     isSyncing,
+    result,
+    hasSkippedItems,
     error,
     staffingProposal,
     isStaffingProposalBusy,
@@ -76,8 +71,6 @@ export const RayenImportButton: React.FC = () => {
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
   const working = isSyncing || isBusy || fill.running || recoveryBusy || isStaffingProposalBusy;
-  const fillProgressPercent =
-    fill.total > 0 ? Math.min(100, Math.max(0, Math.round((fill.done / fill.total) * 100))) : 0;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -92,53 +85,18 @@ export const RayenImportButton: React.FC = () => {
     [extension.connection, history, working]
   );
 
-  // Visible, verifiable fill status: live progress while running, then a completion summary with
-  // the per-patient error count — so the user can tell whether devices/scores actually synced.
-  const fillNote = fill.running
-    ? `Datos clínicos ${fillProgressPercent}%…`
-    : fill.lastCompletedAt
-      ? fill.errors > 0
-        ? `Datos clínicos: ${Math.max(fill.total - fill.errors, 0)}/${fill.total} · ${fill.errors} con error`
-        : `Datos clínicos: ${fill.total}/${fill.total} ✓`
-      : null;
-
   const sourceState =
     extension.connection === 'checking'
       ? 'Comprobando'
       : extension.connection === 'ready'
-        ? `Conectada · v${extension.report?.version ?? ''}`
+        ? 'Conectada'
         : extension.connection === 'degraded'
-          ? `Parcial · v${extension.report?.version ?? ''}`
+          ? 'Conexión parcial'
           : extension.connection === 'incompatible'
             ? 'Actualizar extensión'
             : extension.connection === 'blocked'
               ? 'Revisar Ficha Médico'
               : 'Extensión sin respuesta';
-  const responsibleState = lastSync ? (record?.rayenSync?.by ?? 'Sin identificar') : 'Sin registro';
-  const persistedCoverage = presentRayenCoverage(
-    record?.rayenSync?.coverage,
-    Boolean(lastSync),
-    record?.rayenSync?.status === 'applied' && Boolean(record.rayenSync.runId)
-  );
-  const coverageState = fill.running
-    ? (fillNote?.replace('Datos clínicos: ', '').replace('Datos clínicos ', '') ?? 'Procesando…')
-    : record?.rayenSync?.coverage
-      ? persistedCoverage.label
-      : fillNote
-        ? fillNote.replace('Datos clínicos: ', '').replace('Datos clínicos ', '')
-        : persistedCoverage.label;
-  const coverageTone = fill.running
-    ? 'running'
-    : record?.rayenSync?.coverage
-      ? persistedCoverage.tone
-      : fillNote
-        ? fill.errors > 0
-          ? 'warning'
-          : 'success'
-        : 'muted';
-
-  const fichaReady = extension.report?.fichaMedico.status === 'ready';
-  const camasReady = extension.report?.gestionCamas.status === 'ready';
   const needsConnectionGuidance =
     extension.connection !== 'ready' && extension.connection !== 'checking';
   const connectionGuidance = needsConnectionGuidance
@@ -149,14 +107,21 @@ export const RayenImportButton: React.FC = () => {
     const health = await extension.refresh();
     triggerImport(health);
   };
-  const primaryActionLabel = rayenPrimaryActionLabel(extension.connection, working);
-  const persistedStatusLabel = rayenSyncStatusLabel(record?.rayenSync?.status);
-  const persistedStatusClass =
-    record?.rayenSync?.status === 'complete'
-      ? 'text-emerald-700'
-      : record?.rayenSync?.status === 'partial'
-        ? 'text-amber-700'
-        : 'text-sky-700';
+  const pendingChangeCount = diff
+    ? diff.summary.admissions +
+      diff.summary.updates +
+      diff.summary.moves +
+      diff.summary.discharges +
+      (diff.reportEgresos?.length ?? 0)
+    : 0;
+  const primaryActionLabel =
+    isPreviewOpen && !result && pendingChangeCount > 0
+      ? `Revisar ${pendingChangeCount} cambio${pendingChangeCount === 1 ? '' : 's'}`
+      : isPreviewOpen && result
+        ? 'Revisar conflictos'
+        : staffingProposal
+          ? 'Revisar propuesta'
+          : rayenPrimaryActionLabel(extension.connection, working);
   const closeHistory = React.useCallback(() => {
     setHistoryOpen(false);
     queueMicrotask(() => historyTriggerRef.current?.focus());
@@ -181,10 +146,10 @@ export const RayenImportButton: React.FC = () => {
       className="w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
       data-testid="rayen-operations-bar"
     >
-      <div className="grid min-h-14 grid-cols-1 items-center gap-2 px-3 py-2 md:grid-cols-[minmax(205px,0.9fr)_minmax(280px,1.55fr)_13.5rem]">
-        <div className="flex min-w-[205px] items-center gap-2.5">
+      <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.72fr)_minmax(0,2.25fr)_auto]">
+        <div className="relative flex min-w-[210px] items-center gap-2">
           <span
-            className={`inline-flex size-9 shrink-0 items-center justify-center rounded-lg border ${
+            className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
               working || extension.connection === 'checking'
                 ? 'border-teal-200 bg-teal-100 text-teal-700'
                 : extension.connection === 'ready'
@@ -193,16 +158,17 @@ export const RayenImportButton: React.FC = () => {
                     ? 'border-amber-200 bg-amber-50 text-amber-700'
                     : 'border-amber-200 bg-amber-50 text-amber-700'
             }`}
-            aria-hidden="true"
           >
-            <DatabaseZap size={18} strokeWidth={2.25} />
+            <img
+              src="/images/logos/rayen-mark.png"
+              alt=""
+              className="size-7 object-contain"
+              aria-hidden="true"
+            />
           </span>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-500">
-              Fuente clínica externa
-            </p>
             <div className="flex items-center gap-1.5">
-              <p className="text-sm font-bold leading-tight text-slate-800">Eloísa</p>
+              <p className="text-[13px] font-bold leading-tight text-slate-800">Eloísa</p>
               <span
                 className={`size-1.5 rounded-full ${
                   working || extension.connection === 'checking'
@@ -215,7 +181,7 @@ export const RayenImportButton: React.FC = () => {
                 }`}
                 aria-hidden="true"
               />
-              <span className="text-[11px] font-medium text-slate-500">{sourceState}</span>
+              <span className="truncate text-[11px] font-medium text-slate-500">{sourceState}</span>
               {needsConnectionGuidance && (
                 <button
                   type="button"
@@ -236,23 +202,13 @@ export const RayenImportButton: React.FC = () => {
                 {connectionGuidance}
               </span>
             )}
-            <p
-              className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"
-              title={extension.message}
-              data-testid="rayen-extension-health"
-            >
-              <span className={fichaReady ? 'text-emerald-700' : 'text-amber-700'}>
-                Ficha {fichaReady ? '✓' : '—'}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span className={camasReady ? 'text-emerald-700' : 'text-amber-700'}>
-                Camas {camasReady ? '✓' : '—'}
-              </span>
+            <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-slate-500">
+              {lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
             </p>
             {needsConnectionGuidance && connectionGuidanceOpen && (
               <p
                 id="rayen-connection-guidance"
-                className="mt-1 rounded-md bg-amber-50/80 px-2 py-1 text-[10px] leading-relaxed text-amber-900"
+                className="absolute left-0 top-[calc(100%+0.5rem)] z-30 w-72 rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] leading-relaxed text-amber-900 shadow-lg"
               >
                 {extension.message}
               </p>
@@ -260,63 +216,20 @@ export const RayenImportButton: React.FC = () => {
           </div>
         </div>
 
-        <div
-          className="grid min-w-0 grid-cols-1 gap-x-0 gap-y-1 border-slate-200 md:border-l md:pl-3 lg:grid-cols-[minmax(190px,1.1fr)_minmax(150px,0.9fr)] lg:divide-x lg:divide-slate-100"
-          data-testid="rayen-last-sync"
-          title={lastSync ? 'Última sincronización con Eloísa' : undefined}
-        >
-          <RayenSyncDetailsPopover
-            lastSync={lastSync}
-            statusLabel={persistedStatusLabel}
-            statusClassName={persistedStatusClass}
-            responsible={responsibleState}
-            coverage={coverageState}
-          />
+        <RayenImportFlowStatus
+          diff={result ? null : diff}
+          fill={fill}
+          isApplyingCensus={isBusy}
+          isPreviewOpen={isPreviewOpen}
+          isSyncing={isSyncing}
+          error={error}
+          hasPersistedSync={Boolean(lastSync)}
+          persistedSync={record?.rayenSync}
+          hasSkippedItems={hasSkippedItems || Boolean(result?.skipped.length)}
+          hasUnresolvedConflicts={Boolean(diff?.summary.conflicts)}
+        />
 
-          <div className="min-w-0 lg:pl-4">
-            <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">
-              <CheckCircle2 size={11} aria-hidden="true" />
-              Cobertura clínica
-            </p>
-            {fill.running ? (
-              <div className="mt-0.5" data-testid="rayen-fill-status">
-                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold text-teal-700">
-                  <span>Datos clínicos</span>
-                  <span className="tabular-nums">{fillProgressPercent}%</span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="Sincronización de datos clínicos"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={fillProgressPercent}
-                  className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200"
-                >
-                  <span
-                    className="block h-full rounded-full bg-teal-600 transition-[width] duration-300 motion-reduce:transition-none"
-                    style={{ width: `${fillProgressPercent}%` }}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-            ) : (
-              <p
-                className={`mt-0.5 truncate text-[11px] font-semibold ${
-                  coverageTone === 'warning'
-                    ? 'text-amber-700'
-                    : coverageTone === 'success'
-                      ? 'text-emerald-700'
-                      : 'text-slate-400'
-                }`}
-                data-testid="rayen-fill-status"
-              >
-                {coverageState}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex w-[13.5rem] shrink-0 items-center justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-1.5 border-slate-200 xl:border-l xl:pl-2.5">
           <button
             ref={historyTriggerRef}
             type="button"
@@ -324,22 +237,25 @@ export const RayenImportButton: React.FC = () => {
             aria-label={`Abrir historial de sincronización del día, ${history.length} eventos`}
             title={`Historial de sincronización · ${history.length} evento${history.length === 1 ? '' : 's'}`}
             data-testid="rayen-sync-history-button"
-            className="relative inline-flex size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            className="relative inline-flex size-8 min-h-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
           >
-            <History size={15} aria-hidden="true" />
-            {history.length > 0 && (
+            <History size={14} aria-hidden="true" />
+            {recovery && (
               <span
-                className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full border border-white bg-slate-600 px-1 text-[9px] font-bold leading-4 tabular-nums text-white shadow-sm"
+                className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white bg-amber-500"
                 aria-hidden="true"
-              >
-                {history.length > 9 ? '9+' : history.length}
-              </span>
+              />
             )}
           </button>
           <button
             type="button"
             onClick={() => void handleSync()}
-            disabled={working || extension.connection === 'checking'}
+            disabled={
+              working ||
+              extension.connection === 'checking' ||
+              isPreviewOpen ||
+              Boolean(staffingProposal)
+            }
             aria-busy={working || extension.connection === 'checking'}
             title={
               mode === 'auto'
@@ -348,9 +264,9 @@ export const RayenImportButton: React.FC = () => {
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"
-            className="inline-flex min-h-9 w-[10.75rem] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
+            className="inline-flex min-h-8 w-40 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-teal-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.1)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
-            <RefreshCw size={15} strokeWidth={2.5} className={working ? 'animate-spin' : ''} />
+            <RefreshCw size={13} strokeWidth={2.5} className={working ? 'animate-spin' : ''} />
             {primaryActionLabel}
             {mode === 'auto' && (
               <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
@@ -358,6 +274,7 @@ export const RayenImportButton: React.FC = () => {
               </span>
             )}
           </button>
+          {attentionControl}
         </div>
       </div>
 
@@ -366,6 +283,7 @@ export const RayenImportButton: React.FC = () => {
         diff={diff}
         isBusy={isBusy}
         error={error}
+        isApplied={Boolean(result)}
         onConfirm={confirm}
         onCancel={cancel}
       />
@@ -378,7 +296,7 @@ export const RayenImportButton: React.FC = () => {
         onRecoveryAction={() => void handleRecoveryAction()}
       />
       <RayenNursingShiftProposalModal
-        proposal={staffingProposal}
+        proposal={isPreviewOpen ? null : staffingProposal}
         isBusy={isStaffingProposalBusy}
         error={staffingProposalError}
         onConfirm={() => void confirmStaffingProposal()}

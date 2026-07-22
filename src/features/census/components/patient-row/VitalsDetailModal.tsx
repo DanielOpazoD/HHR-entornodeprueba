@@ -57,6 +57,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
       title={`Signos vitales — ${patientName}`}
       icon={<Activity size={18} />}
       size="lg"
+      variant="white"
       dataModule="census-vitals"
     >
       <div className="space-y-3">

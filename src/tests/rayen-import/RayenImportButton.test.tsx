@@ -43,6 +43,7 @@ describe('RayenImportButton', () => {
       isBusy: false,
       isSyncing: false,
       result: null,
+      hasSkippedItems: false,
       error: null,
       staffingProposal: null,
       isStaffingProposalBusy: false,
@@ -59,6 +60,9 @@ describe('RayenImportButton', () => {
       total: 0,
       errors: 0,
       lastCompletedAt: null,
+      outcome: null,
+      attemptId: null,
+      staffingOutcome: null,
     });
     const readyHealth = {
       connection: 'ready',
@@ -79,13 +83,35 @@ describe('RayenImportButton', () => {
     });
   });
 
-  it('presents Eloísa as an operational source with visible provenance', () => {
+  it('keeps provenance in history while the operational source stays compact', () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
           at: '2026-07-13T18:32:00.000Z',
           by: 'Daniel Opazo',
         },
+        rayenSyncHistory: [
+          {
+            id: 'run-provenance',
+            startedAt: '2026-07-13T18:32:00.000Z',
+            completedAt: '2026-07-13T18:33:00.000Z',
+            by: 'Daniel Opazo',
+            status: 'applied',
+            coverage: {
+              total: 10,
+              completed: 10,
+              errors: 0,
+              sourceErrors: 0,
+              completedAt: '2026-07-13T18:33:00.000Z',
+            },
+            changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
+            source: {
+              extensionVersion: '0.6.0',
+              fichaMedico: 'ready',
+              gestionCamas: 'ready',
+            },
+          },
+        ],
       },
     });
     mocks.useRayenFillProgress.mockReturnValue({
@@ -94,29 +120,31 @@ describe('RayenImportButton', () => {
       total: 10,
       errors: 0,
       lastCompletedAt: '2026-07-13T18:33:00.000Z',
+      outcome: 'complete',
+      attemptId: 'run-provenance',
+      staffingOutcome: 'complete',
     });
 
     render(<RayenImportButton />);
 
     expect(screen.getByTestId('rayen-operations-bar')).toBeInTheDocument();
-    expect(screen.getByText('Fuente clínica externa')).toBeInTheDocument();
-    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
-    expect(screen.getByText('Ficha ✓')).toBeInTheDocument();
-    expect(screen.getByText('Camas ✓')).toBeInTheDocument();
+    expect(screen.queryByText('Fuente clínica externa')).not.toBeInTheDocument();
+    expect(screen.getByText('Conectada')).toBeInTheDocument();
+    expect(screen.getByText('Última 13-07-2026 · 12:32 h')).toBeInTheDocument();
+    expect(screen.queryByText('Ficha ✓')).not.toBeInTheDocument();
+    expect(screen.queryByText('Camas ✓')).not.toBeInTheDocument();
+    expect(screen.queryByText(/v0\.6\.0/)).not.toBeInTheDocument();
     expect(screen.queryByText('Responsable')).not.toBeInTheDocument();
     expect(screen.queryByText('Daniel Opazo')).not.toBeInTheDocument();
-    expect(screen.getByText('Cobertura clínica')).toBeInTheDocument();
-    expect(screen.getByText('10/10 ✓')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Ver información de la última sincronización' })
+    ).not.toBeInTheDocument();
 
-    const detailsButton = screen.getByRole('button', {
-      name: 'Ver información de la última sincronización',
-    });
-    expect(detailsButton).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(detailsButton);
-    expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('region', { name: 'Detalle de la última sincronización' })).toHaveTextContent(
-      'ResponsableDaniel Opazo'
-    );
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
+    expect(screen.getByText('Daniel Opazo')).toBeInTheDocument();
+    expect(screen.getByText('Cobertura clínica: 10/10 completa')).toBeInTheDocument();
+    expect(screen.getByText('Ext. v0.6.0 · Ficha ✓ · Camas ✓')).toBeInTheDocument();
   });
 
   it('separates extension connectivity from the first successful synchronization', () => {
@@ -124,20 +152,14 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
-    expect(screen.getByText('Sin sincronización registrada')).toBeInTheDocument();
+    expect(screen.getByText('Conectada')).toBeInTheDocument();
+    expect(screen.getByText('Listo para sincronizar')).toBeInTheDocument();
     expect(screen.queryByText('Responsable')).not.toBeInTheDocument();
-    expect(screen.getByText('Cobertura clínica')).toBeInTheDocument();
-    expect(screen.getByText('Sin sincronización')).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Ver información de la última sincronización' })
-    );
-    expect(
-      screen.getByRole('region', { name: 'Detalle de la última sincronización' })
-    ).toHaveTextContent('ResponsableSin registro');
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
-  it('distinguishes a legacy census sync from persisted clinical coverage', () => {
+  it('does not recreate legacy provenance outside the versioned history', () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -149,8 +171,18 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conectada · v0.6.0')).toBeInTheDocument();
-    expect(screen.getByText('No disponible en sincronizaciones antiguas')).toBeInTheDocument();
+    expect(screen.getByText('Conectada')).toBeInTheDocument();
+    expect(screen.getByRole('status')).not.toHaveClass('sr-only');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Última sincronización sin evidencia clínica'
+    );
+    expect(screen.getByTitle('Signos vitales: Sin evidencia')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('progressbar', { name: 'Progreso de sincronización con Eloísa' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Daniel Opazo')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
   it('checks extension health before the existing reviewed synchronization action', async () => {
@@ -189,8 +221,8 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Parcial · v0.6.0')).toBeInTheDocument();
-    expect(screen.getByText('Camas —')).toBeInTheDocument();
+    expect(screen.getByText('Conexión parcial')).toBeInTheDocument();
+    expect(screen.queryByText('Camas —')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rayen-extension-health-message')).not.toBeInTheDocument();
     expect(screen.getByTestId('rayen-extension-health-help')).toHaveAttribute(
       'title',
@@ -273,8 +305,9 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('10/11 · 1 pendiente')).toBeInTheDocument();
-    expect(screen.getByText('· Parcial')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Última sincronización con observaciones');
+    expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
+    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     const historyButton = screen.getByRole('button', {
       name: 'Abrir historial de sincronización del día, 1 eventos',
     });
@@ -358,7 +391,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-[10.75rem]');
+    expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-40');
     expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('Sincronizado:');
   });
 
@@ -375,86 +408,27 @@ describe('RayenImportButton', () => {
     render(<RayenImportButton />);
 
     const progress = screen.getByRole('progressbar', {
-      name: 'Sincronización de datos clínicos',
+      name: 'Progreso de sincronización con Eloísa',
     });
-    expect(progress).toHaveAttribute('aria-valuenow', '50');
-    expect(screen.getByTestId('rayen-fill-status')).toHaveTextContent('Datos clínicos50%');
+    expect(progress).toHaveAttribute('aria-valuenow', '68');
+    expect(screen.getByTestId('rayen-sync-pulse')).toHaveTextContent(
+      'Revisando información clínica · 68%'
+    );
     expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('4/8');
   });
 
-  it('closes synchronization details with Escape and restores trigger focus', async () => {
-    mocks.useDailyRecordData.mockReturnValue({
-      record: {
-        rayenSync: {
-          at: '2026-07-13T18:32:00.000Z',
-          by: 'Daniel Opazo',
-        },
-      },
-    });
-
-    render(<RayenImportButton />);
-    const detailsButton = screen.getByRole('button', {
-      name: 'Ver información de la última sincronización',
-    });
-    fireEvent.click(detailsButton);
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(
-      screen.queryByRole('region', { name: 'Detalle de la última sincronización' })
-    ).not.toBeInTheDocument();
-    await waitFor(() => expect(detailsButton).toHaveFocus());
-  });
-
-  it('keeps a completed-change summary in the history instead of expanding the toolbar', () => {
+  it('integrates the contextual attention action in the same compact bar', () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      diff: null,
-      isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
-      result: {
-        applied: { admissions: 1, updates: 0, moves: 0, discharges: 0 },
-        skipped: [],
-      },
-      error: null,
-      triggerImport: mocks.triggerImport,
-      confirm: vi.fn(),
-      cancel: vi.fn(),
-    });
 
-    render(<RayenImportButton />);
+    render(<RayenImportButton attentionControl={<button type="button">1 escala</button>} />);
 
-    expect(screen.queryByTestId('rayen-import-result')).not.toBeInTheDocument();
-    expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent(
-      'Sincronizado: 1 ingresos'
+    const bar = screen.getByTestId('rayen-operations-bar');
+    expect(bar).toContainElement(screen.getByRole('button', { name: '1 escala' }));
+    expect(bar.firstElementChild).toHaveClass(
+      'xl:grid-cols-[minmax(190px,0.72fr)_minmax(0,2.25fr)_auto]'
     );
-  });
-
-  it('keeps an import error compact until its accessible detail is requested', () => {
-    const error = 'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen.';
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      diff: null,
-      isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
-      result: null,
-      error,
-      triggerImport: mocks.triggerImport,
-      confirm: vi.fn(),
-      cancel: vi.fn(),
-    });
-
-    render(<RayenImportButton />);
-
-    const notice = screen.getByTestId('rayen-import-error');
-    expect(notice).toHaveClass('flex-wrap');
-    expect(screen.queryByText(error)).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: `Ver detalle de sincronización. ${error}` })
+    expect(bar.firstElementChild).not.toHaveClass(
+      'md:grid-cols-[minmax(210px,0.72fr)_minmax(520px,2.25fr)_auto]'
     );
-    expect(screen.getByText(error)).toBeVisible();
   });
 });

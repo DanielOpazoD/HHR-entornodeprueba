@@ -3,6 +3,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
 import { Specialty } from '@/types/domain/patientClassification';
+import { isValidRut } from '@/utils/rutUtils';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
 
 interface ClinicalCribCandidate {
@@ -20,21 +21,33 @@ const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
-const preserveExistingCribName = (current: PatientData, incoming: PatientData): PatientData => ({
+const preserveExistingCribIdentity = (
+  current: PatientData,
+  incoming: PatientData
+): PatientData => ({
   ...incoming,
+  rut: current.rut,
+  documentType: current.documentType,
   patientName: current.patientName,
   firstName: current.firstName,
   lastName: current.lastName,
   secondLastName: current.secondLastName,
+  identityStatus: current.identityStatus,
 });
+
+const hasRegisteredRut = (patient: PatientData): boolean => isValidRut(patient.rut ?? '');
 
 const withClinicalCribDefaults = (patient: PatientData): PatientData => ({
   ...patient,
   specialty: Specialty.PEDIATRIA,
+  ...(hasRegisteredRut(patient) ? { identityStatus: 'official' as const } : {}),
 });
 
 const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => {
   const changes = diffSyncablePatientFields(current, incoming);
+  if (hasRegisteredRut(incoming) && current.identityStatus !== 'official') {
+    changes.push({ field: 'identityStatus', from: current.identityStatus, to: 'official' });
+  }
   if (current.specialty !== Specialty.PEDIATRIA) {
     changes.push({ field: 'specialty', from: current.specialty, to: Specialty.PEDIATRIA });
   }
@@ -43,6 +56,7 @@ const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => 
 
 const mergeClinicalCrib = (current: PatientData, incoming: PatientData): PatientData => ({
   ...mergeSyncablePatient(current, incoming),
+  ...(hasRegisteredRut(incoming) ? { identityStatus: 'official' as const } : {}),
   specialty: Specialty.PEDIATRIA,
 });
 
@@ -83,12 +97,13 @@ export const reconcileClinicalCribs = (
     const existingRef =
       currentCribs.byEpisode.get(encounter.encounterId) ??
       currentCribs.byRut.get(normalizeRut(rawIncomingCrib.rut));
-    // The first import seeds the newborn identity from Eloisa. From then on, staff commonly replace
-    // the verbose provisional label with the chosen local name, so HHR becomes authoritative for
-    // name fields while the remaining clinical fields continue to synchronize.
-    const incomingCrib = existingRef
-      ? preserveExistingCribName(existingRef.patient, rawIncomingCrib)
-      : rawIncomingCrib;
+    // While the RN has no RUN, HHR preserves the locally curated provisional name. Once Eloísa
+    // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
+    // (including names and surnames) are refreshed from the official record.
+    const incomingCrib =
+      existingRef && !hasRegisteredRut(rawIncomingCrib)
+        ? preserveExistingCribIdentity(existingRef.patient, rawIncomingCrib)
+        : rawIncomingCrib;
     const retainedParentMove =
       !encounter.clinicalCribParentBedId && existingRef?.parentBedId === mapped.bedId
         ? diff.moves.find(entry => entry.fromBedId === mapped.bedId)

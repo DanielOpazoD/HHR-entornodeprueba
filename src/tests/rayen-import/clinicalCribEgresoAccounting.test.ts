@@ -238,7 +238,7 @@ describe('clinical crib egreso accounting', () => {
     );
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN-READMISSION',
-      patientName: 'Bebe Antiguo',
+      patientName: 'Bebe Perez',
     });
   });
 

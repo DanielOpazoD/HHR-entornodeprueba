@@ -20,15 +20,80 @@ export const formatRun = (raw?: string): string => {
   return `${body}-${dv}`;
 };
 
-/** Whole years between `birthDate` and `reference` (default: now). Empty string if unknown. */
+const parseIsoCalendarDate = (
+  value?: string
+): { year: number; month: number; day: number } | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const candidate = new Date(Date.UTC(year, month, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month ||
+    candidate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
+};
+
+const daysInUtcMonth = (year: number, month: number): number =>
+  new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+const utcDayNumber = (year: number, month: number, day: number): number =>
+  Date.UTC(year, month, day) / 86_400_000;
+
+const calendarMonthAnchor = (
+  born: { year: number; month: number; day: number },
+  completedMonths: number
+): { year: number; month: number; day: number } => {
+  const monthIndex = born.month + completedMonths;
+  const year = born.year + Math.floor(monthIndex / 12);
+  const month = ((monthIndex % 12) + 12) % 12;
+  return { year, month, day: Math.min(born.day, daysInUtcMonth(year, month)) };
+};
+
+/**
+ * Clinically useful age between `birthDate` and `reference` (default: now).
+ * Newborns use days; infants use months/days; toddlers use years/months; from four years onward
+ * the existing whole-year representation is preserved.
+ */
 export const ageFromBirthDate = (birthDate?: string, reference: Date = new Date()): string => {
-  if (!birthDate) return '';
-  const born = new Date(birthDate);
-  if (Number.isNaN(born.getTime())) return '';
-  let years = reference.getFullYear() - born.getFullYear();
-  const monthDelta = reference.getMonth() - born.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && reference.getDate() < born.getDate())) years -= 1;
-  return years >= 0 ? String(years) : '';
+  const born = parseIsoCalendarDate(birthDate);
+  if (!born || Number.isNaN(reference.getTime())) return '';
+
+  const referenceYear = reference.getFullYear();
+  const referenceMonth = reference.getMonth();
+  const referenceDay = reference.getDate();
+  const bornDayNumber = utcDayNumber(born.year, born.month, born.day);
+  const referenceDayNumber = utcDayNumber(referenceYear, referenceMonth, referenceDay);
+  if (referenceDayNumber < bornDayNumber) return '';
+
+  let completedMonths = (referenceYear - born.year) * 12 + referenceMonth - born.month;
+  const candidateAnchor = calendarMonthAnchor(born, completedMonths);
+  if (
+    referenceDayNumber <
+    utcDayNumber(candidateAnchor.year, candidateAnchor.month, candidateAnchor.day)
+  ) {
+    completedMonths -= 1;
+  }
+  completedMonths = Math.max(0, completedMonths);
+
+  const anchor = calendarMonthAnchor(born, completedMonths);
+  const remainingDays = Math.max(
+    0,
+    referenceDayNumber - utcDayNumber(anchor.year, anchor.month, anchor.day)
+  );
+
+  if (completedMonths === 0) return `${referenceDayNumber - bornDayNumber}d`;
+  if (completedMonths < 6) return `${completedMonths}m ${remainingDays}d`;
+  if (completedMonths < 24) return `${completedMonths}m`;
+  if (completedMonths < 48) {
+    return `${Math.floor(completedMonths / 12)}a ${completedMonths % 12}m`;
+  }
+  return String(Math.floor(completedMonths / 12));
 };
 
 /** Rayen exposes administrative sex ("Mujer"/"Hombre") and gender ("Femenina"/"Masculino"). */
