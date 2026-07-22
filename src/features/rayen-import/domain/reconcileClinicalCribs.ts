@@ -40,6 +40,7 @@ const hasRegisteredRut = (patient: PatientData): boolean => isValidRut(patient.r
 const withClinicalCribDefaults = (patient: PatientData): PatientData => ({
   ...patient,
   specialty: Specialty.PEDIATRIA,
+  ...(hasRegisteredRut(patient) ? { identityStatus: 'official' as const } : {}),
 });
 
 const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => {

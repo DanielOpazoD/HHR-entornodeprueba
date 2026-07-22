@@ -1,10 +1,9 @@
 # Design QA — barra de sincronización Eloísa
 
-- Source visual truth: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-d8706762-deff-4d3f-8c75-184c6dabd560.png`
-- Source logo truth: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-faf36f89-6d10-4243-8ecb-8ec101ce8f86.png`
-- Implementation detail: `reports/design-audit/03-sync-bar-final.png`
-- History evidence: `reports/design-audit/04-sync-history-final.png`
-- Combined comparison: `reports/design-audit/05-sync-bar-comparison.png`
+- Visual references were reviewed interactively and intentionally not committed because clinical
+  screenshots can contain patient data. This document retains only anonymized measurements and
+  reproducible implementation details.
+- Logo source: committed first-party asset `public/images/logos/rayen-mark.png`.
 - Viewport: 1470 × 695 CSS px, desktop Chrome, device pixel ratio 2
 - State: censo diario autenticado, Eloísa conectada, cinco módulos verificados, una escala por reaplicar
 - Source pixels: 1908 × 138; normalized to 1054 × 76 for comparison
@@ -41,7 +40,7 @@ No actionable P0, P1 or P2 issue remains in the tested complete desktop state.
 1. Baseline: four modules, no Scores, generic source icon, no visible last-sync timestamp and uneven content-width spacing.
 2. First compact iteration: reduced the vertical footprint, integrated scales into the action cluster and removed permanent 100% progress and the history count badge.
 3. Final fixes: used the supplied Eloísa/Rayen mark, added Scores, moved the timestamp below the source state and changed modules to five equal tracks.
-4. Post-fix evidence: `05-sync-bar-comparison.png` confirms the shorter 62 px bar, uniform module intervals, complete copy and aligned controls.
+4. Post-fix measurement confirmed the shorter 62 px bar, uniform module intervals, complete copy and aligned controls.
 
 ## Follow-up polish
 
@@ -51,9 +50,8 @@ No actionable P0, P1 or P2 issue remains in the tested complete desktop state.
 
 # Design QA — panel clínico claro
 
-- Source visual truth: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-0fa661fa-6505-41c8-8ef3-81e0913022d0.png`
-- Implementation screenshot: `reports/design-audit/06-vitals-white-panel.png`
-- Combined comparison: `reports/design-audit/07-vitals-white-comparison.png`
+- The clinical-panel reference and implementation captures were reviewed interactively and are not
+  versioned because they can contain patient data. The measurements below are anonymized.
 - Viewport: 1470 × 695 CSS px, authenticated desktop Chrome
 - State: panel de signos vitales abierto para un paciente de prueba anonimizado
 - Source pixels: 1062 × 1064 at 144 dpi; normalized to 512 × 515

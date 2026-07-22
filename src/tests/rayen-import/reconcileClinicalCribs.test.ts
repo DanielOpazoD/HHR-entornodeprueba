@@ -168,6 +168,7 @@ describe('reconcileClinicalCribs', () => {
             clinicalEpisodeId: 'NEWBORN',
             bedMode: 'Cuna',
             specialty: Specialty.PEDIATRIA,
+            identityStatus: 'official',
           }),
         }),
       }),
