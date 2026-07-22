@@ -34,10 +34,9 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { assertClinicalFillPatchTarget } from '../domain/clinicalFillPatchTarget';
 import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHistoricalCudyr';
-import { applyConfirmedRayenImport } from './confirmRayenImport';
+import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import { buildNursingShiftProposalPatch } from '../domain/applyNursingShiftProposal';
 import { useNursesQuery } from '@/hooks/useStaffQuery';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import {
@@ -46,7 +45,7 @@ import {
   reportRayenStaffingOutcome,
   resetRayenFillProgress,
 } from './useRayenFillStatus';
-
+import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -148,8 +147,8 @@ export const useRayenImport = () => {
         hasVacancies ? 'pending' : hasAmbiguity ? 'ambiguous' : 'resolved',
         attemptId
       );
-      setStaffingProposal(proposal);
-      setState(prev => ({ ...prev, isPreviewOpen: true }));
+      // Only interrupt for a real decision; the pulse and audit retain all other evidence.
+      setStaffingProposal(hasVacancies ? proposal : null);
     },
     [isAdmin]
   );
@@ -203,6 +202,7 @@ export const useRayenImport = () => {
           ...prev,
           isSyncing: false,
           result: null,
+          hasSkippedItems: false,
           error:
             'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
         }));
@@ -213,10 +213,22 @@ export const useRayenImport = () => {
       startRun(health);
       if (health && !health.canSync) {
         void failRun(failureReasonFromHealth(health));
-        setState(prev => ({ ...prev, isSyncing: false, result: null, error: null }));
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          result: null,
+          hasSkippedItems: false,
+          error: null,
+        }));
         return;
       }
-      setState(prev => ({ ...prev, isSyncing: true, result: null, error: null }));
+      setState(prev => ({
+        ...prev,
+        isSyncing: true,
+        result: null,
+        hasSkippedItems: false,
+        error: null,
+      }));
       requestRayenSnapshot();
       syncTimeoutRef.current = setTimeout(() => {
         syncTimeoutRef.current = null;
@@ -236,65 +248,18 @@ export const useRayenImport = () => {
     [clearSyncTimeout, failRun, startRun]
   );
 
-  const dismissStaffingProposal = useCallback(() => {
-    if (isStaffingProposalBusy) return;
-    reportRayenStaffingOutcome('declined');
-    setStaffingProposal(null);
-    setStaffingProposalError(null);
-  }, [isStaffingProposalBusy]);
-
-  const confirmStaffingProposal = useCallback(async () => {
-    if (!staffingProposal) return;
-    reportRayenStaffingOutcome('applying');
-    setIsStaffingProposalBusy(true);
-    setStaffingProposalError(null);
-    try {
-      if (currentRecordRef.current?.date !== staffingProposal.censusDate) {
-        throw new Error(
-          'La propuesta corresponde a otra fecha del censo. Vuelve a sincronizar el día actual.'
-        );
-      }
-      if (!canWritePreviousDay(staffingProposal.censusDate, isAdmin)) {
-        throw new Error(
-          'Este censo está fuera de la ventana de edición. Solicita la actualización a un administrador.'
-        );
-      }
-      const fresh = await ensureFreshDailyRecordQuery(
-        staffingProposal.censusDate,
-        { dailyRecord, queryClient },
-        'clinical_patch'
-      );
-      if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-      const patch = buildNursingShiftProposalPatch(fresh.record, staffingProposal);
-      if (!patch) {
-        throw new Error(
-          'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
-        );
-      }
-      const result = await patchDailyRecordWithCompatibility(
-        dailyRecord,
-        staffingProposal.censusDate,
-        patch,
-        { baseRecord: fresh.record }
-      );
-      if (result?.blockingError) throw result.blockingError;
-      if (isDailyRecordWriteBlockedResult(result)) {
-        throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
-      }
-      await ensureFreshDailyRecordQuery(
-        staffingProposal.censusDate,
-        { dailyRecord, queryClient },
-        'clinical_patch'
-      );
-      setStaffingProposal(null);
-      reportRayenStaffingOutcome('resolved');
-    } catch (error) {
-      reportRayenStaffingOutcome('pending');
-      setStaffingProposalError(getRayenImportErrorMessage(error));
-    } finally {
-      setIsStaffingProposalBusy(false);
-    }
-  }, [dailyRecord, isAdmin, queryClient, staffingProposal]);
+  const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
+    useRayenStaffingProposalActions({
+      proposal: staffingProposal,
+      setProposal: setStaffingProposal,
+      isBusy: isStaffingProposalBusy,
+      setIsBusy: setIsStaffingProposalBusy,
+      setError: setStaffingProposalError,
+      currentRecordRef,
+      isAdmin,
+      dailyRecord,
+      queryClient,
+    });
 
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
@@ -302,7 +267,14 @@ export const useRayenImport = () => {
       const base = currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
       const diff = state.diff;
-      setState(prev => ({ ...prev, isBusy: true, isSyncing: true, error: null }));
+      const skippedPreviousDays = hasSkippedPreviousDayCorrections(diff, applyPreviousDays);
+      setState(prev => ({
+        ...prev,
+        isBusy: true,
+        isSyncing: true,
+        hasSkippedItems: false,
+        error: null,
+      }));
       try {
         const result = await applyConfirmedRayenImport({
           applyPreviousDays,
@@ -322,7 +294,13 @@ export const useRayenImport = () => {
             ).record,
           createId: makeId,
         });
-        setState(prev => ({ ...prev, isBusy: false, isPreviewOpen: true, result }));
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isPreviewOpen: diff.summary.conflicts > 0,
+          result,
+          hasSkippedItems: skippedPreviousDays || result.skipped.length > 0,
+        }));
         // Keeps `isSyncing` on until the background fill settles it.
         void fillDevicesInBackground(result.record);
       } catch (error) {
@@ -331,6 +309,7 @@ export const useRayenImport = () => {
           ...prev,
           isBusy: false,
           isSyncing: false,
+          isPreviewOpen: true,
           error: getRayenImportErrorMessage(error),
         }));
       }
@@ -371,6 +350,7 @@ export const useRayenImport = () => {
       isBusy: state.isBusy,
       isSyncing: state.isSyncing,
       result: state.result,
+      hasSkippedItems: state.hasSkippedItems,
       error: state.error,
       staffingProposal,
       isStaffingProposalBusy,

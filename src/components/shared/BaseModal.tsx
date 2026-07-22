@@ -31,7 +31,8 @@ export type { BaseModalProps } from '@/components/shared/baseModalContracts';
  * BaseModal Component
  *
  * Provides a consistent modal layout with header, body, and styling.
- * Uses the application's glass morphism design system.
+ * Uses an opaque light surface by default so clinical information keeps stable contrast over the
+ * modal backdrop. Glass remains available as an explicit variant for decorative surfaces.
  */
 export const BaseModal: React.FC<BaseModalProps> = props => <BaseModalContent {...props} />;
 

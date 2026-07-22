@@ -13,6 +13,18 @@ const isVersionConflict = (error: unknown): boolean =>
 
 const MAX_FRESH_RECORD_RETRIES = 2;
 
+export const hasSkippedPreviousDayCorrections = (
+  diff: CensusImportDiff,
+  applyPreviousDays: boolean
+): boolean => {
+  const previousDayEdits = diff.previousDayEdits ?? [];
+  return (
+    previousDayEdits.length > 0 &&
+    (!applyPreviousDays ||
+      previousDayEdits.some(edit => !edit.recordExists || !edit.withinEditingWindow))
+  );
+};
+
 export const applyConfirmedRayenImport = async ({
   applyPreviousDays,
   base,

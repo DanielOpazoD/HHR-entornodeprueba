@@ -66,7 +66,8 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
     expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Completar vacantes' }));
+    expect(screen.getByRole('dialog', { name: 'Enfermería identificada' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onCancel).not.toHaveBeenCalled();
   });
@@ -86,13 +87,7 @@ describe('RayenNursingShiftProposalModal', () => {
       onCancel,
     });
 
-    expect(screen.getByText('Ya sincronizado en HHR: Ana Pérez.')).toBeInTheDocument();
-    expect(screen.getByText('Ya sincronizado en HHR: Berta Soto.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Completar vacantes' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('rayen-nursing-shift-proposal')).not.toHaveAttribute(
-      'role',
-      'dialog'
-    );
+    expect(screen.queryByTestId('rayen-nursing-shift-proposal')).not.toBeInTheDocument();
     expect(onCancel).not.toHaveBeenCalled();
     expect(onConfirm).not.toHaveBeenCalled();
   });
@@ -110,9 +105,7 @@ describe('RayenNursingShiftProposalModal', () => {
       onCancel: vi.fn(),
     });
 
-    expect(screen.getByText(/evidencia insuficiente/)).toBeInTheDocument();
-    expect(screen.getByText(/Un cupo quedó sin sugerencia/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Completar vacantes' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rayen-nursing-shift-proposal')).not.toBeInTheDocument();
   });
 
   it('keeps a concurrent no-op visible so the user can review the current assignment', () => {
@@ -128,7 +121,7 @@ describe('RayenNursingShiftProposalModal', () => {
     });
 
     expect(screen.getByText(error)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Completar vacantes' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Aplicar propuesta' })).toBeEnabled();
   });
 
   it('keeps an explicit no-data result inside the synchronization flow', () => {
@@ -144,14 +137,6 @@ describe('RayenNursingShiftProposalModal', () => {
       onCancel: vi.fn(),
     });
 
-    expect(
-      screen.getByText(
-        'No se encontraron registros suficientes para proponer cambios de enfermería en este turno.'
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByTestId('rayen-nursing-shift-proposal')).not.toHaveAttribute(
-      'role',
-      'dialog'
-    );
+    expect(screen.queryByTestId('rayen-nursing-shift-proposal')).not.toBeInTheDocument();
   });
 });

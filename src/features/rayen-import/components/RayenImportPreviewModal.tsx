@@ -1,8 +1,6 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
-import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { Chip, ddmmyyyy, Section, VerificationBadges } from './RayenImportDiffReviewParts';
 
@@ -11,6 +9,7 @@ export interface RayenImportPreviewModalProps {
   diff: CensusImportDiff | null;
   isBusy: boolean;
   error: string | null;
+  isApplied?: boolean;
   /** `applyPreviousDays` = whether to ALSO file the past-day egreso corrections (the ack checkbox). */
   onConfirm: (applyPreviousDays: boolean) => void;
   onCancel: () => void;
@@ -27,11 +26,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   diff,
   isBusy,
   error,
+  isApplied = false,
   onConfirm,
   onCancel,
 }) => {
-  const fill = useRayenFillProgress();
-  const [confirmationStarted, setConfirmationStarted] = React.useState(false);
   const hasChanges =
     !!diff &&
     diff.summary.admissions +
@@ -48,43 +46,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   // list ("→ se grabará el …, no hoy"), so the section wording never suggests it lands today.
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
-  const fillActive = fill.running;
-  const fillSettled =
-    fill.outcome === 'complete' || fill.outcome === 'partial' || fill.outcome === 'rejected';
-  const staffingNeedsDecision =
-    fill.staffingOutcome === 'pending' || fill.staffingOutcome === 'ambiguous';
-  const staffingActive = fill.staffingOutcome === 'applying';
   React.useEffect(() => {
     if (isOpen) setAcceptedPreviousDays(false);
-    else setConfirmationStarted(false);
   }, [isOpen]);
-  React.useEffect(() => {
-    // Auto/no-change flows can open this surface after the apply already began. Preserve that
-    // fact so an applied diff is never presented as confirmable a second time.
-    if (isOpen && (isBusy || fillActive || (fill.attemptId > 0 && fillSettled))) {
-      setConfirmationStarted(true);
-    }
-  }, [fill.attemptId, fillActive, fillSettled, isBusy, isOpen]);
-
-  const flowActive = isBusy || fillActive || staffingActive;
-  const clinicalCompleted = !!diff && !error && confirmationStarted && fillSettled;
-  const flowCompleted = !flowActive && !!diff && !error && confirmationStarted && fillSettled;
-  const hasUnresolvedConflicts = (diff?.summary.conflicts ?? 0) > 0;
-  const hasSkippedPreviousDayEdits =
-    confirmationStarted &&
-    needsPreviousDayAck &&
-    (!acceptedPreviousDays ||
-      previousDayEdits.some(edit => !edit.recordExists || !edit.withinEditingWindow));
-  const hasSkippedItems = fill.staffingOutcome === 'declined' || hasSkippedPreviousDayEdits;
-  const flowSuccessful =
-    flowCompleted &&
-    fill.outcome === 'complete' &&
-    fill.staffingOutcome === 'resolved' &&
-    !hasUnresolvedConflicts &&
-    !hasSkippedItems;
-  const showReview = hasChanges && (!confirmationStarted || Boolean(error)) && !flowActive;
+  const hasConflicts = Boolean(diff?.summary.conflicts);
+  const showReview = (hasChanges || hasConflicts) && !isBusy && !isApplied;
+  const showAppliedConflicts = isApplied && diff != null && diff.summary.conflicts > 0 && !isBusy;
   const handleClose = (): void => {
-    if (!flowActive) onCancel();
+    if (!isBusy) onCancel();
   };
 
   return (
@@ -98,21 +67,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       headerIconColor="text-teal-600"
       dataModule="rayen-import"
       dataTestId="rayen-import-preview"
-      closeOnBackdrop={!flowActive}
-      showCloseButton={!flowActive}
+      closeOnBackdrop={!isBusy}
+      showCloseButton={!isBusy}
     >
       <div className="max-h-[60vh] overflow-y-auto">
         {!diff ? (
           <p className="text-sm text-gray-500">Esperando datos de Rayen…</p>
         ) : (
           <>
-            <RayenImportFlowStatus
-              isApplyingCensus={isBusy}
-              fill={fill}
-              completed={clinicalCompleted}
-              hasUnresolvedConflicts={hasUnresolvedConflicts}
-              hasSkippedItems={hasSkippedItems}
-            />
             {showReview && (
               <div>
                 <div className="flex flex-wrap gap-2">
@@ -296,28 +258,22 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 )}
               </div>
             )}
-
-            {flowSuccessful && !error && (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
-                <p className="font-semibold text-emerald-800">Todo está actualizado</p>
-                <p className="mt-0.5 text-xs text-emerald-700">
-                  Censo e información clínica fueron revisados correctamente.
-                </p>
+            {showAppliedConflicts && (
+              <div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Los demás cambios fueron aplicados. Estos conflictos se mantuvieron sin cambios y
+                  requieren revisión manual.
+                </div>
+                <Section title="Conflictos pendientes" count={diff.conflicts.length}>
+                  {diff.conflicts.map((entry, index) => (
+                    <li key={`pending-con-${index}`} className="text-amber-900">
+                      {entry.bedId ? `${entry.bedId}: ` : ''}
+                      {entry.reason}
+                    </li>
+                  ))}
+                </Section>
               </div>
             )}
-
-            {flowCompleted && hasUnresolvedConflicts && (
-              <Section title="Conflictos pendientes de revisión" count={diff.conflicts.length}>
-                {diff.conflicts.map((entry, index) => (
-                  <li key={`pending-conflict-${index}`} className="text-amber-800">
-                    {entry.bedId ? `${entry.bedId}: ` : ''}
-                    {entry.reason}
-                  </li>
-                ))}
-              </Section>
-            )}
-
-            <div id="rayen-nursing-shift-slot" className="mt-4" />
           </>
         )}
 
@@ -338,22 +294,17 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         <button
           type="button"
           onClick={handleClose}
-          disabled={flowActive}
+          disabled={isBusy}
           className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          {staffingNeedsDecision
-            ? 'Mantener actual y cerrar'
-            : flowCompleted || !hasChanges
-              ? 'Listo'
-              : 'Cancelar'}
+          {!hasChanges || isApplied ? 'Listo' : 'Cancelar'}
         </button>
-        {showReview && (
+        {showReview && hasChanges && (
           <button
             type="button"
             // Today's changes (ingresos/movimientos/egresos) always apply; the días-previos ack only
             // gates whether the past-day corrections are also filed — it never blocks the confirm.
             onClick={() => {
-              setConfirmationStarted(true);
               onConfirm(acceptedPreviousDays);
             }}
             disabled={isBusy || !hasChanges}

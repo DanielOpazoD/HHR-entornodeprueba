@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyConfirmedRayenImport } from '@/features/rayen-import/hooks/confirmRayenImport';
+import {
+  applyConfirmedRayenImport,
+  hasSkippedPreviousDayCorrections,
+} from '@/features/rayen-import/hooks/confirmRayenImport';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -101,5 +104,38 @@ describe('applyConfirmedRayenImport', () => {
 
     expect(applyDiff).toHaveBeenCalledTimes(3);
     expect(getFreshRecord).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('hasSkippedPreviousDayCorrections', () => {
+  const diffWithPreviousDay = (
+    overrides: Partial<NonNullable<CensusImportDiff['previousDayEdits']>[number]> = {}
+  ) =>
+    ({
+      previousDayEdits: [
+        {
+          day: '2026-07-15',
+          reason: 'discharge-day-correction',
+          patientNames: ['Paciente prueba'],
+          recordExists: true,
+          withinEditingWindow: true,
+          isSigned: false,
+          ...overrides,
+        },
+      ],
+    }) as CensusImportDiff;
+
+  it('reports an explicitly unchecked historical correction as skipped', () => {
+    expect(hasSkippedPreviousDayCorrections(diffWithPreviousDay(), false)).toBe(true);
+  });
+
+  it('reports an unwritable historical correction as skipped', () => {
+    expect(
+      hasSkippedPreviousDayCorrections(diffWithPreviousDay({ withinEditingWindow: false }), true)
+    ).toBe(true);
+  });
+
+  it('does not report an accepted writable correction as skipped', () => {
+    expect(hasSkippedPreviousDayCorrections(diffWithPreviousDay(), true)).toBe(false);
   });
 });

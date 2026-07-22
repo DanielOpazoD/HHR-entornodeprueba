@@ -12,6 +12,34 @@ import { isValidRut } from '@/utils/rutUtils';
 // Patient Input
 // ============================================================================
 
+const hasValidClinicalAgeParts = (value: string): boolean => {
+  if (!value) return true;
+
+  const wholeYears = /^(\d+)a?$/i.exec(value);
+  if (wholeYears) return Number(wholeYears[1]) <= 130;
+
+  const days = /^(\d+)d$/i.exec(value);
+  if (days) return Number(days[1]) <= 130 * 366;
+
+  const months = /^(\d+)m$/i.exec(value);
+  if (months) return Number(months[1]) >= 1 && Number(months[1]) <= 130 * 12;
+
+  const monthDays = /^(\d+)m\s+(\d+)d$/i.exec(value);
+  if (monthDays) {
+    const monthValue = Number(monthDays[1]);
+    const dayValue = Number(monthDays[2]);
+    return monthValue >= 1 && monthValue <= 5 && dayValue <= 31;
+  }
+
+  const yearMonths = /^(\d+)a\s+(\d+)m$/i.exec(value);
+  if (yearMonths) {
+    const yearValue = Number(yearMonths[1]);
+    return yearValue >= 2 && yearValue <= 3 && Number(yearMonths[2]) <= 11;
+  }
+
+  return false;
+};
+
 export const PatientInputSchema = z.object({
   firstName: z.string().max(60, 'Primer nombre demasiado largo').optional().or(z.literal('')),
 
@@ -45,8 +73,12 @@ export const PatientInputSchema = z.object({
 
   age: z
     .string()
-    .regex(/^[0-9]*[adm]?$/, 'Formato de edad inválido (ej: 45, 10d, 5m)')
-    .max(5, 'Edad demasiado larga')
+    .regex(
+      /^(?:\d+|\d+[adm]|\d+a\s+\d+m|\d+m\s+\d+d)?$/i,
+      'Formato de edad inválido (ej: 20d, 3m 8d, 18m, 2a 4m, 45)'
+    )
+    .max(8, 'Edad demasiado larga')
+    .refine(hasValidClinicalAgeParts, 'Los componentes de la edad están fuera de rango')
     .optional()
     .or(z.literal('')),
 

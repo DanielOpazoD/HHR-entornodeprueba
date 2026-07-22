@@ -42,6 +42,30 @@ describe('helpers', () => {
     expect(ageFromBirthDate(undefined, REFERENCE)).toBe('');
   });
 
+  it('uses clinically useful day, month and year precision for pediatric ages', () => {
+    const reference = new Date(2026, 6, 21);
+
+    expect(ageFromBirthDate('2026-07-21', reference)).toBe('0d');
+    expect(ageFromBirthDate('2026-07-01', reference)).toBe('20d');
+    expect(ageFromBirthDate('2026-05-16', reference)).toBe('2m 5d');
+    expect(ageFromBirthDate('2026-01-21', reference)).toBe('6m');
+    expect(ageFromBirthDate('2024-08-21', reference)).toBe('23m');
+    expect(ageFromBirthDate('2024-04-21', reference)).toBe('2a 3m');
+    expect(ageFromBirthDate('2022-08-21', reference)).toBe('3a 11m');
+    expect(ageFromBirthDate('2022-07-21', reference)).toBe('4');
+  });
+
+  it('counts a clamped month anniversary at the end of a shorter month', () => {
+    expect(ageFromBirthDate('2026-01-31', new Date(2026, 1, 28))).toBe('1m 0d');
+    expect(ageFromBirthDate('2026-08-31', new Date(2026, 8, 30))).toBe('1m 0d');
+    expect(ageFromBirthDate('2026-01-31', new Date(2026, 1, 27))).toBe('27d');
+  });
+
+  it('rejects impossible and future birth dates', () => {
+    expect(ageFromBirthDate('2026-02-31', REFERENCE)).toBe('');
+    expect(ageFromBirthDate('2027-01-01', REFERENCE)).toBe('');
+  });
+
   it('mapBiologicalSex maps administrative sex / gender text', () => {
     expect(mapBiologicalSex('Mujer', 'Femenina')).toBe('Femenino');
     expect(mapBiologicalSex('Hombre', 'Masculino')).toBe('Masculino');

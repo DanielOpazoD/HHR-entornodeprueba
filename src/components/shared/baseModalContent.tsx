@@ -24,7 +24,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
   closeOnBackdrop = true,
   showCloseButton = true,
   headerIconColor = 'text-accent-600',
-  variant = 'glass',
+  variant = 'white',
   printable = false,
   initialFocusRef,
   headerActions,

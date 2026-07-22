@@ -98,6 +98,18 @@ describe('BaseModal z-index behavior', () => {
     expect(backdrop!.className).toContain('backdrop-blur');
   });
 
+  it('uses an opaque light clinical surface by default', () => {
+    render(
+      <BaseModal isOpen={true} onClose={() => {}} title="Test Modal">
+        <div>Content</div>
+      </BaseModal>
+    );
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).toHaveClass('bg-white', 'border-slate-200');
+    expect(dialog).not.toHaveClass('glass');
+  });
+
   it('should use viewport scrolling instead of internal body scrolling when scrollableBody is false', () => {
     render(
       <BaseModal isOpen={true} onClose={() => {}} title="Test Modal" scrollableBody={false}>

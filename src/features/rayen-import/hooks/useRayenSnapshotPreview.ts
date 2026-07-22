@@ -66,6 +66,7 @@ export const useRayenSnapshotPreview = ({
             isBusy: false,
             isSyncing: false,
             result: null,
+            hasSkippedItems: false,
             error: null,
           });
           return;
@@ -78,6 +79,7 @@ export const useRayenSnapshotPreview = ({
           isBusy: true,
           isSyncing: true,
           result: null,
+          hasSkippedItems: false,
           error: null,
         });
         try {
@@ -129,12 +131,18 @@ export const useRayenSnapshotPreview = ({
           isBusy: true,
           isSyncing: true,
           result: null,
+          hasSkippedItems: false,
           error: null,
         });
         applyDiff(currentRecord, diff)
           .then(result => {
             autoApplyingRef.current = false;
-            setState(prev => ({ ...prev, isBusy: false, result }));
+            setState(prev => ({
+              ...prev,
+              isBusy: false,
+              result,
+              hasSkippedItems: result.skipped.length > 0,
+            }));
             void fillDevicesInBackground(result.record);
           })
           .catch(error => {
@@ -157,6 +165,9 @@ export const useRayenSnapshotPreview = ({
           diff.discharges.length +
           (diff.reportEgresos?.length ?? 0) >
         0;
+      const hasUnresolvedConflicts = diff.summary.conflicts > 0;
+      // Even a conflict-only census review must continue clinical enrichment. Persist the run and
+      // start the fill, while the state below keeps the conflict details open for the operator.
       if (!hasApplicableChanges && reportAvailable) {
         try {
           const stamped = await persistAppliedRun(currentRecord, diff);
@@ -170,10 +181,13 @@ export const useRayenSnapshotPreview = ({
 
       setState({
         diff,
-        isPreviewOpen: true,
+        // No-change runs continue quietly. Conflicts always open the review because their bed and
+        // reason are actionable even when there is no mutation to apply.
+        isPreviewOpen: hasApplicableChanges || hasUnresolvedConflicts || !reportAvailable,
         isBusy: false,
         isSyncing: !hasApplicableChanges && reportAvailable,
         result: null,
+        hasSkippedItems: false,
         error: !reportAvailable
           ? 'No fue posible verificar las altas administrativas en Gestión de Camas. Revisa esa pestaña y vuelve a sincronizar; el censo no se aplicará automáticamente.'
           : mode === 'auto' && needsReview

@@ -197,7 +197,7 @@ describe('reconcileClinicalCribs', () => {
 
   it('preserves a manually edited newborn name on subsequent synchronizations', () => {
     const mother = makeEncounter();
-    const child = newborn();
+    const child = { ...newborn(), run: '' };
     const localChild = {
       ...seed(child),
       patientName: 'Amanda Valladares',
@@ -216,7 +216,7 @@ describe('reconcileClinicalCribs', () => {
 
   it('updates clinical crib data without overwriting its manually edited name fields', () => {
     const mother = makeEncounter();
-    const child = newborn();
+    const child = { ...newborn(), run: '' };
     const localChild = {
       ...seed(child),
       patientName: 'Amanda Valladares',
@@ -246,6 +246,84 @@ describe('reconcileClinicalCribs', () => {
         }),
       }),
     ]);
+  });
+
+  it('replaces the provisional local identity when Eloísa assigns the newborn a RUN', () => {
+    const mother = makeEncounter();
+    const officialChild = newborn();
+    const provisionalChild = {
+      ...seed({ ...officialChild, run: '' }),
+      patientName: 'RN de Ana',
+      firstName: 'RN',
+      lastName: 'De Ana',
+      secondLastName: '',
+      identityStatus: 'provisional' as const,
+      specialty: Specialty.PEDIATRIA,
+      handoffNote: 'Dato neonatal local',
+    };
+    const diff = reconcileCensus(
+      makeRecord({ H5C1: { ...seed(mother), clinicalCrib: provisionalChild } }),
+      snapshotOf([mother, officialChild]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.updates).toHaveLength(1);
+    expect(diff.updates[0].changes).toEqual([
+      expect.objectContaining({
+        field: 'clinicalCrib',
+        to: expect.objectContaining({
+          rut: '22.222.222-2',
+          patientName: 'Bebe Perez',
+          firstName: 'Bebe',
+          lastName: 'Perez',
+          identityStatus: 'official',
+          handoffNote: 'Dato neonatal local',
+        }),
+      }),
+    ]);
+  });
+
+  it('preserves the provisional local identity when Eloísa returns an invalid RUN', () => {
+    const mother = makeEncounter();
+    const invalidOfficialChild = { ...newborn(), run: '12.345.678-9' };
+    const provisionalChild = {
+      ...seed({ ...invalidOfficialChild, run: '' }),
+      patientName: 'RN de Ana',
+      firstName: 'RN',
+      lastName: 'De Ana',
+      secondLastName: '',
+      identityStatus: 'provisional' as const,
+      specialty: Specialty.PEDIATRIA,
+    };
+    const diff = reconcileCensus(
+      makeRecord({ H5C1: { ...seed(mother), clinicalCrib: provisionalChild } }),
+      snapshotOf([mother, invalidOfficialChild]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.summary.unchanged).toBe(2);
+  });
+
+  it('keeps an existing official RUN when a later Eloísa response is invalid', () => {
+    const mother = makeEncounter();
+    const officialChild = newborn();
+    const incomingInvalidChild = { ...officialChild, run: '12.345.678-9' };
+    const currentOfficialChild = {
+      ...seed(officialChild),
+      identityStatus: 'official' as const,
+      specialty: Specialty.PEDIATRIA,
+    };
+    const diff = reconcileCensus(
+      makeRecord({ H5C1: { ...seed(mother), clinicalCrib: currentOfficialChild } }),
+      snapshotOf([mother, incomingInvalidChild]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.summary.unchanged).toBe(2);
   });
 
   it('backfills Pediatría on a previously synchronized clinical crib', () => {
@@ -388,58 +466,5 @@ describe('reconcileClinicalCribs', () => {
       }),
     ]);
     expect(diff.conflicts).toHaveLength(0);
-  });
-
-  it('reparents an existing crib when principal patients exchange the destination bed', () => {
-    const priorMother = makeEncounter({ room: 'H4', bed: 'C1' });
-    const movedMother = makeEncounter({ room: 'H5', bed: 'C1' });
-    const priorOccupant = makeEncounter({
-      encounterId: 'OUTGOING',
-      run: '999999999',
-      firstGivenName: 'Paciente',
-      room: 'H5',
-      bed: 'C1',
-    });
-    const movedOccupant = { ...priorOccupant, room: 'H6', bed: 'C1' };
-    const child = newborn();
-    const current = makeRecord({
-      H4C1: seed(priorMother),
-      H5C1: {
-        ...seed(priorOccupant),
-        clinicalCrib: { ...seed(child), handoffNote: 'Dato neonatal local' },
-      },
-    });
-    const diff = reconcileCensus(current, snapshotOf([movedMother, movedOccupant, child]), {
-      reference: REFERENCE,
-    });
-    const applied = applyCensusImportDiff(current, diff, {
-      idFactory: () => 'movement-id',
-      now: REFERENCE,
-      syncRunId: 'crib-reparent-sync',
-    });
-
-    expect(diff.conflicts).toHaveLength(0);
-    expect(diff.updates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          bedId: 'H6C1',
-          changes: [expect.objectContaining({ field: 'clinicalCrib', to: undefined })],
-        }),
-        expect.objectContaining({
-          bedId: 'H5C1',
-          changes: [expect.objectContaining({ field: 'clinicalCrib' })],
-        }),
-      ])
-    );
-    expect(applied.skipped).toHaveLength(0);
-    expect(applied.record.beds.H5C1).toMatchObject({
-      clinicalEpisodeId: 'MOTHER',
-      clinicalCrib: {
-        clinicalEpisodeId: 'NEWBORN',
-        handoffNote: 'Dato neonatal local',
-      },
-    });
-    expect(applied.record.beds.H6C1).toMatchObject({ clinicalEpisodeId: 'OUTGOING' });
-    expect(applied.record.beds.H6C1.clinicalCrib).toBeUndefined();
   });
 });

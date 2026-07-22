@@ -1,57 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
-import type { CensusImportDiff } from '@/features/rayen-import';
+import { RayenImportFlowStatus } from '@/features/rayen-import/components/RayenImportFlowStatus';
+import type { RayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
 
-const mocks = vi.hoisted(() => ({ useRayenFillProgress: vi.fn() }));
-
-vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
-  useRayenFillProgress: () => mocks.useRayenFillProgress(),
-}));
-
-const diff: CensusImportDiff = {
-  admissions: [],
-  updates: [],
-  moves: [],
-  discharges: [
-    {
-      bedId: 'H2C1',
-      rut: '22.025.389-9',
-      patientName: 'Paciente Egresado',
-      kind: 'alta',
-      status: 'Vivo',
-      reason: 'administrative-discharge',
-      correctedDay: '2026-07-20',
-    },
-  ],
-  pendingAdministrativeDischarges: [],
-  conflicts: [],
-  unchangedCount: 0,
-  previousDayEdits: [
-    {
-      day: '2026-07-20',
-      reason: 'discharge-day-correction',
-      patientNames: ['Paciente Egresado'],
-      recordExists: true,
-      withinEditingWindow: true,
-      isSigned: false,
-    },
-  ],
-  summary: {
-    admissions: 0,
-    updates: 0,
-    moves: 0,
-    discharges: 1,
-    pendingAdministrativeDischarges: 0,
-    conflicts: 0,
-    unchanged: 0,
-  },
-};
-
-const settledFill = (staffingOutcome: 'resolved' | 'declined') => ({
+const settledFill = (staffingOutcome: RayenFillProgress['staffingOutcome']): RayenFillProgress => ({
   running: false,
-  outcome: 'complete' as const,
+  outcome: 'complete',
   attemptId: 1,
   done: 8,
   total: 8,
@@ -60,80 +15,92 @@ const settledFill = (staffingOutcome: 'resolved' | 'declined') => ({
   staffingOutcome,
 });
 
-describe('RayenImportPreviewModal omitted changes', () => {
-  beforeEach(() => {
-    mocks.useRayenFillProgress.mockReturnValue({
-      ...settledFill('resolved'),
-      outcome: 'idle',
-      attemptId: 0,
-      done: 0,
-      total: 0,
-      lastCompletedAt: null,
-      staffingOutcome: 'idle',
-    });
-  });
+const renderSettledPulse = (
+  staffingOutcome: RayenFillProgress['staffingOutcome'],
+  flags: { hasSkippedItems?: boolean; hasUnresolvedConflicts?: boolean } = {}
+) =>
+  render(
+    <RayenImportFlowStatus
+      diff={null}
+      fill={settledFill(staffingOutcome)}
+      isApplyingCensus={false}
+      isPreviewOpen={false}
+      isSyncing={false}
+      error={null}
+      hasPersistedSync
+      {...flags}
+    />
+  );
 
-  it('does not claim full success when staffing changes were declined', () => {
-    mocks.useRayenFillProgress.mockReturnValue(settledFill('declined'));
-
+describe('Rayen synchronization omissions in the pulse bar', () => {
+  it('prioritizes a conflict-only review over the background syncing label', () => {
     render(
-      <RayenImportPreviewModal
-        isOpen
-        diff={{ ...diff, previousDayEdits: [] }}
-        isBusy={false}
+      <RayenImportFlowStatus
+        diff={null}
+        fill={{ ...settledFill('idle'), outcome: 'idle', done: 0, total: 0, attemptId: 0 }}
+        isApplyingCensus={false}
+        isPreviewOpen
+        isSyncing
         error={null}
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
+        hasPersistedSync={false}
+        hasUnresolvedConflicts
       />
     );
 
-    expect(screen.queryByText('Todo está actualizado')).not.toBeInTheDocument();
-    expect(screen.getByText('Sincronización completada con elementos sin aplicar')).toBeVisible();
+    expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
+    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
   });
 
-  it.each([
-    ['not accepted', false, true, true],
-    ['unwriteable', true, false, false],
-  ])(
-    'keeps skipped previous-day work visible when it is %s',
-    (_, accept, recordExists, writable) => {
-      const onConfirm = vi.fn();
-      const historicalDiff = {
-        ...diff,
-        previousDayEdits: diff.previousDayEdits?.map(edit => ({
-          ...edit,
-          recordExists,
-          withinEditingWindow: writable,
-        })),
-      };
-      const { rerender } = render(
-        <RayenImportPreviewModal
-          isOpen
-          diff={historicalDiff}
-          isBusy={false}
-          error={null}
-          onConfirm={onConfirm}
-          onCancel={vi.fn()}
-        />
-      );
-      if (accept) fireEvent.click(screen.getByRole('checkbox'));
-      fireEvent.click(screen.getByRole('button', { name: 'Confirmar e importar' }));
+  it('does not restore a partial persisted synchronization as fully successful', () => {
+    render(
+      <RayenImportFlowStatus
+        diff={null}
+        fill={{ ...settledFill('idle'), outcome: 'idle', done: 0, total: 0, attemptId: 0 }}
+        isApplyingCensus={false}
+        isPreviewOpen={false}
+        isSyncing={false}
+        error={null}
+        hasPersistedSync
+        persistedSync={{
+          status: 'partial',
+          coverage: {
+            total: 8,
+            completed: 7,
+            errors: 1,
+            sourceErrors: 1,
+            completedAt: '2026-07-21T17:00:00.000Z',
+          },
+        }}
+      />
+    );
 
-      mocks.useRayenFillProgress.mockReturnValue(settledFill('resolved'));
-      rerender(
-        <RayenImportPreviewModal
-          isOpen
-          diff={historicalDiff}
-          isBusy={false}
-          error={null}
-          onConfirm={onConfirm}
-          onCancel={vi.fn()}
-        />
-      );
+    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
+    expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
+    expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
+    expect(screen.getByTitle('Enfermería: Con observaciones')).toBeInTheDocument();
+  });
 
-      expect(onConfirm).toHaveBeenCalledWith(accept);
-      expect(screen.queryByText('Todo está actualizado')).not.toBeInTheDocument();
-      expect(screen.getByText('Sincronización completada con elementos sin aplicar')).toBeVisible();
-    }
-  );
+  it('does not claim full success when staffing changes were declined', () => {
+    renderSettledPulse('declined');
+
+    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
+    expect(screen.getByText('Sincronización completada · se mantuvo HHR')).toBeVisible();
+    expect(screen.getByTitle('Enfermería: Se mantuvo HHR')).toBeInTheDocument();
+  });
+
+  it('keeps skipped work visible after the decision modal closes', () => {
+    renderSettledPulse('resolved', { hasSkippedItems: true });
+
+    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
+    expect(screen.getByText('Sincronización con elementos sin aplicar')).toBeVisible();
+    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
+  });
+
+  it('keeps unresolved conflicts visible after the decision modal closes', () => {
+    renderSettledPulse('resolved', { hasUnresolvedConflicts: true });
+
+    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
+    expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
+    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
+  });
 });
