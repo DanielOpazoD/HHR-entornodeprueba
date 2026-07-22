@@ -3,8 +3,11 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
 import { Specialty } from '@/types/domain/patientClassification';
-import { isValidRut } from '@/utils/rutUtils';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
+import {
+  hasRegisteredClinicalCribRut,
+  withClinicalCribDefaults,
+} from './clinicalCribPlacementPolicy';
 
 interface ClinicalCribCandidate {
   encounter: RayenEncounter;
@@ -35,17 +38,9 @@ const preserveExistingCribIdentity = (
   identityStatus: current.identityStatus,
 });
 
-const hasRegisteredRut = (patient: PatientData): boolean => isValidRut(patient.rut ?? '');
-
-const withClinicalCribDefaults = (patient: PatientData): PatientData => ({
-  ...patient,
-  specialty: Specialty.PEDIATRIA,
-  ...(hasRegisteredRut(patient) ? { identityStatus: 'official' as const } : {}),
-});
-
 const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => {
   const changes = diffSyncablePatientFields(current, incoming);
-  if (hasRegisteredRut(incoming) && current.identityStatus !== 'official') {
+  if (hasRegisteredClinicalCribRut(incoming) && current.identityStatus !== 'official') {
     changes.push({ field: 'identityStatus', from: current.identityStatus, to: 'official' });
   }
   if (current.specialty !== Specialty.PEDIATRIA) {
@@ -56,7 +51,7 @@ const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => 
 
 const mergeClinicalCrib = (current: PatientData, incoming: PatientData): PatientData => ({
   ...mergeSyncablePatient(current, incoming),
-  ...(hasRegisteredRut(incoming) ? { identityStatus: 'official' as const } : {}),
+  ...(hasRegisteredClinicalCribRut(incoming) ? { identityStatus: 'official' as const } : {}),
   specialty: Specialty.PEDIATRIA,
 });
 
@@ -101,7 +96,7 @@ export const reconcileClinicalCribs = (
     // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
     // (including names and surnames) are refreshed from the official record.
     const incomingCrib =
-      existingRef && !hasRegisteredRut(rawIncomingCrib)
+      existingRef && !hasRegisteredClinicalCribRut(rawIncomingCrib)
         ? preserveExistingCribIdentity(existingRef.patient, rawIncomingCrib)
         : rawIncomingCrib;
     const retainedParentMove =
@@ -173,6 +168,19 @@ export const reconcileClinicalCribs = (
         scope: 'clinical-crib',
         code: 'unconfirmed-principal-bed',
         reason: `La cama principal ${parentBedId} no fue confirmada en el censo activo de Rayen.`,
+        source: encounter,
+      });
+      continue;
+    }
+
+    const effectivePrincipal = parentAdmission?.patient ?? movingParent ?? currentParent;
+    if (effectivePrincipal?.biologicalSex === 'Masculino') {
+      diff.conflicts.push({
+        bedId: parentBedId,
+        rut: incomingCrib.rut,
+        patientName: incomingCrib.patientName,
+        scope: 'clinical-crib',
+        reason: `La cama principal ${parentBedId} no está ocupada por una madre compatible con la cuna clínica.`,
         source: encounter,
       });
       continue;
