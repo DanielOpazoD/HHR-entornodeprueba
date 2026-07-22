@@ -423,6 +423,7 @@ describe('RayenImportPreviewModal discharge verification', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(screen.getByText('La información clínica no pudo iniciar')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
     expect(screen.queryByText('Todo está actualizado')).not.toBeInTheDocument();
   });
 

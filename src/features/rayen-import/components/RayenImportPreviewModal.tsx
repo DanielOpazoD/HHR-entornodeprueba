@@ -48,7 +48,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   // list ("→ se grabará el …, no hoy"), so the section wording never suggests it lands today.
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
-  const fillActive = fill.outcome === 'running';
+  const fillActive = fill.running;
   const fillSettled =
     fill.outcome === 'complete' || fill.outcome === 'partial' || fill.outcome === 'rejected';
   const staffingNeedsDecision =

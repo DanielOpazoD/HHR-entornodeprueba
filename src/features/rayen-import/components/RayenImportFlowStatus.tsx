@@ -28,7 +28,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = ({
 }) => {
   const percent = progressPercentage(fill, completed);
   const completedScope = completed && fill.outcome !== 'rejected';
-  const active = isApplyingCensus || fill.outcome === 'running';
+  const active = isApplyingCensus || fill.running;
   const staffingNeedsDecision =
     fill.staffingOutcome === 'pending' || fill.staffingOutcome === 'ambiguous';
   const label = isApplyingCensus

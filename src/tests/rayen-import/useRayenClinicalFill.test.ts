@@ -106,6 +106,7 @@ describe('useRayenClinicalFill', () => {
           resolveCompletion = resolve;
         })
     );
+    const onStaffingProposal = vi.fn();
     const record = {
       date: '2026-07-14',
       beds: {},
@@ -119,7 +120,7 @@ describe('useRayenClinicalFill', () => {
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun,
-        onStaffingProposal: vi.fn(),
+        onStaffingProposal,
         onSettled: vi.fn(),
         createId: () => 'id',
       })
@@ -128,10 +129,12 @@ describe('useRayenClinicalFill', () => {
     const fillPromise = result.current(record);
     await vi.waitFor(() => expect(completeRun).toHaveBeenCalledOnce());
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
+    expect(onStaffingProposal).not.toHaveBeenCalled();
 
     resolveCompletion?.();
     await act(async () => fillPromise);
     expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
+    expect(onStaffingProposal).toHaveBeenCalledOnce();
   });
 
   it('settles as partial when run completion persistence fails', async () => {

@@ -103,10 +103,9 @@ export const useRayenClinicalFill = ({
       if (summary.errors.length > 0) {
         console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
       }
-      if (summary.staffingProposal) {
-        const reviewProposal = reconcileNursingShiftProposal(record, summary.staffingProposal);
-        onStaffingProposal(reviewProposal, attemptId);
-      }
+      const reviewProposal = summary.staffingProposal
+        ? reconcileNursingShiftProposal(record, summary.staffingProposal)
+        : null;
       const failedPatients = new Set(
         summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
       ).size;
@@ -118,6 +117,7 @@ export const useRayenClinicalFill = ({
         console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
       }
       endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
+      if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
       onSettled();
     },
     [
