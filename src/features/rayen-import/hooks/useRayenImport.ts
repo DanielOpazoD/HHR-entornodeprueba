@@ -54,12 +54,11 @@ export const useRayenImport = () => {
   const { data: nursesList = [] } = useNursesQuery();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  // currentUser → stamps who ran the sync (rayenSync.by); role → admin bypasses the editing window.
+  // currentUser stamps the audit; admins bypass the editing window.
   const { currentUser, role } = useAuthState();
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  // Admin bypasses the Firestore ~48h editing window (see firestore.rules isWithinEditingWindow); a
-  // nurse can only write a previous day within that window — older days are surfaced but skipped.
+  // Non-admin users can only correct previous days within Firestore's editing window.
   const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
@@ -113,7 +112,7 @@ export const useRayenImport = () => {
         actor: run.by,
         syncRunId: run.id,
       });
-      // Stamp the applied run + aggregate-only history atomically with the full census save.
+      // Stamp the run atomically with the census save.
       const stamped = applyRunToRecord(result.record, diff).record;
       await saveDailyRecord(stamped);
       return { ...result, record: stamped };
@@ -150,8 +149,7 @@ export const useRayenImport = () => {
         attemptId
       );
       setStaffingProposal(proposal);
-      // Nursing belongs to the same reviewed sync journey. Reuse the preview instead of opening
-      // a second modal after clinical enrichment settles (also covers experimental auto mode).
+      // Keep nursing in the same reviewed sync journey.
       setState(prev => ({ ...prev, isPreviewOpen: true }));
     },
     [isAdmin]
@@ -186,8 +184,7 @@ export const useRayenImport = () => {
       subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
         void failRun('snapshot_error');
-        // The extension payload may contain upstream details. Keep it out of the
-        // persisted audit trail and out of the clinical UI; log only a category.
+        // Upstream details stay out of the audit trail and clinical UI.
         console.warn('[rayen-import] La extensión informó un error de lectura.');
         setState(prev => ({
           ...prev,
@@ -301,14 +298,10 @@ export const useRayenImport = () => {
     }
   }, [dailyRecord, isAdmin, queryClient, staffingProposal]);
 
-  // `applyPreviousDays` (default true) gates ONLY the cross-day corrections. Today's census changes
-  // (admissions, moves, discharges) ALWAYS apply — the previous-day acknowledgment must never block
-  // them (a bed move shouldn't wait on accepting an unrelated past-day egreso).
+  // `applyPreviousDays` gates cross-day corrections, never today's census changes.
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
-      // ALWAYS apply against the freshest record (the ref), not the closure: a bed move the user just
-      // did in HHR may not be in the closure's `currentRecord` yet, which would make the move's source
-      // bed look empty and silently skip the move. The ref reflects the latest saved record.
+      // Apply against the ref so recent HHR changes cannot be lost to a stale closure.
       const base = currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
       const diff = state.diff;
@@ -322,8 +315,7 @@ export const useRayenImport = () => {
           isAdmin,
           ensureRun,
           applyDiff,
-          // Refresh through the same QueryClient path used by the save guard. A repository-only
-          // read leaves React Query stale, causing the retry to reject until a full page reload.
+          // Refresh through the QueryClient path used by the save guard.
           getFreshRecord: async () =>
             (
               await ensureFreshDailyRecordQuery(
