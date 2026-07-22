@@ -71,7 +71,7 @@ export const beginRayenFill = (total: number): boolean => {
 
 /** Clear evidence from an earlier run before requesting a new Eloísa snapshot. */
 export const resetRayenFillProgress = (): boolean => {
-  if (progress.running) return false;
+  if (progress.running || progress.staffingOutcome === 'applying') return false;
   activeAttemptId = null;
   emit({ ...IDLE, attemptId: progress.attemptId });
   return true;

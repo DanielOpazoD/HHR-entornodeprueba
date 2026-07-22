@@ -112,4 +112,21 @@ describe('useRayenFillStatus attempt identity', () => {
       expect(resetRayenFillProgress()).toBe(true);
     });
   });
+
+  it('keeps staffing persistence inside the synchronization single-flight boundary', () => {
+    const { result } = renderHook(() => useRayenFillProgress());
+
+    act(() => {
+      expect(beginRayenFill(1)).toBe(true);
+      endRayenFill(0);
+      reportRayenStaffingOutcome('applying');
+    });
+    expect(resetRayenFillProgress()).toBe(false);
+    expect(result.current.staffingOutcome).toBe('applying');
+
+    act(() => {
+      reportRayenStaffingOutcome('resolved');
+      expect(resetRayenFillProgress()).toBe(true);
+    });
+  });
 });
