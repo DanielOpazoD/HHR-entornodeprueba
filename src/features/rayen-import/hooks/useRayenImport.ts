@@ -135,13 +135,15 @@ export const useRayenImport = () => {
   const presentStaffingProposal = useCallback(
     (proposal: NursingStaffingProposal, attemptId: number) => {
       if (!isRayenFillAttemptCurrent(attemptId)) return;
-      // Do not offer a write that Firestore will reject for a non-admin user.
-      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
-        reportRayenStaffingOutcome('resolved', attemptId);
-        return;
-      }
       const hasVacancies = proposal.day.names.length > 0 || proposal.night.names.length > 0;
       const hasAmbiguity = proposal.day.ambiguous || proposal.night.ambiguous;
+      if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
+        reportRayenStaffingOutcome(
+          hasVacancies || hasAmbiguity ? 'declined' : 'resolved',
+          attemptId
+        );
+        return;
+      }
       reportRayenStaffingOutcome(
         hasVacancies ? 'pending' : hasAmbiguity ? 'ambiguous' : 'resolved',
         attemptId
@@ -294,7 +296,6 @@ export const useRayenImport = () => {
     }
   }, [dailyRecord, isAdmin, queryClient, staffingProposal]);
 
-  // `applyPreviousDays` gates cross-day corrections, never today's census changes.
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
       // Apply against the ref so recent HHR changes cannot be lost to a stale closure.
@@ -311,7 +312,6 @@ export const useRayenImport = () => {
           isAdmin,
           ensureRun,
           applyDiff,
-          // Refresh through the QueryClient path used by the save guard.
           getFreshRecord: async () =>
             (
               await ensureFreshDailyRecordQuery(
