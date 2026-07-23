@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.unmock('@/services/laboratory/syslabService');
 
 vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
+  cleanRutForSyslab: (rut: string) =>
+    rut.replace(/\./g, '').replace(/-.*$/, '').replace(/\D/g, '').trim(),
   requestSyslabExtensionStatus: vi.fn().mockResolvedValue({
     bridgeAvailable: false,
     connected: false,
@@ -76,6 +78,10 @@ describe('cleanRutForSyslab', () => {
 
   it('handles dots and dash together', () => {
     expect(cleanRutForSyslab('5.600.574-9')).toBe('5600574');
+  });
+
+  it('removes the verifier from the selected HHR patient RUT', () => {
+    expect(cleanRutForSyslab('29.219.852-3')).toBe('29219852');
   });
 });
 

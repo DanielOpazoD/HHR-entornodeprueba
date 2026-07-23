@@ -361,9 +361,11 @@ describe('native Eloisa laboratory viewer', () => {
     const offscreenHtml = readFileSync(path.resolve('extension/syslab-offscreen.html'), 'utf8');
     const login = readFileSync(path.resolve('extension/syslab-login.js'), 'utf8');
     const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
+    const loginWindow = readFileSync(path.resolve('extension/syslab-login-window.js'), 'utf8');
 
     expect(background).not.toContain('localhost:3001');
     expect(background).toContain("'syslab-session-transport.js'");
+    expect(background).toContain("'syslab-login-window.js'");
     expect(background).toContain("'syslab-runtime.js'");
     expect(background).toContain('self.HhrSyslabRuntime.create({');
     expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
@@ -373,6 +375,8 @@ describe('native Eloisa laboratory viewer', () => {
     expect(runtime).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
     expect(runtime).toContain('searchSyslabDirectly');
     expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(');
+    expect(loginWindow).toContain('messageContract.types.SYSLAB_LOGIN_OPEN_REQUEST');
+    expect(loginWindow).toContain('messageContract.createRuntimeRouter');
     expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(');
     expect(runtime).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
     expect(runtime).toContain('chromeApi.offscreen.createDocument');
@@ -394,14 +398,11 @@ describe('native Eloisa laboratory viewer', () => {
     expect(runtime).toContain('linksByExamId');
     expect(runtime).toContain('const reportRequests = exams.map(exam => ({');
     expect(runtime).toContain('exams: reportRequests');
-    expect(runtime).toContain('validateLabSenderEncounter');
+    expect(runtime).not.toContain('getClinicalReportContext');
+    expect(runtime).not.toContain('getFichaFetchInfo');
+    expect(runtime).toContain('rutBody !== String(requestedRutBody');
     expect(runtime).toContain('examRowsMatchRut(payload.exams, rutBody)');
     expect(runtime).toContain('Syslab no confirmó que los informes correspondan al RUN solicitado');
-    // The lab flow accepts the sender tab's own encounter (fast path) or any encounter present
-    // in the active hospitalized census (shared patient picker); anything else is rejected.
-    expect(runtime).toContain('senderEncounterId === String(expectedEncounterId');
-    expect(runtime).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
-    expect(runtime).toContain('no está en el censo de hospitalizados activo');
     expect(background).toContain(
       'syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender })'
     );
@@ -446,7 +447,7 @@ describe('native Eloisa laboratory viewer', () => {
     expect(loginHtml).toContain('No se guardan en la extensión');
     expect(login).toContain('type: runtimeMessages.SYSLAB_LOGIN_REQUEST');
     expect(login).toContain("candidate === 'https://fichamedico.rayensalud.cl'");
-    expect(login).toContain('Vuelve a Eloísa y pulsa Actualizar.');
+    expect(login).toContain('Vuelve a la pantalla de Laboratorio.');
     expect(login).not.toContain('localStorage');
     expect(login).not.toContain('sessionStorage');
     expect(content).toContain("key: 'connection'");

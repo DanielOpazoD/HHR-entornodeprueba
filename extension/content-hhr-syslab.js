@@ -2,29 +2,28 @@
 (() => {
   'use strict';
 
-  // Localhost inherits the existing HHR development trust boundary. Product traffic is Netlify;
-  // privileged operations remain constrained again by encounter, RUN, batch ownership and TTL.
   const trustedOrigins = new Set([
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://testinghhr.netlify.app',
   ]);
   if (!trustedOrigins.has(window.location.origin)) return;
 
-  const runtimeMessages = globalThis.HhrRayenMessageContract &&
-    globalThis.HhrRayenMessageContract.types;
+  const runtimeMessages = globalThis.HhrRayenMessageContract && globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
 
+  const route = (resultType, runtimeType, payload = () => ({})) => ({ resultType, runtimeType, payload });
   const routes = {
-    HHR_RAYEN_SYSLAB_STATUS_REQUEST: {
-      resultType: 'HHR_RAYEN_SYSLAB_STATUS_RESULT',
-      runtimeType: runtimeMessages.SYSLAB_STATUS_REQUEST,
-      payload: () => ({}),
-    },
-    HHR_RAYEN_SYSLAB_SEARCH_REQUEST: {
-      resultType: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
-      runtimeType: runtimeMessages.LAB_SEARCH_REQUEST,
-      payload: data => ({ encId: String(data.encId || '') }),
-    },
+    HHR_RAYEN_SYSLAB_STATUS_REQUEST: route(
+      'HHR_RAYEN_SYSLAB_STATUS_RESULT', runtimeMessages.SYSLAB_STATUS_REQUEST
+    ),
+    HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST: route(
+      'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT', runtimeMessages.SYSLAB_LOGIN_OPEN_REQUEST
+    ),
+    HHR_RAYEN_SYSLAB_SEARCH_REQUEST: route(
+      'HHR_RAYEN_SYSLAB_SEARCH_RESULT', runtimeMessages.LAB_SEARCH_REQUEST,
+      data => ({ rutBody: String(data.rutBody || '') })
+    ),
     HHR_RAYEN_SYSLAB_DETAILS_REQUEST: {
       resultType: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',
       runtimeType: runtimeMessages.LAB_DETAILS_REQUEST,

@@ -25,6 +25,7 @@
     CLINICAL_PANEL_REQUEST: 'RAYEN_CLINICAL_PANEL_REQUEST',
     LAB_SEARCH_REQUEST: 'RAYEN_LAB_SEARCH_REQUEST',
     SYSLAB_STATUS_REQUEST: 'RAYEN_SYSLAB_STATUS_REQUEST',
+    SYSLAB_LOGIN_OPEN_REQUEST: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST',
     SYSLAB_LOGIN_REQUEST: 'RAYEN_SYSLAB_LOGIN_REQUEST',
     LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
     LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
@@ -76,7 +77,7 @@
     },
     [types.HISTORY_SCALES_REQUEST]: { encId: 'id' },
     [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' },
-    [types.LAB_SEARCH_REQUEST]: { encId: 'id' },
+    [types.LAB_SEARCH_REQUEST]: { rutBody: 'rut-body' },
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },
     [types.LAB_DETAILS_REQUEST]: { batchId: 'string', examIds: 'array' },
     [types.LAB_PDF_OPEN_REQUEST]: { batchId: 'string', examId: 'id' },
@@ -139,7 +140,6 @@
 
   const knownTypes = new Set(Object.values(types));
   const cleanMessage = value => String(value || '').replace(/\s+/g, ' ').trim();
-
   const responses = Object.freeze({
     success: data => ({ ...(data && typeof data === 'object' ? data : {}), ok: true }),
     error: (message, code = '', data) => ({
@@ -169,6 +169,7 @@
     if (kind === 'object') return typeof value === 'object' && !Array.isArray(value);
     if (kind === 'string') return typeof value === 'string';
     if (kind === 'boolean') return typeof value === 'boolean';
+    if (kind === 'rut-body') return typeof value === 'string' && /^\d{5,9}$/.test(value);
     if (kind === 'id') {
       const normalized = cleanMessage(value);
       if (optional && !normalized) return true;

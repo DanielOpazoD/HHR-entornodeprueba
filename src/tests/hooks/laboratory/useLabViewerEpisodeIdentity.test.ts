@@ -58,13 +58,13 @@ const createWrapper = () => {
   };
 };
 
-describe('useLabViewer episode identity', () => {
+describe('useLabViewer RUT identity', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetPatientByRut.mockResolvedValue(null);
   });
 
-  it('starts a fresh lookup when the same RUN moves to a different clinical episode', async () => {
+  it('keeps the same lookup when the same RUT moves to another episode', async () => {
     mockSearchSyslabExams.mockResolvedValue({ success: true, data: [EXAM] });
     const { result, rerender } = renderHook(
       ({ clinicalEpisodeId }: { clinicalEpisodeId: string }) =>
@@ -76,17 +76,15 @@ describe('useLabViewer episode identity', () => {
     );
 
     await act(async () => result.current.search());
-    await waitFor(() =>
-      expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141814')
-    );
+    await waitFor(() => expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9'));
 
     rerender({ clinicalEpisodeId: '141900' });
-    await waitFor(() =>
-      expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141900')
-    );
+    await waitFor(() => expect(result.current.examList).toHaveLength(1));
+    expect(mockSearchSyslabExams).toHaveBeenCalledTimes(1);
   });
 
-  it('fails closed when the same RUN has two different active clinical episodes', async () => {
+  it('searches once by RUT when two HHR rows share different episodes', async () => {
+    mockSearchSyslabExams.mockResolvedValue({ success: true, data: [EXAM] });
     const patients = [
       { ...PATIENT, clinicalEpisodeId: '141814' },
       { ...PATIENT, bedId: 'R2', clinicalEpisodeId: '141900' },
@@ -95,13 +93,12 @@ describe('useLabViewer episode identity', () => {
 
     await act(async () => result.current.search());
 
-    await waitFor(() => expect(result.current.error).toContain('más de un episodio activo'), {
-      timeout: 3_000,
-    });
-    expect(mockSearchSyslabExams).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.examList).toHaveLength(1));
+    expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9');
+    expect(mockSearchSyslabExams).toHaveBeenCalledTimes(1);
   });
 
-  it('does not reuse cached external results after the RUN becomes episode-ambiguous', async () => {
+  it('keeps cached results when only the episode metadata changes', async () => {
     mockSearchSyslabExams.mockResolvedValue({ success: true, data: [EXAM] });
     const externalPatients: LabPatient[] = [{ ...PATIENT, clinicalEpisodeId: undefined }];
     const ambiguousPatients: LabPatient[] = [
@@ -121,10 +118,8 @@ describe('useLabViewer episode identity', () => {
 
     rerender({ patients: ambiguousPatients });
 
-    await waitFor(() => expect(result.current.error).toContain('más de un episodio activo'), {
-      timeout: 3_000,
-    });
-    expect(result.current.examList).toHaveLength(0);
+    await waitFor(() => expect(result.current.examList).toHaveLength(1));
+    expect(result.current.error).toBeNull();
     expect(mockSearchSyslabExams).toHaveBeenCalledTimes(1);
   });
 });

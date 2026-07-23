@@ -9,15 +9,14 @@ const source = readFileSync(path.resolve('extension/content-hhr-syslab.js'), 'ut
 
 const runtimeTypes = {
   SYSLAB_STATUS_REQUEST: 'RAYEN_SYSLAB_STATUS_REQUEST',
+  SYSLAB_LOGIN_OPEN_REQUEST: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST',
   LAB_SEARCH_REQUEST: 'RAYEN_LAB_SEARCH_REQUEST',
   LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
   LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
 };
 
 const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
-  let onMessage:
-    | ((event: { source: unknown; data: Record<string, unknown> }) => void)
-    | undefined;
+  let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
   const postMessage = vi.fn();
   const windowObject = {
     location: { origin: 'http://localhost:3000' },
@@ -36,6 +35,20 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
 };
 
 describe('HHR Syslab content bridge', () => {
+  it.each(['http://localhost:3000', 'http://localhost:3001', 'https://testinghhr.netlify.app'])(
+    'installs on the trusted HHR origin %s',
+    origin => {
+      const addEventListener = vi.fn();
+      const context = vm.createContext({
+        window: { location: { origin }, addEventListener },
+        HhrRayenMessageContract: { types: runtimeTypes },
+      });
+
+      vm.runInContext(source, context, { filename: 'content-hhr-syslab.js' });
+      expect(addEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    }
+  );
+
   it('installs only on trusted HHR origins', () => {
     const addEventListener = vi.fn();
     const context = vm.createContext({
@@ -47,7 +60,7 @@ describe('HHR Syslab content bridge', () => {
     expect(addEventListener).not.toHaveBeenCalled();
   });
 
-  it('forwards search by RUN without exposing a direct Syslab URL', async () => {
+  it('forwards the RUT body without exposing a direct Syslab URL', async () => {
     const sendMessage = vi.fn(async () => ({
       ok: true,
       data: [{ id: '43091284', link: 'hhr-syslab-extension://batch/id/exam/43091284' }],
@@ -59,14 +72,14 @@ describe('HHR Syslab content bridge', () => {
       data: {
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         reqId: 'syslab-search-1',
-        encId: '141814',
+        rutBody: '28555149',
       },
     });
 
     await vi.waitFor(() =>
       expect(sendMessage).toHaveBeenCalledWith({
         type: 'RAYEN_LAB_SEARCH_REQUEST',
-        encId: '141814',
+        rutBody: '28555149',
       })
     );
     expect(postMessage).toHaveBeenCalledWith(
@@ -75,6 +88,27 @@ describe('HHR Syslab content bridge', () => {
         reqId: 'syslab-search-1',
         response: expect.objectContaining({ ok: true }),
       }),
+      'http://localhost:3000'
+    );
+  });
+
+  it('asks the extension worker to open its own Syslab credential window', async () => {
+    const { onMessage, postMessage, sendMessage, windowObject } = createHarness();
+
+    onMessage?.({
+      source: windowObject,
+      data: { type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST', reqId: 'login-open-1' },
+    });
+
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST' })
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
+        reqId: 'login-open-1',
+        response: { ok: true },
+      },
       'http://localhost:3000'
     );
   });

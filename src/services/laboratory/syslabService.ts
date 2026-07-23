@@ -2,9 +2,8 @@
  * @module syslabService
  * @description Client-side service for the Syslab laboratory API.
  *
- * For patients in the HHR census, uses the Eloísa extension session and its
- * existing episode-bound Syslab runtime. Direct Express/Netlify access is a
- * legacy compatibility path and must be configured explicitly.
+ * For patients in the HHR census, uses the extension's authenticated Syslab
+ * session and searches by RUT body. It does not require a Ficha Médico session.
  *
  * In production (Netlify), calls the `syslab-proxy` Netlify Function
  * which forwards requests server-side to the Express proxy exposed via
@@ -23,10 +22,12 @@ import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeader
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import {
   fetchSyslabDetailsThroughExtension,
+  cleanRutForSyslab,
   isSyslabExtensionLink,
   requestSyslabExtensionStatus,
   searchSyslabThroughExtension,
 } from './syslabExtensionBridge';
+export { cleanRutForSyslab };
 import type { SyslabSearchResponse, SyslabDetailsResponse } from '@/types/domain/labExamTypes';
 
 const syslabLogger = createScopedLogger('syslabService');
@@ -88,8 +89,6 @@ const directWebTransportConfigured = (): boolean =>
 
 const DIRECT_WEB_UNAVAILABLE_MESSAGE =
   'El acceso web directo a Syslab no está configurado. Activa la extensión Eloísa, recarga HHR y vuelve a intentar.';
-const EXTERNAL_SEARCH_UNAVAILABLE_MESSAGE =
-  'Buscar por RUT externo requiere el acceso web de Syslab. En desarrollo local, abre HHR con Netlify Dev o configura VITE_SYSLAB_API_URL.';
 
 const classifyHtmlResponse = (body: string, response: Response): Error => {
   const text = body.toLowerCase();
@@ -115,7 +114,10 @@ const readSyslabJson = async <T>(response: Response): Promise<T> => {
   try {
     return (await response.json()) as T;
   } catch (error) {
-    if (error instanceof SyntaxError && /unexpected token\s*[<']|not valid json/i.test(error.message)) {
+    if (
+      error instanceof SyntaxError &&
+      /unexpected token\s*[<']|not valid json/i.test(error.message)
+    ) {
       throw new Error(
         'Syslab respondió con un formato inesperado. Comprueba la extensión Eloísa y vuelve a intentar.'
       );
@@ -123,16 +125,6 @@ const readSyslabJson = async <T>(response: Response): Promise<T> => {
     throw error;
   }
 };
-
-/**
- * Strip a Chilean RUT to its numeric body only (no dots, dash, or check digit).
- * Syslab requires this format for patient lookup.
- *
- * @param rut - RUT in any format (e.g., "12.345.678-9", "12345678-9", "12345678").
- * @returns Numeric body only (e.g., "12345678").
- */
-export const cleanRutForSyslab = (rut: string): string =>
-  rut.replace(/\./g, '').replace(/-.*$/, '').trim();
 
 export interface SyslabConnectionStatus {
   available: boolean;
@@ -249,15 +241,12 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
 /**
  * Search for patient lab exams in Syslab by RUT.
  *
- * Uses the extension when the selected patient has an Eloísa clinical episode.
+ * Uses the extension whenever HHR provides a valid patient RUT.
  * The legacy Netlify/Express proxy is used only when explicitly configured.
  */
-export const searchSyslabExams = async (
-  rut: string,
-  clinicalEpisodeId?: string
-): Promise<SyslabSearchResponse> => {
+export const searchSyslabExams = async (rut: string): Promise<SyslabSearchResponse> => {
   const cleanRut = cleanRutForSyslab(rut);
-  const extensionResult = await searchSyslabThroughExtension(rut, clinicalEpisodeId);
+  const extensionResult = await searchSyslabThroughExtension(rut);
   if (extensionResult.bridgeAvailable) {
     if (extensionResult.error) throw new Error(extensionResult.error);
     if (extensionResult.data) return extensionResult.data;
@@ -265,9 +254,7 @@ export const searchSyslabExams = async (
   }
 
   if (!directWebTransportConfigured()) {
-    throw new Error(
-      clinicalEpisodeId ? DIRECT_WEB_UNAVAILABLE_MESSAGE : EXTERNAL_SEARCH_UNAVAILABLE_MESSAGE
-    );
+    throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
   }
 
   const authHeaders = await resolveCurrentUserAuthHeaders();
@@ -295,7 +282,9 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
   const extensionLinks = links.filter(isSyslabExtensionLink);
   if (extensionLinks.length > 0) {
     if (extensionLinks.length !== links.length) {
-      throw new Error('La selección mezcla búsquedas de laboratorio incompatibles. Actualiza el visor.');
+      throw new Error(
+        'La selección mezcla búsquedas de laboratorio incompatibles. Actualiza el visor.'
+      );
     }
     return fetchSyslabDetailsThroughExtension(links);
   }
