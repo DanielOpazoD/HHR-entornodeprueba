@@ -35,6 +35,7 @@ describe('DateStripQuickActions', () => {
     render(<DateStripQuickActions medicalIndicationsPatients={patients} />);
 
     expect(screen.queryByText(/Radiology Viewer/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /indicaciones/i })).not.toBeInTheDocument();
     expect(screen.getByTitle('Radiología / Imagenología')).toHaveClass(
       'border-slate-200',
       'bg-slate-50',

@@ -120,7 +120,9 @@ const bootstrapRoleSmoke = async (page: Page, user: SmokeUser, date: string) => 
 };
 
 test.describe('Release role smoke', () => {
-  test('admin can reach census, transfer management, and medical handoff', async ({ page }) => {
+  test('admin keeps nursing handoff while hidden modules stay out of navigation', async ({
+    page,
+  }) => {
     const date = resolveCurrentSmokeClinicalDay();
     await bootstrapRoleSmoke(
       page,
@@ -133,18 +135,16 @@ test.describe('Release role smoke', () => {
       date
     );
 
-    await page.getByTestId('nav-tab-transfer-management').click();
-    await expect(page).toHaveURL(/\/transfer-management/, { timeout: 20000 });
-    await expect(page.getByTestId('transfer-management-view')).toBeVisible({ timeout: 20000 });
-
-    await page.getByTestId('nav-tab-medical-handoff').click();
-    await expect(page).toHaveURL(/\/medical-handoff/, { timeout: 20000 });
-    await expect(page.getByTestId('medical-handoff-create-entry-button').first()).toBeVisible({
+    await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
+    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
+    await page.getByTestId('nav-tab-nursing-handoff').click();
+    await expect(page).toHaveURL(/\/nursing-handoff/, { timeout: 20000 });
+    await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible({
       timeout: 20000,
     });
   });
 
-  test('hospital nurse can reach census, nursing handoff, and transfer management', async ({
+  test('hospital nurse can reach census and nursing handoff without hidden modules', async ({
     page,
   }) => {
     const date = resolveCurrentSmokeClinicalDay();
@@ -165,14 +165,11 @@ test.describe('Release role smoke', () => {
       timeout: 20000,
     });
 
-    await page.getByTestId('nav-tab-transfer-management').click();
-    await expect(page).toHaveURL(/\/transfer-management/, { timeout: 20000 });
-    await expect(page.getByTestId('transfer-management-view')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
+    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
   });
 
-  test('specialist has restricted census and can reach editable medical handoff today', async ({
-    page,
-  }) => {
+  test('specialist has restricted census without hidden modules', async ({ page }) => {
     const date = resolveCurrentSmokeClinicalDay();
     await bootstrapRoleSmoke(
       page,
@@ -186,10 +183,7 @@ test.describe('Release role smoke', () => {
     );
 
     await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
-    await page.getByTestId('nav-tab-medical-handoff').click();
-    await expect(page).toHaveURL(/\/medical-handoff/, { timeout: 20000 });
-    await expect(page.getByTestId('medical-handoff-create-entry-button').first()).toBeVisible({
-      timeout: 20000,
-    });
+    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
+    await expect(page.getByTestId('census-table')).toBeVisible();
   });
 });

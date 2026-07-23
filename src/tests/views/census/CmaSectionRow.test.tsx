@@ -4,21 +4,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { CmaSectionRow } from '@/features/census/components/CmaSectionRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
-vi.mock('@/features/census/components/IEEHFormDialog', () => ({
-  IEEHFormDialog: ({
-    patient,
-    baseDischargeData,
-  }: {
-    patient: { patientName?: string };
-    baseDischargeData: { dischargeDate?: string; dischargeTime?: string };
-  }) => (
-    <div>
-      IEEH CMA {patient.patientName} {baseDischargeData.dischargeDate}{' '}
-      {baseDischargeData.dischargeTime}
-    </div>
-  ),
-}));
-
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: ({
     isOpen,
@@ -98,7 +83,7 @@ describe('CmaSectionRow', () => {
     ).toBeInTheDocument();
   });
 
-  it('opens the IEEH dialog for CMA records with original patient data', async () => {
+  it('does not expose IEEH and preserves the shared actions menu', () => {
     const item = DataFactory.createMockCMA({
       id: 'cma-ieeh',
       dischargeTime: '19:45',
@@ -121,67 +106,12 @@ describe('CmaSectionRow', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByTitle('Generar Informe Estadístico de Egreso (IEEH)'));
-
-    expect(await screen.findByText('IEEH CMA Paciente CMA 2026-04-30 19:45')).toBeInTheDocument();
-  });
-
-  it('shows a labeled IEEH button and builds a patient snapshot when CMA has no original data', async () => {
-    const item = DataFactory.createMockCMA({
-      id: 'cma-ieeh-fallback',
-      patientName: 'Paciente Sin Snapshot',
-      rut: '11.111.111-1',
-      age: '64',
-      diagnosis: 'Procedimiento ambulatorio',
-      specialty: 'Cirugía',
-      dischargeTime: '13:20',
-      originalData: undefined,
-    });
-
-    render(
-      <table>
-        <tbody>
-          <CmaSectionRow
-            item={item}
-            recordDate="2026-04-30"
-            onUpdate={vi.fn()}
-            onUndo={vi.fn().mockResolvedValue(undefined)}
-            onDelete={vi.fn()}
-            onConvertToDischarge={vi.fn()}
-          />
-        </tbody>
-      </table>
-    );
-
-    const ieehButton = screen.getByRole('button', { name: /IEEH/i });
-    fireEvent.click(ieehButton);
-
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
     expect(
-      await screen.findByText('IEEH CMA Paciente Sin Snapshot 2026-04-30 13:20')
-    ).toBeInTheDocument();
-  });
-
-  it('renders the IEEH action after the delete action', () => {
-    const item = DataFactory.createMockCMA({ id: 'cma-action-order' });
-
-    render(
-      <table>
-        <tbody>
-          <CmaSectionRow
-            item={item}
-            recordDate="2026-04-30"
-            onUpdate={vi.fn()}
-            onUndo={vi.fn().mockResolvedValue(undefined)}
-            onDelete={vi.fn()}
-            onConvertToDischarge={vi.fn()}
-          />
-        </tbody>
-      </table>
-    );
-
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.at(-2)).toHaveAttribute('title', 'Abrir menú de acciones');
-    expect(buttons.at(-1)).toHaveTextContent('IEEH');
+      screen.queryByRole('menuitem', {
+        name: /Generar Informe Estadístico de Egreso \(IEEH\)/i,
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('sends the complete CMA item when delete is requested from the menu', () => {

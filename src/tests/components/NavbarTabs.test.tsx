@@ -42,7 +42,7 @@ describe('NavbarTabs', () => {
 
     expect(screen.getByText('Censo Diario')).toBeInTheDocument();
     expect(screen.getByText('Entrega Turno Enfermería')).toBeInTheDocument();
-    expect(screen.getByText('Entrega Turno Médicos')).toBeInTheDocument();
+    expect(screen.queryByText('Entrega Turno Médicos')).not.toBeInTheDocument();
   });
 
   it('shows utility modules in dropdown', () => {
