@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/syslab-session-transport.js';
 import '../../../extension/syslab-runtime.js';
 
 type StoredValues = Record<string, unknown>;
@@ -34,10 +35,15 @@ const createHarness = (
         }),
       },
     },
-    tabs: { create: vi.fn(async () => ({ id: 81 })) },
+    tabs: {
+      create: vi.fn(async () => ({ id: 81 })),
+      query: vi.fn(async () => []),
+      sendMessage: vi.fn(),
+    },
   };
   const dependencies = {
     chrome: chromeApi,
+    syslabSessionTransport: globalThis.HhrSyslabSessionTransport,
     labViewer: {
       normalizePatientRutBody: (value: unknown) => {
         const compact = String(value || '').replace(/\D/g, '');
@@ -131,6 +137,9 @@ describe('Syslab background runtime', () => {
 });
 
 declare global {
+  var HhrSyslabSessionTransport: {
+    create: (dependencies: Record<string, unknown>) => Record<string, unknown>;
+  };
   var HhrSyslabRuntime: {
     create: (dependencies: Record<string, unknown>) => {
       currentSession: () => Promise<Record<string, unknown>>;

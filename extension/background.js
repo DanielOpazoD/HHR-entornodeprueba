@@ -40,7 +40,7 @@ importScripts(
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
-  'lab-viewer.js',
+  'lab-viewer.js', 'syslab-session-transport.js',
   'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
@@ -1143,7 +1143,7 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
 const syslabRuntime = self.HhrSyslabRuntime.create({
   chrome,
   labViewer: self.HhrLabViewer,
-  withTimeout,
+  syslabSessionTransport: self.HhrSyslabSessionTransport, withTimeout,
   getClinicalReportContext,
   getFichaFetchInfo,
   fichaSessionCacheKey,

@@ -62,7 +62,7 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
     };
   }, [labPatients.length]);
 
-  const isDisabled = labPatients.length === 0 || connectionStatus !== 'available';
+  const isDisabled = labPatients.length === 0;
   const buttonTone =
     connectionStatus === 'unavailable' && labPatients.length > 0
       ? 'border-amber-200 bg-amber-50 text-amber-700'
@@ -72,9 +72,7 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
     <>
       <button
         onClick={() => {
-          if (!isDisabled) {
-            setIsLabOpen(true);
-          }
+          if (!isDisabled) setIsLabOpen(true);
         }}
         data-testid="lab-quick-action"
         disabled={isDisabled}

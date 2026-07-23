@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { LaboratoryQuickAction } from '@/features/laboratory/components/LaboratoryQuickAction';
@@ -10,7 +10,8 @@ vi.mock('@/services/laboratory/syslabService', () => ({
 }));
 
 vi.mock('@/features/laboratory/components/LabResultsViewerModal', () => ({
-  LabResultsViewerModal: () => <div>Lab modal</div>,
+  LabResultsViewerModal: ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <div>Lab modal</div> : null,
 }));
 
 const patients: MedicalIndicationsPatientOption[] = [
@@ -42,7 +43,7 @@ describe('LaboratoryQuickAction', () => {
     expect(button).toHaveClass('text-[10px]');
   });
 
-  it('keeps the Syslab button disabled when the health check is unavailable', async () => {
+  it('keeps the Syslab viewer reachable when the connection check is unavailable', async () => {
     vi.mocked(checkSyslabConnection).mockResolvedValue({
       available: false,
       message: 'Failed to fetch',
@@ -51,13 +52,27 @@ describe('LaboratoryQuickAction', () => {
     render(<LaboratoryQuickAction patients={patients} />);
 
     const button = screen.getByRole('button', { name: /lab/i });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
 
     await waitFor(() => {
-      expect(button).toBeDisabled();
+      expect(button).toBeEnabled();
       expect(button).toHaveAttribute('title', 'Syslab no disponible: Failed to fetch');
       expect(button).toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
     });
+
+    fireEvent.click(button);
+    expect(screen.getByText('Lab modal')).toBeInTheDocument();
+  });
+
+  it('disables the action only when there are no patients with RUT', async () => {
+    vi.mocked(checkSyslabConnection).mockResolvedValue({
+      available: true,
+      message: 'Conectado',
+    });
+
+    render(<LaboratoryQuickAction patients={[]} />);
+
+    expect(screen.getByRole('button', { name: /lab/i })).toBeDisabled();
   });
 
   it('enables the Syslab button when the health check is available', async () => {
