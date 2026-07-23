@@ -8,11 +8,7 @@ import {
 } from '@/services/auth/authStorageHints';
 import { resolveModuleFromPathname } from '@/hooks/controllers/appStateNavigationController';
 
-export type AppShellLoadingScreenMode =
-  | 'silent'
-  | 'default'
-  | 'login-shell'
-  | 'bootstrap-route-chrome';
+export type AppShellLoadingScreenMode = 'default' | 'login-shell' | 'bootstrap-route-chrome';
 
 export interface PreMountLoadingScreenDecision {
   shouldRender: boolean;

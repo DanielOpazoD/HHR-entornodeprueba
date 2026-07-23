@@ -131,6 +131,8 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
         {isGoogleLoading && (
           <div
             data-testid="login-google-pending"
+            role="status"
+            aria-live="polite"
             className="mt-5 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-center backdrop-blur-md"
           >
             <p className="text-sm font-semibold text-white">{AUTH_UI_COPY.popupPendingTitle}</p>
@@ -145,6 +147,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             <div
               data-testid="login-error-alert"
               data-auth-error-code={errorCode || undefined}
+              role="alert"
               className="flex items-center gap-2 rounded-xl border border-red-300/50 bg-red-500/20 p-3 text-sm text-red-50 text-balance backdrop-blur-md"
             >
               <AlertCircle className="h-5 w-5 flex-shrink-0" />

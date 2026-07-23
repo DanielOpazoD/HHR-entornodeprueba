@@ -7,12 +7,37 @@
   // - refresh autenticado en modulos: mostrar el mismo chrome real del
   //   modulo origen desde React bootstrap, no una recreacion en index.html
   // - no reintroducir loaders/skeletons/spinners full-screen en esta capa
+  // Mirror src/shared/ui/loginBackgroundModeController.ts so the preboot
+  // wallpaper matches the DÍA/NOCHE mode the login page will render — no
+  // day-image flash for users who chose the night background.
+  var resolveLoginBackgroundMode = function () {
+    try {
+      var storedMode = window.localStorage.getItem('hhr_login_background_mode');
+      if (storedMode === 'day' || storedMode === 'night') {
+        return storedMode;
+      }
+    } catch (error) {
+      // Fall through to the time-based default.
+    }
+    var currentHour = new Date().getHours();
+    return currentHour >= 8 && currentHour < 20 ? 'day' : 'night';
+  };
+  var LOGIN_SURFACE_GRADIENTS = {
+    day: 'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',
+    night:
+      'linear-gradient(115deg, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.78) 35%, rgba(2, 6, 23, 0.44) 66%, rgba(2, 6, 23, 0.22) 100%)',
+  };
+  var LOGIN_SURFACE_IMAGES = {
+    day: "url('/images/login/hhr-login-day.webp')",
+    night: "url('/images/login/hhr-login-night.webp')",
+  };
+  var loginBackgroundMode = resolveLoginBackgroundMode();
   var LOGIN_SURFACE_BACKGROUND = {
     color: '#020617',
     image: [
-      'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',
+      LOGIN_SURFACE_GRADIENTS[loginBackgroundMode],
       'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%)',
-      "url('/images/login/hhr-login-day.webp')",
+      LOGIN_SURFACE_IMAGES[loginBackgroundMode],
     ].join(','),
     position: 'center, center, center',
     repeat: 'no-repeat, no-repeat, no-repeat',
