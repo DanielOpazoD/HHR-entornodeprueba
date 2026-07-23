@@ -323,11 +323,16 @@
         "iife>callback:window.addEventListener:1": 17
       }
     },
-    "lab-viewer.js": {
-      "maxLines": 445,
+    "lab-result-parser.js": {
+      "maxLines": 241,
       "hotspots": {
-        "callback:FunctionExpression:1>variable:findingAlert": 35,
-        "callback:FunctionExpression:1>variable:parseReportText": 17,
+        "callback:FunctionExpression:1>variable:findingAlert": 33,
+        "callback:FunctionExpression:1>variable:parseMeasurement": 18
+      }
+    },
+    "lab-viewer.js": {
+      "maxLines": 247,
+      "hotspots": {
         "callback:FunctionExpression:1>variable:validateDetailBatch": 17
       }
     },

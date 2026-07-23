@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": ["tabs", "downloads", "storage", "offscreen"],
   "host_permissions": [
@@ -68,6 +68,7 @@
         "hhr-medication-actions-runtime.js",
         "hhr-connection-center-runtime.js",
         "prescription-print.js",
+        "lab-result-parser.js",
         "lab-viewer.js",
         "exam-request-print.js",
         "content-fichamedico.js",
@@ -89,7 +90,7 @@
     },
     {
       "matches": ["http://10.4.69.90/syslab/*"],
-      "js": ["lab-viewer.js", "syslab-bridge.js"],
+      "js": ["lab-result-parser.js", "lab-viewer.js", "syslab-bridge.js"],
       "run_at": "document_idle",
       "all_frames": true
     },

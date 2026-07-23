@@ -10,7 +10,11 @@ import {
   ReferenceArea,
 } from 'recharts';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
-import { sortByDate } from './LabTrendChartHelpers';
+import {
+  formatLabTrendValue,
+  resolveSharedReferenceBand,
+  sortByDate,
+} from './LabTrendChartHelpers';
 import { DASH_PATTERNS, LABEL_OFFSETS, LINE_COLORS } from '../constants/labChartConstants';
 
 export const StaggeredLabel: React.FC<{
@@ -31,35 +35,46 @@ export const StaggeredLabel: React.FC<{
       fontSize={9}
       fontWeight={700}
     >
-      {typeof value === 'number' ? (value % 1 === 0 ? value : value.toFixed(1)) : value}
+      {formatLabTrendValue(value)}
     </text>
   );
 };
 
 export const LabTrendTooltip: React.FC<{
   active?: boolean;
-  payload?: Array<{ name: string; value: number; payload: LabTrendPoint }>;
+  payload?: Array<{
+    name: string;
+    value: number;
+    payload: { date: string; __points: Record<string, LabTrendPoint> };
+  }>;
 }> = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
       <p className="mb-1 text-[11px] font-semibold text-slate-700">{payload[0]?.payload?.date}</p>
-      {payload.map((entry, index) => (
-        <p
-          key={index}
-          className="text-[12px]"
-          style={{ color: entry.name ? undefined : '#10b981' }}
-        >
-          <span className="font-bold">{entry.name}: </span>
-          {entry.value} {entry.payload?.unit}
-        </p>
-      ))}
-      {payload[0]?.payload?.refMin != null && payload[0]?.payload?.refMax != null && (
-        <p className="mt-1 text-[10px] text-slate-400">
-          Ref: {payload[0].payload.refMin} - {payload[0].payload.refMax}
-        </p>
-      )}
+      {payload.map(entry => {
+        const point = entry.payload.__points[entry.name];
+        return (
+          <div key={entry.name} className="border-t border-slate-100 py-1 first:border-0">
+            <p className="text-[12px]">
+              <span className="font-bold">{entry.name}: </span>
+              {formatLabTrendValue(entry.value)} {point?.unit}
+            </p>
+            {point?.rawValue ? (
+              <p className="text-[10px] text-slate-500">Original Syslab: {point.rawValue}</p>
+            ) : null}
+            {point?.sourceSection ? (
+              <p className="text-[10px] text-slate-500">Sección: {point.sourceSection}</p>
+            ) : null}
+            {point?.refMin != null && point.refMax != null ? (
+              <p className="text-[10px] text-slate-400">
+                Ref: {formatLabTrendValue(point.refMin)} - {formatLabTrendValue(point.refMax)}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -70,22 +85,22 @@ export const UnitSubChart: React.FC<{
   colorOffset: number;
 }> = ({ varEntries, unit, colorOffset }) => {
   const varNames = Object.keys(varEntries);
-  const dateMap: Record<string, Record<string, number>> = {};
-  let firstRef: { min?: number; max?: number } = {};
+  const dateMap: Record<
+    string,
+    { date: string; __points: Record<string, LabTrendPoint>; [key: string]: unknown }
+  > = {};
 
   for (const [name, points] of Object.entries(varEntries)) {
     for (const point of points) {
-      if (!dateMap[point.date]) dateMap[point.date] = {};
-      dateMap[point.date][name] = point.value;
-      if (!firstRef.min && point.refMin != null) {
-        firstRef = { min: point.refMin, max: point.refMax };
+      if (!dateMap[point.date]) {
+        dateMap[point.date] = { date: point.date, __points: {} };
       }
+      dateMap[point.date][name] = point.value;
+      dateMap[point.date].__points[name] = point;
     }
   }
 
-  const chartData = Object.entries(dateMap)
-    .map(([date, vals]) => ({ date, ...vals }))
-    .sort((a, b) => sortByDate(a.date, b.date));
+  const chartData = Object.values(dateMap).sort((a, b) => sortByDate(a.date, b.date));
 
   const allVals: number[] = [];
   for (const points of Object.values(varEntries)) {
@@ -98,7 +113,7 @@ export const UnitSubChart: React.FC<{
 
   const yMin = Math.floor(Math.min(...allVals) * 0.85);
   const yMax = Math.ceil(Math.max(...allVals) * 1.15);
-  const hasRef = firstRef.min != null && firstRef.max != null;
+  const sharedReference = resolveSharedReferenceBand(varEntries);
   const extraMargin = varNames.length > 2 ? 30 : 18;
 
   return (
@@ -148,10 +163,10 @@ export const UnitSubChart: React.FC<{
             />
             <Tooltip content={<LabTrendTooltip />} />
 
-            {hasRef && (
+            {sharedReference && (
               <ReferenceArea
-                y1={firstRef.min!}
-                y2={firstRef.max!}
+                y1={sharedReference.min}
+                y2={sharedReference.max}
                 fill="#10b981"
                 fillOpacity={0.06}
                 stroke="#10b981"
@@ -170,7 +185,7 @@ export const UnitSubChart: React.FC<{
                 <Line
                   key={name}
                   name={name}
-                  type="monotone"
+                  type="linear"
                   dataKey={name}
                   stroke={color}
                   strokeWidth={2.5}

@@ -10,6 +10,8 @@ features/laboratory/
 ├── constants/                # Config clínica separada por dominio (progress, trend, comparison, exam, chart)
 ├── controllers/
 │   ├── labFormattingController.ts  # Puro: parsing, formateo, validación, utilidades compartidas
+│   ├── labNumericParser.ts         # Puro: números localizados con contexto de unidad/rango
+│   ├── labSpecimenController.ts    # Puro: clasificación sangre/orina/otros fluidos
 │   ├── labAnalyticsController.ts   # Puro: buildAnalysisData + helpers
 │   ├── labComparisonController.ts  # Puro: texto compacto de comparación para clipboard
 │   └── labSummaryController.ts     # Puro: resumen con siglas clínicas para documentos
@@ -72,6 +74,25 @@ La exportación de comparación genera una hoja `Comparación Lab` con:
 - fallback desde el PDF original para completar microbiología cuando Syslab `details` no trae todas las subsecciones
 - taxonomía microbiológica explícita para `PCR 8 virus`, `PCR arbovirus`, `Hemocultivo`, `Urocultivo` y `Otros cultivos`
 - normalización urinaria reutilizable para `SEDIMENTO URINARIO`, `ORINA FISICO-QUIMICO`, `RPC` y `RAC`
+
+## Integridad de tendencias
+
+Las curvas se construyen con tres contratos explícitos:
+
+1. **Muestra:** sangre, orina y otros fluidos no se mezclan aunque Syslab repita el mismo nombre
+   de análisis. `RPC` y `RAC` son las únicas tendencias urinarias habilitadas.
+2. **Número localizado:** la coma es decimal. Un valor como `1.071` en `U/L`, con rango entero,
+   se interpreta como `1071`; en una unidad escalada como `x10^3/uL`, `7.280` se interpreta
+   como `7,28`.
+3. **Trazabilidad:** cada punto conserva el texto original y la sección del PDF. El tooltip muestra
+   esa procedencia y el rango propio del análisis.
+
+Una banda verde de referencia sólo se dibuja cuando todas las variables del subgráfico comparten
+exactamente el mismo rango. Las líneas son rectas entre mediciones; no se suavizan valores clínicos.
+
+La regresión de referencia está desidentificada en
+`src/tests/features/laboratory/fixtures/syslabGoldenLabFixtures.ts` y cubre colisiones de albúmina,
+leucocitos y segmentados entre perfil sanguíneo y orina, además de FA/GGT sobre 1.000 U/L.
 
 ## Flujo de datos
 

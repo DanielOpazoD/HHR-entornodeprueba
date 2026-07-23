@@ -1,74 +1,14 @@
 import type { LabResultRow } from '@/types/domain/labExamTypes';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
 import { parseRefRange } from './labFormattingController';
+import { parseLabMeasurement } from './labNumericParser';
+import { isLabComparisonEligible, isLabTrendSpecimenEligible } from './labSpecimenController';
 import {
   collectMicrobiologyFinding,
   resolveMicrobiologyCategoryForFinding,
 } from './labMicrobiologyAnalyticsController';
 import type { DetailProcessingContext } from './labAnalyticsContracts';
 import { isExcludedFromComparison, isTrendVariable } from './labAnalyticsVariableController';
-
-const isUrineComparisonExcluded = (finding: LabResultRow): boolean => {
-  const normalizeToken = (value: string): string =>
-    value
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .replace(/[°º]/g, ' ')
-      .replace(/[^A-Za-z0-9]+/g, ' ')
-      .toUpperCase();
-
-  const upperSection = normalizeToken(String(finding.section || ''));
-  const upperAnalysis = normalizeToken(String(finding.analysis || ''));
-  const upperResult = normalizeToken(String(finding.result || ''));
-  if (finding.analysis === 'RPC' || finding.analysis === 'RAC') {
-    return false;
-  }
-
-  const isUrineAnalysis =
-    upperAnalysis.includes('ORINA FISICO QUIMICO') ||
-    upperAnalysis.includes('SEDIMENTO URINARIO') ||
-    upperAnalysis.includes('CUERPOS CETON') ||
-    upperAnalysis.includes('NITRIT') ||
-    upperAnalysis.includes('SANGRE') ||
-    upperAnalysis.includes('UROBILIN') ||
-    upperAnalysis.includes('GLUCOSA') ||
-    upperAnalysis.includes('BILIRRUBINA') ||
-    upperAnalysis.includes('DENSIDAD') ||
-    upperAnalysis.includes('ASPECTO') ||
-    upperAnalysis.includes('COLOR') ||
-    upperAnalysis === 'PROTEINAS' ||
-    upperAnalysis.includes('PROTEINURIA') ||
-    upperAnalysis.includes('CREATININURIA') ||
-    upperAnalysis.includes('MICROALBUMINURIA') ||
-    upperAnalysis.includes('BACTERIAS') ||
-    upperAnalysis.includes('CILINDROS') ||
-    upperAnalysis.includes('PLACAS DE PUS') ||
-    upperAnalysis.includes('ERITROCITOS');
-
-  const isQualitativeUrineLeukocyte =
-    upperAnalysis.includes('LEUCOCITOS') &&
-    /NEGATIVO|NO SE OBSERVA|ESCASA|MODERADA|ABUNDANTE|\+|X CAMPO/.test(upperResult);
-
-  const isUrineMetadata =
-    upperAnalysis.includes('MIDAS') ||
-    upperResult.includes('MIDAS') ||
-    (upperAnalysis.includes('INGRESO') && upperAnalysis.includes('MIDAS')) ||
-    upperAnalysis.includes('FECHA Y HORA INGRESO SOLICITUD') ||
-    upperAnalysis.includes('FECHA Y HORA VALIDACION') ||
-    upperAnalysis.includes('DIRECTOR TECNICO') ||
-    upperAnalysis.includes('RESULTADO VIA WEB');
-
-  return (
-    upperSection.includes('ORINA') ||
-    upperSection.includes('SEDIMENTO') ||
-    upperSection.includes('ORINA FISICO') ||
-    upperSection.includes('FISICO-QUIMICO') ||
-    upperSection.includes('QUIMICA/ORINA') ||
-    isUrineMetadata ||
-    isUrineAnalysis ||
-    isQualitativeUrineLeukocyte
-  );
-};
 
 const collectBilirubinFinding = (
   bilirubinByCol: Record<string, { total?: string; directa?: string; indirecta?: string }>,
@@ -96,7 +36,7 @@ const collectComparisonFinding = (
   if (
     isExcludedFromComparison(finding.analysis) ||
     lowerAnalysis.includes('bilirrubina') ||
-    isUrineComparisonExcluded(finding)
+    !isLabComparisonEligible(finding)
   ) {
     return;
   }
@@ -118,7 +58,11 @@ const collectTrendFinding = (
   isoDate: string,
   finding: LabResultRow
 ) => {
-  if (!isTrendVariable(finding.analysis) || finding.qualitative) {
+  if (
+    !isTrendVariable(finding.analysis) ||
+    finding.qualitative ||
+    !isLabTrendSpecimenEligible(finding)
+  ) {
     return;
   }
 
@@ -128,8 +72,8 @@ const collectTrendFinding = (
   }
 
   seenTrend.add(trendKey);
-  const numValue = parseFloat(finding.result.replace(',', '.'));
-  if (isNaN(numValue)) {
+  const measurement = parseLabMeasurement(finding.result, finding);
+  if (!measurement || measurement.comparator !== '=') {
     return;
   }
 
@@ -138,8 +82,10 @@ const collectTrendFinding = (
   trendMap[finding.analysis].push({
     date: colKey,
     isoDate,
-    value: numValue,
+    value: measurement.value,
     unit: finding.unit,
+    rawValue: finding.result,
+    sourceSection: finding.section,
     refMin: range?.min,
     refMax: range?.max,
   });

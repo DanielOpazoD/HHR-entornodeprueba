@@ -15,6 +15,10 @@ export interface LabTrendPoint {
   isoDate: string;
   value: number;
   unit: string;
+  /** Original Syslab value retained for clinical traceability in the chart tooltip. */
+  rawValue?: string;
+  /** PDF section/specimen that produced this point. */
+  sourceSection?: string;
   refMin?: number;
   refMax?: number;
 }

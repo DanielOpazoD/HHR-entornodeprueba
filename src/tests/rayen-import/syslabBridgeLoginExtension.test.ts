@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/lab-result-parser.js';
 import '../../../extension/lab-viewer.js';
 
 const bridgeSource = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
