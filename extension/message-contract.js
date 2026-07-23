@@ -77,7 +77,7 @@
     },
     [types.HISTORY_SCALES_REQUEST]: { encId: 'id' },
     [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' },
-    [types.LAB_SEARCH_REQUEST]: { encId: 'id', patientRut: 'string' },
+    [types.LAB_SEARCH_REQUEST]: { rutBody: 'string' },
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },
     [types.LAB_DETAILS_REQUEST]: { batchId: 'string', examIds: 'array' },
     [types.LAB_PDF_OPEN_REQUEST]: { batchId: 'string', examId: 'id' },

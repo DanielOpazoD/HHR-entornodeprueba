@@ -37,6 +37,10 @@ export interface SyslabLoginWindowResult {
   error?: string;
 }
 
+/** Syslab searches by the numeric RUT body, without verifier digit. */
+export const cleanRutForSyslab = (rut: string): string =>
+  rut.replace(/\./g, '').replace(/-.*$/, '').replace(/\D/g, '').trim();
+
 const requestExtension = (
   operation: SyslabExtensionOperation,
   payload: Record<string, unknown> = {},
@@ -128,11 +132,12 @@ export const openSyslabLoginWindow = async (): Promise<SyslabLoginWindowResult> 
 };
 
 export const searchSyslabThroughExtension = async (
-  rut: string,
-  encId?: string
+  rut: string
 ): Promise<{ bridgeAvailable: boolean; data?: SyslabSearchResponse; error?: string }> => {
-  if (!encId) return { bridgeAvailable: false };
-  const requestedRut = rut.replace(/[^0-9K]/gi, '').toUpperCase();
+  const rutBody = cleanRutForSyslab(rut);
+  if (!/^\d{5,9}$/.test(rutBody)) {
+    return { bridgeAvailable: true, error: 'El RUT seleccionado no es válido para Syslab.' };
+  }
   const availability = await requestExtension('status', {}, 1_000);
   if (!availability.bridgeAvailable) return { bridgeAvailable: false };
   const availabilityError = responseError(availability, 'La extensión no pudo comprobar Syslab.');
@@ -146,21 +151,18 @@ export const searchSyslabThroughExtension = async (
           : 'Conecta Syslab desde el módulo Laboratorio de la extensión Eloísa.',
     };
   }
-  const result = await requestExtension('search', { encId, patientRut: rut }, 40_000);
+  const result = await requestExtension('search', { rutBody }, 40_000);
   if (!result.bridgeAvailable) return { bridgeAvailable: false };
   const error = responseError(result, 'La extensión no pudo consultar Syslab.');
   if (error) return { bridgeAvailable: true, error };
 
   const response = result.response;
   const batchId = typeof response?.batchId === 'string' ? response.batchId : '';
-  const responsePatient = response?.patient as Record<string, unknown> | undefined;
-  const responseRut = String(responsePatient?.run || '')
-    .replace(/[^0-9K]/gi, '')
-    .toUpperCase();
-  if (!batchId || !/^[0-9a-f-]{36}$/i.test(batchId) || responseRut !== requestedRut) {
+  const responseRutBody = cleanRutForSyslab(String(response?.rutBody || ''));
+  if (!batchId || !/^[0-9a-f-]{36}$/i.test(batchId) || responseRutBody !== rutBody) {
     return {
       bridgeAvailable: true,
-      error: 'La extensión no confirmó que los resultados correspondan al RUN seleccionado.',
+      error: 'Syslab no confirmó que los resultados correspondan al RUT seleccionado.',
     };
   }
   const exams = (Array.isArray(response?.exams) ? response.exams : []).filter(value =>

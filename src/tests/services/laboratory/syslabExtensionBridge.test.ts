@@ -34,18 +34,17 @@ const installBridgeResponse = (
 describe('Syslab extension page bridge', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('uses the selected clinical episode and returns opaque report locators', async () => {
+  it('searches with the RUT body only and returns opaque report locators', async () => {
     const postMessage = installBridgeResponse(request => {
       if (request.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST') return { connected: true };
       expect(request).toMatchObject({
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
-        encId: '141814',
-        patientRut: '14.470.055-4',
+        rutBody: '14470055',
       });
       return {
         ok: true,
         batchId: BATCH_ID,
-        patient: { run: '14.470.055-4' },
+        rutBody: '14470055',
         exams: [
           {
             id: '43091284',
@@ -59,7 +58,7 @@ describe('Syslab extension page bridge', () => {
       };
     });
 
-    await expect(searchSyslabThroughExtension('14.470.055-4', '141814')).resolves.toEqual({
+    await expect(searchSyslabThroughExtension('14.470.055-4')).resolves.toEqual({
       bridgeAvailable: true,
       data: {
         success: true,
@@ -94,21 +93,21 @@ describe('Syslab extension page bridge', () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects results when Eloísa does not confirm the selected RUN', async () => {
+  it('rejects results when Syslab does not confirm the selected RUT body', async () => {
     installBridgeResponse(request =>
       request.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST'
         ? { connected: true }
         : {
             ok: true,
             batchId: BATCH_ID,
-            patient: { run: '11.111.111-1' },
+            rutBody: '11111111',
             exams: [{ id: '43091284' }],
           }
     );
 
-    await expect(searchSyslabThroughExtension('14.470.055-4', '141814')).resolves.toEqual({
+    await expect(searchSyslabThroughExtension('14.470.055-4')).resolves.toEqual({
       bridgeAvailable: true,
-      error: 'La extensión no confirmó que los resultados correspondan al RUN seleccionado.',
+      error: 'Syslab no confirmó que los resultados correspondan al RUT seleccionado.',
     });
   });
 

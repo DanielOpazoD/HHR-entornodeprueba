@@ -48,37 +48,11 @@ export const useLabViewerQuery = ({
     fullName?: string;
     birthDate?: string;
   } | null>(null);
-  const selectedEpisodeIds = useMemo(
-    () =>
-      new Set(
-        patients
-          .filter(patient => patient.rut === selectedRut)
-          .map(patient => patient.clinicalEpisodeId)
-          .filter((value): value is string => Boolean(value))
-      ),
-    [patients, selectedRut]
-  );
-  const selectedEpisodeIsAmbiguous = selectedEpisodeIds.size > 1;
-  const selectedClinicalEpisodeId =
-    selectedEpisodeIds.size === 1 ? [...selectedEpisodeIds][0] : undefined;
-  const selectedEpisodeQueryScope = selectedEpisodeIsAmbiguous
-    ? 'ambiguous'
-    : selectedClinicalEpisodeId || 'external';
-  const labQueryKey = useMemo(
-    () => [...queryKeys.laboratory.byPatient(selectedRut), selectedEpisodeQueryScope],
-    [selectedEpisodeQueryScope, selectedRut]
-  );
+  const labQueryKey = useMemo(() => queryKeys.laboratory.byPatient(selectedRut), [selectedRut]);
 
   const examQuery = useQuery({
     queryKey: labQueryKey,
-    queryFn: () => {
-      if (selectedEpisodeIsAmbiguous) {
-        throw new Error(
-          'El paciente aparece con más de un episodio activo. Selecciona el episodio correcto en el censo antes de consultar laboratorio.'
-        );
-      }
-      return searchSyslabExams(selectedRut, selectedClinicalEpisodeId);
-    },
+    queryFn: () => searchSyslabExams(selectedRut),
     enabled: searchEnabled && !!selectedRut,
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,

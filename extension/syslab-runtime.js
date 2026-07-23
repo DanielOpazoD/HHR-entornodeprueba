@@ -20,26 +20,15 @@
     const {
       chrome: chromeApi,
       labViewer,
-      syslabEncounterAuthorization,
       syslabSessionTransport,
       withTimeout,
-      getClinicalReportContext,
-      getFichaFetchInfo,
-      fichaSessionCacheKey,
-      fetchActiveEncounterRows,
-      resolveFichaEncounterId,
     } = dependencies || {};
 
     if (
-      !chromeApi || !labViewer || !syslabEncounterAuthorization || !syslabSessionTransport ||
-      typeof syslabEncounterAuthorization.create !== 'function' ||
+      !chromeApi || !labViewer || !syslabSessionTransport ||
       typeof syslabSessionTransport.create !== 'function' ||
       typeof withTimeout !== 'function' ||
-      typeof getClinicalReportContext !== 'function' ||
-      typeof getFichaFetchInfo !== 'function' ||
-      typeof fichaSessionCacheKey !== 'function' ||
-      typeof fetchActiveEncounterRows !== 'function' ||
-      typeof resolveFichaEncounterId !== 'function'
+      typeof labViewer.normalizeRutBody !== 'function'
     ) {
       throw new Error('No se pudo inicializar el runtime de Syslab.');
     }
@@ -47,13 +36,6 @@
     const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
     let syslabOffscreenCreation = null;
 
-    const encounterAuthorization = syslabEncounterAuthorization.create({
-      getFichaFetchInfo,
-      fichaSessionCacheKey,
-      fetchActiveEncounterRows,
-      resolveFichaEncounterId,
-      normalizePatientRutBody: labViewer.normalizePatientRutBody,
-    });
     const readOffscreenContexts = async () => {
       if (typeof chromeApi.runtime.getContexts !== 'function') return [];
       const contexts = await chromeApi.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
@@ -211,27 +193,10 @@
       if (expiredKeys.length) await chromeApi.storage.session.remove(expiredKeys);
     };
 
-    const resolveAuthorizedPatientContext = async ({ encId, patientRut, sender }) => {
-      const eligibility = await encounterAuthorization.preflight({ encId, patientRut, sender });
-      if (eligibility.error) return eligibility;
-      const context = await getClinicalReportContext(encId, null, null, sender);
-      if (context.error) return context;
-      if (eligibility.requiresPatientIdentity) {
-        const identity = encounterAuthorization.confirmPatientIdentity({
-          requestedRut: eligibility.requestedRut,
-          resolvedPatientRut: context.patient && context.patient.run,
-        });
-        if (identity.error) return identity;
-      }
-      return context;
-    };
-
-    const search = async ({ encId, patientRut, sender }) => {
-      const context = await resolveAuthorizedPatientContext({ encId, patientRut, sender });
-      if (context.error) return context;
-      const rutBody = labViewer.normalizePatientRutBody(context.patient && context.patient.run);
-      if (!/^\d{5,9}$/.test(rutBody)) {
-        return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
+    const search = async ({ rutBody: requestedRutBody, sender }) => {
+      const rutBody = labViewer.normalizeRutBody(requestedRutBody);
+      if (!/^\d{5,9}$/.test(rutBody) || rutBody !== String(requestedRutBody || '')) {
+        return { error: 'HHR no informó un RUT válido, sin dígito verificador, para Syslab.' };
       }
 
       let directSearch;
@@ -257,7 +222,6 @@
       await sweepExpiredLabBatches();
       await chromeApi.storage.session.set({
         [LAB_BATCH_PREFIX + batchId]: {
-          encounterId: String(encId),
           senderTabId: sender && sender.tab && sender.tab.id,
           rutBody,
           createdAt: Date.now(),
@@ -268,7 +232,7 @@
       return {
         ok: true,
         batchId,
-        patient: context.patient,
+        rutBody,
         exams: exams.map(exam => ({
           id: exam.id,
           date: exam.date,
@@ -307,14 +271,10 @@
     };
 
     const validateLabBatchSender = async (batch, sender) => {
-      if (batch.senderTabId != null && batch.senderTabId === (sender && sender.tab && sender.tab.id)) {
-        return null;
-      }
-      const authorization = await encounterAuthorization.authorizeActive({
-        encId: batch.encounterId,
-        sender,
-      });
-      return authorization.error ? authorization : null;
+      const senderTabId = sender && sender.tab && sender.tab.id;
+      return batch.senderTabId != null && batch.senderTabId === senderTabId
+        ? null
+        : { error: 'La búsqueda de laboratorio no pertenece a esta pestaña HHR.' };
     };
 
     const details = async ({ batchId, examIds, sender }) => {

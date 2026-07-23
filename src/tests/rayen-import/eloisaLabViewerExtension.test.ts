@@ -362,15 +362,10 @@ describe('native Eloisa laboratory viewer', () => {
     const login = readFileSync(path.resolve('extension/syslab-login.js'), 'utf8');
     const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
     const loginWindow = readFileSync(path.resolve('extension/syslab-login-window.js'), 'utf8');
-    const encounterAuthorization = readFileSync(
-      path.resolve('extension/syslab-encounter-authorization.js'),
-      'utf8'
-    );
 
     expect(background).not.toContain('localhost:3001');
     expect(background).toContain("'syslab-session-transport.js'");
     expect(background).toContain("'syslab-login-window.js'");
-    expect(background).toContain("'syslab-encounter-authorization.js'");
     expect(background).toContain("'syslab-runtime.js'");
     expect(background).toContain('self.HhrSyslabRuntime.create({');
     expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
@@ -403,13 +398,11 @@ describe('native Eloisa laboratory viewer', () => {
     expect(runtime).toContain('linksByExamId');
     expect(runtime).toContain('const reportRequests = exams.map(exam => ({');
     expect(runtime).toContain('exams: reportRequests');
-    expect(runtime).toContain('encounterAuthorization.preflight');
-    expect(runtime).toContain('encounterAuthorization.confirmPatientIdentity');
+    expect(runtime).not.toContain('getClinicalReportContext');
+    expect(runtime).not.toContain('getFichaFetchInfo');
+    expect(runtime).toContain('rutBody !== String(requestedRutBody');
     expect(runtime).toContain('examRowsMatchRut(payload.exams, rutBody)');
     expect(runtime).toContain('Syslab no confirmó que los informes correspondan al RUN solicitado');
-    expect(encounterAuthorization).toContain('await encounterInActiveCensus(id, sender)');
-    expect(encounterAuthorization).toContain("verifiedBy: 'patient-identity'");
-    expect(encounterAuthorization).toContain('TRUSTED_HHR_ORIGINS');
     expect(background).toContain(
       'syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender })'
     );

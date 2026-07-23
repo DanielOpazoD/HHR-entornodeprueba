@@ -45,10 +45,6 @@ const createHarness = (
     chrome: chromeApi,
     syslabSessionTransport: globalThis.HhrSyslabSessionTransport,
     labViewer: {
-      normalizePatientRutBody: (value: unknown) => {
-        const compact = String(value || '').replace(/\D/g, '');
-        return compact.length === 9 ? compact.slice(0, -1) : compact;
-      },
       normalizeRutBody: (value: unknown) =>
         String(value || '')
           .replace(/\./g, '')
@@ -60,11 +56,6 @@ const createHarness = (
       buildAnalysis: (details: unknown[]) => ({ details }),
     },
     withTimeout: <T>(promise: Promise<T>) => promise,
-    getClinicalReportContext: vi.fn(async () => ({ patient: { run: '12.345.678-5' } })),
-    getFichaFetchInfo: vi.fn(async () => ({ info: { token: 'transient' } })),
-    fichaSessionCacheKey: vi.fn(async () => 'session'),
-    fetchActiveEncounterRows: vi.fn(async () => ({ rows: [] })),
-    resolveFichaEncounterId: vi.fn(() => '141121'),
   };
   const runtime = globalThis.HhrSyslabRuntime.create(dependencies);
   return { chromeApi, createDocument, dependencies, runtime, stored };
@@ -95,7 +86,19 @@ describe('Syslab background runtime', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('stores a successful search in an expiring batch bound to the encounter', async () => {
+  it('rejects a verifier digit before contacting Syslab', async () => {
+    const sendMessage = vi.fn();
+    const { runtime } = createHarness(sendMessage);
+
+    await expect(
+      runtime.search({ rutBody: '29219852-3', sender: { tab: { id: 44 } } })
+    ).resolves.toEqual({
+      error: 'HHR no informó un RUT válido, sin dígito verificador, para Syslab.',
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('stores a successful RUT-body search in a batch bound to the HHR tab', async () => {
     const sendMessage = vi.fn(async ({ request }: { request: { type: string } }) => {
       if (request.type === 'RAYEN_SYSLAB_STATUS') {
         return { bridgeId: 'bridge-1', loginRequired: false };
@@ -121,15 +124,15 @@ describe('Syslab background runtime', () => {
     const { runtime, stored } = createHarness(sendMessage);
 
     const result = await runtime.search({
-      encId: '141121',
-      sender: { tab: { url: 'https://fichamedico.rayensalud.cl/dashboard/encounter-list/141121' } },
+      rutBody: '12345678',
+      sender: { tab: { id: 44, url: 'http://localhost:3000/' } },
     });
 
-    expect(result).toMatchObject({ ok: true, patient: { run: '12.345.678-5' } });
+    expect(result).toMatchObject({ ok: true, rutBody: '12345678' });
     const batchKey = Object.keys(stored).find(key => key.startsWith('hhr-lab-batch-'));
     expect(batchKey).toBeDefined();
     expect(stored[batchKey!]).toMatchObject({
-      encounterId: '141121',
+      senderTabId: 44,
       rutBody: '12345678',
       linksByExamId: { 'exam-1': '/report/exam-1' },
     });

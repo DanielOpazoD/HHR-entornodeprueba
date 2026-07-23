@@ -60,7 +60,7 @@ describe('HHR Syslab content bridge', () => {
     expect(addEventListener).not.toHaveBeenCalled();
   });
 
-  it('forwards search by RUN without exposing a direct Syslab URL', async () => {
+  it('forwards the RUT body without exposing a direct Syslab URL', async () => {
     const sendMessage = vi.fn(async () => ({
       ok: true,
       data: [{ id: '43091284', link: 'hhr-syslab-extension://batch/id/exam/43091284' }],
@@ -72,16 +72,14 @@ describe('HHR Syslab content bridge', () => {
       data: {
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         reqId: 'syslab-search-1',
-        encId: '141814',
-        patientRut: '285551498',
+        rutBody: '28555149',
       },
     });
 
     await vi.waitFor(() =>
       expect(sendMessage).toHaveBeenCalledWith({
         type: 'RAYEN_LAB_SEARCH_REQUEST',
-        encId: '141814',
-        patientRut: '285551498',
+        rutBody: '28555149',
       })
     );
     expect(postMessage).toHaveBeenCalledWith(
