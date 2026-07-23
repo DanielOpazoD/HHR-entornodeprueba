@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { ChevronDown, FileImage, LucideIcon, QrCode } from 'lucide-react';
+import { ChevronDown, FileImage, FileUp, LucideIcon, QrCode } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
@@ -122,6 +122,14 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
               {(canSeePrescriptionsVisor || canSeePrescriptionsConfig) && (
                 <>
                   <div className="h-px bg-slate-200 my-1" />
+                  {canSeePrescriptionsVisor && (
+                    <MenuLink
+                      icon={FileUp}
+                      label="Documentos — Pendientes Eloísa"
+                      href="/documentos/pendientes"
+                      onNavigate={close}
+                    />
+                  )}
                   {canSeePrescriptionsVisor && (
                     <MenuLink
                       icon={FileImage}

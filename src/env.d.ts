@@ -26,6 +26,8 @@ interface ImportMetaEnv {
   readonly VITE_FUNCTIONS_EMULATOR_HOST?: string;
   readonly VITE_AUTH_EMULATOR_HOST?: string;
   readonly VITE_FIRESTORE_EMULATOR_HOST?: string;
+  readonly VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL?: string;
+  readonly VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD?: string;
   readonly VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST?: string;
   readonly VITE_AUTH_AUTO_REDIRECT_FALLBACK?: string;
   readonly VITE_DEBUG_LEGACY_FIREBASE?: string;

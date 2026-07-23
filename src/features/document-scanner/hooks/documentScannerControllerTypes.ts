@@ -1,0 +1,15 @@
+export type DocumentScannerDemoPhase =
+  | 'awaiting-pin'
+  | 'loading-patients'
+  | 'ready'
+  | 'opening'
+  | 'adding-pages'
+  | 'review'
+  | 'crop-editing'
+  | 'cropping'
+  | 'filtering'
+  | 'editing'
+  | 'exporting'
+  | 'uploading'
+  | 'success'
+  | 'error';
