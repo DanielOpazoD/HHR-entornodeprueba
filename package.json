@@ -250,7 +250,7 @@
     "react-error-boundary": "^6.0.0",
     "react-is": "^19.2.3",
     "recharts": "^3.5.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "xlsx-populate": "^1.21.0",
     "zod": "^3.25.76"
   },
@@ -313,6 +313,16 @@
     "@xmldom/xmldom": "0.9.10",
     "basic-ftp": "5.3.1",
     "dompurify": "3.4.11",
+    "minimatch@<4": {
+      "brace-expansion": "1.1.16"
+    },
+    "minimatch@>=4 <10": {
+      "brace-expansion": "2.1.2"
+    },
+    "minimatch@>=10": {
+      "brace-expansion": "5.0.7"
+    },
+    "fast-uri@>=3.0.0 <3.1.4": "https://codeload.github.com/fastify/fast-uri/tar.gz/6aeece669e4166b2446a89f17c07a3b15dfb7ed4",
     "lodash": "4.18.1",
     "qs": "6.15.2",
     "@isaacs/brace-expansion": "5.0.1",

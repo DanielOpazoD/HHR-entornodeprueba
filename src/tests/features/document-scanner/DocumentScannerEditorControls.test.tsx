@@ -29,7 +29,7 @@ describe('document scanner editor controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar recorte' }));
 
     await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
-    expect(onApply.mock.calls[0][0].topLeftCorner.x).toBeCloseTo(0.105);
+    expect(onApply.mock.calls[0][0].topLeftCorner.x).toBeCloseTo(0.105, 3);
   });
 
   it('passes only the number of photos that still fit in the PDF', () => {
@@ -46,6 +46,7 @@ describe('document scanner editor controls', () => {
       target: { files },
     });
 
+    expect(onAddPages).toHaveBeenCalledTimes(1);
     expect(onAddPages).toHaveBeenCalledWith([files[0]]);
   });
 
@@ -61,6 +62,8 @@ describe('document scanner editor controls', () => {
 
     expect(screen.getByLabelText('Fotografiar página adicional')).toBeDisabled();
     expect(screen.getByLabelText('Elegir páginas adicionales')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tomar foto' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Elegir fotos' })).toBeDisabled();
   });
 
   it('disables new selections while additional pages are being processed', () => {
@@ -75,5 +78,7 @@ describe('document scanner editor controls', () => {
 
     expect(screen.getByLabelText('Fotografiar página adicional')).toBeDisabled();
     expect(screen.getByLabelText('Elegir páginas adicionales')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tomar foto' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Elegir fotos' })).toBeDisabled();
   });
 });
