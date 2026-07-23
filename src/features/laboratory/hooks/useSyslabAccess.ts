@@ -28,6 +28,7 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
     if (!status.bridgeAvailable) {
       setState('unavailable');
       setMessage(status.message);
+      setIsAwaitingLogin(false);
       return;
     }
     if (status.connected) {
@@ -38,6 +39,7 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
     }
     setState(status.loginRequired ? 'login-required' : 'unavailable');
     setMessage(status.message);
+    if (!status.loginRequired) setIsAwaitingLogin(false);
   }, []);
 
   useEffect(() => {

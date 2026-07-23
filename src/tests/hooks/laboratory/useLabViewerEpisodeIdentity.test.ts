@@ -95,6 +95,7 @@ describe('useLabViewer RUT identity', () => {
 
     await waitFor(() => expect(result.current.examList).toHaveLength(1));
     expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9');
+    expect(mockSearchSyslabExams).toHaveBeenCalledTimes(1);
   });
 
   it('keeps cached results when only the episode metadata changes', async () => {

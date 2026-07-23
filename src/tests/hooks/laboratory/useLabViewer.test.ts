@@ -200,7 +200,7 @@ describe('useLabViewer', () => {
       await result.current.search();
     });
     await waitFor(() => expect(result.current.examList).toHaveLength(1));
-    expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9', '141814');
+    expect(mockSearchSyslabExams).toHaveBeenCalledWith('12345678-9');
   });
 
   it('hydrates external RUT birth date from the first Syslab PDF when the patient is not in hospital census', async () => {

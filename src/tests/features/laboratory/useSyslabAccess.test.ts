@@ -48,4 +48,41 @@ describe('useSyslabAccess', () => {
     expect(result.current.state).toBe('connected');
     expect(result.current.isAwaitingLogin).toBe(false);
   });
+
+  it('stops following the session when the extension bridge becomes unavailable', async () => {
+    const { result } = renderHook(() => useSyslabAccess(true));
+
+    await waitFor(() => expect(result.current.state).toBe('login-required'));
+    await act(async () => result.current.openLogin());
+    expect(result.current.isAwaitingLogin).toBe(true);
+
+    vi.mocked(requestSyslabExtensionStatus).mockResolvedValue({
+      bridgeAvailable: false,
+      connected: false,
+      loginRequired: false,
+      message: 'La extensión no está disponible.',
+    });
+    await act(async () => result.current.refresh());
+
+    expect(result.current.state).toBe('unavailable');
+    expect(result.current.isAwaitingLogin).toBe(false);
+  });
+
+  it('stops following a login attempt that can no longer continue', async () => {
+    const { result } = renderHook(() => useSyslabAccess(true));
+
+    await waitFor(() => expect(result.current.state).toBe('login-required'));
+    await act(async () => result.current.openLogin());
+
+    vi.mocked(requestSyslabExtensionStatus).mockResolvedValue({
+      bridgeAvailable: true,
+      connected: false,
+      loginRequired: false,
+      message: 'Syslab no está disponible.',
+    });
+    await act(async () => result.current.refresh());
+
+    expect(result.current.state).toBe('unavailable');
+    expect(result.current.isAwaitingLogin).toBe(false);
+  });
 });
