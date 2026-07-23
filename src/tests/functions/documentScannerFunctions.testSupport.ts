@@ -12,7 +12,7 @@ export const differentJpegBase64 = Buffer.concat([
   validJpegBuffer.subarray(-2),
 ]).toString('base64');
 
-const buildOversizedJpeg = () => {
+const buildJpegWithDimensions = (width: number, height: number) => {
   const buffer = Buffer.from(validJpegBuffer);
   const frameMarkers = new Set([
     0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
@@ -25,7 +25,8 @@ const buildOversizedJpeg = () => {
     offset += 1;
     const segmentLength = buffer.readUInt16BE(offset);
     if (frameMarkers.has(marker)) {
-      buffer.writeUInt16BE(2201, offset + 5);
+      buffer.writeUInt16BE(height, offset + 3);
+      buffer.writeUInt16BE(width, offset + 5);
       return buffer;
     }
     offset += segmentLength;
@@ -33,7 +34,8 @@ const buildOversizedJpeg = () => {
   throw new Error('Test JPEG has no start-of-frame marker.');
 };
 
-export const oversizedJpegBase64 = buildOversizedJpeg().toString('base64');
+export const maximumDimensionJpegBase64 = buildJpegWithDimensions(2200, 2200).toString('base64');
+export const oversizedJpegBase64 = buildJpegWithDimensions(2201, 2200).toString('base64');
 
 export const buildHarness = () => {
   const records: Record<string, Record<string, unknown>> = {};

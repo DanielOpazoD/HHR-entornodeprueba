@@ -88,7 +88,8 @@ function App() {
   const isPrescriptionsAdminRoute = pathname.startsWith('/admin/recetas-config');
   const isDocumentScannerDemoRoute =
     pathname === '/documentos/escanear-demo' || pathname.startsWith('/documentos/escanear-demo/');
-  const isDocumentScannerQueueRoute = pathname.startsWith('/documentos/pendientes');
+  const isDocumentScannerQueueRoute =
+    pathname === '/documentos/pendientes' || pathname.startsWith('/documentos/pendientes/');
   const isDocumentScannerLocalQueueRoute =
     import.meta.env.DEV && pathname.startsWith('/documentos/pendientes-local');
   const loadingScreenMode =

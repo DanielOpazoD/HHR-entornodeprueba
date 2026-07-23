@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+const extractHeaderBlock = (content: string, route: string): string => {
+  const marker = `for = "${route}"`;
+  const markerIndex = content.indexOf(marker);
+  if (markerIndex < 0) return '';
+  const nextBlockIndex = content.indexOf('[[headers]]', markerIndex);
+  return content.slice(markerIndex, nextBlockIndex < 0 ? content.length : nextBlockIndex);
+};
+
 describe('netlify security headers', () => {
   it('keeps CSP compatible with Google Auth (fonts bundled locally)', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
@@ -27,15 +35,17 @@ describe('netlify security headers', () => {
 
   it('isolates document scanner camera and WebAssembly permissions to its public route', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
-    const scannerHeaders = content.split('for = "/documentos/escanear-demo*"')[1] ?? '';
-    const workerHeaders = content.split('for = "/document-scanner/jscanify-worker.js"')[1] ?? '';
+    const scannerMarkerIndex = content.indexOf('for = "/documentos/escanear-demo*"');
+    const workerMarkerIndex = content.indexOf('for = "/document-scanner/jscanify-worker.js"');
+    const catchAllMarkerIndex = content.indexOf('for = "/*"');
+    const scannerHeaders = extractHeaderBlock(content, '/documentos/escanear-demo*');
+    const workerHeaders = extractHeaderBlock(content, '/document-scanner/jscanify-worker.js');
 
-    expect(content.indexOf('for = "/documentos/escanear-demo*"')).toBeLessThan(
-      content.indexOf('for = "/*"')
-    );
-    expect(content.indexOf('for = "/document-scanner/jscanify-worker.js"')).toBeLessThan(
-      content.indexOf('for = "/*"')
-    );
+    expect(scannerMarkerIndex).toBeGreaterThanOrEqual(0);
+    expect(workerMarkerIndex).toBeGreaterThanOrEqual(0);
+    expect(catchAllMarkerIndex).toBeGreaterThanOrEqual(0);
+    expect(scannerMarkerIndex).toBeLessThan(catchAllMarkerIndex);
+    expect(workerMarkerIndex).toBeLessThan(catchAllMarkerIndex);
     expect(content).toContain('Permissions-Policy = "camera=(),');
     expect(scannerHeaders).toContain('Permissions-Policy = "camera=(self),');
     expect(scannerHeaders).toContain(
@@ -44,6 +54,8 @@ describe('netlify security headers', () => {
     expect(scannerHeaders).toContain("worker-src 'self' blob: data:");
     expect(workerHeaders).toContain("script-src blob: 'unsafe-eval' 'wasm-unsafe-eval'");
     expect(workerHeaders).toContain('Cache-Control = "no-cache"');
+    expect(workerHeaders).not.toContain('Permissions-Policy = "camera=(self),');
+    expect(workerHeaders).not.toContain("worker-src 'self' blob: data:");
     expect(scannerHeaders).toContain('X-Content-Type-Options = "nosniff"');
     expect(scannerHeaders).toContain('Strict-Transport-Security');
   });

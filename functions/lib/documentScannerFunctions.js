@@ -89,19 +89,19 @@ const decodeJpegPages = (values, expectedPageCount) => {
     try {
       const { width, height } = readJpegDimensions(buffer);
       totalPixels += width * height;
-      if (
-        width < 1 ||
-        height < 1 ||
-        width > MAX_IMAGE_DIMENSION ||
-        height > MAX_IMAGE_DIMENSION ||
-        totalPixels > MAX_TOTAL_IMAGE_PIXELS
-      ) {
+      if (width < 1 || height < 1 || width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
         throw new Error('JPEG dimensions exceed scanner limits');
       }
     } catch (_error) {
       throw new functions.https.HttpsError(
         'invalid-argument',
         `Cada página JPEG debe medir como máximo ${MAX_IMAGE_DIMENSION} px por lado.`
+      );
+    }
+    if (totalPixels > MAX_TOTAL_IMAGE_PIXELS) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'El documento supera el límite total de resolución permitido.'
       );
     }
     return buffer;
@@ -242,8 +242,13 @@ const resolvePdfDownloadUrl = async (storage, storagePath) => {
     )}?alt=media&token=${encodeURIComponent(downloadCapability)}`;
   }
   if (typeof file.getSignedUrl !== 'function') return null;
-  const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
-  return url;
+  try {
+    const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
+    return url;
+  } catch (_error) {
+    console.warn('[document-scanner] failed to create temporary download URL');
+    return null;
+  }
 };
 
 const reserveDocumentUpload = async ({ firestore, ref, baseRecord, id }) => {
@@ -724,7 +729,14 @@ const createListScannedDocumentsHandler =
     records.sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
     const documents = await Promise.all(
       records.map(async record => ({
-        ...record,
+        id: record.id,
+        bedId: record.bedId,
+        patientName: record.patientName,
+        patientRut: record.patientRut,
+        pageCount: record.pageCount,
+        byteSize: record.byteSize,
+        createdAt: record.createdAt,
+        state: record.state,
         downloadUrl: await resolvePdfDownloadUrl(storage, record.storagePath),
       }))
     );
@@ -759,7 +771,7 @@ const createConfirmScannedDocumentUploadedHandler =
     }
     console.info('[document-scanner] temporary document purged after Eloisa confirmation', {
       documentId: id,
-      confirmedBy: actor.email,
+      confirmedBy: actor.uid,
     });
     return { ok: true, purged: true };
   };

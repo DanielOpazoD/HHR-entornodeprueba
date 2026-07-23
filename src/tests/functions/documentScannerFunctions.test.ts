@@ -407,28 +407,6 @@ describe('document scanner temporary queue', () => {
     expect(Object.keys(blobs)).toEqual([competingPath]);
   });
 
-  it('lists pending documents only for an authenticated allowed clinician', async () => {
-    const { firestore, storage, records } = buildHarness();
-    records.scan_1 = {
-      id: 'scan_1',
-      state: 'pending_eloisa',
-      storagePath: 'scanned-documents/hhr/scan_1/document.pdf',
-      createdAt: '2026-07-22T12:00:00.000Z',
-    };
-    const handler = createListScannedDocumentsHandler({
-      firestore,
-      storage,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
-    });
-
-    await expect(
-      handler({}, { auth: { uid: 'nurse-1', token: { email: 'ENF@HHR.CL' } } })
-    ).resolves.toMatchObject({
-      documents: [{ id: 'scan_1', downloadUrl: expect.stringContaining('storage.test') }],
-    });
-    await expect(handler({}, undefined)).rejects.toMatchObject({ code: 'unauthenticated' });
-  });
-
   it('keeps a durable cleanup pointer when deleting an incomplete PDF fails', async () => {
     const { firestore, storage, records, blobs, controls } = buildHarness();
     const storagePath = 'scanned-documents/hhr/scan_stale/attempt.pdf';

@@ -148,6 +148,26 @@ export const DocumentCropEditor: React.FC<DocumentCropEditorProps> = ({
                   moveCorner(key, event.clientX, event.clientY);
                 }
               }}
+              onKeyDown={event => {
+                const step = event.shiftKey ? 0.02 : 0.005;
+                const deltas: Partial<Record<React.KeyboardEvent['key'], [number, number]>> = {
+                  ArrowLeft: [-step, 0],
+                  ArrowRight: [step, 0],
+                  ArrowUp: [0, -step],
+                  ArrowDown: [0, step],
+                };
+                const delta = deltas[event.key];
+                if (!delta) return;
+                event.preventDefault();
+                const limits = CORNER_LIMITS[key];
+                setCorners(current => ({
+                  ...current,
+                  [key]: {
+                    x: clamp(current[key].x + delta[0], limits.minX, limits.maxX),
+                    y: clamp(current[key].y + delta[1], limits.minY, limits.maxY),
+                  },
+                }));
+              }}
               className="absolute z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full border-2 border-white bg-teal-600 shadow-lg disabled:opacity-60"
               style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
             >

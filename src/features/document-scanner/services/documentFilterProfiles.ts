@@ -19,7 +19,8 @@ const clamp = (value: number, minimum = 0, maximum = 255): number =>
   Math.min(maximum, Math.max(minimum, value));
 
 const smoothstep = (minimum: number, maximum: number, value: number): number => {
-  const normalized = clamp((value - minimum) / Math.max(1, maximum - minimum), 0, 1);
+  const range = maximum - minimum;
+  const normalized = clamp((value - minimum) / (Math.abs(range) < 1e-6 ? 1e-6 : range), 0, 1);
   return normalized * normalized * (3 - 2 * normalized);
 };
 
