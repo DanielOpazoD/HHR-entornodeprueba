@@ -1,5 +1,10 @@
 import { AUTH_BOOTSTRAP_PENDING_TTL_MS } from '@/services/auth/authBootstrapBudgets';
 
+// Per-tab on purpose: the pending-redirect flag describes THIS tab's OAuth
+// round trip (sessionStorage survives the same-tab navigation to Google and
+// back). The v1 flag lived in localStorage and leaked "redirect pending" into
+// every other tab, producing longer bootstrap budgets and confusing errors in
+// tabs that never started a login.
 const AUTH_BOOTSTRAP_PENDING_KEY = 'hhr_auth_bootstrap_pending_v1';
 
 type AuthBootstrapState = {
@@ -13,9 +18,19 @@ const resolveCurrentReturnTo = (): string | null => {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 };
 
+const clearLegacySharedPendingState = (): void => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+  } catch {
+    // Best-effort cleanup of the legacy cross-tab copy.
+  }
+};
+
 const readState = (): AuthBootstrapState | null => {
-  if (typeof window === 'undefined' || !window.localStorage) return null;
-  const raw = window.localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY);
+  if (typeof window === 'undefined' || !window.sessionStorage) return null;
+  clearLegacySharedPendingState();
+  const raw = window.sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY);
   if (!raw) return null;
 
   try {
@@ -25,7 +40,7 @@ const readState = (): AuthBootstrapState | null => {
     }
 
     if (Date.now() - parsed.startedAt > AUTH_BOOTSTRAP_PENDING_TTL_MS) {
-      window.localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+      window.sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
       return null;
     }
 
@@ -43,13 +58,13 @@ export const markAuthBootstrapPending = (
   mode: 'redirect' = 'redirect',
   returnTo: string | null = resolveCurrentReturnTo()
 ): void => {
-  if (typeof window === 'undefined' || !window.localStorage) return;
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
   const payload: AuthBootstrapState = {
     startedAt: Date.now(),
     mode,
     returnTo,
   };
-  window.localStorage.setItem(AUTH_BOOTSTRAP_PENDING_KEY, JSON.stringify(payload));
+  window.sessionStorage.setItem(AUTH_BOOTSTRAP_PENDING_KEY, JSON.stringify(payload));
 };
 
 export const isAuthBootstrapPending = (): boolean => Boolean(readState());
@@ -71,6 +86,7 @@ export const restoreAuthBootstrapReturnTo = (): void => {
 };
 
 export const clearAuthBootstrapPending = (): void => {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  window.localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+  clearLegacySharedPendingState();
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
+  window.sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
 };

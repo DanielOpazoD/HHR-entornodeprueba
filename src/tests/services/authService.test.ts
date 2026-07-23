@@ -80,6 +80,7 @@ describe('auth public entrypoints', () => {
       defaultRedirectRuntimeSupport
     );
     localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+    sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
     localStorage.removeItem(GOOGLE_LOGIN_LOCK_KEY);
     mockCheckUserRoleCallable.mockResolvedValue({
       data: { role: 'unauthorized' },
@@ -356,10 +357,22 @@ describe('auth public entrypoints', () => {
       );
     });
 
-    it('stays quiet when a stale pending flag from another tab finishes without result', async () => {
-      // The pending flag is shared via localStorage across tabs; without the
-      // per-tab sessionStorage login-attempt hint this tab never started a
-      // Google flow, so no scary error should surface here.
+    it('stays quiet when an orphaned pending flag finishes without result', async () => {
+      // Without the per-tab login-attempt hint this tab has no active Google
+      // flow, so an orphaned pending flag must not surface a scary error.
+      sessionStorage.setItem(
+        AUTH_BOOTSTRAP_PENDING_KEY,
+        JSON.stringify({ startedAt: 9999999999999, mode: 'redirect' })
+      );
+      vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue(null);
+
+      const result = await handleSignInRedirectResult();
+
+      expect(result).toBeNull();
+      expect(sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
+    });
+
+    it('ignores and cleans a legacy cross-tab pending flag left in localStorage', async () => {
       localStorage.setItem(
         AUTH_BOOTSTRAP_PENDING_KEY,
         JSON.stringify({ startedAt: 9999999999999, mode: 'redirect' })
@@ -398,7 +411,7 @@ describe('auth public entrypoints', () => {
       await signInWithGoogleRedirect();
 
       expect(firebaseAuth.signInWithRedirect).toHaveBeenCalled();
-      expect(localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).not.toBeNull();
+      expect(sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).not.toBeNull();
     });
 
     it('should reject redirect flow on localhost when runtime policy disables it', async () => {

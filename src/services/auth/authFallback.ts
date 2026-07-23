@@ -129,19 +129,17 @@ export const handleSignInRedirectResult = async (
       return toResolvedAuthSessionState(e2eRedirectUser);
     }
 
-    // The pending-redirect flag lives in localStorage and is visible to every
-    // tab; the login-attempt hint lives in sessionStorage and only exists in
-    // the tab that actually started the Google flow (it survives the redirect
-    // round-trip). Surfacing the empty-result error requires the per-tab hint,
-    // so a stale flag can never alarm unrelated tabs.
+    // Both the pending-redirect flag and the login-attempt hint are per-tab
+    // (sessionStorage) and survive the same-tab OAuth round trip. Surfacing
+    // the empty-result error still requires the login-attempt hint, so an
+    // orphaned pending flag alone never produces a scary error.
     const hadPendingRedirect = isAuthBootstrapPending();
     const hadRecentGoogleLoginAttempt = hasRecentGoogleLoginAttemptHint();
     const result = await getRedirectResult(authRuntime.auth);
     if (!result) {
       if (!hadRecentGoogleLoginAttempt && hadPendingRedirect) {
-        // Keep observability for the quiet path: either another tab's stale
-        // flag, or a same-tab redirect whose sessionStorage did not survive
-        // the round trip (locked-down/PWA contexts).
+        // Keep observability for the quiet path (e.g. a redirect whose
+        // login-attempt hint expired before the user returned).
         recordOperationalTelemetry({
           category: 'auth',
           operation: 'redirect_empty_result_without_tab_hint',
