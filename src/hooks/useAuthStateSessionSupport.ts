@@ -72,6 +72,20 @@ export const useFirebaseConnectionStatus = (
   return isFirebaseConnected;
 };
 
+export const resetLocationToLoginRoute = (): void => {
+  // The login screen must live on the root route: a refresh from a module URL
+  // (e.g. /census) boots with the module preboot surface and flashes it before
+  // the login page renders. Normalizing on logout keeps F5 on the login shell.
+  if (typeof window === 'undefined') return;
+  const { pathname, search, hash } = window.location;
+  if (pathname === '/' && !search && !hash) return;
+  try {
+    window.history.replaceState(window.history.state, '', '/');
+  } catch {
+    // Best-effort: never let URL cleanup break the logout itself.
+  }
+};
+
 export const createHandleLogout =
   (
     user: AuthUser | null,
@@ -83,6 +97,7 @@ export const createHandleLogout =
 
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
+    resetLocationToLoginRoute();
     clearQueryCache();
     clearCachedUserAvatarProfiles();
 

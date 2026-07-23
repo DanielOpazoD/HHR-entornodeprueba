@@ -11,6 +11,7 @@ export type { AuthSessionState, UserRole };
 import {
   createHandleLogout,
   getE2EBootstrapUser,
+  resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
   useOnlineStatus,
@@ -174,6 +175,7 @@ export const useAuthState = (): UseAuthStateReturn => {
       if (message.type === 'LOGOUT') {
         clearQueryCache();
         setSessionState(createUnauthenticatedAuthSessionState());
+        resetLocationToLoginRoute();
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.removeItem('hhr_logged_this_session');
         }

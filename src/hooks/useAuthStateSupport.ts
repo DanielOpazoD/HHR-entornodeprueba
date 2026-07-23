@@ -36,6 +36,7 @@ export {
   createHandleLogout,
   getAuthBootstrapTimeoutMs,
   getE2EBootstrapUser,
+  resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
   useOnlineStatus,
