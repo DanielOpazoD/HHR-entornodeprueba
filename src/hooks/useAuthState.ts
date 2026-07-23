@@ -20,6 +20,8 @@ import {
 import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
   hasPersistedFirebaseAuthHint,
   hasRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
@@ -176,9 +178,11 @@ export const useAuthState = (): UseAuthStateReturn => {
         clearQueryCache();
         setSessionState(createUnauthenticatedAuthSessionState());
         resetLocationToLoginRoute();
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.removeItem('hhr_logged_this_session');
-        }
+        // Drop this tab's own persisted auth copy too: with session-scoped
+        // Firebase persistence the initiating tab's signOut cannot reach it,
+        // so a refresh here would otherwise restore the closed session.
+        clearPersistedFirebaseAuthState();
+        clearRecentAuthenticatedSessionHint();
       }
     });
     return cleanup;

@@ -18,29 +18,42 @@ const resolveCurrentReturnTo = (): string | null => {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 };
 
-const clearLegacySharedPendingState = (): void => {
-  if (typeof window === 'undefined' || !window.localStorage) return;
+// Storage getters themselves can throw when the browser blocks storage access,
+// so every access below is guarded: an unavailable store means "no pending
+// redirect" instead of an exception on the path that starts the Google flow.
+const resolveStorage = (kind: 'local' | 'session'): Storage | null => {
+  if (typeof window === 'undefined') return null;
   try {
-    window.localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+    return (kind === 'local' ? window.localStorage : window.sessionStorage) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const clearLegacySharedPendingState = (): void => {
+  try {
+    resolveStorage('local')?.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
   } catch {
     // Best-effort cleanup of the legacy cross-tab copy.
   }
 };
 
 const readState = (): AuthBootstrapState | null => {
-  if (typeof window === 'undefined' || !window.sessionStorage) return null;
   clearLegacySharedPendingState();
-  const raw = window.sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY);
-  if (!raw) return null;
 
   try {
+    const sessionStore = resolveStorage('session');
+    if (!sessionStore) return null;
+    const raw = sessionStore.getItem(AUTH_BOOTSTRAP_PENDING_KEY);
+    if (!raw) return null;
+
     const parsed = JSON.parse(raw) as Partial<AuthBootstrapState>;
     if (parsed.mode !== 'redirect' || typeof parsed.startedAt !== 'number') {
       return null;
     }
 
     if (Date.now() - parsed.startedAt > AUTH_BOOTSTRAP_PENDING_TTL_MS) {
-      window.sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+      sessionStore.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
       return null;
     }
 
@@ -58,13 +71,16 @@ export const markAuthBootstrapPending = (
   mode: 'redirect' = 'redirect',
   returnTo: string | null = resolveCurrentReturnTo()
 ): void => {
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
   const payload: AuthBootstrapState = {
     startedAt: Date.now(),
     mode,
     returnTo,
   };
-  window.sessionStorage.setItem(AUTH_BOOTSTRAP_PENDING_KEY, JSON.stringify(payload));
+  try {
+    resolveStorage('session')?.setItem(AUTH_BOOTSTRAP_PENDING_KEY, JSON.stringify(payload));
+  } catch {
+    // A blocked/full store must not abort the redirect sign-in it precedes.
+  }
 };
 
 export const isAuthBootstrapPending = (): boolean => Boolean(readState());
@@ -87,6 +103,9 @@ export const restoreAuthBootstrapReturnTo = (): void => {
 
 export const clearAuthBootstrapPending = (): void => {
   clearLegacySharedPendingState();
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
-  window.sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+  try {
+    resolveStorage('session')?.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+  } catch {
+    // Best-effort: a blocked store simply has nothing to clear.
+  }
 };

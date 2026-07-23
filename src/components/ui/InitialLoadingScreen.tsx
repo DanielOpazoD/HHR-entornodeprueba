@@ -69,6 +69,9 @@ const LoginShellLoadingScreen = () => {
           swapping layouts. Text is intentionally rendered as skeleton bars:
           duplicating the real copy here would create ambiguous matches for
           assistive tech and tests once the actual page mounts. */}
+      <span role="status" className="sr-only">
+        Cargando acceso al sistema…
+      </span>
       <div
         aria-hidden="true"
         className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:px-6"

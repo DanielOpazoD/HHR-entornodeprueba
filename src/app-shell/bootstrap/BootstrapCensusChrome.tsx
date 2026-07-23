@@ -36,13 +36,15 @@ let bootstrapLogoutInFlight = false;
 const runBootstrapManualLogout = async (): Promise<void> => {
   if (bootstrapLogoutInFlight) return;
   bootstrapLogoutInFlight = true;
-  markRecentManualLogout();
-  clearRecentAuthenticatedSessionHint();
-  broadcastLogout('manual');
   try {
+    // Inside the try on purpose: a storage write can throw (private browsing
+    // quota, blocked storage), and the user must still leave the shell.
+    markRecentManualLogout();
+    clearRecentAuthenticatedSessionHint();
+    broadcastLogout('manual');
     await firebaseSessionSignOut();
   } catch {
-    // Best-effort: even if Firebase sign-out fails (offline), leave the shell.
+    // Best-effort: leave the shell even if a cleanup step or sign-out fails.
   } finally {
     clearPersistedFirebaseAuthState();
     window.location.replace('/');

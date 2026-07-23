@@ -171,6 +171,26 @@ describe('useAuthState baseline', () => {
     );
   });
 
+  it('clears this tab’s persisted auth copy when another tab broadcasts a logout', async () => {
+    sessionStorage.setItem('firebase:authUser:demo-key', JSON.stringify({ uid: 'u1' }));
+    sessionStorage.setItem('hhr_logged_this_session', 'true');
+    vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
+    vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(() => () => {});
+
+    const { result } = renderHook(() => useAuthState());
+
+    await act(async () => {
+      const channel = new BroadcastChannel('hhr_auth_channel');
+      channel.postMessage({ type: 'LOGOUT', reason: 'manual', tabId: 'other-tab' });
+      channel.close();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    await waitFor(() => expect(result.current.user).toBe(null));
+    expect(sessionStorage.getItem('firebase:authUser:demo-key')).toBeNull();
+    expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
+  });
+
   it('should skip auth loading after a recent manual logout when no firebase session remains', async () => {
     sessionStorage.setItem(
       RECENT_MANUAL_LOGOUT_KEY,

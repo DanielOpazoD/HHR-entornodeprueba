@@ -6,6 +6,20 @@ const GOOGLE_LOGIN_ATTEMPT_HINT_TTL_MS = 120_000;
 const hasWindowStorage = (storage: Storage | undefined): storage is Storage =>
   typeof window !== 'undefined' && typeof storage !== 'undefined';
 
+/**
+ * Reading `localStorage`/`sessionStorage` can itself throw when the browser
+ * blocks storage access (blocked cookies, sandboxed iframes), so the getter is
+ * resolved defensively: an unavailable store is simply reported as absent.
+ */
+const resolveStorage = (kind: 'local' | 'session'): Storage | undefined => {
+  try {
+    const storage = kind === 'local' ? localStorage : sessionStorage;
+    return typeof storage === 'undefined' ? undefined : storage;
+  } catch {
+    return undefined;
+  }
+};
+
 const storageContainsPrefix = (storage: Storage, prefix: string): boolean => {
   try {
     for (let index = 0; index < storage.length; index += 1) {
@@ -22,18 +36,14 @@ const storageContainsPrefix = (storage: Storage, prefix: string): boolean => {
 };
 
 export const hasPersistedFirebaseAuthHint = (): boolean => {
-  if (
-    !hasWindowStorage(typeof localStorage === 'undefined' ? undefined : localStorage) &&
-    !hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)
-  ) {
-    return false;
-  }
+  const localStore = resolveStorage('local');
+  const sessionStore = resolveStorage('session');
 
   return (
-    (hasWindowStorage(typeof localStorage === 'undefined' ? undefined : localStorage) &&
-      storageContainsPrefix(localStorage, FIREBASE_AUTH_STORAGE_PREFIX)) ||
-    (hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage) &&
-      storageContainsPrefix(sessionStorage, FIREBASE_AUTH_STORAGE_PREFIX))
+    (hasWindowStorage(localStore) &&
+      storageContainsPrefix(localStore, FIREBASE_AUTH_STORAGE_PREFIX)) ||
+    (hasWindowStorage(sessionStore) &&
+      storageContainsPrefix(sessionStore, FIREBASE_AUTH_STORAGE_PREFIX))
   );
 };
 
@@ -44,10 +54,7 @@ export const hasPersistedFirebaseAuthHint = (): boolean => {
  * to sign out — even if the Firebase signOut call itself failed offline.
  */
 export const clearPersistedFirebaseAuthState = (): void => {
-  const storages = [
-    typeof localStorage === 'undefined' ? undefined : localStorage,
-    typeof sessionStorage === 'undefined' ? undefined : sessionStorage,
-  ];
+  const storages = [resolveStorage('local'), resolveStorage('session')];
 
   for (const storage of storages) {
     if (!hasWindowStorage(storage)) continue;
@@ -67,7 +74,7 @@ export const clearPersistedFirebaseAuthState = (): void => {
 };
 
 export const hasRecentAuthenticatedSessionHint = (): boolean => {
-  if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
+  if (!hasWindowStorage(resolveStorage('session'))) {
     return false;
   }
 
@@ -79,7 +86,7 @@ export const hasRecentAuthenticatedSessionHint = (): boolean => {
 };
 
 export const clearRecentAuthenticatedSessionHint = (): void => {
-  if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
+  if (!hasWindowStorage(resolveStorage('session'))) {
     return;
   }
 
@@ -91,7 +98,7 @@ export const clearRecentAuthenticatedSessionHint = (): void => {
 };
 
 export const markGoogleLoginAttemptHint = (): void => {
-  if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
+  if (!hasWindowStorage(resolveStorage('session'))) {
     return;
   }
 
@@ -103,7 +110,7 @@ export const markGoogleLoginAttemptHint = (): void => {
 };
 
 export const hasRecentGoogleLoginAttemptHint = (): boolean => {
-  if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
+  if (!hasWindowStorage(resolveStorage('session'))) {
     return false;
   }
 
@@ -121,7 +128,7 @@ export const hasRecentGoogleLoginAttemptHint = (): boolean => {
 };
 
 export const clearGoogleLoginAttemptHint = (): void => {
-  if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
+  if (!hasWindowStorage(resolveStorage('session'))) {
     return;
   }
 
