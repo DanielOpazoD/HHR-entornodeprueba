@@ -1,7 +1,8 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
+import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
 
 const mockNavbar = vi.fn();
 const mockDateStrip = vi.fn();
@@ -84,6 +85,43 @@ describe('BootstrapRouteChrome', () => {
       })
     );
     expect(screen.getByTestId('view-loader')).toBeInTheDocument();
+  });
+
+  it('performs a real manual logout from the bootstrap chrome navbar', async () => {
+    window.history.replaceState({}, '', '/census');
+    window.sessionStorage.setItem('hhr_logged_this_session', 'true');
+    window.localStorage.setItem('firebase:authUser:demo-key', JSON.stringify({ uid: 'user-1' }));
+
+    const replaceMock = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        pathname: '/census',
+        search: '',
+        hash: '',
+        replace: replaceMock,
+      },
+    });
+
+    try {
+      render(<BootstrapRouteChrome />);
+
+      const navbarProps = mockNavbar.mock.calls[0][0] as { onLogout: () => void };
+      navbarProps.onLogout();
+
+      await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/'));
+      expect(mockedAuthSessionSignOut).toHaveBeenCalled();
+      expect(window.sessionStorage.getItem('hhr_recent_manual_logout_v1')).not.toBeNull();
+      expect(window.sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
+      expect(window.localStorage.getItem('firebase:authUser:demo-key')).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
   });
 
   it('keeps transfer-management on its own navbar without forcing a date strip', () => {

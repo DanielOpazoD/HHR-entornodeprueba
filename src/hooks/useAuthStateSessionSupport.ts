@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { ACTIVITY_EVENTS, SESSION_TIMEOUT_MS } from '@/constants/security';
 import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { clearPersistedFirebaseAuthState } from '@/services/auth/authStorageHints';
 import { resolveAuthBootstrapBudget } from '@/services/auth/authBootstrapBudgets';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import { createUnauthenticatedAuthSessionState } from '@/services/auth/authSessionState';
@@ -101,9 +102,16 @@ export const createHandleLogout =
     // 2. Async operations in parallel — best-effort, one failure does not block others
     const results = await Promise.allSettled([
       user?.email ? defaultAuditPort.logUserLogout(user.email, reason) : Promise.resolve(),
-      Promise.resolve(signOut()).catch((e: unknown) =>
-        authStateLogger.warn('Firebase signOut failed (probably offline)', e)
-      ),
+      Promise.resolve(signOut())
+        .catch((e: unknown) =>
+          authStateLogger.warn('Firebase signOut failed (probably offline)', e)
+        )
+        .finally(() => {
+          // The user chose to leave: drop any persisted auth copy so the next
+          // load can never flash the authenticated chrome or restore a ghost
+          // session, even when the Firebase signOut itself failed.
+          clearPersistedFirebaseAuthState();
+        }),
       ownerKey
         ? Promise.resolve(clearSessionScopedClientState(reason)).catch((e: unknown) =>
             authStateLogger.warn('Local session cleanup failed during logout', e)

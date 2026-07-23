@@ -117,6 +117,38 @@ describe('firebaseConfigLoader – loadFirebaseConfig', () => {
       expect(cached).toEqual(VALID_CONFIG);
     });
 
+    it('consumes the preboot early config fetch without a second request', async () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: Promise<unknown> }).__HHR_EARLY_CONFIG_FETCH__ =
+        Promise.resolve(VALID_CONFIG);
+
+      const config = await loadFirebaseConfig();
+
+      expect(config).toEqual(VALID_CONFIG);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(
+        (window as { __HHR_EARLY_CONFIG_FETCH__?: Promise<unknown> }).__HHR_EARLY_CONFIG_FETCH__
+      ).toBeUndefined();
+      const cached = JSON.parse(localStorage.getItem(CACHED_CONFIG_KEY) || 'null');
+      expect(cached).toEqual(VALID_CONFIG);
+    });
+
+    it('falls back to its own fetch when the preboot early config is unusable', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(VALID_CONFIG),
+      });
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: Promise<unknown> }).__HHR_EARLY_CONFIG_FETCH__ =
+        Promise.resolve(null);
+
+      const config = await loadFirebaseConfig();
+
+      expect(config).toEqual(VALID_CONFIG);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('throws when Netlify function returns a non-ok response', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,

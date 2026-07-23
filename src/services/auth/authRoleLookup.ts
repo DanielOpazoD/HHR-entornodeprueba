@@ -26,12 +26,13 @@ export const resolveCallableRole = (
 
 export const createAuthRoleLookupService = (
   functionsRuntime: Pick<FunctionsRuntime, 'getFunctions'> = defaultFunctionsRuntime
-) => ({
-  getDynamicRoleForEmail: async (email: string): Promise<UserRole | null> => {
-    try {
-      const cleanEmail = normalizeEmail(email);
-      if (!cleanEmail) return null;
+) => {
+  // Login and the auth-state observer can request the same role concurrently;
+  // share the in-flight callable so one sign-in never fires checkUserRole twice.
+  const inFlightLookups = new Map<string, Promise<UserRole | null>>();
 
+  const runRoleLookup = async (cleanEmail: string): Promise<UserRole | null> => {
+    try {
       markPerf('auth-role:lookup-start');
       const functions = await functionsRuntime.getFunctions();
       const checkUserRole = httpsCallable<Record<string, never>, CheckUserRoleCallableData>(
@@ -50,9 +51,27 @@ export const createAuthRoleLookupService = (
           ? error.message
           : 'No se pudo consultar el rol actual del usuario.'
       );
+    } finally {
+      inFlightLookups.delete(cleanEmail);
     }
-  },
-});
+  };
+
+  return {
+    getDynamicRoleForEmail: async (email: string): Promise<UserRole | null> => {
+      const cleanEmail = normalizeEmail(email);
+      if (!cleanEmail) return null;
+
+      const existingLookup = inFlightLookups.get(cleanEmail);
+      if (existingLookup) {
+        return existingLookup;
+      }
+
+      const lookup = runRoleLookup(cleanEmail);
+      inFlightLookups.set(cleanEmail, lookup);
+      return lookup;
+    },
+  };
+};
 
 const authRoleLookupService = createAuthRoleLookupService();
 export const getDynamicRoleForEmail = authRoleLookupService.getDynamicRoleForEmail;

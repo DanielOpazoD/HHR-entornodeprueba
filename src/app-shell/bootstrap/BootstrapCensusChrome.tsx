@@ -11,12 +11,42 @@ import {
   shouldShowPrintButtonForModule,
 } from '@/hooks/controllers/appStateNavigationController';
 import { shouldRenderDateStrip } from '@/components/layout/app-content/appContentVisibilityController';
+import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
+import { markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { signOut as firebaseSessionSignOut } from '@/services/auth/authSession';
+import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
+} from '@/services/auth/authStorageHints';
 
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
 const DEFAULT_BOOTSTRAP_ROLE: UserRole = 'admin';
 
 const noop = () => {};
 const noopAsync = async () => {};
+
+/**
+ * Real logout for the bootstrap chrome. This shell is visually identical to
+ * the authenticated app while the runtime rehydrates, so the logout control
+ * must work here too (it used to be a noop, which read as "logout is broken").
+ */
+let bootstrapLogoutInFlight = false;
+
+const runBootstrapManualLogout = async (): Promise<void> => {
+  if (bootstrapLogoutInFlight) return;
+  bootstrapLogoutInFlight = true;
+  markRecentManualLogout();
+  clearRecentAuthenticatedSessionHint();
+  broadcastLogout('manual');
+  try {
+    await firebaseSessionSignOut();
+  } catch {
+    // Best-effort: even if Firebase sign-out fails (offline), leave the shell.
+  } finally {
+    clearPersistedFirebaseAuthState();
+    window.location.replace('/');
+  }
+};
 const noopSetNumber: React.Dispatch<React.SetStateAction<number>> = () => {};
 const noopImportJson: React.ChangeEventHandler<HTMLInputElement> = () => {};
 const BOOTSTRAP_CENSUS_VIEW_MODE = 'REGISTER' as const;
@@ -176,7 +206,7 @@ const buildBootstrapAuthContextValue = (
       mode: 'enabled',
       reason: 'ready',
     },
-    signOut: noopAsync,
+    signOut: runBootstrapManualLogout,
   };
 };
 
@@ -215,7 +245,9 @@ export const BootstrapRouteChrome: React.FC = () => {
             onExportCSV={noop}
             onImportJSON={noopImportJson}
             userEmail={userEmail}
-            onLogout={noop}
+            onLogout={() => {
+              void runBootstrapManualLogout();
+            }}
             isFirebaseConnected
             hideRuntimeIndicators
           />

@@ -417,6 +417,7 @@ vi.mock('../hooks/useAuthState', () => ({
 const mockAuthFlow = {
   signIn: vi.fn(),
   signInWithGoogle: vi.fn(),
+  warmGoogleSignInRuntime: vi.fn(),
   createUser: vi.fn(),
 };
 
@@ -452,6 +453,7 @@ vi.mock('../services/auth/authFallback', () => mockAuthFallbackFactory());
 
 vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeGoogleSignIn: vi.fn(),
+  executeGoogleSignInWarmup: vi.fn(),
   executeCredentialSignIn: vi.fn(),
   executeRedirectAuthResolution: vi.fn().mockResolvedValue({
     status: 'success',

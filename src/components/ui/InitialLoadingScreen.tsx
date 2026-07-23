@@ -28,13 +28,6 @@ export const resolveInitialLoadingScreenVariant = (
   return 'default';
 };
 
-export const shouldRenderInitialLoadingScreen = (_pathname: string | undefined): boolean => {
-  // No route should opt into the legacy full-screen startup loader by default.
-  // Authenticated module refreshes keep route chrome and render only internal
-  // lazy-view loaders; login keeps its background shell without a spinner.
-  return false;
-};
-
 const resolveCurrentPathname = () =>
   typeof window !== 'undefined' ? window.location.pathname : '/';
 

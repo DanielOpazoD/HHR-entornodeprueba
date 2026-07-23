@@ -269,7 +269,9 @@ describe('auth public entrypoints', () => {
         }
       );
 
-      await vi.advanceTimersByTimeAsync(12000);
+      // A user can legitimately spend >30s inside the Google popup (account
+      // picker + password + 2FA); the flow must stay pending well past that.
+      await vi.advanceTimersByTimeAsync(60000);
       expect(settled).toBe(false);
     });
 
@@ -285,7 +287,7 @@ describe('auth public entrypoints', () => {
       });
 
       await vi.waitFor(() => expect(firebaseAuth.signInWithPopup).toHaveBeenCalledTimes(1));
-      await vi.advanceTimersByTimeAsync(31000);
+      await vi.advanceTimersByTimeAsync(121000);
       await Promise.resolve();
 
       expect(rejectedError).toMatchObject({ code: 'auth/popup-timeout' });
@@ -354,7 +356,10 @@ describe('auth public entrypoints', () => {
       );
     });
 
-    it('should surface an auth error when pending redirect finishes without result', async () => {
+    it('stays quiet when a stale pending flag from another tab finishes without result', async () => {
+      // The pending flag is shared via localStorage across tabs; without the
+      // per-tab sessionStorage login-attempt hint this tab never started a
+      // Google flow, so no scary error should surface here.
       localStorage.setItem(
         AUTH_BOOTSTRAP_PENDING_KEY,
         JSON.stringify({ startedAt: 9999999999999, mode: 'redirect' })
@@ -363,15 +368,7 @@ describe('auth public entrypoints', () => {
 
       const result = await handleSignInRedirectResult();
 
-      expect(result).toEqual(
-        expect.objectContaining({
-          status: 'auth_error',
-          error: expect.objectContaining({
-            code: 'auth/redirect-empty-result',
-            retryable: true,
-          }),
-        })
-      );
+      expect(result).toBeNull();
       expect(localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
     });
 

@@ -8,7 +8,7 @@ import type {
 } from '@/shared/contracts/applicationOutcomeTypes';
 
 import type { AuthSessionState } from '@/types/authSessionTypes';
-import { signIn, signInWithGoogle } from '@/services/auth/authFlow';
+import { signIn, signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authFlow';
 import {
   getCurrentAuthSessionState,
   resolveCurrentAuthSessionState,
@@ -126,6 +126,10 @@ const buildCredentialValidationFailure = (
     reason: issue.code || 'auth/credential-invalid-input',
     severity: resolveAuthIssueSeverity(issue.severity),
   });
+};
+
+export const executeGoogleSignInWarmup = (): void => {
+  warmGoogleSignInRuntime();
 };
 
 export const executeGoogleSignIn = async (): Promise<ApplicationOutcome<AuthSessionState>> => {

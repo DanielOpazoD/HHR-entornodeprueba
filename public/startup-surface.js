@@ -55,6 +55,25 @@
     rootStyle.backgroundSize = surfaceBackground.size;
   };
 
+  var RECENT_MANUAL_LOGOUT_KEY = 'hhr_recent_manual_logout_v1';
+  var RECENT_MANUAL_LOGOUT_TTL_MS = 120000;
+
+  var hasRecentManualLogoutMarker = function () {
+    try {
+      var raw = window.sessionStorage.getItem(RECENT_MANUAL_LOGOUT_KEY);
+      if (!raw) return false;
+      var parsed = JSON.parse(raw);
+      return (
+        parsed &&
+        parsed.reason === 'manual' &&
+        typeof parsed.at === 'number' &&
+        Date.now() - parsed.at <= RECENT_MANUAL_LOGOUT_TTL_MS
+      );
+    } catch (error) {
+      return false;
+    }
+  };
+
   var hasPersistedFirebaseAuthHint = false;
   var hasRecentAuthenticatedSessionHint = false;
 
@@ -69,11 +88,42 @@
     hasRecentAuthenticatedSessionHint = false;
   }
 
-  var hasAnySessionHint = hasPersistedFirebaseAuthHint || hasRecentAuthenticatedSessionHint;
+  // A recent manual logout invalidates stale storage hints so refreshes after
+  // signing out land on the login surface, never the authenticated wallpaper.
+  var hasAnySessionHint =
+    (hasPersistedFirebaseAuthHint || hasRecentAuthenticatedSessionHint) &&
+    !hasRecentManualLogoutMarker();
   var shouldUseLoginSurface = isLoginSurfacePath && !hasAnySessionHint;
 
   document.documentElement.dataset.prebootSurface = shouldUseLoginSurface ? 'login' : 'app';
   applyPrebootSurfaceBackground(
     shouldUseLoginSurface ? LOGIN_SURFACE_BACKGROUND : APP_SURFACE_BACKGROUND
   );
+
+  // First-visit production loads have no cached Firebase config; the blocking
+  // fetch to the Netlify Function is the longest serial step of the startup.
+  // Kick it off from the preboot layer so it overlaps bundle download/parse.
+  // The runtime config loader consumes window.__HHR_EARLY_CONFIG_FETCH__.
+  try {
+    var isLocalhostRuntime =
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (
+      !isLocalhostRuntime &&
+      typeof window.fetch === 'function' &&
+      !window.localStorage.getItem('hhr_firebase_config')
+    ) {
+      window.__HHR_EARLY_CONFIG_FETCH__ = window
+        .fetch('/.netlify/functions/firebase-config?t=' + Date.now() + '&mode=preboot', {
+          cache: 'no-store',
+        })
+        .then(function (response) {
+          return response.ok ? response.json() : null;
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+  } catch (error) {
+    // Preboot warm-up is best-effort only.
+  }
 })();

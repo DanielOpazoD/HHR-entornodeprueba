@@ -14,6 +14,7 @@ import {
   isAuthBootstrapPending,
   markAuthBootstrapPending,
 } from '@/services/auth/authBootstrapState';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { authorizeFirebaseUser } from '@/services/auth/authAccessResolution';
 import { getAuthRedirectRuntimeSupport } from '@/services/auth/authRedirectRuntime';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
@@ -128,11 +129,32 @@ export const handleSignInRedirectResult = async (
       return toResolvedAuthSessionState(e2eRedirectUser);
     }
 
+    // The pending-redirect flag lives in localStorage and is visible to every
+    // tab; the login-attempt hint lives in sessionStorage and only exists in
+    // the tab that actually started the Google flow (it survives the redirect
+    // round-trip). Surfacing the empty-result error requires the per-tab hint,
+    // so a stale flag can never alarm unrelated tabs.
     const hadPendingRedirect = isAuthBootstrapPending();
     const hadRecentGoogleLoginAttempt = hasRecentGoogleLoginAttemptHint();
     const result = await getRedirectResult(authRuntime.auth);
     if (!result) {
-      if (hadPendingRedirect || hadRecentGoogleLoginAttempt) {
+      if (!hadRecentGoogleLoginAttempt && hadPendingRedirect) {
+        // Keep observability for the quiet path: either another tab's stale
+        // flag, or a same-tab redirect whose sessionStorage did not survive
+        // the round trip (locked-down/PWA contexts).
+        recordOperationalTelemetry({
+          category: 'auth',
+          operation: 'redirect_empty_result_without_tab_hint',
+          status: 'degraded',
+          runtimeState: 'recoverable',
+          context: {
+            isOnline: typeof window !== 'undefined' ? window.navigator.onLine : null,
+          },
+          issues: ['Pending redirect flag resolved empty without a per-tab login attempt hint.'],
+        });
+      }
+
+      if (hadRecentGoogleLoginAttempt) {
         return createAuthErrorSessionState({
           code: 'auth/redirect-empty-result',
           message: 'Google no devolvio una sesion valida al finalizar el redirect.',

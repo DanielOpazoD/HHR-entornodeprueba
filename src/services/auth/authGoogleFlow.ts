@@ -8,7 +8,11 @@ import {
   startGoogleLoginLockHeartbeat,
 } from '@/services/auth/googleLoginLock';
 import { createAuthError, googleProvider } from '@/services/auth/authShared';
-import { isPopupRecoverableAuthError, toGoogleAuthError } from '@/services/auth/authErrorPolicy';
+import {
+  isPopupOpenFailureAuthError,
+  isPopupRecoverableAuthError,
+  toGoogleAuthError,
+} from '@/services/auth/authErrorPolicy';
 import {
   authorizeCurrentFirebaseUser,
   authorizeFirebaseUser,
@@ -19,8 +23,12 @@ import {
 } from '@/services/auth/authOperationalTelemetry';
 import { signInWithGoogleRedirect } from '@/services/auth/authFallback';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
-const GOOGLE_POPUP_AUTH_TIMEOUT_MS = 30_000;
+// Budget for the user to finish the whole Google flow inside the popup
+// (account picker + password + 2FA can easily exceed 30s on shared hospital
+// computers). Firebase keeps the popup promise pending far longer than this.
+const GOOGLE_POPUP_AUTH_TIMEOUT_MS = 120_000;
 
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
@@ -28,6 +36,16 @@ interface AuthRuntimeOptions {
 
 const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
   authRuntime ?? defaultAuthRuntime;
+
+/**
+ * Fire-and-forget warm-up for the sign-in critical path: resolves the Firebase
+ * auth runtime and loads/initializes the Functions client so the post-popup
+ * role lookup (checkUserRole) does not pay the dynamic-import cost.
+ */
+export const warmGoogleSignInRuntime = (options?: AuthRuntimeOptions): void => {
+  void resolveAuthRuntime(options).ready.catch(() => {});
+  void defaultFunctionsRuntime.getFunctions().catch(() => {});
+};
 
 const waitForE2EPopupDelay = async (): Promise<void> => {
   const { consumeE2EPopupDelayMs } = await import('@/services/auth/authE2EPopupRuntime');
@@ -125,7 +143,10 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
         userSafeMessage: mappedError.message,
       });
 
-      if (isPopupRecoverableAuthError(error)) {
+      // Only fall back to the redirect flow when the popup could not open (or
+      // close) at all. On auth/popup-timeout the window is still open and the
+      // user may be mid-login: navigating away would destroy their progress.
+      if (isPopupOpenFailureAuthError(error)) {
         emitAuthOperationalEvent('sign_in_google_popup_recovery', 'recoverable', {
           code: 'auth_google_popup_recovery_suggested',
           message: 'Trying alternate Google sign-in flow after browser popup issue.',

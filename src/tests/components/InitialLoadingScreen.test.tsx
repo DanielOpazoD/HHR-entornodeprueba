@@ -4,7 +4,6 @@ import { render, screen } from '@testing-library/react';
 import {
   InitialLoadingScreen,
   resolveInitialLoadingScreenVariant,
-  shouldRenderInitialLoadingScreen,
 } from '@/components/ui/InitialLoadingScreen';
 
 describe('InitialLoadingScreen', () => {
@@ -20,19 +19,13 @@ describe('InitialLoadingScreen', () => {
     expect(resolveInitialLoadingScreenVariant('/', { preferLoginShell: false })).toBe('default');
   });
 
-  it('does not render the initial loading screen for the census route', () => {
-    expect(shouldRenderInitialLoadingScreen('/census')).toBe(false);
-  });
-
-  it('does not render the initial loading screen for census routes with trailing slashes', () => {
-    expect(shouldRenderInitialLoadingScreen('/census/')).toBe(false);
-  });
-
-  it('does not render the initial loading screen for authenticated module routes', () => {
-    expect(shouldRenderInitialLoadingScreen('/nursing-handoff')).toBe(false);
-    expect(shouldRenderInitialLoadingScreen('/medical-handoff')).toBe(false);
-    expect(shouldRenderInitialLoadingScreen('/transfer-management')).toBe(false);
-    expect(shouldRenderInitialLoadingScreen('/whatsapp')).toBe(false);
+  it('resolves the default loader variant for authenticated module routes', () => {
+    expect(resolveInitialLoadingScreenVariant('/census')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/census/')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/nursing-handoff')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/medical-handoff')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/transfer-management')).toBe('default');
+    expect(resolveInitialLoadingScreenVariant('/whatsapp')).toBe('default');
   });
 
   it('renders the login shell without a startup spinner for the root route', () => {

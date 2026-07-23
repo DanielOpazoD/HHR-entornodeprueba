@@ -37,6 +37,35 @@ export const hasPersistedFirebaseAuthHint = (): boolean => {
   );
 };
 
+/**
+ * Removes persisted Firebase auth entries from web storage. Used on manual
+ * logout so a stale `firebase:authUser:*` copy can never re-trigger the
+ * authenticated bootstrap chrome (or a ghost re-login) after the user chose
+ * to sign out — even if the Firebase signOut call itself failed offline.
+ */
+export const clearPersistedFirebaseAuthState = (): void => {
+  const storages = [
+    typeof localStorage === 'undefined' ? undefined : localStorage,
+    typeof sessionStorage === 'undefined' ? undefined : sessionStorage,
+  ];
+
+  for (const storage of storages) {
+    if (!hasWindowStorage(storage)) continue;
+    try {
+      const staleKeys: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (key?.startsWith(FIREBASE_AUTH_STORAGE_PREFIX)) {
+          staleKeys.push(key);
+        }
+      }
+      staleKeys.forEach(key => storage.removeItem(key));
+    } catch {
+      // Ignore storage errors — this cleanup is best-effort.
+    }
+  }
+};
+
 export const hasRecentAuthenticatedSessionHint = (): boolean => {
   if (!hasWindowStorage(typeof sessionStorage === 'undefined' ? undefined : sessionStorage)) {
     return false;

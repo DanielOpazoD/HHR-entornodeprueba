@@ -46,6 +46,35 @@ const getCachedConfig = (): FirebaseOptions | null => {
 
 const FETCH_TIMEOUT_MS = 8_000;
 
+type EarlyConfigFetchWindow = Window & {
+  __HHR_EARLY_CONFIG_FETCH__?: Promise<Partial<FirebaseOptions> | null>;
+};
+
+/**
+ * Consumes the config request started by public/startup-surface.js on
+ * first-visit production loads (no cached config). Starting that fetch at
+ * preboot lets the Netlify Function cold start overlap bundle download/parse
+ * instead of running serially after it.
+ */
+const consumeEarlyConfigFetch = async (): Promise<FirebaseOptions | null> => {
+  if (typeof window === 'undefined') return null;
+  const earlyWindow = window as EarlyConfigFetchWindow;
+  const earlyFetch = earlyWindow.__HHR_EARLY_CONFIG_FETCH__;
+  if (!earlyFetch) return null;
+  delete earlyWindow.__HHR_EARLY_CONFIG_FETCH__;
+
+  try {
+    const timeoutFallback = new Promise<null>(resolve => {
+      setTimeout(() => resolve(null), FETCH_TIMEOUT_MS);
+    });
+    const config = await Promise.race([earlyFetch, timeoutFallback]);
+    return hasRequiredFirebaseFields(config ?? null) ? config : null;
+  } catch (error) {
+    firebaseConfigLoaderLogger.info('[FirebaseConfig] Early preboot config fetch failed:', error);
+    return null;
+  }
+};
+
 const fetchRuntimeConfig = async (): Promise<FirebaseOptions> => {
   const configUrl = `/.netlify/functions/firebase-config?t=${Date.now()}&mode=recovery`;
   const controller = new AbortController();
@@ -132,7 +161,14 @@ export const loadFirebaseConfig = async (): Promise<FirebaseOptions> => {
     return cached;
   }
 
-  // No cache (first visit): blocking fetch
+  // No cache (first visit): prefer the fetch already started at preboot,
+  // falling back to a fresh blocking fetch.
+  const earlyConfig = await consumeEarlyConfigFetch();
+  if (earlyConfig) {
+    saveCachedConfig(earlyConfig);
+    return earlyConfig;
+  }
+
   const config = await fetchRuntimeConfig();
   saveCachedConfig(config);
   return config;

@@ -75,7 +75,52 @@ describe('appShellLoadingPolicy', () => {
     });
   });
 
-  it('stays silent on pre-mount when no auth hints exist', () => {
+  it('keeps the login shell pre-mount when stale hints survive a recent manual logout', () => {
+    expect(
+      resolvePreMountLoadingScreenDecision({
+        pathname: '/census',
+        hasRecentAuthenticatedSessionHint: true,
+        hasPersistedFirebaseAuthHint: true,
+        hasActiveFirebaseSession: false,
+        hasRecentManualLogout: true,
+      })
+    ).toEqual({
+      shouldRender: true,
+      preferLoginShell: true,
+      renderBootstrapRouteChrome: false,
+    });
+  });
+
+  it('lets an active Firebase session win over the manual logout marker pre-mount', () => {
+    expect(
+      resolvePreMountLoadingScreenDecision({
+        pathname: '/census',
+        hasRecentAuthenticatedSessionHint: false,
+        hasPersistedFirebaseAuthHint: false,
+        hasActiveFirebaseSession: true,
+        hasRecentManualLogout: true,
+      })
+    ).toEqual({
+      shouldRender: false,
+      preferLoginShell: false,
+      renderBootstrapRouteChrome: true,
+    });
+  });
+
+  it('skips the route chrome at runtime when stale hints survive a recent manual logout', () => {
+    expect(
+      resolveRuntimeLoadingScreenMode({
+        pathname: '/census',
+        bootstrapState: createLoadingBootstrapState('rehydrating'),
+        hasRecentAuthenticatedSessionHint: true,
+        hasPersistedFirebaseAuthHint: true,
+        hasActiveFirebaseSession: false,
+        hasRecentManualLogout: true,
+      })
+    ).toBe('default');
+  });
+
+  it('renders the login shell pre-mount when no auth hints exist', () => {
     expect(
       resolvePreMountLoadingScreenDecision({
         pathname: '/',
@@ -84,8 +129,8 @@ describe('appShellLoadingPolicy', () => {
         hasActiveFirebaseSession: false,
       })
     ).toEqual({
-      shouldRender: false,
-      preferLoginShell: false,
+      shouldRender: true,
+      preferLoginShell: true,
       renderBootstrapRouteChrome: false,
     });
   });
@@ -102,7 +147,7 @@ describe('appShellLoadingPolicy', () => {
     ).toBe('bootstrap-route-chrome');
   });
 
-  it('does not render protected route chrome during a clean incognito-style bootstrap', () => {
+  it('shows the neutral loader instead of protected chrome during a clean incognito-style bootstrap', () => {
     expect(
       resolveRuntimeLoadingScreenMode({
         pathname: '/census',
@@ -111,10 +156,10 @@ describe('appShellLoadingPolicy', () => {
         hasPersistedFirebaseAuthHint: false,
         hasActiveFirebaseSession: false,
       })
-    ).toBe('silent');
+    ).toBe('default');
   });
 
-  it('keeps root-route bootstrapping visually silent', () => {
+  it('keeps the login shell visible while the root route bootstraps without hints', () => {
     expect(
       resolveRuntimeLoadingScreenMode({
         pathname: '/',
@@ -123,7 +168,7 @@ describe('appShellLoadingPolicy', () => {
         hasPersistedFirebaseAuthHint: false,
         hasActiveFirebaseSession: false,
       })
-    ).toBe('silent');
+    ).toBe('login-shell');
 
     expect(
       resolveRuntimeLoadingScreenMode({
@@ -170,7 +215,7 @@ describe('appShellLoadingPolicy', () => {
     ).toBe('bootstrap-route-chrome');
   });
 
-  it('keeps authenticated root-route bootstrapping silent', () => {
+  it('keeps the route chrome for an already-authorized session bootstrapping on the root route', () => {
     expect(
       resolveRuntimeLoadingScreenMode({
         pathname: '/',
@@ -179,6 +224,6 @@ describe('appShellLoadingPolicy', () => {
         hasPersistedFirebaseAuthHint: false,
         hasActiveFirebaseSession: false,
       })
-    ).toBe('silent');
+    ).toBe('bootstrap-route-chrome');
   });
 });
