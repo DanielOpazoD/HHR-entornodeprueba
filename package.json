@@ -322,7 +322,7 @@
     "minimatch@>=10": {
       "brace-expansion": "5.0.7"
     },
-    "fast-uri@>=3.0.0 <3.1.4": "https://codeload.github.com/fastify/fast-uri/tar.gz/6aeece669e4166b2446a89f17c07a3b15dfb7ed4",
+    "fast-uri@>=3.0.0 <3.1.4": "3.1.4",
     "lodash": "4.18.1",
     "qs": "6.15.2",
     "@isaacs/brace-expansion": "5.0.1",
