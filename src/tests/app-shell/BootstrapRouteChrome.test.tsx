@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
 
@@ -109,7 +109,12 @@ describe('BootstrapRouteChrome', () => {
       render(<BootstrapRouteChrome />);
 
       const navbarProps = mockNavbar.mock.calls[0][0] as { onLogout: () => void };
-      navbarProps.onLogout();
+      act(() => {
+        navbarProps.onLogout();
+      });
+
+      // Immediate visual feedback while the sign-out settles.
+      expect(screen.getByTestId('bootstrap-logout-overlay')).toHaveTextContent('Cerrando sesión');
 
       await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/'));
       expect(mockedAuthSessionSignOut).toHaveBeenCalled();
