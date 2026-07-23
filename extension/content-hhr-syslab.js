@@ -22,7 +22,7 @@
     ),
     HHR_RAYEN_SYSLAB_SEARCH_REQUEST: route(
       'HHR_RAYEN_SYSLAB_SEARCH_RESULT', runtimeMessages.LAB_SEARCH_REQUEST,
-      data => ({ encId: String(data.encId || '') })
+      data => ({ encId: String(data.encId || ''), patientRut: String(data.patientRut || '') })
     ),
     HHR_RAYEN_SYSLAB_DETAILS_REQUEST: {
       resultType: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',

@@ -73,6 +73,7 @@ describe('HHR Syslab content bridge', () => {
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         reqId: 'syslab-search-1',
         encId: '141814',
+        patientRut: '285551498',
       },
     });
 
@@ -80,6 +81,7 @@ describe('HHR Syslab content bridge', () => {
       expect(sendMessage).toHaveBeenCalledWith({
         type: 'RAYEN_LAB_SEARCH_REQUEST',
         encId: '141814',
+        patientRut: '285551498',
       })
     );
     expect(postMessage).toHaveBeenCalledWith(

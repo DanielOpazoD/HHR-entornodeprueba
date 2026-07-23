@@ -40,8 +40,7 @@ importScripts(
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
-  'lab-viewer.js', 'syslab-login-window.js', 'syslab-session-transport.js',
-  'syslab-runtime.js',
+  'lab-viewer.js', 'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-encounter-authorization.js', 'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
   'report-parser.js',
@@ -1143,6 +1142,7 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
 const syslabRuntime = self.HhrSyslabRuntime.create({
   chrome,
   labViewer: self.HhrLabViewer,
+  syslabEncounterAuthorization: self.HhrSyslabEncounterAuthorization,
   syslabSessionTransport: self.HhrSyslabSessionTransport, withTimeout,
   getClinicalReportContext,
   getFichaFetchInfo,
@@ -1244,7 +1244,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo cargar el panel clínico.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
-    (message, sender) => syslabRuntime.search({ encId: message.encId, sender }),
+    (message, sender) => syslabRuntime.search({ encId: message.encId, patientRut: message.patientRut, sender }),
     'No se pudieron buscar los exámenes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(

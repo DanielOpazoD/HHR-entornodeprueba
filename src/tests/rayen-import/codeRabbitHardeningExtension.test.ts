@@ -109,7 +109,10 @@ describe('CodeRabbit clinical integration hardening', () => {
       'const fichaSessionCacheKey = async (info, sender) =>'
     );
     expect(fichaMedicoPatientContextSource).toContain("cryptoApi.subtle.digest('SHA-256'");
-    expect(syslabRuntimeSource).toContain('const censusAllowlistCache = new Map()');
+    expect(syslabRuntimeSource).toContain('encounterAuthorization.preflight');
+    expect(syslabRuntimeSource.indexOf('encounterAuthorization.preflight')).toBeLessThan(
+      syslabRuntimeSource.indexOf('getClinicalReportContext(encId, null, null, sender)')
+    );
     expect(syslabRuntimeSource).toContain('getClinicalReportContext(encId, null, null, sender)');
   });
 

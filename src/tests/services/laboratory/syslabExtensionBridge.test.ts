@@ -40,6 +40,7 @@ describe('Syslab extension page bridge', () => {
       expect(request).toMatchObject({
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         encId: '141814',
+        patientRut: '14.470.055-4',
       });
       return {
         ok: true,
@@ -58,7 +59,7 @@ describe('Syslab extension page bridge', () => {
       };
     });
 
-    await expect(searchSyslabThroughExtension('144700554', '141814')).resolves.toEqual({
+    await expect(searchSyslabThroughExtension('14.470.055-4', '141814')).resolves.toEqual({
       bridgeAvailable: true,
       data: {
         success: true,

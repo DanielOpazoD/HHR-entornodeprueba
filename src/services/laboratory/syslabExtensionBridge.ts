@@ -132,6 +132,7 @@ export const searchSyslabThroughExtension = async (
   encId?: string
 ): Promise<{ bridgeAvailable: boolean; data?: SyslabSearchResponse; error?: string }> => {
   if (!encId) return { bridgeAvailable: false };
+  const requestedRut = rut.replace(/[^0-9K]/gi, '').toUpperCase();
   const availability = await requestExtension('status', {}, 1_000);
   if (!availability.bridgeAvailable) return { bridgeAvailable: false };
   const availabilityError = responseError(availability, 'La extensión no pudo comprobar Syslab.');
@@ -145,14 +146,13 @@ export const searchSyslabThroughExtension = async (
           : 'Conecta Syslab desde el módulo Laboratorio de la extensión Eloísa.',
     };
   }
-  const result = await requestExtension('search', { encId }, 40_000);
+  const result = await requestExtension('search', { encId, patientRut: rut }, 40_000);
   if (!result.bridgeAvailable) return { bridgeAvailable: false };
   const error = responseError(result, 'La extensión no pudo consultar Syslab.');
   if (error) return { bridgeAvailable: true, error };
 
   const response = result.response;
   const batchId = typeof response?.batchId === 'string' ? response.batchId : '';
-  const requestedRut = rut.replace(/[^0-9K]/gi, '').toUpperCase();
   const responsePatient = response?.patient as Record<string, unknown> | undefined;
   const responseRut = String(responsePatient?.run || '')
     .replace(/[^0-9K]/gi, '')

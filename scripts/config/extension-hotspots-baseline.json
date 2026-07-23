@@ -381,6 +381,10 @@
         "iife>variable:handleMessage": 28
       }
     },
+    "syslab-encounter-authorization.js": {
+      "maxLines": 97,
+      "hotspots": {}
+    },
     "syslab-login-window.js": {
       "maxLines": 85,
       "hotspots": {}
