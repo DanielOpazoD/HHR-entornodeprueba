@@ -15,9 +15,7 @@ const runtimeTypes = {
 };
 
 const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
-  let onMessage:
-    | ((event: { source: unknown; data: Record<string, unknown> }) => void)
-    | undefined;
+  let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
   const postMessage = vi.fn();
   const windowObject = {
     location: { origin: 'http://localhost:3000' },
@@ -36,6 +34,20 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
 };
 
 describe('HHR Syslab content bridge', () => {
+  it.each(['http://localhost:3000', 'http://localhost:3001', 'https://testinghhr.netlify.app'])(
+    'installs on the trusted HHR origin %s',
+    origin => {
+      const addEventListener = vi.fn();
+      const context = vm.createContext({
+        window: { location: { origin }, addEventListener },
+        HhrRayenMessageContract: { types: runtimeTypes },
+      });
+
+      vm.runInContext(source, context, { filename: 'content-hhr-syslab.js' });
+      expect(addEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    }
+  );
+
   it('installs only on trusted HHR origins', () => {
     const addEventListener = vi.fn();
     const context = vm.createContext({

@@ -6,6 +6,7 @@
   // privileged operations remain constrained again by encounter, RUN, batch ownership and TTL.
   const trustedOrigins = new Set([
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://testinghhr.netlify.app',
   ]);
   if (!trustedOrigins.has(window.location.origin)) return;
