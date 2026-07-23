@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   fetchSyslabDetailsThroughExtension,
+  openSyslabLoginWindow,
   openSyslabPdfThroughExtension,
   searchSyslabThroughExtension,
 } from '@/services/laboratory/syslabExtensionBridge';
@@ -75,6 +76,21 @@ describe('Syslab extension page bridge', () => {
       },
     });
     expect(postMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens the extension-owned login window without exposing credentials to HHR', async () => {
+    const postMessage = installBridgeResponse(request => {
+      expect(request).toMatchObject({ type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST' });
+      expect(request).not.toHaveProperty('username');
+      expect(request).not.toHaveProperty('password');
+      return { ok: true, opened: true };
+    });
+
+    await expect(openSyslabLoginWindow()).resolves.toEqual({
+      bridgeAvailable: true,
+      opened: true,
+    });
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 
   it('rejects results when Eloísa does not confirm the selected RUN', async () => {

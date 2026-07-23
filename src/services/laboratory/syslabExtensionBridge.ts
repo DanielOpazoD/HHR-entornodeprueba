@@ -2,6 +2,7 @@ import type { SyslabDetailsResponse, SyslabSearchResponse } from '@/types/domain
 
 const REQUEST_TYPES = {
   status: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST',
+  openLogin: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST',
   search: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_REQUEST',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_REQUEST',
@@ -9,6 +10,7 @@ const REQUEST_TYPES = {
 
 const RESULT_TYPES = {
   status: 'HHR_RAYEN_SYSLAB_STATUS_RESULT',
+  openLogin: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
   search: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_RESULT',
@@ -27,6 +29,12 @@ export interface SyslabExtensionStatus {
   connected: boolean;
   loginRequired: boolean;
   message: string;
+}
+
+export interface SyslabLoginWindowResult {
+  bridgeAvailable: boolean;
+  opened: boolean;
+  error?: string;
 }
 
 const requestExtension = (
@@ -106,6 +114,19 @@ export const requestSyslabExtensionStatus = async (
   };
 };
 
+export const openSyslabLoginWindow = async (): Promise<SyslabLoginWindowResult> => {
+  const result = await requestExtension('openLogin');
+  if (!result.bridgeAvailable) {
+    return { bridgeAvailable: false, opened: false, error: 'La extensión Eloísa no respondió.' };
+  }
+  const error = responseError(result, 'La extensión no pudo abrir el acceso a Syslab.');
+  return {
+    bridgeAvailable: true,
+    opened: result.response?.opened === true,
+    ...(error ? { error } : {}),
+  };
+};
+
 export const searchSyslabThroughExtension = async (
   rut: string,
   encId?: string
@@ -173,7 +194,9 @@ export const fetchSyslabDetailsThroughExtension = async (
   if (links.length === 0) throw new Error('Selecciona uno o más informes de laboratorio.');
   if (links.length > 24) throw new Error('Puedes analizar como máximo 24 informes por operación.');
   if (links.some(link => !isSyslabExtensionLink(link))) {
-    throw new Error('La selección de laboratorio contiene un informe no válido. Actualiza el visor.');
+    throw new Error(
+      'La selección de laboratorio contiene un informe no válido. Actualiza el visor.'
+    );
   }
   const result = await requestExtension('details', { links }, 10 * 60_000);
   if (!result.bridgeAvailable) {
@@ -185,9 +208,7 @@ export const fetchSyslabDetailsThroughExtension = async (
     | { reports?: Array<{ examId?: unknown; findings?: unknown[] }> }
     | undefined;
   const reports = Array.isArray(analysis?.reports) ? analysis.reports : [];
-  const linksByExamId = new Map(
-    links.map(link => [link.match(/\/exam\/(\d+)$/)?.[1] || '', link])
-  );
+  const linksByExamId = new Map(links.map(link => [link.match(/\/exam\/(\d+)$/)?.[1] || '', link]));
   return {
     success: result.response?.ok === true,
     data: reports.map(report => ({

@@ -40,7 +40,7 @@ importScripts(
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
-  'lab-viewer.js', 'syslab-session-transport.js',
+  'lab-viewer.js', 'syslab-login-window.js', 'syslab-session-transport.js',
   'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',

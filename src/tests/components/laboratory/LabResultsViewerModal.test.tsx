@@ -18,6 +18,7 @@ vi.unmock('@/features/laboratory/components/LabViewerTrendCharts');
 vi.unmock('@/features/laboratory/components/LabViewerComparisonTable');
 vi.unmock('@/features/laboratory/components/LabExportConfigDialog');
 vi.unmock('@/features/laboratory/components/LabViewerEmptyState');
+vi.unmock('@/features/laboratory/components/SyslabAccessPrompt');
 vi.unmock('@/features/laboratory/constants/labConstants');
 vi.unmock('@/features/laboratory/types/labViewerTypes');
 
@@ -57,6 +58,11 @@ vi.mock('recharts', () => ({
 const mockUseLabViewer = vi.fn();
 vi.mock('@/features/laboratory/hooks/useLabViewer', () => ({
   useLabViewer: (...args: unknown[]) => mockUseLabViewer(...args),
+}));
+
+const mockUseSyslabAccess = vi.fn();
+vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
+  useSyslabAccess: (...args: unknown[]) => mockUseSyslabAccess(...args),
 }));
 
 vi.mock('@/features/laboratory/controllers/labFormattingController', () => ({
@@ -214,6 +220,14 @@ describe('LabResultsViewerModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseLabViewer.mockReturnValue({ ...DEFAULT_HOOK_STATE });
+    mockUseSyslabAccess.mockReturnValue({
+      state: 'connected',
+      message: 'Sesión de Syslab activa.',
+      isOpening: false,
+      isAwaitingLogin: false,
+      refresh: vi.fn(),
+      openLogin: vi.fn(),
+    });
   });
 
   it('renders nothing when closed', () => {
@@ -231,6 +245,25 @@ describe('LabResultsViewerModal', () => {
   it('shows empty state by default', () => {
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
     expect(screen.getByText('Selecciona un paciente y busca')).toBeInTheDocument();
+  });
+
+  it('opens the extension-owned credential window when Syslab requires login', async () => {
+    const openLogin = vi.fn();
+    mockUseSyslabAccess.mockReturnValue({
+      state: 'login-required',
+      message: 'Syslab requiere iniciar sesión.',
+      isOpening: false,
+      isAwaitingLogin: false,
+      refresh: vi.fn(),
+      openLogin,
+    });
+
+    render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
+
+    const loginButton = await screen.findByRole('button', { name: 'Iniciar sesión en Syslab' });
+    await userEvent.click(loginButton);
+
+    expect(openLogin).toHaveBeenCalledTimes(1);
   });
 
   it('shows exam list with checkboxes', () => {

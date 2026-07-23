@@ -55,7 +55,7 @@
     submit.disabled = false;
     const connected = Boolean(response && !response.error && response.connected);
     const message = connected
-      ? 'Syslab conectado. Vuelve a Eloísa y pulsa Actualizar.'
+      ? 'Syslab conectado. Vuelve a la pantalla de Laboratorio.'
       : String(response && response.error || 'Syslab no confirmó el acceso.');
     showStatus(message, connected);
     notifyParent(connected, message);

@@ -9,6 +9,7 @@ const source = readFileSync(path.resolve('extension/content-hhr-syslab.js'), 'ut
 
 const runtimeTypes = {
   SYSLAB_STATUS_REQUEST: 'RAYEN_SYSLAB_STATUS_REQUEST',
+  SYSLAB_LOGIN_OPEN_REQUEST: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST',
   LAB_SEARCH_REQUEST: 'RAYEN_LAB_SEARCH_REQUEST',
   LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
   LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
@@ -87,6 +88,27 @@ describe('HHR Syslab content bridge', () => {
         reqId: 'syslab-search-1',
         response: expect.objectContaining({ ok: true }),
       }),
+      'http://localhost:3000'
+    );
+  });
+
+  it('asks the extension worker to open its own Syslab credential window', async () => {
+    const { onMessage, postMessage, sendMessage, windowObject } = createHarness();
+
+    onMessage?.({
+      source: windowObject,
+      data: { type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST', reqId: 'login-open-1' },
+    });
+
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST' })
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
+        reqId: 'login-open-1',
+        response: { ok: true },
+      },
       'http://localhost:3000'
     );
   });
