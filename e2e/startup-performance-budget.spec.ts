@@ -88,6 +88,14 @@ const BUDGETS = {
       targetMs: 4500,
     }
   ),
+  logoutToLoginVisibleMs: resolveBudget(
+    'logoutToLoginVisibleMs',
+    'E2E_BUDGET_LOGOUT_TO_LOGIN_VISIBLE_MS',
+    {
+      enforcedMaxMs: 2500,
+      targetMs: 1500,
+    }
+  ),
 } as const;
 
 const BROWSER_BUDGET_OVERRIDES: Partial<
@@ -287,7 +295,7 @@ test.afterAll(async () => {
 });
 
 test.describe('Startup performance budget', () => {
-  test('meets login, auth, censo, clinical documents, and backup visibility budgets', async ({
+  test('meets login, auth, censo, clinical documents, backup, and logout visibility budgets', async ({
     page,
     browserName,
   }) => {
@@ -358,6 +366,19 @@ test.describe('Startup performance budget', () => {
     const backupFilesVisibleMs = performance.now() - startBackupFiles;
     flowMetrics.backupFilesVisibleMs = Number(backupFilesVisibleMs.toFixed(2));
 
+    // Manual logout must return the user to a usable login screen quickly —
+    // this guards the "logout looks broken" regression class.
+    const userMenuButton = page.getByTestId('authenticated-user-menu-button');
+    await expect(userMenuButton).toBeVisible();
+    await userMenuButton.click();
+    const logoutButton = page.getByRole('button', { name: /Cerrar sesión/i });
+    await expect(logoutButton).toBeVisible();
+    const startLogout = performance.now();
+    await logoutButton.click();
+    await expect(page.getByTestId('login-google-button')).toBeVisible();
+    const logoutToLoginVisibleMs = performance.now() - startLogout;
+    flowMetrics.logoutToLoginVisibleMs = Number(logoutToLoginVisibleMs.toFixed(2));
+
     expect(loginVisibleMs, `loginVisibleMs=${loginVisibleMs}`).toBeLessThanOrEqual(
       getEnforcedBudget(browserName, 'loginVisibleMs')
     );
@@ -378,5 +399,9 @@ test.describe('Startup performance budget', () => {
       backupFilesVisibleMs,
       `backupFilesVisibleMs=${backupFilesVisibleMs}`
     ).toBeLessThanOrEqual(getEnforcedBudget(browserName, 'backupFilesVisibleMs'));
+    expect(
+      logoutToLoginVisibleMs,
+      `logoutToLoginVisibleMs=${logoutToLoginVisibleMs}`
+    ).toBeLessThanOrEqual(getEnforcedBudget(browserName, 'logoutToLoginVisibleMs'));
   });
 });
