@@ -1,13 +1,8 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { TransferRow } from '@/features/census/components/TransferRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
-
-vi.mock('@/features/census/components/IEEHFormDialog', () => ({
-  IEEHFormDialog: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div data-testid="ieeh-modal" /> : null,
-}));
 
 describe('TransferRow', () => {
   beforeEach(() => {
@@ -61,7 +56,7 @@ describe('TransferRow', () => {
     expect(onDelete).toHaveBeenCalledWith('t1');
   });
 
-  it('lazy-loads the IEEH modal only when opened', async () => {
+  it('does not expose the IEEH action', () => {
     const item = DataFactory.createMockTransfer({
       id: 't2',
       patientName: 'Paciente Traslado',
@@ -87,11 +82,11 @@ describe('TransferRow', () => {
       </table>
     );
 
-    expect(screen.queryByTestId('ieeh-modal')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByTitle('Generar Informe Estadístico de Egreso (IEEH)'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ieeh-modal')).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    expect(
+      screen.queryByRole('menuitem', {
+        name: /Generar Informe Estadístico de Egreso \(IEEH\)/i,
+      })
+    ).not.toBeInTheDocument();
   });
 });

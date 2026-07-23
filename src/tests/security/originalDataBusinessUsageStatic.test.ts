@@ -12,8 +12,6 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/application/census/movementReclassificationBuilders.ts',
   'src/hooks/usePatientMovementUndoExecutor.ts',
   'src/hooks/controllers/censusExcelSheetController.ts',
-  'src/features/census/components/DischargeRowView.tsx',
-  'src/features/census/components/TransferRowView.tsx',
   'src/features/census/controllers/patientMovementDischargeMutationController.ts',
   'src/features/census/controllers/movementClinicalDocumentsController.ts',
   'src/features/census/controllers/patientMovementTransferMutationController.ts',

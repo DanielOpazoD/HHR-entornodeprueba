@@ -18,7 +18,6 @@ interface DischargeRowProps {
   recordDate: string;
   onUndo: (id: string) => Promise<void>;
   onEdit: (item: DischargeData) => void;
-  onUpdate: (item: DischargeData) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onConvertToCma: (id: string) => Promise<void>;
   onConvertToTransfer?: (id: string) => Promise<void>;
@@ -30,7 +29,6 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
     recordDate,
     onUndo,
     onEdit,
-    onUpdate,
     onDelete,
     onConvertToCma,
     onConvertToTransfer,
@@ -57,7 +55,6 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
           viewModel={viewModel}
           recordDate={recordDate}
           dischargeItem={item}
-          onUpdateDischarge={onUpdate}
         />
         {showClinicalDocuments &&
           createPortal(

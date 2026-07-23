@@ -1,23 +1,14 @@
 import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText } from 'lucide-react';
 
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
 import { CensusMovementActionsMenu } from '@/features/census/components/CensusMovementActionsMenu';
-import {
-  buildCmaIeehPatientSnapshot,
-  CMA_INTERVENTION_TYPES,
-} from '@/features/census/controllers/censusCmaController';
+import { CMA_INTERVENTION_TYPES } from '@/features/census/controllers/censusCmaController';
 import { buildCmaClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
 import { resolveCmaUndoButtonTitle } from '@/features/census/controllers/censusCmaTableController';
 import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 
-const LazyIEEHFormDialog = lazy(() =>
-  import('@/features/census/components/IEEHFormDialog').then(module => ({
-    default: module.IEEHFormDialog,
-  }))
-);
 const LazyClinicalDocumentsModal = lazy(() =>
   import('@/features/clinical-documents').then(module => ({
     default: module.ClinicalDocumentsModal,
@@ -36,16 +27,11 @@ interface CmaSectionRowProps {
 
 export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
   ({ item, recordDate, onUpdate, onUndo, onDelete, onConvertToDischarge, onConvertToTransfer }) => {
-    const [showIeehDialog, setShowIeehDialog] = useState(false);
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [draftInterventionType, setDraftInterventionType] = useState(item.interventionType);
     const [draftDischargeTime, setDraftDischargeTime] = useState(item.dischargeTime || '');
     const [draftDiagnosis, setDraftDiagnosis] = useState(item.diagnosis || '');
-    const ieehPatient = useMemo(
-      () => buildCmaIeehPatientSnapshot(item, recordDate),
-      [item, recordDate]
-    );
     const clinicalDocumentsPatient = useMemo(
       () => buildCmaClinicalDocumentsPatientSnapshot(item, recordDate),
       [item, recordDate]
@@ -161,36 +147,9 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             </div>
           </td>
           <td className="p-2 text-right print:hidden">
-            <div className="flex items-center justify-end gap-1">
-              <CensusMovementActionsMenu actions={actionViewModels} />
-              <button
-                type="button"
-                onClick={() => setShowIeehDialog(true)}
-                className="inline-flex h-7 items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
-                title="Generar Informe Estadístico de Egreso (IEEH)"
-              >
-                <FileText size={12} />
-                IEEH
-              </button>
-            </div>
+            <CensusMovementActionsMenu actions={actionViewModels} />
           </td>
         </tr>
-
-        {showIeehDialog &&
-          createPortal(
-            <Suspense fallback={null}>
-              <LazyIEEHFormDialog
-                isOpen={showIeehDialog}
-                onClose={() => setShowIeehDialog(false)}
-                patient={ieehPatient}
-                baseDischargeData={{
-                  dischargeDate: recordDate,
-                  dischargeTime: item.dischargeTime,
-                }}
-              />
-            </Suspense>,
-            document.body
-          )}
 
         {showClinicalDocuments &&
           createPortal(

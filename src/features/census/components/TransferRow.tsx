@@ -24,7 +24,7 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
       convertTransferToCma: onConvertToCma,
     });
 
-    return <TransferRowView viewModel={viewModel} recordDate={recordDate} transferItem={item} />;
+    return <TransferRowView viewModel={viewModel} recordDate={recordDate} />;
   }
 );
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { DischargeRow } from '@/features/census/components/DischargeRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -34,11 +34,6 @@ vi.mock('@/features/census/components/FugaNotificationModal', () => ({
         <td />
       </tr>
     ) : null,
-}));
-
-vi.mock('@/features/census/components/IEEHFormDialog', () => ({
-  IEEHFormDialog: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div data-testid="ieeh-modal" /> : null,
 }));
 
 vi.mock('@/features/clinical-documents', () => ({
@@ -75,7 +70,6 @@ describe('DischargeRow', () => {
     });
     const onUndo = vi.fn().mockResolvedValue(undefined);
     const onEdit = vi.fn();
-    const onUpdate = vi.fn();
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const onConvertToCma = vi.fn().mockResolvedValue(undefined);
 
@@ -87,7 +81,6 @@ describe('DischargeRow', () => {
             recordDate="2026-02-14"
             onUndo={onUndo}
             onEdit={onEdit}
-            onUpdate={onUpdate}
             onDelete={onDelete}
             onConvertToCma={onConvertToCma}
           />
@@ -134,7 +127,6 @@ describe('DischargeRow', () => {
             recordDate="2026-02-14"
             onUndo={vi.fn().mockResolvedValue(undefined)}
             onEdit={vi.fn()}
-            onUpdate={vi.fn()}
             onDelete={vi.fn().mockResolvedValue(undefined)}
             onConvertToCma={vi.fn().mockResolvedValue(undefined)}
           />
@@ -167,7 +159,6 @@ describe('DischargeRow', () => {
             recordDate="2026-07-19"
             onUndo={vi.fn().mockResolvedValue(undefined)}
             onEdit={vi.fn()}
-            onUpdate={vi.fn()}
             onDelete={vi.fn().mockResolvedValue(undefined)}
             onConvertToCma={vi.fn().mockResolvedValue(undefined)}
           />
@@ -183,7 +174,7 @@ describe('DischargeRow', () => {
     );
   });
 
-  it('lazy-loads the fuga and IEEH modals only when opened', async () => {
+  it('lazy-loads the fuga modal and keeps IEEH unavailable', async () => {
     const item = DataFactory.createMockDischarge({
       id: 'd2',
       patientName: 'Paciente Fuga',
@@ -195,7 +186,6 @@ describe('DischargeRow', () => {
     });
     const onUndo = vi.fn().mockResolvedValue(undefined);
     const onEdit = vi.fn();
-    const onUpdate = vi.fn();
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const onConvertToCma = vi.fn().mockResolvedValue(undefined);
 
@@ -207,7 +197,6 @@ describe('DischargeRow', () => {
             recordDate="2026-02-14"
             onUndo={onUndo}
             onEdit={onEdit}
-            onUpdate={onUpdate}
             onDelete={onDelete}
             onConvertToCma={onConvertToCma}
           />
@@ -216,14 +205,13 @@ describe('DischargeRow', () => {
     );
 
     expect(screen.queryByTestId('fuga-modal')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('ieeh-modal')).not.toBeInTheDocument();
+    expect(screen.queryByText('IEEH')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Notificar fuga por correo'));
     expect(await screen.findByTestId('fuga-modal')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Generar Informe Estadístico de Egreso (IEEH)'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ieeh-modal')).toBeInTheDocument();
-    });
+    expect(
+      screen.queryByTitle('Generar Informe Estadístico de Egreso (IEEH)')
+    ).not.toBeInTheDocument();
   });
 });

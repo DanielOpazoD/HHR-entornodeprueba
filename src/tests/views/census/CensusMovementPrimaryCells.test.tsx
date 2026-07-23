@@ -29,4 +29,28 @@ describe('CensusMovementPrimaryCells', () => {
     expect(screen.getByText('12345678-9')).toBeInTheDocument();
     expect(screen.getByText('Dx')).toBeInTheDocument();
   });
+
+  it('can hide the bed type for the discharge origin column', () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <CensusMovementPrimaryCells
+              viewModel={{
+                bedName: 'H5C1',
+                bedType: 'MEDIA',
+                patientName: 'Paciente Dos',
+                rut: '98765432-1',
+                diagnosis: 'Dx',
+              }}
+              showBedType={false}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    expect(screen.getByText('H5C1')).toBeInTheDocument();
+    expect(screen.queryByText('(MEDIA)')).not.toBeInTheDocument();
+  });
 });

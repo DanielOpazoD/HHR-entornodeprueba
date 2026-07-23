@@ -21,10 +21,6 @@ vi.mock('@/features/census/components/CensusMovementDateActionsCells', () => ({
   ),
 }));
 
-vi.mock('@/features/census/components/IEEHFormDialog', () => ({
-  IEEHFormDialog: () => <div>IEEH Dialog</div>,
-}));
-
 vi.mock('@/features/census/components/FugaNotificationModal', () => ({
   FugaNotificationModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? createPortal(<div>Fuga Notification Modal</div>, document.body) : null,
@@ -77,5 +73,6 @@ describe('DischargeRowView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /fuga/i }));
     expect(await screen.findByText('Fuga Notification Modal')).toBeInTheDocument();
+    expect(screen.queryByText('IEEH')).not.toBeInTheDocument();
   });
 });

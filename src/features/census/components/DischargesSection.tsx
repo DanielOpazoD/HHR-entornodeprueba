@@ -12,7 +12,6 @@ export const DischargesSection: React.FC = () => {
     recordDate,
     sectionModel,
     handleEditDischarge,
-    updateDischarge,
     handleConvertDischargeToCma,
     handleConvertDischargeToTransfer,
   } = useDischargesSectionModel();
@@ -32,18 +31,6 @@ export const DischargesSection: React.FC = () => {
           recordDate={recordDate}
           onUndo={sectionModel.handleUndo}
           onEdit={handleEditDischarge}
-          onUpdate={async updatedItem => {
-            await updateDischarge(
-              updatedItem.id,
-              updatedItem.status,
-              updatedItem.dischargeType,
-              updatedItem.dischargeTypeOther,
-              updatedItem.time,
-              updatedItem.movementDate,
-              updatedItem.ieehData,
-              updatedItem.diagnosis
-            );
-          }}
           onDelete={sectionModel.handleDelete}
           onConvertToCma={handleConvertDischargeToCma}
           onConvertToTransfer={handleConvertDischargeToTransfer}

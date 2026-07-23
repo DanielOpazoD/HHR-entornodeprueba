@@ -1,8 +1,6 @@
 import {
   LayoutList,
   MessageSquare,
-  Stethoscope,
-  Truck,
   FolderArchive,
   BarChart3,
   Settings,
@@ -67,23 +65,6 @@ export const NAVIGATION_CONFIG: NavItemConfig[] = [
     actionType: 'MODULE_CHANGE',
     requiredModule: 'NURSING_HANDOFF',
   },
-  {
-    id: 'medical-handoff',
-    label: 'Entrega Turno Médicos',
-    icon: Stethoscope,
-    module: 'MEDICAL_HANDOFF',
-    actionType: 'MODULE_CHANGE',
-    requiredModule: 'MEDICAL_HANDOFF',
-  },
-  {
-    id: 'transfer-management',
-    label: 'Gestión Traslados',
-    icon: Truck,
-    module: 'TRANSFER_MANAGEMENT',
-    actionType: 'MODULE_CHANGE',
-    requiredModule: 'TRANSFER_MANAGEMENT',
-  },
-
   // --- Utility Dropdown Items (NavbarTabs Dropdown) ---
   {
     id: 'analytics',
