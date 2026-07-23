@@ -7,6 +7,7 @@
     "census": ["analytics", "clinical-documents", "rayen-import", "wound-care"],
     "clinical-documents": ["laboratory"],
     "cudyr": [],
+    "document-scanner": [],
     "handoff": ["cudyr", "wound-care"],
     "laboratory": [],
     "prescriptions": [],

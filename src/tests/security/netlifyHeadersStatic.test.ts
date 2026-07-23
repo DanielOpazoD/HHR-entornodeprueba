@@ -25,6 +25,29 @@ describe('netlify security headers', () => {
     expect(content).toContain("script-src 'self' 'unsafe-inline' https:;");
   });
 
+  it('isolates document scanner camera and WebAssembly permissions to its public route', () => {
+    const content = readFileSync('netlify.toml', 'utf-8');
+    const scannerHeaders = content.split('for = "/documentos/escanear-demo*"')[1] ?? '';
+    const workerHeaders = content.split('for = "/document-scanner/jscanify-worker.js"')[1] ?? '';
+
+    expect(content.indexOf('for = "/documentos/escanear-demo*"')).toBeLessThan(
+      content.indexOf('for = "/*"')
+    );
+    expect(content.indexOf('for = "/document-scanner/jscanify-worker.js"')).toBeLessThan(
+      content.indexOf('for = "/*"')
+    );
+    expect(content).toContain('Permissions-Policy = "camera=(),');
+    expect(scannerHeaders).toContain('Permissions-Policy = "camera=(self),');
+    expect(scannerHeaders).toContain(
+      "script-src 'self' blob: 'wasm-unsafe-eval' https://cdn.jsdelivr.net"
+    );
+    expect(scannerHeaders).toContain("worker-src 'self' blob: data:");
+    expect(workerHeaders).toContain("script-src blob: 'unsafe-eval' 'wasm-unsafe-eval'");
+    expect(workerHeaders).toContain('Cache-Control = "no-cache"');
+    expect(scannerHeaders).toContain('X-Content-Type-Options = "nosniff"');
+    expect(scannerHeaders).toContain('Strict-Transport-Security');
+  });
+
   it('keeps COOP mode compatible with popup login flow', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
     expect(content).toContain('Cross-Origin-Opener-Policy = "unsafe-none"');
