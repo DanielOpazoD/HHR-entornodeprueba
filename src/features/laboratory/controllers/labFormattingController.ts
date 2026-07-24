@@ -5,6 +5,8 @@
  */
 
 import { ANALYSIS_NAME_REPLACEMENTS } from '../constants/labNormalizationConstants';
+import type { LabResultRow } from '@/types/domain/labExamTypes';
+import { parseLabMeasurement } from './labNumericParser';
 
 /**
  * Parse a localized number string (using comma as decimal separator) to a float.
@@ -38,11 +40,20 @@ export const parseScientificValue = (
  * @example parseRefRange("4,5 - 11,0") // { min: 4.5, max: 11 }
  * @example parseRefRange("Negativo") // null
  */
-export const parseRefRange = (refValue: string): { min: number; max: number } | null => {
+export const parseRefRange = (
+  refValue: string,
+  context?: Pick<LabResultRow, 'unit'>
+): { min: number; max: number } | null => {
   const match = refValue.match(/([\d.,]+)\s*[-–]\s*([\d.,]+)/);
   if (!match) return null;
-  const min = parseLocalizedNumber(match[1]);
-  const max = parseLocalizedNumber(match[2]);
+  const measurementContext = context ? { unit: context.unit, refValue } : null;
+  const min = measurementContext
+    ? parseLabMeasurement(match[1], measurementContext)?.value
+    : parseLocalizedNumber(match[1]);
+  const max = measurementContext
+    ? parseLabMeasurement(match[2], measurementContext)?.value
+    : parseLocalizedNumber(match[2]);
+  if (min == null || max == null) return null;
   if (isNaN(min) || isNaN(max)) return null;
   return { min, max };
 };

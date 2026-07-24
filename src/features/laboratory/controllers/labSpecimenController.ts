@@ -44,17 +44,22 @@ const BLOOD_MARKERS = [
 ];
 
 const containsAny = (value: string, markers: string[]): boolean =>
-  markers.some(marker => value.includes(marker));
+  markers.some(marker =>
+    marker === 'LCR' ? value.split(' ').includes(marker) : value.includes(marker)
+  );
 
 /** Identifies the specimen from the PDF section, analyte and unit without guessing from its value. */
 export const classifyLabSpecimen = (finding: LabResultRow): LabSpecimen => {
+  const section = normalizeClinicalToken(finding.section || '');
   const signature = normalizeClinicalToken(
     `${finding.section || ''} ${finding.analysis || ''} ${finding.unit || ''}`
   );
 
   if (containsAny(signature, URINE_MARKERS)) return 'urine';
   if (containsAny(signature, OTHER_FLUID_MARKERS)) return 'other-fluid';
-  if (containsAny(signature, BLOOD_MARKERS)) return 'blood';
+  // Blood is only authoritative when the report section identifies it. This avoids
+  // treating a standalone urine analyte named "Sangre" as a blood specimen.
+  if (containsAny(section, BLOOD_MARKERS)) return 'blood';
   return 'unknown';
 };
 
@@ -107,6 +112,7 @@ export const isLabComparisonEligible = (finding: LabResultRow): boolean => {
   if (isRatio(finding.analysis)) return true;
   const specimen = classifyLabSpecimen(finding);
   if (specimen === 'urine' || specimen === 'other-fluid') return false;
+  if (specimen === 'blood') return true;
   return !isUrineMetadataOrAnalyte(finding);
 };
 

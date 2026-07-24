@@ -28,6 +28,9 @@ describe('Syslab clinical parsing regression', () => {
     expect(parseLabMeasurement('7.280', { unit: 'x10^3/uL', refValue: '4,0 - 11,0' })?.value).toBe(
       7.28
     );
+    expect(parseLabMeasurement('4.500', { unit: '/uL', refValue: '4.000 - 11.000' })?.value).toBe(
+      4500
+    );
     expect(parseLabMeasurement('+1.720', { unit: 'U/L |', refValue: '15 - 73' })?.value).toBe(1720);
     expect(
       parseLabMeasurement('-1.071', { unit: 'U/L |', refValue: '-2.000 - 2.000' })?.value

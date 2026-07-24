@@ -78,7 +78,7 @@ const collectTrendFinding = (
   }
 
   if (!trendMap[finding.analysis]) trendMap[finding.analysis] = [];
-  const range = parseRefRange(finding.refValue);
+  const range = parseRefRange(finding.refValue, finding);
   trendMap[finding.analysis].push({
     date: colKey,
     isoDate,

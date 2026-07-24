@@ -17,12 +17,11 @@
   const isUrineSection = section => /orina|urinari|sedimento|albuminuria|creatininuria|creatinuria|proteinuria/i
     .test(comparisonToken(section));
   const isOtherFluidSection = section => /\bliquido\b|\blcr\b/i.test(comparisonToken(section));
+  const specimenSignature = finding => `${finding && finding.section || ''} ${finding && finding.analysis || ''} ${finding && finding.unit || ''}`;
   const isSystemicTrendEligible = finding => {
     if (finding && (finding.analysis === 'RAC' || finding.analysis === 'RPC')) return true;
-    return !isUrineSection(finding && finding.section) &&
-      !isOtherFluidSection(finding && finding.section);
+    return !isUrineSection(specimenSignature(finding)) && !isOtherFluidSection(specimenSignature(finding));
   };
-
   const normalizeAnalysisName = (value, section) => {
     const name = cleanText(value);
     const token = comparisonToken(name);
@@ -53,7 +52,7 @@
     return /\d+,\d+/.test(value) || /\d+\.\d{1,2}(?!\d)/.test(value) || /\b0\.\d{3,}\b/.test(value);
   };
   const usesScaledCellUnit = unit => /(?:X|×)?10\s*\^?\s*[369]/i.test(cleanText(unit));
-  const usesWholeNumberUnit = unit => /^(?:U|UI|IU)\/?L$/i.test(cleanText(unit).replace(/[\s|]/g, ''));
+  const usesWholeNumberUnit = unit => /^(?:(?:U|UI|IU)\/?L|(?:(?:C[ÉE]L(?:ULA)?S?|CELLS?)\/?)?\/?(?:[UµΜ]L|MM(?:\^?3|³)))$/i.test(cleanText(unit).replace(/[\s|]/g, ''));
   const LOCALIZED_NUMBER_SOURCE = '[+-]?\\d[\\d.,]*';
   const REFERENCE_RANGE_REGEX = new RegExp(`(${LOCALIZED_NUMBER_SOURCE})\\s*[-–]\\s*(${LOCALIZED_NUMBER_SOURCE})`);
   const REFERENCE_BOUND_REGEX = new RegExp(`^\\s*([<>]=?|[≤≥])\\s*(${LOCALIZED_NUMBER_SOURCE})`);

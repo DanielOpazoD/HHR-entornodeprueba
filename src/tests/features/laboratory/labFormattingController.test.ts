@@ -25,6 +25,20 @@ describe('parseRefRange', () => {
     expect(parseRefRange('4,5 - 11,0')).toEqual({ min: 4.5, max: 11 });
   });
 
+  it('parses dotted thousands with the same unscaled cell unit as the result', () => {
+    expect(parseRefRange('4.000 - 11.000', { unit: '/uL' })).toEqual({
+      min: 4000,
+      max: 11000,
+    });
+  });
+
+  it('keeps scaled cell reference ranges decimal', () => {
+    expect(parseRefRange('4.000 - 11.000', { unit: 'x10^3/uL' })).toEqual({
+      min: 4,
+      max: 11,
+    });
+  });
+
   it('returns null for "< 6.0"', () => {
     expect(parseRefRange('< 6.0')).toBeNull();
   });

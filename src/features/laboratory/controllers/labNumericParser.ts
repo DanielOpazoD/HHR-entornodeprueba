@@ -22,7 +22,9 @@ const referenceDeclaresDecimals = (reference: string): boolean =>
   /\b0\.\d{3,}\b/.test(reference);
 
 const usesWholeNumberUnit = (unit: string): boolean =>
-  /^(?:U|UI|IU)\/?L$/i.test(unit.replace(/[\s|]/g, ''));
+  /^(?:(?:U|UI|IU)\/?L|(?:(?:C[ÉE]L(?:ULA)?S?|CELLS?)\/?)?\/?(?:[UµΜ]L|MM(?:\^?3|³)))$/i.test(
+    unit.replace(/[\s|]/g, '')
+  );
 
 const shouldTreatSingleDotAsThousands = (
   numeric: string,
