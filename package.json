@@ -10,6 +10,7 @@
     "build:rules-assets": "node scripts/build-rules-assets.mjs",
     "check:rayen-extension-release": "node scripts/check-rayen-extension-release.mjs",
     "dev": "vite",
+    "seed:document-scanner:emulator": "node scripts/seed-document-scanner-emulator.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "npm run test:ci:unit && npm run test:rules:ci && npm run test:emulator:sync:ci",
@@ -233,6 +234,7 @@
     "file-saver": "^2.0.5",
     "firebase": "^12.6.0",
     "googleapis": "^172.0.0",
+    "hash.js": "^1.1.7",
     "heic2any": "^0.0.4",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
@@ -248,7 +250,7 @@
     "react-error-boundary": "^6.0.0",
     "react-is": "^19.2.3",
     "recharts": "^3.5.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "xlsx-populate": "^1.21.0",
     "zod": "^3.25.76"
   },
@@ -311,6 +313,16 @@
     "@xmldom/xmldom": "0.9.10",
     "basic-ftp": "5.3.1",
     "dompurify": "3.4.11",
+    "minimatch@<4": {
+      "brace-expansion": "1.1.16"
+    },
+    "minimatch@>=4 <10": {
+      "brace-expansion": "2.1.2"
+    },
+    "minimatch@>=10": {
+      "brace-expansion": "5.0.7"
+    },
+    "fast-uri@>=3.0.0 <3.1.4": "3.1.4",
     "lodash": "4.18.1",
     "qs": "6.15.2",
     "@isaacs/brace-expansion": "5.0.1",

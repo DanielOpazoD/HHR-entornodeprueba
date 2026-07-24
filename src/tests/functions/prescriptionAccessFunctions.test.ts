@@ -9,6 +9,7 @@ import {
   hashPin,
   hashPinLegacySha256,
   computeExpiresAt,
+  resolveUploadPatientOptionForExactDate,
 } from './prescriptionAccessFunctions.testSupport';
 
 describe('hashPin / computeExpiresAt', () => {
@@ -166,6 +167,98 @@ describe('listPrescriptionUploadPatientOptions', () => {
       },
     },
   };
+
+  it('resolves the selected identity from the exact census date instead of trusting the client', async () => {
+    const { admin } = buildAdminHarness({
+      dailyRecords: { '2026-05-02': dailyRecord },
+    });
+
+    await expect(
+      resolveUploadPatientOptionForExactDate(
+        admin.firestore(),
+        '2026-05-03',
+        '2026-05-02',
+        'H5C2',
+        '22.222.222-2'
+      )
+    ).resolves.toEqual({
+      sourceDate: '2026-05-02',
+      patient: {
+        key: 'H5C2',
+        bedId: 'H5C2',
+        patientName: 'Paciente Dos',
+        patientRut: '22.222.222-2',
+        patientStatus: 'active',
+      },
+    });
+  });
+
+  it('rejects a patient option key that is not present in that census date', async () => {
+    const { admin } = buildAdminHarness({
+      dailyRecords: { '2026-05-04': dailyRecord },
+    });
+
+    await expect(
+      resolveUploadPatientOptionForExactDate(
+        admin.firestore(),
+        '2026-05-04',
+        '2026-05-04',
+        'H9C9',
+        '99.999.999-9'
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('rejects a fallback date once the requested census becomes canonical', async () => {
+    const { admin } = buildAdminHarness({
+      dailyRecords: {
+        '2026-05-03': dailyRecord,
+        '2026-05-04': dailyRecord,
+      },
+    });
+
+    await expect(
+      resolveUploadPatientOptionForExactDate(
+        admin.firestore(),
+        '2026-05-04',
+        '2026-05-03',
+        'H5C2',
+        '22.222.222-2'
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('rejects the selection when the same bed now belongs to a different RUN', async () => {
+    const { admin } = buildAdminHarness({
+      dailyRecords: { '2026-05-04': dailyRecord },
+    });
+
+    await expect(
+      resolveUploadPatientOptionForExactDate(
+        admin.firestore(),
+        '2026-05-04',
+        '2026-05-04',
+        'H5C2',
+        '11.111.111-1'
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('rejects historical census dates even when the patient key existed', async () => {
+    const { admin } = buildAdminHarness({
+      dailyRecords: { '2026-04-01': dailyRecord },
+    });
+
+    await expect(
+      resolveUploadPatientOptionForExactDate(
+        admin.firestore(),
+        '2026-04-01',
+        '2026-04-01',
+        'H5C2',
+        '22.222.222-2'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
 
   it('returns active bed-patient options for a valid QR PIN', async () => {
     const { admin, accessConfig } = buildAdminHarness({

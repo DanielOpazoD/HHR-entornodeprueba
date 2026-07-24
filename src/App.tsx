@@ -13,6 +13,9 @@ import { InitialLoadingScreen } from '@/components/ui/InitialLoadingScreen';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
 import {
+  DocumentScannerDemoView,
+  DocumentScannerLocalQueueView,
+  DocumentScannerQueueView,
   MedicalSignatureView,
   PrescriptionAdminView,
   PrescriptionUploadView,
@@ -83,6 +86,12 @@ function App() {
   const isPrescriptionsUploadRoute = pathname.startsWith('/recetas/upload');
   const isPrescriptionsVisorRoute = pathname.startsWith('/recetas/visor');
   const isPrescriptionsAdminRoute = pathname.startsWith('/admin/recetas-config');
+  const isDocumentScannerDemoRoute =
+    pathname === '/documentos/escanear-demo' || pathname.startsWith('/documentos/escanear-demo/');
+  const isDocumentScannerQueueRoute =
+    pathname === '/documentos/pendientes' || pathname.startsWith('/documentos/pendientes/');
+  const isDocumentScannerLocalQueueRoute =
+    import.meta.env.DEV && pathname.startsWith('/documentos/pendientes-local');
   const loadingScreenMode =
     bootstrapState.status === 'loading'
       ? resolveRuntimeLoadingScreenMode({
@@ -106,6 +115,26 @@ function App() {
       <VersionedAppShell>
         <React.Suspense fallback={<ViewLoader />}>
           <PrescriptionUploadView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
+  if (isDocumentScannerDemoRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <DocumentScannerDemoView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
+  if (isDocumentScannerLocalQueueRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <DocumentScannerLocalQueueView />
         </React.Suspense>
       </VersionedAppShell>
     );
@@ -158,6 +187,16 @@ function App() {
       <VersionedAppShell>
         <React.Suspense fallback={<ViewLoader />}>
           <PrescriptionAdminView />
+        </React.Suspense>
+      </VersionedAppShell>
+    );
+  }
+
+  if (isDocumentScannerQueueRoute) {
+    return (
+      <VersionedAppShell>
+        <React.Suspense fallback={<ViewLoader />}>
+          <DocumentScannerQueueView />
         </React.Suspense>
       </VersionedAppShell>
     );

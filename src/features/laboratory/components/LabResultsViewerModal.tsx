@@ -16,6 +16,8 @@ import { LabViewerAnalyzeBar } from './LabViewerAnalyzeBar';
 import { LabViewerPdf } from './LabViewerPdf';
 import { LabViewerAnalysis } from './LabViewerAnalysis';
 import { LabViewerEmptyState } from './LabViewerEmptyState';
+import { SyslabAccessPrompt } from './SyslabAccessPrompt';
+import { useSyslabAccess } from '../hooks/useSyslabAccess';
 
 interface LabResultsViewerModalProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
   initialPatientRut,
 }) => {
   const lab = useLabViewer(patients, initialPatientRut);
+  const syslabAccess = useSyslabAccess(isOpen);
   const { reset } = lab;
   const wasOpenRef = useRef(false);
 
@@ -74,13 +77,21 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
       }
     >
       {shellModel.shouldShowControls && (
-        <LabViewerControls
-          uniquePatients={lab.uniquePatients}
-          selectedRut={lab.selectedRut}
-          isLoading={lab.isLoading || lab.isAnalyzing}
-          onPatientChange={lab.selectPatient}
-          onSearch={lab.search}
-        />
+        <>
+          <LabViewerControls
+            uniquePatients={lab.uniquePatients}
+            selectedRut={lab.selectedRut}
+            isLoading={
+              lab.isLoading ||
+              lab.isAnalyzing ||
+              syslabAccess.state === 'checking' ||
+              syslabAccess.state === 'login-required'
+            }
+            onPatientChange={lab.selectPatient}
+            onSearch={lab.search}
+          />
+          <SyslabAccessPrompt access={syslabAccess} />
+        </>
       )}
 
       <LabViewerProgress progress={lab.progress} />

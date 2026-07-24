@@ -2,6 +2,7 @@ import type { SyslabDetailsResponse, SyslabSearchResponse } from '@/types/domain
 
 const REQUEST_TYPES = {
   status: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST',
+  openLogin: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST',
   search: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_REQUEST',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_REQUEST',
@@ -9,6 +10,7 @@ const REQUEST_TYPES = {
 
 const RESULT_TYPES = {
   status: 'HHR_RAYEN_SYSLAB_STATUS_RESULT',
+  openLogin: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
   search: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_RESULT',
@@ -28,6 +30,16 @@ export interface SyslabExtensionStatus {
   loginRequired: boolean;
   message: string;
 }
+
+export interface SyslabLoginWindowResult {
+  bridgeAvailable: boolean;
+  opened: boolean;
+  error?: string;
+}
+
+/** Syslab searches by the numeric RUT body, without verifier digit. */
+export const cleanRutForSyslab = (rut: string): string =>
+  rut.replace(/\./g, '').replace(/-.*$/, '').replace(/\D/g, '').trim();
 
 const requestExtension = (
   operation: SyslabExtensionOperation,
@@ -106,11 +118,26 @@ export const requestSyslabExtensionStatus = async (
   };
 };
 
+export const openSyslabLoginWindow = async (): Promise<SyslabLoginWindowResult> => {
+  const result = await requestExtension('openLogin');
+  if (!result.bridgeAvailable) {
+    return { bridgeAvailable: false, opened: false, error: 'La extensión Eloísa no respondió.' };
+  }
+  const error = responseError(result, 'La extensión no pudo abrir el acceso a Syslab.');
+  return {
+    bridgeAvailable: true,
+    opened: result.response?.opened === true,
+    ...(error ? { error } : {}),
+  };
+};
+
 export const searchSyslabThroughExtension = async (
-  rut: string,
-  encId?: string
+  rut: string
 ): Promise<{ bridgeAvailable: boolean; data?: SyslabSearchResponse; error?: string }> => {
-  if (!encId) return { bridgeAvailable: false };
+  const rutBody = cleanRutForSyslab(rut);
+  if (!/^\d{5,9}$/.test(rutBody)) {
+    return { bridgeAvailable: true, error: 'El RUT seleccionado no es válido para Syslab.' };
+  }
   const availability = await requestExtension('status', {}, 1_000);
   if (!availability.bridgeAvailable) return { bridgeAvailable: false };
   const availabilityError = responseError(availability, 'La extensión no pudo comprobar Syslab.');
@@ -124,22 +151,18 @@ export const searchSyslabThroughExtension = async (
           : 'Conecta Syslab desde el módulo Laboratorio de la extensión Eloísa.',
     };
   }
-  const result = await requestExtension('search', { encId }, 40_000);
+  const result = await requestExtension('search', { rutBody }, 40_000);
   if (!result.bridgeAvailable) return { bridgeAvailable: false };
   const error = responseError(result, 'La extensión no pudo consultar Syslab.');
   if (error) return { bridgeAvailable: true, error };
 
   const response = result.response;
   const batchId = typeof response?.batchId === 'string' ? response.batchId : '';
-  const requestedRut = rut.replace(/[^0-9K]/gi, '').toUpperCase();
-  const responsePatient = response?.patient as Record<string, unknown> | undefined;
-  const responseRut = String(responsePatient?.run || '')
-    .replace(/[^0-9K]/gi, '')
-    .toUpperCase();
-  if (!batchId || !/^[0-9a-f-]{36}$/i.test(batchId) || responseRut !== requestedRut) {
+  const responseRutBody = cleanRutForSyslab(String(response?.rutBody || ''));
+  if (!batchId || !/^[0-9a-f-]{36}$/i.test(batchId) || responseRutBody !== rutBody) {
     return {
       bridgeAvailable: true,
-      error: 'La extensión no confirmó que los resultados correspondan al RUN seleccionado.',
+      error: 'Syslab no confirmó que los resultados correspondan al RUT seleccionado.',
     };
   }
   const exams = (Array.isArray(response?.exams) ? response.exams : []).filter(value =>
@@ -173,7 +196,9 @@ export const fetchSyslabDetailsThroughExtension = async (
   if (links.length === 0) throw new Error('Selecciona uno o más informes de laboratorio.');
   if (links.length > 24) throw new Error('Puedes analizar como máximo 24 informes por operación.');
   if (links.some(link => !isSyslabExtensionLink(link))) {
-    throw new Error('La selección de laboratorio contiene un informe no válido. Actualiza el visor.');
+    throw new Error(
+      'La selección de laboratorio contiene un informe no válido. Actualiza el visor.'
+    );
   }
   const result = await requestExtension('details', { links }, 10 * 60_000);
   if (!result.bridgeAvailable) {
@@ -185,9 +210,7 @@ export const fetchSyslabDetailsThroughExtension = async (
     | { reports?: Array<{ examId?: unknown; findings?: unknown[] }> }
     | undefined;
   const reports = Array.isArray(analysis?.reports) ? analysis.reports : [];
-  const linksByExamId = new Map(
-    links.map(link => [link.match(/\/exam\/(\d+)$/)?.[1] || '', link])
-  );
+  const linksByExamId = new Map(links.map(link => [link.match(/\/exam\/(\d+)$/)?.[1] || '', link]));
   return {
     success: result.response?.ok === true,
     data: reports.map(report => ({

@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(46);
+    expect(values).toHaveLength(47);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -60,6 +60,24 @@ describe('shared Rayen runtime-message contract', () => {
         currentEncId: '',
       })
     ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.LAB_SEARCH_REQUEST,
+        rutBody: '29219852',
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.LAB_SEARCH_REQUEST,
+        rutBody: '29.219.852-3',
+      })
+    ).toMatchObject({ ok: false, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.LAB_SEARCH_REQUEST,
+        rutBody: '1234',
+      })
+    ).toMatchObject({ ok: false, known: true });
     expect(
       contract.validateRuntimeMessage({
         type: contract.types.STATISTICAL_DISCHARGE_REPORT_REQUEST,

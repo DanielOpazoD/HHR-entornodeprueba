@@ -25,6 +25,20 @@ describe('parseRefRange', () => {
     expect(parseRefRange('4,5 - 11,0')).toEqual({ min: 4.5, max: 11 });
   });
 
+  it('parses dotted thousands with the same unscaled cell unit as the result', () => {
+    expect(parseRefRange('4.000 - 11.000', { unit: '/uL' })).toEqual({
+      min: 4000,
+      max: 11000,
+    });
+  });
+
+  it('keeps scaled cell reference ranges decimal', () => {
+    expect(parseRefRange('4.000 - 11.000', { unit: 'x10^3/uL' })).toEqual({
+      min: 4,
+      max: 11,
+    });
+  });
+
   it('returns null for "< 6.0"', () => {
     expect(parseRefRange('< 6.0')).toBeNull();
   });
@@ -83,6 +97,14 @@ describe('isOutOfRange', () => {
 
   it('returns null for non-range reference', () => {
     expect(isOutOfRange('7.5', 'N/A')).toBeNull();
+  });
+
+  it('uses the unit context to distinguish dotted thousands from decimals', () => {
+    expect(isOutOfRange('1.720', '1.500 - 1.800', { unit: 'U/L' })).toBe(false);
+  });
+
+  it('keeps dotted values decimal for explicitly scaled cell units', () => {
+    expect(isOutOfRange('7.280', '4.000 - 11.000', { unit: 'x10^3/uL' })).toBe(false);
   });
 });
 

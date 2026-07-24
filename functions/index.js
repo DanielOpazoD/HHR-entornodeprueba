@@ -21,6 +21,11 @@ const {
 } = require('./lib/clinicalDocumentPdfRenderFunctions');
 const { createWoundCareMobileUploadFunctions } = require('./lib/woundCareMobileUploadFunctions');
 const { createPrescriptionAccessFunctions } = require('./lib/prescriptionAccessFunctions');
+const {
+  validatePinAgainstConfig,
+  resolveUploadPatientOptionForExactDate,
+} = require('./lib/prescriptionAccessFunctions');
+const { createDocumentScannerFunctions } = require('./lib/documentScannerFunctions');
 
 const authHelpers = createAuthHelpers({ auth, firestore });
 
@@ -64,5 +69,12 @@ module.exports = {
     firestore,
     storage,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createDocumentScannerFunctions({
+    firestore,
+    storage,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+    validatePin: validatePinAgainstConfig,
+    resolvePatientOption: resolveUploadPatientOptionForExactDate,
   }),
 };

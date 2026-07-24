@@ -15,7 +15,6 @@
   const LAB_BRIDGE_TIMEOUT_MS = 35_000;
   const LAB_REPORT_TIMEOUT_MS = 90_000;
   const LAB_DETAILS_TIMEOUT_MS = 600_000;
-  const CENSUS_ALLOWLIST_TTL_MS = 5 * 60_000;
 
   const create = dependencies => {
     const {
@@ -23,28 +22,18 @@
       labViewer,
       syslabSessionTransport,
       withTimeout,
-      getClinicalReportContext,
-      getFichaFetchInfo,
-      fichaSessionCacheKey,
-      fetchActiveEncounterRows,
-      resolveFichaEncounterId,
     } = dependencies || {};
 
     if (
       !chromeApi || !labViewer || !syslabSessionTransport ||
       typeof syslabSessionTransport.create !== 'function' ||
       typeof withTimeout !== 'function' ||
-      typeof getClinicalReportContext !== 'function' ||
-      typeof getFichaFetchInfo !== 'function' ||
-      typeof fichaSessionCacheKey !== 'function' ||
-      typeof fetchActiveEncounterRows !== 'function' ||
-      typeof resolveFichaEncounterId !== 'function'
+      typeof labViewer.normalizeRutBody !== 'function'
     ) {
       throw new Error('No se pudo inicializar el runtime de Syslab.');
     }
 
     const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-    const censusAllowlistCache = new Map();
     let syslabOffscreenCreation = null;
 
     const readOffscreenContexts = async () => {
@@ -204,46 +193,10 @@
       if (expiredKeys.length) await chromeApi.storage.session.remove(expiredKeys);
     };
 
-    // The shared picker may consult the sender tab's encounter or another active census encounter.
-    // The RUN returned by Syslab is cross-checked downstream before patient data is exposed.
-    const encounterInActiveCensus = async (encId, sender) => {
-      const id = String(encId || '');
-      if (!/^\d+$/.test(id)) return false;
-      const infoResult = await getFichaFetchInfo(sender);
-      if (infoResult.error) return false;
-      const sessionKey = await fichaSessionCacheKey(infoResult.info, sender);
-      const cached = censusAllowlistCache.get(sessionKey);
-      if (cached && Date.now() - cached.at < CENSUS_ALLOWLIST_TTL_MS && cached.ids.has(id)) {
-        return true;
-      }
-      const rowResult = await fetchActiveEncounterRows(infoResult.info);
-      if (rowResult.error) return false;
-      const ids = new Set((rowResult.rows || []).map(row => String(row && row.id || '')));
-      censusAllowlistCache.set(sessionKey, { at: Date.now(), ids });
-      if (censusAllowlistCache.size > 12) {
-        const oldest = censusAllowlistCache.keys().next().value;
-        censusAllowlistCache.delete(oldest);
-      }
-      return ids.has(id);
-    };
-
-    const validateLabSenderEncounter = async (sender, expectedEncounterId) => {
-      const senderEncounterId = resolveFichaEncounterId(
-        sender && sender.tab && sender.tab.url || sender && sender.url
-      );
-      if (senderEncounterId && senderEncounterId === String(expectedEncounterId || '')) return null;
-      if (await encounterInActiveCensus(expectedEncounterId, sender)) return null;
-      return { error: 'El episodio solicitado no está en el censo de hospitalizados activo.' };
-    };
-
-    const search = async ({ encId, sender }) => {
-      const senderError = await validateLabSenderEncounter(sender, encId);
-      if (senderError) return senderError;
-      const context = await getClinicalReportContext(encId, null, null, sender);
-      if (context.error) return context;
-      const rutBody = labViewer.normalizePatientRutBody(context.patient && context.patient.run);
-      if (!/^\d{5,9}$/.test(rutBody)) {
-        return { error: 'Eloísa no informó un RUN válido para consultar laboratorio.' };
+    const search = async ({ rutBody: requestedRutBody, sender }) => {
+      const rutBody = labViewer.normalizeRutBody(requestedRutBody);
+      if (!/^\d{5,9}$/.test(rutBody) || rutBody !== String(requestedRutBody || '')) {
+        return { error: 'HHR no informó un RUT válido, sin dígito verificador, para Syslab.' };
       }
 
       let directSearch;
@@ -269,7 +222,7 @@
       await sweepExpiredLabBatches();
       await chromeApi.storage.session.set({
         [LAB_BATCH_PREFIX + batchId]: {
-          encounterId: String(encId),
+          senderTabId: sender && sender.tab && sender.tab.id,
           rutBody,
           createdAt: Date.now(),
           exams,
@@ -279,7 +232,7 @@
       return {
         ok: true,
         batchId,
-        patient: context.patient,
+        rutBody,
         exams: exams.map(exam => ({
           id: exam.id,
           date: exam.date,
@@ -317,10 +270,17 @@
       return exams.length === ids.length && exams.length > 0 ? exams : [];
     };
 
+    const validateLabBatchSender = async (batch, sender) => {
+      const senderTabId = sender && sender.tab && sender.tab.id;
+      return batch.senderTabId != null && batch.senderTabId === senderTabId
+        ? null
+        : { error: 'La búsqueda de laboratorio no pertenece a esta pestaña HHR.' };
+    };
+
     const details = async ({ batchId, examIds, sender }) => {
       const batchResult = await readLabBatch(batchId);
       if (batchResult.error) return batchResult;
-      const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+      const senderError = await validateLabBatchSender(batchResult.batch, sender);
       if (senderError) return senderError;
       const requestedIds = [...new Set((Array.isArray(examIds) ? examIds : []).map(String).filter(Boolean))];
       if (requestedIds.length > LAB_MAX_SELECTED_EXAMS) {
@@ -377,7 +337,7 @@
     const openPdf = async ({ batchId, examId, sender }) => {
       const batchResult = await readLabBatch(batchId);
       if (batchResult.error) return batchResult;
-      const senderError = await validateLabSenderEncounter(sender, batchResult.batch.encounterId);
+      const senderError = await validateLabBatchSender(batchResult.batch, sender);
       if (senderError) return senderError;
       const exams = selectedLabExams(batchResult.batch, [examId]);
       if (exams.length !== 1) {

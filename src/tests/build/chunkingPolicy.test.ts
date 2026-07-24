@@ -387,21 +387,15 @@ describe('chunkingPolicy', () => {
     const compressionServiceSource = readSource(
       'src/features/prescriptions/services/prescriptionImageCompressionService.ts'
     );
-    const heicConverterSource = readSource(
-      'src/features/prescriptions/services/prescriptionHighEfficiencyImageConverter.ts'
-    );
-    const heicLoaderSource = readSource(
-      'src/features/prescriptions/services/prescriptionHeicConverterLoader.ts'
-    );
+    const heicConverterSource = readSource('src/shared/images/highEfficiencyImageConverter.ts');
+    const heicLoaderSource = readSource('src/shared/images/heicConverterLoader.ts');
 
     expect(compressionServiceSource).not.toContain("import('heic2any')");
     expect(compressionServiceSource).toContain(
       "from '@/features/prescriptions/services/prescriptionHighEfficiencyImageConverter'"
     );
     expect(heicConverterSource).not.toContain("import('heic2any')");
-    expect(heicConverterSource).toContain(
-      "from '@/features/prescriptions/services/prescriptionHeicConverterLoader'"
-    );
+    expect(heicConverterSource).toContain("from './heicConverterLoader'");
     expect(heicLoaderSource).toContain("import('heic2any')");
   });
 

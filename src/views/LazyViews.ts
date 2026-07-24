@@ -91,6 +91,26 @@ export const PrescriptionUploadView = lazyWithRetry(() =>
   )
 );
 
+export const DocumentScannerDemoView = lazyWithRetry(() =>
+  import(/* webpackChunkName: "document-scanner-demo" */ '@/features/document-scanner').then(
+    module => ({
+      default: module.DocumentScannerDemoView,
+    })
+  )
+);
+
+export const DocumentScannerQueueView = lazyWithRetry(() =>
+  import(/* webpackChunkName: "document-scanner-queue" */ '@/features/document-scanner').then(
+    module => ({ default: module.DocumentScannerQueueView })
+  )
+);
+
+export const DocumentScannerLocalQueueView = lazyWithRetry(() =>
+  import(/* webpackChunkName: "document-scanner-local-queue" */ '@/features/document-scanner').then(
+    module => ({ default: module.DocumentScannerLocalQueueView })
+  )
+);
+
 export const PrescriptionVisorView = lazyWithRetry(() =>
   import(/* webpackChunkName: "prescriptions-visor" */ '@/features/prescriptions').then(module => ({
     default: module.PrescriptionVisorView,

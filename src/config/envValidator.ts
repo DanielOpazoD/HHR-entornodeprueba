@@ -55,6 +55,8 @@ const clientEnvSchema = z.object({
   VITE_FUNCTIONS_EMULATOR_HOST: optionalStr,
   VITE_AUTH_EMULATOR_HOST: optionalStr,
   VITE_FIRESTORE_EMULATOR_HOST: optionalStr,
+  VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL: optionalStr,
+  VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD: optionalStr,
 
   /* ── Auth behaviour overrides ───────────────────────────────────── */
   VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST: optionalStr,

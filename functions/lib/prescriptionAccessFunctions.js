@@ -382,6 +382,53 @@ const resolveUploadPatientOptionsForDate = async (firestore, date) => {
   return { sourceDate: date, isFallbackFromPreviousDay: false, patientOptions };
 };
 
+const normalizePatientRut = value =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^0-9k]/g, '');
+
+const resolveUploadPatientOptionForExactDate = async (
+  firestore,
+  requestDate,
+  sourceDate,
+  patientOptionKey,
+  expectedPatientRut
+) => {
+  const resolvedRequestDate = resolveIsoDate(requestDate);
+  const resolvedSourceDate = resolveIsoDate(sourceDate);
+  assertReadonlyUploadDateAllowed(resolvedRequestDate);
+  const canonicalOptions = await resolveUploadPatientOptionsForDate(firestore, resolvedRequestDate);
+  if (canonicalOptions.sourceDate !== resolvedSourceDate) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'El censo disponible cambió. Actualiza el selector antes de subir.'
+    );
+  }
+  const key = optionalString(patientOptionKey, 96);
+  if (!key) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'La selección de cama/paciente es obligatoria.'
+    );
+  }
+  const selected = canonicalOptions.patientOptions.find(option => option.key === key);
+  if (!selected) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'La cama o el paciente ya no están disponibles en el censo seleccionado.'
+    );
+  }
+  const expectedRut = normalizePatientRut(expectedPatientRut);
+  const currentRut = normalizePatientRut(selected.patientRut);
+  if (!expectedRut || !currentRut || expectedRut !== currentRut) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'El paciente asociado a la cama cambió. Actualiza el selector antes de subir.'
+    );
+  }
+  return { sourceDate: resolvedSourceDate, patient: selected };
+};
+
 const assertReadonlyUploadDateAllowed = date => {
   const today = todayIso();
   const yesterday = previousIsoDay(today);
@@ -448,7 +495,10 @@ const resolveDownloadUrlForStoragePath = async (storage, storagePath) => {
 };
 
 const attachReadonlyImageUrls = async (storage, record) => {
-  const fullDownloadUrl = await resolveDownloadUrlForStoragePath(storage, record?.image?.storagePath);
+  const fullDownloadUrl = await resolveDownloadUrlForStoragePath(
+    storage,
+    record?.image?.storagePath
+  );
   const thumbnailDownloadUrl = await resolveDownloadUrlForStoragePath(
     storage,
     record?.image?.thumbnailStoragePath
@@ -727,4 +777,8 @@ module.exports = {
   hashPinLegacySha256,
   generatePinSalt,
   computeExpiresAt,
+  // Shared server-side access guard for QR flows that intentionally reuse
+  // the prescription PIN. The PIN itself never leaves this module/config.
+  validatePinAgainstConfig,
+  resolveUploadPatientOptionForExactDate,
 };

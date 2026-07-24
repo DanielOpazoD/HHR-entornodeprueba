@@ -8,6 +8,8 @@ const bridgeMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
+  cleanRutForSyslab: (rut: string) =>
+    rut.replace(/\./g, '').replace(/-.*$/, '').replace(/\D/g, '').trim(),
   requestSyslabExtensionStatus: bridgeMocks.status,
   searchSyslabThroughExtension: bridgeMocks.search,
   fetchSyslabDetailsThroughExtension: bridgeMocks.details,
@@ -107,10 +109,10 @@ describe('Syslab service extension transport', () => {
     });
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-    const result = await searchSyslabExams('14.470.055-4', '141814');
+    const result = await searchSyslabExams('14.470.055-4');
 
     expect(result.data[0].link).toBe(OPAQUE_LINK);
-    expect(bridgeMocks.search).toHaveBeenCalledWith('14.470.055-4', '141814');
+    expect(bridgeMocks.search).toHaveBeenCalledWith('14.470.055-4');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -118,7 +120,7 @@ describe('Syslab service extension transport', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
     await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(
-      'Buscar por RUT externo requiere el acceso web de Syslab'
+      'El acceso web directo a Syslab no está configurado'
     );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -159,10 +161,13 @@ describe('Syslab service extension transport', () => {
   it('turns a Syslab login page into a clear session instruction', async () => {
     setEnv({ VITE_SYSLAB_API_URL: 'http://localhost:3100' });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('<!DOCTYPE html><html><body>Iniciar sesión · Usuario · Contraseña</body></html>', {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
+      new Response(
+        '<!DOCTYPE html><html><body>Iniciar sesión · Usuario · Contraseña</body></html>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }
+      )
     );
 
     await expect(searchSyslabExams('14.470.055-4')).rejects.toThrow(

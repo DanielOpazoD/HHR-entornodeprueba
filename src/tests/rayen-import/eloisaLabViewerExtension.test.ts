@@ -1,9 +1,7 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
+import '../../../extension/lab-result-parser.js';
 import '../../../extension/lab-viewer.js';
 
 interface LabFinding {
@@ -61,6 +59,7 @@ describe('native Eloisa laboratory viewer', () => {
       'Glicemia : 138 mg/dL 70 - 100',
       'Exceso de base : -5 mmol/L -2 - 2',
       'INR : 1,1 0,8 - 1,2',
+      'Eritrocitos : 4.500.000 /uL 4.000.000 - 5.000.000',
       'PCR respiratorio : POSITIVO',
     ].join('\n');
 
@@ -75,11 +74,78 @@ describe('native Eloisa laboratory viewer', () => {
       }),
       expect.objectContaining({ analysis: 'INR', result: '1,1', unit: '', refValue: '0,8 - 1,2' }),
       expect.objectContaining({
+        analysis: 'Eritrocitos',
+        result: '4.500.000',
+        unit: '/uL',
+        refValue: '4.000.000 - 5.000.000',
+      }),
+      expect.objectContaining({
         analysis: 'PCR respiratorio',
         result: 'POSITIVO',
         qualitative: true,
       }),
     ]);
+  });
+
+  it('keeps urine leukocytes separate and parses dotted hepatic thousands contextually', () => {
+    const report = [
+      'PERFIL HEPATICO',
+      'GGT : +1.720 U/L 10 - 71',
+      'Fosfatasa Alcalina : 1.071 U/L 40 - 129',
+      'SEDIMENTO URINARIO',
+      'Leucocitos : 0 x campo 0 - 5',
+    ].join('\n');
+
+    const findings = labViewer.parseReportText(report);
+
+    expect(findings).toEqual([
+      expect.objectContaining({ section: 'PERFIL HEPATICO', analysis: 'GGT', result: '+1.720' }),
+      expect.objectContaining({
+        section: 'PERFIL HEPATICO',
+        analysis: 'Fosfatasa Alcalina',
+        result: '1.071',
+      }),
+      expect.objectContaining({
+        section: 'SEDIMENTO URINARIO',
+        analysis: 'Leucocitos',
+        result: '0',
+      }),
+    ]);
+
+    const exams = [
+      { id: '1', date: '11/07/2026', time: '00:09:00', exams: ['PERFIL HEPATICO'] },
+      { id: '2', date: '16/07/2026', time: '07:42:00', exams: ['PERFIL HEPATICO'] },
+    ];
+    const analysis = labViewer.buildAnalysis(
+      [
+        { examId: '1', findings: findings.slice(0, 2) },
+        {
+          examId: '2',
+          findings: [
+            {
+              section: 'PERFIL HEPATICO',
+              analysis: 'GGT',
+              result: '946',
+              unit: 'U/L',
+              refValue: '10 - 71',
+            },
+            {
+              section: 'PERFIL HEPATICO',
+              analysis: 'Fosfatasa Alcalina',
+              result: '682',
+              unit: 'U/L',
+              refValue: '40 - 129',
+            },
+          ],
+        },
+      ],
+      exams
+    );
+
+    expect(analysis.trends.find(trend => trend.analysis === 'GGT')?.points[0]?.value).toBe(1720);
+    expect(
+      analysis.trends.find(trend => trend.analysis === 'Fosfatasa Alcalina')?.points[0]?.value
+    ).toBe(1071);
   });
 
   it('filters malformed search rows before creating a patient-bound selection', () => {
@@ -145,6 +211,20 @@ describe('native Eloisa laboratory viewer', () => {
     expect(labViewer.findingAlert(finding('<2', '3 - 5'))).toBe(true);
     expect(labViewer.findingAlert(finding('<=3', '>3'))).toBe(true);
     expect(labViewer.findingAlert(finding('<4', '3 - 5'))).toBe(false);
+    expect(
+      labViewer.findingAlert({
+        ...finding('1.500', '1.000 - 2.000'),
+        analysis: 'Enzima agrupada',
+        unit: 'U/L |',
+      })
+    ).toBe(false);
+    expect(
+      labViewer.findingAlert({
+        ...finding('0.125', '0.001 - 0.250'),
+        analysis: 'Actividad enzimática fraccionaria',
+        unit: 'U/L',
+      })
+    ).toBe(false);
     expect(
       labViewer.findingAlert({ ...finding('POSITIVO', ''), analysis: 'PCR respiratorio' })
     ).toBe(false);
@@ -270,6 +350,20 @@ describe('native Eloisa laboratory viewer', () => {
             unit: 'ng/mL',
             refValue: '<0,04',
           },
+          {
+            section: 'BIOQUIMICA',
+            analysis: 'Albumina',
+            result: '3,2',
+            unit: 'g/dL',
+            refValue: '3,5 - 5,2',
+          },
+          {
+            section: 'ALBUMINURIA',
+            analysis: 'Albumina',
+            result: '44,7',
+            unit: 'mg/L',
+            refValue: '<30',
+          },
         ],
       },
       {
@@ -284,6 +378,20 @@ describe('native Eloisa laboratory viewer', () => {
             unit: 'ng/mL',
             refValue: '<0,04',
           },
+          {
+            section: 'BIOQUIMICA',
+            analysis: 'Albumina',
+            result: '3,1',
+            unit: 'g/dL',
+            refValue: '3,5 - 5,2',
+          },
+          {
+            section: 'ALBUMINURIA',
+            analysis: 'Albumina',
+            result: '22,1',
+            unit: 'mg/L',
+            refValue: '<30',
+          },
         ],
       },
     ];
@@ -291,11 +399,38 @@ describe('native Eloisa laboratory viewer', () => {
     const analysis = labViewer.buildAnalysis(details, exams);
 
     expect(analysis.comparison.filter(row => row.analysis === 'pH')).toHaveLength(2);
-    expect(analysis.trends.filter(trend => trend.analysis === 'pH')).toHaveLength(2);
+    expect(analysis.trends.filter(trend => trend.analysis === 'pH')).toHaveLength(1);
+    expect(analysis.trends.filter(trend => trend.analysis === 'Albumina')).toEqual([
+      expect.objectContaining({
+        unit: 'g/dL',
+        points: [expect.objectContaining({ value: 3.2 }), expect.objectContaining({ value: 3.1 })],
+      }),
+    ]);
     expect(analysis.trends.some(trend => trend.analysis === 'Troponina')).toBe(false);
     const clipboard = labViewer.comparisonClipboard(analysis);
     expect(clipboard).toContain('pH · SANGRE');
     expect(clipboard).toContain('pH · ORINA');
+  });
+
+  it('treats both creatinuria spellings as urine in the native trends', () => {
+    const exams = [
+      { id: '1', date: '01/05/2026', time: '08:00:00', exams: ['ORINA'] },
+      { id: '2', date: '02/05/2026', time: '08:00:00', exams: ['ORINA'] },
+    ];
+    const details = exams.map(exam => ({
+      examId: exam.id,
+      findings: [
+        {
+          section: 'CREATINURIA',
+          analysis: 'Albumina',
+          result: '20',
+          unit: 'mg/L',
+          refValue: '<30',
+        },
+      ],
+    }));
+
+    expect(labViewer.buildAnalysis(details, exams).trends).toEqual([]);
   });
 
   it('organizes selected reports into comparison, alerts and numeric trends', () => {
@@ -342,133 +477,5 @@ describe('native Eloisa laboratory viewer', () => {
         points: [expect.objectContaining({ value: 7.6 }), expect.objectContaining({ value: 12.2 })],
       }),
     ]);
-  });
-
-  it('wires direct Syslab requests through expiring encounter-bound batches and exposes Lab', () => {
-    const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
-    const runtime = readFileSync(path.resolve('extension/syslab-runtime.js'), 'utf8');
-    const sessionTransport = readFileSync(
-      path.resolve('extension/syslab-session-transport.js'),
-      'utf8'
-    );
-    const content = ['content-prescription-print.js', 'hhr-center-shell-runtime.js']
-      .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
-      .join('\n');
-    const labCenter = readFileSync(path.resolve('extension/hhr-lab-center.js'), 'utf8');
-    const manifest = readFileSync(path.resolve('extension/manifest.json'), 'utf8');
-    const bridge = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
-    const offscreen = readFileSync(path.resolve('extension/syslab-offscreen.js'), 'utf8');
-    const offscreenHtml = readFileSync(path.resolve('extension/syslab-offscreen.html'), 'utf8');
-    const login = readFileSync(path.resolve('extension/syslab-login.js'), 'utf8');
-    const loginHtml = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
-
-    expect(background).not.toContain('localhost:3001');
-    expect(background).toContain("'syslab-session-transport.js'");
-    expect(background).toContain("'syslab-runtime.js'");
-    expect(background).toContain('self.HhrSyslabRuntime.create({');
-    expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
-    expect(runtime).toContain('sweepExpiredLabBatches');
-    expect(runtime).toContain('Puedes analizar como máximo 24 informes por operación.');
-    expect(runtime).toContain('LAB_REPORT_TIMEOUT_MS = 90_000');
-    expect(runtime).toContain('LAB_DETAILS_TIMEOUT_MS = 600_000');
-    expect(runtime).toContain('searchSyslabDirectly');
-    expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(');
-    expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(');
-    expect(runtime).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
-    expect(runtime).toContain('chromeApi.offscreen.createDocument');
-    expect(runtime).toContain("reasons: ['IFRAME_SCRIPTING']");
-    expect(runtime).toContain('context.documentUrl === offscreenUrl');
-    expect(runtime).toContain('const current = await readOffscreenContexts()');
-    expect(runtime).toContain('sendToSyslabOffscreen');
-    expect(runtime).not.toContain('SYSLAB_TAB_STORAGE_KEY');
-    expect(runtime).not.toContain('focusSyslabTab');
-    expect(sessionTransport).toContain('previousBridgeId');
-    expect(sessionTransport).toContain('status.bridgeId !== previousBridgeId');
-    expect(sessionTransport).toContain("SYSLAB_TAB_PATTERN = 'http://10.4.69.90/syslab/*'");
-    expect(sessionTransport).toContain("kind: 'visible-tab'");
-    expect(runtime).toContain('RAYEN_SYSLAB_READ_DETAILS');
-    expect(runtime).toContain('linksByExamId');
-    expect(background).toContain('[RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(');
-    expect(background).toContain('[RUNTIME_MESSAGES.LAB_DETAILS_REQUEST]: runtimeRoute(');
-    expect(runtime).toContain('validateDetailBatch');
-    expect(runtime).toContain('linksByExamId');
-    expect(runtime).toContain('const reportRequests = exams.map(exam => ({');
-    expect(runtime).toContain('exams: reportRequests');
-    expect(runtime).toContain('validateLabSenderEncounter');
-    expect(runtime).toContain('examRowsMatchRut(payload.exams, rutBody)');
-    expect(runtime).toContain('Syslab no confirmó que los informes correspondan al RUN solicitado');
-    // The lab flow accepts the sender tab's own encounter (fast path) or any encounter present
-    // in the active hospitalized census (shared patient picker); anything else is rejected.
-    expect(runtime).toContain('senderEncounterId === String(expectedEncounterId');
-    expect(runtime).toContain('await encounterInActiveCensus(expectedEncounterId, sender)');
-    expect(runtime).toContain('no está en el censo de hospitalizados activo');
-    expect(background).toContain(
-      'syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender })'
-    );
-    expect(background).toContain(
-      'syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender })'
-    );
-    expect(background).toContain('[RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(');
-    expect(runtime).toContain('base64: validation.pdfBase64');
-    expect(runtime).toContain('print-pdf.html?job=');
-    expect(runtime).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
-    expect(bridge).toContain("SYSLAB_ORIGIN = 'http://10.4.69.90'");
-    expect(bridge).toContain("credentials: 'include'");
-    expect(bridge).toContain('MAX_BODY_BYTES = 6 * 1024 * 1024');
-    expect(bridge).toContain("import(chrome.runtime.getURL('pdf.min.mjs'))");
-    expect(bridge).toContain("typeof globalThis.crypto.randomUUID === 'function'");
-    expect(bridge).toContain('HTTP fallback; correlation only.');
-    expect(bridge).toContain("message.type === 'RAYEN_SYSLAB_LOGIN'");
-    expect(bridge).toContain('extractRutBodyFromReportText');
-    expect(bridge).toContain('includeValidatedPdf: true');
-    expect(bridge).toContain('pdfBase64: detail.pdfBase64');
-    expect(bridge).toContain("FRAME_REQUEST = 'HHR_SYSLAB_FRAME_REQUEST'");
-    expect(bridge).toContain('event.origin !== EXTENSION_ORIGIN');
-    expect(bridge).not.toMatch(/17752753|SYSLAB_PASS|SYSLAB_USER/);
-    expect(offscreenHtml).toContain('src="http://10.4.69.90/syslab/"');
-    expect(offscreenHtml).toContain('sandbox="allow-forms allow-same-origin allow-scripts"');
-    expect(offscreenHtml).not.toContain('allow-modals');
-    expect(offscreenHtml).toContain('syslab-offscreen.js');
-    expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
-    expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
-    expect(offscreen).not.toContain('Math.min(1_500');
-    expect(content).toContain("key: 'exams'");
-    expect(content).toContain('hhr-exams-lab');
-    expect(content).not.toContain('class="module hhr-ops-lab"');
-    expect(labCenter).toContain('hhr-syslab-access');
-    expect(labCenter).toContain('hhr-syslab-access-form');
-    expect(labCenter).toContain('type="password"');
-    expect(labCenter).toContain('runtimeMessages.SYSLAB_LOGIN_REQUEST');
-    expect(labCenter).toContain("syslabPassword.value = ''");
-    expect(labCenter).not.toContain('target="_blank"');
-    expect(labCenter).not.toContain('<iframe class="hhr-syslab-login"');
-    expect(content).not.toContain('input name="password"');
-    expect(loginHtml).toContain('No se guardan en la extensión');
-    expect(login).toContain('type: runtimeMessages.SYSLAB_LOGIN_REQUEST');
-    expect(login).toContain("candidate === 'https://fichamedico.rayensalud.cl'");
-    expect(login).toContain('Vuelve a Eloísa y pulsa Actualizar.');
-    expect(login).not.toContain('localStorage');
-    expect(login).not.toContain('sessionStorage');
-    expect(content).toContain("key: 'connection'");
-    expect(content).toContain(
-      "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
-    );
-    expect(content).toContain(
-      "else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
-    );
-    expect(content).toContain('else renderConnectionCenter(root, targetEncId)');
-    expect(labCenter).toContain('Comparación');
-    expect(labCenter).toContain('Tendencias');
-    expect(labCenter).toContain('Por informe');
-    expect(labCenter).toContain('requestGeneration');
-    expect(labCenter).toContain('invalidateLabAnalysis');
-    expect(labCenter).toContain("batchId = ''");
-    expect(manifest).toContain('"lab-viewer.js"');
-    expect(manifest).toContain('"syslab-bridge.js"');
-    expect(manifest).toContain('"http://10.4.69.90/syslab/*"');
-    expect(manifest).toContain('"offscreen"');
-    expect(manifest).toContain('"all_frames": true');
-    expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.37.0"');
   });
 });

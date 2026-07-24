@@ -28,6 +28,7 @@ export const {
   hashPinLegacySha256,
   generatePinSalt,
   computeExpiresAt,
+  resolveUploadPatientOptionForExactDate,
 } = prescriptionAccess;
 
 interface FakeFirestoreDoc {

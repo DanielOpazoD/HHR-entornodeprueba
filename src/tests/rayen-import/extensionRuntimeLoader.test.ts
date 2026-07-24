@@ -200,7 +200,10 @@ describe('extension heavy runtime loading', () => {
           update: async () => undefined,
           create: async () => undefined,
         },
-        windows: { update: async () => undefined },
+        windows: {
+          create: async () => undefined,
+          update: async () => undefined,
+        },
         downloads: {},
       },
     });
