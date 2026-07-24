@@ -44,6 +44,7 @@ describe('Syslab parser parity', () => {
     ['SEDIMENTO URINARIO', 'Leucocitos', 'x campo', 'urine'],
     ['GENERAL', 'Microalbuminuria', 'mg/L', 'urine'],
     ['LIQUIDO PLEURAL', 'Albumina', 'g/dL', 'other-fluid'],
+    ['ANALISIS DE LIQUIDOS CORPORALES', 'Albumina', 'g/dL', 'other-fluid'],
     ['LCR', 'Glucosa', 'mg/dL', 'other-fluid'],
     ['GENERAL', 'ClCr', 'mL/min', 'unknown'],
     ['GENERAL', 'Proteina C Reactiva', 'mg/L', 'unknown'],

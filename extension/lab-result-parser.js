@@ -16,7 +16,7 @@
     .toLowerCase();
   const isUrineSection = section => /orina|urinari|sedimento|albuminuria|creatininuria|creatinuria|proteinuria/i
     .test(comparisonToken(section));
-  const isOtherFluidSection = section => /\bliquido\b|\blcr\b/i.test(comparisonToken(section));
+  const isOtherFluidSection = section => /\bliquidos?\b|\blcr\b/i.test(comparisonToken(section));
   const specimenSignature = finding => `${finding && finding.section || ''} ${finding && finding.analysis || ''} ${finding && finding.unit || ''}`;
   const isSystemicTrendEligible = finding => {
     if (finding && (finding.analysis === 'RAC' || finding.analysis === 'RPC')) return true;

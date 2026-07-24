@@ -98,6 +98,14 @@ describe('isOutOfRange', () => {
   it('returns null for non-range reference', () => {
     expect(isOutOfRange('7.5', 'N/A')).toBeNull();
   });
+
+  it('uses the unit context to distinguish dotted thousands from decimals', () => {
+    expect(isOutOfRange('1.720', '1.500 - 1.800', { unit: 'U/L' })).toBe(false);
+  });
+
+  it('keeps dotted values decimal for explicitly scaled cell units', () => {
+    expect(isOutOfRange('7.280', '4.000 - 11.000', { unit: 'x10^3/uL' })).toBe(false);
+  });
 });
 
 /* ================================================================== */

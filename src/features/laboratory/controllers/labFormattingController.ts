@@ -72,12 +72,18 @@ export const parseDateDDMMYYYY = (date: string): string => {
  * Check if a result value is outside the reference range.
  * @returns `true` if out of range, `false` if within range, `null` if unparseable.
  */
-export const isOutOfRange = (result: string, refValue: string): boolean | null => {
-  const range = parseRefRange(refValue);
+export const isOutOfRange = (
+  result: string,
+  refValue: string,
+  context?: Pick<LabResultRow, 'unit'>
+): boolean | null => {
+  const range = parseRefRange(refValue, context);
   if (!range) return null;
-  const val = parseLocalizedNumber(result);
-  if (isNaN(val)) return null;
-  return val < range.min || val > range.max;
+  const value = context
+    ? parseLabMeasurement(result, { unit: context.unit, refValue })?.value
+    : parseLocalizedNumber(result);
+  if (value == null || isNaN(value)) return null;
+  return value < range.min || value > range.max;
 };
 
 /**
