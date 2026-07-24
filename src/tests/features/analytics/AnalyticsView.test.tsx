@@ -233,6 +233,9 @@ describe('AnalyticsView', () => {
 
       expect(screen.getByRole('tab', { name: 'Resumen' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Hospitalización' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'CUDYR / UPC' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'UPC clínico' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Traslados' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'CMA/PMA' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Especialidades' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Trazabilidad' })).toBeInTheDocument();
@@ -245,5 +248,29 @@ describe('AnalyticsView', () => {
     } finally {
       restoreConsole(consoleSpies);
     }
+  });
+
+  it('exposes the CUDYR and UPC analysis as a dedicated statistics section', () => {
+    render(<AnalyticsView />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'CUDYR / UPC' }));
+
+    expect(screen.getByText('Sin evaluaciones CUDYR analizables')).toBeInTheDocument();
+  });
+
+  it('exposes transfer analytics as a dedicated statistics section', () => {
+    render(<AnalyticsView />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Traslados' }));
+
+    expect(screen.getByText('Sin traslados en el período')).toBeInTheDocument();
+  });
+
+  it('exposes structured UPC clinical analytics as a dedicated section', () => {
+    render(<AnalyticsView />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'UPC clínico' }));
+
+    expect(screen.getByText('Sin pacientes UPC clasificables')).toBeInTheDocument();
   });
 });
