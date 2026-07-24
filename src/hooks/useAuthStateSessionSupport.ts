@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { ACTIVITY_EVENTS, SESSION_TIMEOUT_MS } from '@/constants/security';
 import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
-import { clearPersistedFirebaseAuthState } from '@/services/auth/authStorageHints';
+import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
+} from '@/services/auth/authStorageHints';
 import { resolveAuthBootstrapBudget } from '@/services/auth/authBootstrapBudgets';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import { createUnauthenticatedAuthSessionState } from '@/services/auth/authSessionState';
@@ -101,11 +104,13 @@ export const createHandleLogout =
     clearQueryCache();
     clearCachedUserAvatarProfiles();
 
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem('hhr_logged_this_session');
-    }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('hhr_e2e_bootstrap_user');
+    clearRecentAuthenticatedSessionHint();
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('hhr_e2e_bootstrap_user');
+      }
+    } catch {
+      // Test-only hint cleanup must never interrupt a real logout.
     }
     if (reason === 'manual') {
       markRecentManualLogout();

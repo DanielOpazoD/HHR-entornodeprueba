@@ -36,6 +36,7 @@ import {
   type RemoteSyncRuntimeStatus,
 } from '@/services/repositories/repositoryConfig';
 import {
+  clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
   resolveSessionOwnerKey,
 } from '@/services/storage/sessionScopedStorageService';
@@ -178,6 +179,10 @@ export const useAuthState = (): UseAuthStateReturn => {
         clearQueryCache();
         setSessionState(createUnauthenticatedAuthSessionState());
         resetLocationToLoginRoute();
+        // Session-scoped Firebase persistence is local to this tab. Clearing
+        // browser keys is not enough because Firebase can retain currentUser
+        // in memory and emit it again; sign out locally without rebroadcasting.
+        void Promise.allSettled([signOut(), clearSessionScopedClientState(message.reason)]);
         // Drop this tab's own persisted auth copy too: with session-scoped
         // Firebase persistence the initiating tab's signOut cannot reach it,
         // so a refresh here would otherwise restore the closed session.

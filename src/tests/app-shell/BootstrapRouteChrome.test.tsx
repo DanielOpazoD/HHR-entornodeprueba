@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
 import { signOut as mockedAuthSessionSignOut } from '@/services/auth/authSession';
+import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
 const mockNavbar = vi.fn();
 const mockDateStrip = vi.fn();
@@ -30,6 +31,10 @@ vi.mock('@/components/layout/DateStrip', () => ({
 
 vi.mock('@/components/ui/ViewLoader', () => ({
   ViewLoader: () => <div data-testid="view-loader">Loading</div>,
+}));
+
+vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+  clearSessionScopedClientState: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('BootstrapRouteChrome', () => {
@@ -118,6 +123,7 @@ describe('BootstrapRouteChrome', () => {
 
       await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/'));
       expect(mockedAuthSessionSignOut).toHaveBeenCalled();
+      expect(clearSessionScopedClientState).toHaveBeenCalledWith('manual');
       expect(window.sessionStorage.getItem('hhr_recent_manual_logout_v1')).not.toBeNull();
       expect(window.sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
       expect(window.localStorage.getItem('firebase:authUser:demo-key')).toBeNull();

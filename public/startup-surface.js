@@ -137,16 +137,19 @@
       typeof window.fetch === 'function' &&
       !window.localStorage.getItem('hhr_firebase_config')
     ) {
-      window.__HHR_EARLY_CONFIG_FETCH__ = window
-        .fetch('/.netlify/functions/firebase-config?t=' + Date.now() + '&mode=preboot', {
-          cache: 'no-store',
-        })
-        .then(function (response) {
-          return response.ok ? response.json() : null;
-        })
-        .catch(function () {
-          return null;
-        });
+      window.__HHR_EARLY_CONFIG_FETCH__ = {
+        startedAt: Date.now(),
+        promise: window
+          .fetch('/.netlify/functions/firebase-config?t=' + Date.now() + '&mode=preboot', {
+            cache: 'no-store',
+          })
+          .then(function (response) {
+            return response.ok ? response.json() : null;
+          })
+          .catch(function () {
+            return null;
+          }),
+      };
     }
   } catch (error) {
     // Preboot warm-up is best-effort only.

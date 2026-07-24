@@ -17,7 +17,6 @@ import {
   createUnauthorizedAuthSessionState,
   toAnonymousSignatureAuthSessionState,
 } from '@/services/auth/authSessionState';
-import { hasRecentGoogleLoginAttemptHint } from '@/services/auth/authStorageHints';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { markPerf } from '@/shared/runtime/perfAudit';
 
@@ -27,34 +26,6 @@ interface AuthRuntimeOptions {
 
 const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
   authRuntime ?? defaultAuthRuntime;
-
-// A sign-in that completed moments ago must be authorized strictly even when
-// the per-tab login-attempt hint is gone (e.g. the user finished the Google
-// popup after the UI-level timeout already cleared the hint).
-const FRESH_SIGN_IN_STRICT_WINDOW_MS = 5 * 60_000;
-
-const isFreshInteractiveSignIn = (firebaseUser: User): boolean => {
-  const lastSignInTime = firebaseUser.metadata?.lastSignInTime;
-  if (!lastSignInTime) return false;
-  const lastSignInAt = new Date(lastSignInTime).getTime();
-  return (
-    Number.isFinite(lastSignInAt) && Date.now() - lastSignInAt < FRESH_SIGN_IN_STRICT_WINDOW_MS
-  );
-};
-
-// During an active Google login attempt — or right after a fresh interactive
-// sign-in — the role must be resolved strictly (fresh checkUserRole lookup).
-// Outside of that window the observer event is a session rehydration (page
-// refresh / restored persistence), where the cached role is accepted — same
-// policy resolveCurrentAuthSessionState already uses for this scenario, so
-// refreshes stop paying a Cloud Function round-trip.
-export const shouldResolveObserverRoleStrictly = (firebaseUser: User): boolean =>
-  hasRecentGoogleLoginAttemptHint() || isFreshInteractiveSignIn(firebaseUser);
-
-const resolveObserverFirebaseUserRole = (firebaseUser: User) =>
-  shouldResolveObserverRoleStrictly(firebaseUser)
-    ? resolveFirebaseUserRole(firebaseUser)
-    : resolveFirebaseUserRoleForBootstrap(firebaseUser);
 
 export const signOut = async (options?: AuthRuntimeOptions): Promise<void> => {
   const authRuntime = resolveAuthRuntime(options);
@@ -121,7 +92,10 @@ export const onAuthSessionStateChange = (
           markPerf('auth-session:role-resolution-start');
           const sessionState = await resolveAuthSessionState(firebaseUser, {
             signOutUnauthorizedUser: () => firebaseSignOut(authRuntime.auth),
-            resolveFirebaseUserRole: resolveObserverFirebaseUserRole,
+            // The observer is the authoritative reconciliation point. It must
+            // not accept the bootstrap cache because role revocations need to
+            // take effect during an ordinary restored session too.
+            resolveFirebaseUserRole,
           });
           markPerf('auth-session:role-resolution-done', sessionState.status);
           if (sessionState.status !== 'authorized') {

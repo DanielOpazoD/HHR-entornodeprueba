@@ -19,6 +19,7 @@ import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
+import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
 const DEFAULT_BOOTSTRAP_ROLE: UserRole = 'admin';
@@ -42,9 +43,14 @@ const runBootstrapManualLogout = async (): Promise<void> => {
     markRecentManualLogout();
     clearRecentAuthenticatedSessionHint();
     broadcastLogout('manual');
-    await firebaseSessionSignOut();
   } catch {
-    // Best-effort: leave the shell even if a cleanup step or sign-out fails.
+    // Best-effort: storage or broadcast failures must not block logout.
+  }
+
+  try {
+    // Match the normal logout contract: close Firebase and remove sensitive
+    // owner-scoped clinical state before another person uses this browser.
+    await Promise.allSettled([firebaseSessionSignOut(), clearSessionScopedClientState('manual')]);
   } finally {
     clearPersistedFirebaseAuthState();
     window.location.replace('/');

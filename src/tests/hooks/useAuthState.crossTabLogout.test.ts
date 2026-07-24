@@ -7,10 +7,11 @@ import { useAuthState } from '@/hooks/useAuthState';
 import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
+import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
 vi.mock('@/services/auth/authSession', () => ({
   onAuthSessionStateChange: vi.fn(),
-  signOut: vi.fn(),
+  signOut: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/services/auth/authFallback', () => ({
@@ -39,6 +40,7 @@ describe('useAuthState cross-tab logout', () => {
     window.localStorage.clear();
     vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
     vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(() => () => {});
+    vi.mocked(authSession.signOut).mockResolvedValue(undefined);
     vi.mocked(authUseCases.executeRedirectAuthResolution).mockResolvedValue({
       status: 'success',
       data: null,
@@ -64,8 +66,10 @@ describe('useAuthState cross-tab logout', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    await waitFor(() => expect(result.current.user).toBe(null));
+    await waitFor(() => expect(authSession.signOut).toHaveBeenCalledTimes(1));
+    expect(result.current.user).toBe(null);
     expect(sessionStorage.getItem('firebase:authUser:demo-key')).toBeNull();
     expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
+    expect(clearSessionScopedClientState).toHaveBeenCalledWith('manual');
   });
 });
