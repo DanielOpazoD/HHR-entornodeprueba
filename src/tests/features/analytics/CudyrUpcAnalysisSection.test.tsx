@@ -59,19 +59,19 @@ describe('CudyrUpcAnalysisSection', () => {
     expect(screen.getByTestId('cudyr-upc-analysis')).toBeInTheDocument();
     expect(screen.getByText('Análisis CUDYR y uso de camas críticas')).toBeInTheDocument();
     expect(screen.getAllByText('R1–R4 ocupadas').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('R1–R4 sin criterio UPC').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('R1–R4 sin registro UPC').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Complejidad CUDYR por cohorte')).toBeInTheDocument();
     expect(screen.getAllByText('UPC–UTI').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByTestId('cudyr-minsal-equivalence')).toBeInTheDocument();
-    expect(screen.getByText('Equivalencia CUDYR/MINSAL para UPC')).toBeInTheDocument();
-    expect(screen.getByText('A1 · A2 · B1')).toBeInTheDocument();
-    expect(screen.getByText('A3 · B2 · B1')).toBeInTheDocument();
-    expect(screen.getByText('Equivalencia por ubicación de cama')).toBeInTheDocument();
-    expect(
-      screen.getByText('Criterio clínico HHR versus equivalencia CUDYR/MINSAL')
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('cudyr-care-levels')).toBeInTheDocument();
+    expect(screen.getByText('Clasificación CUDYR por nivel de cuidado')).toBeInTheDocument();
+    expect(screen.getByText('A1 · A2 · A3 · B1 · B2')).toBeInTheDocument();
+    expect(screen.getByText('B3 · C1 · C2')).toBeInTheDocument();
+    expect(screen.getByText('C3 · D1 · D2 · D3')).toBeInTheDocument();
+    expect(screen.getByText('Nivel de cuidado en observaciones UPC')).toBeInTheDocument();
+    expect(screen.getByText('Nivel de cuidado sin registro UPC, por cama')).toBeInTheDocument();
     expect(screen.getByText('Calificados UPC–UTI por criterios HHR')).toBeInTheDocument();
     expect(screen.getByText('Calificados UPC–UCI por criterios HHR')).toBeInTheDocument();
+    expect(screen.getAllByText('UPC histórico sin desglose').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('100.0%').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Detalle nocturno por fecha')).toBeInTheDocument();
     expect(screen.getByText('10-03-2026')).toBeInTheDocument();

@@ -55,4 +55,26 @@ describe('UpcClinicalAnalyticsSection', () => {
     render(<UpcClinicalAnalyticsSection records={[]} />);
     expect(screen.getByText('Sin pacientes UPC clasificables')).toBeInTheDocument();
   });
+
+  it('reports excluded UPC observations without identity', () => {
+    const identified = record.beds.R1 as PatientData;
+    const anonymous = {
+      ...identified,
+      bedId: 'R2',
+      patientName: '',
+      rut: '',
+    };
+    const recordWithAnonymous = {
+      ...record,
+      beds: { R1: identified, R2: anonymous },
+    } as DailyRecord;
+
+    render(<UpcClinicalAnalyticsSection records={[recordWithAnonymous]} />);
+
+    expect(
+      screen.getByText(
+        'Se excluyeron 1 observaciones UPC sin nombre ni documento de identidad. No participan en totales, porcentajes ni detalle.'
+      )
+    ).toBeInTheDocument();
+  });
 });

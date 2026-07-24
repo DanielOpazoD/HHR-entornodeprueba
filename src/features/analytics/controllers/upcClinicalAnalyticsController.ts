@@ -5,6 +5,7 @@ import {
   isUpcEligibleAnalyticsBed,
   resolveAnalyticsUpcClassification,
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
+import { hasAnalyticsPatientIdentity } from '@/features/analytics/controllers/analyticsPatientIdentity';
 import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
 
 export type StructuredUpcClassification = 'UPC_UCI' | 'UPC_UTI';
@@ -40,6 +41,7 @@ export interface UpcClinicalAnalytics {
   utiObservations: number;
   uciObservations: number;
   assumedUtiObservations: number;
+  excludedUnidentifiedObservations: number;
   utiPercent: number;
   uciPercent: number;
   byBedGroup: UpcClinicalBedGroupSummary[];
@@ -79,6 +81,7 @@ export const buildUpcClinicalAnalytics = (records: DailyRecord[]): UpcClinicalAn
   let utiObservations = 0;
   let uciObservations = 0;
   let assumedUtiObservations = 0;
+  let excludedUnidentifiedObservations = 0;
 
   records
     .slice()
@@ -91,6 +94,10 @@ export const buildUpcClinicalAnalytics = (records: DailyRecord[]): UpcClinicalAn
         const legacyAssumedUti = isLegacyUpcAssumedUti(record.date, storedClassification);
         const classification = legacyAssumedUti ? 'UPC_UTI' : storedClassification;
         if (classification !== 'UPC_UCI' && classification !== 'UPC_UTI') return;
+        if (!hasAnalyticsPatientIdentity(patient)) {
+          excludedUnidentifiedObservations += 1;
+          return;
+        }
 
         const patientKey = resolvePatientKey(patient, bedId, classification);
         uniqueAll.add(patientKey.replace(/::UPC_(UCI|UTI)$/, ''));
@@ -139,6 +146,7 @@ export const buildUpcClinicalAnalytics = (records: DailyRecord[]): UpcClinicalAn
     utiObservations,
     uciObservations,
     assumedUtiObservations,
+    excludedUnidentifiedObservations,
     utiPercent: roundPercent(utiObservations, observations),
     uciPercent: roundPercent(uciObservations, observations),
     byBedGroup: Object.values(bedGroups),

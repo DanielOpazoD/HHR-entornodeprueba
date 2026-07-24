@@ -4,7 +4,7 @@ import {
   buildCudyrUpcAnalysis,
   resolveAnalyticsUpcClassification,
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
-import { resolveMinsalCudyrEquivalence } from '@/features/analytics/controllers/cudyrMinsalEquivalenceController';
+import { resolveCudyrCareLevel } from '@/features/analytics/controllers/cudyrCareLevelController';
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { CudyrScore } from '@/types/domain/cudyr';
@@ -63,12 +63,13 @@ const createRecord = (beds: Record<string, PatientData>): DailyRecord => ({
 });
 
 describe('cudyrUpcAnalysisController', () => {
-  it('uses UCI precedence for the official B1 overlap so percentages remain exclusive', () => {
-    expect(['A1', 'A2', 'B1'].map(resolveMinsalCudyrEquivalence)).toEqual(['UCI', 'UCI', 'UCI']);
-    expect(['A3', 'B2'].map(resolveMinsalCudyrEquivalence)).toEqual(['UTI', 'UTI']);
-    expect(['B3', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3'].map(resolveMinsalCudyrEquivalence)).toEqual(
-      Array(7).fill('NON_UPC')
+  it('maps every CUDYR category to the requested care level', () => {
+    expect(['A1', 'A2', 'A3', 'B1', 'B2'].map(resolveCudyrCareLevel)).toEqual(
+      Array(5).fill('CRITICAL')
     );
+    expect(['B3', 'C1', 'C2'].map(resolveCudyrCareLevel)).toEqual(Array(3).fill('MEDIUM'));
+    expect(['C3', 'D1', 'D2', 'D3'].map(resolveCudyrCareLevel)).toEqual(Array(4).fill('BASIC'));
+    expect(resolveCudyrCareLevel('')).toBeNull();
   });
 
   it('prefers structured UTI/UCI classification and preserves legacy UPC separately', () => {
@@ -154,74 +155,82 @@ describe('cudyrUpcAnalysisController', () => {
       adultPotentialWithCriteria: 2,
       adultPotentialWithoutCriteria: 1,
       adultPotentialLegacy: 1,
+      adultPotentialWithUpc: 3,
       adultCriteriaPercent: 50,
+      adultUpcPercent: 75,
       neonatalOccupied: 2,
       neonatalWithCriteria: 1,
       neonatalWithoutCriteria: 1,
       basicOccupied: 3,
       upcWithCriteria: 3,
+      upcObserved: 4,
       upcUti: 3,
       upcUci: 1,
       upcLegacy: 1,
       upcAssumedUti: 1,
       upcOutsideEligibleBeds: 1,
-      nonHhrUpcMinsal: {
+      nonUpcCareLevels: {
         eligibleObservations: 5,
         categorizedObservations: 4,
         missingCudyr: 1,
-        uciEquivalent: 1,
-        utiEquivalent: 1,
-        nonUpcEquivalent: 2,
-        uciPercent: 25,
-        utiPercent: 25,
-        nonUpcPercent: 50,
+        critical: 2,
+        medium: 0,
+        basic: 2,
+        criticalPercent: 50,
+        mediumPercent: 0,
+        basicPercent: 50,
       },
-      hhrUpcMinsalByClinicalCriteria: [
+      upcCareLevelsByClinicalCriteria: [
         {
           key: 'upc_uci',
           eligibleObservations: 1,
           categorizedObservations: 1,
-          uciEquivalent: 1,
-          utiEquivalent: 0,
-          nonUpcEquivalent: 0,
-          uciPercent: 100,
-          utiPercent: 0,
-          nonUpcPercent: 0,
+          critical: 1,
+          medium: 0,
+          basic: 0,
+          criticalPercent: 100,
         },
         {
           key: 'upc_uti',
           eligibleObservations: 2,
           categorizedObservations: 2,
-          uciEquivalent: 2,
-          utiEquivalent: 0,
-          nonUpcEquivalent: 0,
-          uciPercent: 100,
-          utiPercent: 0,
-          nonUpcPercent: 0,
+          critical: 2,
+          medium: 0,
+          basic: 0,
+          criticalPercent: 100,
+        },
+        {
+          key: 'upc_legacy',
+          eligibleObservations: 1,
+          categorizedObservations: 1,
+          critical: 0,
+          medium: 0,
+          basic: 1,
+          basicPercent: 100,
         },
       ],
     });
 
-    expect(analysis.nonHhrUpcMinsalByBedGroup).toMatchObject([
+    expect(analysis.nonUpcCareLevelsByBedGroup).toMatchObject([
       {
         key: 'basic',
         eligibleObservations: 3,
         categorizedObservations: 2,
         missingCudyr: 1,
-        uciPercent: 50,
-        nonUpcPercent: 50,
+        criticalPercent: 50,
+        basicPercent: 50,
       },
       {
         key: 'adult_potential',
         eligibleObservations: 1,
         categorizedObservations: 1,
-        utiPercent: 100,
+        criticalPercent: 100,
       },
       {
         key: 'neonatal',
         eligibleObservations: 1,
         categorizedObservations: 1,
-        nonUpcPercent: 100,
+        basicPercent: 100,
       },
     ]);
 
@@ -229,21 +238,87 @@ describe('cudyrUpcAnalysisController', () => {
       analysis.cohorts.find(cohort => cohort.key === 'adult_potential_without_upc')
     ).toMatchObject({
       categorizedObservations: 1,
-      risk: { A: 0, B: 1, C: 0, D: 0 },
-      dependency: { 1: 0, 2: 1, 3: 0 },
+      critical: 1,
+      medium: 0,
+      basic: 0,
     });
     expect(analysis.cohorts.find(cohort => cohort.key === 'upc_uti')).toMatchObject({
       categorizedObservations: 2,
-      risk: { A: 1, B: 1, C: 0, D: 0 },
+      critical: 2,
+      medium: 0,
+      basic: 0,
     });
     expect(analysis.daily[0]).toMatchObject({
       adultPotentialOccupied: 4,
       adultPotentialWithCriteria: 2,
+      adultPotentialWithUpc: 3,
       adultPotentialWithoutCriteria: 1,
       neonatalOccupied: 2,
       neonatalWithCriteria: 1,
       upcUti: 3,
       upcUci: 1,
+    });
+  });
+
+  it('excludes UPC observations with neither name nor document while retaining RUT-only records', () => {
+    const analysis = buildCudyrUpcAnalysis([
+      createRecord({
+        R1: createPatient('R1', {
+          patientName: '',
+          rut: '',
+          isUPC: true,
+          cudyr: createCudyrScore('A', '1'),
+        }),
+        R2: createPatient('R2', {
+          patientName: '',
+          rut: '14.747.062-2',
+          isUPC: true,
+          cudyr: createCudyrScore('B', '3'),
+        }),
+        R3: createPatient('R3', {
+          patientName: '',
+          rut: '',
+          isUPC: true,
+          isBlocked: true,
+        }),
+        R4: createPatient('R4', {
+          patientName: '',
+          rut: '',
+          isUPC: true,
+          admissionDate: '',
+        }),
+      }),
+    ]);
+
+    expect(analysis).toMatchObject({
+      excludedUnidentifiedObservations: 1,
+      eligibleObservations: 1,
+      adultPotentialOccupied: 1,
+      adultPotentialLegacy: 1,
+      adultPotentialWithUpc: 1,
+      upcObserved: 1,
+    });
+  });
+
+  it('includes post-cutoff historical UPC in the UPC total without inferring UTI', () => {
+    const historicalRecord = createRecord({
+      R1: createPatient('R1', { isUPC: true, cudyr: createCudyrScore('C', '1') }),
+    });
+    historicalRecord.date = '2026-06-01';
+
+    const analysis = buildCudyrUpcAnalysis([historicalRecord]);
+
+    expect(analysis).toMatchObject({
+      adultPotentialOccupied: 1,
+      adultPotentialWithCriteria: 0,
+      adultPotentialLegacy: 1,
+      adultPotentialWithUpc: 1,
+      adultPotentialWithoutCriteria: 0,
+      upcWithCriteria: 0,
+      upcObserved: 1,
+      upcUti: 0,
+      upcLegacy: 1,
+      upcAssumedUti: 0,
     });
   });
 

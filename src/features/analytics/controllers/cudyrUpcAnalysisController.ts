@@ -1,17 +1,30 @@
-import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
+import { resolveCudyrEligibility } from '@/domain/cudyr/cudyrEligibility';
 import { resolveUpcClassification, type UpcClassification } from '@/domain/upc/upcClassification';
 import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
 import {
-  addMinsalEquivalence,
-  createMinsalBedGroupDistributions,
-  createMinsalDistribution,
-  finalizeMinsalDistribution,
-  resolveMinsalCudyrEquivalence,
-  resolveNonHhrUpcBedGroup,
-  type MinsalCudyrBedGroupDistribution,
-  type MinsalCudyrDistribution,
-} from '@/features/analytics/controllers/cudyrMinsalEquivalenceController';
+  addCareLevel,
+  createCareLevelBedGroupDistributions,
+  createCareLevelDistribution,
+  finalizeCareLevelDistribution,
+  resolveCareLevelBedGroup,
+  resolveCudyrCareLevel,
+} from '@/features/analytics/controllers/cudyrCareLevelController';
+import { hasAnalyticsPatientIdentity } from '@/features/analytics/controllers/analyticsPatientIdentity';
+import {
+  addCudyrCategoryToCohort,
+  createCudyrUpcCohorts,
+  type CudyrUpcAnalysis,
+  type CudyrUpcCohortKey,
+  type CudyrUpcDailySummary,
+  type HhrUpcCareLevelDistribution,
+  type HhrUpcClinicalCriteriaKey,
+} from '@/features/analytics/controllers/cudyrUpcAnalysisModels';
+
+export type {
+  CudyrUpcAnalysis,
+  HhrUpcCareLevelDistribution,
+} from '@/features/analytics/controllers/cudyrUpcAnalysisModels';
 
 const ADULT_POTENTIAL_UTI_BEDS = new Set(['R1', 'R2', 'R3', 'R4']);
 const NEONATAL_UPC_ELIGIBLE_BEDS = new Set(['NEO1', 'NEO2']);
@@ -26,8 +39,6 @@ const ANALYZED_BEDS = new Set([
   ...BASIC_BEDS,
 ]);
 
-export type CudyrRiskLevel = 'A' | 'B' | 'C' | 'D';
-export type CudyrDependencyLevel = '1' | '2' | '3';
 export type AnalyticsUpcClassification = UpcClassification | 'UPC_LEGACY';
 export const LEGACY_UPC_UTI_CUTOFF_DATE = '2026-04-30';
 
@@ -35,130 +46,31 @@ export const isLegacyUpcAssumedUti = (
   date: string,
   classification: AnalyticsUpcClassification
 ): boolean => classification === 'UPC_LEGACY' && date < LEGACY_UPC_UTI_CUTOFF_DATE;
-export type HhrUpcClinicalCriteriaKey = 'upc_uci' | 'upc_uti';
-
-export interface HhrUpcMinsalDistribution extends MinsalCudyrDistribution {
-  key: HhrUpcClinicalCriteriaKey;
-  label: string;
-}
-
-export type CudyrUpcCohortKey =
-  | 'basic'
-  | 'adult_potential_without_upc'
-  | 'neonatal_without_upc'
-  | 'upc_uti'
-  | 'upc_uci'
-  | 'upc_legacy';
-
-export interface CudyrUpcCohortSummary {
-  key: CudyrUpcCohortKey;
-  label: string;
-  description: string;
-  categorizedObservations: number;
-  risk: Record<CudyrRiskLevel, number>;
-  dependency: Record<CudyrDependencyLevel, number>;
-}
-
-export interface CudyrUpcDailySummary {
-  date: string;
-  adultPotentialOccupied: number;
-  adultPotentialWithCriteria: number;
-  adultPotentialWithoutCriteria: number;
-  adultPotentialLegacy: number;
-  neonatalOccupied: number;
-  neonatalWithCriteria: number;
-  basicOccupied: number;
-  upcUti: number;
-  upcUci: number;
-  categorizedObservations: number;
-}
-
-export interface CudyrUpcAnalysis {
-  periodStart: string;
-  periodEnd: string;
-  daysWithRecords: number;
-  eligibleObservations: number;
-  categorizedObservations: number;
-  coveragePercent: number;
-  adultPotentialOccupied: number;
-  adultPotentialWithCriteria: number;
-  adultPotentialWithoutCriteria: number;
-  adultPotentialLegacy: number;
-  adultCriteriaPercent: number;
-  neonatalOccupied: number;
-  neonatalWithCriteria: number;
-  neonatalWithoutCriteria: number;
-  neonatalLegacy: number;
-  basicOccupied: number;
-  upcWithCriteria: number;
-  upcUti: number;
-  upcUci: number;
-  upcLegacy: number;
-  upcAssumedUti: number;
-  upcOutsideEligibleBeds: number;
-  nonHhrUpcMinsal: MinsalCudyrDistribution;
-  nonHhrUpcMinsalByBedGroup: MinsalCudyrBedGroupDistribution[];
-  hhrUpcMinsalByClinicalCriteria: HhrUpcMinsalDistribution[];
-  cohorts: CudyrUpcCohortSummary[];
-  daily: CudyrUpcDailySummary[];
-}
 
 type AnalyticsPatient = DailyRecord['beds'][string];
 
-const createRiskCounts = (): Record<CudyrRiskLevel, number> => ({
-  A: 0,
-  B: 0,
-  C: 0,
-  D: 0,
-});
+const isCudyrAnalyticsEligible = (recordDate: string, patient: AnalyticsPatient): boolean =>
+  !patient.isBlocked &&
+  resolveCudyrEligibility({
+    recordDate,
+    patientName: patient.patientName || patient.rut,
+    admissionDate: patient.admissionDate,
+    admissionTime: patient.admissionTime,
+  }).isEligible;
 
-const createDependencyCounts = (): Record<CudyrDependencyLevel, number> => ({
-  1: 0,
-  2: 0,
-  3: 0,
-});
-
-const createCohort = (
-  key: CudyrUpcCohortKey,
-  label: string,
-  description: string
-): CudyrUpcCohortSummary => ({
-  key,
-  label,
-  description,
-  categorizedObservations: 0,
-  risk: createRiskCounts(),
-  dependency: createDependencyCounts(),
-});
-
-const createCohorts = (): Record<CudyrUpcCohortKey, CudyrUpcCohortSummary> => ({
-  basic: createCohort('basic', 'Camas básicas', 'H1C1–H6C2, sin criterio UPC registrado'),
-  adult_potential_without_upc: createCohort(
-    'adult_potential_without_upc',
-    'R1–R4 sin criterio UPC',
-    'Uso de cama potencialmente UTI sin clasificación clínica UTI/UCI'
-  ),
-  neonatal_without_upc: createCohort(
-    'neonatal_without_upc',
-    'NEO 1–2 sin criterio UPC',
-    'Cama neonatal habilitada para evaluar UPC, sin clasificación UTI/UCI'
-  ),
-  upc_uti: createCohort(
-    'upc_uti',
-    'UPC–UTI',
-    'Paciente con al menos un criterio clínico UTI registrado'
-  ),
-  upc_uci: createCohort(
-    'upc_uci',
-    'UPC–UCI',
-    'Paciente con al menos un criterio clínico UCI registrado'
-  ),
-  upc_legacy: createCohort(
-    'upc_legacy',
-    'UPC histórico sin desglose',
-    'Marcación UPC antigua sin clasificación estructurada UTI/UCI'
-  ),
-});
+const isCudyrTimingEligibleWithoutIdentity = (
+  recordDate: string,
+  patient: AnalyticsPatient
+): boolean =>
+  !patient.isBlocked &&
+  resolveCudyrEligibility({
+    recordDate,
+    // The identity rule is evaluated separately; this call only applies the
+    // admission-date and nightly-cutoff gates to an otherwise anonymous UPC row.
+    patientName: 'observación UPC pendiente de identidad',
+    admissionDate: patient.admissionDate,
+    admissionTime: patient.admissionTime,
+  }).isEligible;
 
 export const resolveAnalyticsUpcClassification = (
   patient: AnalyticsPatient
@@ -193,45 +105,38 @@ const resolveCohortKey = (
   return 'basic';
 };
 
-const addCategorizationToCohort = (
-  cohort: CudyrUpcCohortSummary,
-  riskLevel: string,
-  dependencyLevel: string
-) => {
-  if (!['A', 'B', 'C', 'D'].includes(riskLevel)) return;
-  if (!['1', '2', '3'].includes(dependencyLevel)) return;
-
-  cohort.categorizedObservations += 1;
-  cohort.risk[riskLevel as CudyrRiskLevel] += 1;
-  cohort.dependency[dependencyLevel as CudyrDependencyLevel] += 1;
-};
-
 const roundPercent = (value: number, total: number): number =>
   total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 
 export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis => {
   const sortedRecords = records.slice().sort((left, right) => left.date.localeCompare(right.date));
-  const cohorts = createCohorts();
-  const nonHhrUpcMinsal = createMinsalDistribution();
-  const nonHhrUpcMinsalByBedGroup = createMinsalBedGroupDistributions();
-  const hhrUpcMinsalByClinicalCriteria: Record<
+  const cohorts = createCudyrUpcCohorts();
+  const nonUpcCareLevels = createCareLevelDistribution();
+  const nonUpcCareLevelsByBedGroup = createCareLevelBedGroupDistributions();
+  const upcCareLevelsByClinicalCriteria: Record<
     HhrUpcClinicalCriteriaKey,
-    HhrUpcMinsalDistribution
+    HhrUpcCareLevelDistribution
   > = {
     upc_uci: {
-      ...createMinsalDistribution(),
+      ...createCareLevelDistribution(),
       key: 'upc_uci',
       label: 'Calificados UPC–UCI por criterios HHR',
     },
     upc_uti: {
-      ...createMinsalDistribution(),
+      ...createCareLevelDistribution(),
       key: 'upc_uti',
       label: 'Calificados UPC–UTI por criterios HHR',
+    },
+    upc_legacy: {
+      ...createCareLevelDistribution(),
+      key: 'upc_legacy',
+      label: 'UPC histórico sin desglose',
     },
   };
   const daily: CudyrUpcDailySummary[] = [];
 
   let eligibleObservations = 0;
+  let excludedUnidentifiedObservations = 0;
   let categorizedObservations = 0;
   let adultPotentialOccupied = 0;
   let adultPotentialWithCriteria = 0;
@@ -255,8 +160,10 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
       adultPotentialWithCriteria: 0,
       adultPotentialWithoutCriteria: 0,
       adultPotentialLegacy: 0,
+      adultPotentialWithUpc: 0,
       neonatalOccupied: 0,
       neonatalWithCriteria: 0,
+      neonatalWithUpc: 0,
       basicOccupied: 0,
       upcUti: 0,
       upcUci: 0,
@@ -265,12 +172,22 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
 
     ANALYZED_BEDS.forEach(bedId => {
       const patient = record.beds[bedId];
-      if (!patient || !isCudyrPatientEligible(record.date, patient)) return;
-
-      eligibleObservations += 1;
+      if (!patient) return;
       const storedClassification = resolveAnalyticsUpcClassification(patient);
       const hasInvalidUpcBedLabel =
         storedClassification !== null && !isUpcEligibleAnalyticsBed(bedId);
+      if (
+        storedClassification !== null &&
+        !hasInvalidUpcBedLabel &&
+        !hasAnalyticsPatientIdentity(patient)
+      ) {
+        if (!isCudyrTimingEligibleWithoutIdentity(record.date, patient)) return;
+        excludedUnidentifiedObservations += 1;
+        return;
+      }
+      if (!isCudyrAnalyticsEligible(record.date, patient)) return;
+
+      eligibleObservations += 1;
       const classification = hasInvalidUpcBedLabel ? null : storedClassification;
       const hasStructuredCriteria = classification === 'UPC_UTI' || classification === 'UPC_UCI';
       const isAssumedLegacyUti = isLegacyUpcAssumedUti(record.date, classification);
@@ -283,9 +200,11 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
         if (hasStructuredCriteria) {
           adultPotentialWithCriteria += 1;
           day.adultPotentialWithCriteria += 1;
+          day.adultPotentialWithUpc += 1;
         } else if (classification === 'UPC_LEGACY') {
           adultPotentialLegacy += 1;
           day.adultPotentialLegacy += 1;
+          day.adultPotentialWithUpc += 1;
         } else {
           adultPotentialWithoutCriteria += 1;
           day.adultPotentialWithoutCriteria += 1;
@@ -296,8 +215,10 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
         if (hasStructuredCriteria) {
           neonatalWithCriteria += 1;
           day.neonatalWithCriteria += 1;
+          day.neonatalWithUpc += 1;
         } else if (classification === 'UPC_LEGACY') {
           neonatalLegacy += 1;
+          day.neonatalWithUpc += 1;
         } else {
           neonatalWithoutCriteria += 1;
         }
@@ -323,27 +244,29 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
 
       const categorization = getCategorization(patient.cudyr);
 
-      if (classification === 'UPC_UCI' || classification === 'UPC_UTI') {
-        const clinicalDistribution =
-          hhrUpcMinsalByClinicalCriteria[classification === 'UPC_UCI' ? 'upc_uci' : 'upc_uti'];
+      if (classification !== null) {
+        const distributionKey =
+          classification === 'UPC_UCI'
+            ? 'upc_uci'
+            : classification === 'UPC_UTI'
+              ? 'upc_uti'
+              : 'upc_legacy';
+        const clinicalDistribution = upcCareLevelsByClinicalCriteria[distributionKey];
         clinicalDistribution.eligibleObservations += 1;
         if (categorization.isCategorized) {
-          addMinsalEquivalence(
-            clinicalDistribution,
-            resolveMinsalCudyrEquivalence(categorization.finalCat)
-          );
+          addCareLevel(clinicalDistribution, resolveCudyrCareLevel(categorization.finalCat));
         }
       }
 
       if (classification === null) {
-        const bedGroupDistribution = nonHhrUpcMinsalByBedGroup[resolveNonHhrUpcBedGroup(bedId)];
-        nonHhrUpcMinsal.eligibleObservations += 1;
+        const bedGroupDistribution = nonUpcCareLevelsByBedGroup[resolveCareLevelBedGroup(bedId)];
+        nonUpcCareLevels.eligibleObservations += 1;
         bedGroupDistribution.eligibleObservations += 1;
 
         if (categorization.isCategorized) {
-          const equivalence = resolveMinsalCudyrEquivalence(categorization.finalCat);
-          addMinsalEquivalence(nonHhrUpcMinsal, equivalence);
-          addMinsalEquivalence(bedGroupDistribution, equivalence);
+          const careLevel = resolveCudyrCareLevel(categorization.finalCat);
+          addCareLevel(nonUpcCareLevels, careLevel);
+          addCareLevel(bedGroupDistribution, careLevel);
         }
       }
 
@@ -351,10 +274,9 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
 
       categorizedObservations += 1;
       day.categorizedObservations += 1;
-      addCategorizationToCohort(
+      addCudyrCategoryToCohort(
         cohorts[resolveCohortKey(bedId, classification)],
-        categorization.riskCat,
-        categorization.depCat
+        categorization.finalCat
       );
     });
 
@@ -366,30 +288,38 @@ export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis 
     periodEnd: sortedRecords.at(-1)?.date ?? '',
     daysWithRecords: sortedRecords.length,
     eligibleObservations,
+    excludedUnidentifiedObservations,
     categorizedObservations,
     coveragePercent: roundPercent(categorizedObservations, eligibleObservations),
     adultPotentialOccupied,
     adultPotentialWithCriteria,
     adultPotentialWithoutCriteria,
     adultPotentialLegacy,
+    adultPotentialWithUpc: adultPotentialWithCriteria + adultPotentialLegacy,
     adultCriteriaPercent: roundPercent(adultPotentialWithCriteria, adultPotentialOccupied),
+    adultUpcPercent: roundPercent(
+      adultPotentialWithCriteria + adultPotentialLegacy,
+      adultPotentialOccupied
+    ),
     neonatalOccupied,
     neonatalWithCriteria,
+    neonatalWithUpc: neonatalWithCriteria + neonatalLegacy,
     neonatalWithoutCriteria,
     neonatalLegacy,
     basicOccupied,
     upcWithCriteria: upcUti - upcAssumedUti + upcUci,
+    upcObserved: upcUti - upcAssumedUti + upcUci + upcLegacy,
     upcUti,
     upcUci,
     upcLegacy,
     upcAssumedUti,
     upcOutsideEligibleBeds,
-    nonHhrUpcMinsal: finalizeMinsalDistribution(nonHhrUpcMinsal),
-    nonHhrUpcMinsalByBedGroup: Object.values(nonHhrUpcMinsalByBedGroup).map(
-      finalizeMinsalDistribution
+    nonUpcCareLevels: finalizeCareLevelDistribution(nonUpcCareLevels),
+    nonUpcCareLevelsByBedGroup: Object.values(nonUpcCareLevelsByBedGroup).map(
+      finalizeCareLevelDistribution
     ),
-    hhrUpcMinsalByClinicalCriteria: Object.values(hhrUpcMinsalByClinicalCriteria).map(
-      finalizeMinsalDistribution
+    upcCareLevelsByClinicalCriteria: Object.values(upcCareLevelsByClinicalCriteria).map(
+      finalizeCareLevelDistribution
     ),
     cohorts: Object.values(cohorts),
     daily,

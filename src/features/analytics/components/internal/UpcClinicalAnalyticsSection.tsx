@@ -24,6 +24,12 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
         <p className="mt-1 text-sm text-slate-500">
           No hay checklist UTI/UCI ni registros manuales UPC anteriores al 30-04-2026.
         </p>
+        {analysis.excludedUnidentifiedObservations > 0 ? (
+          <p className="mt-3 text-sm font-medium text-slate-600">
+            Se excluyeron {analysis.excludedUnidentifiedObservations} observaciones sin nombre ni
+            documento de identidad.
+          </p>
+        ) : null}
       </section>
     );
   }
@@ -44,6 +50,16 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
           </div>
         </div>
       </div>
+
+      {analysis.excludedUnidentifiedObservations > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Se excluyeron {analysis.excludedUnidentifiedObservations} observaciones UPC sin nombre
+            ni documento de identidad. No participan en totales, porcentajes ni detalle.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -90,7 +106,11 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h4 className="font-bold text-slate-800">Distribución clínica UCI / UTI</h4>
-        <div className="mt-4 flex h-8 overflow-hidden rounded-lg bg-slate-100" role="img">
+        <div
+          className="mt-4 flex h-8 overflow-hidden rounded-lg bg-slate-100"
+          role="img"
+          aria-label={`${analysis.uciObservations} observaciones UPC-UCI y ${analysis.utiObservations} observaciones UPC-UTI`}
+        >
           <div className="bg-rose-500" style={{ width: `${analysis.uciPercent}%` }} />
           <div className="bg-amber-400" style={{ width: `${analysis.utiPercent}%` }} />
         </div>
@@ -112,7 +132,11 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
           {analysis.byBedGroup.map(group => (
             <div key={group.key} className="rounded-lg border border-slate-200 p-4">
               <div className="font-semibold text-slate-700">{group.label}</div>
-              <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100"
+                role="img"
+                aria-label={`${group.label}: ${group.uci} UPC-UCI y ${group.uti} UPC-UTI`}
+              >
                 <div
                   className="bg-rose-500"
                   style={{ width: `${group.total > 0 ? (group.uci / group.total) * 100 : 0}%` }}
@@ -134,7 +158,7 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h4 className="font-bold text-slate-800">Detalle de pacientes clasificados</h4>
         <p className="mt-1 text-sm text-slate-500">
-          Cada fila corresponde a una observación nocturna del período.
+          Cada fila corresponde a una observación nocturna identificable del período.
         </p>
         <div className="mt-4 max-h-[32rem] overflow-auto rounded-lg border border-slate-100">
           <table className="w-full min-w-[1120px] text-left text-sm">

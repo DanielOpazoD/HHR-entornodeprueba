@@ -7,7 +7,7 @@ import {
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { CudyrMinsalEquivalenceCharts } from './CudyrMinsalEquivalenceCharts';
+import { CudyrCareLevelCharts } from './CudyrCareLevelCharts';
 
 interface CudyrUpcAnalysisSectionProps {
   records: DailyRecord[];
@@ -44,7 +44,7 @@ const AdultCapacityBar: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }
   const total = analysis.adultPotentialOccupied;
   const criteriaWidth = total > 0 ? (analysis.adultPotentialWithCriteria / total) * 100 : 0;
   const legacyWidth = total > 0 ? (analysis.adultPotentialLegacy / total) * 100 : 0;
-  const withoutCriteriaWidth = total > 0 ? Math.max(0, 100 - criteriaWidth - legacyWidth) : 0;
+  const withoutUpcWidth = total > 0 ? Math.max(0, 100 - criteriaWidth - legacyWidth) : 0;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -52,7 +52,8 @@ const AdultCapacityBar: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }
         <div>
           <h4 className="font-bold text-slate-800">Uso observado de R1–R4</h4>
           <p className="text-sm text-slate-500">
-            Proporción de noches-cama con criterio UPC, sin criterio o con registro histórico.
+            El total UPC combina checklist clínico y registro histórico, manteniendo ambos orígenes
+            visibles.
           </p>
         </div>
         <div className="text-sm font-semibold text-slate-700">
@@ -63,27 +64,33 @@ const AdultCapacityBar: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }
       <div
         className="mt-4 flex h-4 overflow-hidden rounded-full bg-slate-100"
         role="img"
-        aria-label={`${analysis.adultPotentialWithCriteria} observaciones con criterio UPC, ${analysis.adultPotentialWithoutCriteria} sin criterio UPC y ${analysis.adultPotentialLegacy} históricas sin desglose`}
+        aria-label={`${analysis.adultPotentialWithCriteria} observaciones UPC con checklist, ${analysis.adultPotentialLegacy} UPC históricas y ${analysis.adultPotentialWithoutCriteria} sin registro UPC`}
       >
         <div className="bg-emerald-500" style={{ width: `${criteriaWidth}%` }} />
-        <div className="bg-amber-400" style={{ width: `${withoutCriteriaWidth}%` }} />
-        <div className="bg-slate-400" style={{ width: `${legacyWidth}%` }} />
+        <div className="bg-sky-500" style={{ width: `${legacyWidth}%` }} />
+        <div className="bg-amber-400" style={{ width: `${withoutUpcWidth}%` }} />
       </div>
 
-      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-        <div className="flex items-center gap-2 text-emerald-800">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          Con criterio UTI/UCI: {renderCountWithPercent(analysis.adultPotentialWithCriteria, total)}
+      <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">
+          <dt className="font-medium">UPC con checklist</dt>
+          <dd className="mt-0.5 font-bold tabular-nums">
+            {renderCountWithPercent(analysis.adultPotentialWithCriteria, total)}
+          </dd>
         </div>
-        <div className="flex items-center gap-2 text-amber-900">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-          Sin criterio UPC: {renderCountWithPercent(analysis.adultPotentialWithoutCriteria, total)}
+        <div className="rounded-lg bg-sky-50 px-3 py-2 text-sky-900">
+          <dt className="font-medium">UPC histórico</dt>
+          <dd className="mt-0.5 font-bold tabular-nums">
+            {renderCountWithPercent(analysis.adultPotentialLegacy, total)}
+          </dd>
         </div>
-        <div className="flex items-center gap-2 text-slate-600">
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-          Histórico sin desglose: {renderCountWithPercent(analysis.adultPotentialLegacy, total)}
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950">
+          <dt className="font-medium">Sin registro UPC</dt>
+          <dd className="mt-0.5 font-bold tabular-nums">
+            {renderCountWithPercent(analysis.adultPotentialWithoutCriteria, total)}
+          </dd>
         </div>
-      </div>
+      </dl>
     </div>
   );
 };
@@ -93,7 +100,7 @@ const CohortTable: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }) => 
     <div className="mb-4">
       <h4 className="font-bold text-slate-800">Complejidad CUDYR por cohorte</h4>
       <p className="text-sm text-slate-500">
-        Distribución del riesgo (A–D) y dependencia (1–3) en evaluaciones categorizadas.
+        Distribución por nivel de cuidado en evaluaciones categorizadas.
       </p>
     </div>
     <div className="overflow-x-auto">
@@ -106,26 +113,14 @@ const CohortTable: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }) => 
             <th scope="col" className="px-3 py-2 text-center">
               Total
             </th>
-            <th scope="col" className="px-3 py-2 text-center text-red-700">
-              Riesgo A
+            <th scope="col" className="px-3 py-2 text-center text-rose-700">
+              Crítico
             </th>
-            <th scope="col" className="px-3 py-2 text-center text-orange-700">
-              Riesgo B
-            </th>
-            <th scope="col" className="px-3 py-2 text-center text-amber-700">
-              Riesgo C
+            <th scope="col" className="px-3 py-2 text-center text-sky-700">
+              Medio
             </th>
             <th scope="col" className="px-3 py-2 text-center text-emerald-700">
-              Riesgo D
-            </th>
-            <th scope="col" className="px-3 py-2 text-center">
-              Dep. 1
-            </th>
-            <th scope="col" className="px-3 py-2 text-center">
-              Dep. 2
-            </th>
-            <th scope="col" className="px-3 py-2 text-center">
-              Dep. 3
+              Básico
             </th>
           </tr>
         </thead>
@@ -141,16 +136,15 @@ const CohortTable: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }) => 
               <td className="px-3 py-3 text-center font-bold text-slate-800 tabular-nums">
                 {cohort.categorizedObservations}
               </td>
-              {(['A', 'B', 'C', 'D'] as const).map(level => (
-                <td key={level} className="px-3 py-3 text-center tabular-nums text-slate-700">
-                  {cohort.risk[level]}
-                </td>
-              ))}
-              {(['1', '2', '3'] as const).map(level => (
-                <td key={level} className="px-3 py-3 text-center tabular-nums text-slate-700">
-                  {cohort.dependency[level]}
-                </td>
-              ))}
+              <td className="px-3 py-3 text-center tabular-nums text-rose-800">
+                {renderCountWithPercent(cohort.critical, cohort.categorizedObservations)}
+              </td>
+              <td className="px-3 py-3 text-center tabular-nums text-sky-800">
+                {renderCountWithPercent(cohort.medium, cohort.categorizedObservations)}
+              </td>
+              <td className="px-3 py-3 text-center tabular-nums text-emerald-800">
+                {renderCountWithPercent(cohort.basic, cohort.categorizedObservations)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -178,13 +172,13 @@ const DailyTable: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }) => (
               R1–R4 ocupadas
             </th>
             <th scope="col" className="px-3 py-2 text-center">
+              R1–R4 con UPC
+            </th>
+            <th scope="col" className="px-3 py-2 text-center">
+              UPC histórico
+            </th>
+            <th scope="col" className="px-3 py-2 text-center">
               R1–R4 sin UPC
-            </th>
-            <th scope="col" className="px-3 py-2 text-center">
-              UTI (incl. asumida)
-            </th>
-            <th scope="col" className="px-3 py-2 text-center">
-              UPC–UCI
             </th>
             <th scope="col" className="px-3 py-2 text-center">
               NEO con UPC
@@ -204,12 +198,16 @@ const DailyTable: React.FC<{ analysis: CudyrUpcAnalysis }> = ({ analysis }) => (
                   {formatDateDDMMYYYY(day.date)}
                 </th>
                 <td className="px-3 py-2 text-center tabular-nums">{day.adultPotentialOccupied}</td>
+                <td className="px-3 py-2 text-center tabular-nums text-emerald-800">
+                  {day.adultPotentialWithUpc}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums text-sky-800">
+                  {day.adultPotentialLegacy}
+                </td>
                 <td className="px-3 py-2 text-center tabular-nums text-amber-800">
                   {day.adultPotentialWithoutCriteria}
                 </td>
-                <td className="px-3 py-2 text-center tabular-nums">{day.upcUti}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{day.upcUci}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{day.neonatalWithCriteria}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{day.neonatalWithUpc}</td>
                 <td className="px-3 py-2 text-center tabular-nums">
                   {day.categorizedObservations}
                 </td>
@@ -261,34 +259,34 @@ export const CudyrUpcAnalysisSection: React.FC<CudyrUpcAnalysisSectionProps> = (
           tone="sky"
         />
         <MetricCard
-          label="R1–R4 con criterio UPC"
+          label="R1–R4 con registro UPC"
           value={renderCountWithPercent(
-            analysis.adultPotentialWithCriteria,
+            analysis.adultPotentialWithUpc,
             analysis.adultPotentialOccupied
           )}
-          detail="Clasificación clínica UTI o UCI estructurada"
+          detail={`${analysis.adultPotentialWithCriteria} checklist · ${analysis.adultPotentialLegacy} históricos`}
           tone="emerald"
         />
         <MetricCard
-          label="R1–R4 sin criterio UPC"
+          label="R1–R4 sin registro UPC"
           value={renderCountWithPercent(
             analysis.adultPotentialWithoutCriteria,
             analysis.adultPotentialOccupied
           )}
-          detail="Uso nominal de cama UTI sin criterio clínico registrado"
+          detail="Uso de cama potencialmente UTI sin checklist ni marca histórica"
           tone="amber"
         />
         <MetricCard
-          label="UPC con criterio"
-          value={analysis.upcWithCriteria}
-          detail={`${analysis.upcUti - analysis.upcAssumedUti} UTI con checklist · ${analysis.upcUci} UCI · ${analysis.upcAssumedUti} UTI asumida histórica`}
+          label="UPC observadas"
+          value={analysis.upcObserved}
+          detail={`${analysis.upcWithCriteria} con checklist · ${analysis.upcLegacy} históricas`}
           tone="rose"
         />
       </div>
 
       <AdultCapacityBar analysis={analysis} />
 
-      <CudyrMinsalEquivalenceCharts analysis={analysis} />
+      <CudyrCareLevelCharts analysis={analysis} />
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -302,9 +300,9 @@ export const CudyrUpcAnalysisSection: React.FC<CudyrUpcAnalysisSectionProps> = (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="font-semibold text-slate-700">NEO1–NEO2</div>
           <div className="mt-2 text-2xl font-bold text-slate-800">
-            {analysis.neonatalWithCriteria} / {analysis.neonatalOccupied}
+            {analysis.neonatalWithUpc} / {analysis.neonatalOccupied}
           </div>
-          <p className="text-xs text-slate-500">Con criterio UPC sobre observaciones neonatales</p>
+          <p className="text-xs text-slate-500">Con checklist o registro UPC histórico</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="font-semibold text-slate-700">Cobertura CUDYR</div>
@@ -328,6 +326,16 @@ export const CudyrUpcAnalysisSection: React.FC<CudyrUpcAnalysisSectionProps> = (
                 `${analysis.upcLegacy} observaciones UPC históricas no tienen desglose UTI/UCI; ${analysis.upcAssumedUti} anteriores al 30-04-2026 se contabilizan como UTI asumida y ${analysis.upcLegacy - analysis.upcAssumedUti} quedan sin clasificación. `}
             </p>
           </div>
+        </div>
+      )}
+
+      {analysis.excludedUnidentifiedObservations > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <Info className="mt-0.5 h-5 w-5 shrink-0" />
+          <p>
+            Se excluyeron {analysis.excludedUnidentifiedObservations} observaciones UPC sin nombre
+            ni documento de identidad. No participan en totales, porcentajes ni tablas.
+          </p>
         </div>
       )}
 

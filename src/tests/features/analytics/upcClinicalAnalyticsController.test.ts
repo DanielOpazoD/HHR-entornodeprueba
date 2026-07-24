@@ -123,4 +123,31 @@ describe('upcClinicalAnalyticsController', () => {
       criteria: ['Registro manual “UPC” sin desglose UTI/UCI'],
     });
   });
+
+  it('omits unidentifiable rows from totals and keeps records identified only by RUT', () => {
+    const anonymous = {
+      ...patient('R1', 'UPC_UCI', 'anonymous'),
+      patientName: '',
+      rut: '',
+    };
+    const rutOnly = {
+      ...patient('R2', 'UPC_UTI', 'rut-only'),
+      patientName: '',
+      rut: '14.747.062-2',
+    };
+
+    const analysis = buildUpcClinicalAnalytics([
+      record('2026-03-10', { R1: anonymous, R2: rutOnly }),
+    ]);
+
+    expect(analysis).toMatchObject({
+      excludedUnidentifiedObservations: 1,
+      observations: 1,
+      uniquePatients: 1,
+      utiObservations: 1,
+      uciObservations: 0,
+    });
+    expect(analysis.details).toHaveLength(1);
+    expect(analysis.details[0]).toMatchObject({ rut: '14.747.062-2', patientName: '' });
+  });
 });
