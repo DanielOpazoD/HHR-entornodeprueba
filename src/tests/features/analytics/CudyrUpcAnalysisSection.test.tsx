@@ -82,4 +82,24 @@ describe('CudyrUpcAnalysisSection', () => {
 
     expect(screen.getByText('Sin evaluaciones CUDYR analizables')).toBeInTheDocument();
   });
+
+  it('reports UPC observations excluded because they have no patient identity', () => {
+    const anonymousUpc = {
+      ...buildPatient('R3', true),
+      patientName: '',
+      rut: '',
+    } as PatientData;
+    const recordWithAnonymous = {
+      ...record,
+      beds: { ...record.beds, R3: anonymousUpc },
+    } as DailyRecord;
+
+    render(<CudyrUpcAnalysisSection records={[recordWithAnonymous]} />);
+
+    expect(
+      screen.getByText(
+        'Se excluyeron 1 observaciones UPC sin nombre ni documento de identidad. No participan en totales, porcentajes ni tablas.'
+      )
+    ).toBeInTheDocument();
+  });
 });

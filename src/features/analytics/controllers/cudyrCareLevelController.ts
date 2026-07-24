@@ -1,3 +1,5 @@
+import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
+
 export type CudyrCareLevel = 'CRITICAL' | 'MEDIUM' | 'BASIC';
 export type CudyrCareBedGroupKey = 'basic' | 'adult_potential' | 'neonatal';
 
@@ -23,9 +25,6 @@ export const CUDYR_CARE_LEVEL_CATEGORIES: Record<CudyrCareLevel, readonly string
   MEDIUM: ['B3', 'C1', 'C2'],
   BASIC: ['C3', 'D1', 'D2', 'D3'],
 };
-
-const roundPercent = (value: number, total: number): number =>
-  total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 
 export const createCareLevelDistribution = (): CudyrCareLevelDistribution => ({
   eligibleObservations: 0,

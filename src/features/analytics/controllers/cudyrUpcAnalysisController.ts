@@ -11,6 +11,7 @@ import {
   resolveCudyrCareLevel,
 } from '@/features/analytics/controllers/cudyrCareLevelController';
 import { hasAnalyticsPatientIdentity } from '@/features/analytics/controllers/analyticsPatientIdentity';
+import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import {
   addCudyrCategoryToCohort,
   createCudyrUpcCohorts,
@@ -104,9 +105,6 @@ const resolveCohortKey = (
   if (NEONATAL_UPC_ELIGIBLE_BEDS.has(bedId)) return 'neonatal_without_upc';
   return 'basic';
 };
-
-const roundPercent = (value: number, total: number): number =>
-  total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 
 export const buildCudyrUpcAnalysis = (records: DailyRecord[]): CudyrUpcAnalysis => {
   const sortedRecords = records.slice().sort((left, right) => left.date.localeCompare(right.date));

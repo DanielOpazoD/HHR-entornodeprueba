@@ -48,6 +48,9 @@ describe('TransferAnalyticsSection', () => {
     expect(screen.getByText('Otras empresas')).toBeInTheDocument();
     expect(screen.getByText('Fuerzas Armadas')).toBeInTheDocument();
     expect(screen.getByText('10-03-2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Aerocardal: 1 (33.3%). Ver detalle' })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Otros del 10-03-2026: 1. Ver detalle' }));
 

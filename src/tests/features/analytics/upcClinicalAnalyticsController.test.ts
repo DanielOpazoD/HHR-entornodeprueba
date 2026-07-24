@@ -80,7 +80,6 @@ describe('upcClinicalAnalyticsController', () => {
       byBedGroup: [
         { key: 'adult_potential', uti: 1, uci: 1, total: 2 },
         { key: 'neonatal', uti: 1, uci: 0, total: 1 },
-        { key: 'other', uti: 0, uci: 0, total: 0 },
       ],
     });
     expect(analysis.details[0]).toMatchObject({

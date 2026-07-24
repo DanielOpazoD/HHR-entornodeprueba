@@ -5,6 +5,7 @@ import type {
   CudyrCareLevelBedGroupDistribution,
   CudyrCareLevelDistribution,
 } from '@/features/analytics/controllers/cudyrCareLevelController';
+import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type {
   CudyrUpcAnalysis,
   HhrUpcCareLevelDistribution,
@@ -18,8 +19,6 @@ interface CareLevelBarProps {
   distribution: CudyrCareLevelDistribution;
   label: string;
 }
-
-const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 const CareLevelBar: React.FC<CareLevelBarProps> = ({ distribution, label }) => {
   const hasCategorizedData = distribution.categorizedObservations > 0;

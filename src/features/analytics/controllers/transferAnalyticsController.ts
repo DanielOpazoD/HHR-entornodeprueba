@@ -1,5 +1,6 @@
 import { getActiveTransfers } from '@/application/census/movementTombstonePolicy';
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type { TransferData } from '@/types/domain/movements';
 
 export type TransferAnalyticsCategory =
@@ -89,9 +90,6 @@ export const resolveTransferAnalyticsCategory = (
   if (includesAny(searchable, ['avion comercial', 'latam', 'latama'])) return 'latam';
   return 'other';
 };
-
-const roundPercent = (value: number, total: number): number =>
-  total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 
 const PROVIDER_LABELS: Record<TransferProviderSummary['key'], string> = {
   aerocardal: 'Aerocardal',

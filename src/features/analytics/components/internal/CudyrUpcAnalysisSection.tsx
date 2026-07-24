@@ -5,6 +5,7 @@ import {
   buildCudyrUpcAnalysis,
   type CudyrUpcAnalysis,
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
+import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { CudyrCareLevelCharts } from './CudyrCareLevelCharts';
@@ -34,8 +35,6 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, detail, tone }) =
     <div className="mt-1 text-xs leading-relaxed opacity-80">{detail}</div>
   </div>
 );
-
-const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 const renderCountWithPercent = (value: number, total: number): string =>
   `${value} (${formatPercent(total > 0 ? (value / total) * 100 : 0)})`;

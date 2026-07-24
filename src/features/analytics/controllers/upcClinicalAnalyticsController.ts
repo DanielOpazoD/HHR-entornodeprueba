@@ -6,10 +6,11 @@ import {
   resolveAnalyticsUpcClassification,
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
 import { hasAnalyticsPatientIdentity } from '@/features/analytics/controllers/analyticsPatientIdentity';
+import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
 
 export type StructuredUpcClassification = 'UPC_UCI' | 'UPC_UTI';
-export type UpcClinicalBedGroupKey = 'adult_potential' | 'neonatal' | 'other';
+export type UpcClinicalBedGroupKey = 'adult_potential' | 'neonatal';
 
 export interface UpcClinicalDetail {
   id: string;
@@ -52,13 +53,10 @@ const CRITERIA_LABELS = new Map(
   [...UPC_UCI_CRITERIA, ...UPC_UTI_CRITERIA].map(criterion => [criterion.id, criterion.label])
 );
 
-const roundPercent = (value: number, total: number): number =>
-  total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
-
-const resolveBedGroup = (bedId: string): UpcClinicalBedGroupKey => {
+const resolveBedGroup = (bedId: string): UpcClinicalBedGroupKey | null => {
   if (['R1', 'R2', 'R3', 'R4'].includes(bedId)) return 'adult_potential';
   if (['NEO1', 'NEO2'].includes(bedId)) return 'neonatal';
-  return 'other';
+  return null;
 };
 
 const resolvePatientKey = (
@@ -76,7 +74,6 @@ export const buildUpcClinicalAnalytics = (records: DailyRecord[]): UpcClinicalAn
   const bedGroups: Record<UpcClinicalBedGroupKey, UpcClinicalBedGroupSummary> = {
     adult_potential: { key: 'adult_potential', label: 'R1–R4', uti: 0, uci: 0, total: 0 },
     neonatal: { key: 'neonatal', label: 'NEO1–NEO2', uti: 0, uci: 0, total: 0 },
-    other: { key: 'other', label: 'Otras camas', uti: 0, uci: 0, total: 0 },
   };
   let utiObservations = 0;
   let uciObservations = 0;
@@ -101,18 +98,19 @@ export const buildUpcClinicalAnalytics = (records: DailyRecord[]): UpcClinicalAn
 
         const patientKey = resolvePatientKey(patient, bedId, classification);
         uniqueAll.add(patientKey.replace(/::UPC_(UCI|UTI)$/, ''));
-        const bedGroup = bedGroups[resolveBedGroup(bedId)];
-        bedGroup.total += 1;
+        const bedGroupKey = resolveBedGroup(bedId);
+        const bedGroup = bedGroupKey ? bedGroups[bedGroupKey] : null;
+        if (bedGroup) bedGroup.total += 1;
 
         if (classification === 'UPC_UCI') {
           uciObservations += 1;
           uniqueUci.add(patientKey);
-          bedGroup.uci += 1;
+          if (bedGroup) bedGroup.uci += 1;
         } else {
           utiObservations += 1;
           if (legacyAssumedUti) assumedUtiObservations += 1;
           uniqueUti.add(patientKey);
-          bedGroup.uti += 1;
+          if (bedGroup) bedGroup.uti += 1;
         }
 
         const checklist = patient.upcChecklist;

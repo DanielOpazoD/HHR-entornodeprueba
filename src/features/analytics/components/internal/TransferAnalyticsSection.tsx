@@ -2,6 +2,7 @@ import React from 'react';
 import { Ambulance, Info, Plane, PlaneTakeoff } from 'lucide-react';
 
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import {
   buildTransferAnalytics,
   type TransferAnalytics,
@@ -14,8 +15,6 @@ import { TransferTraceabilityModal } from './TransferTraceabilityModal';
 interface TransferAnalyticsSectionProps {
   records: DailyRecord[];
 }
-
-const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 interface TraceabilitySelection {
   title: string;
@@ -84,6 +83,7 @@ const ProviderBreakdown: React.FC<{
               type="button"
               className="tabular-nums text-rose-700 underline-offset-2 hover:underline disabled:cursor-default disabled:text-slate-300 disabled:no-underline"
               disabled={provider.count === 0}
+              aria-label={`${provider.label}: ${provider.count} (${formatPercent(provider.percentOfAirAmbulance)}). Ver detalle`}
               onClick={() => onOpenProvider(provider.key, provider.label)}
             >
               {provider.count} ({formatPercent(provider.percentOfAirAmbulance)})

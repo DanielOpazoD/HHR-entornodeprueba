@@ -2,14 +2,13 @@ import React from 'react';
 import { Activity, Info, ShieldCheck } from 'lucide-react';
 
 import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import { buildUpcClinicalAnalytics } from '@/features/analytics/controllers/upcClinicalAnalyticsController';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 interface UpcClinicalAnalyticsSectionProps {
   records: DailyRecord[];
 }
-
-const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionProps> = ({
   records,
@@ -128,7 +127,7 @@ export const UpcClinicalAnalyticsSection: React.FC<UpcClinicalAnalyticsSectionPr
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h4 className="font-bold text-slate-800">Clasificación por ubicación de cama</h4>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           {analysis.byBedGroup.map(group => (
             <div key={group.key} className="rounded-lg border border-slate-200 p-4">
               <div className="font-semibold text-slate-700">{group.label}</div>
