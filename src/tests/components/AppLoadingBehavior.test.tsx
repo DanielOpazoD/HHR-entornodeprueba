@@ -89,7 +89,7 @@ describe('App loading behavior', () => {
     vi.useRealTimers();
   });
 
-  it('keeps the root route visually silent while bootstrap is loading', () => {
+  it('keeps the login shell (never the legacy spinner) on the root route while bootstrap is loading', () => {
     mockUseAppBootstrapState.mockReturnValue({
       status: 'loading',
       phase: 'bootstrapping',
@@ -98,7 +98,7 @@ describe('App loading behavior', () => {
 
     render(<App />);
 
-    expect(screen.queryByTestId('login-loading-shell')).not.toBeInTheDocument();
+    expect(screen.getByTestId('login-loading-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('default-loading-screen')).not.toBeInTheDocument();
   });
 

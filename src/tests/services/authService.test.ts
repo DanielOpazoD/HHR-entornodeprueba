@@ -80,6 +80,7 @@ describe('auth public entrypoints', () => {
       defaultRedirectRuntimeSupport
     );
     localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+    sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
     localStorage.removeItem(GOOGLE_LOGIN_LOCK_KEY);
     mockCheckUserRoleCallable.mockResolvedValue({
       data: { role: 'unauthorized' },
@@ -269,7 +270,9 @@ describe('auth public entrypoints', () => {
         }
       );
 
-      await vi.advanceTimersByTimeAsync(12000);
+      // A user can legitimately spend >30s inside the Google popup (account
+      // picker + password + 2FA); the flow must stay pending well past that.
+      await vi.advanceTimersByTimeAsync(60000);
       expect(settled).toBe(false);
     });
 
@@ -285,7 +288,7 @@ describe('auth public entrypoints', () => {
       });
 
       await vi.waitFor(() => expect(firebaseAuth.signInWithPopup).toHaveBeenCalledTimes(1));
-      await vi.advanceTimersByTimeAsync(31000);
+      await vi.advanceTimersByTimeAsync(121000);
       await Promise.resolve();
 
       expect(rejectedError).toMatchObject({ code: 'auth/popup-timeout' });
@@ -354,7 +357,22 @@ describe('auth public entrypoints', () => {
       );
     });
 
-    it('should surface an auth error when pending redirect finishes without result', async () => {
+    it('stays quiet when an orphaned pending flag finishes without result', async () => {
+      // Without the per-tab login-attempt hint this tab has no active Google
+      // flow, so an orphaned pending flag must not surface a scary error.
+      sessionStorage.setItem(
+        AUTH_BOOTSTRAP_PENDING_KEY,
+        JSON.stringify({ startedAt: 9999999999999, mode: 'redirect' })
+      );
+      vi.mocked(firebaseAuth.getRedirectResult).mockResolvedValue(null);
+
+      const result = await handleSignInRedirectResult();
+
+      expect(result).toBeNull();
+      expect(sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
+    });
+
+    it('ignores and cleans a legacy cross-tab pending flag left in localStorage', async () => {
       localStorage.setItem(
         AUTH_BOOTSTRAP_PENDING_KEY,
         JSON.stringify({ startedAt: 9999999999999, mode: 'redirect' })
@@ -363,15 +381,7 @@ describe('auth public entrypoints', () => {
 
       const result = await handleSignInRedirectResult();
 
-      expect(result).toEqual(
-        expect.objectContaining({
-          status: 'auth_error',
-          error: expect.objectContaining({
-            code: 'auth/redirect-empty-result',
-            retryable: true,
-          }),
-        })
-      );
+      expect(result).toBeNull();
       expect(localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
     });
 
@@ -401,7 +411,7 @@ describe('auth public entrypoints', () => {
       await signInWithGoogleRedirect();
 
       expect(firebaseAuth.signInWithRedirect).toHaveBeenCalled();
-      expect(localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).not.toBeNull();
+      expect(sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).not.toBeNull();
     });
 
     it('should reject redirect flow on localhost when runtime policy disables it', async () => {

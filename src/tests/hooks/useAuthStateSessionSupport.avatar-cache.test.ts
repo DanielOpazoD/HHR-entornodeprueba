@@ -62,4 +62,24 @@ describe('createHandleLogout avatar cache cleanup', () => {
     expect(signOut).toHaveBeenCalled();
     expect(setSessionState).toHaveBeenCalledWith({ status: 'unauthenticated', user: null });
   });
+
+  it('returns the URL to the login route so refreshes keep the login surface', async () => {
+    window.history.replaceState({}, '', '/census?date=2026-07-23');
+
+    const handleLogout = createHandleLogout(
+      {
+        uid: 'u1',
+        email: 'doctor@hospital.cl',
+        displayName: 'Doctor',
+        role: 'admin',
+      },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn()
+    );
+
+    await handleLogout('manual');
+
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toBe('');
+  });
 });

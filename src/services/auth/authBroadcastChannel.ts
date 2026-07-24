@@ -12,7 +12,7 @@
 const CHANNEL_NAME = 'hhr_auth_channel';
 
 export type AuthChannelMessage =
-  | { type: 'LOGOUT'; reason: string; tabId: string }
+  | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string }
   | { type: 'SYNC_COMPLETED'; taskTypes: string[]; tabId: string };
 
 const TAB_ID: string =
@@ -35,7 +35,7 @@ function getChannel(): BroadcastChannel | null {
 }
 
 /** Notify other tabs that this tab has logged out. */
-export function broadcastLogout(reason: string): void {
+export function broadcastLogout(reason: 'manual' | 'automatic'): void {
   getChannel()?.postMessage({
     type: 'LOGOUT',
     reason,

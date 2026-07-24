@@ -37,7 +37,7 @@ describe('authErrorPolicy', () => {
       message: 'El login con Google no respondió a tiempo.',
     }) as Error & { code: string };
     expect(err.code).toBe('auth/popup-timeout');
-    expect(err.message).toContain('otra forma de ingreso');
+    expect(err.message).toContain('tardando más de lo esperado');
     expect(isPopupRecoverableAuthError(err)).toBe(true);
   });
 

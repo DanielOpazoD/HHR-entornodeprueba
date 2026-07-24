@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { ACTIVITY_EVENTS, SESSION_TIMEOUT_MS } from '@/constants/security';
 import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
+import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
+} from '@/services/auth/authStorageHints';
 import { resolveAuthBootstrapBudget } from '@/services/auth/authBootstrapBudgets';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import { createUnauthenticatedAuthSessionState } from '@/services/auth/authSessionState';
@@ -71,6 +75,20 @@ export const useFirebaseConnectionStatus = (
   return isFirebaseConnected;
 };
 
+export const resetLocationToLoginRoute = (): void => {
+  // The login screen must live on the root route: a refresh from a module URL
+  // (e.g. /census) boots with the module preboot surface and flashes it before
+  // the login page renders. Normalizing on logout keeps F5 on the login shell.
+  if (typeof window === 'undefined') return;
+  const { pathname, search, hash } = window.location;
+  if (pathname === '/' && !search && !hash) return;
+  try {
+    window.history.replaceState(window.history.state, '', '/');
+  } catch {
+    // Best-effort: never let URL cleanup break the logout itself.
+  }
+};
+
 export const createHandleLogout =
   (
     user: AuthUser | null,
@@ -82,14 +100,17 @@ export const createHandleLogout =
 
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
+    resetLocationToLoginRoute();
     clearQueryCache();
     clearCachedUserAvatarProfiles();
 
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem('hhr_logged_this_session');
-    }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('hhr_e2e_bootstrap_user');
+    clearRecentAuthenticatedSessionHint();
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('hhr_e2e_bootstrap_user');
+      }
+    } catch {
+      // Test-only hint cleanup must never interrupt a real logout.
     }
     if (reason === 'manual') {
       markRecentManualLogout();
@@ -101,9 +122,16 @@ export const createHandleLogout =
     // 2. Async operations in parallel — best-effort, one failure does not block others
     const results = await Promise.allSettled([
       user?.email ? defaultAuditPort.logUserLogout(user.email, reason) : Promise.resolve(),
-      Promise.resolve(signOut()).catch((e: unknown) =>
-        authStateLogger.warn('Firebase signOut failed (probably offline)', e)
-      ),
+      Promise.resolve(signOut())
+        .catch((e: unknown) =>
+          authStateLogger.warn('Firebase signOut failed (probably offline)', e)
+        )
+        .finally(() => {
+          // The user chose to leave: drop any persisted auth copy so the next
+          // load can never flash the authenticated chrome or restore a ghost
+          // session, even when the Firebase signOut itself failed.
+          clearPersistedFirebaseAuthState();
+        }),
       ownerKey
         ? Promise.resolve(clearSessionScopedClientState(reason)).catch((e: unknown) =>
             authStateLogger.warn('Local session cleanup failed during logout', e)

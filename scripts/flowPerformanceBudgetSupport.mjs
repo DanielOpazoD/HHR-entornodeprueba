@@ -18,6 +18,7 @@ const REQUIRED_FLOWS = [
   'censoRecordReadyMs',
   'clinicalDocumentsVisibleMs',
   'backupFilesVisibleMs',
+  'logoutToLoginVisibleMs',
 ];
 
 const toOneDecimal = value => Number(value.toFixed(1));

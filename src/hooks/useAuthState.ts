@@ -11,6 +11,7 @@ export type { AuthSessionState, UserRole };
 import {
   createHandleLogout,
   getE2EBootstrapUser,
+  resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
   useOnlineStatus,
@@ -19,6 +20,8 @@ import {
 import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
   hasPersistedFirebaseAuthHint,
   hasRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
@@ -33,6 +36,7 @@ import {
   type RemoteSyncRuntimeStatus,
 } from '@/services/repositories/repositoryConfig';
 import {
+  clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
   resolveSessionOwnerKey,
 } from '@/services/storage/sessionScopedStorageService';
@@ -174,9 +178,16 @@ export const useAuthState = (): UseAuthStateReturn => {
       if (message.type === 'LOGOUT') {
         clearQueryCache();
         setSessionState(createUnauthenticatedAuthSessionState());
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.removeItem('hhr_logged_this_session');
-        }
+        resetLocationToLoginRoute();
+        // Session-scoped Firebase persistence is local to this tab. Clearing
+        // browser keys is not enough because Firebase can retain currentUser
+        // in memory and emit it again; sign out locally without rebroadcasting.
+        void Promise.allSettled([signOut(), clearSessionScopedClientState(message.reason)]);
+        // Drop this tab's own persisted auth copy too: with session-scoped
+        // Firebase persistence the initiating tab's signOut cannot reach it,
+        // so a refresh here would otherwise restore the closed session.
+        clearPersistedFirebaseAuthState();
+        clearRecentAuthenticatedSessionHint();
       }
     });
     return cleanup;

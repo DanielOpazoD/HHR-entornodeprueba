@@ -155,10 +155,6 @@ function App() {
       return <BootstrapRouteChrome />;
     }
 
-    if (loadingScreenMode === 'silent') {
-      return null;
-    }
-
     return (
       <InitialLoadingScreen
         pathname={pathname}

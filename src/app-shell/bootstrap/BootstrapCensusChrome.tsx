@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { Navbar } from '@/components/layout/Navbar';
 import { ViewLoader } from '@/components/ui/ViewLoader';
@@ -11,12 +12,65 @@ import {
   shouldShowPrintButtonForModule,
 } from '@/hooks/controllers/appStateNavigationController';
 import { shouldRenderDateStrip } from '@/components/layout/app-content/appContentVisibilityController';
+import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
+import { markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { signOut as firebaseSessionSignOut } from '@/services/auth/authSession';
+import {
+  clearPersistedFirebaseAuthState,
+  clearRecentAuthenticatedSessionHint,
+} from '@/services/auth/authStorageHints';
+import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 
 const FIREBASE_AUTH_STORAGE_PREFIX = 'firebase:authUser:';
 const DEFAULT_BOOTSTRAP_ROLE: UserRole = 'admin';
 
 const noop = () => {};
 const noopAsync = async () => {};
+
+/**
+ * Real logout for the bootstrap chrome. This shell is visually identical to
+ * the authenticated app while the runtime rehydrates, so the logout control
+ * must work here too (it used to be a noop, which read as "logout is broken").
+ */
+let bootstrapLogoutInFlight = false;
+
+const runBootstrapManualLogout = async (): Promise<void> => {
+  if (bootstrapLogoutInFlight) return;
+  bootstrapLogoutInFlight = true;
+  try {
+    // Inside the try on purpose: a storage write can throw (private browsing
+    // quota, blocked storage), and the user must still leave the shell.
+    markRecentManualLogout();
+    clearRecentAuthenticatedSessionHint();
+    broadcastLogout('manual');
+  } catch {
+    // Best-effort: storage or broadcast failures must not block logout.
+  }
+
+  try {
+    // Match the normal logout contract: close Firebase and remove sensitive
+    // owner-scoped clinical state before another person uses this browser.
+    await Promise.allSettled([firebaseSessionSignOut(), clearSessionScopedClientState('manual')]);
+  } finally {
+    clearPersistedFirebaseAuthState();
+    window.location.replace('/');
+    bootstrapLogoutInFlight = false;
+  }
+};
+
+const BootstrapLogoutOverlay: React.FC = () => (
+  <div
+    data-testid="bootstrap-logout-overlay"
+    role="status"
+    aria-live="polite"
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm"
+  >
+    <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-slate-900/90 px-6 py-4 shadow-2xl">
+      <Loader2 size={20} className="animate-spin text-sky-300" />
+      <span className="text-sm font-semibold text-white">Cerrando sesión…</span>
+    </div>
+  </div>
+);
 const noopSetNumber: React.Dispatch<React.SetStateAction<number>> = () => {};
 const noopImportJson: React.ChangeEventHandler<HTMLInputElement> = () => {};
 const BOOTSTRAP_CENSUS_VIEW_MODE = 'REGISTER' as const;
@@ -119,7 +173,8 @@ const resolveBootstrapModule = (): ModuleType => {
 };
 
 const buildBootstrapAuthContextValue = (
-  persistedUser: ReturnType<typeof readPersistedFirebaseAuthUser>
+  persistedUser: ReturnType<typeof readPersistedFirebaseAuthUser>,
+  signOut: AuthContextType['signOut'] = runBootstrapManualLogout
 ): AuthContextType => {
   const currentUser =
     persistedUser ??
@@ -176,7 +231,7 @@ const buildBootstrapAuthContextValue = (
       mode: 'enabled',
       reason: 'ready',
     },
-    signOut: noopAsync,
+    signOut,
   };
 };
 
@@ -184,9 +239,14 @@ export const BootstrapRouteChrome: React.FC = () => {
   const [bootstrapDate] = React.useState(resolveBootstrapDate);
   const [bootstrapModule] = React.useState(resolveBootstrapModule);
   const [persistedUser] = React.useState(readPersistedFirebaseAuthUser);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const handleManualLogout = React.useCallback(async () => {
+    setIsLoggingOut(true);
+    await runBootstrapManualLogout();
+  }, []);
   const authValue = React.useMemo(
-    () => buildBootstrapAuthContextValue(persistedUser),
-    [persistedUser]
+    () => buildBootstrapAuthContextValue(persistedUser, handleManualLogout),
+    [persistedUser, handleManualLogout]
   );
   const userEmail = persistedUser?.email ?? authValue.currentUser?.email ?? null;
   const daysInMonth = React.useMemo(
@@ -206,6 +266,7 @@ export const BootstrapRouteChrome: React.FC = () => {
     <UIProvider>
       <AuthContext.Provider value={authValue}>
         <div className="min-h-screen bg-slate-100 font-sans flex flex-col print:bg-white print:p-0">
+          {isLoggingOut && <BootstrapLogoutOverlay />}
           <Navbar
             currentModule={bootstrapModule}
             setModule={noop}
@@ -215,7 +276,9 @@ export const BootstrapRouteChrome: React.FC = () => {
             onExportCSV={noop}
             onImportJSON={noopImportJson}
             userEmail={userEmail}
-            onLogout={noop}
+            onLogout={() => {
+              void handleManualLogout();
+            }}
             isFirebaseConnected
             hideRuntimeIndicators
           />

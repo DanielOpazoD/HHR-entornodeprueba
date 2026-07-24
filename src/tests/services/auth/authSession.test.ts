@@ -6,12 +6,14 @@ const {
   mockOnAuthStateChanged,
   mockFirebaseSignOut,
   mockResolveFirebaseUserRole,
+  mockResolveFirebaseUserRoleForBootstrap,
   mockClearRoleCacheForEmail,
   mockAuth,
 } = vi.hoisted(() => ({
   mockOnAuthStateChanged: vi.fn(),
   mockFirebaseSignOut: vi.fn().mockResolvedValue(undefined),
   mockResolveFirebaseUserRole: vi.fn(),
+  mockResolveFirebaseUserRoleForBootstrap: vi.fn(),
   mockClearRoleCacheForEmail: vi.fn().mockResolvedValue(undefined),
   mockAuth: { currentUser: null as null | { email: string | null } },
 }));
@@ -42,7 +44,8 @@ vi.mock('@/services/auth/authClaimSyncService', () => ({
 
 vi.mock('@/services/auth/authAccessResolution', () => ({
   resolveFirebaseUserRole: (user: unknown) => mockResolveFirebaseUserRole(user),
-  resolveFirebaseUserRoleForBootstrap: (user: unknown) => mockResolveFirebaseUserRole(user),
+  resolveFirebaseUserRoleForBootstrap: (user: unknown) =>
+    mockResolveFirebaseUserRoleForBootstrap(user),
 }));
 
 import {
@@ -72,6 +75,7 @@ describe('authSession', () => {
     vi.clearAllMocks();
     mockAuth.currentUser = null;
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
+    mockResolveFirebaseUserRoleForBootstrap.mockResolvedValue('doctor_specialist');
     mockOnAuthStateChanged.mockImplementation((_auth, callback) => {
       authStateCallback = callback as (firebaseUser: unknown) => Promise<void> | void;
       return vi.fn();
@@ -100,6 +104,8 @@ describe('authSession', () => {
         }),
       })
     );
+    expect(mockResolveFirebaseUserRole).toHaveBeenCalledTimes(1);
+    expect(mockResolveFirebaseUserRoleForBootstrap).not.toHaveBeenCalled();
   });
 
   it('does not block auth callback while claim sync is still pending', async () => {
@@ -239,7 +245,7 @@ describe('authSession', () => {
   });
 
   it('resolves the current firebase session without waiting for the auth observer', async () => {
-    mockResolveFirebaseUserRole.mockResolvedValueOnce('admin');
+    mockResolveFirebaseUserRoleForBootstrap.mockResolvedValueOnce('admin');
 
     const sessionState = await resolveCurrentAuthSessionState({
       authRuntime: {
@@ -263,5 +269,7 @@ describe('authSession', () => {
         }),
       })
     );
+    expect(mockResolveFirebaseUserRoleForBootstrap).toHaveBeenCalledTimes(1);
+    expect(mockResolveFirebaseUserRole).not.toHaveBeenCalled();
   });
 });

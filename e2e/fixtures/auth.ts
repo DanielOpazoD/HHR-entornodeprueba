@@ -479,7 +479,7 @@ export async function ensureAuthenticated(page: Page) {
   await page.evaluate(() => {
     localStorage.removeItem('hhr_google_login_lock_v1');
     localStorage.setItem('hhr_e2e_force_popup', 'true');
-    localStorage.setItem(
+    sessionStorage.setItem(
       'hhr_auth_bootstrap_pending_v1',
       JSON.stringify({
         startedAt: Date.now(),

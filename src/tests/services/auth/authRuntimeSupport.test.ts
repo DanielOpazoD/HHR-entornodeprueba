@@ -72,6 +72,18 @@ describe('authRuntimeSupport', () => {
     expect(hasRecentManualLogout()).toBe(false);
   });
 
+  it('treats blocked session storage as an unavailable logout hint', () => {
+    const storageGetter = vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Storage blocked', 'SecurityError');
+    });
+
+    expect(() => markRecentManualLogout()).not.toThrow();
+    expect(hasRecentManualLogout()).toBe(false);
+    expect(() => clearRecentManualLogout()).not.toThrow();
+
+    storageGetter.mockRestore();
+  });
+
   it('mounts the Firebase startup warning in the root element with highlighted env vars', () => {
     mountFirebaseConfigWarning('firebase warning', {
       title: 'Config pendiente',

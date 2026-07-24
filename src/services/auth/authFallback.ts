@@ -14,6 +14,7 @@ import {
   isAuthBootstrapPending,
   markAuthBootstrapPending,
 } from '@/services/auth/authBootstrapState';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { authorizeFirebaseUser } from '@/services/auth/authAccessResolution';
 import { getAuthRedirectRuntimeSupport } from '@/services/auth/authRedirectRuntime';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
@@ -128,11 +129,30 @@ export const handleSignInRedirectResult = async (
       return toResolvedAuthSessionState(e2eRedirectUser);
     }
 
+    // Both the pending-redirect flag and the login-attempt hint are per-tab
+    // (sessionStorage) and survive the same-tab OAuth round trip. Surfacing
+    // the empty-result error still requires the login-attempt hint, so an
+    // orphaned pending flag alone never produces a scary error.
     const hadPendingRedirect = isAuthBootstrapPending();
     const hadRecentGoogleLoginAttempt = hasRecentGoogleLoginAttemptHint();
     const result = await getRedirectResult(authRuntime.auth);
     if (!result) {
-      if (hadPendingRedirect || hadRecentGoogleLoginAttempt) {
+      if (!hadRecentGoogleLoginAttempt && hadPendingRedirect) {
+        // Keep observability for the quiet path (e.g. a redirect whose
+        // login-attempt hint expired before the user returned).
+        recordOperationalTelemetry({
+          category: 'auth',
+          operation: 'redirect_empty_result_without_tab_hint',
+          status: 'degraded',
+          runtimeState: 'recoverable',
+          context: {
+            isOnline: typeof window !== 'undefined' ? window.navigator.onLine : null,
+          },
+          issues: ['Pending redirect flag resolved empty without a per-tab login attempt hint.'],
+        });
+      }
+
+      if (hadRecentGoogleLoginAttempt) {
         return createAuthErrorSessionState({
           code: 'auth/redirect-empty-result',
           message: 'Google no devolvio una sesion valida al finalizar el redirect.',

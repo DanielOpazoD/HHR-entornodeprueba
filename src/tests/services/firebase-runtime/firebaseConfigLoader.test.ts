@@ -58,6 +58,7 @@ describe('firebaseConfigLoader – loadFirebaseConfig', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    delete (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__;
     setDevMode(true); // restore default vitest DEV=true
   });
 
@@ -115,6 +116,82 @@ describe('firebaseConfigLoader – loadFirebaseConfig', () => {
       // Should be cached now
       const cached = JSON.parse(localStorage.getItem(CACHED_CONFIG_KEY) || 'null');
       expect(cached).toEqual(VALID_CONFIG);
+    });
+
+    it('consumes the preboot early config fetch without a second request', async () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__ = {
+        startedAt: Date.now(),
+        promise: Promise.resolve(VALID_CONFIG),
+      };
+
+      const config = await loadFirebaseConfig();
+
+      expect(config).toEqual(VALID_CONFIG);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(
+        (window as { __HHR_EARLY_CONFIG_FETCH__?: Promise<unknown> }).__HHR_EARLY_CONFIG_FETCH__
+      ).toBeUndefined();
+      const cached = JSON.parse(localStorage.getItem(CACHED_CONFIG_KEY) || 'null');
+      expect(cached).toEqual(VALID_CONFIG);
+    });
+
+    it('accepts the previous bare-promise preboot contract during rolling deploys', async () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__ =
+        Promise.resolve(VALID_CONFIG);
+
+      await expect(loadFirebaseConfig()).resolves.toEqual(VALID_CONFIG);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to its own fetch when the preboot early config is unusable', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(VALID_CONFIG),
+      });
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__ = {
+        startedAt: Date.now(),
+        promise: Promise.resolve(null),
+      };
+
+      const config = await loadFirebaseConfig();
+
+      expect(config).toEqual(VALID_CONFIG);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares one timeout budget between the preboot and recovery requests', async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__ = {
+        startedAt: Date.now(),
+        promise: new Promise(() => {}),
+      };
+
+      const configPromise = loadFirebaseConfig();
+      const rejection = expect(configPromise).rejects.toThrow('Runtime config request timed out');
+      await vi.advanceTimersByTimeAsync(8_000);
+
+      await rejection;
+      expect(fetchMock).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('uses an already completed preboot response after the wait budget elapsed', async () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+      (window as { __HHR_EARLY_CONFIG_FETCH__?: unknown }).__HHR_EARLY_CONFIG_FETCH__ = {
+        startedAt: Date.now() - 8_001,
+        promise: Promise.resolve(VALID_CONFIG),
+      };
+
+      await expect(loadFirebaseConfig()).resolves.toEqual(VALID_CONFIG);
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('throws when Netlify function returns a non-ok response', async () => {

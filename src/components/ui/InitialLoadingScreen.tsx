@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cross, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   resolveInitialLoginBackgroundMode,
   resolveLoginBackgroundImage,
@@ -26,13 +26,6 @@ export const resolveInitialLoadingScreenVariant = (
   }
 
   return 'default';
-};
-
-export const shouldRenderInitialLoadingScreen = (_pathname: string | undefined): boolean => {
-  // No route should opt into the legacy full-screen startup loader by default.
-  // Authenticated module refreshes keep route chrome and render only internal
-  // lazy-view loaders; login keeps its background shell without a spinner.
-  return false;
 };
 
 const resolveCurrentPathname = () =>
@@ -71,18 +64,35 @@ const LoginShellLoadingScreen = () => {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-6 sm:px-6">
-        <div className="w-full max-w-sm rounded-[2rem] border border-white/16 bg-slate-950/32 p-8 shadow-[0_30px_80px_rgba(2,6,23,0.42)] backdrop-blur-xl">
-          <div className="flex flex-col items-center gap-4 text-center text-white">
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/15 bg-white/10 shadow-lg shadow-slate-950/30">
-              <Cross className="h-8 w-8 text-white" strokeWidth={2.2} />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-100/70">
-                Hospital Hanga Roa
-              </p>
-              <p className="text-sm font-medium text-white/92">Acceso seguro</p>
-            </div>
+      {/* Mirrors the real LoginPage layout (logo block, title block, access
+          card) so an F5 on the login route hydrates in place instead of
+          swapping layouts. Text is intentionally rendered as skeleton bars:
+          duplicating the real copy here would create ambiguous matches for
+          assistive tech and tests once the actual page mounts. */}
+      <span role="status" className="sr-only">
+        Cargando acceso al sistema…
+      </span>
+      <div
+        aria-hidden="true"
+        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:px-6"
+      >
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div className="relative inline-flex h-24 w-24 items-center justify-center rounded-2xl border border-white/20 bg-white/10 p-2 shadow-xl shadow-slate-950/30 backdrop-blur-2xl">
+            <img
+              src="/images/logos/logo_HHR.svg"
+              alt=""
+              className="h-full w-full object-contain drop-shadow-[0_2px_4px_rgba(2,6,23,0.35)]"
+            />
+          </div>
+          <div className="mt-7 h-8 w-72 max-w-full animate-pulse rounded-lg bg-white/25" />
+          <div className="mt-3 h-4 w-56 max-w-full animate-pulse rounded-md bg-white/15" />
+        </div>
+
+        <div className="w-full max-w-md rounded-[2rem] border border-white/16 bg-slate-950/32 p-8 shadow-[0_30px_80px_rgba(2,6,23,0.42)] backdrop-blur-xl">
+          <div className="mx-auto h-7 w-48 max-w-full animate-pulse rounded-lg bg-white/25" />
+          <div className="mt-7 h-14 w-full animate-pulse rounded-2xl border border-white/25 bg-white/25" />
+          <div className="mt-4 flex justify-center">
+            <div className="h-7 w-24 animate-pulse rounded-lg border border-white/15 bg-white/10" />
           </div>
         </div>
       </div>

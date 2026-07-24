@@ -57,6 +57,7 @@ describe('useAuthState baseline', () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
     localStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
+    sessionStorage.removeItem(AUTH_BOOTSTRAP_PENDING_KEY);
     sessionStorage.removeItem(RECENT_MANUAL_LOGOUT_KEY);
 
     vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(
@@ -313,7 +314,7 @@ describe('useAuthState baseline', () => {
 
   it('extends auth bootstrap timeout while redirect login is pending', async () => {
     vi.useFakeTimers();
-    localStorage.setItem(
+    sessionStorage.setItem(
       AUTH_BOOTSTRAP_PENDING_KEY,
       JSON.stringify({ startedAt: Date.now(), mode: 'redirect' })
     );
@@ -335,11 +336,11 @@ describe('useAuthState baseline', () => {
     });
 
     expect(result.current.authLoading).toBe(false);
-    expect(localStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
+    expect(sessionStorage.getItem(AUTH_BOOTSTRAP_PENDING_KEY)).toBeNull();
   });
 
   it('hydrates user from redirect result before auth subscription resolves', async () => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       AUTH_BOOTSTRAP_PENDING_KEY,
       JSON.stringify({ startedAt: Date.now(), mode: 'redirect' })
     );

@@ -92,6 +92,9 @@ export const onAuthSessionStateChange = (
           markPerf('auth-session:role-resolution-start');
           const sessionState = await resolveAuthSessionState(firebaseUser, {
             signOutUnauthorizedUser: () => firebaseSignOut(authRuntime.auth),
+            // The observer is the authoritative reconciliation point. It must
+            // not accept the bootstrap cache because role revocations need to
+            // take effect during an ordinary restored session too.
             resolveFirebaseUserRole,
           });
           markPerf('auth-session:role-resolution-done', sessionState.status);

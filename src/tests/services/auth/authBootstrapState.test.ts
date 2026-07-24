@@ -13,6 +13,7 @@ describe('authBootstrapState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     Reflect.deleteProperty(window, 'location');
     Object.defineProperty(window, 'location', {
       configurable: true,

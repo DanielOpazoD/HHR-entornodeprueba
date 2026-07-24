@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
   isPopupCancellationAuthError,
+  isPopupOpenFailureAuthError,
   isPopupRecoverableAuthError,
   resolveAuthErrorCode,
 } from '@/services/auth/authErrorPolicy';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
-import { executeGoogleSignIn } from '@/application/auth/authSessionUseCases';
+import {
+  executeGoogleSignIn,
+  executeGoogleSignInWarmup,
+} from '@/application/auth/authSessionUseCases';
 import {
   clearAuthBootstrapPending,
   isAuthBootstrapPending,
@@ -56,6 +60,17 @@ const waitForPopupCancellationSettlement = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, POPUP_CANCELLATION_SETTLE_MS));
 };
 
+// The "popup blocked" copy is reserved for errors where the Google window
+// could not open/close; other recoverable issues (timeout, network) keep their
+// own accurate message instead of blaming the popup blocker.
+const resolveRecoverablePopupErrorMessage = (errorLike: {
+  code?: string;
+  message?: string;
+}): string =>
+  isPopupOpenFailureAuthError(errorLike)
+    ? AUTH_UI_COPY.blockedPopupStayOnPage
+    : errorLike.message || AUTH_UI_COPY.blockedPopupStayOnPage;
+
 export interface LoginPageControllerState {
   error: string | null;
   errorCode: string | null;
@@ -84,6 +99,36 @@ export const useLoginPageController = (
   const [backgroundMode, setBackgroundMode] = useState<LoginBackgroundMode>(
     resolveInitialLoginBackgroundMode
   );
+
+  useEffect(() => {
+    // Warm the Firebase auth/functions runtime while the user reads the login
+    // screen so the click → popup → role-lookup path pays no lazy-load cost.
+    executeGoogleSignInWarmup();
+
+    // Prefetch the post-login shell/route chunks on idle time so the
+    // transition into the app after a successful login is instant, without
+    // competing with the login screen's own first paint.
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let idleHandle: number | undefined;
+    let timeoutHandle: number | undefined;
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      idleHandle = idleWindow.requestIdleCallback(warmDefaultPostLoginRoute);
+    } else {
+      timeoutHandle = window.setTimeout(warmDefaultPostLoginRoute, 1_500);
+    }
+
+    return () => {
+      if (idleHandle !== undefined && typeof idleWindow.cancelIdleCallback === 'function') {
+        idleWindow.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle !== undefined) {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialAuthError?.message) {
@@ -142,7 +187,7 @@ export const useLoginPageController = (
         }
         clearGoogleLoginAttemptHint();
         setErrorCode(resolvedErrorCode || 'auth/popup-recoverable');
-        setError(AUTH_UI_COPY.blockedPopupStayOnPage);
+        setError(resolveRecoverablePopupErrorMessage(errorLike));
       } else {
         clearGoogleLoginAttemptHint();
         loginPageLogger.warn('Google sign-in failed', outcome);
@@ -167,7 +212,12 @@ export const useLoginPageController = (
         }
         clearGoogleLoginAttemptHint();
         setErrorCode(resolvedErrorCode || 'auth/popup-recoverable');
-        setError(AUTH_UI_COPY.blockedPopupStayOnPage);
+        setError(
+          resolveRecoverablePopupErrorMessage({
+            code: resolvedErrorCode || undefined,
+            message: errorMessage,
+          })
+        );
       } else {
         clearGoogleLoginAttemptHint();
         loginPageLogger.warn('Google sign-in failed', err);

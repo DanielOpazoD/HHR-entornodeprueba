@@ -63,6 +63,16 @@ export const isPopupCancellationAuthError = (error: unknown): boolean => {
   return code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user';
 };
 
+/**
+ * True only when the browser prevented the Google window from opening or from
+ * closing safely. A slow user inside an already-open popup (auth/popup-timeout)
+ * is NOT an open failure and must not be reported as a blocked popup.
+ */
+export const isPopupOpenFailureAuthError = (error: unknown): boolean => {
+  const code = resolveAuthErrorCode(error);
+  return code === 'auth/popup-blocked' || code === 'auth/popup-coop-blocked';
+};
+
 export const shouldDowngradeGoogleAuthLogLevel = (error: unknown): boolean =>
   isPopupRecoverableAuthError(error) || isPopupCancellationAuthError(error);
 
@@ -73,7 +83,7 @@ const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/popup-blocked':
     'El navegador no permitió abrir la ventana de Google. Revisa si bloqueó ventanas emergentes para este sitio.',
   'auth/popup-timeout':
-    'La ventana de Google tardó demasiado en responder. Prueba la otra forma de ingreso.',
+    'El ingreso con Google está tardando más de lo esperado. Si la ventana de Google sigue abierta, puedes completar el acceso ahí; si no, inténtalo nuevamente desde el botón.',
   'auth/cancelled-popup-request': 'Inicio de sesión cancelado. Intenta nuevamente desde el botón.',
   'auth/network-request-failed':
     'No se pudo completar el ingreso por un problema de conexión o por una restricción del navegador.',

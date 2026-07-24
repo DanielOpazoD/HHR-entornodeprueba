@@ -23,6 +23,10 @@
     "backupFilesVisibleMs": {
       "enforcedMaxMs": 4500,
       "targetMs": 4500
+    },
+    "logoutToLoginVisibleMs": {
+      "enforcedMaxMs": 2500,
+      "targetMs": 1500
     }
   }
 }
