@@ -78,7 +78,7 @@ export const LabViewerComparisonRow: React.FC<LabViewerComparisonRowProps> = ({
           );
         }
 
-        const outOfRange = isOutOfRange(row.result, row.refValue);
+        const outOfRange = isOutOfRange(row.result, row.refValue, { unit: row.unit });
         const { display } = formatLabResult(row.result, row.unit);
         return (
           <td key={date} className="px-1 py-1 text-center whitespace-nowrap">

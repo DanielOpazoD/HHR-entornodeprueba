@@ -6,6 +6,32 @@ export interface UnitVariableGroup {
   vars: Record<string, LabTrendPoint[]>;
 }
 
+export interface SharedReferenceBand {
+  min: number;
+  max: number;
+}
+
+const labNumberFormatter = new Intl.NumberFormat('es-CL', {
+  maximumFractionDigits: 6,
+});
+
+/** Formats chart values without turning 1071 into 1.1 or adding false precision. */
+export const formatLabTrendValue = (value: number): string => labNumberFormatter.format(value);
+
+/** A shared band is valid only when every plotted variable has the same reference range. */
+export const resolveSharedReferenceBand = (
+  variables: Record<string, LabTrendPoint[]>
+): SharedReferenceBand | null => {
+  const ranges = Object.values(variables).flatMap(points =>
+    points.map(point =>
+      point.refMin != null && point.refMax != null ? { min: point.refMin, max: point.refMax } : null
+    )
+  );
+  if (ranges.length === 0 || ranges.some(range => range == null)) return null;
+  const first = ranges[0]!;
+  return ranges.every(range => range?.min === first.min && range.max === first.max) ? first : null;
+};
+
 interface VariableMagnitudeEntry {
   name: string;
   pts: LabTrendPoint[];

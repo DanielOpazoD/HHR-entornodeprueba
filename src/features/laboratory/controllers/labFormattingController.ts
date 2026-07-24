@@ -5,6 +5,8 @@
  */
 
 import { ANALYSIS_NAME_REPLACEMENTS } from '../constants/labNormalizationConstants';
+import type { LabResultRow } from '@/types/domain/labExamTypes';
+import { parseLabMeasurement } from './labNumericParser';
 
 /**
  * Parse a localized number string (using comma as decimal separator) to a float.
@@ -38,11 +40,20 @@ export const parseScientificValue = (
  * @example parseRefRange("4,5 - 11,0") // { min: 4.5, max: 11 }
  * @example parseRefRange("Negativo") // null
  */
-export const parseRefRange = (refValue: string): { min: number; max: number } | null => {
+export const parseRefRange = (
+  refValue: string,
+  context?: Pick<LabResultRow, 'unit'>
+): { min: number; max: number } | null => {
   const match = refValue.match(/([\d.,]+)\s*[-–]\s*([\d.,]+)/);
   if (!match) return null;
-  const min = parseLocalizedNumber(match[1]);
-  const max = parseLocalizedNumber(match[2]);
+  const measurementContext = context ? { unit: context.unit, refValue } : null;
+  const min = measurementContext
+    ? parseLabMeasurement(match[1], measurementContext)?.value
+    : parseLocalizedNumber(match[1]);
+  const max = measurementContext
+    ? parseLabMeasurement(match[2], measurementContext)?.value
+    : parseLocalizedNumber(match[2]);
+  if (min == null || max == null) return null;
   if (isNaN(min) || isNaN(max)) return null;
   return { min, max };
 };
@@ -61,12 +72,18 @@ export const parseDateDDMMYYYY = (date: string): string => {
  * Check if a result value is outside the reference range.
  * @returns `true` if out of range, `false` if within range, `null` if unparseable.
  */
-export const isOutOfRange = (result: string, refValue: string): boolean | null => {
-  const range = parseRefRange(refValue);
+export const isOutOfRange = (
+  result: string,
+  refValue: string,
+  context?: Pick<LabResultRow, 'unit'>
+): boolean | null => {
+  const range = parseRefRange(refValue, context);
   if (!range) return null;
-  const val = parseLocalizedNumber(result);
-  if (isNaN(val)) return null;
-  return val < range.min || val > range.max;
+  const value = context
+    ? parseLabMeasurement(result, { unit: context.unit, refValue })?.value
+    : parseLocalizedNumber(result);
+  if (value == null || isNaN(value)) return null;
+  return value < range.min || value > range.max;
 };
 
 /**
