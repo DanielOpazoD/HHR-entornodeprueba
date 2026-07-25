@@ -19,16 +19,17 @@ const createPackageFixture = () => {
   fs.mkdirSync(bridgeDirectory, { recursive: true });
   fs.writeFileSync(
     path.join(bridgeDirectory, 'extensionHealthBridge.ts'),
-    'export const RAYEN_EXTENSION_PROTOCOL_VERSION = 3;\n',
+    'export const RAYEN_EXTENSION_PROTOCOL_VERSION = 4;\n',
     'utf8'
   );
   return root;
 };
 
-const runChecker = (root: string) => spawnSync(process.execPath, [checkerPath], {
-  cwd: root,
-  encoding: 'utf8',
-});
+const runChecker = (root: string) =>
+  spawnSync(process.execPath, [checkerPath], {
+    cwd: root,
+    encoding: 'utf8',
+  });
 
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) {
@@ -140,9 +141,7 @@ describe('Rayen extension release dependency graph', () => {
     const result = runChecker(root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      'Referencia insegura o externa en print-pdf.html <script src>'
-    );
+    expect(result.stderr).toContain('Referencia insegura o externa en print-pdf.html <script src>');
   });
 
   it('rejects path traversal even when the target exists outside the extension', () => {
@@ -237,11 +236,7 @@ describe('Rayen extension release dependency graph', () => {
     const root = createPackageFixture();
     const backgroundPath = path.join(root, 'extension/background.js');
     const background = fs.readFileSync(backgroundPath, 'utf8');
-    fs.writeFileSync(
-      backgroundPath,
-      background.replace("  'runtime-loader.js',\n", ''),
-      'utf8'
-    );
+    fs.writeFileSync(backgroundPath, background.replace("  'runtime-loader.js',\n", ''), 'utf8');
     fs.rmSync(path.join(root, 'extension/runtime-loader.js'));
 
     const result = runChecker(root);

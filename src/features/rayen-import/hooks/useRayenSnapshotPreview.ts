@@ -2,12 +2,11 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
-import { applyEgresoReport, markEgresoReportUnavailable } from '../domain/applyEgresoReport';
+import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { requiresReview } from '../domain/reconcileCensus';
 import { computePreviousDayEdits } from '../domain/previousDayCorrections';
-import { isHistoricalCensusDay, toSafeHistoricalDiff } from '../domain/historicalCensusSync';
-import { requestEgresoLookup, requestEgresoReport } from '../bridge/rayenImportBridge';
+import { requestEgresoLookup } from '../bridge/rayenImportBridge';
 import { requestPatientFlowReport } from '../bridge/patientFlowBridge';
 import {
   requestRayenExtensionHealth,
@@ -16,10 +15,11 @@ import {
 import { resolveOccupiedBedTraceabilityChain } from '../bedTraceabilityResolver';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
+import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import type { RayenImportMode } from '../settings/rayenImportSettings';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import { nextIsoDay, toIsoReportDate } from './reportDateHelpers';
+import { isCurrentCensusDay } from '../domain/historicalCensusSync';
 
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -49,7 +49,7 @@ export const useRayenSnapshotPreview = ({
   const autoApplyingRef = useRef(false);
 
   return useCallback(
-    async (snapshot: RayenCensusSnapshot) => {
+    async (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle) => {
       clearSyncTimeout();
       if (!currentRecord) {
         void failRun('apply_failed');
@@ -60,51 +60,36 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
       const reportDate = toIsoReportDate(currentRecord);
-
-      if (isHistoricalCensusDay(reportDate)) {
-        diff = toSafeHistoricalDiff(diff, currentRecord);
-        if (diff.updates.length > 0) {
-          setState({
-            diff,
-            isPreviewOpen: true,
-            isBusy: false,
-            isSyncing: false,
-            result: null,
-            hasSkippedItems: false,
-            error: null,
-          });
-          return;
-        }
-        if (autoApplyingRef.current) return;
-        autoApplyingRef.current = true;
-        setState({
-          diff,
-          isPreviewOpen: false,
-          isBusy: true,
-          isSyncing: true,
-          result: null,
-          hasSkippedItems: false,
-          error: null,
-        });
-        try {
-          const stamped = await persistAppliedRun(currentRecord, diff);
-          autoApplyingRef.current = false;
-          setState(prev => ({ ...prev, isBusy: false }));
-          void fillDevicesInBackground(stamped);
-        } catch (error) {
-          autoApplyingRef.current = false;
-          void failRun('apply_failed');
-          setState(prev => ({
-            ...prev,
-            isBusy: false,
-            isSyncing: false,
-            error: getRayenImportErrorMessage(error),
-          }));
-        }
+      if (!isCurrentCensusDay(reportDate)) {
+        void failRun('apply_failed');
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          error:
+            'Ficha Médico solo puede reconciliar el censo del día en curso. Selecciona el censo vigente y reintenta.',
+        }));
         return;
       }
+      const reportEndDate = nextIsoDay(reportDate);
+      const bundleMatchesRequest =
+        bundle.facilityId === snapshot.facilityId &&
+        bundle.fichaMedicoCapturedAt === snapshot.capturedAt &&
+        bundle.dateStart === reportDate &&
+        bundle.dateEnd === reportEndDate;
+      if (!bundleMatchesRequest) {
+        void failRun('apply_failed');
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          error:
+            'La evidencia de Ficha Médico y Gestión de Camas no corresponde al mismo censo. Vuelve a sincronizar.',
+        }));
+        return;
+      }
+      let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
 
       let patientFlowSupport: Promise<boolean> | null = null;
       const fetchPatientFlowReport = async (encId: string) => {
@@ -128,11 +113,7 @@ export const useRayenSnapshotPreview = ({
       );
       diff = traceability.diff;
 
-      const reportResult = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
-      const reportAvailable = reportResult.ok;
-      diff = reportAvailable
-        ? applyEgresoReport(diff, reportResult.rows, currentRecord)
-        : markEgresoReportUnavailable(diff);
+      diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
 
       const lookupTargets = diff.pendingAdministrativeDischarges
         .filter(entry => entry.rut && entry.encounterId)
@@ -196,7 +177,7 @@ export const useRayenSnapshotPreview = ({
       const hasUnresolvedConflicts = diff.summary.conflicts > 0;
       // Even a conflict-only census review must continue clinical enrichment. Persist the run and
       // start the fill, while the state below keeps the conflict details open for the operator.
-      if (!hasApplicableChanges && reportAvailable) {
+      if (!hasApplicableChanges) {
         try {
           const stamped = await persistAppliedRun(currentRecord, diff);
           void fillDevicesInBackground(stamped);
@@ -211,14 +192,13 @@ export const useRayenSnapshotPreview = ({
         diff,
         // No-change runs continue quietly. Conflicts always open the review because their bed and
         // reason are actionable even when there is no mutation to apply.
-        isPreviewOpen: hasApplicableChanges || hasUnresolvedConflicts || !reportAvailable,
+        isPreviewOpen: hasApplicableChanges || hasUnresolvedConflicts,
         isBusy: false,
-        isSyncing: !hasApplicableChanges && reportAvailable,
+        isSyncing: !hasApplicableChanges,
         result: null,
         hasSkippedItems: false,
-        error: !reportAvailable
-          ? 'No fue posible verificar las altas administrativas en Gestión de Camas. Revisa esa pestaña y vuelve a sincronizar; el censo no se aplicará automáticamente.'
-          : mode === 'auto' && needsReview
+        error:
+          mode === 'auto' && needsReview
             ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
             : null,
       });

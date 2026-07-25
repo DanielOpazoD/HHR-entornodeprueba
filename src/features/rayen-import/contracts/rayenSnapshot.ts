@@ -90,3 +90,21 @@ export interface RayenCensusSnapshot {
    */
   isComplete?: boolean;
 }
+
+/**
+ * Evidence that Ficha Medico and Gestion de Camas were captured as one guarded synchronization.
+ * The extension only emits this bundle after both sources pass readiness checks before and after
+ * capture, the facilities match and the source timestamps remain within the accepted skew.
+ */
+export interface RayenSyncBundle {
+  id: string;
+  startedAt: string;
+  completedAt: string;
+  facilityId: number;
+  dateStart: string;
+  dateEnd: string;
+  fichaMedicoCapturedAt: string;
+  gestionCamasCapturedAt: string;
+  sourceSkewMs: number;
+  egresoRows: import('./egresoReport').EgresoReportRow[];
+}

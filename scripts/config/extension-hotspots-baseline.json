@@ -110,6 +110,10 @@
       "maxLines": 31,
       "hotspots": {}
     },
+    "content-hhr-sync-bundle.js": {
+      "maxLines": 42,
+      "hotspots": {}
+    },
     "content-hhr-syslab.js": {
       "maxLines": 86,
       "hotspots": {}
@@ -191,6 +195,14 @@
     },
     "gestion-camas-egreso-lookup.js": {
       "maxLines": 68,
+      "hotspots": {}
+    },
+    "gestion-camas-egreso-report-runtime.js": {
+      "maxLines": 116,
+      "hotspots": {}
+    },
+    "gestion-camas-health.js": {
+      "maxLines": 74,
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
@@ -378,6 +390,10 @@
     },
     "print-pdf.js": {
       "maxLines": 33,
+      "hotspots": {}
+    },
+    "rayen-sync-bundle-runtime.js": {
+      "maxLines": 182,
       "hotspots": {}
     },
     "report-parser.js": {

@@ -1,12 +1,20 @@
-import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
+import type {
+  RayenCensusSnapshot,
+  RayenEncounter,
+  RayenSyncBundle,
+} from '../contracts/rayenSnapshot';
 
 export const RAYEN_IMPORT_MESSAGE_TYPE = 'HHR_RAYEN_CENSUS_SNAPSHOT';
 export const RAYEN_IMPORT_ERROR_MESSAGE_TYPE = 'HHR_RAYEN_IMPORT_ERROR';
 export const RAYEN_REQUEST_MESSAGE_TYPE = 'HHR_RAYEN_REQUEST_SNAPSHOT';
+export const RAYEN_SYNC_BUNDLE_REQUEST_MESSAGE_TYPE = 'HHR_RAYEN_REQUEST_SYNC_BUNDLE';
+const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
 
 interface RayenImportMessage {
   type: typeof RAYEN_IMPORT_MESSAGE_TYPE;
+  requestId: string;
   snapshot: RayenCensusSnapshot;
+  bundle: RayenSyncBundle;
 }
 
 const isEncounter = (value: unknown): value is RayenEncounter => {
@@ -33,18 +41,75 @@ export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnaps
   );
 };
 
+const isEgresoReportRow = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return [
+    'run',
+    'patientName',
+    'bedLabel',
+    'servicio',
+    'edad',
+    'destino',
+    'motivo',
+    'fechaEgreso',
+  ].every(field => typeof candidate[field] === 'string');
+};
+
+export const isRayenSyncBundle = (value: unknown): value is RayenSyncBundle => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  const fichaCapturedAt = Date.parse(String(candidate.fichaMedicoCapturedAt ?? ''));
+  const gestionCapturedAt = Date.parse(String(candidate.gestionCamasCapturedAt ?? ''));
+  const startedAt = Date.parse(String(candidate.startedAt ?? ''));
+  const completedAt = Date.parse(String(candidate.completedAt ?? ''));
+  const measuredSkew = Math.abs(fichaCapturedAt - gestionCapturedAt);
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.startedAt === 'string' &&
+    typeof candidate.completedAt === 'string' &&
+    typeof candidate.facilityId === 'number' &&
+    typeof candidate.dateStart === 'string' &&
+    typeof candidate.dateEnd === 'string' &&
+    typeof candidate.fichaMedicoCapturedAt === 'string' &&
+    typeof candidate.gestionCamasCapturedAt === 'string' &&
+    typeof candidate.sourceSkewMs === 'number' &&
+    Number.isFinite(candidate.sourceSkewMs) &&
+    candidate.sourceSkewMs >= 0 &&
+    candidate.sourceSkewMs <= MAX_SOURCE_SKEW_MS &&
+    Number.isFinite(fichaCapturedAt) &&
+    Number.isFinite(gestionCapturedAt) &&
+    Number.isFinite(startedAt) &&
+    Number.isFinite(completedAt) &&
+    startedAt <= completedAt &&
+    measuredSkew === candidate.sourceSkewMs &&
+    Array.isArray(candidate.egresoRows) &&
+    candidate.egresoRows.every(isEgresoReportRow)
+  );
+};
+
 const isRayenImportMessage = (value: unknown): value is RayenImportMessage => {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
-  return candidate.type === RAYEN_IMPORT_MESSAGE_TYPE && isRayenCensusSnapshot(candidate.snapshot);
+  return (
+    candidate.type === RAYEN_IMPORT_MESSAGE_TYPE &&
+    typeof candidate.requestId === 'string' &&
+    candidate.requestId.length > 0 &&
+    isRayenCensusSnapshot(candidate.snapshot) &&
+    candidate.snapshot.isComplete === true &&
+    isRayenSyncBundle(candidate.bundle) &&
+    candidate.bundle.facilityId === candidate.snapshot.facilityId &&
+    candidate.bundle.fichaMedicoCapturedAt === candidate.snapshot.capturedAt
+  );
 };
 
-type SnapshotHandler = (snapshot: RayenCensusSnapshot) => void;
+type SnapshotHandler = (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle) => void;
 type ImportErrorHandler = (error: string) => void;
 
 const handlers = new Set<SnapshotHandler>();
 const errorHandlers = new Set<ImportErrorHandler>();
 let windowListenerAttached = false;
+let activeSyncRequestId: string | null = null;
 
 const detachWindowListenerIfUnused = (): void => {
   if (
@@ -73,11 +138,16 @@ const onWindowMessage = (event: MessageEvent): void => {
     event.data.type === RAYEN_IMPORT_ERROR_MESSAGE_TYPE &&
     typeof event.data.error === 'string'
   ) {
+    const requestId = typeof event.data.requestId === 'string' ? event.data.requestId : '';
+    if (!requestId || requestId !== activeSyncRequestId) return;
+    activeSyncRequestId = null;
     errorHandlers.forEach(handler => handler(event.data.error));
     return;
   }
   if (!isRayenImportMessage(event.data)) return;
-  handlers.forEach(handler => handler(event.data.snapshot));
+  if (event.data.requestId !== activeSyncRequestId) return;
+  activeSyncRequestId = null;
+  handlers.forEach(handler => handler(event.data.snapshot, event.data.bundle));
 };
 
 export const subscribeToRayenSnapshots = (handler: SnapshotHandler): (() => void) => {
@@ -98,11 +168,17 @@ export const subscribeToRayenImportErrors = (handler: ImportErrorHandler): (() =
   };
 };
 
-export const pushRayenSnapshot = (snapshot: RayenCensusSnapshot): void => {
-  handlers.forEach(handler => handler(snapshot));
+export const requestRayenSyncBundle = (dateStart: string, dateEnd: string): string => {
+  const requestId = `rayen-sync-${crypto.randomUUID()}`;
+  activeSyncRequestId = requestId;
+  if (typeof window === 'undefined') return requestId;
+  window.postMessage(
+    { type: RAYEN_SYNC_BUNDLE_REQUEST_MESSAGE_TYPE, requestId, dateStart, dateEnd },
+    window.location.origin
+  );
+  return requestId;
 };
 
-export const requestRayenSnapshot = (): void => {
-  if (typeof window === 'undefined') return;
-  window.postMessage({ type: RAYEN_REQUEST_MESSAGE_TYPE }, window.location.origin);
+export const cancelRayenSyncBundleRequest = (requestId: string): void => {
+  if (activeSyncRequestId === requestId) activeSyncRequestId = null;
 };

@@ -5,6 +5,9 @@ import {
   setRayenImportMode,
   subscribeRayenImportMode,
   isRayenCensusSnapshot,
+  isRayenSyncBundle,
+  requestRayenSyncBundle,
+  cancelRayenSyncBundleRequest,
   type RayenCensusSnapshot,
 } from '@/features/rayen-import';
 import {
@@ -14,6 +17,7 @@ import {
   requestEgresoReport,
   requestEgresoLookup,
   subscribeToRayenImportErrors,
+  subscribeToRayenSnapshots,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
 import {
   RAYEN_PATIENT_FLOW_REQUEST_TYPE,
@@ -85,6 +89,130 @@ describe('isRayenCensusSnapshot', () => {
   });
 });
 
+describe('Rayen synchronized source bundle bridge', () => {
+  const bundle = {
+    id: 'sync-1',
+    startedAt: '2026-07-24T10:00:00.000Z',
+    completedAt: '2026-07-24T10:00:05.000Z',
+    facilityId: 1342,
+    dateStart: '2026-07-24',
+    dateEnd: '2026-07-25',
+    fichaMedicoCapturedAt: '2026-07-24T10:00:01.000Z',
+    gestionCamasCapturedAt: '2026-07-24T10:00:04.000Z',
+    sourceSkewMs: 3000,
+    egresoRows: [],
+  };
+
+  it('validates temporal evidence and rejects malformed report rows', () => {
+    expect(isRayenSyncBundle(bundle)).toBe(true);
+    expect(isRayenSyncBundle({ ...bundle, sourceSkewMs: Number.NaN })).toBe(false);
+    expect(isRayenSyncBundle({ ...bundle, sourceSkewMs: 120_001 })).toBe(false);
+    expect(
+      isRayenSyncBundle({ ...bundle, gestionCamasCapturedAt: '2026-07-24T12:00:00.000Z' })
+    ).toBe(false);
+    expect(isRayenSyncBundle({ ...bundle, egresoRows: [{ run: '1' }] })).toBe(false);
+  });
+
+  it('ignores standalone snapshots and accepts only the matching guarded bundle', () => {
+    const handler = vi.fn();
+    const unsubscribe = subscribeToRayenSnapshots(handler);
+    const snapshot: RayenCensusSnapshot = {
+      capturedAt: bundle.fichaMedicoCapturedAt,
+      facilityId: bundle.facilityId,
+      encounters: [],
+      isComplete: true,
+    };
+    const requestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot },
+      })
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+          requestId,
+          snapshot: { ...snapshot, isComplete: false },
+          bundle,
+        },
+      })
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot, bundle },
+      })
+    );
+    expect(handler).toHaveBeenCalledWith(snapshot, bundle);
+    unsubscribe();
+  });
+
+  it('ignores a late response after a newer correlated request supersedes it', () => {
+    const handler = vi.fn();
+    const unsubscribe = subscribeToRayenSnapshots(handler);
+    const staleRequestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
+    const activeRequestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
+    const snapshot: RayenCensusSnapshot = {
+      capturedAt: bundle.fichaMedicoCapturedAt,
+      facilityId: bundle.facilityId,
+      encounters: [],
+      isComplete: true,
+    };
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+          requestId: staleRequestId,
+          snapshot,
+          bundle,
+        },
+      })
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+          requestId: activeRequestId,
+          snapshot,
+          bundle,
+        },
+      })
+    );
+    expect(handler).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('requests both sources with the exact census report range', () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const requestId = requestRayenSyncBundle('2026-07-24', '2026-07-25');
+
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE',
+        requestId,
+        dateStart: '2026-07-24',
+        dateEnd: '2026-07-25',
+      },
+      window.location.origin
+    );
+    cancelRayenSyncBundleRequest(requestId);
+    postMessage.mockRestore();
+  });
+});
+
 describe('patient-flow report bridge', () => {
   it('requests one numeric episode and correlates its PDF response', async () => {
     const postMessage = vi.spyOn(window, 'postMessage');
@@ -143,15 +271,28 @@ describe('patient-flow report bridge', () => {
 });
 
 describe('Rayen import error bridge', () => {
-  it('delivers the extension error immediately to subscribers', () => {
+  it('delivers only the error correlated to the active sync request', () => {
     const handler = vi.fn();
     const unsubscribe = subscribeToRayenImportErrors(handler);
+    const requestId = requestRayenSyncBundle('2026-07-24', '2026-07-25');
 
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
         data: {
           type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+          error: 'Error legado sin correlación.',
+        },
+      })
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+          requestId,
           error: 'No hay una pestaña de Ficha Médico abierta.',
         },
       })

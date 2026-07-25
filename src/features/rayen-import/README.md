@@ -18,6 +18,21 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 ## Seguridad clínica
 
+- **Dos fuentes obligatorias:** una sincronización estructural solo comienza cuando Ficha Médico y
+  Gestión de Camas responden con sesiones vigentes. No existe un modo de importación parcial: si
+  cualquiera falta, se conserva el censo local y se muestra la conexión que debe recuperarse.
+- **Captura coherente:** el worker vuelve a comprobar ambas fuentes antes y después de leerlas,
+  exige un censo completo, valida que el establecimiento coincida y rechaza capturas separadas por
+  más de dos minutos. Snapshot e informe de egresos viajan juntos como un `RayenSyncBundle`; HHR no
+  interpreta la falla de una fuente como ausencia de eventos.
+- **Solo el día vivo:** Ficha Médico expone el estado vigente, por lo que HHR bloquea la
+  reconciliación estructural de días anteriores hasta contar con evidencia histórica equivalente.
+- **Sin fallback fragmentado:** HHR rechaza snapshots sueltos o paquetes que no coincidan
+  exactamente en establecimiento, rango y marca de captura; nunca vuelve a combinar lecturas
+  independientes después de iniciar una sincronización dual.
+- **Respuesta correlacionada:** cada intento tiene un identificador único. Si vence, se cancela o
+  es reemplazado, cualquier respuesta tardía queda inerte y no puede abrir ni aplicar un diff.
+
 - **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
   señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
   Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
@@ -82,6 +97,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **Trazabilidad sin PHI:** `rayenSyncHistory` guarda solo actor, tiempos, salud de fuentes y
   agregados del diff/cobertura. No persiste nombres, RUN, diagnósticos ni errores crudos.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
+- **Horizonte temporal no inventado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
+  promete por sí solo reconstruir N días. La estructura de un día pasado solo se modifica cuando
+  existe evidencia histórica explícita; el snapshot actual nunca se proyecta retroactivamente.
 - **`moves` ≠ traslados:** `moves` = reubicación de cama dentro del censo; el traslado a otro hospital
   es un _tipo de egreso_ (`DischargeEntry.kind = 'traslado'`).
 
@@ -100,7 +118,8 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 - `src/tests/rayen-import/*.test.ts`: mapeo de camas/paciente/egreso, reconciliación,
   `requiresReview`, **apply**, Zod del registro producido, settings, navegación y handshake de la
-  extensión, estados de salud y barra operativa.
+  extensión, estados de salud, captura dual, desfase temporal, cambio de establecimiento y barra
+  operativa.
 
 ## Pendiente
 

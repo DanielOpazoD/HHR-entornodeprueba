@@ -5,6 +5,7 @@
  */
 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { isCurrentCensusDay } from '../domain/historicalCensusSync';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -34,4 +35,15 @@ export const nextIsoDay = (iso: string): string => {
   const [y, m, d] = iso.split('-').map(Number);
   const next = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + 1));
   return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
+};
+
+/** Returns today's census day or rejects a live-snapshot projection onto historical data. */
+export const toLiveSyncReportDate = (record: DailyRecord): string => {
+  const reportDate = toIsoReportDate(record);
+  if (!isCurrentCensusDay(reportDate)) {
+    throw new Error(
+      'La fuente Ficha Médico muestra el censo vigente y no permite reconstruir con seguridad un día anterior.'
+    );
+  }
+  return reportDate;
 };

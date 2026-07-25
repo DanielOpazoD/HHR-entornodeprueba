@@ -198,9 +198,9 @@ describe('RayenImportButton', () => {
     );
   });
 
-  it('shows a partial connection without blocking census synchronization', async () => {
-    const degradedHealth = {
-      connection: 'degraded',
+  it('blocks census synchronization when Gestión de Camas is unavailable', async () => {
+    const blockedHealth = {
+      connection: 'blocked',
       report: {
         version: '0.6.0',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
@@ -209,34 +209,35 @@ describe('RayenImportButton', () => {
         gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
       },
       message:
-        'Gestión de Camas no está abierta. El censo puede sincronizarse, pero la validación de egresos será parcial.',
-      canSync: true,
+        'Gestión de Camas no está abierta. Se requieren Ficha Médico y Gestión de Camas para sincronizar.',
+      canSync: false,
     };
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
     mocks.useRayenExtensionHealth.mockReturnValue({
-      ...degradedHealth,
+      ...blockedHealth,
       refresh: mocks.refreshHealth,
     });
-    mocks.refreshHealth.mockResolvedValue(degradedHealth);
+    mocks.refreshHealth.mockResolvedValue(blockedHealth);
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conexión parcial')).toBeInTheDocument();
+    expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
     expect(screen.queryByText('Camas —')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rayen-extension-health-message')).not.toBeInTheDocument();
     expect(screen.getByTestId('rayen-extension-health-help')).toHaveAttribute(
       'title',
-      expect.stringContaining('validación de egresos será parcial')
+      expect.stringContaining('Se requieren Ficha Médico y Gestión de Camas')
     );
     fireEvent.click(screen.getByTestId('rayen-extension-health-help'));
     expect(
       screen.getByText(
-        'Gestión de Camas no está abierta. El censo puede sincronizarse, pero la validación de egresos será parcial.'
+        'Gestión de Camas no está abierta. Se requieren Ficha Médico y Gestión de Camas para sincronizar.'
       )
     ).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar parcial' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.objectContaining({ canSync: false }));
   });
 
   it('records the deliberate attempt when Ficha Médico is unavailable', async () => {
@@ -260,7 +261,7 @@ describe('RayenImportButton', () => {
     mocks.refreshHealth.mockResolvedValue(blockedHealth);
 
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar Ficha Médico' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
     expect(mocks.triggerImport).toHaveBeenCalledWith(blockedHealth);

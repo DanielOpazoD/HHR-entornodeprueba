@@ -29,7 +29,7 @@ const expectConnection = (
 };
 
 describe('deriveHealthState', () => {
-  it('distinguishes ready, partial, blocked, incompatible and offline states', () => {
+  it('requires both Rayen sources before allowing synchronization', () => {
     expectConnection(deriveHealthState(makeReport()), 'ready', true);
     expectConnection(
       deriveHealthState(
@@ -37,8 +37,8 @@ describe('deriveHealthState', () => {
           gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
         })
       ),
-      'degraded',
-      true
+      'blocked',
+      false
     );
     expectConnection(
       deriveHealthState(

@@ -23,14 +23,11 @@ import {
   prepareActiveClinicalPlacements,
   shouldReconcileAsPrincipal,
 } from './clinicalCribPlacementPolicy';
-const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
-  !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
-/** A patient leaving Rayen: medical/nurse discharge, an explicit discharge datetime, or deceased. */
-const isDischarged = (encounter: RayenEncounter): boolean =>
-  !!encounter.hasMedicalDischarge ||
-  !!encounter.hasNurseDischarge ||
-  !!encounter.dischargeDatetime ||
-  !!encounter.isDead;
+import {
+  isDischargedEncounter as isDischarged,
+  isOccupiedCensusPatient as isOccupied,
+} from './censusReconciliationPredicates';
+export { requiresReview } from './censusReconciliationPredicates';
 export interface ReconcileOptions {
   /** Reference date for age computation (defaults to now). */
   reference?: Date;
@@ -397,11 +394,3 @@ export const reconcileCensus = (
   };
   return diff;
 };
-/**
- * True when a diff contains items a human must review: conflicts, clinical closures still
- * awaiting the administrative discharge, or report rows that HHR has not recorded yet.
- */
-export const requiresReview = (diff: CensusImportDiff): boolean =>
-  diff.conflicts.length > 0 ||
-  diff.pendingAdministrativeDischarges.length > 0 ||
-  (diff.reportEgresos?.length ?? 0) > 0;

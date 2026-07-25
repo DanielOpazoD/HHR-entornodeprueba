@@ -2,12 +2,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
-import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
   correctedStamp,
   createReportEpisodeMatcher,
   clinicalCribConflictBeds,
-  episodeLessReportConflict,
   findPlannedBedByEpisode,
   findOccupiedBed,
   findOccupiedClinicalCrib,
@@ -17,17 +15,16 @@ import {
   occupiedBedsByRun,
   occupiedClinicalCribsByRun,
   reportEgresoFromRow,
-  reportPredatesActiveAdmission,
   resolveActiveEpisode,
   resolveReportDischarge,
   selectReportRowsByEpisode,
-  toIsoDay,
   unchangedClinicalCribEpisodes,
 } from './egresoReportPolicy';
 import { mergeSyncablePatient } from './patientSyncPolicy';
 import { resolveReleasedBedPlacements } from './resolveReleasedBedPlacements';
-import { appendReportConflict, markReportChecked } from './egresoReportConflicts';
+import { markReportChecked } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
+import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
 export const applyEgresoReport = (
@@ -37,83 +34,13 @@ export const applyEgresoReport = (
 ): CensusImportDiff => {
   const checkedDiff = markReportChecked(diff);
   if (reportRows.length === 0) return checkedDiff;
-  const recordDay = toIsoDay(record.date);
-  const exactEpisodes = eligibleExactEpisodes(reportRows, recordDay);
   const occupied = occupiedBedsByRun(record);
   const occupiedCribs = occupiedClinicalCribsByRun(record);
-  const eligibleRows: EgresoReportRow[] = [];
-  let diffWithReportConflicts = checkedDiff;
-  for (const row of reportRows) {
-    const run = normalizeRut(row.run);
-    const reportedEpisode = String(row.encounterId ?? '').trim();
-    if (!run && !reportedEpisode) continue;
-    const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    const stamp =
-      normalized.correctedDay && normalized.correctedTime
-        ? { iso: normalized.correctedDay, hhmm: normalized.correctedTime }
-        : null;
-    if (!stamp) {
-      diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
-        bedId: null,
-        rut: row.run,
-        reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${row.run}; no se aplicó.`,
-      });
-      continue;
-    }
-    // The D+1 query compensates Rayen's offset; genuine next-day discharges stay excluded.
-    if (!recordDay || stamp.iso > recordDay) continue;
-    const current = findOccupiedBed(occupied, row.run, reportedEpisode);
-    const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
-    const activeCrib = checkedDiff.activeClinicalCribs?.find(
-      crib => crib.source.encounterId === reportedEpisode || normalizeRut(crib.patient.rut) === run
-    );
-    const provisional = checkedDiff.admissions.find(
-      entry =>
-        entry.source?.encounterId === reportedEpisode || normalizeRut(entry.patient.rut) === run
-    );
-    const exactEvidence = reportedEpisode
-      ? (checkedDiff.activeClinicalCribs?.find(crib => crib.source.encounterId === reportedEpisode)
-          ?.patient ??
-        findPlannedPatientByEpisode(checkedDiff, record, reportedEpisode) ??
-        (current?.clinicalEpisodeId === reportedEpisode ? record.beds[current.bedId] : undefined) ??
-        (currentCrib?.patient.clinicalEpisodeId === reportedEpisode
-          ? currentCrib.patient
-          : undefined))
-      : undefined;
-    const admissionEvidence =
-      exactEvidence ??
-      current ??
-      currentCrib?.patient ??
-      activeCrib?.patient ??
-      provisional?.patient;
-    if (reportPredatesActiveAdmission(checkedDiff, row, run, stamp, admissionEvidence)) {
-      diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
-        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
-        rut: row.run,
-        patientName: current?.patientName ?? currentCrib?.patient.patientName,
-        reason: `El egreso informado para ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
-      });
-      continue;
-    }
-    const activeEpisode = current?.clinicalEpisodeId ?? currentCrib?.patient.clinicalEpisodeId;
-    const exactSibling =
-      !reportedEpisode && Boolean(activeEpisode && exactEpisodes.has(activeEpisode));
-    const episodeConflict = exactSibling
-      ? null
-      : episodeLessReportConflict(checkedDiff, record, row, current, currentCrib);
-    if (episodeConflict) {
-      diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, episodeConflict);
-      continue;
-    }
-    const verifiedRun =
-      exactEvidence?.rut ??
-      (!reportedEpisode
-        ? current
-          ? record.beds[current.bedId]?.rut
-          : currentCrib?.patient.rut
-        : undefined);
-    eligibleRows.push(verifiedRun ? { ...row, run: verifiedRun } : row);
-  }
+  const { diff: diffWithReportConflicts, rows: eligibleRows } = selectEligibleEgresoRows(
+    checkedDiff,
+    reportRows,
+    record
+  );
   const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(eligibleRows, key =>
     key.startsWith('episode:')
       ? key.slice(8)
@@ -126,11 +53,6 @@ export const applyEgresoReport = (
   );
   if (byRun.size === 0) return diffWithReportConflicts;
   const reportConfirmsEpisode = createReportEpisodeMatcher(byRun);
-  type PromotionCandidate = {
-    principalRut?: string;
-    patient: NonNullable<DailyRecord['beds'][string]>;
-    source?: CensusImportDiff['admissions'][number]['source'];
-  };
   const activeCribsByParent = new Map<string, PromotionCandidate>();
   for (const crib of checkedDiff.activeClinicalCribs ?? []) {
     activeCribsByParent.set(crib.parentBedId, crib);

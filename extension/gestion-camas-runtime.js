@@ -20,6 +20,10 @@
 
     if (
       !chromeApi || !session || !extensionHealth ||
+      !root.HhrGestionCamasHealth ||
+      typeof root.HhrGestionCamasHealth.create !== 'function' ||
+      typeof extensionHealth.orderTabs !== 'function' ||
+      typeof extensionHealth.probeTabs !== 'function' ||
       typeof withTimeout !== 'function' || typeof fetchWithTimeout !== 'function' ||
       !Number.isFinite(backendRequestTimeoutMs) || !Number.isFinite(tabMessageTimeoutMs) ||
       !Number.isFinite(healthProbeTimeoutMs)
@@ -324,37 +328,18 @@
       }
     };
 
-    const handleGestionCamasHealth = async () => {
-      let record = await readGestionCamasSession();
-      if (!session.isUsable(record)) {
-        record = await clearUnusableGestionCamasSession();
-        if (!session.isUsable(record)) {
-          const live = await requestLiveGestionCamasSession({
-            verificationTimeoutMs: healthProbeTimeoutMs,
-            tabTimeoutMs: healthProbeTimeoutMs,
-          });
-          if (!live.record) {
-            return {
-              ...session.publicStatus(null),
-              message: live.error || 'Gestión de Camas no está conectada.',
-            };
-          }
-          record = live.record;
-        }
-      }
-      if (session.isVerificationFresh(record)) {
-        return session.publicStatus(record);
-      }
-      const verified = await verifyGestionCamasSession(record, healthProbeTimeoutMs);
-      if (verified.record) return session.publicStatus(verified.record);
-      if (verified.changed) return session.publicStatus(await readGestionCamasSession());
-      const status = session.publicStatus(record);
-      return {
-        ...status,
-        status: 'stale',
-        message: verified.error || status.message,
-      };
-    };
+    const handleGestionCamasHealth = root.HhrGestionCamasHealth.create({
+      chromeApi,
+      extensionHealth,
+      session,
+      withTimeout,
+      healthProbeTimeoutMs,
+      matchPattern: MATCH_PATTERN,
+      readSession: readGestionCamasSession,
+      clearUnusableSession: clearUnusableGestionCamasSession,
+      requestLiveSession: requestLiveGestionCamasSession,
+      verifySession: verifyGestionCamasSession,
+    });
 
     const setGestionCamasConnectionAttempt = async (
       tabId,

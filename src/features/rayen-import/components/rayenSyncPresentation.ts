@@ -43,8 +43,7 @@ export const rayenPrimaryActionLabel = (
   if (syncing) return 'Sincronizando…';
   if (connection === 'checking') return 'Comprobando…';
   if (connection === 'ready') return 'Sincronizar';
-  if (connection === 'degraded') return 'Sincronizar parcial';
-  if (connection === 'blocked') return 'Revisar Ficha Médico';
+  if (connection === 'degraded' || connection === 'blocked') return 'Revisar conexión';
   if (connection === 'incompatible') return 'Actualizar extensión';
   return 'Comprobar conexión';
 };
@@ -52,6 +51,7 @@ export const rayenPrimaryActionLabel = (
 export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string => {
   if (reason === 'extension_incompatible') return 'Extensión incompatible';
   if (reason === 'ficha_medico_unavailable') return 'Ficha Médico no disponible';
+  if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
   if (reason === 'snapshot_timeout') return 'Sin respuesta de la extensión';
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
   if (reason === 'apply_failed') return 'No se pudo aplicar el censo';

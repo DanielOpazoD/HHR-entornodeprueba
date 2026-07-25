@@ -15,12 +15,13 @@ import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
   RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
-  RAYEN_REQUEST_MESSAGE_TYPE,
+  RAYEN_SYNC_BUNDLE_REQUEST_MESSAGE_TYPE,
   isRayenCensusSnapshot,
+  isRayenSyncBundle,
   subscribeToRayenSnapshots,
   subscribeToRayenImportErrors,
-  pushRayenSnapshot,
-  requestRayenSnapshot,
+  requestRayenSyncBundle,
+  cancelRayenSyncBundleRequest,
 } from './rayenSnapshotBridge';
 export const RAYEN_EGRESO_LOOKUP_REQUEST_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST';
 export const RAYEN_EGRESO_LOOKUP_RESULT_TYPE = 'HHR_RAYEN_EGRESO_LOOKUP_RESULT';

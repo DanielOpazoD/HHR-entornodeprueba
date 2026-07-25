@@ -169,11 +169,12 @@ export {
 // Bridge (extension ⇄ app)
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
-  RAYEN_REQUEST_MESSAGE_TYPE,
+  RAYEN_SYNC_BUNDLE_REQUEST_MESSAGE_TYPE,
   isRayenCensusSnapshot,
+  isRayenSyncBundle,
   subscribeToRayenSnapshots,
-  pushRayenSnapshot,
-  requestRayenSnapshot,
+  requestRayenSyncBundle,
+  cancelRayenSyncBundleRequest,
   requestEgresoReport,
   requestEgresoLookup,
   requestDeviceReport,
@@ -181,6 +182,7 @@ export {
   requestHistoryScales,
   requestCudyrCategories,
 } from './bridge/rayenImportBridge';
+export type { RayenSyncBundle } from './contracts/rayenSnapshot';
 export {
   RAYEN_PATIENT_FLOW_REQUEST_TYPE,
   RAYEN_PATIENT_FLOW_RESULT_TYPE,

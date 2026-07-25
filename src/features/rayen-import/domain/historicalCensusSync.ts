@@ -26,6 +26,9 @@ const timestampDayInRapaNui = (value?: string): string => {
 export const isHistoricalCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
   censusIsoDay < isoDayInRapaNui(now);
 
+export const isCurrentCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
+  censusIsoDay === isoDayInRapaNui(now);
+
 const occupiedPatientCount = (record: DailyRecord): number =>
   Object.values(record.beds).reduce((count, bed) => {
     const primary = bed.patientName?.trim() ? 1 : 0;

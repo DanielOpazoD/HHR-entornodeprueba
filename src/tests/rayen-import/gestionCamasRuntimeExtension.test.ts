@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/gestion-camas-health.js';
 import '../../../extension/gestion-camas-runtime.js';
 
 type StoredValues = Record<string, unknown>;
@@ -8,7 +9,10 @@ type StoredValues = Record<string, unknown>;
 // arithmetic belongs to the separately tested gestion-camas-session owner.
 const FINITE_SESSION_TIMESTAMP = 1;
 
-const createFixture = (initial: StoredValues = {}) => {
+const createFixture = (
+  initial: StoredValues = {},
+  options: { tabs?: Array<{ id: number }> } = {}
+) => {
   const values: StoredValues = { ...initial };
   const storage = {
     get: vi.fn(async (key: string | null) => {
@@ -51,8 +55,8 @@ const createFixture = (initial: StoredValues = {}) => {
   const chromeApi = {
     storage: { session: storage },
     tabs: {
-      query: vi.fn(async () => []),
-      sendMessage: vi.fn(),
+      query: vi.fn(async () => options.tabs ?? [{ id: 7 }]),
+      sendMessage: vi.fn(async () => ({ ready: true, message: 'Pestaña disponible.' })),
       update: vi.fn(),
     },
     windows: {
@@ -81,7 +85,13 @@ const createFixture = (initial: StoredValues = {}) => {
   const runtime = runtimeFactory.create({
     chrome: chromeApi,
     session,
-    extensionHealth: { orderTabs: (tabs: unknown[]) => tabs },
+    extensionHealth: {
+      orderTabs: (tabs: unknown[]) => tabs,
+      probeTabs: async ({ tabs }: { tabs: unknown[] }) =>
+        tabs.length > 0
+          ? { status: 'ready', message: 'Pestaña disponible.' }
+          : { status: 'missing', message: 'Abre Gestión de Camas.' },
+    },
     withTimeout: (promise: Promise<unknown>) => promise,
     fetchWithTimeout,
     backendRequestTimeoutMs: 45_000,
@@ -156,6 +166,29 @@ describe('Gestión de Camas connection runtime', () => {
       connected: true,
     });
     expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('does not report a stored session as ready after its source tab was closed', async () => {
+    const record = {
+      accessValue: 'fixture',
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: '',
+      lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
+    };
+    const { runtime } = createFixture({ 'gc-session': record }, { tabs: [] });
+
+    await expect(runtime.health()).resolves.toMatchObject({
+      status: 'missing',
+      message: 'Abre Gestión de Camas.',
+    });
+
+    const replacementTab = createFixture({ 'gc-session': record }, { tabs: [{ id: 8 }] });
+    await expect(replacementTab.runtime.health()).resolves.toMatchObject({
+      status: 'stale',
+      message: expect.stringContaining('pestaña cerrada'),
+    });
   });
 
   it('clears only the matching session when Rayen returns an unauthorized response', async () => {
