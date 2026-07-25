@@ -40,7 +40,11 @@ export const failureReasonFromHealth = (
   health: RayenExtensionHealthState
 ): RayenSyncFailureReason => {
   if (health.connection === 'incompatible') return 'extension_incompatible';
-  if (health.connection === 'blocked') return 'ficha_medico_unavailable';
+  if (health.connection === 'blocked') {
+    return health.report?.fichaMedico.status === 'ready'
+      ? 'gestion_camas_unavailable'
+      : 'ficha_medico_unavailable';
+  }
   return 'extension_unavailable';
 };
 

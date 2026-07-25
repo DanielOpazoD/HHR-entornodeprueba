@@ -8,7 +8,8 @@
 
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
-export const RAYEN_EXTENSION_PROTOCOL_VERSION = 3;
+export const RAYEN_EXTENSION_PROTOCOL_VERSION = 4;
+export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 
 export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 
@@ -20,6 +21,7 @@ export interface RayenSourceHealth {
 export interface RayenExtensionHealthReport {
   version: string;
   protocolVersion: number;
+  capabilities?: string[];
   checkedAt: string;
   fichaMedico: RayenSourceHealth;
   gestionCamas: RayenSourceHealth;
@@ -49,11 +51,17 @@ export const isRayenExtensionHealthReport = (
   return (
     typeof candidate.version === 'string' &&
     typeof candidate.protocolVersion === 'number' &&
+    (candidate.capabilities === undefined ||
+      (Array.isArray(candidate.capabilities) &&
+        candidate.capabilities.every(capability => typeof capability === 'string'))) &&
     typeof candidate.checkedAt === 'string' &&
     isSourceHealth(candidate.fichaMedico) &&
     isSourceHealth(candidate.gestionCamas)
   );
 };
+
+export const supportsPatientFlowReport = (report: RayenExtensionHealthReport | null): boolean =>
+  report?.capabilities?.includes(RAYEN_PATIENT_FLOW_CAPABILITY) === true;
 
 export const requestRayenExtensionHealth = (timeoutMs = 2500): Promise<RayenExtensionHealthCheck> =>
   new Promise(resolve => {

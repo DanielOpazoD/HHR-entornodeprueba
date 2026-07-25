@@ -40,6 +40,11 @@ const ShiftSuggestion: React.FC<{
           Ya sincronizado en HHR: {alreadyAssigned.join(', ')}.
         </p>
       )}
+      {suggestion.replaceStandardSlots && (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Se reemplazará la asignación actual: {(suggestion.currentNames ?? []).join(', ')}.
+        </p>
+      )}
       <ul className="mt-2 space-y-2">
         {suggestion.names.map(name => {
           const evidence = evidenceFor(suggestion, name);
@@ -85,6 +90,9 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   const hasVacanciesToComplete = Boolean(
     proposal && (proposal.day.names.length > 0 || proposal.night.names.length > 0)
   );
+  const replacesExisting = Boolean(
+    proposal && (proposal.day.replaceStandardSlots || proposal.night.replaceStandardSlots)
+  );
   if (!proposal || !hasVacanciesToComplete) return null;
 
   return (
@@ -111,7 +119,9 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
         </h3>
         <p className="text-sm leading-relaxed text-slate-600">
           La sugerencia usa actividad registrada fuera de las ventanas ambiguas del cambio de turno.
-          Al confirmar se completarán únicamente los cupos que continúen vacantes.
+          {replacesExisting
+            ? ' Al confirmar se reemplazarán los cupos estándar indicados; TENS y cupos adicionales no cambiarán.'
+            : ' Al confirmar se completarán únicamente los cupos que continúen vacantes.'}
         </p>
         <ShiftSuggestion
           label="Turno largo"

@@ -119,10 +119,7 @@ describe('applyCensusImportDiff', () => {
       clinicalCribParentBedId: 'H5C1',
     });
 
-    const result = planAndApply(
-      makeRecord({ [bedId]: parent }),
-      snapshotOf([mother, newborn])
-    );
+    const result = planAndApply(makeRecord({ [bedId]: parent }), snapshotOf([mother, newborn]));
 
     expect(result.applied.updates).toBe(1);
     expect(result.record.beds.H5C1).toMatchObject({
@@ -206,6 +203,7 @@ describe('applyCensusImportDiff', () => {
           kind: 'alta',
           status: 'Vivo',
           reason: 'administrative-discharge',
+          encounterId: patient.clinicalEpisodeId,
           correctedTime: '18:20',
         },
       ],
@@ -228,6 +226,48 @@ describe('applyCensusImportDiff', () => {
       },
     });
   });
+
+  it.each([
+    ['E2', undefined],
+    [undefined, 'E1'],
+  ])(
+    'does not discharge an ambiguous occupant after preview (current %s, egreso %s)',
+    (currentEpisode, dischargeEpisode) => {
+      const [, previous] = seedBed(makeEncounter());
+      const currentOccupant = {
+        ...previous,
+        clinicalEpisodeId: currentEpisode,
+        rut: previous.rut,
+        patientName: 'Paciente Nuevo',
+      };
+      const diff = makeDiff({
+        discharges: [
+          {
+            bedId: 'H1C2',
+            rut: previous.rut,
+            patientName: previous.patientName,
+            kind: 'alta',
+            status: 'Vivo',
+            reason: 'administrative-discharge',
+            encounterId: dischargeEpisode,
+          },
+        ],
+      });
+
+      const result = applyCensusImportDiff(makeRecord({ H1C2: currentOccupant }), diff, makeCtx());
+
+      expect(result.record.beds.H1C2).toEqual(currentOccupant);
+      expect(result.record.discharges).toHaveLength(0);
+      expect(result.applied.discharges).toBe(0);
+      expect(result.skipped).toEqual([
+        {
+          kind: 'discharge',
+          bedId: 'H1C2',
+          reason: 'La cama ahora corresponde a otro paciente.',
+        },
+      ]);
+    }
+  );
 
   it('applies a CMA discharge entry to cma[]', () => {
     const cmaEncounter = makeEncounter({
@@ -273,6 +313,7 @@ describe('applyCensusImportDiff', () => {
           kind: 'traslado',
           status: 'Vivo',
           reason: 'administrative-discharge',
+          encounterId: patient.clinicalEpisodeId,
           correctedTime: '19:53',
         },
       ],
@@ -325,6 +366,7 @@ describe('applyCensusImportDiff', () => {
       reportEgresos: [
         {
           run: '11.044.046-4',
+          encounterId: 'report-only-episode',
           patientName: 'Lorena Lopez Alvarado',
           bedLabel: 'R2',
           destino: 'Domicilio',
@@ -344,6 +386,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.discharges[0]).toMatchObject({
       patientName: 'Lorena Lopez Alvarado',
       rut: '11.044.046-4',
+      clinicalEpisodeId: 'report-only-episode',
       diagnosis: 'Herida de la pierna',
       dischargeType: 'Domicilio (Habitual)',
       time: '17:11', // mainland report time converted to the Rapa Nui census clock

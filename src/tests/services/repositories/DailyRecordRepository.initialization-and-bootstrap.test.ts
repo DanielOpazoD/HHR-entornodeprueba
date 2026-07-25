@@ -43,7 +43,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
     const result = await Repository.initializeDay(mockDate, '2024-12-31');
 
     expect(result.date).toBe(mockDate);
-    expect(result.nursesDayShift).toEqual(['Receiver A', 'Receiver B']);
+    expect(result.nursesDayShift).toEqual(['', '']);
     expect(result.beds.R1.patientName).toBe('Patient X');
   });
 

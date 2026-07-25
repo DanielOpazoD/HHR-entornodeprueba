@@ -60,10 +60,10 @@ const deriveHealthState = (
 
   if (report.gestionCamas.status !== 'ready') {
     return {
-      connection: 'degraded',
+      connection: 'blocked',
       report,
-      message: `${report.gestionCamas.message} El censo puede sincronizarse, pero la validación de egresos será parcial.`,
-      canSync: true,
+      message: `${report.gestionCamas.message} Se requieren Ficha Médico y Gestión de Camas para sincronizar.`,
+      canSync: false,
     };
   }
 

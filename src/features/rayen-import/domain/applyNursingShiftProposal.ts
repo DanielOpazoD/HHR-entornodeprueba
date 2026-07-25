@@ -57,6 +57,30 @@ const namesReferToSameNurse = (
   return [...knownIdentityKeys(suggestion, right)].some(key => leftKeys.has(key));
 };
 
+const buildReplacementRoster = (
+  suggestion: NursingShiftSuggestion,
+  currentNames: string[],
+  extraNames: string[]
+): string[] | null => {
+  if (suggestion.ambiguous || suggestion.names.length !== 2 || extraNames.length > 0) return null;
+  const remaining = [...suggestion.names];
+  const target = currentNames.map(current => {
+    const matchIndex = remaining.findIndex(candidate =>
+      namesReferToSameNurse(suggestion, current, candidate)
+    );
+    if (matchIndex < 0) return '';
+    remaining.splice(matchIndex, 1);
+    return current;
+  });
+  for (let index = 0; index < target.length; index += 1) {
+    if (!target[index]) target[index] = remaining.shift() ?? '';
+  }
+  return target.every((name, index) => name === currentNames[index]) ? null : target;
+};
+
+const sameRoster = (left: string[] | undefined, right: string[]): boolean =>
+  left?.length === right.length && left.every((name, index) => name === right[index]);
+
 const includesAssignedName = (
   assignedNames: string[],
   candidate: string,
@@ -93,7 +117,12 @@ export const reconcileNursingShiftProposal = (
   const reconciled = { ...proposal };
 
   for (const shift of ['day', 'night'] as const) {
+    const assignments = getDetailedShiftRoleAssignments(detail, shift, 'nurse');
     const assignedNames = resolveOccupiedNames(detail, shift).filter(name => !isVacant(name));
+    const currentNames = resolveCurrentNames(detail, shift);
+    const extraNames = assignments
+      .filter(assignment => assignment.slotType === 'extra' && !isVacant(assignment.name))
+      .map(assignment => assignment.name);
     const candidatePool = proposal[shift].ambiguous
       ? proposal[shift].names
       : proposal[shift].candidates.map(candidate => candidate.name);
@@ -103,13 +132,19 @@ export const reconcileNursingShiftProposal = (
     const missingNames = candidatePool.filter(
       name => !includesAssignedName(assignedNames, name, proposal[shift])
     );
-    const vacancies = resolveCurrentNames(detail, shift).filter(isVacant).length;
+    const vacancies = currentNames.filter(isVacant).length;
     const constrained = constrainToVacancies(proposal[shift], missingNames, vacancies);
+    const replacementRoster =
+      !constrained.ambiguous && missingNames.length > vacancies
+        ? buildReplacementRoster(proposal[shift], currentNames, extraNames)
+        : null;
     reconciled[shift] = {
       ...proposal[shift],
-      names: constrained.names,
+      names: replacementRoster ?? constrained.names,
       ambiguous: constrained.ambiguous,
       alreadyAssigned,
+      currentNames: replacementRoster ? currentNames : undefined,
+      replaceStandardSlots: Boolean(replacementRoster),
     };
   }
 
@@ -124,7 +159,7 @@ export const hasNursingShiftReview = (proposal: NursingStaffingProposal): boolea
   proposal.day.ambiguous ||
   proposal.night.ambiguous;
 
-/** Builds a consistent staffing patch and never replaces a manually assigned nurse. */
+/** Builds a consistent staffing patch; replacement requires an explicit reconciled proposal. */
 export const buildNursingShiftProposalPatch = (
   record: DailyRecord,
   proposal: NursingStaffingProposal
@@ -136,6 +171,25 @@ export const buildNursingShiftProposalPatch = (
   for (const shift of ['day', 'night'] as const) {
     // Detailed staffing is the canonical source when present; its legacy arrays can briefly lag.
     const currentNames = resolveCurrentNames(detail, shift);
+    if (proposal[shift].replaceStandardSlots) {
+      const extraNames = getDetailedShiftRoleAssignments(detail, shift, 'nurse').filter(
+        assignment => assignment.slotType === 'extra' && !isVacant(assignment.name)
+      );
+      if (
+        proposal[shift].ambiguous ||
+        proposal[shift].names.length !== 2 ||
+        extraNames.length > 0 ||
+        !sameRoster(proposal[shift].currentNames, currentNames)
+      )
+        continue;
+      for (let slot = 0; slot < 2; slot += 1) {
+        const replacement = proposal[shift].names[slot] ?? '';
+        if (replacement === currentNames[slot]) continue;
+        detail = updateDetailedStaffingStandardSlot(detail, shift, 'nurse', slot, replacement);
+        changed = true;
+      }
+      continue;
+    }
     const occupiedNames = resolveOccupiedNames(detail, shift).filter(name => !isVacant(name));
     const available: string[] = [];
     for (const name of proposal[shift].names) {

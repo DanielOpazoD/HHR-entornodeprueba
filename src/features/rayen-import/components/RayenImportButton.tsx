@@ -95,7 +95,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
           : extension.connection === 'incompatible'
             ? 'Actualizar extensión'
             : extension.connection === 'blocked'
-              ? 'Revisar Ficha Médico'
+              ? extension.report?.fichaMedico.status === 'ready'
+                ? 'Conectar Gestión de Camas'
+                : 'Revisar Ficha Médico'
               : 'Extensión sin respuesta';
   const needsConnectionGuidance =
     extension.connection !== 'ready' && extension.connection !== 'checking';

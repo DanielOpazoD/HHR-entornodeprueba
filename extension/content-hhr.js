@@ -8,6 +8,10 @@
  *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SNAPSHOT' }
  *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot } | { type: 'HHR_RAYEN_IMPORT_ERROR', error }
  *
+ * Guarded sync bundle (Ficha Médico + Gestión de Camas):
+ *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE', dateStart, dateEnd }
+ *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot, bundle } | import error
+ *
  * Egreso lookup (Gestión de Camas, for late-sync patients absent from Ficha Médico):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST', reqId, runs }
  *   us  → page: { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId, results }
@@ -31,9 +35,7 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-
   const post = message => window.postMessage(message, window.location.origin);
-
   window.addEventListener('message', event => {
     if (event.source !== window) return;
     const data = event.data;
@@ -197,7 +199,6 @@
         });
       return;
     }
-
     if (data.type === 'HHR_RAYEN_CLINICAL_PANEL_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
@@ -227,7 +228,6 @@
         });
       return;
     }
-
     if (data.type === 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime

@@ -19,7 +19,6 @@ import type { ClinicalFillPatchTarget } from '../clinicalFillRunner';
 import {
   subscribeToRayenSnapshots,
   subscribeToRayenImportErrors,
-  requestRayenSnapshot,
 } from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import {
@@ -46,6 +45,8 @@ import {
   resetRayenFillProgress,
 } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
+import { nextIsoDay, toLiveSyncReportDate } from './reportDateHelpers';
+import { createRayenSyncRequestController } from './rayenSyncRequestLifecycle';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -62,15 +63,12 @@ export const useRayenImport = () => {
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
-  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearSyncTimeout = useCallback(() => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-      syncTimeoutRef.current = null;
-    }
-  }, []);
+  const [syncRequestController] = useState(createRayenSyncRequestController);
+  const clearSyncTimeout = useCallback(
+    () => syncRequestController.cancel(),
+    [syncRequestController]
+  );
   useEffect(() => clearSyncTimeout, [clearSyncTimeout]);
-
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
   currentRecordRef.current = currentRecord;
@@ -101,7 +99,6 @@ export const useRayenImport = () => {
     failRun,
     cancelRun,
   } = useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
-
   const applyDiff = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const run = ensureRun();
@@ -116,7 +113,6 @@ export const useRayenImport = () => {
     },
     [applyRunToRecord, ensureRun, saveDailyRecord]
   );
-
   const finishSyncing = useCallback(() => {
     setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
   }, []);
@@ -161,7 +157,6 @@ export const useRayenImport = () => {
     onSettled: finishSyncing,
     createId: makeId,
   });
-
   const previewSnapshot = useRayenSnapshotPreview({
     currentRecord,
     mode,
@@ -174,9 +169,7 @@ export const useRayenImport = () => {
     fillDevicesInBackground,
     failRun,
   });
-
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
-
   useEffect(
     () =>
       subscribeToRayenImportErrors(() => {
@@ -193,9 +186,8 @@ export const useRayenImport = () => {
       }),
     [clearSyncTimeout, failRun]
   );
-
   const triggerImport = useCallback(
-    (health?: RayenExtensionHealthState) => {
+    (health: RayenExtensionHealthState) => {
       clearSyncTimeout();
       if (!resetRayenFillProgress()) {
         setState(prev => ({
@@ -211,7 +203,7 @@ export const useRayenImport = () => {
       setStaffingProposal(null);
       setStaffingProposalError(null);
       startRun(health);
-      if (health && !health.canSync) {
+      if (!health.canSync) {
         void failRun(failureReasonFromHealth(health));
         setState(prev => ({
           ...prev,
@@ -222,6 +214,31 @@ export const useRayenImport = () => {
         }));
         return;
       }
+      if (!currentRecord) {
+        void failRun('snapshot_error');
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          result: null,
+          hasSkippedItems: false,
+          error: 'No hay un censo cargado para sincronizar.',
+        }));
+        return;
+      }
+      let reportDate: string;
+      try {
+        reportDate = toLiveSyncReportDate(currentRecord);
+      } catch (error) {
+        void failRun('snapshot_error');
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          result: null,
+          hasSkippedItems: false,
+          error: getRayenImportErrorMessage(error),
+        }));
+        return;
+      }
       setState(prev => ({
         ...prev,
         isSyncing: true,
@@ -229,9 +246,7 @@ export const useRayenImport = () => {
         hasSkippedItems: false,
         error: null,
       }));
-      requestRayenSnapshot();
-      syncTimeoutRef.current = setTimeout(() => {
-        syncTimeoutRef.current = null;
+      syncRequestController.start(reportDate, nextIsoDay(reportDate), () => {
         void failRun('snapshot_timeout');
         setState(prev =>
           prev.isSyncing
@@ -239,13 +254,13 @@ export const useRayenImport = () => {
                 ...prev,
                 isSyncing: false,
                 error:
-                  'No se recibió respuesta de la extensión Rayen. Verifica que esté instalada y con la pestaña de Ficha Médico abierta.',
+                  'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
               }
             : prev
         );
-      }, 18000);
+      });
     },
-    [clearSyncTimeout, failRun, startRun]
+    [clearSyncTimeout, currentRecord, failRun, startRun, syncRequestController]
   );
 
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =

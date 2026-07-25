@@ -103,6 +103,12 @@ export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice } from './mapping/mapDeviceToInstance';
 export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
+export type { PatientBedMovement, PatientFlowTimeWindow } from './mapping/parsePatientFlow';
+export {
+  parsePatientFlowMovements,
+  latestPatientFlowMovement,
+  patientRunFromFlowReport,
+} from './mapping/parsePatientFlow';
 
 export type { BedMappingResult, BedMatchKind, RayenBedLocation } from './mapping/bedMapping';
 export { isCmaBedLabel, isCmaLocation, mapRayenBed } from './mapping/bedMapping';
@@ -120,6 +126,17 @@ export {
 
 export type { ReconcileOptions } from './domain/reconcileCensus';
 export { reconcileCensus, requiresReview } from './domain/reconcileCensus';
+export type { PrincipalBedPlacementIntent } from './domain/principalBedMovePlan';
+export { feasiblePrincipalMoveSourceBedIds } from './domain/principalBedMovePlan';
+export type {
+  BedTraceabilityResolverDependencies,
+  PatientFlowReportResult,
+} from './bedTraceabilityResolver';
+export {
+  resolveOccupiedBedTraceability,
+  resolveOccupiedBedTraceabilityChain,
+} from './bedTraceabilityResolver';
+export type { BedTraceabilityChainResult } from './bedTraceabilityResolver';
 
 export type { ApplyContext, ApplyResult, SkippedOp } from './domain/applyCensusImportDiff';
 export { applyCensusImportDiff } from './domain/applyCensusImportDiff';
@@ -152,11 +169,12 @@ export {
 // Bridge (extension ⇄ app)
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
-  RAYEN_REQUEST_MESSAGE_TYPE,
+  RAYEN_SYNC_BUNDLE_REQUEST_MESSAGE_TYPE,
   isRayenCensusSnapshot,
+  isRayenSyncBundle,
   subscribeToRayenSnapshots,
-  pushRayenSnapshot,
-  requestRayenSnapshot,
+  requestRayenSyncBundle,
+  cancelRayenSyncBundleRequest,
   requestEgresoReport,
   requestEgresoLookup,
   requestDeviceReport,
@@ -164,6 +182,13 @@ export {
   requestHistoryScales,
   requestCudyrCategories,
 } from './bridge/rayenImportBridge';
+export type { RayenSyncBundle } from './contracts/rayenSnapshot';
+export {
+  RAYEN_PATIENT_FLOW_REQUEST_TYPE,
+  RAYEN_PATIENT_FLOW_RESULT_TYPE,
+  requestPatientFlowReport,
+} from './bridge/patientFlowBridge';
+export type { PatientFlowBridgeResult } from './bridge/patientFlowBridge';
 export type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 export type {
   RayenExtensionHealthCheck,

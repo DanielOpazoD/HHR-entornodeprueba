@@ -9,12 +9,14 @@
     GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
     GC_DISCONNECT_REQUEST: 'RAYEN_GC_DISCONNECT_REQUEST',
     SNAPSHOT_REQUEST: 'RAYEN_SNAPSHOT_REQUEST',
+    SYNC_BUNDLE_REQUEST: 'RAYEN_SYNC_BUNDLE_REQUEST',
     OPEN_ENCOUNTER_REQUEST: 'RAYEN_OPEN_ENCOUNTER_REQUEST',
     EGRESO_LOOKUP_REQUEST: 'RAYEN_EGRESO_LOOKUP_REQUEST',
     EGRESO_REPORT_REQUEST: 'RAYEN_EGRESO_REPORT_REQUEST',
     EGRESO_REPORT_SAVE: 'RAYEN_EGRESO_REPORT_SAVE',
     STATISTICAL_DISCHARGE_REPORT_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST',
     DEVICE_REPORT_REQUEST: 'RAYEN_DEVICE_REPORT_REQUEST',
+    PATIENT_FLOW_REPORT_REQUEST: 'RAYEN_PATIENT_FLOW_REPORT_REQUEST',
     DEVICE_REPORT_SAVE: 'RAYEN_DEVICE_REPORT_SAVE',
     SCALES_REPORT_REQUEST: 'RAYEN_SCALES_REPORT_REQUEST',
     PATIENT_HEADER_REQUEST: 'RAYEN_PATIENT_HEADER_REQUEST',
@@ -54,16 +56,17 @@
     CLINICAL_WRITE_RECOVERY_REQUEST: 'RAYEN_CLINICAL_WRITE_RECOVERY_REQUEST',
     CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST',
   });
-
   const fieldRules = Object.freeze({
     [types.GC_SESSION_CAPTURED]: { info: 'object' },
     [types.GC_CONNECT_REQUEST]: { renew: 'boolean?' },
+    [types.SYNC_BUNDLE_REQUEST]: { requestId: 'string', dateStart: 'string', dateEnd: 'string' },
     [types.OPEN_ENCOUNTER_REQUEST]: { encId: 'id' },
     [types.EGRESO_LOOKUP_REQUEST]: { runs: 'array', targets: 'array?' },
     [types.EGRESO_REPORT_REQUEST]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.STATISTICAL_DISCHARGE_REPORT_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?' },
+    [types.PATIENT_FLOW_REPORT_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_SAVE]: { encId: 'id', fecha: 'string?' },
     [types.SCALES_REPORT_REQUEST]: { encId: 'id' },
     [types.PATIENT_HEADER_REQUEST]: { encId: 'id' },
@@ -137,7 +140,6 @@
       recoveryToken: 'string?',
     },
   });
-
   const knownTypes = new Set(Object.values(types));
   const cleanMessage = value => String(value || '').replace(/\s+/g, ' ').trim();
   const responses = Object.freeze({

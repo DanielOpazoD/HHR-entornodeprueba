@@ -102,8 +102,16 @@
       "maxLines": 39,
       "hotspots": {}
     },
+    "content-hhr-patient-flow.js": {
+      "maxLines": 41,
+      "hotspots": {}
+    },
     "content-hhr-statistical-discharge.js": {
       "maxLines": 31,
+      "hotspots": {}
+    },
+    "content-hhr-sync-bundle.js": {
+      "maxLines": 42,
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
@@ -165,6 +173,10 @@
         "iife>variable:create>variable:getClinicalReportContext": 16
       }
     },
+    "fichamedico-patient-flow-runtime.js": {
+      "maxLines": 100,
+      "hotspots": {}
+    },
     "fichamedico-transport-runtime.js": {
       "maxLines": 204,
       "hotspots": {}
@@ -183,6 +195,14 @@
     },
     "gestion-camas-egreso-lookup.js": {
       "maxLines": 68,
+      "hotspots": {}
+    },
+    "gestion-camas-egreso-report-runtime.js": {
+      "maxLines": 116,
+      "hotspots": {}
+    },
+    "gestion-camas-health.js": {
+      "maxLines": 74,
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
@@ -337,7 +357,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 270,
+      "maxLines": 272,
       "hotspots": {}
     },
     "pdf-print.js": {
@@ -370,6 +390,10 @@
     },
     "print-pdf.js": {
       "maxLines": 33,
+      "hotspots": {}
+    },
+    "rayen-sync-bundle-runtime.js": {
+      "maxLines": 182,
       "hotspots": {}
     },
     "report-parser.js": {

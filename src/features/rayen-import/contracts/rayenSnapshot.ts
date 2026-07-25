@@ -59,6 +59,18 @@ export interface RayenEncounter {
   isIsolated?: boolean;
   /** True if the patient is GES. */
   isGes?: boolean;
+  /**
+   * Latest physical placement proven by the official "Flujo del Paciente" report.
+   * This evidence is fetched only to resolve a concrete occupied-bed conflict; it is never
+   * persisted as a clinical document or used to infer a statistical discharge.
+   */
+  verifiedBedPlacement?: {
+    source: 'patient-flow-report';
+    /** HHR bed id resolved from the latest row in the report. */
+    bedId: string;
+    /** Local Rayen timestamp as printed in the report (YYYY-MM-DDTHH:mm:ss). */
+    changedAt: string;
+  };
 }
 
 /** A census snapshot captured from Rayen at a point in time. */
@@ -77,4 +89,22 @@ export interface RayenCensusSnapshot {
    * this to `true` only after assembling the complete census.
    */
   isComplete?: boolean;
+}
+
+/**
+ * Evidence that Ficha Medico and Gestion de Camas were captured as one guarded synchronization.
+ * The extension only emits this bundle after both sources pass readiness checks before and after
+ * capture, the facilities match and the source timestamps remain within the accepted skew.
+ */
+export interface RayenSyncBundle {
+  id: string;
+  startedAt: string;
+  completedAt: string;
+  facilityId: number;
+  dateStart: string;
+  dateEnd: string;
+  fichaMedicoCapturedAt: string;
+  gestionCamasCapturedAt: string;
+  sourceSkewMs: number;
+  egresoRows: import('./egresoReport').EgresoReportRow[];
 }

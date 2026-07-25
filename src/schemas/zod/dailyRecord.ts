@@ -105,6 +105,7 @@ const RayenSyncEventSchema = z.object({
       'extension_unavailable',
       'extension_incompatible',
       'ficha_medico_unavailable',
+      'gestion_camas_unavailable',
       'snapshot_timeout',
       'snapshot_error',
       'apply_failed',

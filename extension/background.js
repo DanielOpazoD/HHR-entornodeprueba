@@ -20,12 +20,12 @@ importScripts(
   'message-contract.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js',
-  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js',
+  'health-check.js', 'rayen-sync-bundle-runtime.js',
+  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
-  'gestion-camas-session.js',
+  'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
-  'gestion-camas-egreso-lookup.js', 'gestion-camas-clinical-cribs.js',
+  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-discharge-report-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
@@ -58,6 +58,12 @@ if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typ
 }
 if (!self.HhrGestionCamasEgresoLookup) {
   throw new Error('No se pudo cargar la política de verificación de egresos.');
+}
+if (
+  !self.HhrGestionCamasEgresoReportRuntime ||
+  typeof self.HhrGestionCamasEgresoReportRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime del reporte de egresos.');
 }
 if (!self.HhrGestionCamasClinicalCribs) throw new Error('No se pudo cargar el mapeo de cunas clínicas.');
 if (
@@ -105,17 +111,26 @@ if (
   throw new Error('No se pudo cargar el cliente clínico de lectura de Ficha Médico.');
 }
 if (
+  !self.HhrFichaMedicoPatientFlowRuntime ||
+  typeof self.HhrFichaMedicoPatientFlowRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime de trazabilidad de pacientes.');
+}
+if (
   !self.HhrFichaMedicoPatientContext ||
   typeof self.HhrFichaMedicoPatientContext.create !== 'function'
 ) {
   throw new Error('No se pudo cargar el contexto clínico de pacientes de Ficha Médico.');
+}
+if (!self.HhrRayenSyncBundleRuntime || typeof self.HhrRayenSyncBundleRuntime.capture !== 'function') {
+  throw new Error('No se pudo cargar el coordinador de sincronización Rayen.');
 }
 
 const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
-const EXTENSION_PROTOCOL_VERSION = 3;
+const EXTENSION_PROTOCOL_VERSION = 4;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;
@@ -248,6 +263,7 @@ const handleExtensionHealth = async () => {
   return {
     version: chrome.runtime.getManifest().version,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
+    capabilities: ['patient-flow-report'],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
@@ -316,6 +332,17 @@ const bufferToBase64 = buffer => {
   }
   return btoa(binary);
 };
+const patientFlowRuntime = self.HhrFichaMedicoPatientFlowRuntime.create({ clinicalClient: fichaMedicoClinicalClient, bufferToBase64 });
+
+const readAuthorizedSnapshot = sender =>
+  patientFlowRuntime.authorizeSnapshotResponse(
+    sender,
+    self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
+      handleSnapshotRequest(),
+      gestionCamasRuntime,
+      fetchWithTimeout
+    )
+  );
 
 const base64ToArrayBuffer = value => {
   const text = String(value || '').replace(/\s/g, '');
@@ -326,86 +353,28 @@ const base64ToArrayBuffer = value => {
   return bytes.buffer;
 };
 
-// Fetch the report .xls bytes for a date range. Dates are ISO (YYYY-MM-DD); the server's params
-// are fac_id / start_datetime / end_datetime (confirmed live — the older FAC_ID/DATE_START/
-// DATE_END form silently returns an EMPTY report). Token + API base come from the open Gestión de
-// Camas tab; the GET runs here in the background, where host_permissions bypass the CORS that
-// blocks a page fetch.
-const fetchReportBuffer = async ({ dateStart, dateEnd }) => {
-  if (!dateStart || !dateEnd) return { error: 'Faltan fechas para el reporte.' };
-  const session = await resolveGestionCamasSession();
-  if (!session.record) return { error: session.error || 'Conecta Gestión de Camas y reintenta.' };
-  const info = session.record;
-  const url =
-    `${info.apiBase}/report/${REPORT_FILE}` +
-    `?fac_id=${encodeURIComponent(info.facId)}` +
-    `&start_datetime=${encodeURIComponent(dateStart)}&end_datetime=${encodeURIComponent(dateEnd)}`;
-  try {
-    const res = await fetchWithTimeout(url, { headers: { Authorization: info.token } });
-    if (!res.ok) {
-      const rejection = await classifyGestionCamasRejection(res, info);
-      return {
-        error: rejection === 'changed'
-          ? 'La sesión cambió durante la descarga. Reintenta la operación.'
-          : rejection === 'expired'
-          ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
-          : rejection === 'forbidden'
-            ? 'La sesión es válida, pero no tiene permiso para descargar este reporte.'
-          : 'El servidor de reportes respondió HTTP ' + res.status + '.',
-      };
-    }
-    const buffer = await res.arrayBuffer();
-    const verified = await markGestionCamasSessionVerified(info);
-    if (!verified) {
-      return { error: 'La sesión cambió durante la descarga. Reintenta la operación.' };
-    }
-    return { buffer };
-  } catch (error) {
-    return { error: 'Falló la descarga del reporte: ' + String((error && error.message) || error) };
-  }
-};
+const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
+  downloads: chrome.downloads,
+  reportFile: REPORT_FILE,
+  resolveSession: resolveGestionCamasSession,
+  classifyRejection: classifyGestionCamasRejection,
+  markSessionVerified: markGestionCamasSessionVerified,
+  fetchWithTimeout,
+  ensureSpreadsheet: self.HhrExtensionRuntime.ensureSpreadsheet,
+  parseWorkbook: self.RayenReportParser.parseWorkbook,
+  spreadsheet: self.XLSX,
+  bufferToBase64,
+});
+const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
-// Fetch + parse the report into clean egreso rows (RUN, nombre, cama, destino, fecha egreso…).
-const handleReportRequest = async args => {
-  const result = await fetchReportBuffer(args);
-  if (result.error) return { error: result.error };
-  try {
-    self.HhrExtensionRuntime.ensureSpreadsheet();
-    const rows = self.RayenReportParser.parseWorkbook(self.XLSX, new Uint8Array(result.buffer));
-    return { ok: true, rows, count: rows.length };
-  } catch (error) {
-    return { error: 'No se pudo parsear el reporte: ' + String((error && error.message) || error) };
-  }
-};
-
-// Save the report .xls to disk via chrome.downloads (data URL) and return the resolved path.
-// Diagnostic / manual-export path — the sync itself uses the parsed-rows path above.
-const handleReportSave = async args => {
-  const result = await fetchReportBuffer(args);
-  if (result.error) return { error: result.error };
-  const dataUrl = 'data:application/vnd.ms-excel;base64,' + bufferToBase64(result.buffer);
-  const filename = `Alta_Administrativa_${args.dateStart}_${args.dateEnd}.xls`;
-  try {
-    const id = await chrome.downloads.download({
-      url: dataUrl,
-      filename,
-      saveAs: false,
-      conflictAction: 'overwrite',
-    });
-    const path = await new Promise(resolve => {
-      const poll = () =>
-        chrome.downloads.search({ id }, items => {
-          const item = items && items[0];
-          if (item && (item.state === 'complete' || item.state === 'interrupted')) resolve(item.filename);
-          else setTimeout(poll, 200);
-        });
-      poll();
-    });
-    return { ok: true, id, path, length: result.buffer.byteLength };
-  } catch (error) {
-    return { error: 'No se pudo guardar el reporte: ' + String((error && error.message) || error) };
-  }
-};
+const handleSyncBundleRequest = (message, sender) =>
+  self.HhrRayenSyncBundleRuntime.capture({
+    dateStart: message.dateStart,
+    dateEnd: message.dateEnd,
+    readHealth: handleExtensionHealth,
+    readSnapshot: () => readAuthorizedSnapshot(sender),
+    readReport: handleReportRequest,
+  });
 
 // Fetch + return the device-report PDF as base64 (for HHR to parse) plus size/first bytes so a
 // diagnostic can confirm the fetch without dumping the whole blob.
@@ -1170,8 +1139,12 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    () => self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout),
+    (_message, sender) => readAuthorizedSnapshot(sender),
     'No se pudo leer el censo de Ficha Médico.'
+  ),
+  [RUNTIME_MESSAGES.SYNC_BUNDLE_REQUEST]: runtimeRoute(
+    (message, sender) => handleSyncBundleRequest(message, sender),
+    'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
     message => handleOpenEncounter(message.encId),
@@ -1197,6 +1170,7 @@ const runtimeMessageRoutes = Object.freeze({
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
     'No se pudo leer el reporte de dispositivos.'
   ),
+  [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
   [RUNTIME_MESSAGES.DEVICE_REPORT_SAVE]: runtimeRoute(
     message => handleDeviceReportSave({ encId: message.encId, fecha: message.fecha }),
     'No se pudo guardar el reporte de dispositivos.'

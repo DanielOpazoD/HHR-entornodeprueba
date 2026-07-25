@@ -40,12 +40,27 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(47);
+    expect(values).toHaveLength(49);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
 
   it('accepts valid payloads and rejects malformed known messages', () => {
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.SYNC_BUNDLE_REQUEST,
+        requestId: 'sync-1',
+        dateStart: '2026-07-24',
+        dateEnd: '2026-07-25',
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.SYNC_BUNDLE_REQUEST,
+        requestId: 'sync-1',
+        dateStart: '2026-07-24',
+      })
+    ).toMatchObject({ ok: false, known: true });
     expect(
       contract.validateRuntimeMessage({
         type: contract.types.HANDOFF_SAVE_REQUEST,
@@ -90,6 +105,12 @@ describe('shared Rayen runtime-message contract', () => {
         encId: '',
       })
     ).toMatchObject({ ok: false, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.PATIENT_FLOW_REPORT_REQUEST,
+        encId: '142040',
+      })
+    ).toMatchObject({ ok: true, known: true });
 
     expect(
       contract.validateRuntimeMessage({
@@ -225,7 +246,7 @@ describe('shared Rayen runtime-message contract', () => {
 
   it('loads the contract before every runtime caller and the service-worker router', () => {
     const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
-      content_scripts?: Array<{ js?: string[] }>;
+      content_scripts?: Array<{ js?: string[]; matches?: string[] }>;
     };
     const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
     const syslabLogin = readFileSync(path.resolve('extension/syslab-login.html'), 'utf8');
@@ -233,6 +254,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-fichamedico.js',
       'content-gestioncamas.js',
       'content-hhr.js',
+      'content-hhr-patient-flow.js',
       'content-hhr-epicrisis.js',
       'content-hhr-statistical-discharge.js',
       'content-hhr-syslab.js',
@@ -252,6 +274,16 @@ describe('shared Rayen runtime-message contract', () => {
       'chrome.runtime.onMessage.addListener(messageContract.createRuntimeRouter(runtimeMessageRoutes))'
     );
     expect(background).not.toMatch(/msg\.type\s*===\s*['"]RAYEN_/);
+    const patientFlowEntry = manifest.content_scripts?.find(entry =>
+      entry.js?.includes('content-hhr-patient-flow.js')
+    );
+    expect(patientFlowEntry?.matches).toEqual([
+      'http://localhost:3000/*',
+      'http://localhost:3001/*',
+      'https://testinghhr.netlify.app/*',
+    ]);
+    expect(background).toContain('const readAuthorizedSnapshot = sender =>');
+    expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');
     const dischargeReportRuntime = readFileSync(
       path.resolve('extension/gestion-camas-discharge-report-runtime.js'),
       'utf8'

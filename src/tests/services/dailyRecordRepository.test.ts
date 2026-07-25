@@ -208,7 +208,7 @@ describe('DailyRecordRepository (Expanded)', () => {
   });
 
   describe('initializeDay', () => {
-    it('inherits staff and notes from previous night shift correctly', async () => {
+    it('leaves day nurses vacant while inheriting night notes and TENS', async () => {
       const prev = createMockRecord('2024-12-27');
       prev.nursesDayShift = ['Nurse Day 1', 'Nurse Day 2'];
       prev.nursesNightShift = ['Nurse Night 1', 'Nurse Night 2'];
@@ -228,7 +228,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
 
       // Inheritance verification
-      expect(initialized.nursesDayShift).toEqual(['Nurse Receive 1', 'Nurse Receive 2']);
+      expect(initialized.nursesDayShift).toEqual(['', '']);
       expect(initialized.tensDayShift).toEqual(['Tens N1', 'Tens N2', 'Tens N3']);
       expect(initialized.beds['R1'].handoffNoteDayShift).toBe('Night report');
       expect(initialized.beds['R1'].handoffNoteNightShift).toBe('Night report');
@@ -297,7 +297,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       expect(initialized.nursesDayShift).toEqual(['', '']);
     });
 
-    it('migrates from legacy nurses if night shift is empty', async () => {
+    it('does not migrate legacy nurses into a new day', async () => {
       const prev = createMockRecord('2024-12-27');
       prev.nurses = ['Legacy A', 'Legacy B'];
       // Use empty strings (default state) to test robust fallback
@@ -306,7 +306,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       await save(prev);
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
-      expect(initialized.nursesDayShift).toEqual(['Legacy A', 'Legacy B']);
+      expect(initialized.nursesDayShift).toEqual(['', '']);
     });
 
     it('copies patient if they only have diagnosis data', async () => {

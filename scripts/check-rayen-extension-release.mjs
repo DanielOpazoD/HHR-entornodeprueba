@@ -250,7 +250,8 @@ const allowedHosts = new Set([
   'https://hospitalizado.rayensalud.cl/*',
   'https://hospbackend.rayensalud.cl/*',
   'http://10.4.69.90/syslab/*',
-  'http://localhost/*',
+  'http://localhost:3000/*',
+  'http://localhost:3001/*',
   'https://testinghhr.netlify.app/*',
 ]);
 for (const host of manifest.host_permissions || []) {
