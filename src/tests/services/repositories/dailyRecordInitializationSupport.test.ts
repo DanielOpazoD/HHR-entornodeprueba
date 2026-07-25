@@ -125,7 +125,7 @@ describe('dailyRecordInitializationSupport', () => {
     expect(newBeds.R2.cie10Code).toBeUndefined();
   });
 
-  it('builds a new day with inherited staffing from previous night shift', () => {
+  it('builds a new day with vacant nurses and inherited night-shift TENS', () => {
     const previous = buildRecord('2026-02-18');
     previous.nursesNightShift = ['N1', 'N2'];
     previous.handoffNightReceives = ['R1', 'R2'];
@@ -135,7 +135,7 @@ describe('dailyRecordInitializationSupport', () => {
     const result = buildInitializedDayRecord('2026-02-19', previous);
 
     expect(result.dateTimestamp).toBe(Date.parse('2026-02-19T00:00:00'));
-    expect(result.nursesDayShift).toEqual(['R1', 'R2']);
+    expect(result.nursesDayShift).toEqual(['', '']);
     expect(result.tensDayShift).toEqual(['T1', 'T2', 'T3']);
     expect(result.handoffNovedadesDayShift).toBe('Novedades noche');
   });

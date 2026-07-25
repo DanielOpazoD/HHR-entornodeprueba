@@ -4,7 +4,10 @@ import {
   rayenToPatientData,
   type RayenEncounter,
 } from '@/features/rayen-import';
-import { finalizeAdmissionsAgainstAcceptedMoves } from '@/features/rayen-import/domain/principalBedMovePlan';
+import {
+  blockedPrincipalMoveConflict,
+  finalizeAdmissionsAgainstAcceptedMoves,
+} from '@/features/rayen-import/domain/principalBedMovePlan';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
@@ -103,5 +106,24 @@ describe('principal bed move planning', () => {
         new Set(['NEO1', 'H2C1'])
       )
     ).toEqual(new Set());
+  });
+
+  it('keeps a duplicate-target move visible even when the target bed is free', () => {
+    const source = encounter();
+    const movingPatient = patientAt(source, 'NEO1');
+
+    expect(
+      blockedPrincipalMoveConflict(
+        recordWith({ NEO1: movingPatient }),
+        'NEO1',
+        'H2C2',
+        movingPatient,
+        source
+      )
+    ).toMatchObject({
+      bedId: 'H2C2',
+      code: 'principal-bed-collision',
+      blockedMove: { fromBedId: 'NEO1', toBedId: 'H2C2' },
+    });
   });
 });

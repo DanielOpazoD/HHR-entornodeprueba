@@ -41,8 +41,8 @@ describe('rayen sync presentation', () => {
   it('names the action the current extension state can actually perform', () => {
     expect(rayenPrimaryActionLabel('checking', false)).toBe('Comprobando…');
     expect(rayenPrimaryActionLabel('ready', false)).toBe('Sincronizar');
-    expect(rayenPrimaryActionLabel('degraded', false)).toBe('Sincronizar parcial');
-    expect(rayenPrimaryActionLabel('blocked', false)).toBe('Revisar Ficha Médico');
+    expect(rayenPrimaryActionLabel('degraded', false)).toBe('Revisar conexión');
+    expect(rayenPrimaryActionLabel('blocked', false)).toBe('Revisar conexión');
     expect(rayenPrimaryActionLabel('incompatible', false)).toBe('Actualizar extensión');
     expect(rayenPrimaryActionLabel('offline', false)).toBe('Comprobar conexión');
     expect(rayenPrimaryActionLabel('ready', true)).toBe('Sincronizando…');

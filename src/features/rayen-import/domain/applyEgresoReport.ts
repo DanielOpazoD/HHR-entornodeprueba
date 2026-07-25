@@ -178,8 +178,7 @@ export const applyEgresoReport = (
       entry.changes.some(change => change.field === 'clinicalCrib');
     return removesPromotedCrib ? [] : [entry];
   });
-  // A confirmed egreso supersedes its provisional bed move; otherwise apply order could move the
-  // already discharged episode after its source bed was vacated.
+  // A confirmed egreso supersedes its provisional move so apply order cannot relocate it.
   const moves = checkedDiff.moves.filter(
     entry => !reportConfirmsEpisode(entry.rut, entry.source.encounterId)
   );
@@ -309,12 +308,13 @@ export const applyEgresoReport = (
         }
         continue;
       }
-      const parentRun = normalizeRut(currentCrib.parent.rut);
+      const parentRun = normalizeRut(currentCrib.parent.rut),
+        parentEpisode = currentCrib.parent.clinicalEpisodeId?.trim() ?? '';
       if (!reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId)) {
         const parentMove = checkedDiff.moves.find(
           entry =>
             entry.fromBedId === currentCrib.parentBedId ||
-            entry.source.encounterId === currentCrib.parent.clinicalEpisodeId
+            (Boolean(parentEpisode) && entry.source?.encounterId === parentEpisode)
         );
         const targetBedId = parentMove?.toBedId ?? currentCrib.parentBedId;
         const source =

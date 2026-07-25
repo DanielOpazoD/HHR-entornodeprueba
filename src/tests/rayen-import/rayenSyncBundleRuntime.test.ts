@@ -129,9 +129,9 @@ describe('Rayen synchronized source bundle', () => {
   });
 
   it('rejects a capture that crosses the local midnight boundary', async () => {
-    const times = [new Date(2026, 6, 24, 23, 59, 59), new Date(2026, 6, 25, 0, 0, 1)];
+    const times = [new Date('2026-07-25T05:59:59.000Z'), new Date('2026-07-25T06:00:01.000Z')];
     await expect(
-      capture({ now: () => times.shift() ?? new Date(2026, 6, 25, 0, 0, 1) })
+      capture({ now: () => times.shift() ?? new Date('2026-07-25T06:00:01.000Z') })
     ).resolves.toEqual({
       error: 'El día cambió durante la captura. Vuelve a sincronizar el censo vigente.',
     });
@@ -148,6 +148,9 @@ describe('Rayen synchronized source bundle', () => {
       error: 'El intervalo solicitado para sincronizar no es válido.',
     });
     await expect(capture({ dateStart: '2026-07-25', dateEnd: '2026-07-24' })).resolves.toEqual({
+      error: 'El intervalo solicitado para sincronizar no es válido.',
+    });
+    await expect(capture({ dateEnd: '2026-07-31' })).resolves.toEqual({
       error: 'El intervalo solicitado para sincronizar no es válido.',
     });
     await expect(capture({ dateStart: '2026-07-23', dateEnd: '2026-07-24' })).resolves.toEqual({

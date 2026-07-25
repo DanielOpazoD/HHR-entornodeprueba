@@ -111,6 +111,12 @@ if (
   throw new Error('No se pudo cargar el cliente clínico de lectura de Ficha Médico.');
 }
 if (
+  !self.HhrFichaMedicoPatientFlowRuntime ||
+  typeof self.HhrFichaMedicoPatientFlowRuntime.create !== 'function'
+) {
+  throw new Error('No se pudo cargar el runtime de trazabilidad de pacientes.');
+}
+if (
   !self.HhrFichaMedicoPatientContext ||
   typeof self.HhrFichaMedicoPatientContext.create !== 'function'
 ) {
@@ -328,6 +334,16 @@ const bufferToBase64 = buffer => {
 };
 const patientFlowRuntime = self.HhrFichaMedicoPatientFlowRuntime.create({ clinicalClient: fichaMedicoClinicalClient, bufferToBase64 });
 
+const readAuthorizedSnapshot = sender =>
+  patientFlowRuntime.authorizeSnapshotResponse(
+    sender,
+    self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
+      handleSnapshotRequest(),
+      gestionCamasRuntime,
+      fetchWithTimeout
+    )
+  );
+
 const base64ToArrayBuffer = value => {
   const text = String(value || '').replace(/\s/g, '');
   if (!text || !/^[A-Za-z0-9+/]+={0,2}$/.test(text)) throw new Error('El PDF de alta recibido no es válido.');
@@ -356,15 +372,7 @@ const handleSyncBundleRequest = (message, sender) =>
     dateStart: message.dateStart,
     dateEnd: message.dateEnd,
     readHealth: handleExtensionHealth,
-    readSnapshot: () =>
-      patientFlowRuntime.authorizeSnapshotResponse(
-        sender,
-        self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
-          handleSnapshotRequest(),
-          gestionCamasRuntime,
-          fetchWithTimeout
-        )
-      ),
+    readSnapshot: () => readAuthorizedSnapshot(sender),
     readReport: handleReportRequest,
   });
 
@@ -1131,8 +1139,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    (_message, sender) => patientFlowRuntime.authorizeSnapshotResponse(sender,
-      self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout)),
+    (_message, sender) => readAuthorizedSnapshot(sender),
     'No se pudo leer el censo de Ficha Médico.'
   ),
   [RUNTIME_MESSAGES.SYNC_BUNDLE_REQUEST]: runtimeRoute(

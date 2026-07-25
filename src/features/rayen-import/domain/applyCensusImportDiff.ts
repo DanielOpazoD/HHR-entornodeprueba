@@ -228,6 +228,20 @@ const matchesDischargeSubject = (patient: PatientData, entry: DischargeEntry): b
   return Boolean(patientRun && entryRun && patientRun === entryRun);
 };
 
+const dischargeIdentityMismatchReason = (patient: PatientData, entry: DischargeEntry): string => {
+  const expected = entry.expectedOccupant;
+  if (!expected || expected.clinicalEpisodeId) {
+    return 'La cama ahora corresponde a otro paciente.';
+  }
+  const sameRun = Boolean(
+    normalizeRut(patient.rut) && normalizeRut(patient.rut) === normalizeRut(expected.rut)
+  );
+  if (sameRun && (!expected.admissionDate || !expected.admissionTime)) {
+    return 'No se pudo confirmar la identidad del ocupante (falta el sello de ingreso).';
+  }
+  return 'La cama ahora corresponde a otro paciente.';
+};
+
 export const applyCensusImportDiff = (
   current: DailyRecord,
   diff: CensusImportDiff,
@@ -255,7 +269,7 @@ export const applyCensusImportDiff = (
       skipped.push({
         kind: 'discharge',
         bedId: entry.bedId,
-        reason: 'La cama ahora corresponde a otro paciente.',
+        reason: dischargeIdentityMismatchReason(subject, entry),
       });
       continue;
     }

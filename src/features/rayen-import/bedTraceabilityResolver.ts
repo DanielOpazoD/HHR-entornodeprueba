@@ -3,8 +3,13 @@ import type { CensusImportDiff } from './contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnapshot';
 import { toIsoCensusDay } from './domain/censusDayPolicy';
+import {
+  isDischargedEncounter as isClosed,
+  isOccupiedCensusPatient as isOccupied,
+} from './domain/censusReconciliationPredicates';
 import { latestPatientFlowMovement, patientRunFromFlowReport } from './mapping/parsePatientFlow';
 import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './mapping/localTimestamp';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export interface PatientFlowReportResult {
   base64: string;
@@ -15,17 +20,6 @@ export interface BedTraceabilityResolverDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;
   extractText?: (buffer: ArrayBuffer) => Promise<string>;
 }
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
-
-const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
-  !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
-
-const isClosed = (encounter: RayenEncounter): boolean =>
-  !!encounter.hasMedicalDischarge ||
-  !!encounter.hasNurseDischarge ||
-  !!encounter.dischargeDatetime ||
-  !!encounter.isDead;
 
 const absoluteInstantInRapaNui = (raw: string | undefined): string | null => {
   const instant = parseStrictIsoInstant((raw ?? '').trim());

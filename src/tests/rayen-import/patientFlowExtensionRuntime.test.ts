@@ -12,13 +12,13 @@ type RuntimeFactory = {
     bufferToBase64: (buffer: ArrayBuffer) => string;
   }) => {
     authorizeSnapshotResponse: (
-      sender: { tab: { id: number; url: string } },
+      sender: { origin?: string; url?: string; tab: { id: number; url: string } },
       response: Promise<object>
     ) => Promise<object>;
     route: {
       handle: (
         message: { encId?: string },
-        sender?: { tab: { id: number; url: string } }
+        sender?: { origin?: string; url?: string; tab: { id: number; url: string } }
       ) => Promise<{
         ok?: boolean;
         length?: number;
@@ -36,7 +36,10 @@ const factory = (
 
 describe('Ficha Médico patient-flow runtime', () => {
   const session = { apiOrigin: 'https://fichamedicoback.rayensalud.cl' };
-  const sender = { tab: { id: 44, url: 'http://localhost:3000/' } };
+  const sender = {
+    origin: 'http://localhost:3000',
+    tab: { id: 44, url: 'http://localhost:3000/' },
+  };
   let resolveSession: Mock<() => Promise<{ info?: object; error?: string }>>;
   let readBuffer: Mock<(input: object) => Promise<{ data: ArrayBuffer }>>;
   let bufferToBase64: Mock<(buffer: ArrayBuffer) => string>;
@@ -114,7 +117,13 @@ describe('Ficha Médico patient-flow runtime', () => {
       error: 'La trazabilidad no fue autorizada por el snapshot de esta pestaña.',
     });
     await expect(
-      runtime.route.handle({ encId: '142040' }, { tab: { id: 44, url: 'http://localhost:4444/' } })
+      runtime.route.handle(
+        { encId: '142040' },
+        {
+          origin: 'http://localhost:4444',
+          tab: { id: 44, url: 'http://localhost:3000/' },
+        }
+      )
     ).resolves.toEqual({
       error: 'La trazabilidad no fue autorizada por el snapshot de esta pestaña.',
     });

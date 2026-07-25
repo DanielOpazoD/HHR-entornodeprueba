@@ -13,15 +13,13 @@
     const authorizedByTab = new Map();
     const snapshotGenerationByTab = new Map();
     const authorizationTtlMs = 5 * 60 * 1000;
-    const trustedOrigins = new Set([
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://testinghhr.netlify.app',
-    ]);
+    const trustedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001',
+      'https://testinghhr.netlify.app']);
     const trustedTab = sender => {
       try {
+        const frameOrigin = sender?.origin || new URL(sender?.url).origin;
         return Number.isInteger(sender && sender.tab && sender.tab.id) &&
-          trustedOrigins.has(new URL(sender.tab.url).origin);
+          trustedOrigins.has(frameOrigin);
       } catch {
         return false;
       }

@@ -282,7 +282,8 @@ describe('shared Rayen runtime-message contract', () => {
       'http://localhost:3001/*',
       'https://testinghhr.netlify.app/*',
     ]);
-    expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(sender,');
+    expect(background).toContain('const readAuthorizedSnapshot = sender =>');
+    expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');
     const dischargeReportRuntime = readFileSync(
       path.resolve('extension/gestion-camas-discharge-report-runtime.js'),
       'utf8'

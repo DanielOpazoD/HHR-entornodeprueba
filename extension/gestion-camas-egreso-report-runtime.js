@@ -1,21 +1,13 @@
 /** Bulk administrative-discharge report transport and parser. */
 (function (root) {
   'use strict';
-
+  const DOWNLOAD_POLL_INTERVAL_MS = 200;
+  const DOWNLOAD_TIMEOUT_MS = 30_000;
   const create = dependencies => {
     const {
-      downloads,
-      reportFile,
-      resolveSession,
-      classifyRejection,
-      markSessionVerified,
-      fetchWithTimeout,
-      ensureSpreadsheet,
-      parseWorkbook,
-      spreadsheet,
-      bufferToBase64,
+      downloads, reportFile, resolveSession, classifyRejection, markSessionVerified,
+      fetchWithTimeout, ensureSpreadsheet, parseWorkbook, spreadsheet, bufferToBase64,
     } = dependencies;
-
     const fetchBuffer = async ({ dateStart, dateEnd }) => {
       if (!dateStart || !dateEnd) return { error: 'Faltan fechas para el reporte.' };
       const session = await resolveSession();
@@ -29,9 +21,7 @@
         `&start_datetime=${encodeURIComponent(dateStart)}` +
         `&end_datetime=${encodeURIComponent(dateEnd)}`;
       try {
-        const response = await fetchWithTimeout(url, {
-          headers: { Authorization: info.token },
-        });
+        const response = await fetchWithTimeout(url, { headers: { Authorization: info.token } });
         if (!response.ok) {
           const rejection = await classifyRejection(response, info);
           return {
@@ -49,18 +39,13 @@
         if (!(await markSessionVerified(info))) {
           return { error: 'La sesión cambió durante la descarga. Reintenta la operación.' };
         }
-        return {
-          buffer,
-          facilityId: Number(info.facId),
-          capturedAt: new Date().toISOString(),
-        };
+        return { buffer, facilityId: Number(info.facId), capturedAt: new Date().toISOString() };
       } catch (error) {
         return {
           error: `Falló la descarga del reporte: ${String(error?.message || error)}`,
         };
       }
     };
-
     const request = async args => {
       const result = await fetchBuffer(args);
       if (result.error) return { error: result.error };
@@ -78,7 +63,6 @@
         return { error: `No se pudo parsear el reporte: ${String(error?.message || error)}` };
       }
     };
-
     const save = async args => {
       const result = await fetchBuffer(args);
       if (result.error) return { error: result.error };
@@ -92,24 +76,31 @@
           saveAs: false,
           conflictAction: 'overwrite',
         });
-        const savedPath = await new Promise(resolve => {
+        const deadline = Date.now() + DOWNLOAD_TIMEOUT_MS;
+        const settled = await new Promise(resolve => {
           const poll = () =>
             downloads.search({ id }, items => {
               const item = items?.[0];
-              if (item && (item.state === 'complete' || item.state === 'interrupted')) {
-                resolve(item.filename);
-              } else setTimeout(poll, 200);
+              if (item?.state === 'complete') {
+                return resolve({ path: item.filename });
+              }
+              if (item?.state === 'interrupted') {
+                return resolve({ error: 'La descarga del reporte se interrumpió. Reintenta la operación.' });
+              }
+              if (Date.now() >= deadline) {
+                return resolve({ error: 'La descarga del reporte no se completó a tiempo.' });
+              }
+              setTimeout(poll, DOWNLOAD_POLL_INTERVAL_MS);
             });
           poll();
         });
-        return { ok: true, id, path: savedPath, length: result.buffer.byteLength };
+        if (settled.error) return { error: settled.error };
+        return { ok: true, id, path: settled.path, length: result.buffer.byteLength };
       } catch (error) {
         return { error: `No se pudo guardar el reporte: ${String(error?.message || error)}` };
       }
     };
-
     return Object.freeze({ request, save });
   };
-
   root.HhrGestionCamasEgresoReportRuntime = Object.freeze({ create });
 })(typeof self !== 'undefined' ? self : globalThis);

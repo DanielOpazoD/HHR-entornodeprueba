@@ -284,6 +284,35 @@ describe('clinical crib egreso accounting', () => {
     );
   });
 
+  it('keeps crib removal on the parent bed when its episode is unavailable', () => {
+    const mother = encounter();
+    const child = newborn();
+    const legacyMother = { ...seed(mother), clinicalEpisodeId: '' };
+    const current = baseRecord({
+      H5C1: { ...legacyMother, clinicalCrib: seed(child) },
+    });
+    const diff = reconcileCensus(current, snapshotOf([mother, child]), { reference: REFERENCE });
+    diff.moves.push({
+      fromBedId: 'H4C1',
+      toBedId: 'H3C1',
+      rut: '333333333',
+      patientName: 'Paciente no relacionado',
+      source: encounter({
+        encounterId: '',
+        run: '333333333',
+        firstGivenName: 'Paciente',
+        firstFamilyName: 'No relacionado',
+      }),
+    });
+
+    const enriched = applyEgresoReport(diff, [dischargeRow(child)], current);
+    const cribRemoval = enriched.updates.find(entry =>
+      entry.changes.some(change => change.field === 'clinicalCrib' && change.to === undefined)
+    );
+
+    expect(cribRemoval?.bedId).toBe('H5C1');
+  });
+
   it('keeps a legacy crib when an exact report cannot confirm its active episode', () => {
     const mother = encounter();
     const child = newborn();

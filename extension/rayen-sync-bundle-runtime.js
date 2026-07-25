@@ -5,7 +5,6 @@
   const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
   const RAPA_NUI_TIME_ZONE = 'Pacific/Easter';
-
   const bothSourcesReady = health => Boolean(
     health &&
       health.fichaMedico && health.fichaMedico.status === 'ready' &&
@@ -25,15 +24,18 @@
     const parsed = Date.parse(String(value || ''));
     return Number.isFinite(parsed) ? parsed : null;
   };
-
-  const isValidRange = (dateStart, dateEnd) =>
-    ISO_DAY.test(String(dateStart || '')) &&
-    ISO_DAY.test(String(dateEnd || '')) &&
-    dateStart <= dateEnd;
-
+  const nextIsoDay = value => {
+    if (!ISO_DAY.test(String(value || ''))) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.toISOString().slice(0, 10) !== value) return null;
+    date.setUTCDate(date.getUTCDate() + 1);
+    return date.toISOString().slice(0, 10);
+  };
+  // Gestión de Camas needs the exact [D, D+1] range to compensate its report-day offset.
+  const isValidRange = (dateStart, dateEnd) => nextIsoDay(dateStart) === dateEnd;
   const hasReaders = (readHealth, readSnapshot, readReport) =>
     [readHealth, readSnapshot, readReport].every(reader => typeof reader === 'function');
-
   const rapaNuiIsoDay = date => {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: RAPA_NUI_TIME_ZONE,
@@ -44,7 +46,6 @@
     const value = type => parts.find(part => part.type === type)?.value || '';
     return `${value('year')}-${value('month')}-${value('day')}`;
   };
-
   const validateReadResults = (snapshotResult, reportResult) => {
     const snapshot = snapshotResult && snapshotResult.snapshot;
     if (!snapshot) {

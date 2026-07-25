@@ -66,11 +66,14 @@ export const selectEligibleEgresoRows = (
     const current = findOccupiedBed(occupied, row.run, reportedEpisode);
     const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const activeCrib = diff.activeClinicalCribs?.find(
-      crib => crib.source.encounterId === reportedEpisode || normalizeRut(crib.patient.rut) === run
+      crib =>
+        (Boolean(reportedEpisode) && crib.source.encounterId === reportedEpisode) ||
+        (Boolean(run) && normalizeRut(crib.patient.rut) === run)
     );
     const provisional = diff.admissions.find(
       entry =>
-        entry.source?.encounterId === reportedEpisode || normalizeRut(entry.patient.rut) === run
+        (Boolean(reportedEpisode) && entry.source?.encounterId === reportedEpisode) ||
+        (Boolean(run) && normalizeRut(entry.patient.rut) === run)
     );
     const exactEvidence = reportedEpisode
       ? (diff.activeClinicalCribs?.find(crib => crib.source.encounterId === reportedEpisode)

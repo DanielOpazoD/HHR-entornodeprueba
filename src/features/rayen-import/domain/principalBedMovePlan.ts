@@ -70,20 +70,25 @@ export const blockedPrincipalMoveConflict = (
   targetBedId: string,
   patient: PatientData,
   source: RayenEncounter
-): ConflictEntry | null => {
-  const conflict = occupiedLocalBedConflict(current, targetBedId, patient, source);
-  return conflict
-    ? {
-        ...conflict,
-        blockedMove: {
-          fromBedId: sourceBedId,
-          toBedId: targetBedId,
-          rut: patient.rut,
-          patientName: patient.patientName,
-          source,
-        },
-      }
-    : null;
+): ConflictEntry => {
+  const blockedMove: MoveEntry = {
+    fromBedId: sourceBedId,
+    toBedId: targetBedId,
+    rut: patient.rut,
+    patientName: patient.patientName,
+    source,
+  };
+  const occupiedConflict = occupiedLocalBedConflict(current, targetBedId, patient, source);
+  if (occupiedConflict) return { ...occupiedConflict, blockedMove };
+  return {
+    bedId: targetBedId,
+    rut: patient.rut,
+    patientName: patient.patientName,
+    code: 'principal-bed-collision',
+    reason: `El movimiento a ${targetBedId} no es único en Rayen y requiere revisión.`,
+    source,
+    blockedMove,
+  };
 };
 
 /**
@@ -138,9 +143,7 @@ export const planVerifiedClosedBedMove = ({
   if (!feasibleMoveSourceBedIds.has(sourceBedId)) {
     return {
       retainedBedId: sourceBedId,
-      conflict:
-        blockedPrincipalMoveConflict(current, sourceBedId, targetBedId, patient, encounter) ??
-        undefined,
+      conflict: blockedPrincipalMoveConflict(current, sourceBedId, targetBedId, patient, encounter),
     };
   }
   return {

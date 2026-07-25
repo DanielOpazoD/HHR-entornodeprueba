@@ -93,6 +93,27 @@ describe('discharge occupant identity guard', () => {
     ]);
   });
 
+  it('explains when a same-RUN discharge lacks the preview admission stamp', () => {
+    const entry = {
+      ...discharge(),
+      expectedOccupant: {
+        rut: '11.111.111-1',
+        admissionDate: '2026-07-23',
+      },
+    };
+    const result = apply(legacyPatient('13:20'), entry);
+
+    expect(result.record.beds.NEO1).toBeDefined();
+    expect(result.applied.discharges).toBe(0);
+    expect(result.skipped).toEqual([
+      {
+        kind: 'discharge',
+        bedId: 'NEO1',
+        reason: 'No se pudo confirmar la identidad del ocupante (falta el sello de ingreso).',
+      },
+    ]);
+  });
+
   it('rejects an unidentified occupant even when the admission stamp matches', () => {
     const unidentified = { ...legacyPatient('13:20'), rut: '' };
     const entry = {

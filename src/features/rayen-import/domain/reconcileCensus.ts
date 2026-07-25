@@ -203,14 +203,9 @@ export const reconcileCensus = (
         }
       } else if (claimTarget(bedId, patient.patientName, encounter)) {
         if (!feasibleMoveSourceBedIds.has(match.bedId)) {
-          const conflict = blockedPrincipalMoveConflict(
-            current,
-            match.bedId,
-            bedId,
-            patient,
-            encounter
+          diff.conflicts.push(
+            blockedPrincipalMoveConflict(current, match.bedId, bedId, patient, encounter)
           );
-          if (conflict) diff.conflicts.push(conflict);
           continue;
         }
         diff.moves.push({
