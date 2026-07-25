@@ -16,7 +16,9 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
     typeof candidate.encounterId === 'string' &&
     typeof candidate.run === 'string' &&
     typeof candidate.firstGivenName === 'string' &&
-    typeof candidate.firstFamilyName === 'string'
+    typeof candidate.firstFamilyName === 'string' &&
+    // Placement proof is internal enrichment produced after the raw snapshot is validated.
+    candidate.verifiedBedPlacement === undefined
   );
 };
 

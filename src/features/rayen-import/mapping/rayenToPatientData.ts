@@ -158,12 +158,15 @@ export const rayenToPatientData = (
   encounter: RayenEncounter,
   reference: Date = new Date()
 ): MappedPatient => {
-  const { bedId, isCma, isClinicalCrib } = mapRayenBed({
-    room: encounter.room,
-    bed: encounter.bed,
-    service: encounter.service,
-    clinicalCribParentBedId: encounter.clinicalCribParentBedId,
-  });
+  const verifiedBedId = encounter.verifiedBedPlacement?.bedId;
+  const { bedId, isCma, isClinicalCrib } = verifiedBedId
+    ? mapRayenBed({ bed: verifiedBedId, service: encounter.service })
+    : mapRayenBed({
+        room: encounter.room,
+        bed: encounter.bed,
+        service: encounter.service,
+        clinicalCribParentBedId: encounter.clinicalCribParentBedId,
+      });
 
   const givenNames = toTitleCaseName(
     [encounter.firstGivenName, encounter.nextGivenNames].filter(Boolean).join(' ')

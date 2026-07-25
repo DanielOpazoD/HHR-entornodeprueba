@@ -255,6 +255,77 @@ describe('buildNursingShiftProposalPatch', () => {
     expect(patch?.nursesDayShift).toEqual(['Asignación manual', 'Ana']);
   });
 
+  it('offers and applies an explicit replacement when both inferred nurses differ', () => {
+    const incorrect = record({ nursesDayShift: ['Noche Anterior 1', 'Noche Anterior 2'] });
+    const review = reconcileNursingShiftProposal(incorrect, {
+      ...proposal,
+      night: suggestion([]),
+    });
+
+    expect(review.day).toMatchObject({
+      names: ['Ana', 'Berta'],
+      currentNames: ['Noche Anterior 1', 'Noche Anterior 2'],
+      replaceStandardSlots: true,
+    });
+    expect(buildNursingShiftProposalPatch(incorrect, review)).toMatchObject({
+      nursesDayShift: ['Ana', 'Berta'],
+      tensDayShift: ['TENS Día', '', ''],
+    });
+  });
+
+  it('preserves a matching catalog alias while replacing only the incorrect colleague', () => {
+    const current = record({ nursesDayShift: ['Ana Pérez Opazo', 'Noche Anterior'] });
+    const inferred = withObservedNames(
+      suggestion(['Ana Pérez', 'Berta Soto'], false, true),
+      'Ana Pérez',
+      ['Ana Pérez Opazo']
+    );
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      day: inferred,
+      night: suggestion([]),
+    });
+
+    expect(review.day.names).toEqual(['Ana Pérez Opazo', 'Berta Soto']);
+    expect(buildNursingShiftProposalPatch(current, review)?.nursesDayShift).toEqual([
+      'Ana Pérez Opazo',
+      'Berta Soto',
+    ]);
+  });
+
+  it('blocks replacement when an additional nurse assignment exists', () => {
+    const current = record({ nursesDayShift: ['Noche 1', 'Noche 2'] });
+    current.staffingDetailsV1 = resolveDetailedStaffingState(current, current.date);
+    current.staffingDetailsV1.day.nurses.push({
+      id: 'day-nurse-extra-guard',
+      name: 'Refuerzo',
+      role: 'nurse',
+      slotType: 'extra',
+      startTime: '08:00',
+      endTime: '20:00',
+    });
+
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      night: suggestion([]),
+    });
+
+    expect(review.day.replaceStandardSlots).toBe(false);
+    expect(review.day.names).toEqual([]);
+    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
+  });
+
+  it('fails closed when the roster changed after the replacement preview', () => {
+    const original = record({ nursesDayShift: ['Noche 1', 'Noche 2'] });
+    const review = reconcileNursingShiftProposal(original, {
+      ...proposal,
+      night: suggestion([]),
+    });
+    const changed = record({ nursesDayShift: ['Turno corregido', 'Noche 2'] });
+
+    expect(buildNursingShiftProposalPatch(changed, review)).toBeNull();
+  });
+
   it('returns null for another census day or when no vacant slot remains', () => {
     expect(buildNursingShiftProposalPatch(record({ date: '2026-07-19' }), proposal)).toBeNull();
     expect(

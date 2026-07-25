@@ -15,6 +15,11 @@ import {
   requestEgresoLookup,
   subscribeToRayenImportErrors,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
+import {
+  RAYEN_PATIENT_FLOW_REQUEST_TYPE,
+  RAYEN_PATIENT_FLOW_RESULT_TYPE,
+  requestPatientFlowReport,
+} from '@/features/rayen-import/bridge/patientFlowBridge';
 
 describe('rayen import mode setting', () => {
   beforeEach(() => {
@@ -62,6 +67,78 @@ describe('isRayenCensusSnapshot', () => {
     expect(isRayenCensusSnapshot(null)).toBe(false);
     expect(isRayenCensusSnapshot({ facilityId: 1342 })).toBe(false);
     expect(isRayenCensusSnapshot({ ...validSnapshot, encounters: [{ run: '1' }] })).toBe(false);
+    expect(
+      isRayenCensusSnapshot({
+        ...validSnapshot,
+        encounters: [
+          {
+            ...validSnapshot.encounters[0],
+            verifiedBedPlacement: {
+              source: 'patient-flow-report',
+              bedId: 'H2C2',
+              changedAt: '2026-07-23T23:10:09',
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('patient-flow report bridge', () => {
+  it('requests one numeric episode and correlates its PDF response', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const pending = requestPatientFlowReport('142040', 1000);
+    const request = postMessage.mock.calls[0]?.[0] as {
+      type: string;
+      reqId: string;
+      encId: string;
+    };
+
+    expect(request).toMatchObject({
+      type: RAYEN_PATIENT_FLOW_REQUEST_TYPE,
+      encId: '142040',
+    });
+    let resolved = false;
+    void pending.then(() => {
+      resolved = true;
+    });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_PATIENT_FLOW_RESULT_TYPE,
+          reqId: request.reqId,
+          base64: 'RESPUESTA-FRAME',
+        },
+      })
+    );
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_PATIENT_FLOW_RESULT_TYPE,
+          reqId: request.reqId,
+          base64: 'JVBERg==',
+        },
+      })
+    );
+
+    await expect(pending).resolves.toEqual({ base64: 'JVBERg==', error: undefined });
+    postMessage.mockRestore();
+  });
+
+  it('rejects a non-numeric episode before posting a request', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    await expect(requestPatientFlowReport('../142040')).resolves.toEqual({
+      base64: '',
+      error: 'El episodio clínico no es válido.',
+    });
+    expect(postMessage).not.toHaveBeenCalled();
+    postMessage.mockRestore();
   });
 });
 

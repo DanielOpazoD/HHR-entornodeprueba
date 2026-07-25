@@ -16,6 +16,7 @@ import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImport
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { buildMovementProvenance } from '@/application/census/movementProvenancePolicy';
+import { normalizeRut } from '@/utils/rutUtils';
 
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -55,7 +56,7 @@ export interface ResolvedApplyContext {
 }
 
 export interface SkippedOp {
-  kind: 'admission' | 'move' | 'update';
+  kind: 'admission' | 'move' | 'update' | 'discharge';
   bedId: string;
   reason: string;
 }
@@ -181,16 +182,51 @@ export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     clinicalEpisodeId: egreso.encounterId,
   }) as unknown as PatientData;
 
+/**
+ * Adapts a report-only egreso for the movement builders. It is intentionally used only when the
+ * patient never occupied a bed in this HHR census (or when filing its historical movement); it does
+ * not enter the bed-vacating discharge loop, whose entries carry a previewed occupant fingerprint.
+ */
 export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   bedId: egreso.bedLabel,
   rut: egreso.run,
   patientName: egreso.patientName,
+  encounterId: egreso.encounterId,
   kind: egreso.kind,
   status: egreso.status,
   reason: 'administrative-discharge',
   correctedDay: egreso.correctedDay,
   correctedTime: egreso.correctedTime,
 });
+
+const matchesDischargeSubject = (patient: PatientData, entry: DischargeEntry): boolean => {
+  const expected = entry.expectedOccupant;
+  if (expected) {
+    if (expected.clinicalEpisodeId) {
+      return patient.clinicalEpisodeId === expected.clinicalEpisodeId;
+    }
+    const hasAdmissionStamp = Boolean(expected.admissionDate && expected.admissionTime);
+    const patientRun = normalizeRut(patient.rut);
+    const expectedRun = normalizeRut(expected.rut);
+    return Boolean(
+      hasAdmissionStamp &&
+      patientRun &&
+      expectedRun &&
+      patientRun === expectedRun &&
+      patient.admissionDate === expected.admissionDate &&
+      patient.admissionTime === expected.admissionTime
+    );
+  }
+  const entryEpisode = entry.encounterId ?? entry.source?.encounterId;
+  if (patient.clinicalEpisodeId || entryEpisode) {
+    return Boolean(
+      patient.clinicalEpisodeId && entryEpisode && patient.clinicalEpisodeId === entryEpisode
+    );
+  }
+  const patientRun = normalizeRut(patient.rut);
+  const entryRun = normalizeRut(entry.rut);
+  return Boolean(patientRun && entryRun && patientRun === entryRun);
+};
 
 export const applyCensusImportDiff = (
   current: DailyRecord,
@@ -213,9 +249,17 @@ export const applyCensusImportDiff = (
   // 1) Discharges: vacate the bed and append the matching movement record.
   for (const entry of diff.discharges) {
     const patient = isOccupied(current.beds[entry.bedId]) ? current.beds[entry.bedId] : undefined;
-    if (patient) delete nextBeds[entry.bedId];
     const subject = patient ?? undefined;
     if (!subject) continue; // nothing to discharge (already gone)
+    if (!matchesDischargeSubject(subject, entry)) {
+      skipped.push({
+        kind: 'discharge',
+        bedId: entry.bedId,
+        reason: 'La cama ahora corresponde a otro paciente.',
+      });
+      continue;
+    }
+    delete nextBeds[entry.bedId];
     // A discharge whose official island day is EARLIER than this census day: the bed is vacated here
     // (the patient really left before today), but its movement record belongs to that previous day —
     // it is filed there by the cross-day writer on confirm, not appended to today.

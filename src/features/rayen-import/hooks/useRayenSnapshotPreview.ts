@@ -8,6 +8,12 @@ import { requiresReview } from '../domain/reconcileCensus';
 import { computePreviousDayEdits } from '../domain/previousDayCorrections';
 import { isHistoricalCensusDay, toSafeHistoricalDiff } from '../domain/historicalCensusSync';
 import { requestEgresoLookup, requestEgresoReport } from '../bridge/rayenImportBridge';
+import { requestPatientFlowReport } from '../bridge/patientFlowBridge';
+import {
+  requestRayenExtensionHealth,
+  supportsPatientFlowReport,
+} from '../bridge/extensionHealthBridge';
+import { resolveOccupiedBedTraceabilityChain } from '../bedTraceabilityResolver';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
@@ -99,6 +105,28 @@ export const useRayenSnapshotPreview = ({
         }
         return;
       }
+
+      let patientFlowSupport: Promise<boolean> | null = null;
+      const fetchPatientFlowReport = async (encId: string) => {
+        patientFlowSupport ??= requestRayenExtensionHealth().then(result =>
+          supportsPatientFlowReport(result.report)
+        );
+        if (!(await patientFlowSupport)) {
+          return {
+            base64: '',
+            error: 'La extensión instalada no admite trazabilidad de camas.',
+          };
+        }
+        return requestPatientFlowReport(encId);
+      };
+      const traceability = await resolveOccupiedBedTraceabilityChain(
+        currentRecord,
+        snapshot,
+        diff,
+        { fetchReport: fetchPatientFlowReport },
+        verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
+      );
+      diff = traceability.diff;
 
       const reportResult = await requestEgresoReport(reportDate, nextIsoDay(reportDate));
       const reportAvailable = reportResult.ok;

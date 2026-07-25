@@ -78,6 +78,13 @@ export interface DischargeEntry {
   reason: 'administrative-discharge';
   /** Exact Rayen hospitalization when the administrative lookup resolved one episode. */
   encounterId?: string;
+  /** Occupant identity observed during preview, used to reject stale same-bed discharges. */
+  expectedOccupant?: {
+    clinicalEpisodeId?: string;
+    rut: string;
+    admissionDate?: string;
+    admissionTime?: string;
+  };
   source?: RayenEncounter;
   /**
    * Rapa Nui day + time of the egreso as printed by the official "Alta Administrativa" report.
@@ -130,7 +137,11 @@ export interface ConflictEntry {
   /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
   scope?: 'clinical-crib';
   /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
-  code?: 'unconfirmed-principal-bed' | 'principal-bed-collision';
+  code?: 'unconfirmed-principal-bed' | 'principal-bed-collision' | 'occupied-local-bed';
+  /** Admission held back only because its target bed was occupied when the snapshot was planned. */
+  blockedAdmission?: AdmissionEntry;
+  /** Move held back only because its target bed was occupied when the snapshot was planned. */
+  blockedMove?: MoveEntry;
   reason: string;
   source?: RayenEncounter;
 }

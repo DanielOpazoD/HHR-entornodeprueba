@@ -124,6 +124,30 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByRole('button', { name: 'Aplicar propuesta' })).toBeEnabled();
   });
 
+  it('warns explicitly when confirmation will replace the standard nurse roster', () => {
+    renderProposal({
+      proposal: {
+        ...proposal,
+        day: {
+          ...proposal.day,
+          names: ['Ana Pérez', 'Berta Soto'],
+          currentNames: ['Noche 1', 'Noche 2'],
+          replaceStandardSlots: true,
+        },
+        night: { ...proposal.night, names: [], candidates: [] },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(
+      screen.getByText('Se reemplazará la asignación actual: Noche 1, Noche 2.')
+    ).toBeVisible();
+    expect(screen.getByText(/TENS y cupos adicionales no cambiarán/)).toBeVisible();
+  });
+
   it('keeps an explicit no-data result inside the synchronization flow', () => {
     renderProposal({
       proposal: {

@@ -35,6 +35,10 @@ export interface NursingShiftSuggestion {
   catalogNames?: string[];
   /** Nurses already present in the matching HHR shift; informational, never re-applied. */
   alreadyAssigned?: string[];
+  /** Existing standard slots shown when confirmation would replace an incorrect complete roster. */
+  currentNames?: string[];
+  /** True only for an explicit, unambiguous two-slot replacement proposal. */
+  replaceStandardSlots?: boolean;
   candidates: NursingShiftEvidence[];
   ignoredBoundaryRecords: number;
   ambiguous: boolean;

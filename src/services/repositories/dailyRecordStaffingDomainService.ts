@@ -1,6 +1,4 @@
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
-import { resolveDayShiftNurses } from '@/services/staff/dailyRecordStaffing';
-import { resolveNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
 
 export interface InheritedDailyRecordStaffing {
   nursesDay: string[];
@@ -8,17 +6,6 @@ export interface InheritedDailyRecordStaffing {
   tensDay: string[];
   tensNight: string[];
 }
-
-const normalizeInheritedStaff = (
-  staff: string[] | null | undefined,
-  minLength: number
-): string[] => {
-  const normalized = Array.isArray(staff)
-    ? staff.map(value => value?.trim() || '').filter(Boolean)
-    : [];
-  while (normalized.length < minLength) normalized.push('');
-  return normalized.slice(0, minLength);
-};
 
 export const resolveInheritedDailyRecordStaffing = (
   prevRecord: DailyRecordStaffingState | null
@@ -32,21 +19,6 @@ export const resolveInheritedDailyRecordStaffing = (
     };
   }
 
-  const compatibleDayShiftNurses = resolveDayShiftNurses(prevRecord);
-  const nightShiftNurses = resolveNightShiftNurses(prevRecord);
-  const nightShiftReceives = normalizeInheritedStaff(prevRecord.handoffNightReceives, 2);
-  const isNightShiftEmpty = nightShiftNurses.every(n => !n);
-  const hasNightShiftReceives = nightShiftReceives.some(Boolean);
-  const prevNurses = hasNightShiftReceives
-    ? nightShiftReceives
-    : !isNightShiftEmpty
-      ? nightShiftNurses
-      : compatibleDayShiftNurses.length > 0
-        ? compatibleDayShiftNurses
-        : ['', ''];
-  const nursesDay = [...(prevNurses || ['', ''])];
-  while (nursesDay.length < 2) nursesDay.push('');
-
   const nightTens = prevRecord.tensNightShift || [];
   const dayTens = prevRecord.tensDayShift || [];
   const isNightTensEmpty = nightTens.every(t => !t);
@@ -55,7 +27,7 @@ export const resolveInheritedDailyRecordStaffing = (
   while (tensDay.length < 3) tensDay.push('');
 
   return {
-    nursesDay: nursesDay.slice(0, 2),
+    nursesDay: ['', ''],
     nursesNight: ['', ''],
     tensDay: tensDay.slice(0, 3),
     tensNight: ['', '', ''],

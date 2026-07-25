@@ -102,6 +102,10 @@
       "maxLines": 39,
       "hotspots": {}
     },
+    "content-hhr-patient-flow.js": {
+      "maxLines": 41,
+      "hotspots": {}
+    },
     "content-hhr-statistical-discharge.js": {
       "maxLines": 31,
       "hotspots": {}
@@ -164,6 +168,10 @@
       "hotspots": {
         "iife>variable:create>variable:getClinicalReportContext": 16
       }
+    },
+    "fichamedico-patient-flow-runtime.js": {
+      "maxLines": 100,
+      "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {
       "maxLines": 204,
@@ -337,7 +345,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 270,
+      "maxLines": 272,
       "hotspots": {}
     },
     "pdf-print.js": {

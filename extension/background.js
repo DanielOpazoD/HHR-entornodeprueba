@@ -21,7 +21,7 @@ importScripts(
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js',
-  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js',
+  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'gestion-camas-session.js',
   'gestion-camas-runtime.js',
@@ -248,6 +248,7 @@ const handleExtensionHealth = async () => {
   return {
     version: chrome.runtime.getManifest().version,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
+    capabilities: ['patient-flow-report'],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
@@ -316,6 +317,7 @@ const bufferToBase64 = buffer => {
   }
   return btoa(binary);
 };
+const patientFlowRuntime = self.HhrFichaMedicoPatientFlowRuntime.create({ clinicalClient: fichaMedicoClinicalClient, bufferToBase64 });
 
 const base64ToArrayBuffer = value => {
   const text = String(value || '').replace(/\s/g, '');
@@ -1170,7 +1172,8 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    () => self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout),
+    (_message, sender) => patientFlowRuntime.authorizeSnapshotResponse(sender,
+      self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(handleSnapshotRequest(), gestionCamasRuntime, fetchWithTimeout)),
     'No se pudo leer el censo de Ficha Médico.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
@@ -1197,6 +1200,7 @@ const runtimeMessageRoutes = Object.freeze({
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
     'No se pudo leer el reporte de dispositivos.'
   ),
+  [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
   [RUNTIME_MESSAGES.DEVICE_REPORT_SAVE]: runtimeRoute(
     message => handleDeviceReportSave({ encId: message.encId, fecha: message.fecha }),
     'No se pudo guardar el reporte de dispositivos.'
