@@ -57,6 +57,10 @@ export interface RayenEncounter {
   isDead?: boolean;
   /** True if the patient is in isolation. */
   isIsolated?: boolean;
+  /** Isolation precaution label exposed by Ficha Médico, when available. */
+  isolationType?: string;
+  /** Microorganism associated with the active isolation, when available. */
+  isolationMicroorganism?: string;
   /** True if the patient is GES. */
   isGes?: boolean;
   /**

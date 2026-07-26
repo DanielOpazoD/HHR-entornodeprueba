@@ -68,7 +68,7 @@ export const useRayenStaffingProposalActions = ({
       const patch = buildNursingShiftProposalPatch(fresh.record, proposal);
       if (!patch) {
         throw new Error(
-          'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
+          'La dotación clínica ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
         );
       }
       const result = await patchDailyRecordWithCompatibility(

@@ -46,6 +46,10 @@ export interface NursingShiftSuggestion {
 
 export interface NursingStaffingProposal {
   censusDate: string;
+  /** Enfermeras(os), dos cupos estándar por turno. */
   day: NursingShiftSuggestion;
   night: NursingShiftSuggestion;
+  /** TENS/paramédicos, tres cupos estándar por turno. Optional for legacy proposals. */
+  tensDay?: NursingShiftSuggestion;
+  tensNight?: NursingShiftSuggestion;
 }

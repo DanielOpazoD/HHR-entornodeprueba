@@ -23,6 +23,10 @@ import {
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { preloadDefaultPostLoginRoute } from '@/app-shell/bootstrap/authenticatedRoutePreloadController';
 import {
+  clearStaleGoogleLoginLock,
+  getGoogleLoginLockStatus,
+} from '@/services/auth/googleLoginLock';
+import {
   type LoginBackgroundMode,
   persistLoginBackgroundMode,
   resolveInitialLoginBackgroundMode,
@@ -140,6 +144,7 @@ export const useLoginPageController = (
   }, [initialAuthError?.code, initialAuthError?.message]);
 
   const handleLocalResetStart = () => {
+    clearStaleGoogleLoginLock();
     clearGoogleLoginAttemptHint();
     clearRecentAuthenticatedSessionHint();
     clearAuthBootstrapPending();
@@ -151,6 +156,15 @@ export const useLoginPageController = (
   const handleGoogleSignIn = async () => {
     setError(null);
     setErrorCode(null);
+    const lockStatus = getGoogleLoginLockStatus();
+    if (lockStatus.active && !lockStatus.ownedByCurrentTab) {
+      const seconds = Math.max(1, Math.ceil(lockStatus.remainingMs / 1000));
+      setErrorCode('auth/multi-tab-login-in-progress');
+      setError(
+        `Otra pestaña de HHR está completando el ingreso con Google. Continúa allí o reintenta en ${seconds}s.`
+      );
+      return;
+    }
     setIsGoogleLoading(true);
     markGoogleLoginAttemptHint();
 

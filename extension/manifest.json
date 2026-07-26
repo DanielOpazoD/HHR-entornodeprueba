@@ -43,7 +43,11 @@
   "content_scripts": [
     {
       "matches": ["https://fichamedico.rayensalud.cl/*"],
-      "js": ["fichamedico-normalization.js", "inject-fichamedico.js"],
+      "js": [
+        "fichamedico-isolation-normalization.js",
+        "fichamedico-normalization.js",
+        "inject-fichamedico.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },

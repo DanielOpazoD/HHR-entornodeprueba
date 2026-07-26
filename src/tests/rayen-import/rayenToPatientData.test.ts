@@ -140,9 +140,18 @@ describe('rayenToPatientData', () => {
   });
 
   it('maps the isolation flag from the encounter', () => {
-    expect(
-      rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE).patient.isIsolated
-    ).toBe(true);
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        isIsolated: true,
+        isolationType: 'Gotas',
+        isolationMicroorganism: 'Virus Influenza B',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.isIsolated).toBe(true);
+    expect(patient.isolationType).toBe('Gotas');
+    expect(patient.isolationMicroorganism).toBe('Virus Influenza B');
   });
 
   it('normalizes names to Title Case regardless of the casing Rayen returns', () => {

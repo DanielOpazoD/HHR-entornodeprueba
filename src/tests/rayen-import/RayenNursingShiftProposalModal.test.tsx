@@ -66,10 +66,41 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
     expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeInTheDocument();
 
-    expect(screen.getByRole('dialog', { name: 'Enfermería identificada' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('shows TENS separately from nursing with its own shift evidence', () => {
+    renderProposal({
+      proposal: {
+        ...proposal,
+        tensDay: {
+          names: ['Jimena Yáñez'],
+          candidates: [
+            {
+              name: 'Jimena Yáñez',
+              records: 5,
+              patients: 2,
+              activeHours: 3,
+              score: 21,
+              hasShiftChange: false,
+              catalogMatched: false,
+            },
+          ],
+          ignoredBoundaryRecords: 0,
+          ambiguous: false,
+        },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.getByText('TENS · Turno largo')).toBeVisible();
+    expect(screen.getByText('Jimena Yáñez')).toBeVisible();
   });
 
   it('reports an already synchronized shift without proposing another write', () => {
@@ -93,6 +124,7 @@ describe('RayenNursingShiftProposalModal', () => {
   });
 
   it('surfaces an ambiguous shift without offering an unsafe write', () => {
+    const onCancel = vi.fn();
     renderProposal({
       proposal: {
         ...proposal,
@@ -102,15 +134,19 @@ describe('RayenNursingShiftProposalModal', () => {
       isBusy: false,
       error: null,
       onConfirm: vi.fn(),
-      onCancel: vi.fn(),
+      onCancel,
     });
 
-    expect(screen.queryByTestId('rayen-nursing-shift-proposal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('rayen-nursing-shift-proposal')).toBeVisible();
+    expect(screen.getByText(/Un cupo quedó sin sugerencia/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a concurrent no-op visible so the user can review the current assignment', () => {
     const error =
-      'La dotación de enfermería ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.';
+      'La dotación clínica ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.';
 
     renderProposal({
       proposal,
@@ -145,7 +181,7 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(
       screen.getByText('Se reemplazará la asignación actual: Noche 1, Noche 2.')
     ).toBeVisible();
-    expect(screen.getByText(/TENS y cupos adicionales no cambiarán/)).toBeVisible();
+    expect(screen.getByText(/los cupos adicionales no cambiarán/)).toBeVisible();
   });
 
   it('keeps an explicit no-data result inside the synchronization flow', () => {

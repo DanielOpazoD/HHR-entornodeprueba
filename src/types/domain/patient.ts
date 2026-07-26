@@ -97,6 +97,10 @@ export interface PatientData {
   isUPC: boolean;
   /** True when the patient is under isolation precautions (synced from Ficha Médico). */
   isIsolated?: boolean;
+  /** Isolation precaution label supplied by Ficha Médico, when available. */
+  isolationType?: string;
+  /** Microorganism associated with the active isolation, when supplied by Ficha Médico. */
+  isolationMicroorganism?: string;
   /** Structured UPC checklist with UCI/UTI criteria and derived classification. */
   upcChecklist?: UpcChecklistRecord;
   location?: string;

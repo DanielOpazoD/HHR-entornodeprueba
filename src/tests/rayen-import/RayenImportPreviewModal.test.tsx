@@ -397,7 +397,7 @@ describe('Rayen synchronization decisions and pulse', () => {
       />
     );
 
-    expect(screen.getByRole('dialog', { name: 'Enfermería identificada' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Mantener actual' }));
     expect(onCancel).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));

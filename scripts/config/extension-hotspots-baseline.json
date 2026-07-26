@@ -173,6 +173,10 @@
       "maxLines": 88,
       "hotspots": {}
     },
+    "fichamedico-isolation-normalization.js": {
+      "maxLines": 47,
+      "hotspots": {}
+    },
     "fichamedico-normalization.js": {
       "maxLines": 134,
       "hotspots": {

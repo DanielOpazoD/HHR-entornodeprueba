@@ -103,10 +103,15 @@ describe('zod entity schemas', () => {
         status: 'Estable',
         admissionDate: '2026-01-15',
         admissionTime: '10:00',
+        isIsolated: true,
+        isolationType: 'Contacto',
+        isolationMicroorganism: 'Virus Influenza B',
       });
       expect(patient.patientName).toBe('Juan Pérez');
       expect(patient.specialty).toBe('Med Interna');
       expect(patient.clinicalEpisodeId).toBe('episode-persisted-1');
+      expect(patient.isolationType).toBe('Contacto');
+      expect(patient.isolationMicroorganism).toBe('Virus Influenza B');
     });
 
     it('should preserve a custom free-text specialty', () => {

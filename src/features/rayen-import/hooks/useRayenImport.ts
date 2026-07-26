@@ -48,6 +48,7 @@ import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActio
 import { resolveSyncReportRequest } from './reportDateHelpers';
 import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import { useRayenSyncRequestController } from './useRayenSyncRequestController';
+import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -349,11 +350,7 @@ export const useRayenImport = () => {
     invalidateRayenFillAttempt();
     cancelRun();
     const staffingDecisionWasSkipped =
-      !!staffingProposal &&
-      (staffingProposal.day.names.length > 0 ||
-        staffingProposal.night.names.length > 0 ||
-        staffingProposal.day.ambiguous ||
-        staffingProposal.night.ambiguous);
+      !!staffingProposal && hasPendingStaffingDecision(staffingProposal);
     if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);

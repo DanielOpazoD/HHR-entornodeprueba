@@ -5,6 +5,7 @@ import { usePatientBedConfigController } from '@/features/census/components/pati
 import { PatientBedConfigMenuPanel } from '@/features/census/components/patient-row/PatientBedConfigMenuPanel';
 import { buildPatientBedConfigSections } from '@/features/census/controllers/patientBedConfigSectionsController';
 import type { PatientBedConfigProps } from '@/features/census/components/patient-row/patientRowContracts';
+import { IsolationBadge } from '@/features/census/components/patient-row/IsolationBadge';
 
 export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
   bed,
@@ -91,6 +92,13 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
             <Clock size={10} className="text-slate-400" />
             <span className="text-[10px] font-semibold">{sections.display.daysHospitalized}d</span>
           </div>
+        )}
+
+        {data.isIsolated && (
+          <IsolationBadge
+            isolationType={data.isolationType}
+            microorganism={data.isolationMicroorganism}
+          />
         )}
 
         {/* Static Indicators (Persistent information) */}

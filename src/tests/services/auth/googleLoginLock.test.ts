@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acquireGoogleLoginLock,
+  clearStaleGoogleLoginLock,
   getGoogleLoginLockStatus,
   refreshGoogleLoginLock,
   releaseGoogleLoginLock,
@@ -46,6 +47,22 @@ describe('googleLoginLock', () => {
     );
 
     expect(acquireGoogleLoginLock()).toBe(true);
+  });
+
+  it('clears an expired lock without removing an active lock from another tab', () => {
+    localStorage.setItem(
+      GOOGLE_LOGIN_LOCK_KEY,
+      JSON.stringify({ owner: 'other-tab', timestamp: Date.now() })
+    );
+    expect(clearStaleGoogleLoginLock()).toBe(false);
+    expect(localStorage.getItem(GOOGLE_LOGIN_LOCK_KEY)).not.toBeNull();
+
+    localStorage.setItem(
+      GOOGLE_LOGIN_LOCK_KEY,
+      JSON.stringify({ owner: 'stale-tab', timestamp: Date.now() - 60_000 })
+    );
+    expect(clearStaleGoogleLoginLock()).toBe(true);
+    expect(localStorage.getItem(GOOGLE_LOGIN_LOCK_KEY)).toBeNull();
   });
 
   it('refreshes timestamp for current owner via heartbeat', () => {

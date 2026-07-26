@@ -17,6 +17,8 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'cie10Code',
   'cie10Description',
   'isIsolated',
+  'isolationType',
+  'isolationMicroorganism',
   'clinicalEpisodeId',
 ];
 
@@ -36,10 +38,7 @@ export const diffSyncablePatientFields = (
   return changes;
 };
 
-export const mergeSyncablePatient = (
-  current: PatientData,
-  incoming: PatientData
-): PatientData => {
+export const mergeSyncablePatient = (current: PatientData, incoming: PatientData): PatientData => {
   const merged = { ...current };
   for (const change of diffSyncablePatientFields(current, incoming)) {
     (merged as unknown as Record<string, unknown>)[change.field] = change.to;

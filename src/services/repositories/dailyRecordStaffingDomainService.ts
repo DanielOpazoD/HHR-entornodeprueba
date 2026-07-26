@@ -19,17 +19,12 @@ export const resolveInheritedDailyRecordStaffing = (
     };
   }
 
-  const nightTens = prevRecord.tensNightShift || [];
-  const dayTens = prevRecord.tensDayShift || [];
-  const isNightTensEmpty = nightTens.every(t => !t);
-  const rawTens = !isNightTensEmpty ? nightTens : dayTens;
-  const tensDay = [...rawTens];
-  while (tensDay.length < 3) tensDay.push('');
-
   return {
     nursesDay: ['', ''],
     nursesNight: ['', ''],
-    tensDay: tensDay.slice(0, 3),
+    // Staff rosters belong to a specific clinical shift. Copying last night's TENS into the new
+    // long shift creates false assignments and prevents Eloísa evidence from filling vacancies.
+    tensDay: ['', '', ''],
     tensNight: ['', '', ''],
   };
 };

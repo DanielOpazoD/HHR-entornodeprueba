@@ -82,6 +82,12 @@ describe('runClinicalFill', () => {
           recordedAt: encId === 'E1' ? '2026-07-10T10:15:00' : '2026-07-10T14:15:00',
           source: 'evolution',
         },
+        {
+          author: 'Jimena Yáñez',
+          role: 'Paramédico',
+          recordedAt: encId === 'E1' ? '2026-07-10T11:15:00' : '2026-07-10T15:15:00',
+          source: 'evolution',
+        },
       ],
     }));
     const deps = okDeps({
@@ -98,6 +104,7 @@ describe('runClinicalFill', () => {
 
     expect(summary.staffingProposal?.day.names).toEqual(['Ana Enfermera']);
     expect(summary.staffingProposal?.night.names).toEqual([]);
+    expect(summary.staffingProposal?.tensDay?.names).toEqual(['Jimena Yáñez']);
     expect(summary.staffingProposal?.day.candidates[0]).toMatchObject({
       records: 2,
       patients: 2,

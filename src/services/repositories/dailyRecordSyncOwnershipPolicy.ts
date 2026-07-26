@@ -42,6 +42,8 @@ const PATIENT_FIELD_OWNERSHIP = {
   deliveryCesareanLabor: 'remoteCanonical',
   isUPC: 'remoteCanonical',
   isIsolated: 'remoteCanonical',
+  isolationType: 'remoteCanonical',
+  isolationMicroorganism: 'remoteCanonical',
   upcChecklist: 'remoteCanonical',
   surgicalComplication: 'remoteCanonical',
   firstSeenDate: 'remoteCanonical',

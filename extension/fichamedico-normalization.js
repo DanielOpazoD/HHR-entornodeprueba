@@ -8,10 +8,10 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
   'use strict';
-
   const text = value => (value == null ? '' : String(value).trim());
 
   const record = value => value && typeof value === 'object' ? value : {};
+  const isolationNormalization = globalThis.HhrFichaMedicoIsolationNormalization;
 
   const normalizeSessionRole = session => {
     const safeSession = record(session);
@@ -118,7 +118,7 @@
       dischargeDatetime: validClinicalDate(safeHeader.encEndPeriod) ||
         validClinicalDate(safeItem.medicalDischargeDateTime),
       isDead: Boolean(safeItem.isDead),
-      isIsolated: Boolean(safeItem.isIsolated),
+      ...isolationNormalization.toEncounterFields(safeItem),
       isGes: Boolean(safeItem.isGes),
     };
   };

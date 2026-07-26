@@ -79,6 +79,48 @@ describe('buildNursingShiftProposalPatch', () => {
     expect(patch?.staffingDetailsV1).toBeDefined();
   });
 
+  it('fills up to three verified TENS slots while preserving a true vacancy', () => {
+    const patch = buildNursingShiftProposalPatch(
+      record({ tensDayShift: ['', '', ''], tensNightShift: ['', '', ''] }),
+      {
+        ...proposal,
+        day: suggestion([]),
+        night: suggestion([]),
+        tensDay: suggestion(['Jimena Yáñez', 'Paula Soto']),
+        tensNight: suggestion(['Mario Rojas']),
+      }
+    );
+
+    expect(patch?.tensDayShift).toEqual(['Jimena Yáñez', 'Paula Soto', '']);
+    expect(patch?.tensNightShift).toEqual(['Mario Rojas', '', '']);
+  });
+
+  it('never replaces an existing TENS roster from inferred activity', () => {
+    const current = record({ tensDayShift: ['TENS 1', 'TENS 2', 'TENS 3'] });
+    const inferred = suggestion(['Nuevo 1', 'Nuevo 2', 'Nuevo 3']);
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      day: suggestion([]),
+      night: suggestion([]),
+      tensDay: inferred,
+    });
+
+    expect(review.tensDay?.replaceStandardSlots).toBe(false);
+    expect(review.tensDay?.names).toEqual([]);
+    expect(
+      buildNursingShiftProposalPatch(current, {
+        ...proposal,
+        day: suggestion([]),
+        night: suggestion([]),
+        tensDay: {
+          ...inferred,
+          currentNames: ['TENS 1', 'TENS 2', 'TENS 3'],
+          replaceStandardSlots: true,
+        },
+      })
+    ).toBeNull();
+  });
+
   it('does not duplicate a nurse already assigned to the shift', () => {
     const patch = buildNursingShiftProposalPatch(record({ nursesDayShift: ['Ana', ''] }), proposal);
     expect(patch?.nursesDayShift).toEqual(['Ana', 'Berta']);
