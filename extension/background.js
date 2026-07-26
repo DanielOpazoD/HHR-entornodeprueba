@@ -130,7 +130,7 @@ const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
 
 const REPORT_FILE = 'Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls';
-const EXTENSION_PROTOCOL_VERSION = 4;
+const EXTENSION_PROTOCOL_VERSION = 5;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;

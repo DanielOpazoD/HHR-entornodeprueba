@@ -40,6 +40,7 @@ describe('useRayenClinicalFill', () => {
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
+        tensCatalog: [],
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
@@ -74,6 +75,7 @@ describe('useRayenClinicalFill', () => {
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: ['Camila Soto'],
+        tensCatalog: [],
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockResolvedValue(undefined),
@@ -117,6 +119,7 @@ describe('useRayenClinicalFill', () => {
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
+        tensCatalog: [],
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun,
@@ -148,6 +151,7 @@ describe('useRayenClinicalFill', () => {
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
+        tensCatalog: [],
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockRejectedValue(new Error('audit unavailable')),

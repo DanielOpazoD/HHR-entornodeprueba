@@ -284,6 +284,57 @@ describe('Ficha Médico read-only clinical client', () => {
     expect(JSON.stringify(result.nursingActivity)).not.toContain('11.111.111-1');
   });
 
+  it('projects Paramédico medication and vital-sign metadata without clinical content', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(
+      response({
+        json: async () => [
+          {
+            publishDatetime: '2026-07-25T19:20:48.38',
+            pharmaPerformedActivityResume: [
+              {
+                HCP_NAME: 'Francisca Orellana',
+                HCP_ROLE: 'Paramédico',
+                PUBLISH_DATETIME: '2026-07-25T19:17:08.89',
+                PERF_ACTIVITY_NAME: 'contenido clínico privado',
+              },
+            ],
+            vitalSignObsResume: [
+              {
+                HCP_NAME: 'Jimena Yañez',
+                HCPR_ROLE: 'Paramédico',
+                PUBLISH_DATE: '2026-07-25T19:20:48.38',
+                VALUE: 'dato clínico privado',
+              },
+            ],
+          },
+        ],
+      })
+    );
+
+    const result = await client.fetchHistoryScales({ encId: '142070', info: session });
+
+    expect(result.nursingActivity).toEqual([
+      {
+        author: 'Francisca Orellana',
+        role: 'Paramédico',
+        recordedAt: '2026-07-25T19:17:08.89',
+        source: 'medication-administration',
+        archived: false,
+        crossedOut: false,
+      },
+      {
+        author: 'Jimena Yañez',
+        role: 'Paramédico',
+        recordedAt: '2026-07-25T19:20:48.38',
+        source: 'vital-signs',
+        archived: false,
+        crossedOut: false,
+      },
+    ]);
+    expect(JSON.stringify(result.nursingActivity)).not.toContain('contenido clínico privado');
+    expect(JSON.stringify(result.nursingActivity)).not.toContain('dato clínico privado');
+  });
+
   it('keeps background as wiring and the read client free of writes or persistence', () => {
     const background = readFileSync(
       new URL('../../../extension/background.js', import.meta.url),

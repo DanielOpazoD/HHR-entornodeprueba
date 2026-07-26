@@ -77,7 +77,7 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
     expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
-    expect(screen.getByTitle('Enfermería: Con observaciones')).toBeInTheDocument();
+    expect(screen.getByTitle('Enfermería / TENS: Con observaciones')).toBeInTheDocument();
   });
 
   it('does not claim full success when staffing changes were declined', () => {
@@ -85,7 +85,7 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Sincronización completada · se mantuvo HHR')).toBeVisible();
-    expect(screen.getByTitle('Enfermería: Se mantuvo HHR')).toBeInTheDocument();
+    expect(screen.getByTitle('Enfermería / TENS: Se mantuvo HHR')).toBeInTheDocument();
   });
 
   it('keeps skipped work visible after the decision modal closes', () => {

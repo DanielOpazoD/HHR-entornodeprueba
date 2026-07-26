@@ -12,7 +12,6 @@
 
   const record = value => value && typeof value === 'object' ? value : {};
   const isolationNormalization = globalThis.HhrFichaMedicoIsolationNormalization;
-
   const normalizeSessionRole = session => {
     const safeSession = record(session);
     const candidates = [
@@ -124,6 +123,7 @@
   };
 
   return {
+    requiresIsolationDetails: isolationNormalization.requiresIsolationDetails,
     normalizeEncounter,
     normalizeSessionExpiry,
     normalizeSessionRole,

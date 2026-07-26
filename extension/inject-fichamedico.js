@@ -327,14 +327,12 @@
     if (!document.hidden) refreshSessionBinding();
   });
   refreshSessionBinding();
-
   const headerUrl = (base, encId) =>
     `${base.origin}/api/encounter/patientHeaderData/${encId}/false`;
-
   const diagnosisUrl = (base, encId) =>
     `${base.origin}/api/encounter/entrySummary/diagnosisEntry/` +
     `${encId}/0/2/${base.searchParams.get('healthCarePractitionerId') || '7941'}`;
-
+  const isolationUrl = (base, encId) => `${base.origin}/api/encounter/${encodeURIComponent(encId)}/isolationEncounter/0/getAll`;
   const readCensus = async () => {
     const context = await getVerifiedClinicalContext();
     const base = context.base || new URL(context.apiOrigin);
@@ -343,7 +341,6 @@
       u.searchParams.set('filterType', ft);
       return u.toString();
     };
-
     // filterType=3 (sin médico + Servicio Todos) = full active census; filterType=2 = egresos.
     let active;
     let discharged;
@@ -368,7 +365,6 @@
         apiGet(withFilter('2'), capturedAuth).catch(() => []),
       ]);
     }
-
     const rows = [
       ...(Array.isArray(active) ? active : []).map(item => ({ item, discharged: false })),
       ...(Array.isArray(discharged) ? discharged : []).map(item => ({ item, discharged: true })),
@@ -382,19 +378,23 @@
       while (cursor < rows.length) {
         const index = cursor++;
         const { item, discharged: isDischarged } = rows[index];
-        const [headerResult, diagnosisResult] = await Promise.allSettled([
+        const [headerResult, diagnosisResult, isolationResult] = await Promise.allSettled([
           apiGet(headerUrl(base, item.id), capturedAuth),
           apiGet(diagnosisUrl(base, item.id), capturedAuth),
+          normalization.requiresIsolationDetails(item) ? apiGet(isolationUrl(base, item.id), capturedAuth) : Promise.resolve([]),
         ]);
         const header = headerResult.status === 'fulfilled' ? headerResult.value : null;
         const diagnosisRows = diagnosisResult.status === 'fulfilled' ? diagnosisResult.value : [];
+        const isolationEntries = isolationResult.status === 'fulfilled' && Array.isArray(isolationResult.value)
+          ? isolationResult.value : null;
+        const itemWithIsolation = isolationEntries ? { ...item, isolationEntries } : item;
         const principalDiagnosis = normalization.selectPrincipalDiagnosis(
           diagnosisRows,
           header,
-          item
+          itemWithIsolation
         );
         encounters[index] = normalization.normalizeEncounter(
-          item,
+          itemWithIsolation,
           header,
           principalDiagnosis,
           isDischarged

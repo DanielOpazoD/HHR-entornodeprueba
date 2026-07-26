@@ -134,6 +134,33 @@ describe('runClinicalFill', () => {
     expect(summary.staffingProposal?.day.names).toEqual(['Camila Soto']);
   });
 
+  it('uses the HHR TENS catalog to accept one authoritative Paramédico activity', async () => {
+    const deps = okDeps({
+      tensCatalog: ['Jimena Yáñez'],
+      fetchHistoryScales: vi.fn().mockResolvedValue({
+        events: [],
+        nursingActivity: [
+          {
+            author: 'Jimena Yañez',
+            role: 'Paramédico',
+            recordedAt: '2026-07-10T15:20:00',
+            source: 'vital-signs',
+          },
+        ],
+      }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.staffingProposal?.tensDay?.names).toEqual(['Jimena Yáñez']);
+    expect(summary.staffingProposal?.tensDay?.candidates[0]).toMatchObject({
+      records: 1,
+      catalogMatched: true,
+    });
+  });
+
   it('preserves an ambiguity-only staffing result for human review', async () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockImplementation(async (encId: string) => ({

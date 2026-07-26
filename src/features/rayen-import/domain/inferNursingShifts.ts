@@ -204,17 +204,33 @@ const buildSuggestion = (
 export const inferNursingShifts = (
   observations: NursingActivityObservation[],
   censusDate: string,
-  nurseCatalog: string[] = []
+  nurseCatalog: string[] = [],
+  tensCatalog: string[] = []
 ): NursingStaffingProposal => {
-  const catalog = buildNurseCatalogIdentities(nurseCatalog);
+  const nurseIdentities = buildNurseCatalogIdentities(nurseCatalog);
+  const tensIdentities = buildNurseCatalogIdentities(tensCatalog);
   return {
     censusDate,
-    day: buildSuggestion(observations, censusDate, 'day', catalog, isNurseRole, 2),
-    night: buildSuggestion(observations, censusDate, 'night', catalog, isNurseRole, 2),
-    // Eloísa identifies TENS as Paramédico/TENS/Técnico. There is no local TENS catalog, so
-    // candidates must satisfy the same multi-record or multi-patient evidence threshold.
-    tensDay: buildSuggestion(observations, censusDate, 'day', [], isNursingTechnicianRole, 3),
-    tensNight: buildSuggestion(observations, censusDate, 'night', [], isNursingTechnicianRole, 3),
+    day: buildSuggestion(observations, censusDate, 'day', nurseIdentities, isNurseRole, 2),
+    night: buildSuggestion(observations, censusDate, 'night', nurseIdentities, isNurseRole, 2),
+    // Eloísa labels these professionals as Paramédico/TENS/Técnico. The curated local catalog
+    // resolves their identity and allows one authoritative activity to count as evidence.
+    tensDay: buildSuggestion(
+      observations,
+      censusDate,
+      'day',
+      tensIdentities,
+      isNursingTechnicianRole,
+      3
+    ),
+    tensNight: buildSuggestion(
+      observations,
+      censusDate,
+      'night',
+      tensIdentities,
+      isNursingTechnicianRole,
+      3
+    ),
   };
 };
 

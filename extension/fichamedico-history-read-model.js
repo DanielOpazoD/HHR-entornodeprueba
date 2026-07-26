@@ -18,8 +18,8 @@
   const flag = value => value === true || value === 1 || /^(?:true|1|s|si|sí)$/i.test(text(value));
   const activityFrom = (item, source, recordedAt) => {
     if (!item) return null;
-    const author = authorFromParts(item) || authorFromPublishedLabel(item.PUBLISH_DATE_HCP_NAME);
-    const role = text(item.HCPR_NAME || item.PRACTITIONER_ROLE);
+    const author = authorFromParts(item) || text(item.HCP_NAME) || authorFromPublishedLabel(item.PUBLISH_DATE_HCP_NAME);
+    const role = text(item.HCPR_NAME || item.HCPR_ROLE || item.HCP_ROLE || item.PRACTITIONER_ROLE);
     const timestamp = text(recordedAt);
     if (!author || !role || !timestamp) return null;
     const authorIdentity = authorIdentityFromParts(item);
@@ -59,18 +59,13 @@
     const events = [];
     const nursingActivity = [];
     for (const event of list(payload)) {
-      nursingActivity.push(
-        ...collectActivity(
-          event && event.evolutionResume,
-          'evolution',
-          item => item && item.OBE_PUBLISH_DATETIME || event && event.publishDatetime
-        ),
-        ...collectActivity(
-          event && event.shiftChangeResume,
-          'shift-change',
-          item => item && item.PUBLISH_DATETIME || event && event.publishDatetime
-        )
-      );
+      const activitySources = [
+        [event && event.evolutionResume, 'evolution', item => item && item.OBE_PUBLISH_DATETIME || event && event.publishDatetime],
+        [event && event.shiftChangeResume, 'shift-change', item => item && item.PUBLISH_DATETIME || event && event.publishDatetime],
+        [event && event.pharmaPerformedActivityResume, 'medication-administration', item => item && item.PUBLISH_DATETIME || event && event.publishDatetime],
+        [event && event.vitalSignObsResume, 'vital-signs', item => item && item.PUBLISH_DATE || event && event.publishDatetime],
+      ];
+      nursingActivity.push(...activitySources.flatMap(([rows, source, at]) => collectActivity(rows, source, at)));
       const scaleEvent = projectScaleEvent(event);
       if (!scaleEvent) continue;
       events.push(scaleEvent);

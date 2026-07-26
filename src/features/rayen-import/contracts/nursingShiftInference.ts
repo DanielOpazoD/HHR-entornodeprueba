@@ -1,4 +1,9 @@
-export type NursingActivitySource = 'evolution' | 'shift-change' | 'evaluation-scale';
+export type NursingActivitySource =
+  | 'evolution'
+  | 'shift-change'
+  | 'evaluation-scale'
+  | 'medication-administration'
+  | 'vital-signs';
 
 export interface RayenNurseAuthorIdentity {
   firstGivenName: string;
