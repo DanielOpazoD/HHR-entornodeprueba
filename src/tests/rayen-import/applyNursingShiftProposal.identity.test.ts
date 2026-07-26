@@ -23,6 +23,17 @@ const suggestion = (names: string[], catalogNames: string[] = names) => ({
   ambiguous: false,
 });
 
+const withIdentityAliases = (
+  value: ReturnType<typeof suggestion>,
+  aliases: Record<string, string[]>
+): ReturnType<typeof suggestion> => ({
+  ...value,
+  candidates: value.candidates.map(candidate => ({
+    ...candidate,
+    identityAliases: aliases[candidate.name] ?? [],
+  })),
+});
+
 const proposal: NursingStaffingProposal = {
   censusDate: '2026-07-20',
   day: suggestion([]),
@@ -69,7 +80,9 @@ describe('nursing shift identity reconciliation', () => {
   it('keeps the existing short name when Eloisa proposes its longer variant', () => {
     const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Pedro Moreno', ''] }), {
       ...proposal,
-      day: suggestion(['Pedro Moreno Opazo'], ['Pedro Moreno Opazo']),
+      day: withIdentityAliases(suggestion(['Pedro Moreno Opazo'], ['Pedro Moreno Opazo']), {
+        'Pedro Moreno Opazo': ['Pedro Moreno'],
+      }),
     });
 
     expect(review.day.names).toEqual([]);
@@ -77,7 +90,10 @@ describe('nursing shift identity reconciliation', () => {
   });
 
   it('does not count observed spellings of one candidate as different people', () => {
-    const inferred = suggestion(['Camila Soto Alegría'], ['Camila Soto Alegría']);
+    const inferred = withIdentityAliases(
+      suggestion(['Camila Soto Alegría'], ['Camila Soto Alegría']),
+      { 'Camila Soto Alegría': ['Camila Soto'] }
+    );
     const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Camila Soto', ''] }), {
       ...proposal,
       day: {
@@ -96,11 +112,94 @@ describe('nursing shift identity reconciliation', () => {
     expect(review.day.ambiguous).toBe(false);
   });
 
+  it('uses explicit observed evidence even when both labels exist in the catalog', () => {
+    const inferred = suggestion(['Camila Soto Alegría'], ['Camila Soto', 'Camila Soto Alegría']);
+    const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Camila Soto', ''] }), {
+      ...proposal,
+      day: {
+        ...inferred,
+        candidates: [{ ...inferred.candidates[0], observedNames: ['Camila Soto'] }],
+      },
+    });
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.alreadyAssigned).toEqual(['Camila Soto Alegría']);
+  });
+
+  it('deduplicates a catalog-listed alias backed by one canonical candidate', () => {
+    const inferred = suggestion(['Camila Soto Alegría'], ['Camila Soto', 'Camila Soto Alegría']);
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: {
+        ...inferred,
+        names: ['Camila Soto', 'Camila Soto Alegría'],
+        candidates: [{ ...inferred.candidates[0], observedNames: ['Camila Soto'] }],
+      },
+    });
+
+    expect(review.day.names).toEqual(['Camila Soto Alegría']);
+    expect(review.day.ambiguous).toBe(false);
+  });
+
+  it('scopes each structured alias to its own canonical candidate', () => {
+    const inferred = withIdentityAliases(
+      suggestion(
+        ['Camila Soto Alegría', 'Pedro Moreno Opazo'],
+        ['Camila Soto Alegría', 'Pedro Moreno Opazo']
+      ),
+      {
+        'Camila Soto Alegría': ['Camila Soto'],
+        'Pedro Moreno Opazo': ['Pedro Moreno'],
+      }
+    );
+    const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Camila Soto', ''] }), {
+      ...proposal,
+      day: inferred,
+    });
+
+    expect(review.day.alreadyAssigned).toEqual(['Camila Soto Alegría']);
+    expect(review.day.names).toEqual(['Pedro Moreno Opazo']);
+  });
+
+  it('quarantines a compound-name alias shared by multiple candidates', () => {
+    const inferred = withIdentityAliases(
+      suggestion(['Juan Pablo Pérez Soto', 'Juan Carlos Pérez Rojas']),
+      {
+        'Juan Pablo Pérez Soto': ['Juan Pérez'],
+        'Juan Carlos Pérez Rojas': ['Juan Pérez'],
+      }
+    );
+    const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Juan Pérez', ''] }), {
+      ...proposal,
+      day: inferred,
+    });
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.ambiguous).toBe(true);
+  });
+
+  it('includes catalog-only compound identities when checking an occupied alias', () => {
+    const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Juan Pérez', ''] }), {
+      ...proposal,
+      day: withIdentityAliases(
+        suggestion(['Juan Pablo Pérez Soto'], ['Juan Pablo Pérez Soto', 'Juan Carlos Pérez Rojas']),
+        { 'Juan Pablo Pérez Soto': ['Juan Pérez'] }
+      ),
+    });
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.ambiguous).toBe(true);
+  });
+
   it('reduces a uniquely resolvable short and full proposal to one person', () => {
     const current = record();
+    const inferred = withIdentityAliases(
+      suggestion(['Camila Soto Alegría'], ['Camila Soto Alegría']),
+      { 'Camila Soto Alegría': ['Camila Soto'] }
+    );
     const rawProposal: NursingStaffingProposal = {
       ...proposal,
-      day: suggestion(['Camila Soto', 'Camila Soto Alegría'], ['Camila Soto Alegría']),
+      day: { ...inferred, names: ['Camila Soto', 'Camila Soto Alegría'] },
     };
     const review = reconcileNursingShiftProposal(current, rawProposal);
 
@@ -110,6 +209,164 @@ describe('nursing shift identity reconciliation', () => {
       'Camila Soto Alegría',
       '',
     ]);
+  });
+
+  it('deduplicates a compound full name through its authoritative surname alias', () => {
+    const current = record();
+    const inferred = withIdentityAliases(
+      suggestion(['Juan Pablo Pérez Soto'], ['Juan Pablo Pérez Soto']),
+      { 'Juan Pablo Pérez Soto': ['Juan Pérez'] }
+    );
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      day: { ...inferred, names: ['Juan Pérez', 'Juan Pablo Pérez Soto'] },
+    });
+
+    expect(review.day.names).toEqual(['Juan Pablo Pérez Soto']);
+    expect(review.day.ambiguous).toBe(false);
+  });
+
+  it('deduplicates authoritative aliases with a compound surname', () => {
+    const inferred = withIdentityAliases(
+      suggestion(['Ana de la Fuente Soto'], ['Ana de la Fuente Soto']),
+      { 'Ana de la Fuente Soto': ['Ana de la Fuente'] }
+    );
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: { ...inferred, names: ['Ana de la Fuente', 'Ana de la Fuente Soto'] },
+    });
+
+    expect(review.day.names).toEqual(['Ana de la Fuente Soto']);
+    expect(review.day.ambiguous).toBe(false);
+  });
+
+  it('does not collapse a short alias while a catalog alternative remains unselected', () => {
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: withIdentityAliases(
+        suggestion(['Ana Pérez', 'Ana Pérez Soto'], ['Ana Pérez Soto', 'Ana Pérez Rojas']),
+        { 'Ana Pérez Soto': ['Ana Pérez'] }
+      ),
+    });
+
+    expect(review.day.ambiguous).toBe(true);
+    expect(buildNursingShiftProposalPatch(record(), review)).toBeNull();
+  });
+
+  it('does not collapse a short name that is also a canonical candidate', () => {
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: withIdentityAliases(suggestion(['Ana Pérez', 'Ana Pérez Soto'], ['Ana Pérez Soto']), {
+        'Ana Pérez Soto': ['Ana Pérez'],
+      }),
+    });
+
+    expect(review.day.ambiguous).toBe(true);
+    expect(buildNursingShiftProposalPatch(record(), review)).toBeNull();
+  });
+
+  it('quarantines an occupied exact candidate that is also another candidate alias', () => {
+    const inferred = withIdentityAliases(
+      suggestion(['Ana Pérez', 'Ana Pérez Soto'], ['Ana Pérez Soto']),
+      { 'Ana Pérez Soto': ['Ana Pérez'] }
+    );
+    const current = record({ nursesDayShift: ['Ana Pérez', ''] });
+    const rawProposal: NursingStaffingProposal = {
+      ...proposal,
+      day: { ...inferred, names: ['Ana Pérez Soto'] },
+    };
+
+    expect(buildNursingShiftProposalPatch(current, rawProposal)).toBeNull();
+  });
+
+  it('quarantines an exact candidate reused as another candidate observed label', () => {
+    const inferred = suggestion(['Ana Pérez', 'Ana Pérez Soto'], ['Ana Pérez Soto']);
+    const contradictory = {
+      ...inferred,
+      candidates: inferred.candidates.map(candidate =>
+        candidate.name === 'Ana Pérez Soto'
+          ? { ...candidate, observedNames: ['Ana Pérez'] }
+          : candidate
+      ),
+    };
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: contradictory,
+    });
+
+    expect(review.day.ambiguous).toBe(true);
+    expect(buildNursingShiftProposalPatch(record(), review)).toBeNull();
+  });
+
+  it('finds catalog collisions for authoritative compound-surname aliases', () => {
+    const review = reconcileNursingShiftProposal(
+      record({ nursesDayShift: ['Ana de la Fuente', ''] }),
+      {
+        ...proposal,
+        day: withIdentityAliases(
+          suggestion(
+            ['Ana de la Fuente Soto'],
+            ['Ana de la Fuente Soto', 'Ana de la Fuente Rojas']
+          ),
+          { 'Ana de la Fuente Soto': ['Ana de la Fuente'] }
+        ),
+      }
+    );
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.ambiguous).toBe(true);
+  });
+
+  it('finds occupied compound-surname conflicts even when absent from the catalog', () => {
+    const current = record({
+      nursesDayShift: ['Ana de la Fuente', 'Ana de la Fuente Rojas'],
+    });
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      day: withIdentityAliases(suggestion(['Ana de la Fuente Soto'], ['Ana de la Fuente Soto']), {
+        'Ana de la Fuente Soto': ['Ana de la Fuente'],
+      }),
+    });
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.ambiguous).toBe(true);
+  });
+
+  it('does not reinterpret an exact canonical candidate as a structural alias', () => {
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: suggestion(
+        ['Ana de la Fuente'],
+        ['Ana de la Fuente', 'Ana de la Fuente Soto', 'Ana de la Fuente Rojas']
+      ),
+    });
+
+    expect(review.day.names).toEqual(['Ana de la Fuente']);
+    expect(review.day.ambiguous).toBe(false);
+  });
+
+  it('does not treat a canonical candidate self-alias as a collision', () => {
+    const review = reconcileNursingShiftProposal(record(), {
+      ...proposal,
+      day: withIdentityAliases(suggestion(['Ana Pérez'], ['Ana Pérez']), {
+        'Ana Pérez': ['Ana Pérez'],
+      }),
+    });
+
+    expect(review.day.names).toEqual(['Ana Pérez']);
+    expect(review.day.ambiguous).toBe(false);
+  });
+
+  it('quarantines a legacy short/full proposal without structured alias evidence', () => {
+    const current = record({ nursesDayShift: ['Pedro Moreno', ''] });
+    const review = reconcileNursingShiftProposal(current, {
+      ...proposal,
+      day: suggestion(['Pedro Moreno Opazo'], ['Pedro Moreno Opazo']),
+    });
+
+    expect(review.day.names).toEqual([]);
+    expect(review.day.ambiguous).toBe(true);
+    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
   });
 
   it('preserves the first spelling when exact normalized identities repeat', () => {
@@ -134,144 +391,5 @@ describe('nursing shift identity reconciliation', () => {
 
     expect(review.day.names).toEqual(['Pedro Moreno Opazo']);
     expect(review.day.alreadyAssigned).toEqual([]);
-  });
-
-  it('does not replace a complete roster when Eloisa only adds second surnames', () => {
-    const current = record({ nursesNightShift: ['Camila Soto', 'Pedro Moreno'] });
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      night: suggestion(['Camila Soto Alegría', 'Pedro Moreno Opazo']),
-    });
-
-    expect(review.night.names).toEqual([]);
-    expect(review.night.alreadyAssigned).toEqual(['Camila Soto Alegría', 'Pedro Moreno Opazo']);
-    expect(review.night.replaceStandardSlots).toBe(false);
-    expect(review.night.currentNames).toBeUndefined();
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('does not let one ambiguous short name merge two distinct full identities', () => {
-    const current = record();
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas']),
-    });
-
-    expect(review.day.names).toEqual(['Ana Pérez', 'Ana Pérez Soto']);
-    expect(review.day.candidates).toHaveLength(3);
-    expect(review.day.ambiguous).toBe(true);
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('removes a non-catalog short alias when every known full identity is selected', () => {
-    const current = record();
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(
-        ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas'],
-        ['Ana Pérez Soto', 'Ana Pérez Rojas']
-      ),
-    });
-
-    expect(review.day.names).toEqual(['Ana Pérez Soto', 'Ana Pérez Rojas']);
-    expect(review.day.ambiguous).toBe(false);
-    expect(buildNursingShiftProposalPatch(current, review)?.nursesDayShift).toEqual([
-      'Ana Pérez Soto',
-      'Ana Pérez Rojas',
-    ]);
-  });
-
-  it('does not merge full identities that share the same observed short alias', () => {
-    const current = record();
-    const inferred = suggestion(['Ana Pérez Soto', 'Ana Pérez Rojas']);
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: {
-        ...inferred,
-        candidates: inferred.candidates.map(candidate => ({
-          ...candidate,
-          observedNames: ['Ana Pérez'],
-        })),
-      },
-    });
-
-    expect(review.day.names).toEqual(['Ana Pérez Soto', 'Ana Pérez Rojas']);
-  });
-
-  it('quarantines a short candidate when the catalog contains multiple full variants', () => {
-    const current = record();
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(['Ana Pérez'], ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas']),
-    });
-
-    expect(review.day.names).toEqual(['Ana Pérez']);
-    expect(review.day.ambiguous).toBe(true);
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('quarantines a full proposal when an occupied short alias is ambiguous', () => {
-    const current = record({ nursesDayShift: ['Ana Pérez', ''] });
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(['Ana Pérez Soto'], ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas']),
-    });
-
-    expect(review.day.names).toEqual([]);
-    expect(review.day.ambiguous).toBe(true);
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('uses other occupied full names when deciding whether a short alias is ambiguous', () => {
-    const current = record({ nursesDayShift: ['Ana Pérez', 'Ana Pérez Rojas'] });
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(['Ana Pérez Soto'], ['Ana Pérez Soto']),
-    });
-
-    expect(review.day.names).toEqual([]);
-    expect(review.day.ambiguous).toBe(true);
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('keeps a short alias ambiguous until every known full variant is selected', () => {
-    const current = record();
-    const review = reconcileNursingShiftProposal(current, {
-      ...proposal,
-      day: suggestion(
-        ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas'],
-        ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas', 'Ana Pérez Díaz']
-      ),
-    });
-
-    expect(review.day.ambiguous).toBe(true);
-    expect(buildNursingShiftProposalPatch(current, review)).toBeNull();
-  });
-
-  it('never duplicates an exact occupied short label from an unreconciled proposal', () => {
-    const current = record({ nursesDayShift: ['Ana Pérez', ''] });
-    const rawProposal: NursingStaffingProposal = {
-      ...proposal,
-      day: suggestion(['Ana Pérez'], ['Ana Pérez', 'Ana Pérez Soto', 'Ana Pérez Rojas']),
-    };
-
-    expect(buildNursingShiftProposalPatch(current, rawProposal)).toBeNull();
-  });
-
-  it('does not replace an occupied short alias when multiple full identities are known', () => {
-    const current = record({ nursesDayShift: ['Ana Pérez', 'Manual'] });
-    const rawReplacement: NursingStaffingProposal = {
-      ...proposal,
-      day: {
-        ...suggestion(
-          ['Ana Pérez Soto', 'Nueva Enfermera'],
-          ['Ana Pérez Soto', 'Ana Pérez Rojas', 'Nueva Enfermera']
-        ),
-        currentNames: ['Ana Pérez', 'Manual'],
-        replaceStandardSlots: true,
-      },
-    };
-
-    expect(buildNursingShiftProposalPatch(current, rawReplacement)).toBeNull();
   });
 });

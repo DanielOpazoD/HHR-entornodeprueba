@@ -26,6 +26,8 @@ export interface NursingShiftEvidence {
   name: string;
   /** Exact Eloisa author labels that were safely resolved to this identity. */
   observedNames?: string[];
+  /** Authoritative first-name + first-surname aliases exposed by Eloisa. */
+  identityAliases?: string[];
   records: number;
   patients: number;
   activeHours: number;

@@ -159,6 +159,7 @@ const buildSuggestion = (
       return {
         name: candidate.name,
         observedNames: [...candidate.observedNames],
+        identityAliases: [...candidate.structuredAliasKeys],
         records,
         patients,
         activeHours,
