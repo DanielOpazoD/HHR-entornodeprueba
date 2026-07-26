@@ -158,6 +158,23 @@ describe('useLoginPageController', () => {
     expect(result.current.isAnyLoading).toBe(false);
   });
 
+  it('does not open another Google flow while a different HHR tab owns the login lock', async () => {
+    window.localStorage.setItem(
+      'hhr_google_login_lock_v1',
+      JSON.stringify({ owner: 'other-tab', timestamp: Date.now() })
+    );
+    const { result } = renderHook(() => useLoginPageController(vi.fn()));
+
+    await act(async () => {
+      await result.current.handleGoogleSignIn();
+    });
+
+    expect(mockExecuteGoogleSignIn).not.toHaveBeenCalled();
+    expect(result.current.isGoogleLoading).toBe(false);
+    expect(result.current.errorCode).toBe('auth/multi-tab-login-in-progress');
+    expect(result.current.error).toMatch(/Otra pestaña de HHR/);
+  });
+
   it('keeps the user on the same login screen when the popup has a recoverable issue', async () => {
     mockExecuteGoogleSignIn.mockResolvedValueOnce(
       createApplicationFailed<AuthSessionState>(

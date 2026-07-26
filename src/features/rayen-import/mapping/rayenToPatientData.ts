@@ -203,6 +203,10 @@ export const rayenToPatientData = (
     isUPC: false,
     // Aislamiento (precaución de contacto/gotitas/aéreo): Ficha Médico lo marca por paciente.
     isIsolated: !!encounter.isIsolated,
+    isolationType: encounter.isIsolated ? encounter.isolationType?.trim() || undefined : undefined,
+    isolationMicroorganism: encounter.isIsolated
+      ? encounter.isolationMicroorganism?.trim() || undefined
+      : undefined,
     location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
     bedMode: isClinicalCrib ? 'Cuna' : EMPTY_PATIENT.bedMode,
     hasCompanionCrib: false,

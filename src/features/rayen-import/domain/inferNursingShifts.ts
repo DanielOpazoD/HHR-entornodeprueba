@@ -23,6 +23,8 @@ const BOUNDARY_GRACE_MINUTES = 60;
 export const isNurseRole = (role: string): boolean =>
   NURSE_ROLE.test(role) && !TECHNICIAN_ROLE.test(role);
 
+export const isNursingTechnicianRole = (role: string): boolean => TECHNICIAN_ROLE.test(role);
+
 interface LocalStamp {
   day: string;
   minutes: number;
@@ -82,18 +84,20 @@ const buildSuggestion = (
   observations: NursingActivityObservation[],
   censusDate: string,
   targetShift: Shift,
-  nurseCatalog: NurseCatalogIdentity[]
+  staffCatalog: NurseCatalogIdentity[],
+  acceptsRole: (role: string) => boolean,
+  standardSlots: number
 ): NursingShiftSuggestion => {
   const candidates = new Map<string, CandidateAccumulator>();
   let ignoredBoundaryRecords = 0;
 
   for (const observation of observations) {
-    if (observation.archived || observation.crossedOut || !isNurseRole(observation.role)) {
+    if (observation.archived || observation.crossedOut || !acceptsRole(observation.role)) {
       continue;
     }
     const identity = resolveNurseIdentity(
       observation.author,
-      nurseCatalog,
+      staffCatalog,
       observation.authorIdentity
     );
     const stamp = parseLocalStamp(observation.recordedAt);
@@ -177,17 +181,20 @@ const buildSuggestion = (
     )
     .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name, 'es'));
 
-  const cutoffTied = evidence.length > 2 && evidence[1]?.score === evidence[2]?.score;
+  const cutoffScore = evidence[standardSlots - 1]?.score;
+  const cutoffTied =
+    evidence.length > standardSlots && cutoffScore === evidence[standardSlots]?.score;
   const names = identityCollision
     ? []
     : cutoffTied
-      ? evidence[0]?.score > evidence[1]?.score
-        ? [evidence[0].name]
-        : []
-      : evidence.slice(0, 2).map(candidate => candidate.name);
+      ? evidence
+          .filter(candidate => cutoffScore != null && candidate.score > cutoffScore)
+          .slice(0, standardSlots)
+          .map(candidate => candidate.name)
+      : evidence.slice(0, standardSlots).map(candidate => candidate.name);
   return {
     names,
-    catalogNames: nurseCatalog.map(identity => identity.displayName),
+    catalogNames: staffCatalog.map(identity => identity.displayName),
     candidates: evidence,
     ignoredBoundaryRecords,
     ambiguous: cutoffTied || identityCollision,
@@ -202,13 +209,16 @@ export const inferNursingShifts = (
   const catalog = buildNurseCatalogIdentities(nurseCatalog);
   return {
     censusDate,
-    day: buildSuggestion(observations, censusDate, 'day', catalog),
-    night: buildSuggestion(observations, censusDate, 'night', catalog),
+    day: buildSuggestion(observations, censusDate, 'day', catalog, isNurseRole, 2),
+    night: buildSuggestion(observations, censusDate, 'night', catalog, isNurseRole, 2),
+    // Eloísa identifies TENS as Paramédico/TENS/Técnico. There is no local TENS catalog, so
+    // candidates must satisfy the same multi-record or multi-patient evidence threshold.
+    tensDay: buildSuggestion(observations, censusDate, 'day', [], isNursingTechnicianRole, 3),
+    tensNight: buildSuggestion(observations, censusDate, 'night', [], isNursingTechnicianRole, 3),
   };
 };
 
 export const hasNursingShiftSuggestions = (proposal: NursingStaffingProposal): boolean =>
-  proposal.day.names.length > 0 ||
-  proposal.night.names.length > 0 ||
-  proposal.day.ambiguous ||
-  proposal.night.ambiguous;
+  [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(suggestion =>
+    Boolean(suggestion && (suggestion.names.length > 0 || suggestion.ambiguous))
+  );

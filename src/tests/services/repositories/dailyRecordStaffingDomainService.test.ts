@@ -20,7 +20,7 @@ const buildRecord = (date: string): DailyRecord =>
   }) as DailyRecord;
 
 describe('dailyRecordStaffingDomainService', () => {
-  it('leaves next-day nurses vacant while carrying prior-night TENS', () => {
+  it('leaves all next-day clinical staffing vacant', () => {
     const previous = buildRecord('2026-02-18');
     previous.nursesNightShift = ['N1', 'N2'];
     previous.tensNightShift = ['T1', 'T2', 'T3'];
@@ -29,7 +29,7 @@ describe('dailyRecordStaffingDomainService', () => {
 
     expect(result.nursesDay).toEqual(['', '']);
     expect(result.nursesNight).toEqual(['', '']);
-    expect(result.tensDay).toEqual(['T1', 'T2', 'T3']);
+    expect(result.tensDay).toEqual(['', '', '']);
     expect(result.tensNight).toEqual(['', '', '']);
   });
 

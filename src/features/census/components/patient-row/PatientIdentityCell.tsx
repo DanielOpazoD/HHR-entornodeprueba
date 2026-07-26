@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight, Biohazard } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -211,16 +211,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               clinicalEpisodeId={data.clinicalEpisodeId}
               admissionDate={data.admissionDate}
             />
-          )}
-          {data.isIsolated && (
-            <span
-              className="shrink-0 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase leading-none text-amber-700 ring-1 ring-amber-300"
-              title="Paciente en aislamiento"
-              aria-label="En aislamiento"
-            >
-              <Biohazard size={10} strokeWidth={2.5} />
-              Aisl.
-            </span>
           )}
         </div>
         {showIdentityDetails && (

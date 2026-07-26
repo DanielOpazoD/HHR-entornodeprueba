@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-/** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */
 const BRADEN_HISTORY_EVENT = {
   publishDatetime: '2026-07-10T08:00:00',
   evaluationInstrumentsResume: [
@@ -16,7 +15,6 @@ const BRADEN_HISTORY_EVENT = {
   ],
 };
 
-/** Real-shaped Braden 21 as an encounterFormEntry form (the "Instrumentos de evaluación" summary). */
 const BRADEN_SUMMARY_FORM = {
   formCodigo: 'INSTRUMENTO',
   nameForm: 'Escala de riesgo UPP (Braden)',
@@ -82,6 +80,12 @@ describe('runClinicalFill', () => {
           recordedAt: encId === 'E1' ? '2026-07-10T10:15:00' : '2026-07-10T14:15:00',
           source: 'evolution',
         },
+        {
+          author: 'Jimena Yáñez',
+          role: 'Paramédico',
+          recordedAt: encId === 'E1' ? '2026-07-10T11:15:00' : '2026-07-10T15:15:00',
+          source: 'evolution',
+        },
       ],
     }));
     const deps = okDeps({
@@ -98,6 +102,7 @@ describe('runClinicalFill', () => {
 
     expect(summary.staffingProposal?.day.names).toEqual(['Ana Enfermera']);
     expect(summary.staffingProposal?.night.names).toEqual([]);
+    expect(summary.staffingProposal?.tensDay?.names).toEqual(['Jimena Yáñez']);
     expect(summary.staffingProposal?.day.candidates[0]).toMatchObject({
       records: 2,
       patients: 2,
@@ -164,7 +169,6 @@ describe('runClinicalFill', () => {
     expect(deps.applyPatch).toHaveBeenCalledTimes(1);
     const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const target = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][1];
-    // Only the evaluationScores path is patched (no devices came back).
     expect(Object.keys(patch)).toEqual(['beds.H1C2.evaluationScores']);
     expect(patch['beds.H1C2.evaluationScores']).toMatchObject({
       braden: { total: 17 },
@@ -318,7 +322,6 @@ describe('runClinicalFill', () => {
   });
 
   it('unions both scale sources — a Braden only in the summary form still syncs (Rodrigo case)', async () => {
-    // History report has no scales for this patient; the Braden lives only in encounterFormEntry.
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [BRADEN_SUMMARY_FORM] }),
@@ -373,7 +376,7 @@ describe('runClinicalFill', () => {
     );
 
     expect(summary.total).toBe(2);
-    expect(summary.patched).toBe(1); // H1C2 still made it
+    expect(summary.patched).toBe(1);
     expect(summary.errors).toEqual([
       { bedId: 'H1C1', source: 'patch', message: 'patch rechazado' },
     ]);
@@ -417,7 +420,7 @@ describe('runClinicalFill', () => {
     });
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
-    expect(summary.patched).toBe(1); // scales still patched
+    expect(summary.patched).toBe(1);
     expect(summary.errors).toEqual([{ bedId: '*', source: 'cudyr', message: 'sin relay CUDYR' }]);
     const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(patch['beds.H1C2.evaluationScores'].cudyr).toBeUndefined();
@@ -433,7 +436,7 @@ describe('runClinicalFill', () => {
       onProgress
     );
 
-    expect(summary.total).toBe(1); // only H1C2 eligible
+    expect(summary.total).toBe(1);
     expect(onProgress).toHaveBeenCalledWith({ done: 1, total: 1 });
   });
 
@@ -444,7 +447,6 @@ describe('runClinicalFill', () => {
     };
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      // Authoritative read: Carina's categorization is from the 10th, census day is the 11th.
       fetchCudyrCategories: vi.fn().mockResolvedValue({
         items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
       }),
@@ -468,7 +470,7 @@ describe('runClinicalFill', () => {
     });
     const summary = await runClinicalFill(rec, '2026-07-11', deps);
 
-    expect(summary.patched).toBe(0); // nothing changed — the stale value is preserved, not wiped
+    expect(summary.patched).toBe(0);
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 

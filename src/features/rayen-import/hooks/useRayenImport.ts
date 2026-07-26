@@ -48,6 +48,7 @@ import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActio
 import { resolveSyncReportRequest } from './reportDateHelpers';
 import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import { useRayenSyncRequestController } from './useRayenSyncRequestController';
+import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -128,13 +129,12 @@ export const useRayenImport = () => {
   const presentStaffingProposal = useCallback(
     (proposal: NursingStaffingProposal, attemptId: number) => {
       if (!isRayenFillAttemptCurrent(attemptId)) return;
-      const hasVacancies = proposal.day.names.length > 0 || proposal.night.names.length > 0;
-      const hasAmbiguity = proposal.day.ambiguous || proposal.night.ambiguous;
+      const sections = [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight];
+      const hasVacancies = sections.some(section => (section?.names.length ?? 0) > 0);
+      const hasAmbiguity = sections.some(section => section?.ambiguous);
+      const hasPendingDecision = hasPendingStaffingDecision(proposal);
       if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
-        reportRayenStaffingOutcome(
-          hasVacancies || hasAmbiguity ? 'declined' : 'resolved',
-          attemptId
-        );
+        reportRayenStaffingOutcome(hasPendingDecision ? 'declined' : 'resolved', attemptId);
         return;
       }
       reportRayenStaffingOutcome(
@@ -142,7 +142,7 @@ export const useRayenImport = () => {
         attemptId
       );
       // Only interrupt for a real decision; the pulse and audit retain all other evidence.
-      setStaffingProposal(hasVacancies ? proposal : null);
+      setStaffingProposal(hasPendingDecision ? proposal : null);
     },
     [isAdmin]
   );
@@ -349,11 +349,7 @@ export const useRayenImport = () => {
     invalidateRayenFillAttempt();
     cancelRun();
     const staffingDecisionWasSkipped =
-      !!staffingProposal &&
-      (staffingProposal.day.names.length > 0 ||
-        staffingProposal.night.names.length > 0 ||
-        staffingProposal.day.ambiguous ||
-        staffingProposal.night.ambiguous);
+      !!staffingProposal && hasPendingStaffingDecision(staffingProposal);
     if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);

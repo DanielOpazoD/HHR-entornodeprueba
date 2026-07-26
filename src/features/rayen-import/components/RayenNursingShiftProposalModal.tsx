@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, UserRoundCheck } from 'lucide-react';
+import { Moon, Sun, UserRoundCheck, UsersRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   NursingStaffingProposal,
@@ -25,7 +25,8 @@ const ShiftSuggestion: React.FC<{
   label: string;
   suggestion: NursingShiftSuggestion;
   icon: React.ReactNode;
-}> = ({ label, suggestion, icon }) => {
+  roleLabel: string;
+}> = ({ label, suggestion, icon, roleLabel }) => {
   const alreadyAssigned = suggestion.alreadyAssigned ?? [];
   if (suggestion.names.length === 0 && alreadyAssigned.length === 0 && !suggestion.ambiguous)
     return null;
@@ -33,7 +34,7 @@ const ShiftSuggestion: React.FC<{
     <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
       <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
         {icon}
-        {label}
+        {roleLabel} · {label}
       </h4>
       {alreadyAssigned.length > 0 && (
         <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
@@ -88,18 +89,30 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   onCancel,
 }) => {
   const hasVacanciesToComplete = Boolean(
-    proposal && (proposal.day.names.length > 0 || proposal.night.names.length > 0)
+    proposal &&
+    [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
+      suggestion => (suggestion?.names.length ?? 0) > 0
+    )
+  );
+  const hasAmbiguousSuggestions = Boolean(
+    proposal &&
+    [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
+      suggestion => suggestion?.ambiguous
+    )
   );
   const replacesExisting = Boolean(
-    proposal && (proposal.day.replaceStandardSlots || proposal.night.replaceStandardSlots)
+    proposal &&
+    [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
+      suggestion => suggestion?.replaceStandardSlots
+    )
   );
-  if (!proposal || !hasVacanciesToComplete) return null;
+  if (!proposal || (!hasVacanciesToComplete && !hasAmbiguousSuggestions)) return null;
 
   return (
     <BaseModal
       isOpen
       onClose={onCancel}
-      title="Enfermería identificada"
+      title="Dotación clínica identificada"
       icon={<UserRoundCheck size={20} />}
       size="md"
       variant="white"
@@ -115,24 +128,43 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
         aria-labelledby="rayen-nursing-shift-title"
       >
         <h3 id="rayen-nursing-shift-title" className="sr-only">
-          Propuesta de enfermería
+          Propuesta de dotación clínica
         </h3>
         <p className="text-sm leading-relaxed text-slate-600">
-          La sugerencia usa actividad registrada fuera de las ventanas ambiguas del cambio de turno.
+          La sugerencia usa acciones firmadas por Enfermería y Paramédicos/TENS fuera de las
+          ventanas ambiguas del cambio de turno.
           {replacesExisting
-            ? ' Al confirmar se reemplazarán los cupos estándar indicados; TENS y cupos adicionales no cambiarán.'
+            ? ' Al confirmar se reemplazarán únicamente los cupos estándar indicados; los cupos adicionales no cambiarán.'
             : ' Al confirmar se completarán únicamente los cupos que continúen vacantes.'}
         </p>
         <ShiftSuggestion
           label="Turno largo"
+          roleLabel="Enfermería"
           suggestion={proposal.day}
           icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
         />
         <ShiftSuggestion
           label="Turno noche"
+          roleLabel="Enfermería"
           suggestion={proposal.night}
           icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
         />
+        {proposal.tensDay && (
+          <ShiftSuggestion
+            label="Turno largo"
+            roleLabel="TENS"
+            suggestion={proposal.tensDay}
+            icon={<UsersRound size={16} className="text-amber-600" aria-hidden="true" />}
+          />
+        )}
+        {proposal.tensNight && (
+          <ShiftSuggestion
+            label="Turno noche"
+            roleLabel="TENS"
+            suggestion={proposal.tensNight}
+            icon={<UsersRound size={16} className="text-slate-600" aria-hidden="true" />}
+          />
+        )}
         {error && (
           <p
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
@@ -148,16 +180,18 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             disabled={isBusy}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
-            Mantener actual
+            {hasVacanciesToComplete ? 'Mantener actual' : 'Entendido'}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isBusy}
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
-          >
-            {isBusy ? 'Aplicando…' : 'Aplicar propuesta'}
-          </button>
+          {hasVacanciesToComplete && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isBusy}
+              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
+            >
+              {isBusy ? 'Aplicando…' : 'Aplicar propuesta'}
+            </button>
+          )}
         </div>
         <p className="border-t border-slate-100 pt-3 text-[11px] text-slate-500">
           La decisión quedará registrada en el historial de sincronización.

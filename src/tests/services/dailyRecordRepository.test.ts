@@ -208,7 +208,7 @@ describe('DailyRecordRepository (Expanded)', () => {
   });
 
   describe('initializeDay', () => {
-    it('leaves day nurses vacant while inheriting night notes and TENS', async () => {
+    it('leaves day nurses and TENS vacant while inheriting night notes', async () => {
       const prev = createMockRecord('2024-12-27');
       prev.nursesDayShift = ['Nurse Day 1', 'Nurse Day 2'];
       prev.nursesNightShift = ['Nurse Night 1', 'Nurse Night 2'];
@@ -229,7 +229,7 @@ describe('DailyRecordRepository (Expanded)', () => {
 
       // Inheritance verification
       expect(initialized.nursesDayShift).toEqual(['', '']);
-      expect(initialized.tensDayShift).toEqual(['Tens N1', 'Tens N2', 'Tens N3']);
+      expect(initialized.tensDayShift).toEqual(['', '', '']);
       expect(initialized.beds['R1'].handoffNoteDayShift).toBe('Night report');
       expect(initialized.beds['R1'].handoffNoteNightShift).toBe('Night report');
       expect(initialized.beds['R1'].patientName).toBe('Patient 1');

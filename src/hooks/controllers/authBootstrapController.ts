@@ -58,7 +58,7 @@ export const buildBootstrapTimeoutAuthError = (): AuthSessionError => ({
   code: 'auth/bootstrap-timeout',
   message: buildBootstrapTimeoutIssue(),
   userSafeMessage:
-    'No se pudo confirmar la sesion con Google en este navegador. Intenta nuevamente o reinicia los datos locales si el problema persiste.',
+    'No se pudo recuperar la sesión de Google. Cierra otras pestañas de HHR y vuelve a intentar desde esta pestaña.',
   retryable: true,
   severity: 'warning',
   telemetryTags: ['auth', 'bootstrap_timeout'],

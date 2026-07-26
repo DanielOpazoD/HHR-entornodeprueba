@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import '../../../extension/fichamedico-isolation-normalization.js';
 import '../../../extension/fichamedico-normalization.js';
 
 const normalization = (
@@ -64,6 +65,9 @@ describe('Ficha Medico census normalization', () => {
           roomShortName: 'Sala 1',
           bedShortName: 'Cama 2',
           hasNurseDischarge: true,
+          isIsolated: true,
+          isoTypeName: 'Gotas',
+          microName: 'Virus Influenza B',
         },
         {
           firstGivenName: 'Ana',
@@ -85,8 +89,40 @@ describe('Ficha Medico census normalization', () => {
       diagnosisCode: 'J18.9',
       diagnosisDescription: 'Neumonía',
       hasNurseDischarge: true,
+      isIsolated: true,
+      isolationType: 'Gotas',
+      isolationMicroorganism: 'Virus Influenza B',
       dischargeDatetime: undefined,
     });
+  });
+
+  it('does not reactivate an explicitly inactive or historically ended isolation', () => {
+    const explicitlyInactive = normalization.normalizeEncounter(
+      { id: 1, isIsolated: false, isoTypeName: 'Gotas' },
+      {},
+      {},
+      false
+    );
+    const historicalOnly = normalization.normalizeEncounter(
+      {
+        id: 2,
+        isIsolated: true,
+        isolations: [
+          {
+            isoTypeName: 'Contacto',
+            endIsolationDatetime: '2026-07-24T18:00:00.000Z',
+          },
+        ],
+      },
+      {},
+      {},
+      false
+    );
+
+    expect(explicitlyInactive).toMatchObject({ isIsolated: false });
+    expect(explicitlyInactive).not.toHaveProperty('isolationType');
+    expect(historicalOnly).toMatchObject({ isIsolated: false });
+    expect(historicalOnly).not.toHaveProperty('isolationType');
   });
 
   it.each([

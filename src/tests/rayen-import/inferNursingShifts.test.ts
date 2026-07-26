@@ -3,6 +3,7 @@ import {
   hasNursingShiftSuggestions,
   inferNursingShifts,
   isNurseRole,
+  isNursingTechnicianRole,
   type NursingActivityObservation,
 } from '@/features/rayen-import/domain/inferNursingShifts';
 
@@ -224,6 +225,44 @@ describe('inferNursingShifts', () => {
 
     expect(proposal.day.names).toEqual([]);
     expect(proposal.day.candidates).toEqual([]);
+    expect(proposal.tensDay?.names).toEqual(['Técnico Uno']);
+  });
+
+  it('identifies up to three TENS per shift and leaves a real vacancy unfilled', () => {
+    const tens = (author: string, recordedAt: string, encounterId: string) =>
+      activity(author, recordedAt, encounterId, { role: 'Paramédico' });
+    const proposal = inferNursingShifts(
+      [
+        tens('Jimena Yáñez', '2026-07-20T10:00:00', 'E1'),
+        tens('Jimena Yáñez', '2026-07-20T14:00:00', 'E2'),
+        tens('Paula Soto', '2026-07-20T11:00:00', 'E1'),
+        tens('Paula Soto', '2026-07-20T16:00:00', 'E3'),
+      ],
+      '2026-07-20'
+    );
+
+    expect(proposal.tensDay?.names).toEqual(['Jimena Yáñez', 'Paula Soto']);
+    expect(proposal.tensDay?.ambiguous).toBe(false);
+    expect(proposal.tensNight?.names).toEqual([]);
+  });
+
+  it('keeps the strongest TENS candidates when the third standard slot is tied', () => {
+    const observations = [
+      ...['10:00', '12:00', '15:00'].map((time, index) =>
+        activity('TENS Principal', `2026-07-20T${time}:00`, `P${index}`, {
+          role: 'TENS',
+        })
+      ),
+      ...['TENS B', 'TENS C', 'TENS D'].flatMap(name => [
+        activity(name, '2026-07-20T10:00:00', `${name}-1`, { role: 'TENS' }),
+        activity(name, '2026-07-20T12:00:00', `${name}-2`, { role: 'TENS' }),
+      ]),
+    ];
+
+    const proposal = inferNursingShifts(observations, '2026-07-20');
+
+    expect(proposal.tensDay?.names).toEqual(['Tens Principal']);
+    expect(proposal.tensDay?.ambiguous).toBe(true);
   });
 
   it('requires review instead of choosing arbitrarily when three candidates tie for two slots', () => {
@@ -263,5 +302,15 @@ describe('inferNursingShifts', () => {
     ['Médico', false],
   ])('classifies role %s as nurse=%s', (role, expected) => {
     expect(isNurseRole(role)).toBe(expected);
+  });
+
+  it.each([
+    ['Paramédico', true],
+    ['Técnico Paramédico', true],
+    ['TENS', true],
+    ['Enfermera(o)', false],
+    ['Médico', false],
+  ])('classifies role %s as nursing technician=%s', (role, expected) => {
+    expect(isNursingTechnicianRole(role)).toBe(expected);
   });
 });
