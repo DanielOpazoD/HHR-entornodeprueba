@@ -50,6 +50,130 @@ describe('previous clinical-day admission evidence and safety', () => {
     });
   });
 
+  it('surfaces an evidence failure as a retryable conflict instead of silently skipping it', async () => {
+    const unverifiedDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: motherAndNewbornDiff.admissions.map(admission => ({
+        ...admission,
+        source: admission.source
+          ? { ...admission.source, verifiedBedPlacement: undefined }
+          : undefined,
+      })),
+    };
+
+    const verified = await verifyPreviousDayAdmissionPlacements(unverifiedDiff, '2026-07-26', {
+      fetchReport: vi.fn().mockRejectedValue(new Error('temporary extension failure')),
+    });
+
+    expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
+    expect(verified.conflicts).toEqual([
+      expect.objectContaining({
+        bedId: 'H4C1',
+        patientName: 'Maeva Elisabet Maria Tuki Garcia',
+        code: 'historical-admission-evidence',
+        source: expect.objectContaining({ encounterId: '143100' }),
+      }),
+    ]);
+    expect(verified.summary.conflicts).toBe(1);
+
+    const retried = await verifyPreviousDayAdmissionPlacements(verified, '2026-07-26', {
+      fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi
+        .fn()
+        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
+    });
+
+    expect(retried.admissions[0].source?.verifiedBedPlacement).toEqual(
+      expect.objectContaining({ bedId: 'H4C1' })
+    );
+    expect(retried.conflicts).toEqual([]);
+    expect(retried.summary.conflicts).toBe(0);
+  });
+
+  it('rebuilds a preceding-night mother and crib candidate when the current sync is unchanged', async () => {
+    const admission = motherAndNewbornDiff.admissions[0];
+    const mother = admission.patient;
+    const crib = mother.clinicalCrib as NonNullable<typeof mother.clinicalCrib>;
+    const newbornSource = {
+      ...admission.source!,
+      encounterId: '143101',
+      run: '',
+      firstGivenName: 'RN de Maeva',
+      admissionDatetime: '2026-07-26T05:10:00-06:00',
+      clinicalCribParentBedId: 'H4C1',
+      verifiedBedPlacement: undefined,
+    };
+    const unchangedDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: [],
+      updates: [],
+      unchangedCount: 2,
+      activeClinicalCribs: [
+        {
+          parentBedId: 'H4C1',
+          principalRut: mother.rut,
+          patient: crib,
+          source: newbornSource,
+        },
+      ],
+      summary: {
+        ...motherAndNewbornDiff.summary,
+        admissions: 0,
+        updates: 0,
+        unchanged: 2,
+      },
+    };
+    const currentRecord: DailyRecord = {
+      ...historicalRecord,
+      date: '2026-07-26',
+      beds: { H4C1: mother },
+    };
+
+    const failed = await verifyPreviousDayAdmissionPlacements(unchangedDiff, '2026-07-26', {
+      fetchReport: vi.fn().mockRejectedValue(new Error('temporary extension failure')),
+      snapshot: {
+        capturedAt: '2026-07-26T12:00:00-06:00',
+        facilityId: 1342,
+        encounters: [admission.source!, newbornSource],
+      },
+      currentRecord,
+    });
+    const verified = await verifyPreviousDayAdmissionPlacements(failed, '2026-07-26', {
+      fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi
+        .fn()
+        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
+    });
+    const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
+
+    expect(failed.conflicts).toEqual([
+      expect.objectContaining({ code: 'historical-admission-evidence' }),
+    ]);
+    expect(verified.previousDayAdmissionCandidates).toEqual([
+      expect.objectContaining({
+        bedId: 'H4C1',
+        patient: expect.objectContaining({
+          patientName: 'Maeva Elisabet Maria Tuki Garcia',
+          clinicalCrib: expect.objectContaining({ patientName: 'RN de Maeva Tuki Garcia' }),
+        }),
+        source: expect.objectContaining({
+          encounterId: '143100',
+          verifiedBedPlacement: expect.objectContaining({ bedId: 'H4C1' }),
+        }),
+      }),
+    ]);
+    expect(verified.conflicts).toEqual([]);
+    expect(plan.edits).toEqual([
+      expect.objectContaining({
+        patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+        admissionSubjects: [
+          expect.objectContaining({ kind: 'principal' }),
+          expect.objectContaining({ kind: 'clinical-crib' }),
+        ],
+      }),
+    ]);
+  });
+
   it('excludes a bed movement made exactly at the clinical-day handoff', async () => {
     const unverifiedDiff: CensusImportDiff = {
       ...motherAndNewbornDiff,

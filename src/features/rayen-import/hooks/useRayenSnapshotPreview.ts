@@ -184,6 +184,8 @@ export const useRayenSnapshotPreview = ({
 
       diff = await verifyPreviousDayAdmissionPlacements(diff, reportDate, {
         fetchReport: fetchPatientFlowReport,
+        snapshot,
+        currentRecord,
       });
       const previousDayPlan = await computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin);
       const previousDayEdits = previousDayPlan.edits;

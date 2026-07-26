@@ -4,17 +4,11 @@ import type {
   CensusImportDiff,
   PreviousDayEdit,
 } from '../contracts/censusImportDiff';
-import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
-import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { isOccupied } from './applyCensusImportDiff';
 import { clinicalAdmissionDay } from './censusDayPolicy';
-import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
-import { latestPatientFlowMovement, patientRunFromFlowReport } from '../mapping/parsePatientFlow';
-import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
-import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 export type HistoricalAdmissionSubject = {
   day: string;
@@ -23,13 +17,13 @@ export type HistoricalAdmissionSubject = {
   patient: PatientData;
   principal: PatientData;
 };
-const patientAdmissionDay = (patient: PatientData): string => {
+export const patientAdmissionDay = (patient: PatientData): string => {
   const day = patient.admissionDate?.trim();
   const time = patient.admissionTime?.trim().slice(0, 5);
   if (!day || !time) return '';
   return resolveClinicalDayForDateTime(day, time) ?? day;
 };
-const isPreviousNightRollover = (admission: AdmissionEntry, censusDay: string): boolean => {
+export const isPreviousNightRollover = (admission: AdmissionEntry, censusDay: string): boolean => {
   if (!admission.source) return false;
   const wallClock = encounterWallClockInRapaNui(admission.source.admissionDatetime);
   return Boolean(
@@ -38,7 +32,7 @@ const isPreviousNightRollover = (admission: AdmissionEntry, censusDay: string): 
     clinicalAdmissionDay(admission.source) < censusDay
   );
 };
-const isPatientPreviousNightRollover = (patient: PatientData, censusDay: string): boolean =>
+export const isPatientPreviousNightRollover = (patient: PatientData, censusDay: string): boolean =>
   patient.admissionDate?.trim() === censusDay && patientAdmissionDay(patient) < censusDay;
 
 const admissionSubjects = (
@@ -269,128 +263,4 @@ export const confirmedPreviousDayAdmissionsByDay = (
     }
   }
   return byDay;
-};
-
-interface EvidenceDependencies {
-  fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;
-  extractText?: (buffer: ArrayBuffer) => Promise<string>;
-}
-
-const decodePdfBase64 = (base64: string): ArrayBuffer => {
-  const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-};
-
-const secondBefore = (localTimestamp: string): string => {
-  const parsed = new Date(`${localTimestamp}Z`);
-  if (Number.isNaN(parsed.getTime())) return localTimestamp;
-  return new Date(parsed.getTime() - 1000).toISOString().slice(0, 19);
-};
-
-export const verifyPreviousDayAdmissionPlacements = async (
-  diff: CensusImportDiff,
-  censusDay: string,
-  dependencies: EvidenceDependencies
-): Promise<CensusImportDiff> => {
-  const extractText = dependencies.extractText ?? extractPdfTextFromBuffer;
-  const principalSourceForUpdate = (
-    source: RayenEncounter | undefined,
-    parent: PatientData
-  ): RayenEncounter | undefined => {
-    const sameEpisode = Boolean(
-      source?.encounterId &&
-      parent.clinicalEpisodeId &&
-      source.encounterId === parent.clinicalEpisodeId
-    );
-    const sameRun = Boolean(
-      normalizeRut(source?.run) &&
-      normalizeRut(parent.rut) &&
-      normalizeRut(source?.run) === normalizeRut(parent.rut)
-    );
-    if (source && (sameEpisode || sameRun)) return source;
-    if (
-      parent.clinicalEpisodeId?.trim() &&
-      parent.admissionDate?.trim() &&
-      parent.admissionTime?.trim()
-    ) {
-      return historicalEncounterFromLocal(parent);
-    }
-    return undefined;
-  };
-  const updateCandidates = diff.updates.flatMap(update => {
-    const cribChange = update.changes.find(
-      change =>
-        change.field === 'clinicalCrib' &&
-        !isOccupied(change.from as PatientData | undefined) &&
-        isOccupied(change.to as PatientData | undefined)
-    );
-    const source = principalSourceForUpdate(update.source, update.patient);
-    if (!cribChange || !source) return [];
-    return [
-      {
-        bedId: update.bedId,
-        isCma: false,
-        patient: { ...update.patient, clinicalCrib: cribChange.to as PatientData },
-        source,
-      } satisfies AdmissionEntry,
-    ];
-  });
-  const candidates = [...diff.admissions, ...updateCandidates];
-  const admissions = await Promise.all(
-    candidates.map(async admission => {
-      const source = admission.source;
-      const cribRollover = Boolean(
-        admission.patient.clinicalCrib &&
-        isPatientPreviousNightRollover(admission.patient.clinicalCrib, censusDay)
-      );
-      if (
-        !source ||
-        (!isPreviousNightRollover(admission, censusDay) && !cribRollover) ||
-        !/^\d+$/.test(source.encounterId)
-      ) {
-        return admission;
-      }
-      const unverifiedAdmission: AdmissionEntry = {
-        ...admission,
-        source: { ...source, verifiedBedPlacement: undefined },
-      };
-      const admissionStamp = encounterWallClockInRapaNui(source.admissionDatetime);
-      const correctionDay = isPreviousNightRollover(admission, censusDay)
-        ? clinicalAdmissionDay(source)
-        : patientAdmissionDay(admission.patient.clinicalCrib as PatientData);
-      if (!admissionStamp || !correctionDay) return unverifiedAdmission;
-      const { nextDay, nightEnd } = resolveClinicalDayBounds(correctionDay);
-      try {
-        const report = await dependencies.fetchReport(source.encounterId);
-        if (!report.base64 || report.error) return unverifiedAdmission;
-        const text = await extractText(decodePdfBase64(report.base64));
-        if (patientRunFromFlowReport(text) !== normalizeRut(source.run)) {
-          return unverifiedAdmission;
-        }
-        const movement = latestPatientFlowMovement(text, {
-          notBefore: admissionStamp,
-          notAfter: secondBefore(`${nextDay}T${nightEnd}:00`),
-        });
-        if (!movement) return unverifiedAdmission;
-        return {
-          ...admission,
-          source: {
-            ...source,
-            verifiedBedPlacement: {
-              source: 'patient-flow-report' as const,
-              bedId: movement.bedId,
-              changedAt: movement.changedAt,
-            },
-          },
-        };
-      } catch {
-        return unverifiedAdmission;
-      }
-    })
-  );
-  return {
-    ...diff,
-    admissions: admissions.slice(0, diff.admissions.length),
-    previousDayAdmissionCandidates: admissions.slice(diff.admissions.length),
-  };
 };

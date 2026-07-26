@@ -152,7 +152,8 @@ export interface ConflictEntry {
     | 'unconfirmed-principal-bed'
     | 'principal-bed-collision'
     | 'occupied-local-bed'
-    | 'historical-reconstruction';
+    | 'historical-reconstruction'
+    | 'historical-admission-evidence';
   /** Admission held back only because its target bed was occupied when the snapshot was planned. */
   blockedAdmission?: AdmissionEntry;
   /** Move held back only because its target bed was occupied when the snapshot was planned. */

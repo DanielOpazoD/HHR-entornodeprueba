@@ -28,7 +28,7 @@ import {
   previousDayAdmissionDays,
 } from './previousDayAdmissionCorrections';
 
-export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionCorrections';
+export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
