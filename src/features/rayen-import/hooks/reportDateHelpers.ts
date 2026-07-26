@@ -5,7 +5,11 @@
  */
 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import { isSupportedCensusSyncDay, type CensusSyncTarget } from '../domain/historicalCensusSync';
+import {
+  isSupportedCensusSyncDay,
+  resolveCensusSyncTarget,
+  type CensusSyncTarget,
+} from '../domain/historicalCensusSync';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -61,6 +65,16 @@ export const toSyncReportDate = (record: DailyRecord, now: Date = new Date()): s
     );
   }
   return reportDate;
+};
+
+/** Resolves the temporal target and report interval as one fallible operation. */
+export const resolveSyncReportRequest = (
+  record: DailyRecord,
+  now: Date = new Date()
+): { target: CensusSyncTarget; range: { dateStart: string; dateEnd: string } } => {
+  const reportDate = toSyncReportDate(record, now);
+  const target = resolveCensusSyncTarget(reportDate, now);
+  return { target, range: syncReportRange(reportDate, target) };
 };
 
 /** @deprecated Use toSyncReportDate. Kept for compatible imports while the feature migrates. */

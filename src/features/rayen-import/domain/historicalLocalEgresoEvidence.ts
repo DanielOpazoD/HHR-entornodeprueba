@@ -1,8 +1,9 @@
 import { normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
+import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 
 export interface LocalHistoricalOccupant {
   encounter: RayenEncounter;
@@ -20,23 +21,6 @@ export interface ExactLocalEgresoResolution {
   unresolved: LocalHistoricalOccupant[];
 }
 
-const encounterFromLocal = (
-  patient: PatientData,
-  clinicalCribParentBedId?: string
-): RayenEncounter => ({
-  encounterId: patient.clinicalEpisodeId?.trim() ?? '',
-  run: patient.rut,
-  firstGivenName: patient.firstName?.trim() || patient.patientName,
-  firstFamilyName: patient.lastName?.trim() || '',
-  secondFamilyName: patient.secondLastName,
-  admissionDatetime: patient.admissionDate
-    ? `${patient.admissionDate}T${patient.admissionTime || '00:00'}:00`
-    : undefined,
-  diagnosis: patient.pathology,
-  service: patient.location,
-  clinicalCribParentBedId,
-});
-
 /** Local occupants absent from today's live sources, retaining the only bed HHR may preserve. */
 export const collectUnreferencedLocalOccupants = (
   record: DailyRecord,
@@ -50,7 +34,10 @@ export const collectUnreferencedLocalOccupants = (
     ]) {
       const patient = entry.patient;
       if (!patient?.patientName?.trim() || patient.isBlocked) continue;
-      const encounter = encounterFromLocal(patient, entry.isClinicalCrib ? bedId : undefined);
+      const encounter = historicalEncounterFromLocal(
+        patient,
+        entry.isClinicalCrib ? bedId : undefined
+      );
       if (encounter.encounterId && referencedEpisodes.has(encounter.encounterId)) continue;
       occupants.push({ encounter, bedId, isClinicalCrib: entry.isClinicalCrib });
     }
@@ -67,7 +54,7 @@ const exactVerifiedDischargeAt = (
     !egreso ||
     result?.encounterId !== occupant.encounter.encounterId ||
     normalizeRut(result?.run) !== normalizeRut(occupant.encounter.run) ||
-    egreso.hasAdministrativeDischarge === false
+    egreso.hasAdministrativeDischarge !== true
   )
     return null;
   return encounterWallClockInRapaNui(String(egreso.dateDischarge || egreso.endPeriod || ''));

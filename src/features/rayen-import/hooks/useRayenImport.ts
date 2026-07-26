@@ -45,9 +45,9 @@ import {
   resetRayenFillProgress,
 } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
-import { syncReportRange, toSyncReportDate } from './reportDateHelpers';
-import { createRayenSyncRequestController } from './rayenSyncRequestLifecycle';
-import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
+import { resolveSyncReportRequest } from './reportDateHelpers';
+import type { CensusSyncTarget } from '../domain/historicalCensusSync';
+import { useRayenSyncRequestController } from './useRayenSyncRequestController';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -64,13 +64,9 @@ export const useRayenImport = () => {
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
-  const [syncRequestController] = useState(createRayenSyncRequestController);
+  const { controller: syncRequestController, cancel: clearSyncTimeout } =
+    useRayenSyncRequestController();
   const syncTargetRef = useRef<CensusSyncTarget | null>(null);
-  const clearSyncTimeout = useCallback(
-    () => syncRequestController.cancel(),
-    [syncRequestController]
-  );
-  useEffect(() => clearSyncTimeout, [clearSyncTimeout]);
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
   currentRecordRef.current = currentRecord;
@@ -229,10 +225,10 @@ export const useRayenImport = () => {
         }));
         return;
       }
-      let reportDate: string;
       const requestedAt = new Date();
+      let syncRequest: ReturnType<typeof resolveSyncReportRequest>;
       try {
-        reportDate = toSyncReportDate(currentRecord, requestedAt);
+        syncRequest = resolveSyncReportRequest(currentRecord, requestedAt);
       } catch (error) {
         void failRun('snapshot_error');
         setState(prev => ({
@@ -244,9 +240,7 @@ export const useRayenImport = () => {
         }));
         return;
       }
-      const syncTarget = resolveCensusSyncTarget(reportDate, requestedAt);
-      syncTargetRef.current = syncTarget;
-      const reportRange = syncReportRange(reportDate, syncTarget);
+      syncTargetRef.current = syncRequest.target;
       setState(prev => ({
         ...prev,
         isSyncing: true,
@@ -254,7 +248,7 @@ export const useRayenImport = () => {
         hasSkippedItems: false,
         error: null,
       }));
-      syncRequestController.start(reportRange.dateStart, reportRange.dateEnd, () => {
+      syncRequestController.start(syncRequest.range.dateStart, syncRequest.range.dateEnd, () => {
         syncTargetRef.current = null;
         void failRun('snapshot_timeout');
         setState(prev =>

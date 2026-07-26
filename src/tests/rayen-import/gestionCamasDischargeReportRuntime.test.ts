@@ -118,6 +118,22 @@ describe('Gestión de Camas statistical-discharge report runtime', () => {
     expect(downloadPdfBuffer).not.toHaveBeenCalled();
   });
 
+  it('returns a controlled error when the stored API base is missing or invalid', async () => {
+    const createFetch = (apiBase?: string) =>
+      fetcherRuntime.create({
+        resolveSession: vi.fn(async () => ({ record: { apiBase, token: 't' } })),
+        fetchOfficialPdf: vi.fn(),
+        markSessionVerified: vi.fn(),
+      });
+
+    await expect(createFetch()('141704')).resolves.toMatchObject({
+      error: expect.stringContaining('Conecta Gestión de Camas'),
+    });
+    await expect(createFetch('no-es-una-url')('141704')).resolves.toMatchObject({
+      error: expect.stringContaining('dirección válida'),
+    });
+  });
+
   it('returns base64 only for an exact episode authorized in the same HHR tab', async () => {
     const sender = { tab: { id: 44 }, origin: 'http://localhost:3000' };
     const buffer = Uint8Array.from([1, 2, 3]).buffer;

@@ -51,7 +51,7 @@
         authorizedByTab.delete(tabId);
         return false;
       }
-      return current.encounterIds.has(encId);
+      return current.encounterIds.has(String(encId || ''));
     };
     return Object.freeze({ add, authorizeResponse, has });
   };

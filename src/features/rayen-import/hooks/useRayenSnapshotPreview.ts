@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
@@ -41,7 +35,7 @@ interface UseRayenSnapshotPreviewInput {
   persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
   fillDevicesInBackground: (record: DailyRecord) => Promise<void>;
   failRun: (reason: 'apply_failed') => Promise<void>;
-  syncTargetRef: MutableRefObject<CensusSyncTarget | null>;
+  syncTargetRef: RefObject<CensusSyncTarget | null>;
 }
 
 export const useRayenSnapshotPreview = ({

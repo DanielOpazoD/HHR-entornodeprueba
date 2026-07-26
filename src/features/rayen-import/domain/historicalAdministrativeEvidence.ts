@@ -8,6 +8,7 @@ import {
   parseStatisticalEgresoStamp,
 } from '../mapping/reportEgresoDateTime';
 import { historicalReconstructionConflict as unresolvedConflict } from './historicalReconstructionConflicts';
+import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 
 export interface HistoricalCandidate {
   encounter: RayenEncounter;
@@ -16,23 +17,6 @@ export interface HistoricalCandidate {
   exactEgresoVerified?: boolean;
   exactDischargeAt?: string;
 }
-
-const encounterFromLocal = (
-  patient: PatientData,
-  clinicalCribParentBedId?: string
-): RayenEncounter => ({
-  encounterId: patient.clinicalEpisodeId?.trim() ?? '',
-  run: patient.rut,
-  firstGivenName: patient.firstName?.trim() || patient.patientName,
-  firstFamilyName: patient.lastName?.trim() || '',
-  secondFamilyName: patient.secondLastName,
-  admissionDatetime: patient.admissionDate
-    ? `${patient.admissionDate}T${patient.admissionTime || '00:00'}:00`
-    : undefined,
-  diagnosis: patient.pathology,
-  service: patient.location,
-  clinicalCribParentBedId,
-});
 
 export const reportClinicalStamp = (
   row: EgresoReportRow
@@ -140,7 +124,7 @@ export const reportBackedCandidates = (
     const local = localByEpisode.get(encounterId);
     candidates.push({
       encounter: local
-        ? encounterFromLocal(local.patient, local.clinicalCribParentBedId)
+        ? historicalEncounterFromLocal(local.patient, local.clinicalCribParentBedId)
         : {
             encounterId,
             run: row.run,

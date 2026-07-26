@@ -178,4 +178,47 @@ Flujo del Paciente RUN: 111111111
       expect.objectContaining({ encounterId: '142040' }),
     ]);
   });
+
+  it('shows one review item when an incomplete report row and a local episode name the same RUN', async () => {
+    const localRecord = {
+      date: '2026-07-24',
+      beds: {
+        NEO1: {
+          patientName: 'Paciente Duplicado',
+          rut: '77.777.777-7',
+          clinicalEpisodeId: '142889',
+          admissionDate: '2026-07-23',
+        },
+      },
+    } as unknown as DailyRecord;
+    const rows = [
+      {
+        run: '77.777.777-7',
+        encounterId: '',
+        patientName: 'Paciente Duplicado',
+        bedLabel: 'NEO1',
+        servicio: 'AMQI',
+        edad: '40 años',
+        destino: 'Domicilio',
+        motivo: 'Alta',
+        fechaEgreso: '25-07-2026 11:30',
+      },
+    ] satisfies EgresoReportRow[];
+
+    const result = await reconstructHistoricalSnapshotAtClose(
+      '2026-07-24',
+      { ...snapshot, encounters: [] },
+      localRecord,
+      rows,
+      { fetchReport: vi.fn() }
+    );
+
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({
+        code: 'historical-reconstruction',
+        patientName: 'Paciente Duplicado',
+        source: expect.objectContaining({ encounterId: '142889' }),
+      }),
+    ]);
+  });
 });

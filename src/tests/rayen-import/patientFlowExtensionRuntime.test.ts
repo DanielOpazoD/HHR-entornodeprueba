@@ -165,6 +165,7 @@ describe('Ficha Médico patient-flow runtime', () => {
 
     expect(runtime.authorizeVerifiedEncounter(sender, '142083')).toBe(true);
     expect(runtime.isAuthorized(sender, '142083')).toBe(true);
+    expect(runtime.isAuthorized(sender, 142083 as unknown as string)).toBe(true);
     expect(runtime.isAuthorized({ ...sender, tab: { ...sender.tab, id: 45 } }, '142083')).toBe(
       false
     );

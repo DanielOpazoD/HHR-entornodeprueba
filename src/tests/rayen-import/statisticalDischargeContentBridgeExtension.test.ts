@@ -121,6 +121,53 @@ describe('HHR statistical-discharge content bridge', () => {
     );
   });
 
+  it('preserves a controlled evidence error from the extension runtime', async () => {
+    let onMessage:
+      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | undefined;
+    const postMessage = vi.fn();
+    const sendMessage = vi.fn(async () => ({ error: 'La sesión cambió.' }));
+    const windowObject = {
+      location: { origin: 'http://localhost:3000' },
+      addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
+        if (type === 'message') onMessage = listener;
+      }),
+      postMessage,
+    };
+    const context = vm.createContext({
+      window: windowObject,
+      chrome: { runtime: { sendMessage } },
+      HhrRayenMessageContract: {
+        types: {
+          STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        },
+      },
+    });
+    vm.runInContext(evidenceSource, context, { filename: 'content-hhr-statistical-evidence.js' });
+
+    onMessage?.({
+      source: windowObject,
+      data: {
+        type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        reqId: 'evidence-error',
+        encId: '142083',
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT',
+          reqId: 'evidence-error',
+          ok: false,
+          base64: undefined,
+          error: 'La sesión cambió.',
+        },
+        'http://localhost:3000'
+      )
+    );
+  });
+
   it('turns an invalidated extension context into an actionable reload message', async () => {
     let onMessage:
       | ((event: { source: unknown; data: Record<string, unknown> }) => void)

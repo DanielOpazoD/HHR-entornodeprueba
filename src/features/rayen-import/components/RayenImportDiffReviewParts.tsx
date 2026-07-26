@@ -73,7 +73,7 @@ export const HistoricalReconstructionReview: React.FC<{
         </summary>
         <ul className="mt-2 space-y-1 pl-4 text-amber-900">
           {conflicts.map((entry, index) => (
-            <li key={`historical-review-${entry.rut ?? entry.patientName ?? index}`}>
+            <li key={`historical-review-${index}-${entry.rut || entry.patientName || ''}`}>
               <span className="font-medium">{entry.patientName || entry.rut || 'Paciente'}</span>
               {entry.bedId ? ` · ${entry.bedId}` : ''}
               <span className="block text-xs text-amber-700">{entry.reason}</span>

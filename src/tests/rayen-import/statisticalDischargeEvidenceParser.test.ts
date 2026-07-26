@@ -68,4 +68,17 @@ describe('statistical discharge evidence parser', () => {
     expect(parseStatisticalDischargeEvidence(report.replace('6 3 2 1 8 8 0 - 4', ''))).toBeNull();
     expect(parseStatisticalDischargeEvidence(report.replace('29 EGRESO', 'EGRESO'))).toBeNull();
   });
+
+  it('fails closed when the discharge predates admission', () => {
+    const inverted = report.replace('2 4 - 0 7 - 2 6', '2 6 - 0 7 - 2 6');
+    expect(parseStatisticalDischargeEvidence(inverted)).toBeNull();
+  });
+
+  it('accepts the boxed four-digit year variant', () => {
+    const fourDigitYear = report.replaceAll('- 2 6 ', '- 2 0 2 6 ');
+    expect(parseStatisticalDischargeEvidence(fourDigitYear)).toMatchObject({
+      admissionAt: '2026-07-24T16:41:00',
+      dischargeAt: '2026-07-25T14:28:00',
+    });
+  });
 });
