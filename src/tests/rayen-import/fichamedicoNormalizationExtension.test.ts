@@ -20,6 +20,7 @@ const normalization = (
         listItem?: Record<string, unknown>
       ) => { name: string; code: string; source: string };
       validClinicalDate: (value: unknown) => string | undefined;
+      requiresIsolationDetails: (value: unknown) => boolean;
     };
   }
 ).HhrFichaMedicoNormalization;
@@ -46,6 +47,17 @@ describe('Ficha Medico identity and session normalization', () => {
 });
 
 describe('Ficha Medico census normalization', () => {
+  it('requests separate detail only for active isolation signals', () => {
+    expect(normalization.requiresIsolationDetails({ isIsolated: true })).toBe(true);
+    expect(normalization.requiresIsolationDetails({ isIsolated: false })).toBe(false);
+    expect(
+      normalization.requiresIsolationDetails({
+        isIsolated: true,
+        isolationEntries: [{ isoTypeName: 'Gotas', endIsolationDatetime: '2026-07-24' }],
+      })
+    ).toBe(false);
+  });
+
   it.each([
     ['0001-01-01T00:00:00.000Z', undefined],
     ['2026-07-18T14:30:00.000Z', '2026-07-18T14:30:00.000Z'],

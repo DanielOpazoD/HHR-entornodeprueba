@@ -6,6 +6,10 @@ import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 
 const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
+const isolationNormalizationSource = readFileSync(
+  path.resolve('extension/fichamedico-isolation-normalization.js'),
+  'utf8'
+);
 const normalizationSource = readFileSync(
   path.resolve('extension/fichamedico-normalization.js'),
   'utf8'
@@ -34,6 +38,9 @@ type PostedMessage = {
     isNursing?: boolean;
     identityVerified?: boolean;
   } | null;
+  snapshot?: {
+    encounters?: Array<Record<string, unknown>>;
+  };
 };
 
 const createHarness = async (
@@ -41,7 +48,8 @@ const createHarness = async (
   role = 'Médico',
   storedNursingContexts = new Map<string, string>(),
   additionalSessionFields: Record<string, unknown> = {},
-  initiallyActive = true
+  initiallyActive = true,
+  apiResolver?: (url: string) => unknown
 ) => {
   const listeners = new Map<string, Array<(event: unknown) => unknown>>();
   const posted: PostedMessage[] = [];
@@ -88,6 +96,14 @@ const createHarness = async (
     location: { href: location.href, origin: location.origin, pathname: location.pathname },
     fetch: async (input: unknown) => {
       if (String(input) === '/api/auth/session') return sessionResponse();
+      if (apiResolver) {
+        const value = apiResolver(String(input));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => value,
+        };
+      }
       throw new Error(`Unexpected request: ${String(input)}`);
     },
     addEventListener: addListener,
@@ -128,6 +144,9 @@ const createHarness = async (
     },
   });
 
+  vm.runInContext(isolationNormalizationSource, context, {
+    filename: 'fichamedico-isolation-normalization.js',
+  });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
@@ -150,6 +169,54 @@ const createHarness = async (
 };
 
 describe('Ficha Medico session continuity', () => {
+  it('enriches active isolation from the episode detail endpoint', async () => {
+    const requested: string[] = [];
+    const harness = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list',
+      'Médico',
+      new Map(),
+      {},
+      true,
+      url => {
+        requested.push(url);
+        const parsed = new URL(url);
+        if (parsed.pathname === '/encounter/list/filter') {
+          return parsed.searchParams.get('filterType') === '3'
+            ? [{ id: 142070, patientName: 'Jennifer Lopez', isIsolated: true }]
+            : [];
+        }
+        if (parsed.pathname.includes('/patientHeaderData/')) {
+          return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+        }
+        if (parsed.pathname.includes('/diagnosisEntry/')) return [];
+        if (parsed.pathname.endsWith('/142070/isolationEncounter/0/getAll')) {
+          return [
+            {
+              encounterId: 142070,
+              isoTypeName: 'Gotas',
+              microName: 'Virus Influenza B',
+              endIsolationDatetime: null,
+              deletedDatetime: null,
+            },
+          ];
+        }
+        throw new Error(`Unexpected clinical request: ${url}`);
+      }
+    );
+
+    const response = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'isolation' });
+
+    expect(response?.snapshot?.encounters?.[0]).toMatchObject({
+      encounterId: '142070',
+      isIsolated: true,
+      isolationType: 'Gotas',
+      isolationMicroorganism: 'Virus Influenza B',
+    });
+    expect(requested).toContain(
+      'https://fichamedicoback.rayensalud.cl/api/encounter/142070/isolationEncounter/0/getAll'
+    );
+  });
+
   it('exposes the verified practitioner role id in the safe health identity', async () => {
     const harness = await createHarness(
       'https://fichamedico.rayensalud.cl/dashboard/encounter-list/141119',

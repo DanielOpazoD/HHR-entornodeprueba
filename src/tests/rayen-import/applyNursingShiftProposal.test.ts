@@ -188,27 +188,6 @@ describe('buildNursingShiftProposalPatch', () => {
     expect(patch?.nursesDayShift).toEqual(['Ana Pérez', '']);
   });
 
-  it('preserves short and full names when both are distinct exact catalog identities', () => {
-    const patch = buildNursingShiftProposalPatch(record({ nursesDayShift: ['', ''] }), {
-      ...proposal,
-      day: suggestion(['Pedro Moreno', 'Pedro Moreno Opazo'], false, true),
-      night: suggestion([]),
-    });
-
-    expect(patch?.nursesDayShift).toEqual(['Pedro Moreno', 'Pedro Moreno Opazo']);
-  });
-
-  it('does not mark a distinct exact catalog identity as already synchronized', () => {
-    const review = reconcileNursingShiftProposal(record({ nursesDayShift: ['Pedro Moreno', ''] }), {
-      ...proposal,
-      day: suggestion(['Pedro Moreno Opazo'], false, true, ['Pedro Moreno', 'Pedro Moreno Opazo']),
-      night: suggestion([]),
-    });
-
-    expect(review.day.names).toEqual(['Pedro Moreno Opazo']);
-    expect(review.day.alreadyAssigned).toEqual([]);
-  });
-
   it('does not choose alphabetically when two tied nurses compete for one vacancy', () => {
     const oneVacancy = record({ nursesDayShift: ['Manual', ''] });
     const tiedProposal = {

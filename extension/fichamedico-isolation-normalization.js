@@ -1,4 +1,3 @@
-/** Pure isolation fields normalization for Ficha Medico census rows. */
 (function (root, factory) {
   const api = factory();
   root.HhrFichaMedicoIsolationNormalization = api;
@@ -42,5 +41,6 @@
       isolationMicroorganism: isolationMicroorganism || undefined,
     };
   };
-  return { toEncounterFields };
+  const requiresIsolationDetails = value => toEncounterFields(value).isIsolated === true;
+  return { requiresIsolationDetails, toEncounterFields };
 });

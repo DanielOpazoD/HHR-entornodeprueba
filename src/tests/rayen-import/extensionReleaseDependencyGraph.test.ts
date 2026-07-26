@@ -19,7 +19,7 @@ const createPackageFixture = () => {
   fs.mkdirSync(bridgeDirectory, { recursive: true });
   fs.writeFileSync(
     path.join(bridgeDirectory, 'extensionHealthBridge.ts'),
-    'export const RAYEN_EXTENSION_PROTOCOL_VERSION = 4;\n',
+    'export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;\n',
     'utf8'
   );
   return root;

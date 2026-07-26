@@ -213,7 +213,12 @@ const buildModules = ({
     { label: 'Signos vitales', detail: clinicalDetail, state: clinicalState, icon: Activity },
     { label: 'Dispositivos', detail: clinicalDetail, state: clinicalState, icon: MonitorCog },
     { label: 'Scores', detail: clinicalDetail, state: clinicalState, icon: Gauge },
-    { label: 'Enfermería', detail: nursingDetail, state: nursingState, icon: UserRoundCheck },
+    {
+      label: 'Enfermería / TENS',
+      detail: nursingDetail,
+      state: nursingState,
+      icon: UserRoundCheck,
+    },
   ];
 };
 

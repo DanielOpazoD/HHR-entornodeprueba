@@ -116,7 +116,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     expect(screen.getByText('Signos vitales')).toBeInTheDocument();
     expect(screen.getByText('Dispositivos')).toBeInTheDocument();
     expect(screen.getByText('Scores')).toBeInTheDocument();
-    expect(screen.getByText('Enfermería')).toBeInTheDocument();
+    expect(screen.getByText('Enfermería / TENS')).toBeInTheDocument();
     expect(screen.getByText('Revisando información clínica · 68%')).toBeVisible();
   });
 
@@ -198,7 +198,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText('Revisión lista · 1 decisión pendiente')).toBeVisible();
-    expect(screen.getByTitle('Enfermería: Requiere revisión')).toBeInTheDocument();
+    expect(screen.getByTitle('Enfermería / TENS: Requiere revisión')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
@@ -215,7 +215,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText('Aplicando propuesta de enfermería')).toBeVisible();
-    expect(screen.getByTitle('Enfermería: Aplicando')).toBeInTheDocument();
+    expect(screen.getByTitle('Enfermería / TENS: Aplicando')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '98');
   });
 

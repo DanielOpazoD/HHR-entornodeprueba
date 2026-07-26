@@ -129,6 +129,7 @@ describe('inferNursingShifts', () => {
     );
 
     expect(proposal.day.names).toEqual(['María Soto']);
+    expect(proposal.day.candidates[0]?.identityAliases).toEqual(['María Soto']);
   });
 
   it('marks a full-name and short-label collision ambiguous without a short catalog identity', () => {
@@ -244,6 +245,30 @@ describe('inferNursingShifts', () => {
     expect(proposal.tensDay?.names).toEqual(['Jimena Yáñez', 'Paula Soto']);
     expect(proposal.tensDay?.ambiguous).toBe(false);
     expect(proposal.tensNight?.names).toEqual([]);
+  });
+
+  it('recognizes a catalogued TENS from one authoritative medication or vital-sign activity', () => {
+    const proposal = inferNursingShifts(
+      [
+        activity('Francisca Orellana', '2026-07-25T15:29:19', '142070', {
+          role: 'Paramédico',
+          source: 'medication-administration',
+        }),
+        activity('Jimena Yañez', '2026-07-25T19:20:48', '142070', {
+          role: 'Paramédico',
+          source: 'vital-signs',
+        }),
+      ],
+      '2026-07-25',
+      [],
+      ['Francisca Orellana', 'Jimena Yáñez']
+    );
+
+    expect(proposal.tensDay?.names).toEqual(['Francisca Orellana', 'Jimena Yáñez']);
+    expect(proposal.tensDay?.candidates).toEqual([
+      expect.objectContaining({ name: 'Francisca Orellana', catalogMatched: true, records: 1 }),
+      expect.objectContaining({ name: 'Jimena Yáñez', catalogMatched: true, records: 1 }),
+    ]);
   });
 
   it('keeps the strongest TENS candidates when the third standard slot is tied', () => {

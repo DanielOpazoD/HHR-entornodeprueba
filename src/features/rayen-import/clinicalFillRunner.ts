@@ -40,6 +40,8 @@ import { inferNursingShifts, type NursingActivityObservation } from './domain/in
 export interface ClinicalFillDeps {
   /** Curated HHR nurse catalog used to reconcile Eloísa identities and strengthen confidence. */
   nurseCatalog?: string[];
+  /** Curated HHR TENS catalog used to reconcile Eloísa Paramédico/TENS identities. */
+  tensCatalog?: string[];
   fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
   /**
@@ -145,7 +147,12 @@ export const runClinicalFill = async (
     total: eligible.length,
     patched: 0,
     errors: [],
-    staffingProposal: inferNursingShifts([], fecha, deps.nurseCatalog ?? []),
+    staffingProposal: inferNursingShifts(
+      [],
+      fecha,
+      deps.nurseCatalog ?? [],
+      deps.tensCatalog ?? []
+    ),
   };
   if (eligible.length === 0) return summary;
   const nursingObservations: NursingActivityObservation[] = [];
@@ -351,7 +358,8 @@ export const runClinicalFill = async (
   summary.staffingProposal = inferNursingShifts(
     nursingObservations,
     fecha,
-    deps.nurseCatalog ?? []
+    deps.nurseCatalog ?? [],
+    deps.tensCatalog ?? []
   );
 
   return summary;

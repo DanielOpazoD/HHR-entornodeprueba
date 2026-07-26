@@ -28,6 +28,7 @@ import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftPropos
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
+  tensCatalog: string[];
   patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
@@ -43,6 +44,7 @@ interface UseRayenClinicalFillInput {
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   nurseCatalog,
+  tensCatalog,
   patchDailyRecord,
   applyHistoricalCudyr,
   completeRun,
@@ -88,6 +90,7 @@ export const useRayenClinicalFill = ({
             now: () => new Date(),
             createId,
             nurseCatalog,
+            tensCatalog,
           },
           ({ done, total }) => reportRayenFillProgress(done, total)
         );
@@ -125,6 +128,7 @@ export const useRayenClinicalFill = ({
       completeRun,
       createId,
       nurseCatalog,
+      tensCatalog,
       onSettled,
       onStaffingProposal,
       patchDailyRecord,

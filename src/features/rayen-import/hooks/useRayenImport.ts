@@ -36,7 +36,7 @@ import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHis
 import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import { useNursesQuery } from '@/hooks/useStaffQuery';
+import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import {
   invalidateRayenFillAttempt,
@@ -54,6 +54,7 @@ const makeId = (): string => crypto.randomUUID();
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
+  const { data: tensList = [] } = useTensQuery();
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuthState();
@@ -148,6 +149,7 @@ export const useRayenImport = () => {
   );
   const fillDevicesInBackground = useRayenClinicalFill({
     nurseCatalog: nursesList,
+    tensCatalog: tensList,
     patchDailyRecord: patchFreshClinicalRecord,
     applyHistoricalCudyr,
     completeRun,
