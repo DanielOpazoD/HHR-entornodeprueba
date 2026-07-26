@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
@@ -34,11 +34,23 @@ const connectionCenterSource = readFileSync(
 );
 const NativeMutationObserver = globalThis.MutationObserver;
 const contentObservers = new Set<MutationObserver>();
+const contentTimeouts = new Set<ReturnType<typeof globalThis.setTimeout>>();
+const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
 
 describe('extension prescription print content flow', () => {
+  beforeEach(() => {
+    vi.spyOn(window, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
+      const timeoutId = nativeSetTimeout(handler, timeout, ...args);
+      contentTimeouts.add(timeoutId);
+      return timeoutId;
+    });
+  });
+
   afterEach(() => {
     contentObservers.forEach(observer => observer.disconnect());
     contentObservers.clear();
+    contentTimeouts.forEach(timeoutId => globalThis.clearTimeout(timeoutId));
+    contentTimeouts.clear();
     delete (globalThis as typeof globalThis & { __hhrPrescriptionPrintInjected?: boolean })
       .__hhrPrescriptionPrintInjected;
     document.body.innerHTML = '';
