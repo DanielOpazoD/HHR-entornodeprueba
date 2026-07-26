@@ -45,8 +45,9 @@ import {
   resetRayenFillProgress,
 } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
-import { nextIsoDay, toLiveSyncReportDate } from './reportDateHelpers';
+import { syncReportRange, toSyncReportDate } from './reportDateHelpers';
 import { createRayenSyncRequestController } from './rayenSyncRequestLifecycle';
+import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
 const makeId = (): string => crypto.randomUUID();
 
 export const useRayenImport = () => {
@@ -64,6 +65,7 @@ export const useRayenImport = () => {
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
   const [syncRequestController] = useState(createRayenSyncRequestController);
+  const syncTargetRef = useRef<CensusSyncTarget | null>(null);
   const clearSyncTimeout = useCallback(
     () => syncRequestController.cancel(),
     [syncRequestController]
@@ -168,12 +170,14 @@ export const useRayenImport = () => {
     persistAppliedRun,
     fillDevicesInBackground,
     failRun,
+    syncTargetRef,
   });
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
   useEffect(
     () =>
       subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
+        syncTargetRef.current = null;
         void failRun('snapshot_error');
         console.warn('[rayen-import] La extensión informó un error de lectura.');
         setState(prev => ({
@@ -226,8 +230,9 @@ export const useRayenImport = () => {
         return;
       }
       let reportDate: string;
+      const requestedAt = new Date();
       try {
-        reportDate = toLiveSyncReportDate(currentRecord);
+        reportDate = toSyncReportDate(currentRecord, requestedAt);
       } catch (error) {
         void failRun('snapshot_error');
         setState(prev => ({
@@ -239,6 +244,9 @@ export const useRayenImport = () => {
         }));
         return;
       }
+      const syncTarget = resolveCensusSyncTarget(reportDate, requestedAt);
+      syncTargetRef.current = syncTarget;
+      const reportRange = syncReportRange(reportDate, syncTarget);
       setState(prev => ({
         ...prev,
         isSyncing: true,
@@ -246,7 +254,8 @@ export const useRayenImport = () => {
         hasSkippedItems: false,
         error: null,
       }));
-      syncRequestController.start(reportDate, nextIsoDay(reportDate), () => {
+      syncRequestController.start(reportRange.dateStart, reportRange.dateEnd, () => {
+        syncTargetRef.current = null;
         void failRun('snapshot_timeout');
         setState(prev =>
           prev.isSyncing

@@ -226,6 +226,63 @@
     .legend article { padding: 16px; background: var(--white); }
     .legend p { margin: 8px 0 0; color: var(--slate-700); font-size: 12px; }
 
+    .score-hero {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 28px;
+      align-items: center;
+      margin: 2px 0 28px;
+      padding: 26px;
+      color: var(--white);
+      background: var(--navy-900);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .score-number {
+      display: grid;
+      place-items: center;
+      width: 154px;
+      height: 154px;
+      margin: 0 auto;
+      color: var(--white);
+      background: linear-gradient(145deg, var(--teal-600), var(--teal-700));
+      border: 6px solid rgba(255,255,255,.22);
+      border-radius: 50%;
+      font-size: 46px;
+      font-weight: 800;
+      letter-spacing: -.06em;
+    }
+    .score-number small { margin-left: 3px; font-size: 18px; font-weight: 650; letter-spacing: 0; }
+    .score-hero h3 { margin: 0 0 8px; color: var(--white); font-size: 24px; }
+    .score-hero p { margin: 0; color: #d9eaf4; }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .score-card {
+      padding: 17px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+    }
+    .score-card header { display: flex; justify-content: space-between; gap: 12px; }
+    .score-card h3 { margin: 0; font-size: 15px; }
+    .score-card strong { color: var(--teal-700); font-size: 17px; }
+    .score-card p { margin: 8px 0 0; color: var(--slate-700); font-size: 12px; }
+    .meter { height: 6px; margin-top: 12px; overflow: hidden; background: var(--slate-100); border-radius: 999px; }
+    .meter span { display: block; height: 100%; background: var(--teal-600); border-radius: inherit; }
+    .roadmap-rank {
+      display: inline-grid;
+      place-items: center;
+      min-width: 30px;
+      height: 30px;
+      color: var(--white);
+      background: var(--navy-800);
+      border-radius: 50%;
+      font-weight: 800;
+    }
+
     .callout {
       margin: 18px 0;
       padding: 15px 17px;
@@ -339,6 +396,7 @@
       main, .footer { margin-left: 0; }
       .page-header, section { padding: 28px 20px; }
       .legend { grid-template-columns: 1fr; }
+      .score-hero, .score-grid { grid-template-columns: 1fr; }
       .meta { min-width: 0; grid-template-columns: 1fr; }
       .meta div { border-right: 0; border-bottom: 1px solid var(--slate-200); }
       .meta div:last-child { border-bottom: 0; }
@@ -369,6 +427,7 @@
     </div>
     <nav>
       <a href="#resumen"><span>01</span><span>Resumen y alcance</span></a>
+      <a href="#evaluacion"><span>◎</span><span>Evaluación actual</span></a>
       <a href="#arquitectura"><span>02</span><span>Arquitectura</span></a>
       <a href="#fichamedico"><span>03</span><span>Ficha Médico</span></a>
       <a href="#hospitalizado"><span>04</span><span>Hospitalizado</span></a>
@@ -394,9 +453,9 @@
         <p class="lede">Inventario funcional, técnico y visual de Ficha Médico, Hospitalizado, la extensión nativa y su sincronización con HHR. Diseñado para que otra IA pueda orientarse, navegar y mejorar el sistema sin perder reglas clínicas ni límites de seguridad.</p>
       </div>
       <dl class="meta">
-        <div><dt>Corte</dt><dd>15 julio 2026</dd></div>
-        <div><dt>Extensión</dt><dd>MV3 · v0.24.2</dd></div>
-        <div><dt>Rama revisada</dt><dd>codex/eloisa-lab-viewer</dd></div>
+        <div><dt>Corte</dt><dd>25 julio 2026</dd></div>
+        <div><dt>Extensión</dt><dd>MV3 · v0.43.0</dd></div>
+        <div><dt>Rama revisada</dt><dd>codex/rayen-historical-census-shift-day</dd></div>
         <div><dt>Estado</dt><dd>Documento técnico vivo</dd></div>
       </dl>
     </header>
@@ -440,6 +499,35 @@
 
       <div class="callout warning">
         <strong>Alcance epistemológico.</strong> No existe documentación oficial completa de Rayen dentro del repositorio. Los nombres de endpoints y estructuras son contratos observados por la integración; pueden cambiar sin aviso. Toda mejora debe fallar de forma conservadora y conservar una ruta de validación en sesión real.
+      </div>
+    </section>
+
+    <section id="evaluacion" data-title="Evaluación nota score calidad seguridad temporal experiencia observabilidad roadmap">
+      <div class="section-head">
+        <div><h2>Evaluación actual del proceso de sincronización</h2><p class="section-note">Nota técnica ponderada sobre siete dimensiones. Refleja la rama local y la extensión v0.43.0, no solo el estado ya fusionado en <code>main</code>.</p></div>
+        <span class="status confirmed">Revisión 25/07/2026</span>
+      </div>
+
+      <div class="score-hero">
+        <div class="score-number">5,9<small>/7</small></div>
+        <div>
+          <h3>Confiable para D a D−7 con supervisión humana</h3>
+          <p>El sistema combina dos autoridades, conserva identidad y episodio, reconstruye el cierre del turno y falla de forma conservadora. El horizonte de producto queda acotado a siete días aunque la trazabilidad se verificó a 13 días; la retención máxima sigue siendo externa y varios casos excepcionales todavía terminan en revisión manual.</p>
+        </div>
+      </div>
+
+      <div class="score-grid" aria-label="Matriz de evaluación ponderada">
+        <article class="score-card"><header><h3>Seguridad y autoridad clínica · 20%</h3><strong>6,3</strong></header><div class="meter"><span style="width:90%"></span></div><p>Captura dual obligatoria, alta administrativa como autoridad, preview y política fail-closed. La exposición anónima observada en un reporte externo no debe asumirse como contrato.</p></article>
+        <article class="score-card"><header><h3>Fidelidad temporal · 18%</h3><strong>6,2</strong></header><div class="meter"><span style="width:89%"></span></div><p>Zona <code>Pacific/Easter</code>, corte 08:00/09:00, inventario administrativo desde D hasta el día calendario actual y protección ante cambio de día o de turno. El contrato implementado admite D a D−7.</p></article>
+        <article class="score-card"><header><h3>Identidad, episodio y cama · 15%</h3><strong>6,1</strong></header><div class="meter"><span style="width:87%"></span></div><p>Prioriza <code>ENC_ID</code>, confirma RUN y evita sobrescribir camas. Trazabilidad y egreso individual resuelven liberación/reutilización sin inventar ubicaciones.</p></article>
+        <article class="score-card"><header><h3>Resiliencia operacional · 14%</h3><strong>5,4</strong></header><div class="meter"><span style="width:77%"></span></div><p>Sesiones independientes, health antes/después, captura atómica y respuestas tardías inertes. Sigue dependiendo de una extensión actualizada y de endpoints observados.</p></article>
+        <article class="score-card"><header><h3>Experiencia del usuario · 12%</h3><strong>5,2</strong></header><div class="meter"><span style="width:74%"></span></div><p>Preview comprensible, conflictos agrupados y aplicación parcial segura. Falta una explicación compacta de cobertura, evidencia usada y próximo paso por paciente.</p></article>
+        <article class="score-card"><header><h3>Calidad técnica y pruebas · 12%</h3><strong>6,0</strong></header><div class="meter"><span style="width:86%"></span></div><p>Contratos separados, parsers puros, límites de módulos, pruebas focalizadas y gate MV3. La coordinación privilegiada aún concentra responsabilidades en <code>background.js</code>.</p></article>
+        <article class="score-card"><header><h3>Observabilidad y soporte · 9%</h3><strong>5,0</strong></header><div class="meter"><span style="width:71%"></span></div><p>Historial sin PHI y estados de conexión útiles, pero falta medir cobertura histórica real, causas agregadas de revisión y degradación de contratos Rayen.</p></article>
+      </div>
+
+      <div class="callout" style="margin-top:24px">
+        <strong>Lectura de la nota.</strong> Un 5,9 no significa autonomía total: significa que el proceso es clínicamente prudente, revisable e idempotente dentro de su horizonte acotado. La confirmación final continúa siendo una fortaleza, no una deuda.
       </div>
     </section>
 
@@ -600,7 +688,7 @@
           <tbody>
             <tr><td>Lookup de egreso por RUN</td><td>Confirmación puntual de estado administrativo.</td><td>Se usa para casos ausentes o sincronización tardía; debe degradar sin inventar.</td></tr>
             <tr><td>Informe Alta Administrativa</td><td>Filas parseadas por encabezado, no por índice fijo.</td><td>Campos conocidos: identificación, paciente, cama, servicio, edad, destino, motivo, fecha/hora y diagnóstico.</td></tr>
-            <tr><td>Ventana D a D+1</td><td>Informe para día del censo y siguiente día insular.</td><td>Compensa desfase observado sin volver a desplazar el sello impreso por zona horaria.</td></tr>
+            <tr><td>Ventana D a actual+1</td><td>Informe desde el censo elegido hasta el día calendario actual inclusive.</td><td>Incluye la mañana previa al relevo, descubre egresos posteriores y aplica zona/corte una sola vez.</td></tr>
             <tr><td>Estado de conexión</td><td>ready / stale / missing + vigencia e identidad.</td><td>No expone contraseña; el token no cruza hacia la página HHR.</td></tr>
           </tbody>
         </table>
@@ -719,13 +807,31 @@
       <h3>Flujo principal</h3>
       <div class="sequence">
         <div class="n">1</div><article><h3>Health handshake</h3><p>HHR pregunta si la extensión, Ficha Médico y Gestión de Camas están disponibles. Los estados son independientes: <em>ready</em>, <em>stale</em> o <em>missing</em>.</p></article>
-        <div class="n">2</div><article><h3>Snapshot</h3><p>El botón <strong>Sincronizar Eloísa</strong> solicita el censo. La extensión responde con el contrato normalizado o un error sanitizado.</p></article>
-        <div class="n">3</div><article><h3>Planificar diff</h3><p>HHR cruza por <code>clinicalEpisodeId</code> y, como fallback, por RUN. Produce ingresos, actualizaciones, movimientos de cama, egresos, conflictos y pendientes administrativos.</p></article>
-        <div class="n">4</div><article><h3>Conciliar autoridad de egreso</h3><p>Se solicita el informe de Gestión de Camas para D a D+1 y se aplican reglas de fecha insular, traslado, fallecimiento y CMA.</p></article>
-        <div class="n">5</div><article><h3>Preview o automático</h3><p><code>preview</code> es el default y requiere confirmación. <code>auto</code> solo aplica sin revisión si no hay conflictos, altas pendientes, egresos desconocidos ni correcciones de días previos.</p></article>
-        <div class="n">6</div><article><h3>Aplicar defensivamente</h3><p>Siempre parte del registro más fresco. Una cama ocupada no se pisa; la operación se omite y queda reportada. Los movimientos históricos son idempotentes.</p></article>
-        <div class="n">7</div><article><h3>Persistir con autoridad HHR</h3><p>La app guarda mediante sus casos de uso y sesión Firebase, pasa validación Zod y usa la cola/outbox con políticas de retries, conflicto y telemetría.</p></article>
-        <div class="n">8</div><article><h3>Enriquecimiento clínico</h3><p>Después del censo puede consultar signos vitales, dispositivos, escalas/CUDYR y panel clínico. Es bajo demanda o efímero según el dato; nunca debe disfrazar un fallo parcial como vacío.</p></article>
+        <div class="n">2</div><article><h3>Captura dual atómica</h3><p>El worker obtiene en paralelo el snapshot completo de Ficha Médico y el informe de altas de Gestión de Camas. Ambos forman un <code>RayenSyncBundle</code> con establecimiento, rango, marcas temporales y desfase máximo de dos minutos.</p></article>
+        <div class="n">3</div><article><h3>Clasificar el día clínico</h3><p>HHR calcula el día vigente en <code>Pacific/Easter</code>. Acepta D o cualquiera de los siete días clínicos anteriores; D−8 y fechas futuras se bloquean.</p></article>
+        <div class="n">4</div><article><h3>Reconstruir y planificar</h3><p>Para D usa el snapshot vivo. Para D−1…D−7 reconstruye la ocupación al cierre de cada turno con trazabilidad por episodio; después cruza por <code>clinicalEpisodeId</code> y RUN para producir el diff.</p></article>
+        <div class="n">5</div><article><h3>Conciliar autoridad administrativa</h3><p>El informe desde D hasta el día calendario actual decide altas, traslados, fallecimientos y CMA. Si falta un egresado, un lookup exacto RUN + <code>ENC_ID</code> puede autorizar su evidencia individual.</p></article>
+        <div class="n">6</div><article><h3>Preview o automático</h3><p><code>preview</code> es el default y requiere confirmación. <code>auto</code> solo aplica sin revisión si no hay conflictos, altas pendientes, egresos desconocidos ni correcciones de días previos.</p></article>
+        <div class="n">7</div><article><h3>Aplicar y persistir defensivamente</h3><p>Parte del registro más fresco, ordena liberaciones antes de reutilizar camas, omite colisiones y guarda mediante los casos de uso HHR, validación Zod y la sesión Firebase del usuario.</p></article>
+        <div class="n">8</div><article><h3>Enriquecer y auditar</h3><p>Signos vitales, dispositivos, escalas y panel clínico se consultan después o bajo demanda. El historial conserva cobertura y conteos sin nombres, RUN ni diagnósticos.</p></article>
+      </div>
+
+      <h3>Cómo se reconstruyen D−1…D−7</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Evidencia</th><th>Qué demuestra</th><th>Decisión HHR</th></tr></thead>
+          <tbody>
+            <tr><td>Snapshot vivo de Ficha Médico</td><td>Hospitalización y cama actual de episodios todavía activos.</td><td>Solo se proyecta hacia la fecha solicitada si el intervalo y la ubicación al corte son verificables.</td></tr>
+            <tr><td><code>Flujo_del_Paciente.pdf?enc_id=…</code></td><td>Movimientos de cama fechados para un episodio exacto.</td><td>Se toma el último movimiento anterior a las 08:00 del día hábil siguiente o 09:00 del inhábil.</td></tr>
+            <tr><td>Informe masivo de Alta Administrativa</td><td>Episodios egresados entre D y el día calendario actual.</td><td>Incluye la mañana aún asignada al turno previo y autoriza candidatos ausentes aunque hayan egresado varios días después.</td></tr>
+            <tr><td>Egreso estadístico individual</td><td>RUN, ingreso, egreso y traslados de unidad funcional.</td><td>Permite conservar una cama local conocida solo si confirma el intervalo y no existe traslado previo al corte.</td></tr>
+            <tr><td>Censo local HHR</td><td>Última cama conocida y estructura ya revisada.</td><td>Es evidencia auxiliar; nunca sustituye identidad, episodio ni temporalidad oficial.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warning">
+        <strong>Límite conocido.</strong> La ficha clínica completa deja de estar disponible al egresar, pero el PDF de trazabilidad continuó accesible en pruebas reales a 5, 7 y 13 días. HHR promete deliberadamente solo D−1…D−7; la disponibilidad adicional no amplía automáticamente el contrato.
       </div>
 
       <h3>Resultado de reconciliación</h3>
@@ -769,9 +875,12 @@
           <tbody>
             <tr><td><code>HHR_RAYEN_EXTENSION_HEALTH_REQUEST</code></td><td><code>…HEALTH_RESULT</code></td><td>Capacidades y salud sin información clínica.</td></tr>
             <tr><td><code>HHR_RAYEN_REQUEST_SNAPSHOT</code></td><td><code>…CENSUS_SNAPSHOT</code> / <code>…IMPORT_ERROR</code></td><td>Censo completo normalizado.</td></tr>
+            <tr><td><code>HHR_RAYEN_REQUEST_SYNC_BUNDLE</code></td><td><code>…CENSUS_SNAPSHOT</code> + bundle / <code>…IMPORT_ERROR</code></td><td>Captura dual obligatoria, correlacionada y temporalmente coherente.</td></tr>
             <tr><td><code>HHR_RAYEN_OPEN_ENCOUNTER_REQUEST</code></td><td><code>…OPEN_ENCOUNTER_RESULT</code></td><td>Navegar al episodio exacto; reusar pestaña.</td></tr>
             <tr><td><code>HHR_RAYEN_EGRESO_LOOKUP_REQUEST</code></td><td><code>…EGRESO_LOOKUP_RESULT</code></td><td>Consulta puntual de egresos por RUN.</td></tr>
             <tr><td><code>HHR_RAYEN_EGRESO_REPORT_REQUEST</code></td><td><code>…EGRESO_REPORT_RESULT</code></td><td>Informe masivo de Alta Administrativa.</td></tr>
+            <tr><td><code>HHR_RAYEN_PATIENT_FLOW_REQUEST</code></td><td><code>…PATIENT_FLOW_RESULT</code></td><td>PDF de movimientos para un <code>ENC_ID</code> previamente autorizado en la misma pestaña HHR.</td></tr>
+            <tr><td><code>HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST</code></td><td><code>…STATISTICAL_DISCHARGE_EVIDENCE_RESULT</code></td><td>Egreso individual del episodio exacto como respaldo conservador de D−1…D−7.</td></tr>
             <tr><td><code>HHR_RAYEN_DEVICE_REPORT_REQUEST</code></td><td><code>…DEVICE_REPORT_RESULT</code></td><td>PDF de resumen diario para dispositivos invasivos.</td></tr>
             <tr><td><code>HHR_RAYEN_SCALES_REPORT_REQUEST</code></td><td><code>…SCALES_REPORT_RESULT</code></td><td>Formularios y escalas resumidas.</td></tr>
             <tr><td><code>HHR_RAYEN_HISTORY_SCALES_REQUEST</code></td><td><code>…HISTORY_SCALES_RESULT</code></td><td>Historial de instrumentos cuando existe.</td></tr>
@@ -799,6 +908,7 @@
         <li>Cada request asíncrono debe llevar <code>reqId</code> o una identidad/generación equivalente.</li>
         <li>Todo listener debe comprobar <code>event.source === window</code> y, cuando corresponde, el origen.</li>
         <li>Los objetos que cruzan mundos se reducen a la forma mínima necesaria.</li>
+        <li>La autorización de PDFs históricos se limita por pestaña, episodio exacto y cinco minutos; no se acepta enumeración libre de <code>ENC_ID</code>.</li>
         <li>Los timeouts terminan en error explícito, no en colección vacía que parezca válida.</li>
         <li>Las rutas de episodio aceptan solo IDs numéricos y preservan variante médica/enfermería.</li>
       </ul>
@@ -814,6 +924,9 @@
           <thead><tr><th>Dato</th><th>Origen → destino</th><th>Persistencia</th><th>Notas</th></tr></thead>
           <tbody>
             <tr><td>RayenCensusSnapshot</td><td>Ficha Médico → worker → HHR</td><td>Solo hasta aplicar; HHR persiste campos autorizados en DailyRecord.</td><td>Contrato desacoplado del JSON crudo.</td></tr>
+            <tr><td>RayenSyncBundle</td><td>Ficha Médico + Gestión de Camas → worker → HHR</td><td>Efímero durante preview/aplicación.</td><td>Une captura, establecimiento, rango y marcas temporales; un paquete incompleto se rechaza.</td></tr>
+            <tr><td>Autorización de evidencia por episodio</td><td>Worker</td><td>Memoria, por pestaña HHR; caduca en 5 min.</td><td>Solo contiene el conjunto de <code>ENC_ID</code> ya comprobados por snapshot, informe o lookup exacto.</td></tr>
+            <tr><td>PDF de trazabilidad/egreso individual</td><td>Rayen → worker → parser HHR</td><td>Efímero; no se incorpora como archivo al censo.</td><td>Se extrae texto localmente y se conserva solo el resultado estructurado necesario para decidir.</td></tr>
             <tr><td>Token Ficha Médico</td><td>MAIN → extensión</td><td>Memoria de pestaña/worker; no disco.</td><td>Se vincula y revalida contra sesión e identidad.</td></tr>
             <tr><td>Token Gestión de Camas</td><td>MAIN → worker</td><td><code>chrome.storage.session</code>.</td><td>Temporal, con expiración/metadatos; olvidar lo elimina.</td></tr>
             <tr><td>Panel clínico</td><td>Rayen → worker → HHR drawer</td><td>Efímero.</td><td>Se consulta solo al abrir; no se incorpora automáticamente al censo.</td></tr>
@@ -854,7 +967,9 @@
             <li>Rutas SPA o cabeceras visuales que cambien y desplacen la barra.</li>
             <li>Syslab sobre HTTP en LAN.</li>
             <li>Tokens de sesión con vida mayor a la UI que los originó.</li>
-            <li>Ambigüedad temporal de egresos entre día local y fecha impresa.</li>
+            <li>Retención máxima desconocida de los PDFs de trazabilidad después del alta.</li>
+            <li>La reconstrucción automática no cubre D−8 o anteriores.</li>
+            <li>El reporte estadístico individual fue observable sin login en una prueba; debe tratarse como riesgo de control de acceso del proveedor, no como integración pública estable.</li>
             <li>Controles clínicos visibles para un rol sin autorización efectiva.</li>
             <li>Reintentos que dupliquen una escritura si se debilita el protocolo ACK/recovery.</li>
           </ul>
@@ -901,7 +1016,7 @@
             <tr><td>No aparece Centro HHR</td><td>Manifest cargado, URL incluida y pestaña recargada.</td><td>Atributo <code>data-rayen-relay</code>, errores de content script, release check.</td></tr>
             <tr><td>Centro visible, sesión no disponible</td><td><code>/api/auth/session</code> y health ping.</td><td>Token capturado, identidad concordante, 401/403, cambio de rol/ruta.</td></tr>
             <tr><td>Sync devuelve cero pacientes</td><td>No aceptar cero como éxito sin revisar lista/rol.</td><td>Fuente médica vs enfermería, listas consultadas, <code>isComplete</code> y shape.</td></tr>
-            <tr><td>Alta no aplicada</td><td>Informe de Alta Administrativa conectado.</td><td>Ventana D/D+1, RUN, sello fecha/hora, cama y clasificación.</td></tr>
+            <tr><td>Alta no aplicada</td><td>Informe de Alta Administrativa conectado.</td><td>Ventana D a actual+1, RUN, sello fecha/hora, cama y clasificación.</td></tr>
             <tr><td>Receta o lote falla</td><td>Permiso, hospitalización vigente y selección no expirada.</td><td>Jasper individual, parser PDF, folios y fallo parcial.</td></tr>
             <tr><td>Score queda ambiguo</td><td>No repetir el guardado.</td><td>Protección local, challenge de recuperación, dos GET concordantes.</td></tr>
             <tr><td>Lab pide login</td><td>Autenticar directamente en la ventana oficial Syslab.</td><td>Origen/path correctos, bridge activo, RUN de lista e informe.</td></tr>
@@ -933,6 +1048,10 @@
           <tbody>
             <tr><td><code>extension/manifest.json</code></td><td>Permisos MV3, hosts, worlds, content scripts y recursos accesibles.</td></tr>
             <tr><td><code>extension/background.js</code></td><td>Orquestación privilegiada, APIs Rayen, reportes, sesiones, PDF/XLS y escrituras verificadas.</td></tr>
+            <tr><td><code>extension/rayen-sync-bundle-runtime.js</code></td><td>Captura dual, health antes/después, rango D a actual+1, establecimiento, skew y cambio de día.</td></tr>
+            <tr><td><code>extension/tab-encounter-authorization.js</code></td><td>Autorización temporal y exacta de episodios por pestaña HHR.</td></tr>
+            <tr><td><code>extension/fichamedico-patient-flow-runtime.js</code></td><td>Lectura autenticada del PDF oficial de trazabilidad por <code>ENC_ID</code> autorizado.</td></tr>
+            <tr><td><code>extension/gestion-camas-statistical-evidence-runtime.js</code></td><td>Lectura privada del egreso individual previamente autorizado.</td></tr>
             <tr><td><code>extension/inject-fichamedico.js</code></td><td>Captura sesión HSP, detecta contexto médico/enfermería y construye snapshot.</td></tr>
             <tr><td><code>extension/content-fichamedico.js</code></td><td>Relé MAIN ↔ worker para lectura y health.</td></tr>
             <tr><td><code>extension/content-prescription-print.js</code></td><td>Centro HHR, UI global/contextual, recetas, documentos, turno, scores, lab y conexiones.</td></tr>
@@ -950,6 +1069,8 @@
             <tr><td><code>extension/health-check.js</code></td><td>Orden de pestañas y estados missing/stale/ready.</td></tr>
             <tr><td><code>extension/content-hhr.js</code></td><td>Puente HHR page ↔ worker.</td></tr>
             <tr><td><code>src/features/rayen-import/</code></td><td>Contratos, bridge, reconciliación, preview, apply, audit y enriquecimiento clínico.</td></tr>
+            <tr><td><code>src/features/rayen-import/domain/historicalSnapshotReconstruction.ts</code></td><td>Reconstrucción de D−1…D−7 con snapshot, altas, trazabilidad, egreso individual y conflictos deduplicados.</td></tr>
+            <tr><td><code>src/features/rayen-import/mapping/parseStatisticalDischargeReport.ts</code></td><td>Parser estructurado de ingreso, egreso y traslados de unidad funcional.</td></tr>
             <tr><td><code>src/services/storage/sync/</code></td><td>Outbox, puertos, retries, conflicto, transport Firestore y telemetría.</td></tr>
             <tr><td><code>src/features/laboratory/</code></td><td>Visor HHR original y referencia funcional del parser/visualización.</td></tr>
             <tr><td><code>scripts/check-rayen-extension-release.mjs</code></td><td>Gate de release MV3, vendors, integridad y recursos.</td></tr>
@@ -970,7 +1091,8 @@
             npm run check:rayen-extension-release<br>
             npm run typecheck<br>
             npx vitest run src/tests/rayen-import/<br>
-            npx vitest run src/tests/services/laboratory/ src/tests/features/laboratory/<br>
+            npm run check:quality<br>
+            npm run build<br>
             npm run test:e2e:laboratory-smoke
           </div>
         </article>
@@ -997,28 +1119,34 @@
         <li>Turno/score: usar caso dummy autorizado y confirmar relectura/ACK/recovery.</li>
         <li>Syslab: login oficial, búsqueda, selección múltiple, PDF, alertas, tendencias y rechazo de RUN distinto.</li>
         <li>HHR: preview, conflicto de cama, alta administrativa, corrección histórica e idempotencia.</li>
+        <li>D−1…D−7: límites inclusivos, alta de madrugada, cama liberada y reutilizada, movimiento antes/después del corte y episodio ausente de fuentes masivas.</li>
+        <li>Retención: revalidar periódicamente episodios conocidos a 7 y 14 días sin enumerar IDs; el contrato de producto permanece en siete.</li>
       </ul>
     </section>
 
-    <section id="pendientes" data-title="Pendientes roadmap validation CMA egresado UI microbiology parity HTTPS observability settings">
+    <section id="pendientes" data-title="Pendientes roadmap sincronizacion evidencia horizonte historico version extension observabilidad experiencia">
       <div class="section-head">
-        <div><h2>14. Pendientes y mejoras responsables</h2><p class="section-note">Trabajo de alto valor que aún requiere validación o una iteración separada.</p></div>
+        <div><h2>14. Mejoras de alto valor sin sobreingeniería</h2><p class="section-note">Secuencia recomendada: cerrar primero visibilidad y evidencia; ampliar el horizonte solo después de medirlo.</p></div>
       </div>
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Prioridad</th><th>Pendiente</th><th>Criterio de cierre</th><th>Evidencia</th></tr></thead>
+          <thead><tr><th>Orden</th><th>Mejora</th><th>Valor clínico/operativo</th><th>Alcance responsable</th></tr></thead>
           <tbody>
-            <tr><td>P0</td><td>HTTPS para Syslab institucional.</td><td>Portal y PDFs servidos con TLS válido dentro de la red.</td><td><span class="status pending">Infraestructura</span></td></tr>
-            <tr><td>P1</td><td>Paridad clínica de microbiología/orina entre HHR y extensión.</td><td>Fixtures dorados y mismas agrupaciones/alertas en ambos visores.</td><td><span class="status pending">Por comparar</span></td></tr>
-            <tr><td>P1</td><td>Validar representación real de CMA en encounter API.</td><td>Caso controlado confirma servicio, habitación y cama exactos.</td><td><span class="status pending">Datos reales</span></td></tr>
-            <tr><td>P1</td><td>Validar variantes de egresado, traslado y fallecimiento.</td><td>Casos controlados cruzados con informe de Alta Administrativa.</td><td><span class="status pending">Datos reales</span></td></tr>
-            <tr><td>P2</td><td>Extraer más lógica pura desde <code>background.js</code>.</td><td>Handlers delegan en módulos testeables y el worker reduce complejidad.</td><td><span class="status inferred">Deuda técnica</span></td></tr>
-            <tr><td>P2</td><td>Setting preview/auto compartido.</td><td>Política central por establecimiento/rol, no solo localStorage.</td><td><span class="status pending">Diseño</span></td></tr>
-            <tr><td>P2</td><td>Observabilidad local sin PHI.</td><td>Contadores de timeout, shape drift, sesión stale y fallos por módulo exportables.</td><td><span class="status inferred">Propuesta</span></td></tr>
-            <tr><td>P3</td><td>Contrato visual del Centro HHR.</td><td>Snapshots desktop/compacto y reglas de inserción resilientes a cambios de header.</td><td><span class="status inferred">Propuesta</span></td></tr>
+            <tr><td><span class="roadmap-rank">1</span></td><td><strong>Resumen de cobertura por intento</strong><br>“18 episodios resueltos, 2 por trazabilidad, 1 por egreso individual, 1 requiere revisión”.</td><td>Reduce miedo y permite saber qué quedó realmente demostrado.</td><td>Derivar de datos ya calculados; solo conteos y códigos de causa, sin PHI nueva.</td></tr>
+            <tr><td><span class="roadmap-rank">2</span></td><td><strong>Detalle útil por paciente en preview</strong><br>Mostrar fuente, hora de corte, cama resuelta y acción propuesta.</td><td>Transforma un conflicto técnico en una decisión clínica comprensible.</td><td>Reutilizar <code>verifiedBedPlacement</code> y conflictos actuales; sin otro backend.</td></tr>
+            <tr><td><span class="roadmap-rank">3</span></td><td><strong>Gate explícito de versión/capacidades</strong><br>Bloquear con “Extensión anterior; se requiere 0.43” y una instrucción única de recarga.</td><td>Evita diagnosticar como falla clínica lo que es desalineación de runtime.</td><td>Comparar handshake existente con capacidades requeridas por el flujo seleccionado.</td></tr>
+            <tr><td><span class="roadmap-rank">4</span></td><td><strong>Mostrar antigüedad y corte antes de sincronizar</strong><br>“Reconstruirá D−5 al cierre de las 08:00”.</td><td>Hace visible qué fotografía histórica se está reconstruyendo.</td><td>Derivar del día seleccionado y calendario clínico ya implementado.</td></tr>
+            <tr><td><span class="roadmap-rank">5</span></td><td><strong>Vigilancia periódica del contrato de siete días</strong><br>Revalidar casos conocidos a 7 y 14 días.</td><td>Detecta temprano una reducción de retención en Rayen.</td><td>Prueba manual/read-only; no enumerar <code>ENC_ID</code>, ampliar el horizonte ni persistir PDFs.</td></tr>
+            <tr><td><span class="roadmap-rank">6</span></td><td><strong>Preflight pasivo al usar la aplicación madre</strong><br>Si ambas fuentes están listas y el censo no se sincronizó, mostrar recordatorio y preparar el preview.</td><td>Reduce omisiones manuales sin escribir silenciosamente.</td><td>Notificación local y apertura voluntaria; nunca confirmar ni aplicar automáticamente.</td></tr>
+            <tr><td><span class="roadmap-rank">7</span></td><td><strong>Telemetría local de degradación de contratos</strong><br>Timeout, HTTP, parser vacío, identidad discordante y evidencia expirada.</td><td>Detecta cambios de Rayen antes de que parezcan datos ausentes.</td><td>Contadores agregados exportables sin nombres, RUN, episodios, URLs ni payloads.</td></tr>
+            <tr><td><span class="roadmap-rank">8</span></td><td><strong>Continuar extrayendo handlers del worker</strong></td><td>Mantiene testeable la extensión a medida que crecen las fuentes.</td><td>Solo al tocar cada flujo; no hacer una reescritura global de <code>background.js</code>.</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="callout">
+        <strong>Próximo PR recomendado.</strong> Combinar los puntos 1, 2 y 3: cobertura visible, evidencia por paciente y gate de versión. Es un cambio pequeño de producto, usa contratos existentes y mejora simultáneamente seguridad, soporte y confianza del usuario.
       </div>
     </section>
 
@@ -1031,14 +1159,16 @@
         <table>
           <thead><tr><th>ID</th><th>Fuente</th><th>Aporta</th><th>Nivel</th></tr></thead>
           <tbody>
-            <tr><td>EV-01</td><td>Sesión autenticada Ficha Médico · 15/07/2026</td><td>Rutas, controles visibles, Next.js, chunks y barra Centro HHR.</td><td><span class="status confirmed">Confirmado</span></td></tr>
-            <tr><td>EV-02</td><td>Sesión autenticada Hospitalizado · 15/07/2026</td><td>Hash routes, navegación, estados de camas y acciones visibles.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-01</td><td>Sesión autenticada Ficha Médico · 25/07/2026</td><td>Health vigente, ficha no disponible tras alta y lectura autenticada de trazabilidad por episodio.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-02</td><td>Sesión autenticada Hospitalizado · 25/07/2026</td><td>Lookup exacto RUN + <code>ENC_ID</code>, egresos y conexión independiente.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-03</td><td><code>extension/manifest.json</code></td><td>Versión, permisos, hosts, worlds y scripts.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-04</td><td><code>extension/README.md</code> + scripts</td><td>Flujos Centro HHR, sesiones, recetas, documentos, scores, laboratorio y limitaciones.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-05</td><td><code>src/features/rayen-import/</code></td><td>Contrato snapshot, reconciliación, reglas de egreso, preview/auto y audit.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-06</td><td><code>src/services/storage/sync/</code></td><td>Boundary del outbox, políticas y telemetría.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-07</td><td><code>extension/lab-viewer.js</code> + <code>syslab-bridge.js</code></td><td>Parser, límites, validación RUN, comparación y tendencias.</td><td><span class="status confirmed">Confirmado</span></td></tr>
             <tr><td>EV-08</td><td>Auditoría pasiva Rayen/Eloísa · 26/06/2026</td><td>Contexto histórico de autenticación, CSP y heterogeneidad del ecosistema.</td><td><span class="status historical">Histórico</span></td></tr>
+            <tr><td>EV-09</td><td>Prueba de retención · 25/07/2026</td><td>Trazabilidades válidas a 5, 7 y 13 días del alta; respalda un contrato prudente de siete días, no un máximo externo.</td><td><span class="status confirmed">Confirmado</span></td></tr>
+            <tr><td>EV-10</td><td>Gates locales de la rama</td><td>Typecheck, pruebas <code>rayen-import</code>, paquete MV3 v0.43.0, calidad y build.</td><td><span class="status confirmed">Confirmado</span></td></tr>
           </tbody>
         </table>
       </div>

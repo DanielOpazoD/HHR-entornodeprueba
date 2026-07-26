@@ -5,7 +5,7 @@
  */
 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import { isCurrentCensusDay } from '../domain/historicalCensusSync';
+import { isSupportedCensusSyncDay, type CensusSyncTarget } from '../domain/historicalCensusSync';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -37,13 +37,31 @@ export const nextIsoDay = (iso: string): string => {
   return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
 };
 
-/** Returns today's census day or rejects a live-snapshot projection onto historical data. */
-export const toLiveSyncReportDate = (record: DailyRecord): string => {
+/** Administrative evidence spans the selected day through today's Rapa Nui calendar, inclusive. */
+export const syncReportRange = (
+  dateStart: string,
+  target: CensusSyncTarget
+): { dateStart: string; dateEnd: string } => {
+  if (
+    target.kind === 'unsupported' ||
+    target.lookbackDays === null ||
+    dateStart > target.clinicalDay
+  ) {
+    throw new Error('El intervalo administrativo solicitado no es válido.');
+  }
+  return { dateStart, dateEnd: nextIsoDay(target.calendarDay) };
+};
+
+/** Allows the live clinical day and the seven previous clinical days. */
+export const toSyncReportDate = (record: DailyRecord, now: Date = new Date()): string => {
   const reportDate = toIsoReportDate(record);
-  if (!isCurrentCensusDay(reportDate)) {
+  if (!isSupportedCensusSyncDay(reportDate, now)) {
     throw new Error(
-      'La fuente Ficha Médico muestra el censo vigente y no permite reconstruir con seguridad un día anterior.'
+      'La sincronización permite el censo vigente y hasta siete días clínicos anteriores. Para fechas más antiguas se requiere revisión manual.'
     );
   }
   return reportDate;
 };
+
+/** @deprecated Use toSyncReportDate. Kept for compatible imports while the feature migrates. */
+export const toLiveSyncReportDate = toSyncReportDate;

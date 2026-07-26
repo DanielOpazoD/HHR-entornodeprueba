@@ -65,7 +65,7 @@ export interface RayenEncounter {
    * persisted as a clinical document or used to infer a statistical discharge.
    */
   verifiedBedPlacement?: {
-    source: 'patient-flow-report';
+    source: 'patient-flow-report' | 'statistical-discharge-interval';
     /** HHR bed id resolved from the latest row in the report. */
     bedId: string;
     /** Local Rayen timestamp as printed in the report (YYYY-MM-DDTHH:mm:ss). */

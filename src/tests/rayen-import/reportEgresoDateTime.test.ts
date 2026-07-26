@@ -7,6 +7,7 @@ describe('parseStatisticalEgresoStamp', () => {
     // discharge time. Named zones preserve that rule across DST instead of hard-coding -2.
     expect(parseStatisticalEgresoStamp('14-07-2026 18:20')).toEqual({
       iso: '2026-07-14',
+      calendarIso: '2026-07-14',
       hhmm: '16:20',
       text: '14-07-2026 16:20',
     });
@@ -15,6 +16,7 @@ describe('parseStatisticalEgresoStamp', () => {
   it('moves the calendar day back when mainland midnight is still the prior island day', () => {
     expect(parseStatisticalEgresoStamp('15-07-2026 00:54')).toEqual({
       iso: '2026-07-14',
+      calendarIso: '2026-07-14',
       hhmm: '22:54',
       text: '14-07-2026 22:54',
     });
@@ -22,9 +24,19 @@ describe('parseStatisticalEgresoStamp', () => {
 
   it('accepts PDF line breaks, slash separators and trailing seconds', () => {
     expect(parseStatisticalEgresoStamp('9/7/2026\n5:04:00')).toEqual({
-      iso: '2026-07-09',
+      iso: '2026-07-08',
+      calendarIso: '2026-07-09',
       hhmm: '03:04',
       text: '09-07-2026 03:04',
+    });
+  });
+
+  it('assigns a Saturday-morning discharge to Friday before the 09:00 handoff', () => {
+    expect(parseStatisticalEgresoStamp('25-07-2026 10:30')).toEqual({
+      iso: '2026-07-24',
+      calendarIso: '2026-07-25',
+      hhmm: '08:30',
+      text: '25-07-2026 08:30',
     });
   });
 

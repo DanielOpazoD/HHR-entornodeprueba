@@ -1,6 +1,6 @@
 /**
  * Previous-day discharge corrections (Capability A of "conciliar contra el egreso oficial"), extracted
- * from the sync hook so the hook stays lean. A discharge whose official island day (`correctedDay`) is
+ * from the sync hook so the hook stays lean. A discharge whose clinical census day (`correctedDay`) is
  * earlier than the census day being synced belongs to that previous day's record:
  *   - `computePreviousDayEdits` lists the affected days (with existence / signed / editing-window
  *     flags) for the confirmation shown in the preview, and

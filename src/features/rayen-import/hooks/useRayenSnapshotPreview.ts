@@ -1,4 +1,10 @@
-import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
@@ -8,18 +14,21 @@ import { requiresReview } from '../domain/reconcileCensus';
 import { computePreviousDayEdits } from '../domain/previousDayCorrections';
 import { requestEgresoLookup } from '../bridge/rayenImportBridge';
 import { requestPatientFlowReport } from '../bridge/patientFlowBridge';
+import { requestStatisticalDischargeEvidence } from '../bridge/statisticalDischargeEvidenceBridge';
 import {
   requestRayenExtensionHealth,
   supportsPatientFlowReport,
+  supportsStatisticalDischargeEvidence,
 } from '../bridge/extensionHealthBridge';
 import { resolveOccupiedBedTraceabilityChain } from '../bedTraceabilityResolver';
+import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import type { RayenImportMode } from '../settings/rayenImportSettings';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
-import { nextIsoDay, toIsoReportDate } from './reportDateHelpers';
-import { isCurrentCensusDay } from '../domain/historicalCensusSync';
+import { syncReportRange, toIsoReportDate } from './reportDateHelpers';
+import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
 
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -32,6 +41,7 @@ interface UseRayenSnapshotPreviewInput {
   persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
   fillDevicesInBackground: (record: DailyRecord) => Promise<void>;
   failRun: (reason: 'apply_failed') => Promise<void>;
+  syncTargetRef: MutableRefObject<CensusSyncTarget | null>;
 }
 
 export const useRayenSnapshotPreview = ({
@@ -45,6 +55,7 @@ export const useRayenSnapshotPreview = ({
   persistAppliedRun,
   fillDevicesInBackground,
   failRun,
+  syncTargetRef,
 }: UseRayenSnapshotPreviewInput) => {
   const autoApplyingRef = useRef(false);
 
@@ -61,23 +72,34 @@ export const useRayenSnapshotPreview = ({
         return;
       }
       const reportDate = toIsoReportDate(currentRecord);
-      if (!isCurrentCensusDay(reportDate)) {
+      const requestedTarget = syncTargetRef.current;
+      syncTargetRef.current = null;
+      const completedTarget = resolveCensusSyncTarget(reportDate);
+      if (
+        !requestedTarget ||
+        requestedTarget.kind === 'unsupported' ||
+        completedTarget.kind === 'unsupported' ||
+        completedTarget.clinicalDay !== requestedTarget.clinicalDay
+      ) {
         void failRun('apply_failed');
         setState(prev => ({
           ...prev,
           isBusy: false,
           isSyncing: false,
           error:
-            'Ficha Médico solo puede reconciliar el censo del día en curso. Selecciona el censo vigente y reintenta.',
+            requestedTarget && completedTarget.kind !== 'unsupported'
+              ? 'El turno de enfermería cambió durante la captura. Vuelve a sincronizar para usar un único corte temporal.'
+              : 'Solo se puede reconciliar el censo vigente o uno de los siete días clínicos anteriores.',
         }));
         return;
       }
-      const reportEndDate = nextIsoDay(reportDate);
+      const isHistoricalDay = requestedTarget.kind === 'historical';
+      const reportRange = syncReportRange(reportDate, requestedTarget);
       const bundleMatchesRequest =
         bundle.facilityId === snapshot.facilityId &&
         bundle.fichaMedicoCapturedAt === snapshot.capturedAt &&
-        bundle.dateStart === reportDate &&
-        bundle.dateEnd === reportEndDate;
+        bundle.dateStart === reportRange.dateStart &&
+        bundle.dateEnd === reportRange.dateEnd;
       if (!bundleMatchesRequest) {
         void failRun('apply_failed');
         setState(prev => ({
@@ -89,29 +111,69 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      let { diff } = planRayenCensusImport({ current: currentRecord, snapshot });
-
-      let patientFlowSupport: Promise<boolean> | null = null;
+      let extensionHealth: ReturnType<typeof requestRayenExtensionHealth> | null = null;
+      const getExtensionHealth = () => {
+        extensionHealth ??= requestRayenExtensionHealth();
+        return extensionHealth;
+      };
       const fetchPatientFlowReport = async (encId: string) => {
-        patientFlowSupport ??= requestRayenExtensionHealth().then(result =>
-          supportsPatientFlowReport(result.report)
-        );
-        if (!(await patientFlowSupport)) {
+        const health = await getExtensionHealth();
+        if (!supportsPatientFlowReport(health.report)) {
           return {
             base64: '',
             error: 'La extensión instalada no admite trazabilidad de camas.',
           };
         }
-        return requestPatientFlowReport(encId);
+        return requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
       };
-      const traceability = await resolveOccupiedBedTraceabilityChain(
-        currentRecord,
-        snapshot,
-        diff,
-        { fetchReport: fetchPatientFlowReport },
-        verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
-      );
-      diff = traceability.diff;
+      const fetchStatisticalDischarge = async (encId: string) => {
+        const health = await getExtensionHealth();
+        if (!supportsStatisticalDischargeEvidence(health.report)) {
+          return {
+            base64: '',
+            error: 'La extensión instalada no admite lectura del egreso individual.',
+          };
+        }
+        return requestStatisticalDischargeEvidence(encId);
+      };
+      let diff: CensusImportDiff;
+      if (isHistoricalDay) {
+        const reconstruction = await reconstructHistoricalSnapshotAtClose(
+          reportDate,
+          snapshot,
+          currentRecord,
+          bundle.egresoRows,
+          {
+            fetchReport: fetchPatientFlowReport,
+            lookupEgresos: targets => requestEgresoLookup(targets),
+            fetchDischargeReport: fetchStatisticalDischarge,
+          }
+        );
+        diff = planRayenCensusImport({
+          current: currentRecord,
+          snapshot: reconstruction.snapshot,
+        }).diff;
+        if (reconstruction.conflicts.length > 0) {
+          diff = {
+            ...diff,
+            conflicts: [...diff.conflicts, ...reconstruction.conflicts],
+            summary: {
+              ...diff.summary,
+              conflicts: diff.conflicts.length + reconstruction.conflicts.length,
+            },
+          };
+        }
+      } else {
+        diff = planRayenCensusImport({ current: currentRecord, snapshot }).diff;
+        const traceability = await resolveOccupiedBedTraceabilityChain(
+          currentRecord,
+          snapshot,
+          diff,
+          { fetchReport: fetchPatientFlowReport },
+          verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
+        );
+        diff = traceability.diff;
+      }
 
       diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
 
@@ -214,6 +276,7 @@ export const useRayenSnapshotPreview = ({
       persistAppliedRun,
       failRun,
       setState,
+      syncTargetRef,
     ]
   );
 };

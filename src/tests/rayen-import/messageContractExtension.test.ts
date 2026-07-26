@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(49);
+    expect(values).toHaveLength(50);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -257,6 +257,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-hhr-patient-flow.js',
       'content-hhr-epicrisis.js',
       'content-hhr-statistical-discharge.js',
+      'content-hhr-statistical-evidence.js',
       'content-hhr-syslab.js',
       'content-exam-request-print.js',
       'content-prescription-print.js',
@@ -284,14 +285,14 @@ describe('shared Rayen runtime-message contract', () => {
     ]);
     expect(background).toContain('const readAuthorizedSnapshot = sender =>');
     expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');
-    const dischargeReportRuntime = readFileSync(
-      path.resolve('extension/gestion-camas-discharge-report-runtime.js'),
+    const dischargeReportFetcher = readFileSync(
+      path.resolve('extension/gestion-camas-statistical-report-fetcher.js'),
       'utf8'
     );
     expect(background).toContain("'gestion-camas-discharge-report-runtime.js'");
-    expect(dischargeReportRuntime).toContain('Informe_Estadistico_Egreso_Hospitalario_CARTA.pdf');
-    expect(dischargeReportRuntime).toContain("reportUrl.searchParams.set('ENC_ID', encounterId)");
-    expect(dischargeReportRuntime).toContain('await markSessionVerified(result)');
+    expect(dischargeReportFetcher).toContain('Informe_Estadistico_Egreso_Hospitalario_CARTA.pdf');
+    expect(dischargeReportFetcher).toContain("reportUrl.searchParams.set('ENC_ID', encounterId)");
+    expect(dischargeReportFetcher).toContain('await markSessionVerified(record)');
     expect(syslabLogin.indexOf('message-contract.js')).toBeLessThan(
       syslabLogin.indexOf('syslab-login.js')
     );

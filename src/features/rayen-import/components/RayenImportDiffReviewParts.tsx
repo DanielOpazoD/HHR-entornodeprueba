@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, CircleHelp, CircleMinus } from 'lucide-react';
 import type {
+  ConflictEntry,
   DischargeVerification,
   DischargeVerificationState,
 } from '../contracts/censusImportDiff';
@@ -48,6 +49,38 @@ export const Section: React.FC<{
         {title} <span className="text-gray-400">({count})</span>
       </h4>
       <ul className="space-y-1 text-sm text-gray-600">{children}</ul>
+    </div>
+  );
+};
+
+export const HistoricalReconstructionReview: React.FC<{
+  conflicts: ConflictEntry[];
+}> = ({ conflicts }) => {
+  if (conflicts.length === 0) return null;
+  return (
+    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-950">
+      <h4 className="text-sm font-semibold">
+        {conflicts.length} {conflicts.length === 1 ? 'paciente quedó' : 'pacientes quedaron'} sin
+        cambios
+      </h4>
+      <p className="mt-1 text-xs leading-relaxed text-amber-800">
+        La trazabilidad disponible no permitió confirmar su cama al cierre del turno. El sistema no
+        modificará esos pacientes; los demás cambios verificados sí pueden aplicarse.
+      </p>
+      <details className="mt-2 text-sm">
+        <summary className="cursor-pointer font-medium text-amber-900">
+          Ver pacientes que requieren revisión
+        </summary>
+        <ul className="mt-2 space-y-1 pl-4 text-amber-900">
+          {conflicts.map((entry, index) => (
+            <li key={`historical-review-${entry.rut ?? entry.patientName ?? index}`}>
+              <span className="font-medium">{entry.patientName || entry.rut || 'Paciente'}</span>
+              {entry.bedId ? ` · ${entry.bedId}` : ''}
+              <span className="block text-xs text-amber-700">{entry.reason}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 };

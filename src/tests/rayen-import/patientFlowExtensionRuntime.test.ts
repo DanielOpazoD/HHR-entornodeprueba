@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
+import '../../../extension/tab-encounter-authorization.js';
 import '../../../extension/fichamedico-patient-flow-runtime.js';
 
 type RuntimeFactory = {
@@ -15,6 +16,18 @@ type RuntimeFactory = {
       sender: { origin?: string; url?: string; tab: { id: number; url: string } },
       response: Promise<object>
     ) => Promise<object>;
+    authorizeBundleResponse: (
+      sender: { origin?: string; url?: string; tab: { id: number; url: string } },
+      response: Promise<object>
+    ) => Promise<object>;
+    authorizeVerifiedEncounter: (
+      sender: { origin?: string; url?: string; tab: { id: number; url: string } },
+      encounterId: string
+    ) => boolean;
+    isAuthorized: (
+      sender: { origin?: string; url?: string; tab: { id: number; url: string } },
+      encounterId: string
+    ) => boolean;
     route: {
       handle: (
         message: { encId?: string },
@@ -130,6 +143,36 @@ describe('Ficha Médico patient-flow runtime', () => {
     expect(readBuffer).not.toHaveBeenCalled();
   });
 
+  it('also authorizes an exact discharged episode carried by the guarded bundle report', async () => {
+    const runtime = createRuntime();
+    await runtime.authorizeBundleResponse(
+      sender,
+      Promise.resolve({
+        ok: true,
+        snapshot: { encounters: [{ encounterId: '142040' }] },
+        bundle: { egresoRows: [{ encounterId: '142099' }] },
+      })
+    );
+
+    await expect(runtime.route.handle({ encId: '142099' }, sender)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
+  it('adds an exact Gestión de Camas lookup to the current tab authorization', async () => {
+    const runtime = createRuntime();
+    await authorize(runtime);
+
+    expect(runtime.authorizeVerifiedEncounter(sender, '142083')).toBe(true);
+    expect(runtime.isAuthorized(sender, '142083')).toBe(true);
+    expect(runtime.isAuthorized({ ...sender, tab: { ...sender.tab, id: 45 } }, '142083')).toBe(
+      false
+    );
+    await expect(runtime.route.handle({ encId: '142083' }, sender)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
   it('keeps authorization from the newest overlapping snapshot response', async () => {
     const runtime = createRuntime();
     let resolveOlder!: (value: object) => void;
@@ -153,6 +196,43 @@ describe('Ficha Médico patient-flow runtime', () => {
     await older;
 
     await expect(runtime.route.handle({ encId: '142041' }, sender)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(runtime.route.handle({ encId: '142040' }, sender)).resolves.toEqual({
+      error: 'La trazabilidad no fue autorizada por el snapshot de esta pestaña.',
+    });
+  });
+
+  it('keeps authorization from the newest overlapping guarded bundle', async () => {
+    const runtime = createRuntime();
+    let resolveOlder!: (value: object) => void;
+    let resolveNewer!: (value: object) => void;
+    const older = runtime.authorizeBundleResponse(
+      sender,
+      new Promise(resolve => {
+        resolveOlder = resolve;
+      })
+    );
+    const newer = runtime.authorizeBundleResponse(
+      sender,
+      new Promise(resolve => {
+        resolveNewer = resolve;
+      })
+    );
+    resolveNewer({
+      ok: true,
+      snapshot: { encounters: [{ encounterId: '142041' }] },
+      bundle: { egresoRows: [{ encounterId: '142042' }] },
+    });
+    await newer;
+    resolveOlder({
+      ok: true,
+      snapshot: { encounters: [{ encounterId: '142040' }] },
+      bundle: { egresoRows: [] },
+    });
+    await older;
+
+    await expect(runtime.route.handle({ encId: '142042' }, sender)).resolves.toMatchObject({
       ok: true,
     });
     await expect(runtime.route.handle({ encId: '142040' }, sender)).resolves.toEqual({

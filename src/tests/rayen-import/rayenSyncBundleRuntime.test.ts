@@ -1,10 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
+import { MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS } from '@/features/rayen-import/domain/historicalCensusSync';
 
+import '../../../extension/clinical-day-runtime.js';
+import '../../../extension/census-sync-horizon-runtime.js';
 import '../../../extension/rayen-sync-bundle-runtime.js';
 
 interface SyncBundleRuntime {
   MAX_SOURCE_SKEW_MS: number;
+  MAX_HISTORICAL_LOOKBACK_DAYS: number;
   capture: (input: Record<string, unknown>) => Promise<Record<string, any>>;
 }
 
@@ -31,7 +35,7 @@ const report = {
 };
 
 const capture = (overrides: Record<string, unknown> = {}) => {
-  const times = [new Date('2026-07-24T10:00:00.000Z'), new Date('2026-07-24T10:00:21.000Z')];
+  const times = [new Date('2026-07-24T18:00:00.000Z'), new Date('2026-07-24T18:00:21.000Z')];
   return runtime.capture({
     dateStart: '2026-07-24',
     dateEnd: '2026-07-25',
@@ -59,6 +63,44 @@ describe('Rayen synchronized source bundle', () => {
         sourceSkewMs: 20_000,
         egresoRows: [],
       },
+    });
+  });
+
+  it('allows an atomic capture for the immediately previous census day', async () => {
+    await expect(
+      capture({ dateStart: '2026-07-23', dateEnd: '2026-07-25' })
+    ).resolves.toMatchObject({
+      ok: true,
+      bundle: { dateStart: '2026-07-23', dateEnd: '2026-07-25' },
+    });
+  });
+
+  it('accepts the seventh prior clinical day and rejects D-8', async () => {
+    expect(runtime.MAX_HISTORICAL_LOOKBACK_DAYS).toBe(MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS);
+    await expect(
+      capture({ dateStart: '2026-07-17', dateEnd: '2026-07-25' })
+    ).resolves.toMatchObject({
+      ok: true,
+      bundle: { dateStart: '2026-07-17', dateEnd: '2026-07-25' },
+    });
+    await expect(capture({ dateStart: '2026-07-16', dateEnd: '2026-07-25' })).resolves.toEqual({
+      error:
+        'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.',
+    });
+  });
+
+  it('keeps D-1 clinical available before the nursing handoff', async () => {
+    // At 04:00 local, the active census is still 23 July and its D-1 is 22 July.
+    const times = [new Date('2026-07-24T10:00:00.000Z'), new Date('2026-07-24T10:00:21.000Z')];
+    await expect(
+      capture({
+        dateStart: '2026-07-22',
+        dateEnd: '2026-07-25',
+        now: () => times.shift() ?? new Date('2026-07-24T10:00:21.000Z'),
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      bundle: { dateStart: '2026-07-22', dateEnd: '2026-07-25' },
     });
   });
 
@@ -128,12 +170,32 @@ describe('Rayen synchronized source bundle', () => {
     });
   });
 
-  it('rejects a capture that crosses the local midnight boundary', async () => {
+  it('rejects every capture that crosses local midnight', async () => {
     const times = [new Date('2026-07-25T05:59:59.000Z'), new Date('2026-07-25T06:00:01.000Z')];
     await expect(
-      capture({ now: () => times.shift() ?? new Date('2026-07-25T06:00:01.000Z') })
+      capture({
+        dateStart: '2026-07-23',
+        dateEnd: '2026-07-25',
+        now: () => times.shift() ?? new Date('2026-07-25T06:00:01.000Z'),
+      })
     ).resolves.toEqual({
-      error: 'El día cambió durante la captura. Vuelve a sincronizar el censo vigente.',
+      error:
+        'El día cambió durante la captura. Vuelve a sincronizar para conservar una referencia temporal única.',
+    });
+  });
+
+  it('rejects a capture that crosses the nursing handoff on the same calendar day', async () => {
+    // Friday in Rapa Nui: the clinical day changes from Thursday to Friday at 08:00.
+    const times = [new Date('2026-07-24T13:59:59.000Z'), new Date('2026-07-24T14:00:01.000Z')];
+    await expect(
+      capture({
+        dateStart: '2026-07-23',
+        dateEnd: '2026-07-25',
+        now: () => times.shift() ?? new Date('2026-07-24T14:00:01.000Z'),
+      })
+    ).resolves.toEqual({
+      error:
+        'El turno de enfermería cambió durante la captura. Vuelve a sincronizar para conservar un único corte temporal.',
     });
   });
 
@@ -153,8 +215,9 @@ describe('Rayen synchronized source bundle', () => {
     await expect(capture({ dateEnd: '2026-07-31' })).resolves.toEqual({
       error: 'El intervalo solicitado para sincronizar no es válido.',
     });
-    await expect(capture({ dateStart: '2026-07-23', dateEnd: '2026-07-24' })).resolves.toEqual({
-      error: 'Ficha Médico solo permite sincronizar el censo del día en curso.',
+    await expect(capture({ dateStart: '2026-07-16', dateEnd: '2026-07-25' })).resolves.toEqual({
+      error:
+        'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.',
     });
   });
 });

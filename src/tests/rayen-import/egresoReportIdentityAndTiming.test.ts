@@ -81,14 +81,16 @@ describe('applyEgresoReport', () => {
     const legacyOccupant = patient('', 'Paciente Legado');
     const enriched = applyEgresoReport(
       makeDiff({
-        conflicts: [{
-          bedId: 'R2',
-          rut: '22-5',
-          patientName: 'Paciente Entrante',
-          code: 'principal-bed-collision',
-          reason: 'Cama ocupada por una identidad no verificable.',
-          source: { encounterId: 'EXACT-EPISODE' } as never,
-        }],
+        conflicts: [
+          {
+            bedId: 'R2',
+            rut: '22-5',
+            patientName: 'Paciente Entrante',
+            code: 'principal-bed-collision',
+            reason: 'Cama ocupada por una identidad no verificable.',
+            source: { encounterId: 'EXACT-EPISODE' } as never,
+          },
+        ],
       }),
       [row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
       makeRecord({ R2: legacyOccupant })
@@ -105,11 +107,18 @@ describe('applyEgresoReport', () => {
     const mother = patient('11.044.046-4', 'Madre');
     const legacyNewborn = patient('', 'RN de Madre');
     const enriched = applyEgresoReport(
-      makeDiff({ conflicts: [{
-        bedId: 'R2', rut: '', patientName: legacyNewborn.patientName,
-        scope: 'clinical-crib', reason: 'Episodio de cuna no verificable.',
-        source: { encounterId: 'NEWBORN-EPISODE' } as never,
-      }] }),
+      makeDiff({
+        conflicts: [
+          {
+            bedId: 'R2',
+            rut: '',
+            patientName: legacyNewborn.patientName,
+            scope: 'clinical-crib',
+            reason: 'Episodio de cuna no verificable.',
+            source: { encounterId: 'NEWBORN-EPISODE' } as never,
+          },
+        ],
+      }),
       [row({ run: '', encounterId: 'NEWBORN-EPISODE', destino: 'Domicilio' })],
       makeRecord({ R2: { ...mother, clinicalCrib: legacyNewborn } })
     );
@@ -152,13 +161,15 @@ describe('applyEgresoReport', () => {
     const current = makeRecord({ R2: patient('1-9') });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({
-        run: '1-9',
-        fechaEgreso: '14-07-2026  23:37',
-        correctedDay: '2026-02-31',
-        correctedTime: '29:75',
-        destino: 'Domicilio',
-      })],
+      [
+        row({
+          run: '1-9',
+          fechaEgreso: '14-07-2026  23:37',
+          correctedDay: '2026-02-31',
+          correctedTime: '29:75',
+          destino: 'Domicilio',
+        }),
+      ],
       current
     );
 
@@ -172,7 +183,8 @@ describe('applyEgresoReport', () => {
     const current = makeRecord({ R2: patient('1-9') });
     const enriched = applyEgresoReport(
       makeDiff(),
-      [row({ run: '1-9', fechaEgreso: '15-07-2026  08:00', destino: 'Domicilio' })],
+      // 10:30 mainland = 08:30 Rapa Nui: after the 08:00 weekday handoff, so it belongs to D+1.
+      [row({ run: '1-9', fechaEgreso: '15-07-2026  10:30', destino: 'Domicilio' })],
       current
     );
     expect(enriched.discharges).toHaveLength(0);
