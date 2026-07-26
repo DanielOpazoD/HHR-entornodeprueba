@@ -107,6 +107,7 @@ export type { PatientBedMovement, PatientFlowTimeWindow } from './mapping/parseP
 export {
   parsePatientFlowMovements,
   latestPatientFlowMovement,
+  firstPatientFlowTimestamp,
   patientRunFromFlowReport,
 } from './mapping/parsePatientFlow';
 

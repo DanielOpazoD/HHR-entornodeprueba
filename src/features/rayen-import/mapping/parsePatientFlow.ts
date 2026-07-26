@@ -112,6 +112,13 @@ export const latestPatientFlowMovement = (
   return { ...latest, bedId: latest.bedId as string };
 };
 
+/** Earliest valid row, including locations outside HHR, so callers can bound the episode safely. */
+export const firstPatientFlowTimestamp = (text: string): string | null => {
+  const parsed = parsePatientFlowRows(text);
+  if (parsed.hasMalformedMovementRow) return null;
+  return parsed.rows.at(0)?.changedAt ?? null;
+};
+
 /** RUN printed in the report header; returned normalized and used only for identity validation. */
 export const patientRunFromFlowReport = (text: string): string => {
   const runs = new Set(

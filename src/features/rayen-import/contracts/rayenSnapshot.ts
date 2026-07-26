@@ -60,12 +60,11 @@ export interface RayenEncounter {
   /** True if the patient is GES. */
   isGes?: boolean;
   /**
-   * Latest physical placement proven by the official "Flujo del Paciente" report.
-   * This evidence is fetched only to resolve a concrete occupied-bed conflict; it is never
-   * persisted as a clinical document or used to infer a statistical discharge.
+   * Latest physical placement proven by official patient-flow evidence or, when no transfer exists,
+   * by an exact statistical-discharge interval. It is never persisted as a clinical document.
    */
   verifiedBedPlacement?: {
-    source: 'patient-flow-report';
+    source: 'patient-flow-report' | 'statistical-discharge-interval';
     /** HHR bed id resolved from the latest row in the report. */
     bedId: string;
     /** Local Rayen timestamp as printed in the report (YYYY-MM-DDTHH:mm:ss). */

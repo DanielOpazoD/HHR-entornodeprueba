@@ -1,16 +1,15 @@
 /** Atomic read coordinator for one Rayen census synchronization (classic UMD for MV3). */
 (function (root) {
   'use strict';
-
   const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
+  const MAX_HISTORICAL_LOOKBACK_DAYS =
+    root.HhrCensusSyncHorizonRuntime?.MAX_HISTORICAL_LOOKBACK_DAYS;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-  const RAPA_NUI_TIME_ZONE = 'Pacific/Easter';
   const bothSourcesReady = health => Boolean(
     health &&
       health.fichaMedico && health.fichaMedico.status === 'ready' &&
       health.gestionCamas && health.gestionCamas.status === 'ready'
   );
-
   const sourceFailureMessage = health => {
     if (!health || !health.fichaMedico || health.fichaMedico.status !== 'ready') {
       return health && health.fichaMedico && health.fichaMedico.message ||
@@ -32,20 +31,14 @@
     date.setUTCDate(date.getUTCDate() + 1);
     return date.toISOString().slice(0, 10);
   };
-  // Gestión de Camas needs the exact [D, D+1] range to compensate its report-day offset.
-  const isValidRange = (dateStart, dateEnd) => nextIsoDay(dateStart) === dateEnd;
+  // Include today's calendar morning even while it still belongs to the prior nursing census.
+  const isValidRange = (dateStart, dateEnd, at) => {
+    const clinicalDay = root.HhrClinicalDayRuntime?.clinicalDayAt(at);
+    const calendarDay = root.HhrClinicalDayRuntime?.calendarDayAt(at);
+    return nextIsoDay(calendarDay) === dateEnd && dateStart <= clinicalDay;
+  };
   const hasReaders = (readHealth, readSnapshot, readReport) =>
     [readHealth, readSnapshot, readReport].every(reader => typeof reader === 'function');
-  const rapaNuiIsoDay = date => {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: RAPA_NUI_TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(date);
-    const value = type => parts.find(part => part.type === type)?.value || '';
-    return `${value('year')}-${value('month')}-${value('day')}`;
-  };
   const validateReadResults = (snapshotResult, reportResult) => {
     const snapshot = snapshotResult && snapshotResult.snapshot;
     if (!snapshot) {
@@ -117,19 +110,16 @@
     now = () => new Date(),
     idFactory = () => crypto.randomUUID(),
   }) => {
-    if (!isValidRange(dateStart, dateEnd)) {
+    const started = now(), startedAt = started.toISOString();
+    if (!isValidRange(dateStart, dateEnd, started)) {
       return { error: 'El intervalo solicitado para sincronizar no es válido.' };
     }
     if (!hasReaders(readHealth, readSnapshot, readReport)) {
       return { error: 'La captura sincronizada no pudo inicializarse.' };
     }
 
-    const started = now();
-    const startedAt = started.toISOString();
-    if (dateStart !== rapaNuiIsoDay(started)) {
-      return {
-        error: 'Ficha Médico solo permite sincronizar el censo del día en curso.',
-      };
+    if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) {
+      return { error: 'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.' };
     }
     try {
       const before = await readHealth();
@@ -151,11 +141,11 @@
         };
       }
       const completed = now();
-      if (dateStart !== rapaNuiIsoDay(completed)) {
-        return {
-          error: 'El día cambió durante la captura. Vuelve a sincronizar el censo vigente.',
-        };
-      }
+      const temporalError = root.HhrCensusSyncHorizonRuntime?.validateCaptureBoundary(
+        started,
+        completed
+      );
+      if (temporalError) return { error: temporalError };
 
       return createBundleResult({
         ...readResult,
@@ -175,6 +165,7 @@
 
   root.HhrRayenSyncBundleRuntime = Object.freeze({
     MAX_SOURCE_SKEW_MS,
+    MAX_HISTORICAL_LOOKBACK_DAYS,
     bothSourcesReady,
     capture,
   });

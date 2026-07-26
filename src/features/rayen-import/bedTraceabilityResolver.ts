@@ -8,7 +8,10 @@ import {
   isOccupiedCensusPatient as isOccupied,
 } from './domain/censusReconciliationPredicates';
 import { latestPatientFlowMovement, patientRunFromFlowReport } from './mapping/parsePatientFlow';
-import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './mapping/localTimestamp';
+import {
+  absoluteInstantInRapaNui,
+  encounterWallClockInRapaNui,
+} from './mapping/encounterWallClock';
 import { normalizeRut } from '@/utils/rutUtils';
 
 export interface PatientFlowReportResult {
@@ -20,64 +23,6 @@ export interface BedTraceabilityResolverDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;
   extractText?: (buffer: ArrayBuffer) => Promise<string>;
 }
-
-const absoluteInstantInRapaNui = (raw: string | undefined): string | null => {
-  const instant = parseStrictIsoInstant((raw ?? '').trim());
-  if (!instant) return null;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(instant);
-  const partValue = (type: Intl.DateTimeFormatPartTypes): string =>
-    parts.find(part => part.type === type)?.value ?? '';
-  const [year, month, day, hour, minute, second] = [
-    partValue('year'),
-    partValue('month'),
-    partValue('day'),
-    partValue('hour'),
-    partValue('minute'),
-    partValue('second'),
-  ];
-  return year && month && day && hour && minute && second
-    ? `${year}-${month}-${day}T${hour}:${minute}:${second}`
-    : null;
-};
-
-const admissionWallClockInRapaNui = (raw: string | undefined): string | null => {
-  const value = (raw ?? '').trim();
-  if (!value) return null;
-  const localIso =
-    /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/.exec(value);
-  if (localIso) {
-    return buildSortableLocalTimestamp(
-      Number(localIso[1]),
-      Number(localIso[2]),
-      Number(localIso[3]),
-      Number(localIso[4] ?? 0),
-      Number(localIso[5] ?? 0),
-      Number(localIso[6] ?? 0)
-    );
-  }
-  const localDmy =
-    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(value);
-  if (localDmy) {
-    return buildSortableLocalTimestamp(
-      Number(localDmy[3]),
-      Number(localDmy[2]),
-      Number(localDmy[1]),
-      Number(localDmy[4] ?? 0),
-      Number(localDmy[5] ?? 0),
-      Number(localDmy[6] ?? 0)
-    );
-  }
-  return absoluteInstantInRapaNui(value);
-};
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
   const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
@@ -134,7 +79,7 @@ export const resolveOccupiedBedTraceability = async (
     [...candidates.keys()].map(async encounterId => {
       try {
         const encounter = candidates.get(encounterId);
-        const admissionCutoff = admissionWallClockInRapaNui(encounter?.admissionDatetime);
+        const admissionCutoff = encounterWallClockInRapaNui(encounter?.admissionDatetime);
         if (!encounter || !admissionCutoff) return;
         const report = await dependencies.fetchReport(encounterId);
         if (!report.base64 || report.error) return;

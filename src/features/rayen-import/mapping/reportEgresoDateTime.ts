@@ -6,9 +6,13 @@
  * rollover) rather than corrected with a fixed number of hours.
  */
 
+import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+
 export interface StatisticalEgresoStamp {
-  /** Rapa Nui calendar day (YYYY-MM-DD). */
+  /** HHR clinical census day (YYYY-MM-DD), after the 08:00/09:00 handoff rule. */
   iso: string;
+  /** Rapa Nui calendar day before assigning the event to its nursing census. */
+  calendarIso: string;
   /** Official statistical egreso time (HH:MM). */
   hhmm: string;
   /** Normalized official datetime (DD-MM-YYYY HH:MM). */
@@ -70,9 +74,15 @@ const mainlandWallClockInstant = (parts: DateTimeParts): Date => {
 const stampFromInstant = (date: Date): StatisticalEgresoStamp | null => {
   if (Number.isNaN(date.getTime())) return null;
   const parts = partsInZone(date, CENSUS_TIME_ZONE);
-  const iso = `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
+  const calendarIso = `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
   const hhmm = `${pad2(parts.hour)}:${pad2(parts.minute)}`;
-  return { iso, hhmm, text: `${pad2(parts.day)}-${pad2(parts.month)}-${parts.year} ${hhmm}` };
+  const iso = resolveClinicalDayForDateTime(calendarIso, hhmm) ?? calendarIso;
+  return {
+    iso,
+    calendarIso,
+    hhmm,
+    text: `${pad2(parts.day)}-${pad2(parts.month)}-${parts.year} ${hhmm}`,
+  };
 };
 
 export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgresoStamp | null => {

@@ -87,8 +87,9 @@ export interface DischargeEntry {
   };
   source?: RayenEncounter;
   /**
-   * Rapa Nui day + time of the egreso as printed by the official "Alta Administrativa" report.
-   * The D+1 workaround expands only the search range; it never shifts this statistical timestamp.
+   * HHR nursing-census day + Rapa Nui time derived from the official "Alta Administrativa" report.
+   * The wall clock is converted from mainland Chile and an event before the 08:00/09:00 handoff is
+   * assigned to the previous census day.
    * When `correctedDay` is earlier than the census day being synced, the discharge belongs to that
    * previous day's record — the movement is filed there (behind confirmation), not on the sync day.
    */
@@ -137,7 +138,11 @@ export interface ConflictEntry {
   /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
   scope?: 'clinical-crib';
   /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
-  code?: 'unconfirmed-principal-bed' | 'principal-bed-collision' | 'occupied-local-bed';
+  code?:
+    | 'unconfirmed-principal-bed'
+    | 'principal-bed-collision'
+    | 'occupied-local-bed'
+    | 'historical-reconstruction';
   /** Admission held back only because its target bed was occupied when the snapshot was planned. */
   blockedAdmission?: AdmissionEntry;
   /** Move held back only because its target bed was occupied when the snapshot was planned. */

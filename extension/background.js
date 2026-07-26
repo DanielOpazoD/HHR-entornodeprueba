@@ -20,13 +20,13 @@ importScripts(
   'message-contract.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js', 'rayen-sync-bundle-runtime.js',
-  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js', 'fichamedico-patient-flow-runtime.js',
+  'health-check.js', 'clinical-day-runtime.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
+  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-clinical-cribs.js',
-  'gestion-camas-discharge-report-runtime.js',
+  'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -263,14 +263,14 @@ const handleExtensionHealth = async () => {
   return {
     version: chrome.runtime.getManifest().version,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
-    capabilities: ['patient-flow-report'],
+    capabilities: ['patient-flow-report', 'statistical-discharge-evidence'],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
   };
 };
 
-const handleEgresoLookup = async (runs, targets) => {
+const handleEgresoLookup = async (runs, targets, sender) => {
   const session = await resolveGestionCamasSession();
   if (!session.record) {
     return { error: session.error || 'Conecta Gestión de Camas para consultar egresos.' };
@@ -310,6 +310,9 @@ const handleEgresoLookup = async (runs, targets) => {
         break;
       }
       const item = self.HhrGestionCamasEgresoLookup.selectEncounter(payload, encounterId);
+      if (item && /^\d+$/.test(encounterId)) {
+        patientFlowRuntime.authorizeVerifiedEncounter(sender, encounterId);
+      }
       results.push({
         run,
         encounterId,
@@ -334,14 +337,17 @@ const bufferToBase64 = buffer => {
 };
 const patientFlowRuntime = self.HhrFichaMedicoPatientFlowRuntime.create({ clinicalClient: fichaMedicoClinicalClient, bufferToBase64 });
 
+const readSnapshotWithClinicalCribs = () =>
+  self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
+    handleSnapshotRequest(),
+    gestionCamasRuntime,
+    fetchWithTimeout
+  );
+
 const readAuthorizedSnapshot = sender =>
   patientFlowRuntime.authorizeSnapshotResponse(
     sender,
-    self.HhrGestionCamasClinicalCribs.enrichSnapshotRequest(
-      handleSnapshotRequest(),
-      gestionCamasRuntime,
-      fetchWithTimeout
-    )
+    readSnapshotWithClinicalCribs()
   );
 
 const base64ToArrayBuffer = value => {
@@ -368,13 +374,17 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
 const handleSyncBundleRequest = (message, sender) =>
-  self.HhrRayenSyncBundleRuntime.capture({
-    dateStart: message.dateStart,
-    dateEnd: message.dateEnd,
-    readHealth: handleExtensionHealth,
-    readSnapshot: () => readAuthorizedSnapshot(sender),
-    readReport: handleReportRequest,
-  });
+  patientFlowRuntime.authorizeBundleResponse(
+    sender,
+    self.HhrRayenSyncBundleRuntime.capture({
+      dateStart: message.dateStart,
+      dateEnd: message.dateEnd,
+      readHealth: handleExtensionHealth,
+      // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
+      readSnapshot: readSnapshotWithClinicalCribs,
+      readReport: handleReportRequest,
+    })
+  );
 
 // Fetch + return the device-report PDF as base64 (for HHR to parse) plus size/first bytes so a
 // diagnostic can confirm the fetch without dumping the whole blob.
@@ -728,12 +738,21 @@ const {
   createCompletePrescriptionPdf,
 } = clinicalReportRuntime;
 
+const fetchStatisticalDischargeReport = self.HhrGestionCamasStatisticalReportFetcher.create({
+  resolveSession: resolveGestionCamasSession,
+  fetchOfficialPdf,
+  markSessionVerified: markGestionCamasSessionVerified,
+});
 const { download: handleStatisticalDischargeReportDownload } =
   self.HhrGestionCamasDischargeReportRuntime.create({
-    resolveSession: resolveGestionCamasSession,
-    fetchOfficialPdf,
-    markSessionVerified: markGestionCamasSessionVerified,
+    fetchReport: fetchStatisticalDischargeReport,
     downloadPdfBuffer,
+  });
+const { read: handleStatisticalDischargeEvidenceRead } =
+  self.HhrGestionCamasStatisticalEvidenceRuntime.create({
+    fetchReport: fetchStatisticalDischargeReport,
+    bufferToBase64,
+    isAuthorized: patientFlowRuntime.isAuthorized,
   });
 
 const parseClinicalTimestamp = value => {
@@ -1151,7 +1170,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo abrir el episodio clínico.'
   ),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
-    message => handleEgresoLookup(message.runs, message.targets),
+    (message, sender) => handleEgresoLookup(message.runs, message.targets, sender),
     'No se pudo consultar el egreso.'
   ),
   [RUNTIME_MESSAGES.EGRESO_REPORT_REQUEST]: runtimeRoute(
@@ -1165,6 +1184,10 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.STATISTICAL_DISCHARGE_REPORT_REQUEST]: runtimeRoute(
     message => handleStatisticalDischargeReportDownload({ encId: message.encId }),
     'No se pudo descargar el informe estadístico de egreso.'
+  ),
+  [RUNTIME_MESSAGES.STATISTICAL_DISCHARGE_EVIDENCE_REQUEST]: runtimeRoute(
+    (message, sender) => handleStatisticalDischargeEvidenceRead({ encId: message.encId, sender }),
+    'No se pudo leer el informe estadístico de egreso.'
   ),
   [RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),

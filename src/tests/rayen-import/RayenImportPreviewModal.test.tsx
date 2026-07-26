@@ -332,6 +332,49 @@ describe('Rayen synchronization decisions and pulse', () => {
     expect(screen.getByRole('button', { name: 'Listo' })).toBeVisible();
   });
 
+  it('presents unresolved D-1 traceability as a compact non-destructive review', () => {
+    const historicalDiff: CensusImportDiff = {
+      ...diff,
+      admissions: [],
+      updates: [],
+      moves: [],
+      discharges: [],
+      reportEgresos: [],
+      conflicts: [
+        {
+          bedId: null,
+          rut: '11.111.111-1',
+          patientName: 'Paciente Histórico',
+          code: 'historical-reconstruction',
+          reason: 'No se confirmó una cama antes del cierre.',
+        },
+      ],
+      summary: {
+        ...diff.summary,
+        admissions: 0,
+        updates: 0,
+        moves: 0,
+        discharges: 0,
+        conflicts: 1,
+      },
+    };
+
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={historicalDiff}
+        isBusy={false}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('1 paciente quedó sin cambios')).toBeVisible();
+    expect(screen.getByText('Ver pacientes que requieren revisión')).toBeVisible();
+    expect(screen.queryByText('Conflictos (no se aplican)')).not.toBeInTheDocument();
+  });
+
   it('presents nursing as an independent modal with symmetric choices', () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();

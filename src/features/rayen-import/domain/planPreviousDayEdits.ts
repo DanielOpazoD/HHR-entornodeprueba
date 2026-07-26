@@ -1,6 +1,6 @@
 /**
  * Plans which PREVIOUS days a sync would modify (Capability A of "conciliar contra el egreso
- * oficial"): every discharge / report egreso whose official island egreso day (`correctedDay`) is
+ * oficial"): every discharge / report egreso whose clinical census day (`correctedDay`) is
  * earlier than the census day being synced. Grouped by day, with per-day flags (does a record exist,
  * is the nurse editing window still open, is the day already signed) resolved via injected probes so
  * the function stays pure and testable.

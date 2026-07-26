@@ -6,6 +6,10 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const source = readFileSync(path.resolve('extension/content-hhr-statistical-discharge.js'), 'utf8');
+const evidenceSource = readFileSync(
+  path.resolve('extension/content-hhr-statistical-evidence.js'),
+  'utf8'
+);
 
 describe('HHR statistical-discharge content bridge', () => {
   it('only installs on trusted HHR origins', () => {
@@ -15,7 +19,7 @@ describe('HHR statistical-discharge content bridge', () => {
       HhrRayenMessageContract: { types: { STATISTICAL_DISCHARGE_REPORT_REQUEST: 'REQUEST' } },
     });
 
-    vm.runInContext(source, context, { filename: 'content-hhr-statistical-discharge.js' });
+    vm.runInContext(evidenceSource, context, { filename: 'content-hhr-statistical-evidence.js' });
     expect(addEventListener).not.toHaveBeenCalled();
   });
 
@@ -67,6 +71,100 @@ describe('HHR statistical-discharge content bridge', () => {
         error: undefined,
       },
       'http://localhost:3000'
+    );
+  });
+
+  it('returns private PDF evidence to the requesting localhost tab without triggering a download', async () => {
+    let onMessage:
+      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | undefined;
+    const postMessage = vi.fn();
+    const sendMessage = vi.fn(async () => ({ ok: true, base64: 'JVBERg==' }));
+    const windowObject = {
+      location: { origin: 'http://localhost:3001' },
+      addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
+        if (type === 'message') onMessage = listener;
+      }),
+      postMessage,
+    };
+    const context = vm.createContext({
+      window: windowObject,
+      chrome: { runtime: { sendMessage } },
+      HhrRayenMessageContract: {
+        types: {
+          STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        },
+      },
+    });
+    vm.runInContext(evidenceSource, context, { filename: 'content-hhr-statistical-evidence.js' });
+
+    onMessage?.({
+      source: windowObject,
+      data: {
+        type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        reqId: 'evidence-1',
+        encId: '142083',
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT',
+          reqId: 'evidence-1',
+          ok: true,
+          base64: 'JVBERg==',
+          error: undefined,
+        },
+        'http://localhost:3001'
+      )
+    );
+  });
+
+  it('preserves a controlled evidence error from the extension runtime', async () => {
+    let onMessage:
+      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | undefined;
+    const postMessage = vi.fn();
+    const sendMessage = vi.fn(async () => ({ error: 'La sesión cambió.' }));
+    const windowObject = {
+      location: { origin: 'http://localhost:3000' },
+      addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
+        if (type === 'message') onMessage = listener;
+      }),
+      postMessage,
+    };
+    const context = vm.createContext({
+      window: windowObject,
+      chrome: { runtime: { sendMessage } },
+      HhrRayenMessageContract: {
+        types: {
+          STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        },
+      },
+    });
+    vm.runInContext(evidenceSource, context, { filename: 'content-hhr-statistical-evidence.js' });
+
+    onMessage?.({
+      source: windowObject,
+      data: {
+        type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
+        reqId: 'evidence-error',
+        encId: '142083',
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT',
+          reqId: 'evidence-error',
+          ok: false,
+          base64: undefined,
+          error: 'La sesión cambió.',
+        },
+        'http://localhost:3000'
+      )
     );
   });
 

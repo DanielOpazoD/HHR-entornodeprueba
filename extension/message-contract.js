@@ -15,6 +15,7 @@
     EGRESO_REPORT_REQUEST: 'RAYEN_EGRESO_REPORT_REQUEST',
     EGRESO_REPORT_SAVE: 'RAYEN_EGRESO_REPORT_SAVE',
     STATISTICAL_DISCHARGE_REPORT_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST',
+    STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
     DEVICE_REPORT_REQUEST: 'RAYEN_DEVICE_REPORT_REQUEST',
     PATIENT_FLOW_REPORT_REQUEST: 'RAYEN_PATIENT_FLOW_REPORT_REQUEST',
     DEVICE_REPORT_SAVE: 'RAYEN_DEVICE_REPORT_SAVE',
@@ -65,6 +66,7 @@
     [types.EGRESO_REPORT_REQUEST]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.STATISTICAL_DISCHARGE_REPORT_REQUEST]: { encId: 'id' },
+    [types.STATISTICAL_DISCHARGE_EVIDENCE_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?' },
     [types.PATIENT_FLOW_REPORT_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_SAVE]: { encId: 'id', fecha: 'string?' },
@@ -162,7 +164,6 @@
       error: cleanMessage(message) || 'La sesión requerida no está disponible.',
     }),
   });
-
   const fieldMatches = (value, descriptor) => {
     const optional = descriptor.endsWith('?');
     const kind = optional ? descriptor.slice(0, -1) : descriptor;
@@ -260,7 +261,6 @@
       route.fallback || 'La operación de la extensión no pudo completarse.'
     );
   };
-
   root.HhrRayenMessageContract = {
     createRuntimeRouter,
     respondAsync,

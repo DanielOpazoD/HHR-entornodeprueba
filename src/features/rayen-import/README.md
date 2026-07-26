@@ -25,8 +25,13 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
   exige un censo completo, valida que el establecimiento coincida y rechaza capturas separadas por
   más de dos minutos. Snapshot e informe de egresos viajan juntos como un `RayenSyncBundle`; HHR no
   interpreta la falla de una fuente como ausencia de eventos.
-- **Solo el día vivo:** Ficha Médico expone el estado vigente, por lo que HHR bloquea la
-  reconciliación estructural de días anteriores hasta contar con evidencia histórica equivalente.
+- **Horizonte D/D−7:** el día vigente usa el snapshot completo. Cada uno de los siete días clínicos
+  anteriores se reconstruye como una fotografía al cierre de su turno: cada episodio requiere RUN coincidente y
+  ubicación en `Flujo_del_Paciente.pdf` anterior a las 08:00 del día hábil siguiente o 09:00 del
+  inhábil. Si un egresado ya no figura en las fuentes masivas, se valida su `ENC_ID` + RUN exactos y
+  el egreso individual puede probar el intervalo ingreso–egreso. Solo cuando no registra traslado
+  previo al corte se conserva la cama que ya constaba en HHR; nunca se inventa una ubicación.
+  Episodios no demostrables quedan en revisión; D−8 y anteriores permanecen bloqueados.
 - **Sin fallback fragmentado:** HHR rechaza snapshots sueltos o paquetes que no coincidan
   exactamente en establecimiento, rango y marca de captura; nunca vuelve a combinar lecturas
   independientes después de iniciar una sincronización dual.
@@ -36,9 +41,11 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
   señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
   Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
-- **Ventana D a D+1:** el reporte se solicita hasta el día siguiente por el desfase conocido del
-  filtro de Rayen. La fecha y hora impresas en cada fila ya son el sello estadístico de Rapa Nui: se
-  normalizan, pero no se desplazan nuevamente por zona horaria.
+- **Inventario D al día vigente:** para un censo histórico, el reporte administrativo cubre desde
+  el día solicitado hasta el día calendario actual inclusive (fin exclusivo: actual+1). Así también
+  descubre episodios que ocupaban D pero egresaron varios días después. La hora se convierte de
+  `America/Santiago` a `Pacific/Easter` y luego se asigna al día censal de enfermería: antes de las
+  08:00/09:00 pertenece a D−1.
 - **CMA por origen exacto:** un alta administrativa viva se clasifica como CMA cuando ingreso y
   egreso estadístico ocurren el mismo día y la cama exacta `CMA R1`…`CMA R4` o `CMA NEO1/2` consta
   en la ubicación Eloísa guardada o en el informe de altas. `R1`/`NEO1` sin prefijo CMA no cuentan.
@@ -54,35 +61,40 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 ## Estructura
 
-| Path                                     | Rol                                                                        |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| `contracts/rayenSnapshot.ts`             | Contrato de entrada (lo que produce la extensión)                          |
-| `contracts/censusImportDiff.ts`          | Contrato de salida (el diff a revisar)                                     |
-| `mapping/bedMapping.ts`                  | Cama/sala/servicio Rayen → `bedId` HHR (+ flag CMA)                        |
-| `mapping/rayenToPatientData.ts`          | Encuentro Rayen → `PatientData` (reusa `EMPTY_PATIENT`)                    |
-| `mapping/dischargeMapping.ts`            | Tipo de egreso HHR (alta / traslado / CMA · Vivo/Fallecido)                |
-| `domain/reconcileCensus.ts`              | Motor de reconciliación puro (ingresos/updates/moves/egresos/conflictos)   |
-| `domain/principalBedMovePlan.ts`         | Resuelve cadenas/intercambios de camas y rechaza destinos bloqueados       |
-| `domain/censusPatientIdentityIndex.ts`   | Índice por episodio y RUN para camas principales/cunas                     |
-| `mapping/parsePatientFlow.ts`            | Extrae solo los movimientos de cama del PDF oficial                        |
-| `bedTraceabilityResolver.ts`             | Consulta selectiva y fail-closed ante un conflicto de cama                 |
-| `domain/applyCensusImportDiff.ts`        | Aplica el diff → siguiente `DailyRecord` (puro, defensivo)                 |
-| `domain/rayenSyncHistory.ts`             | Historial diario agregado, idempotente y acotado                           |
-| `importRayenCensusUseCase.ts`            | Use-case `planRayenCensusImport` (planifica el diff)                       |
-| `settings/rayenImportSettings.ts`        | Setting de modo (`preview`/`auto`) en localStorage                         |
-| `bridge/rayenImportBridge.ts`            | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
-| `bridge/patientFlowBridge.ts`            | Canal acotado para solicitar el PDF del episodio en conflicto              |
-| `bridge/extensionHealthBridge.ts`        | Handshake de versión/capacidades, sin leer información clínica             |
-| `hooks/useRayenImportMode.ts`            | Hook reactivo del modo                                                     |
-| `hooks/useRayenExtensionHealth.ts`       | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
-| `hooks/useRayenImport.ts`                | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
-| `hooks/useRayenSyncAudit.ts`             | Coordina inicio, aplicación, cobertura final y fallo sanitizado            |
-| `hooks/useRayenClinicalFill.ts`          | Ejecuta enriquecimiento y cierra la evidencia técnica del run              |
-| `components/RayenImportButton.tsx`       | Botón "Sincronizar Eloísa" (barra del censo)                               |
-| `components/RayenImportPreviewModal.tsx` | Modal de preview del diff (BaseModal)                                      |
-| `components/RayenSyncHistoryModal.tsx`   | Historial operativo del día, sin información clínica individual            |
-| `components/RayenImportModeSetting.tsx`  | Selector de modo (panel admin)                                             |
-| `index.ts`                               | API pública (único entrypoint externo)                                     |
+| Path                                           | Rol                                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `contracts/rayenSnapshot.ts`                   | Contrato de entrada (lo que produce la extensión)                          |
+| `contracts/censusImportDiff.ts`                | Contrato de salida (el diff a revisar)                                     |
+| `mapping/bedMapping.ts`                        | Cama/sala/servicio Rayen → `bedId` HHR (+ flag CMA)                        |
+| `mapping/rayenToPatientData.ts`                | Encuentro Rayen → `PatientData` (reusa `EMPTY_PATIENT`)                    |
+| `mapping/dischargeMapping.ts`                  | Tipo de egreso HHR (alta / traslado / CMA · Vivo/Fallecido)                |
+| `domain/reconcileCensus.ts`                    | Motor de reconciliación puro (ingresos/updates/moves/egresos/conflictos)   |
+| `domain/principalBedMovePlan.ts`               | Resuelve cadenas/intercambios de camas y rechaza destinos bloqueados       |
+| `domain/censusPatientIdentityIndex.ts`         | Índice por episodio y RUN para camas principales/cunas                     |
+| `mapping/parsePatientFlow.ts`                  | Extrae solo los movimientos de cama del PDF oficial                        |
+| `mapping/parseStatisticalDischargeReport.ts`   | Valida intervalo y traslados del egreso individual                         |
+| `mapping/encounterWallClock.ts`                | Normaliza instantes Rayen al reloj local de Rapa Nui                       |
+| `bedTraceabilityResolver.ts`                   | Consulta selectiva y fail-closed ante un conflicto de cama                 |
+| `domain/historicalSnapshotReconstruction.ts`   | Reconstruye D−1…D−7 al cierre con trazabilidad por episodio                |
+| `domain/historicalLocalEgresoEvidence.ts`      | Verifica episodios locales ausentes por ENC_ID + RUN exactos               |
+| `domain/applyCensusImportDiff.ts`              | Aplica el diff → siguiente `DailyRecord` (puro, defensivo)                 |
+| `domain/rayenSyncHistory.ts`                   | Historial diario agregado, idempotente y acotado                           |
+| `importRayenCensusUseCase.ts`                  | Use-case `planRayenCensusImport` (planifica el diff)                       |
+| `settings/rayenImportSettings.ts`              | Setting de modo (`preview`/`auto`) en localStorage                         |
+| `bridge/rayenImportBridge.ts`                  | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
+| `bridge/patientFlowBridge.ts`                  | Canal acotado para solicitar el PDF del episodio en conflicto              |
+| `bridge/statisticalDischargeEvidenceBridge.ts` | Lee el egreso exacto ya autorizado sin descargarlo al usuario              |
+| `bridge/extensionHealthBridge.ts`              | Handshake de versión/capacidades, sin leer información clínica             |
+| `hooks/useRayenImportMode.ts`                  | Hook reactivo del modo                                                     |
+| `hooks/useRayenExtensionHealth.ts`             | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
+| `hooks/useRayenImport.ts`                      | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
+| `hooks/useRayenSyncAudit.ts`                   | Coordina inicio, aplicación, cobertura final y fallo sanitizado            |
+| `hooks/useRayenClinicalFill.ts`                | Ejecuta enriquecimiento y cierra la evidencia técnica del run              |
+| `components/RayenImportButton.tsx`             | Botón "Sincronizar Eloísa" (barra del censo)                               |
+| `components/RayenImportPreviewModal.tsx`       | Modal de preview del diff (BaseModal)                                      |
+| `components/RayenSyncHistoryModal.tsx`         | Historial operativo del día, sin información clínica individual            |
+| `components/RayenImportModeSetting.tsx`        | Selector de modo (panel admin)                                             |
+| `index.ts`                                     | API pública (único entrypoint externo)                                     |
 
 ## Reglas clave
 
@@ -97,9 +109,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **Trazabilidad sin PHI:** `rayenSyncHistory` guarda solo actor, tiempos, salud de fuentes y
   agregados del diff/cobertura. No persiste nombres, RUN, diagnósticos ni errores crudos.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
-- **Horizonte temporal no inventado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
-  promete por sí solo reconstruir N días. La estructura de un día pasado solo se modifica cuando
-  existe evidencia histórica explícita; el snapshot actual nunca se proyecta retroactivamente.
+- **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
+  promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
+  y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.
 - **`moves` ≠ traslados:** `moves` = reubicación de cama dentro del censo; el traslado a otro hospital
   es un _tipo de egreso_ (`DischargeEntry.kind = 'traslado'`).
 

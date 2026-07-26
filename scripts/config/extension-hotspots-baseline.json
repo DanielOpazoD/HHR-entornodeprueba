@@ -15,6 +15,14 @@
         "variable:parseClinicalTimestamp": 18
       }
     },
+    "clinical-day-runtime.js": {
+      "maxLines": 35,
+      "hotspots": {}
+    },
+    "census-sync-horizon-runtime.js": {
+      "maxLines": 43,
+      "hotspots": {}
+    },
     "clinical-batch-print-runtime.js": {
       "maxLines": 453,
       "hotspots": {
@@ -110,6 +118,10 @@
       "maxLines": 31,
       "hotspots": {}
     },
+    "content-hhr-statistical-evidence.js": {
+      "maxLines": 34,
+      "hotspots": {}
+    },
     "content-hhr-sync-bundle.js": {
       "maxLines": 42,
       "hotspots": {}
@@ -191,6 +203,14 @@
     },
     "gestion-camas-discharge-report-runtime.js": {
       "maxLines": 42,
+      "hotspots": {}
+    },
+    "gestion-camas-statistical-evidence-runtime.js": {
+      "maxLines": 18,
+      "hotspots": {}
+    },
+    "gestion-camas-statistical-report-fetcher.js": {
+      "maxLines": 30,
       "hotspots": {}
     },
     "gestion-camas-egreso-lookup.js": {
@@ -433,6 +453,10 @@
         "iife>variable:create>variable:login": 20,
         "iife>variable:create>variable:openPdf": 19
       }
+    },
+    "tab-encounter-authorization.js": {
+      "maxLines": 60,
+      "hotspots": {}
     }
   }
 }

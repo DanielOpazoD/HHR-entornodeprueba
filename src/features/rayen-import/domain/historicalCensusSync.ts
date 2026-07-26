@@ -1,19 +1,92 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 
 const RAPA_NUI_TIME_ZONE = 'Pacific/Easter';
+const MILLISECONDS_PER_DAY = 86_400_000;
 
-const isoDayInRapaNui = (date: Date): string => {
+/**
+ * Product contract for delayed census reconstruction.
+ *
+ * Rayen currently retains evidence for longer (13 days was verified on 25-07-2026), but HHR only
+ * promises the seven previous clinical days. Keeping the supported window explicit prevents an
+ * incidental upstream retention period from silently becoming a clinical guarantee.
+ */
+export const MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS = 7;
+
+const calendarStampInRapaNui = (date: Date): { iso: string; hhmm: string } => {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: RAPA_NUI_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(date);
   const value = (type: Intl.DateTimeFormatPartTypes): string =>
     parts.find(part => part.type === type)?.value ?? '';
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return {
+    iso: `${value('year')}-${value('month')}-${value('day')}`,
+    hhmm: `${value('hour')}:${value('minute')}`,
+  };
 };
+
+const isoDayInRapaNui = (date: Date): string => calendarStampInRapaNui(date).iso;
+
+/** Census day currently under the responsibility of the active nursing shift in Rapa Nui. */
+export const clinicalCensusDayInRapaNui = (now: Date = new Date()): string => {
+  const { iso, hhmm } = calendarStampInRapaNui(now);
+  return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
+};
+
+export type CensusSyncTargetKind = 'current' | 'historical' | 'unsupported';
+
+export interface CensusSyncTarget {
+  kind: CensusSyncTargetKind;
+  /** Rapa Nui calendar day at request time; may lead clinicalDay before handoff. */
+  calendarDay: string;
+  /** Clinical day that was active when the synchronization started. */
+  clinicalDay: string;
+  /** 0 for D, 1..7 for an accepted historical day, null when unsupported or malformed. */
+  lookbackDays: number | null;
+}
+
+const isoDayNumber = (iso: string): number | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [year, month, day] = iso.split('-').map(Number);
+  const timestamp = Date.UTC(year, month - 1, day);
+  if (new Date(timestamp).toISOString().slice(0, 10) !== iso) return null;
+  return timestamp / MILLISECONDS_PER_DAY;
+};
+
+export const resolveCensusSyncTarget = (
+  censusIsoDay: string,
+  now: Date = new Date()
+): CensusSyncTarget => {
+  const calendarDay = isoDayInRapaNui(now);
+  const clinicalDay = clinicalCensusDayInRapaNui(now);
+  const targetDayNumber = isoDayNumber(censusIsoDay);
+  const clinicalDayNumber = isoDayNumber(clinicalDay);
+  const lookbackDays =
+    targetDayNumber === null || clinicalDayNumber === null
+      ? null
+      : clinicalDayNumber - targetDayNumber;
+  const kind: CensusSyncTargetKind =
+    lookbackDays === 0
+      ? 'current'
+      : lookbackDays !== null &&
+          lookbackDays >= 1 &&
+          lookbackDays <= MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS
+        ? 'historical'
+        : 'unsupported';
+  return { kind, calendarDay, clinicalDay, lookbackDays };
+};
+
+export const classifyCensusSyncTargetDay = (
+  censusIsoDay: string,
+  now: Date = new Date()
+): CensusSyncTargetKind => resolveCensusSyncTarget(censusIsoDay, now).kind;
 
 const timestampDayInRapaNui = (value?: string): string => {
   if (!value) return '';
@@ -24,10 +97,21 @@ const timestampDayInRapaNui = (value?: string): string => {
 
 /** Historical censuses never inherit today's structural state from the live Eloisa snapshot. */
 export const isHistoricalCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
-  censusIsoDay < isoDayInRapaNui(now);
+  censusIsoDay < clinicalCensusDayInRapaNui(now);
 
 export const isCurrentCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
-  censusIsoDay === isoDayInRapaNui(now);
+  classifyCensusSyncTargetDay(censusIsoDay, now) === 'current';
+
+/** Exact D-1 predicate retained for callers that specifically need the immediately prior day. */
+export const isPreviousCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
+  resolveCensusSyncTarget(censusIsoDay, now).lookbackDays === 1;
+
+/** True for a supported historical target from D-1 through D-7. */
+export const isHistoricalCensusSyncDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
+  classifyCensusSyncTargetDay(censusIsoDay, now) === 'historical';
+
+export const isSupportedCensusSyncDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
+  classifyCensusSyncTargetDay(censusIsoDay, now) !== 'unsupported';
 
 const occupiedPatientCount = (record: DailyRecord): number =>
   Object.values(record.beds).reduce((count, bed) => {

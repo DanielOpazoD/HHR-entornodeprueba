@@ -2,7 +2,13 @@ import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import { Chip, ddmmyyyy, Section, VerificationBadges } from './RayenImportDiffReviewParts';
+import {
+  Chip,
+  ddmmyyyy,
+  HistoricalReconstructionReview,
+  Section,
+  VerificationBadges,
+} from './RayenImportDiffReviewParts';
 
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
@@ -50,6 +56,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     if (isOpen) setAcceptedPreviousDays(false);
   }, [isOpen]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
+  const historicalConflicts =
+    diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
+  const blockingConflicts =
+    diff?.conflicts.filter(entry => entry.code !== 'historical-reconstruction') ?? [];
   const showReview = (hasChanges || hasConflicts) && !isBusy && !isApplied;
   const showAppliedConflicts = isApplied && diff != null && diff.summary.conflicts > 0 && !isBusy;
   const handleClose = (): void => {
@@ -88,8 +98,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                     tone="indigo"
                   />
                   <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
-                  {diff.summary.conflicts > 0 && (
-                    <Chip label="Conflictos" value={diff.summary.conflicts} tone="red" />
+                  {historicalConflicts.length > 0 && (
+                    <Chip label="Por revisar" value={historicalConflicts.length} tone="amber" />
+                  )}
+                  {blockingConflicts.length > 0 && (
+                    <Chip label="Conflictos" value={blockingConflicts.length} tone="red" />
                   )}
                   {(diff.reportEgresos?.length ?? 0) > 0 && (
                     <Chip
@@ -173,8 +186,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   ))}
                 </Section>
 
-                <Section title="Conflictos (no se aplican)" count={diff.conflicts.length}>
-                  {diff.conflicts.map((entry, index) => (
+                <HistoricalReconstructionReview conflicts={historicalConflicts} />
+
+                <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
+                  {blockingConflicts.map((entry, index) => (
                     <li key={`con-${index}`} className="text-red-700">
                       {entry.bedId ? `${entry.bedId}: ` : ''}
                       {entry.reason}
@@ -261,11 +276,13 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             {showAppliedConflicts && (
               <div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  Los demás cambios fueron aplicados. Estos conflictos se mantuvieron sin cambios y
-                  requieren revisión manual.
+                  {blockingConflicts.length > 0
+                    ? 'Los demás cambios fueron aplicados. Los conflictos pendientes se conservaron sin modificaciones.'
+                    : 'Los cambios verificables fueron aplicados. Los pacientes indicados se conservaron sin modificaciones.'}
                 </div>
-                <Section title="Conflictos pendientes" count={diff.conflicts.length}>
-                  {diff.conflicts.map((entry, index) => (
+                <HistoricalReconstructionReview conflicts={historicalConflicts} />
+                <Section title="Conflictos pendientes" count={blockingConflicts.length}>
+                  {blockingConflicts.map((entry, index) => (
                     <li key={`pending-con-${index}`} className="text-amber-900">
                       {entry.bedId ? `${entry.bedId}: ` : ''}
                       {entry.reason}

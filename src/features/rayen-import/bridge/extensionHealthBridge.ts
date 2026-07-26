@@ -10,6 +10,7 @@ export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_R
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 4;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
+export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
 
 export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 
@@ -62,6 +63,11 @@ export const isRayenExtensionHealthReport = (
 
 export const supportsPatientFlowReport = (report: RayenExtensionHealthReport | null): boolean =>
   report?.capabilities?.includes(RAYEN_PATIENT_FLOW_CAPABILITY) === true;
+
+export const supportsStatisticalDischargeEvidence = (
+  report: RayenExtensionHealthReport | null
+): boolean =>
+  report?.capabilities?.includes(RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY) === true;
 
 export const requestRayenExtensionHealth = (timeoutMs = 2500): Promise<RayenExtensionHealthCheck> =>
   new Promise(resolve => {

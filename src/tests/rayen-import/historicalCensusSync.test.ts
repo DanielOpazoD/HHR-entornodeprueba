@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import {
+  MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS,
+  classifyCensusSyncTargetDay,
+  isCurrentCensusDay,
   isHistoricalCensusDay,
+  isHistoricalCensusSyncDay,
+  isPreviousCensusDay,
+  isSupportedCensusSyncDay,
+  resolveCensusSyncTarget,
   toSafeHistoricalDiff,
 } from '@/features/rayen-import/domain/historicalCensusSync';
 
@@ -45,9 +52,40 @@ const historicalRecord = {
 
 describe('historical census synchronization', () => {
   it('uses the Rapa Nui calendar day to distinguish a historical census', () => {
-    const now = new Date('2026-07-16T12:00:00.000Z');
+    const now = new Date('2026-07-16T18:00:00.000Z');
     expect(isHistoricalCensusDay('2026-07-15', now)).toBe(true);
     expect(isHistoricalCensusDay('2026-07-16', now)).toBe(false);
+  });
+
+  it('keeps the previous calendar date current until the nursing handoff', () => {
+    // Saturday 08:30 in Rapa Nui: Friday night is still the active census (09:00 handoff).
+    const beforeWeekendHandoff = new Date('2026-07-25T14:30:00.000Z');
+    expect(isCurrentCensusDay('2026-07-24', beforeWeekendHandoff)).toBe(true);
+    expect(isPreviousCensusDay('2026-07-23', beforeWeekendHandoff)).toBe(true);
+    expect(isSupportedCensusSyncDay('2026-07-25', beforeWeekendHandoff)).toBe(false);
+
+    const afterWeekendHandoff = new Date('2026-07-25T15:01:00.000Z');
+    expect(isCurrentCensusDay('2026-07-25', afterWeekendHandoff)).toBe(true);
+    expect(isPreviousCensusDay('2026-07-24', afterWeekendHandoff)).toBe(true);
+  });
+
+  it('supports the current Rapa Nui clinical day and D-1 through D-7', () => {
+    const now = new Date('2026-07-16T18:00:00.000Z');
+    expect(MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS).toBe(7);
+    expect(isSupportedCensusSyncDay('2026-07-16', now)).toBe(true);
+    expect(isPreviousCensusDay('2026-07-15', now)).toBe(true);
+    expect(isSupportedCensusSyncDay('2026-07-15', now)).toBe(true);
+    expect(isHistoricalCensusSyncDay('2026-07-09', now)).toBe(true);
+    expect(isSupportedCensusSyncDay('2026-07-09', now)).toBe(true);
+    expect(isSupportedCensusSyncDay('2026-07-08', now)).toBe(false);
+    expect(isSupportedCensusSyncDay('2026-07-17', now)).toBe(false);
+    expect(isSupportedCensusSyncDay('2026-02-31', now)).toBe(false);
+    expect(classifyCensusSyncTargetDay('2026-07-09', now)).toBe('historical');
+    expect(resolveCensusSyncTarget('2026-07-09', now)).toMatchObject({
+      clinicalDay: '2026-07-16',
+      kind: 'historical',
+      lookbackDays: 7,
+    });
   });
 
   it('preserves beds and removes every live structural change from a historical run', () => {
