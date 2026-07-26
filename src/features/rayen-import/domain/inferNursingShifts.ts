@@ -72,7 +72,7 @@ const classifyShift = (
 interface CandidateAccumulator {
   name: string;
   observedNames: Set<string>;
-  structuredAliasKeys: Set<string>;
+  structuredAliases: Set<string>;
   records: Set<string>;
   patients: Set<string>;
   hours: Set<string>;
@@ -120,7 +120,7 @@ const buildSuggestion = (
     const accumulator = candidates.get(key) ?? {
       name: identity.displayName,
       observedNames: new Set<string>(),
-      structuredAliasKeys: new Set<string>(),
+      structuredAliases: new Set<string>(),
       records: new Set<string>(),
       patients: new Set<string>(),
       hours: new Set<string>(),
@@ -129,10 +129,8 @@ const buildSuggestion = (
     };
     accumulator.observedNames.add(observation.author);
     if (observation.authorIdentity) {
-      accumulator.structuredAliasKeys.add(
-        nurseIdentityKey(
-          `${observation.authorIdentity.firstGivenName} ${observation.authorIdentity.firstSurname}`
-        )
+      accumulator.structuredAliases.add(
+        `${observation.authorIdentity.firstGivenName} ${observation.authorIdentity.firstSurname}`
       );
     }
     accumulator.records.add(
@@ -146,8 +144,8 @@ const buildSuggestion = (
   }
 
   const identityCollision = [...candidates].some(([key, candidate]) =>
-    [...candidate.structuredAliasKeys].some(
-      aliasKey => aliasKey !== key && candidates.has(aliasKey)
+    [...candidate.structuredAliases].some(
+      alias => nurseIdentityKey(alias) !== key && candidates.has(nurseIdentityKey(alias))
     )
   );
 
@@ -159,7 +157,7 @@ const buildSuggestion = (
       return {
         name: candidate.name,
         observedNames: [...candidate.observedNames],
-        identityAliases: [...candidate.structuredAliasKeys],
+        identityAliases: [...candidate.structuredAliases],
         records,
         patients,
         activeHours,

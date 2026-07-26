@@ -129,6 +129,7 @@ describe('inferNursingShifts', () => {
     );
 
     expect(proposal.day.names).toEqual(['María Soto']);
+    expect(proposal.day.candidates[0]?.identityAliases).toEqual(['María Soto']);
   });
 
   it('marks a full-name and short-label collision ambiguous without a short catalog identity', () => {
