@@ -22,10 +22,7 @@ import {
 } from '@/services/auth/authStorageHints';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { preloadDefaultPostLoginRoute } from '@/app-shell/bootstrap/authenticatedRoutePreloadController';
-import {
-  clearStaleGoogleLoginLock,
-  getGoogleLoginLockStatus,
-} from '@/services/auth/googleLoginLock';
+import { getGoogleLoginLockStatus } from '@/services/auth/googleLoginLock';
 import {
   type LoginBackgroundMode,
   persistLoginBackgroundMode,
@@ -144,7 +141,6 @@ export const useLoginPageController = (
   }, [initialAuthError?.code, initialAuthError?.message]);
 
   const handleLocalResetStart = () => {
-    clearStaleGoogleLoginLock();
     clearGoogleLoginAttemptHint();
     clearRecentAuthenticatedSessionHint();
     clearAuthBootstrapPending();

@@ -43,15 +43,6 @@ export const getGoogleLoginLockStatus = (): {
   };
 };
 
-/** Removes only an expired Google-login coordination lock; active locks from other tabs are safe. */
-export const clearStaleGoogleLoginLock = (): boolean => {
-  if (typeof window === 'undefined' || !window.localStorage) return false;
-  const lock = readGoogleLoginLock();
-  if (!lock || isGoogleLoginLockActive(lock)) return false;
-  window.localStorage.removeItem(GOOGLE_LOGIN_LOCK_KEY);
-  return true;
-};
-
 export const acquireGoogleLoginLock = (): boolean => {
   if (typeof window === 'undefined' || !window.localStorage) return true;
 

@@ -129,13 +129,12 @@ export const useRayenImport = () => {
   const presentStaffingProposal = useCallback(
     (proposal: NursingStaffingProposal, attemptId: number) => {
       if (!isRayenFillAttemptCurrent(attemptId)) return;
-      const hasVacancies = proposal.day.names.length > 0 || proposal.night.names.length > 0;
-      const hasAmbiguity = proposal.day.ambiguous || proposal.night.ambiguous;
+      const sections = [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight];
+      const hasVacancies = sections.some(section => (section?.names.length ?? 0) > 0);
+      const hasAmbiguity = sections.some(section => section?.ambiguous);
+      const hasPendingDecision = hasPendingStaffingDecision(proposal);
       if (!canWritePreviousDay(proposal.censusDate, isAdmin)) {
-        reportRayenStaffingOutcome(
-          hasVacancies || hasAmbiguity ? 'declined' : 'resolved',
-          attemptId
-        );
+        reportRayenStaffingOutcome(hasPendingDecision ? 'declined' : 'resolved', attemptId);
         return;
       }
       reportRayenStaffingOutcome(
@@ -143,7 +142,7 @@ export const useRayenImport = () => {
         attemptId
       );
       // Only interrupt for a real decision; the pulse and audit retain all other evidence.
-      setStaffingProposal(hasVacancies ? proposal : null);
+      setStaffingProposal(hasPendingDecision ? proposal : null);
     },
     [isAdmin]
   );

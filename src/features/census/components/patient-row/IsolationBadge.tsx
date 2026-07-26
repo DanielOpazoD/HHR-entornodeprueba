@@ -23,6 +23,7 @@ export const IsolationBadge: React.FC<IsolationBadgeProps> = ({ isolationType, m
 
   return (
     <span
+      role="img"
       className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[8px] font-bold uppercase leading-none text-amber-700 ring-1 ring-amber-300"
       title={description}
       aria-label={description}

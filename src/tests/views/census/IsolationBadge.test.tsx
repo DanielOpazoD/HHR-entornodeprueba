@@ -9,7 +9,9 @@ describe('IsolationBadge', () => {
   it('exposes the synchronized isolation type accessibly and on hover', () => {
     render(<IsolationBadge isolationType="Gotas" microorganism="Virus Influenza B" />);
 
-    const badge = screen.getByLabelText('Aislamiento: Gotas · Virus Influenza B');
+    const badge = screen.getByRole('img', {
+      name: 'Aislamiento: Gotas · Virus Influenza B',
+    });
     expect(badge).toHaveAttribute('title', 'Aislamiento: Gotas · Virus Influenza B');
     expect(badge).toHaveTextContent('Aisl.');
   });

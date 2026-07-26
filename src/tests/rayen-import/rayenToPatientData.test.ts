@@ -154,6 +154,29 @@ describe('rayenToPatientData', () => {
     expect(patient.isolationMicroorganism).toBe('Virus Influenza B');
   });
 
+  it('keeps isolation metadata absent when only the active flag is available', () => {
+    const { patient } = rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE);
+
+    expect(patient.isIsolated).toBe(true);
+    expect(patient.isolationType).toBeUndefined();
+    expect(patient.isolationMicroorganism).toBeUndefined();
+  });
+
+  it('drops stale isolation metadata when the encounter is inactive', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        isIsolated: false,
+        isolationType: 'Gotas',
+        isolationMicroorganism: 'Virus Influenza B',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.isIsolated).toBe(false);
+    expect(patient.isolationType).toBeUndefined();
+    expect(patient.isolationMicroorganism).toBeUndefined();
+  });
+
   it('normalizes names to Title Case regardless of the casing Rayen returns', () => {
     const { patient } = rayenToPatientData(
       baseEncounter({

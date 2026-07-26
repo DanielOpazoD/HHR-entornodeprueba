@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildNursingShiftProposalPatch,
+  hasPendingStaffingDecision,
   hasNursingShiftReview,
   reconcileNursingShiftProposal,
 } from '@/features/rayen-import/domain/applyNursingShiftProposal';
@@ -67,6 +68,25 @@ const record = (overrides: Partial<DailyRecord> = {}): DailyRecord =>
   }) as DailyRecord;
 
 describe('buildNursingShiftProposalPatch', () => {
+  it('keeps a TENS-only vacancy or ambiguity pending for explicit review', () => {
+    expect(
+      hasPendingStaffingDecision({
+        ...proposal,
+        day: suggestion([]),
+        night: suggestion([]),
+        tensDay: suggestion(['Jimena Yáñez']),
+      })
+    ).toBe(true);
+    expect(
+      hasPendingStaffingDecision({
+        ...proposal,
+        day: suggestion([]),
+        night: suggestion([]),
+        tensNight: { ...suggestion([]), ambiguous: true },
+      })
+    ).toBe(true);
+  });
+
   it('fills only vacant nurse slots and preserves manual nursing and TENS assignments', () => {
     const patch = buildNursingShiftProposalPatch(record(), proposal);
 
