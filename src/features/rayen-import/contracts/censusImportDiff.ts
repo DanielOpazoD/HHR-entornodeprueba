@@ -99,11 +99,11 @@ export interface DischargeEntry {
   verification?: DischargeVerification;
 }
 
-/** One previous day the sync would touch (Capability A: a discharge whose real island day is earlier). */
+/** One previous clinical day the sync would touch after explicit operator confirmation. */
 export interface PreviousDayEdit {
   /** Island day (YYYY-MM-DD) whose record would be modified. */
   day: string;
-  reason: 'discharge-day-correction';
+  reason: 'discharge-day-correction' | 'admission-night-shift-correction';
   patientNames: string[];
   /** Whether a daily record already exists for that day. */
   recordExists: boolean;
@@ -111,6 +111,16 @@ export interface PreviousDayEdit {
   withinEditingWindow: boolean;
   /** Whether that day's record carries a medical signature (already "closed"). */
   isSigned: boolean;
+  /**
+   * Exact admission subjects shown for confirmation. Kept with the transient preview diff so the
+   * writer never derives a broader set of historical admissions from the raw current-day diff.
+   */
+  admissionSubjects?: Array<{
+    kind: 'principal' | 'clinical-crib';
+    bedId: string;
+    clinicalEpisodeId?: string;
+    rut?: string;
+  }>;
 }
 
 /**
@@ -189,6 +199,11 @@ export interface CensusImportDiff {
    * never auto-applied. Present only once the egreso report has been consulted.
    */
   previousDayEdits?: PreviousDayEdit[];
+  /**
+   * Transient admission-shaped candidates derived from updates that attach a new clinical crib to
+   * a mother already present in HHR. They are used only by the confirmed D/D-1 correction writer.
+   */
+  previousDayAdmissionCandidates?: AdmissionEntry[];
   unchangedCount: number;
   summary: CensusImportSummary;
 }

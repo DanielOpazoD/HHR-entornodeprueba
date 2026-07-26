@@ -5,6 +5,7 @@ import {
   buildAppliedRayenSyncEvent,
   buildFailedRayenSyncEvent,
   buildRayenSyncCoverage,
+  buildRayenStaffingObservation,
   completeRayenSyncEvent,
   rayenSyncMetaFromEvent,
   upsertRayenSyncEvent,
@@ -129,6 +130,28 @@ describe('rayen sync history', () => {
 
     expect(complete).toMatchObject({ id: applied.id, status: 'complete' });
     expect(partial).toMatchObject({ id: applied.id, status: 'partial' });
+  });
+
+  it('persists a privacy-safe explanation for ambiguous staffing evidence', () => {
+    const observation = buildRayenStaffingObservation({
+      censusDate: '2026-07-25',
+      day: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+      night: { names: [], candidates: [], ignoredBoundaryRecords: 2, ambiguous: true },
+      tensDay: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+      tensNight: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+    });
+    const applied = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
+    const completed = completeRayenSyncEvent(
+      applied,
+      buildRayenSyncCoverage(2, [], '2026-07-14T10:03:00.000Z'),
+      observation
+    );
+
+    expect(completed.staffingObservation).toEqual({
+      ambiguousSections: ['nurse_night'],
+      ignoredBoundaryRecords: 2,
+    });
+    expect(JSON.stringify(completed.staffingObservation)).not.toMatch(/patient|rut|diagn/i);
   });
 
   it('stores failed attempts with a sanitized reason and without replacing last-sync metadata', () => {

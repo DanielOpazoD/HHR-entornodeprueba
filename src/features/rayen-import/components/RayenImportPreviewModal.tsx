@@ -16,7 +16,7 @@ export interface RayenImportPreviewModalProps {
   isBusy: boolean;
   error: string | null;
   isApplied?: boolean;
-  /** `applyPreviousDays` = whether to ALSO file the past-day egreso corrections (the ack checkbox). */
+  /** Whether to also file confirmed cross-day admission/discharge corrections. */
   onConfirm: (applyPreviousDays: boolean) => void;
   onCancel: () => void;
 }
@@ -116,9 +116,16 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 <Section title="Ingresos" count={diff.admissions.length}>
                   {diff.admissions.map(entry => (
                     <li key={`adm-${entry.bedId}`}>
-                      <span className="font-semibold">{entry.bedId}</span> —{' '}
-                      {entry.patient.patientName}
-                      {entry.isCma && <span className="ml-1 text-teal-600">(CMA)</span>}
+                      <div>
+                        <span className="font-semibold">{entry.bedId}</span> —{' '}
+                        {entry.patient.patientName}
+                        {entry.isCma && <span className="ml-1 text-teal-600">(CMA)</span>}
+                      </div>
+                      {entry.patient.clinicalCrib?.patientName && (
+                        <div className="ml-4 text-gray-600">
+                          ↳ Cuna clínica — {entry.patient.clinicalCrib.patientName}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </Section>
@@ -236,13 +243,19 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       Modificar días previos ({previousDayEdits.length})
                     </h4>
                     <p className="mb-2 text-xs text-amber-700">
-                      Según el reporte oficial, estos egresos ocurrieron en un día anterior. Al
-                      confirmar se grabarán en su día real (Rapa Nui), no en el día de hoy.
+                      Los ingresos de madrugada pertenecen al turno noche anterior y los egresos
+                      conservan su día clínico oficial. Al confirmar se grabarán también en el día
+                      correspondiente de Rapa Nui.
                     </p>
                     <ul className="space-y-1 text-sm text-amber-900">
                       {previousDayEdits.map(edit => (
-                        <li key={edit.day}>
+                        <li key={`${edit.day}-${edit.reason}`}>
                           <span className="font-semibold tabular-nums">{ddmmyyyy(edit.day)}</span> —{' '}
+                          <span className="font-medium">
+                            {edit.reason === 'admission-night-shift-correction'
+                              ? 'Ingreso turno noche: '
+                              : 'Egreso: '}
+                          </span>
                           {edit.patientNames.join(', ')}
                           {!edit.withinEditingWindow && (
                             <span className="ml-1 font-medium text-red-600">
@@ -250,7 +263,9 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                             </span>
                           )}
                           {edit.isSigned && (
-                            <span className="ml-1 text-amber-600">(día ya firmado)</span>
+                            <span className="ml-1 font-medium text-red-600">
+                              (día ya firmado — se omitirá)
+                            </span>
                           )}
                           {!edit.recordExists && (
                             <span className="ml-1 font-medium text-red-600">
@@ -319,8 +334,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         {showReview && hasChanges && (
           <button
             type="button"
-            // Today's changes (ingresos/movimientos/egresos) always apply; the días-previos ack only
-            // gates whether the past-day corrections are also filed — it never blocks the confirm.
+            // Today's changes always apply; the días-previos ack only gates the historical copy.
             onClick={() => {
               onConfirm(acceptedPreviousDays);
             }}

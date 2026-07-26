@@ -135,6 +135,12 @@ describe('hasSkippedPreviousDayCorrections', () => {
     ).toBe(true);
   });
 
+  it('reports a signed historical correction as skipped', () => {
+    expect(hasSkippedPreviousDayCorrections(diffWithPreviousDay({ isSigned: true }), true)).toBe(
+      true
+    );
+  });
+
   it('does not report an accepted writable correction as skipped', () => {
     expect(hasSkippedPreviousDayCorrections(diffWithPreviousDay(), true)).toBe(false);
   });
