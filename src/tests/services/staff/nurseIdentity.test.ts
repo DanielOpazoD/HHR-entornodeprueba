@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  areNurseNameVariants,
   buildNurseCatalogIdentities,
   reconcileNurseCatalogNames,
   reconcileSelectedNurseName,
@@ -7,6 +8,17 @@ import {
 } from '@/services/staff/nurseIdentity';
 
 describe('nurseIdentity', () => {
+  it('recognizes a short HHR name as the same person as its longer Eloisa variant', () => {
+    expect(areNurseNameVariants('Camila Soto', 'Camila Soto Alegría')).toBe(true);
+    expect(areNurseNameVariants('Pedro Moreno Opazo', 'Pedro Moreno')).toBe(true);
+    expect(areNurseNameVariants('Ana', 'Ana')).toBe(true);
+  });
+
+  it('keeps two different complete names separate', () => {
+    expect(areNurseNameVariants('Ana Pérez Soto', 'Ana Pérez Rojas')).toBe(false);
+    expect(areNurseNameVariants('Camila Soto', 'Camila Rojas')).toBe(false);
+  });
+
   it('normalizes exact duplicates without deleting potentially distinct full identities', () => {
     expect(
       reconcileNurseCatalogNames([

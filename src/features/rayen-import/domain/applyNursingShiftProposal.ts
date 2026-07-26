@@ -10,7 +10,11 @@ import {
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
-import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
+import {
+  deduplicateSuggestedPeople,
+  hasAmbiguousOccupiedStaffAlias,
+  namesReferToSameStaffMember,
+} from './staffIdentityReconciliation';
 
 type StaffingRole = 'nurse' | 'tens';
 type ProposalKey = 'day' | 'night' | 'tensDay' | 'tensNight';
@@ -62,20 +66,6 @@ const resolveOccupiedNames = (
     .map(assignment => assignment.name || '')
     .filter(Boolean);
 
-const knownIdentityKeys = (suggestion: NursingShiftSuggestion, name: string): Set<string> => {
-  const evidence = suggestion.candidates.find(candidate => candidate.name === name);
-  return new Set([name, ...(evidence?.observedNames ?? [])].map(nurseIdentityKey));
-};
-
-const namesReferToSameNurse = (
-  suggestion: NursingShiftSuggestion,
-  left: string,
-  right: string
-): boolean => {
-  const leftKeys = knownIdentityKeys(suggestion, left);
-  return [...knownIdentityKeys(suggestion, right)].some(key => leftKeys.has(key));
-};
-
 const buildReplacementRoster = (
   suggestion: NursingShiftSuggestion,
   currentNames: string[],
@@ -85,7 +75,7 @@ const buildReplacementRoster = (
   const remaining = [...suggestion.names];
   const target = currentNames.map(current => {
     const matchIndex = remaining.findIndex(candidate =>
-      namesReferToSameNurse(suggestion, current, candidate)
+      namesReferToSameStaffMember(suggestion, current, candidate)
     );
     if (matchIndex < 0) return '';
     remaining.splice(matchIndex, 1);
@@ -105,9 +95,7 @@ const includesAssignedName = (
   candidate: string,
   suggestion: NursingShiftSuggestion
 ): boolean =>
-  assignedNames.some(assigned =>
-    knownIdentityKeys(suggestion, candidate).has(nurseIdentityKey(assigned))
-  );
+  assignedNames.some(assigned => namesReferToSameStaffMember(suggestion, assigned, candidate));
 
 const constrainToVacancies = (
   suggestion: NursingShiftSuggestion,
@@ -146,20 +134,41 @@ export const reconcileNursingShiftProposal = (
     const extraNames = assignments
       .filter(assignment => assignment.slotType === 'extra' && !isVacant(assignment.name))
       .map(assignment => assignment.name);
-    const candidatePool = suggestion.ambiguous
-      ? suggestion.names
-      : suggestion.candidates.map(candidate => candidate.name);
+    const candidateResolution = deduplicateSuggestedPeople(
+      suggestion.ambiguous
+        ? suggestion.names
+        : suggestion.candidates.map(candidate => candidate.name),
+      suggestion
+    );
+    const replacementResolution = deduplicateSuggestedPeople(suggestion.names, suggestion);
+    const identityAmbiguous = hasAmbiguousOccupiedStaffAlias(
+      suggestion,
+      assignedNames,
+      candidateResolution.names
+    );
+    const effectiveSuggestion: NursingShiftSuggestion = {
+      ...suggestion,
+      names: replacementResolution.names,
+      ambiguous:
+        suggestion.ambiguous ||
+        candidateResolution.ambiguous ||
+        replacementResolution.ambiguous ||
+        identityAmbiguous,
+    };
+    const candidatePool = candidateResolution.names;
     const alreadyAssigned = candidatePool.filter(name =>
-      includesAssignedName(assignedNames, name, suggestion)
+      includesAssignedName(assignedNames, name, effectiveSuggestion)
     );
     const missingNames = candidatePool.filter(
-      name => !includesAssignedName(assignedNames, name, suggestion)
+      name => !includesAssignedName(assignedNames, name, effectiveSuggestion)
     );
     const vacancies = currentNames.filter(isVacant).length;
-    const constrained = constrainToVacancies(suggestion, missingNames, vacancies);
+    const constrained = identityAmbiguous
+      ? { names: [], ambiguous: true }
+      : constrainToVacancies(effectiveSuggestion, missingNames, vacancies);
     const replacementRoster =
       target.allowReplacement && !constrained.ambiguous && missingNames.length > vacancies
-        ? buildReplacementRoster(suggestion, currentNames, extraNames)
+        ? buildReplacementRoster(effectiveSuggestion, currentNames, extraNames)
         : null;
     reconciled[target.key] = {
       ...suggestion,
@@ -202,22 +211,36 @@ export const buildNursingShiftProposalPatch = (
   for (const target of STAFFING_TARGETS) {
     const suggestion = proposal[target.key];
     if (!suggestion) continue;
+    const identityResolution = deduplicateSuggestedPeople(suggestion.names, suggestion);
+    const effectiveSuggestion: NursingShiftSuggestion = {
+      ...suggestion,
+      names: identityResolution.names,
+      ambiguous: suggestion.ambiguous || identityResolution.ambiguous,
+    };
+    if (effectiveSuggestion.ambiguous) continue;
     // Detailed staffing is the canonical source when present; its legacy arrays can briefly lag.
     const currentNames = resolveCurrentNames(detail, target.shift, target.role, target.slots);
-    if (suggestion.replaceStandardSlots) {
+    const occupiedNames = resolveOccupiedNames(detail, target.shift, target.role).filter(
+      name => !isVacant(name)
+    );
+    if (
+      hasAmbiguousOccupiedStaffAlias(effectiveSuggestion, occupiedNames, effectiveSuggestion.names)
+    ) {
+      continue;
+    }
+    if (effectiveSuggestion.replaceStandardSlots) {
       if (!target.allowReplacement) continue;
       const extraNames = getDetailedShiftRoleAssignments(detail, target.shift, target.role).filter(
         assignment => assignment.slotType === 'extra' && !isVacant(assignment.name)
       );
       if (
-        suggestion.ambiguous ||
-        suggestion.names.length !== target.slots ||
+        effectiveSuggestion.names.length !== target.slots ||
         extraNames.length > 0 ||
-        !sameRoster(suggestion.currentNames, currentNames)
+        !sameRoster(effectiveSuggestion.currentNames, currentNames)
       )
         continue;
       for (let slot = 0; slot < target.slots; slot += 1) {
-        const replacement = suggestion.names[slot] ?? '';
+        const replacement = effectiveSuggestion.names[slot] ?? '';
         if (replacement === currentNames[slot]) continue;
         detail = updateDetailedStaffingStandardSlot(
           detail,
@@ -230,20 +253,19 @@ export const buildNursingShiftProposalPatch = (
       }
       continue;
     }
-    const occupiedNames = resolveOccupiedNames(detail, target.shift, target.role).filter(
-      name => !isVacant(name)
-    );
     const available: string[] = [];
-    for (const name of suggestion.names) {
+    for (const name of effectiveSuggestion.names) {
       if (
-        !includesAssignedName(occupiedNames, name, suggestion) &&
-        !available.some(availableName => namesReferToSameNurse(suggestion, availableName, name))
+        !includesAssignedName(occupiedNames, name, effectiveSuggestion) &&
+        !available.some(availableName =>
+          namesReferToSameStaffMember(effectiveSuggestion, availableName, name)
+        )
       ) {
         available.push(name);
       }
     }
     const vacancies = currentNames.filter(isVacant).length;
-    const constrained = constrainToVacancies(suggestion, available, vacancies).names;
+    const constrained = constrainToVacancies(effectiveSuggestion, available, vacancies).names;
     let suggestionIndex = 0;
     for (let slot = 0; slot < target.slots && suggestionIndex < constrained.length; slot += 1) {
       if (!isVacant(currentNames[slot])) continue;

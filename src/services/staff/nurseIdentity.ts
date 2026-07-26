@@ -31,6 +31,22 @@ const tokens = (value: string): string[] => normalizeIdentityText(value).split('
 
 export const nurseIdentityKey = (value: string): string => normalizeIdentityText(value);
 
+/**
+ * Compares the short HHR convention (given name + first surname) with a longer
+ * Eloisa label without collapsing two different complete names into one person.
+ */
+export const areNurseNameVariants = (left: string, right: string): boolean => {
+  const leftTokens = tokens(left);
+  const rightTokens = tokens(right);
+  if (leftTokens.join(' ') === rightTokens.join(' ')) return true;
+  if (leftTokens.length < 2 || rightTokens.length < 2) return false;
+  return (
+    leftTokens[0] === rightTokens[0] &&
+    leftTokens[1] === rightTokens[1] &&
+    (leftTokens.length === 2 || rightTokens.length === 2)
+  );
+};
+
 export const toShortNurseName = (value: string): string => {
   const normalized = normalizeDisplayName(value);
   const parts = normalized.split(' ').filter(Boolean);
