@@ -204,6 +204,77 @@ describe('previous clinical-day admission corrections', () => {
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
+  it('validates every affected day before writing any cross-day correction', async () => {
+    const plan = await computePreviousDayEdits(
+      repository,
+      motherAndNewbornDiff,
+      '2026-07-26',
+      true
+    );
+    const dischargedPatient = {
+      ...EMPTY_PATIENT,
+      bedId: 'H1C1',
+      patientName: 'Paciente de alta',
+      rut: '11.111.111-1',
+    };
+    const unsignedEarlierDay: DailyRecord = {
+      ...historicalRecord,
+      date: '2026-07-24',
+      beds: { H1C1: dischargedPatient },
+    };
+    const signedLaterDay: DailyRecord = {
+      ...historicalRecord,
+      medicalSignature: {
+        doctorName: 'Médico prueba',
+        signedAt: '2026-07-26T12:00:00.000Z',
+      },
+    };
+    vi.mocked(repository.getForDate).mockImplementation(async day => {
+      if (day === '2026-07-24') return unsignedEarlierDay;
+      if (day === '2026-07-25') return signedLaterDay;
+      return null;
+    });
+    const multiDayDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      discharges: [
+        {
+          bedId: 'H1C1',
+          rut: dischargedPatient.rut,
+          patientName: dischargedPatient.patientName,
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          correctedDay: '2026-07-24',
+        },
+      ],
+      previousDayEdits: [
+        {
+          day: '2026-07-24',
+          reason: 'discharge-day-correction',
+          patientNames: [dischargedPatient.patientName],
+          recordExists: true,
+          withinEditingWindow: true,
+          isSigned: false,
+        },
+        ...plan.edits,
+      ],
+    };
+
+    await expect(
+      fileCrossDayCorrections(
+        repository,
+        { ...historicalRecord, date: '2026-07-26', beds: { H1C1: dischargedPatient } },
+        multiDayDiff,
+        '2026-07-26',
+        true,
+        () => 'movement-id',
+        { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
+      )
+    ).rejects.toThrow('fue firmado después de la revisión');
+
+    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
+  });
+
   it('does not infer a previous-day crib admission when its time is unknown', async () => {
     const unknownCribTimeDiff: CensusImportDiff = {
       ...motherAndNewbornDiff,

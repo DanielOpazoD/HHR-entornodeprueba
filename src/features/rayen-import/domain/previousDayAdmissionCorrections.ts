@@ -32,8 +32,15 @@ export const isPreviousNightRollover = (admission: AdmissionEntry, censusDay: st
     clinicalAdmissionDay(admission.source) < censusDay
   );
 };
-export const isPatientPreviousNightRollover = (patient: PatientData, censusDay: string): boolean =>
-  patient.admissionDate?.trim() === censusDay && patientAdmissionDay(patient) < censusDay;
+export const isPatientPreviousNightRollover = (
+  patient: PatientData,
+  censusDay: string
+): boolean => {
+  const admissionDay = patientAdmissionDay(patient);
+  return Boolean(
+    admissionDay && patient.admissionDate?.trim() === censusDay && admissionDay < censusDay
+  );
+};
 
 const admissionSubjects = (
   admission: AdmissionEntry,

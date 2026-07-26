@@ -228,6 +228,39 @@ describe('previous clinical-day admission evidence and safety', () => {
     expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
   });
 
+  it('does not request historical evidence for a same-day crib whose admission time is unknown', async () => {
+    const admission = motherAndNewbornDiff.admissions[0];
+    const unknownCribTimeDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: [
+        {
+          ...admission,
+          patient: {
+            ...admission.patient,
+            clinicalCrib: admission.patient.clinicalCrib
+              ? { ...admission.patient.clinicalCrib, admissionTime: '' }
+              : undefined,
+          },
+          source: admission.source
+            ? {
+                ...admission.source,
+                admissionDatetime: '2026-07-25T18:00:00-06:00',
+                verifiedBedPlacement: undefined,
+              }
+            : undefined,
+        },
+      ],
+    };
+    const fetchReport = vi.fn();
+
+    const verified = await verifyPreviousDayAdmissionPlacements(unknownCribTimeDiff, '2026-07-26', {
+      fetchReport,
+    });
+
+    expect(fetchReport).not.toHaveBeenCalled();
+    expect(verified.conflicts).toEqual([]);
+  });
+
   it('does not offer CMA admissions as historical bed corrections', async () => {
     const cmaDiff: CensusImportDiff = {
       ...motherAndNewbornDiff,

@@ -175,14 +175,28 @@ export const fileCrossDayCorrections = async (
     canWritePreviousDay
   );
   const affectedDays = new Set([...byDay.keys(), ...admissionsByDay.keys()]);
-  for (const day of affectedDays) {
-    const record = await port.getForDate(day);
-    if (!record) continue;
+  const records = new Map<string, DailyRecord>();
+  await Promise.all(
+    [...affectedDays].map(async day => {
+      const record = await port.getForDate(day);
+      if (record) records.set(day, record);
+    })
+  );
+
+  // Validate every target before the first write. This avoids partially filing an earlier day and
+  // only then discovering that another affected record was signed after the preview.
+  for (const [day, record] of records) {
     if ((record as { medicalSignature?: unknown }).medicalSignature) {
       throw new Error(
         `No se modificó el censo del ${day}: el registro fue firmado después de la revisión.`
       );
     }
+  }
+
+  const preparedCorrections = [];
+  for (const day of affectedDays) {
+    const record = records.get(day);
+    if (!record) continue;
     const movementResult = applyCrossDayDiff(record, byDay.get(day) ?? [], {
       idFactory: makeId,
       actor: provenance.actor,
@@ -193,17 +207,22 @@ export const fileCrossDayCorrections = async (
       admissionsByDay.get(day) ?? []
     );
     if (movementResult.applied === 0 && admissionResult.applied === 0) continue;
-    await patchDailyRecordWithCompatibility(
-      port,
+    preparedCorrections.push({
       day,
-      {
+      record,
+      patch: {
         beds: admissionResult.record.beds,
         discharges: admissionResult.record.discharges,
         transfers: admissionResult.record.transfers,
         cma: admissionResult.record.cma,
         lastUpdated: admissionResult.record.lastUpdated,
       },
-      { baseRecord: record }
-    );
+    });
+  }
+
+  for (const correction of preparedCorrections) {
+    await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
+      baseRecord: correction.record,
+    });
   }
 };
