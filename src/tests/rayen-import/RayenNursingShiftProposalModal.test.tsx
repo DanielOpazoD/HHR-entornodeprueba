@@ -128,7 +128,13 @@ describe('RayenNursingShiftProposalModal', () => {
     renderProposal({
       proposal: {
         ...proposal,
-        day: { ...proposal.day, names: [], alreadyAssigned: ['Ana Pérez'] },
+        day: {
+          ...proposal.day,
+          names: [],
+          alreadyAssigned: ['Ana Pérez'],
+          ignoredBoundaryRecords: 0,
+          ignoredBoundaryEvidence: [],
+        },
         night: { ...proposal.night, names: [], alreadyAssigned: ['Berta Soto'] },
       },
       isBusy: false,
@@ -161,6 +167,25 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps exclusion-only evidence visible without offering a write', () => {
+    renderProposal({
+      proposal: {
+        censusDate: proposal.censusDate,
+        day: { ...proposal.day, names: [], candidates: [] },
+        night: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.getByTestId('rayen-nursing-shift-proposal')).toBeVisible();
+    expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entendido' })).toBeVisible();
   });
 
   it('keeps a concurrent no-op visible so the user can review the current assignment', () => {
