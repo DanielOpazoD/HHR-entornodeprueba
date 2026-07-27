@@ -29,17 +29,118 @@ describe('mergeScaleSources', () => {
     expect(merged.find(s => s.code === 'DOWNTON')?.total).toBe(4);
   });
 
-  it('dedupes a scale present in both sources, preferring the summary copy (tabla resumen primero)', () => {
+  it('dedupes the same application across sources and preserves reliable history attribution', () => {
     const history = [scale({ author: 'from-history', recordedAt: '2026-07-10T08:00:00' })];
-    const summary = [scale({ author: 'from-summary', recordedAt: '10-07-2026 09:30:00 -06:00' })];
+    const summary = [scale({ author: 'from-summary', recordedAt: '10-07-2026 08:00:00 -06:00' })];
 
     const merged = mergeScaleSources(history, summary);
 
     expect(merged).toHaveLength(1);
-    expect(merged[0].author).toBe('from-summary');
+    expect(merged[0].author).toBe('from-history');
   });
 
-  it('a LIVE score of the day beats an archived one from the other source, even if newer (Edgardo case)', () => {
+  it('enriches an exact history copy when only the summary provides severity', () => {
+    const history = [scale({ recordedAt: '2026-07-10T08:00:00', severity: null })];
+    const summary = [scale({ recordedAt: '10-07-2026 08:00:00 -06:00', severity: 'Riesgo bajo' })];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].severity).toBe('Riesgo bajo');
+  });
+
+  it('keeps exact-timestamp records separate when their severities conflict', () => {
+    const history = [scale({ recordedAt: '2026-07-10T08:00:00', severity: 'Riesgo alto' })];
+    const summary = [scale({ recordedAt: '10-07-2026 08:00:00 -06:00', severity: 'Riesgo bajo' })];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map(item => item.severity).sort()).toEqual(['Riesgo alto', 'Riesgo bajo']);
+  });
+
+  it('canonicalizes leading-zero and optional-second clock formats without losing distinct times', () => {
+    const history = [scale({ recordedAt: '2026-07-10T8:00' })];
+    const exactSummary = [scale({ recordedAt: '10-07-2026 08:00:00 -06:00' })];
+    const laterSummary = [scale({ recordedAt: '10-07-2026 09:30 -06:00' })];
+
+    expect(mergeScaleSources(history, exactSummary)).toHaveLength(1);
+    expect(mergeScaleSources(history, laterSummary)).toHaveLength(2);
+  });
+
+  it('keeps history attribution when only the summary marks the exact copy as visible', () => {
+    const history = [
+      scale({
+        recordedAt: '2026-07-10T08:00:00',
+        archived: true,
+        author: 'Enfermera Historial',
+      }),
+    ];
+    const summary = [
+      scale({
+        recordedAt: '10-07-2026 08:00:00 -06:00',
+        archived: false,
+        author: 'Nombre Resumen',
+      }),
+    ];
+
+    const [merged] = mergeScaleSources(history, summary);
+    expect(merged.archived).toBe(false);
+    expect(merged.author).toBe('Enfermera Historial');
+  });
+
+  it('does not collapse real repeated applications with identical results inside one source', () => {
+    const history = [
+      scale({ recordedAt: '2026-07-10T08:00:00' }),
+      scale({ recordedAt: '2026-07-10T12:00:00' }),
+    ];
+    const summary = [
+      scale({ recordedAt: '10-07-2026 08:00:00 -06:00' }),
+      scale({ recordedAt: '10-07-2026 12:00:00 -06:00' }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map(application => application.encounterEventId).sort()).toEqual([
+      20260710080000, 20260710120000,
+    ]);
+  });
+
+  it('keeps the extra repeated application when only one source exposes it', () => {
+    const history = [scale({ recordedAt: '2026-07-10T10:00:00' })];
+    const summary = [
+      scale({ recordedAt: '10-07-2026 10:00:00 -06:00' }),
+      scale({ recordedAt: '10-07-2026 15:00:00 -06:00' }),
+    ];
+
+    expect(mergeScaleSources(history, summary)).toHaveLength(2);
+  });
+
+  it('keeps ambiguous same-result records when source times differ', () => {
+    const history = [scale({ recordedAt: '2026-07-10T08:00:00' })];
+    const summary = [scale({ recordedAt: '10-07-2026 09:30:00 -06:00' })];
+
+    expect(mergeScaleSources(history, summary)).toHaveLength(2);
+  });
+
+  it('preserves timestamp-less fallback ordering keys', () => {
+    const first = scale({ encounterEventId: 20260710000000, recordedAt: '2026-07-10' });
+    const second = scale({ encounterEventId: 20260710000001, recordedAt: '2026-07-10' });
+
+    expect(mergeScaleSources([], [first, second]).map(item => item.encounterEventId)).toEqual([
+      20260710000000, 20260710000001,
+    ]);
+  });
+
+  it('does not reconcile ambiguous clockless records across sources', () => {
+    const history = scale({ encounterEventId: 10, recordedAt: '2026-07-10' });
+    const summary = scale({ encounterEventId: 20, recordedAt: '10-07-2026' });
+
+    expect(mergeScaleSources([history], [summary])).toHaveLength(2);
+  });
+
+  it('keeps distinct live and archived applications from the same day (Edgardo case)', () => {
     // History has only an ARCHIVED Downton (alto) applied 10-07 in the AFTERNOON; the live Downton
     // (medio) applied 10-07 in the MORNING lives only in the summary. Live must win despite being older.
     const history = [
@@ -64,10 +165,9 @@ describe('mergeScaleSources', () => {
 
     const merged = mergeScaleSources(history, summary);
 
-    expect(merged.filter(s => s.code === 'DOWNTON')).toHaveLength(1);
-    const downton = merged.find(s => s.code === 'DOWNTON');
-    expect(downton?.total).toBe(2);
-    expect(downton?.severity).toBe('Riesgo medio');
+    expect(merged.filter(s => s.code === 'DOWNTON')).toHaveLength(2);
+    expect(merged.find(s => s.archived)?.total).toBe(8);
+    expect(merged.find(s => !s.archived)?.total).toBe(2);
     expect(
       evaluationScalesForCensusDay(merged, '2026-07-10').find(s => s.code === 'DOWNTON')?.total
     ).toBe(2);
@@ -112,12 +212,12 @@ describe('mergeScaleSources', () => {
     expect(merged.find(s => s.code === 'BRADEN')?.encounterEventId).toBe(20260710081431);
   });
 
-  it('falls back to 000000 time when recordedAt carries no parseable time', () => {
+  it('preserves the source ordering key when recordedAt carries no parseable time', () => {
     const merged = mergeScaleSources(
       [],
       [scale({ recordedAt: '2026-07-10', recordedDate: '2026-07-10' })]
     );
-    expect(merged[0].encounterEventId).toBe(20260710000000);
+    expect(merged[0].encounterEventId).toBe(1);
   });
 
   it('is a no-op-safe union when a source is empty', () => {

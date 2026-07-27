@@ -172,6 +172,10 @@ const HistoryTimeline: React.FC<{ history: EvaluationScoreEntry[] }> = ({ histor
               {level}
             </span>
           ))}
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-slate-400 opacity-50 ring-1 ring-slate-400 ring-offset-1" />
+            oculta del resumen
+          </span>
         </div>
       </div>
       <div className="space-y-2">
@@ -185,12 +189,19 @@ const HistoryTimeline: React.FC<{ history: EvaluationScoreEntry[] }> = ({ histor
                 const t = tokensFor(severityLevel(entry.severity));
                 return (
                   <span
-                    key={entry.encounterEventId}
+                    key={`${entry.encounterEventId}-${entry.sourceOrder ?? 0}-${entry.total ?? 'null'}`}
                     className={clsx(
                       'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white',
-                      t.dot
+                      t.dot,
+                      entry.archived && 'opacity-50 ring-2 ring-slate-300 ring-offset-1'
                     )}
-                    title={`${formatIsoDay(entry.recordedDate)} · ${entry.severity ?? 's/inter.'}`}
+                    title={[
+                      formatIsoDay(entry.recordedDate),
+                      entry.severity ?? 's/inter.',
+                      entry.archived ? 'Archivada en Eloísa' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   >
                     {entry.total ?? '—'}
                   </span>

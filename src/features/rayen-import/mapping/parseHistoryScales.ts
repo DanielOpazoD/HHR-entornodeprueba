@@ -75,41 +75,40 @@ const isSeveridad = (label: string): boolean => label.toLowerCase().includes('se
 /** A parsed scale plus whether its source record was archived (superseded) in Ficha Médico. */
 type ParsedScale = EvaluationScale & { archived: boolean };
 
+const publishedProfessional = (
+  value: unknown,
+  fallbackRole: unknown
+): { author: string; role: string } => {
+  const label = str(value);
+  const match = label.match(
+    /^\d{2}-\d{2}-\d{4}\s+-\s+\d{2}:\d{2}(?::\d{2})?\s+-\s+(.+?)\s+-\s+(.+)$/
+  );
+  return {
+    author: str(match?.[1] || label),
+    role: str(match?.[2] || fallbackRole),
+  };
+};
+
 /**
- * Resolve the effective scales from every parsed instance:
- *  - collapse the report's verbatim duplicates (same code + timestamp; the Jasper report repeats one
- *    event up to 3×), preferring a non-archived copy on a tie;
- *  - per scale code AND day, drop ARCHIVED (superseded) instances ONLY when a non-archived one exists
- *    that same day. If the day's only record is archived, KEEP it — the assessment WAS done and that
- *    archived score is the sole evidence of it (Rayen shows it tagged "archivado"). Rule confirmed by
- *    Daniel: prefer the live score of the day, fall back to the archived one when it stands alone.
+ * Collapse only verbatim report duplicates (same scale + timestamp + result). Archived applications
+ * remain in the timeline: they prove that the instrument was applied, but downstream must never use
+ * them as the current clinical result. Keeping both facts is essential — "applied" and "valid now"
+ * are different questions.
  */
-const resolveEffectiveScales = (parsed: ParsedScale[]): EvaluationScale[] => {
+const dedupeScaleEvents = (parsed: ParsedScale[]): EvaluationScale[] => {
   const byKey = new Map<string, ParsedScale>();
   for (const scale of parsed) {
-    const key = `${scale.code} ${scale.encounterEventId}`;
+    const key = [scale.code, scale.recordedAt, scale.total ?? '', scale.severity ?? ''].join('|');
     const current = byKey.get(key);
     if (!current || (current.archived && !scale.archived)) byKey.set(key, scale);
   }
-
-  const daysWithLiveScore = new Set<string>();
-  for (const scale of byKey.values()) {
-    if (!scale.archived) daysWithLiveScore.add(`${scale.code} ${scale.recordedDate}`);
-  }
-
-  const result: EvaluationScale[] = [];
-  for (const scale of byKey.values()) {
-    if (scale.archived && daysWithLiveScore.has(`${scale.code} ${scale.recordedDate}`)) continue;
-    // Keep the `archived` flag on the survivors: an archived-only-of-its-day record must still lose to
-    // a LIVE record of the same day found in the OTHER source — cross-source resolution needs the flag.
-    result.push(scale);
-  }
-  return result;
+  return [...byKey.values()];
 };
 
 /**
  * Parse the slimmed history events into every recorded Braden/Downton scale (one per event/form),
- * then resolve the effective ones (see `resolveEffectiveScales`: dedupe + archived-fallback). The
+ * then collapse exact duplicates (see `dedupeScaleEvents`). Archived records stay attributable but
+ * are not eligible to become the current clinical value. The
  * result is day-agnostic history — use `evaluationScalesForCensusDay` / `evaluationScalesAsOf` (from
  * `parseEvaluationScales`) to scope the sync to the census day being consulted.
  */
@@ -119,7 +118,7 @@ export const parseHistoryScales = (rawEvents: unknown): EvaluationScale[] => {
     : [];
   const parsed: ParsedScale[] = [];
 
-  for (const event of events) {
+  for (const [eventIndex, event] of events.entries()) {
     const stamp = parsePublishDatetime(str(event.publishDatetime));
     if (!stamp) continue;
 
@@ -128,8 +127,8 @@ export const parseHistoryScales = (rawEvents: unknown): EvaluationScale[] => {
       : [];
 
     // Group this event's campos by form name (defensive: an event may bundle both scales). Archived
-    // campos are KEPT here — an archived record still proves the assessment was done; it is only
-    // discarded later if a non-archived version exists the SAME day (see resolveEffectiveScales).
+    // campos are kept as application evidence; current-value selection happens after both sources
+    // have been reconciled.
     const byForm = new Map<string, RawResumeCampo[]>();
     for (const campo of campos) {
       if (!campo) continue;
@@ -162,14 +161,19 @@ export const parseHistoryScales = (rawEvents: unknown): EvaluationScale[] => {
       }
 
       const first = formCampos[0];
+      const professional = publishedProfessional(
+        first.PUBLISH_DATE_HCP_NAME,
+        first.PRACTITIONER_ROLE
+      );
       parsed.push({
         code,
         name: formName,
         encounterEventId: stamp.key,
+        sourceOrder: eventIndex,
         recordedDate: stamp.iso,
         recordedAt: str(event.publishDatetime),
-        author: str(first.PUBLISH_DATE_HCP_NAME),
-        authorRole: str(first.PRACTITIONER_ROLE),
+        author: professional.author,
+        authorRole: professional.role,
         items,
         total,
         severity,
@@ -178,5 +182,5 @@ export const parseHistoryScales = (rawEvents: unknown): EvaluationScale[] => {
     }
   }
 
-  return resolveEffectiveScales(parsed);
+  return dedupeScaleEvents(parsed);
 };

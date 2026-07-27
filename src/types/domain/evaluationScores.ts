@@ -21,13 +21,25 @@ export interface EvaluationScoreItem {
   valueName: string;
 }
 
+/** Latest attributable application, including entries hidden from Rayen's quick summary. */
+export interface EvaluationScaleApplicationEvidence {
+  recordedDate: string;
+  recordedAt: string;
+  author?: string;
+  authorRole?: string;
+  /** The user hid this application from Rayen's quick summary; it remains available in Historial. */
+  archived?: boolean;
+}
+
 /** A single recorded scale snapshot for a patient. */
 export interface EvaluationScoreEntry {
   code: EvaluationScaleCode;
   /** Instrument name as printed, e.g. "Escala de riesgo UPP (Braden)". */
   name: string;
-  /** Monotonic source id; higher = more recent. Dedup / recency key. */
+  /** Normalized application timestamp; higher = more recent. */
   encounterEventId: number;
+  /** Source-level monotonic tie-breaker when two applications share the same timestamp. */
+  sourceOrder?: number;
   /** Total numeric score ("Puntaje"); null when the scale is in progress. */
   total: number | null;
   /** Severity as reported by the source ("Nivel de Severidad"), e.g. "Riesgo bajo". */
@@ -40,6 +52,13 @@ export interface EvaluationScoreEntry {
   author?: string;
   /** The professional's role, e.g. "Enfermera". */
   authorRole?: string;
+  /** True when this entry is hidden from Rayen's quick summary but remains in Historial. */
+  archived?: boolean;
+  /**
+   * Most recent application evidence. It can differ from the displayed result when the same day has
+   * both visible and archived applications; this separate timestamp drives reapplication compliance.
+   */
+  latestApplication?: EvaluationScaleApplicationEvidence;
   /** The individual sub-scale answers (optional; present on the current entries, kept for detail). */
   items?: EvaluationScoreItem[];
 }

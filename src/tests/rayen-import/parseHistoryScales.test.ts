@@ -115,26 +115,27 @@ describe('parseHistoryScales', () => {
     expect(asOf11.find(s => s.code === 'DOWNTON')?.total).toBe(5); // still the 07-11 12:35
   });
 
-  it('prefers the non-archived score of the day, discarding the archived (superseded) one', () => {
-    // Same day: an archived Downton 5 (12:55) and a live Downton 8 (10:54) — the live one wins and
-    // the archived one drops out of the effective history entirely.
+  it('retains archived applications as evidence while current-value selection ignores them', () => {
+    // Same day: both applications belong in the trace. Only the live one is eligible as the current
+    // clinical result; the archived one can still advance the reapplication clock downstream.
     const scales = parseHistoryScales([
       archivedDowntonEvent('2026-07-10T12:55:12', '5', 'Riesgo alto'),
       downtonEvent('2026-07-10T10:54:16', '8', 'Riesgo alto'),
     ]);
-    expect(scales.filter(s => s.code === 'DOWNTON')).toHaveLength(1);
+    expect(scales.filter(s => s.code === 'DOWNTON')).toHaveLength(2);
+    expect(scales.find(s => s.archived)?.total).toBe(5);
     expect(
       evaluationScalesForCensusDay(scales, '2026-07-10').find(s => s.code === 'DOWNTON')?.total
     ).toBe(8);
   });
 
-  it('keeps an archived score when it is the only record of the day (Rodrigo H3C1 case)', () => {
-    // 10-07 had ONLY an archived Downton → the assessment WAS done, so it must still count and never
-    // read as "reaplicar hoy" for that day.
+  it('keeps an archived-only application in the trace without presenting it as current', () => {
     const scales = parseHistoryScales([
       archivedDowntonEvent('2026-07-10T11:00:00', '3', 'Riesgo alto'),
     ]);
     expect(scales).toHaveLength(1);
+    expect(scales[0].total).toBe(3);
+    expect(scales[0].archived).toBe(true);
     expect(
       evaluationScalesForCensusDay(scales, '2026-07-10').find(s => s.code === 'DOWNTON')?.total
     ).toBe(3);

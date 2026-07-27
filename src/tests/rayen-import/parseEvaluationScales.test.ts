@@ -163,12 +163,12 @@ describe('parseEvaluationScales', () => {
   });
 
   it('derives recordedDate from the per-field time, not the stale form startDateTime (redo case)', () => {
-    const redo = parseEvaluationScales(PAYLOAD).find(s => s.encounterEventId === 8655768)!;
+    const redo = parseEvaluationScales(PAYLOAD).find(s => s.total === 8)!;
     expect(redo.recordedDate).toBe('2026-07-10'); // field says 10th even though startDateTime says 9th
   });
 
   it('keeps multi-select answers as comma-separated value/valueName', () => {
-    const redo = parseEvaluationScales(PAYLOAD).find(s => s.encounterEventId === 8655768)!;
+    const redo = parseEvaluationScales(PAYLOAD).find(s => s.total === 8)!;
     const meds = redo.items.find(i => i.id === 'DOWN_Medicamentos')!;
     expect(meds.value).toBe('8046, 8047');
     expect(meds.valueName).toBe('Diuréticos, Hipotensores (no diuréticos)');
@@ -226,6 +226,153 @@ describe('parseEvaluationScales', () => {
     expect(parseEvaluationScales([downtonForm({ archived: true })])[0]?.archived).toBe(true);
     expect(parseEvaluationScales([downtonForm()])[0]?.archived).toBe(false);
   });
+
+  it('splits repeated applications embedded by Rayen inside one form entry', () => {
+    const repeated = {
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de Riesgo de caídas (J. H. DOWNTON)',
+      encounterEventId: 704,
+      authorHealthCarePractitionerName: 'Enf. H2C1',
+      metaCampList: [
+        item('DOWN_Caidas', 'Caídas previas', '0', 'No', '22-07-2026 11:24:09 -06:00'),
+        puntaje('DOWN_Puntaje', '4', '22-07-2026 11:24:09 -06:00'),
+        severidad('DOWN_ResultadoScore', 'Riesgo alto', '22-07-2026 11:24:09 -06:00'),
+        item('DOWN_Caidas', 'Caídas previas', '0', 'No', '23-07-2026 13:29:27 -06:00'),
+        puntaje('DOWN_Puntaje', '3', '23-07-2026 13:29:27 -06:00'),
+        severidad('DOWN_ResultadoScore', 'Riesgo alto', '23-07-2026 13:29:27 -06:00'),
+      ],
+    };
+
+    const scales = parseEvaluationScales([repeated]);
+    expect(scales).toHaveLength(2);
+    expect(scales.map(scale => [scale.recordedDate, scale.total])).toEqual([
+      ['2026-07-22', 4],
+      ['2026-07-23', 3],
+    ]);
+    expect(new Set(scales.map(scale => scale.encounterEventId)).size).toBe(2);
+  });
+
+  it('keeps slightly different and missing field timestamps inside their repeated application', () => {
+    const repeated = {
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de riesgo UPP (Braden)',
+      encounterEventId: 705,
+      metaCampList: [
+        item('BRAD_Percepcion', 'Percepción', '1', 'Limitada', '22-07-2026 11:24:07 -06:00'),
+        puntaje('BRAD_Puntaje', '14', '22-07-2026 11:24:09 -06:00'),
+        severidad('BRAD_ResultadoScore', 'Riesgo medio', ''),
+        item('BRAD_Percepcion', 'Percepción', '2', 'Normal', '23-07-2026 13:29:25 -06:00'),
+        puntaje('BRAD_Puntaje', '17', '23-07-2026 13:29:27 -06:00'),
+        severidad('BRAD_ResultadoScore', 'Riesgo bajo', ''),
+      ],
+    };
+
+    const scales = parseEvaluationScales([repeated]);
+    expect(scales).toHaveLength(2);
+    expect(scales.map(scale => [scale.total, scale.severity, scale.items.length])).toEqual([
+      [14, 'Riesgo medio', 1],
+      [17, 'Riesgo bajo', 1],
+    ]);
+  });
+
+  it('uses occurrence order when only some repeated score anchors have a timestamp', () => {
+    const repeated = {
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de riesgo UPP (Braden)',
+      encounterEventId: 706,
+      startDateTime: '22-07-2026 11:00:00',
+      metaCampList: [
+        item('BRAD_Percepcion', 'Percepción', '1', 'Limitada', '22-07-2026 11:00:00 -06:00'),
+        puntaje('BRAD_Puntaje', '14', ''),
+        severidad('BRAD_ResultadoScore', 'Riesgo medio', ''),
+        item('BRAD_Percepcion', 'Percepción', '2', 'Normal', '23-07-2026 13:00:00 -06:00'),
+        puntaje('BRAD_Puntaje', '17', '23-07-2026 13:00:00 -06:00'),
+        severidad('BRAD_ResultadoScore', 'Riesgo bajo', '23-07-2026 13:00:00 -06:00'),
+      ],
+    };
+
+    expect(
+      parseEvaluationScales([repeated]).map(scale => [
+        scale.total,
+        scale.severity,
+        scale.items[0]?.value,
+      ])
+    ).toEqual([
+      [14, 'Riesgo medio', '1'],
+      [17, 'Riesgo bajo', '2'],
+    ]);
+  });
+
+  it('attaches a timestamp-less optional field to the nearest repeated score in source order', () => {
+    const repeated = {
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de Riesgo de caídas (J. H. DOWNTON)',
+      encounterEventId: 707,
+      metaCampList: [
+        puntaje('DOWN_Puntaje', '2', '22-07-2026 11:00:00 -06:00'),
+        item('DOWN_Caidas', 'Caídas', '0', 'No', '23-07-2026 13:00:00 -06:00'),
+        puntaje('DOWN_Puntaje', '5', '23-07-2026 13:00:00 -06:00'),
+        severidad('DOWN_ResultadoScore', 'Riesgo alto', ''),
+      ],
+    };
+
+    const scales = parseEvaluationScales([repeated]);
+    expect(scales).toHaveLength(2);
+    expect(scales[0].severity).toBeNull();
+    expect(scales[1].severity).toBe('Riesgo alto');
+  });
+
+  it('uses source proximity when repeated applications share the same timestamp', () => {
+    const repeated = {
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de Riesgo de caídas (J. H. DOWNTON)',
+      encounterEventId: 708,
+      metaCampList: [
+        puntaje('DOWN_Puntaje', '2', '23-07-2026 13:00:00 -06:00'),
+        item('DOWN_Caidas', 'Caídas', '0', 'No', '23-07-2026 13:00:00 -06:00'),
+        puntaje('DOWN_Puntaje', '5', '23-07-2026 13:00:00 -06:00'),
+        severidad('DOWN_ResultadoScore', 'Riesgo alto', '23-07-2026 13:00:00 -06:00'),
+      ],
+    };
+
+    const scales = parseEvaluationScales([repeated]);
+    expect(scales).toHaveLength(2);
+    expect(scales[0].severity).toBeNull();
+    expect(scales[1].severity).toBe('Riesgo alto');
+  });
+
+  it('does not let a newer incomplete form hide the last completed result', () => {
+    const complete = parseEvaluationScales(PAYLOAD).find(scale => scale.code === 'BRADEN')!;
+    const incomplete: EvaluationScale = {
+      ...complete,
+      encounterEventId: 20260711120000,
+      recordedDate: '2026-07-11',
+      recordedAt: '11-07-2026 12:00:00 -06:00',
+      total: null,
+      severity: null,
+    };
+
+    expect(byCode(evaluationScalesAsOf([complete, incomplete], '2026-07-11'), 'BRADEN').total).toBe(
+      17
+    );
+  });
+
+  it('orders separate same-day forms even when Rayen omits clock precision', () => {
+    const form = (encounterEventId: number, total: string) => ({
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de riesgo UPP (Braden)',
+      encounterEventId,
+      startDateTime: '22-07-2026',
+      metaCampList: [
+        puntaje('BRAD_Puntaje', total, '22-07-2026'),
+        severidad('BRAD_ResultadoScore', 'Riesgo bajo', '22-07-2026'),
+      ],
+    });
+
+    const parsed = parseEvaluationScales([form(199, '16'), form(200, '17')]);
+    expect(new Set(parsed.map(scale => scale.sourceOrder)).size).toBe(2);
+    expect(byCode(evaluationScalesForCensusDay(parsed, '2026-07-22'), 'BRADEN').total).toBe(17);
+  });
 });
 
 describe('evaluationScalesForCensusDay', () => {
@@ -233,9 +380,9 @@ describe('evaluationScalesForCensusDay', () => {
     const day10 = evaluationScalesForCensusDay(parseEvaluationScales(PAYLOAD), '2026-07-10');
     expect(day10.map(s => s.code)).toEqual(['BRADEN', 'DOWNTON']);
     expect(byCode(day10, 'BRADEN').total).toBe(17);
-    // Day-10 Downton is the redo (score 8, event 8655768) — not the earlier 5 nor the day-09 record.
+    // Day-10 Downton is the 12:55 redo (score 8) — not the earlier 5 nor the day-09 record.
     const downton = byCode(day10, 'DOWNTON');
-    expect(downton.encounterEventId).toBe(8655768);
+    expect(downton.encounterEventId).toBe(20260710125512);
     expect(downton.total).toBe(8);
   });
 
@@ -253,9 +400,9 @@ describe('evaluationScalesForCensusDay', () => {
 
 describe('evaluationScalesAsOf', () => {
   it('keeps the last known score on a day with no new assessment (drives the overdue reminder)', () => {
-    // No scale exists on 2026-07-12; as-of that day still returns the day-10 Downton (event 8655768).
+    // No scale exists on 2026-07-12; as-of that day still returns the day-10 Downton redo.
     const asOf = evaluationScalesAsOf(parseEvaluationScales(PAYLOAD), '2026-07-12');
-    expect(byCode(asOf, 'DOWNTON').encounterEventId).toBe(8655768);
+    expect(byCode(asOf, 'DOWNTON').encounterEventId).toBe(20260710125512);
     expect(byCode(asOf, 'BRADEN').total).toBe(17);
   });
 

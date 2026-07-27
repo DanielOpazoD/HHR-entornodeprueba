@@ -24,6 +24,19 @@ interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
 }
 
+const latestApplicationDetail = (
+  entry: { recordedAt: string; recordedDate: string },
+  application: { recordedAt: string; recordedDate: string; archived?: boolean }
+): string => {
+  const differs =
+    application.recordedDate !== entry.recordedDate || application.recordedAt !== entry.recordedAt;
+  if (!differs && !application.archived) return '';
+  const date = application.recordedDate.split('-').reverse().join('-');
+  return `${differs ? `Última aplicación registrada el ${date}` : 'Aplicación'}${
+    application.archived ? ' · oculta del resumen rápido; disponible en Historial' : ''
+  }`;
+};
+
 export const ScoresCell: React.FC<ScoresCellProps> = ({
   data,
   isSubRow = false,
@@ -82,7 +95,12 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                     recordedAt: model.braden.entry.recordedAt,
                     author: model.braden.entry.author,
                     authorRole: model.braden.entry.authorRole,
-                    detail: model.braden.assessment.conducta.riskLabel,
+                    detail: [
+                      model.braden.assessment.conducta.riskLabel,
+                      latestApplicationDetail(model.braden.entry, model.braden.application),
+                    ]
+                      .filter(Boolean)
+                      .join(' · '),
                   }}
                 />
               )}
@@ -103,7 +121,12 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                     recordedAt: model.downton.entry.recordedAt,
                     author: model.downton.entry.author,
                     authorRole: model.downton.entry.authorRole,
-                    detail: model.downton.severityLabel,
+                    detail: [
+                      model.downton.severityLabel,
+                      latestApplicationDetail(model.downton.entry, model.downton.application),
+                    ]
+                      .filter(Boolean)
+                      .join(' · '),
                   }}
                 />
               )}

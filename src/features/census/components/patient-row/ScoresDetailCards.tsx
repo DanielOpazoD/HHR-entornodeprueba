@@ -47,6 +47,8 @@ interface ScoreCardProps {
   accentClass: string;
   badge: React.ReactNode;
   recordedDate: string;
+  applicationDate?: string;
+  applicationArchived?: boolean;
   footer?: React.ReactNode;
 }
 
@@ -60,6 +62,8 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
   accentClass,
   badge,
   recordedDate,
+  applicationDate,
+  applicationArchived = false,
   footer,
 }) => (
   <div
@@ -81,7 +85,17 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
     <div className="flex items-baseline gap-1.5">
       <span className={clsx('text-3xl font-bold tabular-nums', valueClass)}>{value}</span>
     </div>
-    <div className="text-[10px] text-slate-400">Realizada el {formatIsoDay(recordedDate)}</div>
+    {applicationDate && (applicationDate !== recordedDate || applicationArchived) ? (
+      <div className="space-y-0.5 text-[10px] text-slate-400">
+        <div>Resultado vigente del {formatIsoDay(recordedDate)}</div>
+        <div>
+          Última aplicación {formatIsoDay(applicationDate)}
+          {applicationArchived ? ' · oculta del resumen rápido' : ''}
+        </div>
+      </div>
+    ) : (
+      <div className="text-[10px] text-slate-400">Realizada el {formatIsoDay(recordedDate)}</div>
+    )}
     {footer}
   </div>
 );
@@ -112,6 +126,8 @@ export const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) =>
       accentClass={t.accent}
       badge={<Badge className={t.chip}>{braden.assessment.conducta.riskLabel}</Badge>}
       recordedDate={braden.entry.recordedDate}
+      applicationDate={braden.application.recordedDate}
+      applicationArchived={braden.application.archived}
       footer={
         braden.countdownLabel ? (
           <ReapplyPill
@@ -136,6 +152,8 @@ export const DowntonCard: React.FC<{ downton: DowntonCellModel }> = ({ downton }
       accentClass={t.accent}
       badge={<Badge className={t.chip}>{downton.severityLabel || 'Sin interpretación'}</Badge>}
       recordedDate={downton.entry.recordedDate}
+      applicationDate={downton.application.recordedDate}
+      applicationArchived={downton.application.archived}
       footer={
         downton.reapplication && downton.countdownLabel ? (
           <ReapplyPill

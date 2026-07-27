@@ -72,12 +72,76 @@ describe('mergeReportScales', () => {
       censusIsoDay: '2026-07-09',
     });
     expect(result.evaluationScores?.downton?.total).toBe(3); // the day-9 record, not the day-10 one
-    // But the full history is still retained for the unified view.
-    expect(result.evaluationScores?.history).toHaveLength(2);
+    // The backdated snapshot must not expose the later application in its history.
+    expect(result.evaluationScores?.history).toHaveLength(1);
+    expect(result.evaluationScores?.history?.[0].recordedDate).toBe('2026-07-09');
   });
 
   it('returns the patient untouched when there are no scales', () => {
     const before = patient();
     expect(mergeReportScales(before, [], { censusIsoDay: '2026-07-10' })).toBe(before);
+  });
+
+  it('prefers the latest visible Braden on a day while retaining a later archived application', () => {
+    const activeLow = scale({
+      encounterEventId: 20260723110000,
+      total: 17,
+      severity: 'Riesgo bajo',
+      recordedDate: '2026-07-23',
+      recordedAt: '2026-07-23T11:00:00',
+    });
+    const archivedHigh = scale({
+      encounterEventId: 20260723130000,
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-23',
+      recordedAt: '2026-07-23T13:00:00',
+      archived: true,
+    });
+
+    const scores = mergeReportScales(patient(), [activeLow, archivedHigh], {
+      censusIsoDay: '2026-07-26',
+    }).evaluationScores!;
+
+    expect(scores.braden?.total).toBe(17);
+    expect(scores.braden?.severity).toBe('Riesgo bajo');
+    expect(scores.braden?.recordedDate).toBe('2026-07-23');
+    expect(scores.braden?.latestApplication).toMatchObject({
+      recordedDate: '2026-07-23',
+      archived: true,
+    });
+    expect(scores.history?.map(item => [item.recordedDate, item.archived ?? false])).toEqual([
+      ['2026-07-23', true],
+      ['2026-07-23', false],
+    ]);
+  });
+
+  it('uses the latest archived result when it is the only application of the latest day', () => {
+    const previousVisible = scale({
+      encounterEventId: 20260722110000,
+      total: 17,
+      severity: 'Riesgo bajo',
+      recordedDate: '2026-07-22',
+      recordedAt: '2026-07-22T11:00:00',
+    });
+    const latestArchived = scale({
+      encounterEventId: 20260723130000,
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-23',
+      recordedAt: '2026-07-23T13:00:00',
+      archived: true,
+    });
+
+    const braden = mergeReportScales(patient(), [previousVisible, latestArchived], {
+      censusIsoDay: '2026-07-26',
+    }).evaluationScores?.braden;
+
+    expect(braden).toMatchObject({
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-23',
+      archived: true,
+    });
   });
 });
