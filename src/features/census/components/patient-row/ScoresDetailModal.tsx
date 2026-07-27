@@ -18,9 +18,9 @@ import type {
   CudyrCellModel,
   ScoresCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
-import type { BradenRiskLevel, EvaluationScoreEntry } from '@/types/domain/evaluationScores';
 import { BradenCard, CudyrCard, DowntonCard } from './ScoresDetailCards';
-import { LEVEL_TOKENS, formatIsoDay, severityLevel, tokensFor } from './scoresDetailTokens';
+import { ScoresHistoryTable } from './ScoresHistoryTable';
+import { formatIsoDay, tokensFor } from './scoresDetailTokens';
 
 interface ScoresDetailModalProps {
   patientName: string;
@@ -144,77 +144,6 @@ const CudyrHistory: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => {
   );
 };
 
-/** History as a per-scale timeline of colored dots (oldest → newest) plus a legend. */
-const HistoryTimeline: React.FC<{ history: EvaluationScoreEntry[] }> = ({ history }) => {
-  const byCode = (code: 'BRADEN' | 'DOWNTON') =>
-    history
-      .filter(entry => entry.code === code)
-      .slice()
-      .sort((a, b) => a.encounterEventId - b.encounterEventId);
-
-  const rows: Array<{ label: string; entries: EvaluationScoreEntry[] }> = [
-    { label: 'Braden (UPP)', entries: byCode('BRADEN') },
-    { label: 'Downton (caídas)', entries: byCode('DOWNTON') },
-  ].filter(row => row.entries.length > 0);
-
-  if (rows.length === 0) return null;
-
-  return (
-    <section className="rounded-lg border border-slate-200 p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          <History size={13} /> Evolución durante la hospitalización
-        </h4>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400">
-          {(['bajo', 'medio', 'alto'] as BradenRiskLevel[]).map(level => (
-            <span key={level} className="flex items-center gap-1">
-              <span className={clsx('h-2 w-2 rounded-full', LEVEL_TOKENS[level].dot)} />
-              {level}
-            </span>
-          ))}
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-slate-400 opacity-50 ring-1 ring-slate-400 ring-offset-1" />
-            oculta del resumen
-          </span>
-        </div>
-      </div>
-      <div className="space-y-2">
-        {rows.map(row => (
-          <div key={row.label} className="flex items-center gap-2">
-            <span className="w-28 shrink-0 text-[11px] font-medium text-slate-500">
-              {row.label}
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {row.entries.map(entry => {
-                const t = tokensFor(severityLevel(entry.severity));
-                return (
-                  <span
-                    key={`${entry.encounterEventId}-${entry.sourceOrder ?? 0}-${entry.total ?? 'null'}`}
-                    className={clsx(
-                      'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white',
-                      t.dot,
-                      entry.archived && 'opacity-50 ring-2 ring-slate-300 ring-offset-1'
-                    )}
-                    title={[
-                      formatIsoDay(entry.recordedDate),
-                      entry.severity ?? 's/inter.',
-                      entry.archived ? 'Archivada en Eloísa' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  >
-                    {entry.total ?? '—'}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-};
-
 export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
   patientName,
   model,
@@ -247,7 +176,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
         <p className="text-sm text-slate-500">Sin escalas de enfermería para este día.</p>
       )}
 
-      <HistoryTimeline history={model.history} />
+      <ScoresHistoryTable history={model.history} />
     </div>
   </BaseModal>
 );

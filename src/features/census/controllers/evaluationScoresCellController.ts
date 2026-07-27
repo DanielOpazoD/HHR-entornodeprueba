@@ -112,18 +112,138 @@ const applicationEvidence = (entry: EvaluationScoreEntry): EvaluationScaleApplic
     recordedAt: entry.recordedAt,
     ...(entry.author ? { author: entry.author } : {}),
     ...(entry.authorRole ? { authorRole: entry.authorRole } : {}),
+    ...(entry.archived ? { archived: true } : {}),
   };
+
+const clockParts = (value: string): { minute: string; hasSeconds: boolean } | null => {
+  const match = value.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+  return {
+    minute: `${String(Number(match[1])).padStart(2, '0')}:${match[2]}`,
+    hasSeconds: match[3] != null,
+  };
+};
+
+const normalizedProfessional = (value: string | undefined): string =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const professionalsAreCompatible = (
+  left: EvaluationScoreEntry,
+  right: EvaluationScoreEntry
+): boolean => {
+  const a = normalizedProfessional(left.author);
+  const b = normalizedProfessional(right.author);
+  return !a || !b || a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `);
+};
+
+const sameCrossSourceApplication = (
+  left: EvaluationScoreEntry,
+  right: EvaluationScoreEntry
+): boolean => {
+  const leftClock = clockParts(left.recordedAt);
+  const rightClock = clockParts(right.recordedAt);
+  if (
+    left.code !== right.code ||
+    left.recordedDate !== right.recordedDate ||
+    left.total !== right.total ||
+    !leftClock ||
+    !rightClock ||
+    leftClock.minute !== rightClock.minute ||
+    !professionalsAreCompatible(left, right)
+  )
+    return false;
+
+  const severityCompatible =
+    left.severity == null || right.severity == null || left.severity === right.severity;
+  if (!severityCompatible) return false;
+
+  // Exact duplicate, or the known Resumen (minute) + Historial (seconds) representation. Two
+  // second-precise events remain distinct because they may be genuine repeated assessments.
+  return (
+    left.encounterEventId === right.encounterEventId ||
+    leftClock.hasSeconds !== rightClock.hasSeconds
+  );
+};
+
+const mergeHistoryCopies = (
+  left: EvaluationScoreEntry,
+  right: EvaluationScoreEntry
+): EvaluationScoreEntry => {
+  const leftPrecise = clockParts(left.recordedAt)?.hasSeconds === true;
+  const rightPrecise = clockParts(right.recordedAt)?.hasSeconds === true;
+  const preferred = rightPrecise && !leftPrecise ? right : left;
+  const complement = preferred === left ? right : left;
+  return {
+    ...preferred,
+    author: preferred.author || complement.author,
+    authorRole: preferred.authorRole || complement.authorRole,
+    severity: preferred.severity ?? complement.severity,
+    archived: Boolean(preferred.archived && complement.archived),
+  };
+};
+
+/** Defensive migration for histories stored before Resumen/Historial minute matching was added. */
+export const dedupeScoreHistory = (entries: EvaluationScoreEntry[]): EvaluationScoreEntry[] => {
+  const deduped: EvaluationScoreEntry[] = [];
+  for (const entry of entries) {
+    const duplicateIndex = deduped.findIndex(candidate =>
+      sameCrossSourceApplication(candidate, entry)
+    );
+    if (duplicateIndex < 0) deduped.push(entry);
+    else deduped[duplicateIndex] = mergeHistoryCopies(deduped[duplicateIndex], entry);
+  }
+  return deduped;
+};
+
+const applicationSortKey = (evidence: EvaluationScaleApplicationEvidence): number => {
+  const day = evidence.recordedDate.replace(/-/g, '');
+  const clock = evidence.recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const time = clock
+    ? `${String(Number(clock[1])).padStart(2, '0')}${clock[2]}${clock[3] ?? '00'}`
+    : '000000';
+  const key = Number(`${day}${time}`);
+  return Number.isSafeInteger(key) ? key : 0;
+};
+
+const latestApplicationEvidence = (
+  entry: EvaluationScoreEntry,
+  history: EvaluationScoreEntry[]
+): EvaluationScaleApplicationEvidence => {
+  const candidates: EvaluationScaleApplicationEvidence[] = [
+    applicationEvidence(entry),
+    ...history
+      // Any completed application of the same instrument advances its cadence, even when the
+      // patient's score changed. The displayed result and latest application are intentionally
+      // separate because Rayen may hide a newer application from the quick summary.
+      .filter(candidate => candidate.code === entry.code && candidate.total != null)
+      .map(applicationEvidence),
+  ];
+  return candidates.reduce((latest, candidate) =>
+    applicationSortKey(candidate) > applicationSortKey(latest) ? candidate : latest
+  );
+};
 
 export const buildScoresCellModel = (
   patient: PatientData,
   censusIsoDay: string
 ): ScoresCellModel => {
   const scores: PatientEvaluationScores = patient.evaluationScores ?? {};
+  // Defensive filter for records persisted before census-day bounded histories were introduced.
+  const history = dedupeScoreHistory(
+    (scores.history ?? []).filter(
+      entry => !/^\d{4}-\d{2}-\d{2}$/.test(entry.recordedDate) || entry.recordedDate <= censusIsoDay
+    )
+  );
 
   let braden: BradenCellModel | null = null;
   const ageYears = resolveAgeYears(patient, censusIsoDay);
   if (scores.braden && scores.braden.total != null && ageYears != null) {
-    const application = applicationEvidence(scores.braden);
+    const application = latestApplicationEvidence(scores.braden, history);
     const assessment = assessBraden(
       scores.braden.total,
       ageYears,
@@ -143,7 +263,7 @@ export const buildScoresCellModel = (
 
   let downton: DowntonCellModel | null = null;
   if (scores.downton && scores.downton.total != null) {
-    const application = applicationEvidence(scores.downton);
+    const application = latestApplicationEvidence(scores.downton, history);
     const level = parseSeverityLevel(scores.downton.severity);
     // Downton reapplies with the SAME cadence as Braden by risk level (bajo 7d · medio 3d · alto 1d).
     const reapplication = level
@@ -187,11 +307,6 @@ export const buildScoresCellModel = (
     downton?.reapplication?.urgency ?? 'ok',
   ];
   const alertUrgency = urgencies.reduce((worst, u) => (RANK[u] > RANK[worst] ? u : worst), 'ok');
-
-  // Defensive filter for records persisted before census-day bounded histories were introduced.
-  const history = (scores.history ?? []).filter(
-    entry => !/^\d{4}-\d{2}-\d{2}$/.test(entry.recordedDate) || entry.recordedDate <= censusIsoDay
-  );
 
   return {
     hasAny: braden != null || downton != null || cudyr != null || history.length > 0,

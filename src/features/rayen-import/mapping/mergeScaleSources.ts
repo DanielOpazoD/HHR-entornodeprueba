@@ -10,9 +10,11 @@
  * ARCHIVED RULE. Archived records remain clinically usable. Day-level selection later prefers the
  * newest visible application, falling back to the newest archived application when all are hidden.
  *
- * Strategy: normalize every ordering key, then reconcile ONE-TO-ONE only exact cross-source copies
- * `(code · timestamp · total · severity)`. Without a stable shared source identifier, fuzzy matching
- * can erase a genuine repeat. Ambiguous time differences therefore remain as separate applications.
+ * Strategy: normalize every ordering key, then reconcile ONE-TO-ONE cross-source copies by
+ * `(code · day · minute · total)` and compatible severity. Resumen only exposes minute precision,
+ * while Historial exposes seconds for the same application (e.g. 13:01 vs 13:01:19). Pairing is
+ * deliberately one-to-one: if either source really contains two applications in that minute, the
+ * extra record remains in the result.
  * History contributes reliable attribution; summary contributes the fuller item breakdown.
  */
 
@@ -41,11 +43,11 @@ const canonicalClock = (recordedAt: string): string | null => {
   return [hour, minute, second].map(value => String(value).padStart(2, '0')).join(':');
 };
 
-const exactApplicationKey = (scale: EvaluationScale, source: 'history' | 'summary'): string =>
+const applicationMinuteKey = (scale: EvaluationScale, source: 'history' | 'summary'): string =>
   [
     scale.code,
     scale.recordedDate,
-    canonicalClock(scale.recordedAt) ??
+    canonicalClock(scale.recordedAt)?.slice(0, 5) ??
       // Without a clock there is no safe cross-source identity: keep each source record distinct.
       `${source}:${scale.encounterEventId}:${scale.sourceOrder ?? ''}`,
     scale.total ?? '',
@@ -80,7 +82,7 @@ export const mergeScaleSources = (
   const groups = new Map<string, { history: EvaluationScale[]; summary: EvaluationScale[] }>();
   const add = (source: 'history' | 'summary', scale: EvaluationScale) => {
     const normalized = normalize(scale);
-    const key = exactApplicationKey(normalized, source);
+    const key = applicationMinuteKey(normalized, source);
     const group = groups.get(key) ?? { history: [], summary: [] };
     group[source].push(normalized);
     groups.set(key, group);
