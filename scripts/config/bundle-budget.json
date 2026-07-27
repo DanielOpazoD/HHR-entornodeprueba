@@ -1,7 +1,7 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4710000,
+  "precacheMaxBytes": 4720000,
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",

@@ -325,4 +325,16 @@ describe('firestoreRecordWrites authority patch routing', () => {
     expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14');
     expect(updateDoc).toHaveBeenCalledTimes(1);
   });
+
+  it('can skip a repeated history snapshot for a serialized automated clinical patch', async () => {
+    await updateRecordPartial(
+      '2026-03-14',
+      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
+      '2026-03-14T10:00:00.000Z',
+      { historyPolicy: 'skip' }
+    );
+
+    expect(saveHistorySnapshot).not.toHaveBeenCalled();
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+  });
 });

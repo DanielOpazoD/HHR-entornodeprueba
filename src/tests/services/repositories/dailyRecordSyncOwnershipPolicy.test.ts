@@ -17,6 +17,7 @@ describe('dailyRecordSyncOwnershipPolicy', () => {
     expect(resolveDailyRecordSyncOwnership('beds.R1.bedMode')).toBe('adminRemote');
     expect(resolveDailyRecordSyncOwnership('beds.R1.location')).toBe('adminRemote');
     expect(resolveDailyRecordSyncOwnership('beds.R1.clinicalCrib')).toBe('movementInvariant');
+    expect(resolveDailyRecordSyncOwnership('beds.R1.clinicalSyncCheckpoint')).toBe('mergeById');
     expect(resolveDailyRecordSyncOwnership('beds.R1.handoffNote')).toBe('localNarrative');
     expect(resolveDailyRecordSyncOwnership('beds.R1.medicalHandoffNote')).toBe('localNarrative');
     expect(resolveDailyRecordSyncOwnership('discharges')).toBe('mergeById');

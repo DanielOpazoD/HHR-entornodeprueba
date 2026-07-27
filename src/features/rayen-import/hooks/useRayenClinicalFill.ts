@@ -25,10 +25,12 @@ import {
 } from '../bridge/rayenImportBridge';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
+import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
   tensCatalog: string[];
+  loadDailyRecord: (date: string) => Promise<DailyRecord>;
   patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
@@ -49,6 +51,7 @@ interface UseRayenClinicalFillInput {
 export const useRayenClinicalFill = ({
   nurseCatalog,
   tensCatalog,
+  loadDailyRecord,
   patchDailyRecord,
   applyHistoricalCudyr,
   completeRun,
@@ -58,79 +61,78 @@ export const useRayenClinicalFill = ({
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (record: DailyRecord): Promise<void> => {
-      const eligibleCount = countClinicalFillEligiblePatients(record);
-      if (!beginRayenFill(eligibleCount)) {
-        // A deliberate run was already applied, so it must not remain indefinitely
-        // at `applied` when the single-flight guard rejects its enrichment pass.
+      const queueKey = `${record.date}|${record.rayenSync?.runId ?? 'untracked'}`;
+      const outcome = await enqueueLatestRayenClinicalFill(queueKey, async () => {
+        let freshRecord: DailyRecord;
         try {
-          await completeRun(record, {
+          freshRecord = await loadDailyRecord(record.date);
+        } catch (error) {
+          console.warn('[rayen-import] no se pudo hidratar el censo antes del relleno:', error);
+          return;
+        }
+        const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+        if (!beginRayenFill(eligibleCount)) {
+          return;
+        }
+        const attemptId = getRayenFillAttemptId();
+
+        let summary: ClinicalFillSummary;
+        try {
+          summary = await runClinicalFill(
+            freshRecord,
+            toIsoReportDate(freshRecord),
+            {
+              fetchDeviceReport: requestDeviceReport,
+              extractDeviceItems: extractDeviceTextItems,
+              fetchHistoryScales: requestHistoryScales,
+              fetchScalesForms: requestScalesReport,
+              fetchCudyrCategories: () => requestCudyrCategories(15000),
+              applyPatch: async (patch, target) => {
+                await patchDailyRecord(patch, target);
+              },
+              applyHistoricalCudyr,
+              now: () => new Date(),
+              createId,
+              nurseCatalog,
+              tensCatalog,
+            },
+            ({ done, total }) => reportRayenFillProgress(done, total)
+          );
+        } catch (error) {
+          console.warn('[rayen-import] Relleno clínico falló:', error);
+          summary = {
             total: eligibleCount,
             patched: 0,
-            errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
-          });
+            errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
+          };
+        }
+
+        if (summary.errors.length > 0) {
+          console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
+        }
+        const reviewProposal = summary.staffingProposal
+          ? reconcileNursingShiftProposal(freshRecord, summary.staffingProposal)
+          : null;
+        const failedPatients = new Set(
+          summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
+        ).size;
+        let completionFailed = false;
+        try {
+          await completeRun(freshRecord, summary, reviewProposal);
         } catch (error) {
+          completionFailed = true;
           console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
         }
-        onSettled();
-        return;
-      }
-      const attemptId = getRayenFillAttemptId();
-
-      let summary: ClinicalFillSummary;
-      try {
-        summary = await runClinicalFill(
-          record,
-          toIsoReportDate(record),
-          {
-            fetchDeviceReport: requestDeviceReport,
-            extractDeviceItems: extractDeviceTextItems,
-            fetchHistoryScales: requestHistoryScales,
-            fetchScalesForms: requestScalesReport,
-            fetchCudyrCategories: () => requestCudyrCategories(15000),
-            applyPatch: async (patch, target) => {
-              await patchDailyRecord(patch, target);
-            },
-            applyHistoricalCudyr,
-            now: () => new Date(),
-            createId,
-            nurseCatalog,
-            tensCatalog,
-          },
-          ({ done, total }) => reportRayenFillProgress(done, total)
-        );
-      } catch (error) {
-        console.warn('[rayen-import] Relleno clínico falló:', error);
-        summary = {
-          total: eligibleCount,
-          patched: 0,
-          errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
-        };
-      }
-
-      if (summary.errors.length > 0) {
-        console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
-      }
-      const reviewProposal = summary.staffingProposal
-        ? reconcileNursingShiftProposal(record, summary.staffingProposal)
-        : null;
-      const failedPatients = new Set(
-        summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
-      ).size;
-      let completionFailed = false;
-      try {
-        await completeRun(record, summary, reviewProposal);
-      } catch (error) {
-        completionFailed = true;
-        console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
-      }
-      endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
-      if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
-      onSettled();
+        endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
+        if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
+      });
+      if (outcome === 'drained') onSettled();
     },
     [
       applyHistoricalCudyr,
       completeRun,
       createId,
+      loadDailyRecord,
       nurseCatalog,
       tensCatalog,
       onSettled,

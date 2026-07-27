@@ -28,6 +28,11 @@ export interface PartialUpdateDailyRecordOptions {
    * fail solely because IndexedDB was cleared or not yet repopulated.
    */
   baseRecord?: DailyRecord | null;
+  /**
+   * Automated multi-patch jobs capture one record snapshot before their first successful write and
+   * skip repeated multi-megabyte snapshots for the remaining patches in the same logical run.
+   */
+  historyPolicy?: 'snapshot' | 'skip';
 }
 
 const assertDate = (date: string, operation: string): void => {

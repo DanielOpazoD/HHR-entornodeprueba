@@ -11,11 +11,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
-import {
-  ensureFreshDailyRecordQuery,
-  patchDailyRecordWithCompatibility,
-} from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import type { ClinicalFillPatchTarget } from '../clinicalFillRunner';
+import { ensureFreshDailyRecordQuery } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import {
   subscribeToRayenSnapshots,
   subscribeToRayenImportErrors,
@@ -30,8 +26,6 @@ import { failureReasonFromHealth, useRayenSyncAudit } from './useRayenSyncAudit'
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { assertClinicalFillPatchTarget } from '../domain/clinicalFillPatchTarget';
 import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHistoricalCudyr';
 import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
@@ -49,8 +43,9 @@ import { resolveSyncReportRequest } from './reportDateHelpers';
 import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import { useRayenSyncRequestController } from './useRayenSyncRequestController';
 import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
-const makeId = (): string => crypto.randomUUID();
-
+import { useRayenClinicalFillRetry } from './useRayenClinicalFillRetry';
+import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
+import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -60,7 +55,6 @@ export const useRayenImport = () => {
   const { currentUser, role } = useAuthState();
   const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
-  // Non-admin users can only correct previous days within Firestore's editing window.
   const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
@@ -73,19 +67,16 @@ export const useRayenImport = () => {
   const currentRecordRef = useRef(currentRecord);
   currentRecordRef.current = currentRecord;
   const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
-  const patchFreshClinicalRecord = useCallback(
-    async (patch: DailyRecordPatch, target: ClinicalFillPatchTarget): Promise<void> => {
-      const date = target.censusDate;
-      const fresh = await dailyRecord.getForDateWithMeta(date, true);
-      if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-      assertClinicalFillPatchTarget(fresh.record, target);
-      const result = await patchDailyRecordWithCompatibility(dailyRecord, date, patch, {
-        baseRecord: fresh.record,
-      });
-      if (result?.blockingError) throw result.blockingError;
-      if (isDailyRecordWriteBlockedResult(result)) {
-        throw new Error(result?.userSafeMessage || 'El guardado clínico fue bloqueado.');
-      }
+  const patchClinicalRecord = useCallback(
+    (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) =>
+      patchFreshClinicalRecord(dailyRecord, patch, target),
+    [dailyRecord]
+  );
+  const loadFreshClinicalRecord = useCallback(
+    async (date: string): Promise<DailyRecord> => {
+      const result = await dailyRecord.getForDateWithMeta(date, true);
+      if (!result.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      return result.record as DailyRecord;
     },
     [dailyRecord]
   );
@@ -103,7 +94,7 @@ export const useRayenImport = () => {
     async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
       const run = ensureRun();
       const result = applyCensusImportDiff(record, diff, {
-        idFactory: makeId,
+        idFactory: () => crypto.randomUUID(),
         actor: run.by,
         syncRunId: run.id,
       });
@@ -142,7 +133,6 @@ export const useRayenImport = () => {
         hasVacancies ? 'pending' : hasAmbiguity ? 'ambiguous' : 'resolved',
         attemptId
       );
-      // Only interrupt for a real decision; the pulse and audit retain all other evidence.
       setStaffingProposal(hasPendingDecision ? proposal : null);
     },
     [isAdmin]
@@ -150,12 +140,13 @@ export const useRayenImport = () => {
   const fillDevicesInBackground = useRayenClinicalFill({
     nurseCatalog: nursesList,
     tensCatalog: tensList,
-    patchDailyRecord: patchFreshClinicalRecord,
+    loadDailyRecord: loadFreshClinicalRecord,
+    patchDailyRecord: patchClinicalRecord,
     applyHistoricalCudyr,
     completeRun,
     onStaffingProposal: presentStaffingProposal,
     onSettled: finishSyncing,
-    createId: makeId,
+    createId: () => crypto.randomUUID(),
   });
   const previewSnapshot = useRayenSnapshotPreview({
     currentRecord,
@@ -268,6 +259,13 @@ export const useRayenImport = () => {
     [clearSyncTimeout, currentRecord, failRun, startRun, syncRequestController]
   );
 
+  const retryClinicalFill = useRayenClinicalFillRetry({
+    currentRecord,
+    currentRecordRef,
+    fillClinicalData: fillDevicesInBackground,
+    setState,
+  });
+
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
     useRayenStaffingProposalActions({
       proposal: staffingProposal,
@@ -283,7 +281,6 @@ export const useRayenImport = () => {
 
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
-      // Apply against the ref so recent HHR changes cannot be lost to a stale closure.
       const base = currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
       const diff = state.diff;
@@ -312,7 +309,7 @@ export const useRayenImport = () => {
                 'clinical_save'
               )
             ).record,
-          createId: makeId,
+          createId: () => crypto.randomUUID(),
         });
         setState(prev => ({
           ...prev,
@@ -321,7 +318,6 @@ export const useRayenImport = () => {
           result,
           hasSkippedItems: skippedPreviousDays || result.skipped.length > 0,
         }));
-        // Keeps `isSyncing` on until the background fill settles it.
         void fillDevicesInBackground(result.record);
       } catch (error) {
         void failRun('apply_failed');
@@ -372,6 +368,7 @@ export const useRayenImport = () => {
       isStaffingProposalBusy,
       staffingProposalError,
       triggerImport,
+      retryClinicalFill,
       previewSnapshot,
       confirm,
       cancel,
@@ -385,6 +382,7 @@ export const useRayenImport = () => {
       isStaffingProposalBusy,
       staffingProposalError,
       triggerImport,
+      retryClinicalFill,
       previewSnapshot,
       confirm,
       cancel,

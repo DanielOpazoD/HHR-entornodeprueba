@@ -285,7 +285,7 @@ export const updateRecordPartial = async (
           );
         }
 
-        await saveHistorySnapshot(date);
+        if (options.historyPolicy !== 'skip') await saveHistorySnapshot(date);
 
         return withRetry(
           () =>

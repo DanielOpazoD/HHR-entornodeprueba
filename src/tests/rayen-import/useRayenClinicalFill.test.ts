@@ -24,7 +24,7 @@ describe('useRayenClinicalFill', () => {
     mocks.getRayenFillAttemptId.mockReturnValue(7);
   });
 
-  it('settles an applied run as partial when the single-flight guard rejects it', async () => {
+  it('does not turn an overlapping fill into a permanent partial audit result', async () => {
     mocks.beginRayenFill.mockReturnValue(false);
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const onSettled = vi.fn();
@@ -41,6 +41,7 @@ describe('useRayenClinicalFill', () => {
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
+        loadDailyRecord: vi.fn().mockResolvedValue(record),
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
@@ -54,11 +55,7 @@ describe('useRayenClinicalFill', () => {
       await result.current(record);
     });
 
-    expect(completeRun).toHaveBeenCalledWith(record, {
-      total: 1,
-      patched: 0,
-      errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
-    });
+    expect(completeRun).not.toHaveBeenCalled();
     expect(onSettled).toHaveBeenCalledOnce();
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
   });
@@ -76,6 +73,7 @@ describe('useRayenClinicalFill', () => {
       useRayenClinicalFill({
         nurseCatalog: ['Camila Soto'],
         tensCatalog: [],
+        loadDailyRecord: vi.fn().mockResolvedValue(record),
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockResolvedValue(undefined),
@@ -120,6 +118,7 @@ describe('useRayenClinicalFill', () => {
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
+        loadDailyRecord: vi.fn().mockResolvedValue(record),
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun,
@@ -152,6 +151,7 @@ describe('useRayenClinicalFill', () => {
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
+        loadDailyRecord: vi.fn().mockResolvedValue(record),
         patchDailyRecord: vi.fn(),
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockRejectedValue(new Error('audit unavailable')),
@@ -163,5 +163,42 @@ describe('useRayenClinicalFill', () => {
 
     await act(async () => result.current(record));
     expect(mocks.endRayenFill).toHaveBeenCalledWith(0, true);
+  });
+
+  it('hydrates the latest census only when the queued task starts', async () => {
+    const staleRecord = {
+      date: '2026-07-14',
+      beds: {
+        R1: { bedId: 'R1', patientName: 'Paciente anterior', clinicalEpisodeId: 'episode-old' },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+    const freshRecord = {
+      ...staleRecord,
+      beds: {},
+      rayenSync: { runId: 'run-fresh' },
+    } as unknown as DailyRecord;
+    const loadDailyRecord = vi.fn().mockResolvedValue(freshRecord);
+    const completeRun = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord,
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(staleRecord));
+
+    expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
+    expect(completeRun).toHaveBeenCalledWith(freshRecord, expect.any(Object), expect.anything());
   });
 });

@@ -108,6 +108,9 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
 
     const record: PatientVitalSigns = {
+      ...(form.encounterEventId != null && str(form.encounterEventId)
+        ? { sourceEventId: str(form.encounterEventId) }
+        : {}),
       recordedDate: when.iso,
       recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
       systolic: num(get(FIELD_IDS.systolic)),

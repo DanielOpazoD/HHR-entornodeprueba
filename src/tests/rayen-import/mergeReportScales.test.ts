@@ -144,4 +144,28 @@ describe('mergeReportScales', () => {
       archived: true,
     });
   });
+
+  it('is referentially stable on retry and converges a correction for the same source event', () => {
+    const first = mergeReportScales(patient(), [BRADEN_D10], { censusIsoDay: '2026-07-10' });
+    expect(mergeReportScales(first, [BRADEN_D10], { censusIsoDay: '2026-07-10' })).toBe(first);
+
+    const corrected = { ...BRADEN_D10, total: 11, severity: 'Riesgo alto' };
+    const result = mergeReportScales(first, [corrected], { censusIsoDay: '2026-07-10' });
+    expect(result.evaluationScores?.history).toHaveLength(1);
+    expect(result.evaluationScores?.braden?.total).toBe(11);
+  });
+
+  it('removes the old copy when a source correction moves the scale after the census day', () => {
+    const before = mergeReportScales(patient(), [BRADEN_D10], { censusIsoDay: '2026-07-11' });
+    const corrected = {
+      ...BRADEN_D10,
+      recordedDate: '2026-07-12',
+      recordedAt: '2026-07-12T08:00:00',
+      total: 11,
+    };
+
+    const result = mergeReportScales(before, [corrected], { censusIsoDay: '2026-07-11' });
+    expect(result.evaluationScores?.braden).toBeUndefined();
+    expect(result.evaluationScores?.history).toEqual([]);
+  });
 });

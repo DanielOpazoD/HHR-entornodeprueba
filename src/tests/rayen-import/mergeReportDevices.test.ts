@@ -103,4 +103,15 @@ describe('mergeReportDevices', () => {
     // Empty Eloísa report → no-op, so nothing the nurse manages is touched.
     expect(mergeReportDevices(before, [], ctx)).toBe(before);
   });
+
+  it('is a semantic no-op when Eloisa repeats the same active device', () => {
+    const first = mergeReportDevices(patient(), [cup], ctx);
+    const retried = mergeReportDevices(first, [cup], {
+      ...ctx,
+      now: new Date(2026, 6, 10, 12, 30, 0),
+    });
+
+    expect(retried).toBe(first);
+    expect(retried.deviceInstanceHistory).toHaveLength(1);
+  });
 });

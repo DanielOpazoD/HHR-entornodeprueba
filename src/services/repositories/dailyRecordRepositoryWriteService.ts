@@ -330,6 +330,7 @@ export const updatePartialDetailed = async (
       updateRecordPartialToFirestore(command.date, mergedPatches, current.lastUpdated, {
         syncContract,
         requireAtomicCas: isReclassification,
+        ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
       }),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(

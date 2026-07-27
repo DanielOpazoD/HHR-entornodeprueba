@@ -22,6 +22,7 @@ import {
   evaluationScalesAsOf,
   type EvaluationScale,
 } from '../mapping/parseEvaluationScales';
+import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
 export interface MergeScalesContext {
   /** The census day being synced (YYYY-MM-DD, Rapa Nui local). */
@@ -58,18 +59,94 @@ const toEntry = (
   ...(includeItems && scale.items ? { items: scale.items } : {}),
 });
 
+const toScale = (entry: EvaluationScoreEntry): EvaluationScale => ({
+  code: entry.code,
+  name: entry.name,
+  encounterEventId: entry.encounterEventId,
+  ...(entry.sourceOrder != null ? { sourceOrder: entry.sourceOrder } : {}),
+  total: entry.total,
+  severity: entry.severity,
+  recordedDate: entry.recordedDate,
+  recordedAt: entry.recordedAt,
+  author: entry.author ?? '',
+  authorRole: entry.authorRole ?? '',
+  items: entry.items ?? [],
+  ...(entry.archived ? { archived: true } : {}),
+});
+
+const scaleLegacyIdentity = (scale: EvaluationScale): string =>
+  JSON.stringify([
+    scale.code,
+    scale.recordedDate,
+    scale.recordedAt,
+    scale.total,
+    scale.severity,
+    scale.archived ?? false,
+  ]);
+
+const scaleStableIdentity = (scale: EvaluationScale): string | null =>
+  scale.encounterEventId > 0
+    ? `${scale.code}|event:${scale.encounterEventId}|${scale.sourceOrder ?? 0}`
+    : null;
+
+const scaleIdentity = (scale: EvaluationScale): string =>
+  scaleStableIdentity(scale) ?? `legacy:${scaleLegacyIdentity(scale)}`;
+
+const mergeScaleHistory = (
+  patient: PatientData,
+  incoming: EvaluationScale[],
+  censusIsoDay: string
+): EvaluationScale[] => {
+  const scores = patient.evaluationScores;
+  const existing = [
+    ...(scores?.history ?? []).map(toScale),
+    ...(scores?.braden ? [toScale(scores.braden)] : []),
+    ...(scores?.downton ? [toScale(scores.downton)] : []),
+  ];
+  const byIdentity = new Map<string, EvaluationScale>();
+  for (const scale of existing) {
+    if (scale.recordedDate <= censusIsoDay) byIdentity.set(scaleIdentity(scale), scale);
+  }
+  // Source values replace a stable event identity even when a correction moves the event after the
+  // requested census day. Otherwise the old eligible copy would survive as stale clinical truth.
+  for (const scale of incoming) {
+    const stableIdentity = scaleStableIdentity(scale);
+    if (stableIdentity) {
+      byIdentity.delete(stableIdentity);
+      byIdentity.delete(`legacy:${scaleLegacyIdentity(scale)}`);
+    }
+    if (scale.recordedDate <= censusIsoDay) {
+      byIdentity.set(stableIdentity ?? scaleIdentity(scale), scale);
+    }
+  }
+  return [...byIdentity.values()].sort(
+    (left, right) =>
+      right.encounterEventId - left.encounterEventId ||
+      (right.sourceOrder ?? 0) - (left.sourceOrder ?? 0)
+  );
+};
+
 export const mergeReportScales = (
   patient: PatientData,
   scales: EvaluationScale[],
   ctx: MergeScalesContext
 ): PatientData => {
-  if (scales.length === 0) return patient;
+  const mergedScales = mergeScaleHistory(patient, scales, ctx.censusIsoDay);
+  if (mergedScales.length === 0) {
+    if (scales.length === 0 || !patient.evaluationScores) return patient;
+    const evaluationScores: PatientEvaluationScores = {
+      ...(patient.evaluationScores.cudyr ? { cudyr: patient.evaluationScores.cudyr } : {}),
+      history: [],
+    };
+    if (clinicalValuesEqual(patient.evaluationScores, evaluationScores)) return patient;
+    return { ...patient, evaluationScores };
+  }
 
   // Clinical result and application time are kept separate. For the current result, Rayen's rule is
   // resolved per day: latest visible entry first; if all are archived, latest archived. Independently,
   // every complete entry proves application and can advance the reapplication clock.
-  const current = evaluationScalesAsOf(scales, ctx.censusIsoDay);
-  const latestApplications = evaluationScaleApplicationsAsOf(scales, ctx.censusIsoDay);
+  const current = evaluationScalesAsOf(mergedScales, ctx.censusIsoDay);
+  const latestApplications = evaluationScaleApplicationsAsOf(mergedScales, ctx.censusIsoDay);
   const braden = current.find(scale => scale.code === 'BRADEN');
   const downton = current.find(scale => scale.code === 'DOWNTON');
   const bradenApplication = latestApplications.find(scale => scale.code === 'BRADEN');
@@ -77,19 +154,15 @@ export const mergeReportScales = (
 
   // A census-day snapshot must not reveal assessments applied after that day. This also keeps a
   // delayed synchronization from making an old row look complete with future evidence.
-  const history = scales
-    .filter(scale => scale.recordedDate <= ctx.censusIsoDay)
-    .sort(
-      (a, b) =>
-        b.encounterEventId - a.encounterEventId || (b.sourceOrder ?? 0) - (a.sourceOrder ?? 0)
-    )
-    .map(scale => toEntry(scale, false));
+  const history = mergedScales.map(scale => toEntry(scale, false));
 
   const evaluationScores: PatientEvaluationScores = {
+    ...(patient.evaluationScores?.cudyr ? { cudyr: patient.evaluationScores.cudyr } : {}),
     ...(braden ? { braden: toEntry(braden, true, bradenApplication) } : {}),
     ...(downton ? { downton: toEntry(downton, true, downtonApplication) } : {}),
     history,
   };
 
+  if (clinicalValuesEqual(patient.evaluationScores, evaluationScores)) return patient;
   return { ...patient, evaluationScores };
 };

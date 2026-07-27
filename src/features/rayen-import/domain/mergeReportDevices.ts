@@ -9,6 +9,7 @@
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type { MappedDevice } from '../mapping/mapDeviceToInstance';
+import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
 export interface MergeDevicesContext {
   now: Date;
@@ -43,14 +44,17 @@ export const mergeReportDevices = (
       item => item.type === device.type && item.status === 'Active'
     );
     if (activeIdx >= 0) {
-      history[activeIdx] = {
+      const current = history[activeIdx];
+      const refreshed = {
         ...history[activeIdx],
         installationDate: device.installationDate || history[activeIdx].installationDate,
         installationTime: device.installationTime || history[activeIdx].installationTime,
         location: device.location || history[activeIdx].location,
         note: note || history[activeIdx].note,
-        updatedAt: nowMs,
       };
+      history[activeIdx] = clinicalValuesEqual(current, refreshed)
+        ? current
+        : { ...refreshed, updatedAt: nowMs };
     } else {
       history.push({
         id: ctx.createId(),
@@ -69,10 +73,18 @@ export const mergeReportDevices = (
     }
   }
 
-  return {
+  const merged = {
     ...patient,
     devices: [...activeTypes],
     deviceDetails,
     deviceInstanceHistory: history,
   };
+  if (
+    clinicalValuesEqual(patient.devices ?? [], merged.devices) &&
+    clinicalValuesEqual(patient.deviceDetails ?? {}, merged.deviceDetails) &&
+    clinicalValuesEqual(patient.deviceInstanceHistory ?? [], merged.deviceInstanceHistory)
+  ) {
+    return patient;
+  }
+  return merged;
 };

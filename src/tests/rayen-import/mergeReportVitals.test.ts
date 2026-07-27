@@ -85,4 +85,59 @@ describe('mergeReportVitals', () => {
     expect(result.vitalSigns).toBeUndefined();
     expect(result.vitalSignsHistory).toEqual([]);
   });
+
+  it('is referentially stable on retry and replaces a corrected source event without duplication', () => {
+    const original = { ...rec('2026-07-11', 80), sourceEventId: 'event-10' };
+    const first = mergeReportVitals(patient, [original], '2026-07-11');
+    expect(mergeReportVitals(first, [original], '2026-07-11')).toBe(first);
+
+    const corrected = { ...original, heartRate: 84 };
+    const result = mergeReportVitals(first, [corrected], '2026-07-11');
+    expect(result.vitalSignsHistory).toHaveLength(1);
+    expect(result.vitalSigns?.heartRate).toBe(84);
+  });
+
+  it('migrates a legacy content-identical reading when Eloisa starts providing a source id', () => {
+    const legacy = rec('2026-07-11', 80);
+    const before = { ...patient, vitalSigns: legacy, vitalSignsHistory: [legacy] };
+    const result = mergeReportVitals(
+      before,
+      [{ ...legacy, sourceEventId: 'event-10' }],
+      '2026-07-11'
+    );
+
+    expect(result.vitalSignsHistory).toHaveLength(1);
+    expect(result.vitalSignsHistory?.[0].sourceEventId).toBe('event-10');
+  });
+
+  it('orders readings by clinical time before using the source id as a tie breaker', () => {
+    const earlier = {
+      ...rec('2026-07-11', 80),
+      recordedAt: '2026-07-11 08:00',
+      sourceEventId: '999',
+    };
+    const later = {
+      ...rec('2026-07-11', 90),
+      recordedAt: '2026-07-11 09:00',
+      sourceEventId: '1',
+    };
+
+    const result = mergeReportVitals(patient, [earlier, later], '2026-07-11');
+    expect(result.vitalSignsHistory?.map(item => item.heartRate)).toEqual([90, 80]);
+  });
+
+  it('removes the old copy when a source correction moves the event after the census day', () => {
+    const original = { ...rec('2026-07-10', 80), sourceEventId: 'event-10' };
+    const before = mergeReportVitals(patient, [original], '2026-07-11');
+    const corrected = {
+      ...original,
+      recordedDate: '2026-07-12',
+      recordedAt: '2026-07-12 08:00',
+      heartRate: 84,
+    };
+
+    const result = mergeReportVitals(before, [corrected], '2026-07-11');
+    expect(result.vitalSigns).toBeUndefined();
+    expect(result.vitalSignsHistory).toEqual([]);
+  });
 });

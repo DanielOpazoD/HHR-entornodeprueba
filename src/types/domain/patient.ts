@@ -5,6 +5,7 @@ import type { CudyrScore } from './cudyr';
 import type { DeviceInstance, DeviceDetails } from './devices';
 import type { PatientEvaluationScores } from './evaluationScores';
 import type { PatientVitalSigns } from './vitalSigns';
+import type { ClinicalSyncCheckpoint } from './clinicalSync';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 
@@ -146,6 +147,9 @@ export interface PatientData {
    * so the census can show several days of measurements. Bounded to the most recent readings.
    */
   vitalSignsHistory?: PatientVitalSigns[];
+
+  /** Versioned, privacy-safe cursors for incremental Eloisa clinical enrichment. */
+  clinicalSyncCheckpoint?: ClinicalSyncCheckpoint;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

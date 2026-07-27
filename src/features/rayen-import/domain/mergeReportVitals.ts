@@ -10,6 +10,7 @@
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
 /**
  * How many measurements to keep — enough for "7 días o más" at typical ward frequency (~3–4/day)
@@ -24,35 +25,87 @@ const hasCoreVital = (record: PatientVitalSigns): boolean =>
   record.spo2 != null ||
   record.temperature != null;
 
+const vitalContentIdentity = (record: PatientVitalSigns): string =>
+  JSON.stringify([
+    record.recordedDate,
+    record.recordedAt,
+    record.systolic,
+    record.diastolic,
+    record.heartRate,
+    record.spo2,
+    record.temperature,
+    record.respiratoryRate,
+    record.painEva,
+    record.hgt,
+    record.insulinUnits,
+    record.insulinQuadrant,
+    record.observations,
+    record.author,
+    record.authorRole,
+  ]);
+
+const vitalStableIdentity = (record: PatientVitalSigns): string | null => {
+  const sourceEventId = record.sourceEventId?.trim();
+  return sourceEventId ? `event:${sourceEventId}` : null;
+};
+
+const vitalStorageIdentity = (record: PatientVitalSigns): string =>
+  vitalStableIdentity(record) ?? `legacy:${vitalContentIdentity(record)}`;
+
+const vitalOrder = (record: PatientVitalSigns): string =>
+  `${record.recordedDate}|${record.recordedAt}|${record.sourceEventId?.padStart(20, '0') ?? ''}`;
+
+const mergeVitalHistory = (
+  existing: PatientVitalSigns[],
+  incoming: PatientVitalSigns[],
+  censusIsoDay: string
+): PatientVitalSigns[] => {
+  const byIdentity = new Map<string, PatientVitalSigns>();
+  for (const record of existing) {
+    if (record.recordedDate <= censusIsoDay) byIdentity.set(vitalStorageIdentity(record), record);
+  }
+  // Eloisa is authoritative for a stable source id: the incoming value replaces a previously
+  // stored version even when a correction moves it outside the census day. When source ids are
+  // introduced over legacy content, remove the content-identical fallback to avoid one migration
+  // duplicate.
+  for (const record of incoming) {
+    const stableIdentity = vitalStableIdentity(record);
+    if (stableIdentity) {
+      byIdentity.delete(stableIdentity);
+      byIdentity.delete(`legacy:${vitalContentIdentity(record)}`);
+    }
+    if (record.recordedDate <= censusIsoDay) {
+      byIdentity.set(stableIdentity ?? vitalStorageIdentity(record), record);
+    }
+  }
+  return [...byIdentity.values()]
+    .sort((left, right) => vitalOrder(right).localeCompare(vitalOrder(left)))
+    .slice(0, MAX_VITALS_HISTORY);
+};
+
 export const mergeReportVitals = (
   patient: PatientData,
   records: PatientVitalSigns[],
   censusIsoDay: string
 ): PatientData => {
-  const eligible = records.filter(record => record.recordedDate <= censusIsoDay);
-  if (eligible.length === 0) {
-    const retainedHistory = (patient.vitalSignsHistory ?? [])
-      .filter(record => record.recordedDate <= censusIsoDay)
-      .slice(0, MAX_VITALS_HISTORY);
-    const retainedGlance = retainedHistory.find(hasCoreVital) ?? retainedHistory[0];
-    const existingGlanceIsValid =
-      patient.vitalSigns != null && patient.vitalSigns.recordedDate <= censusIsoDay;
-    if (
-      retainedHistory.length === (patient.vitalSignsHistory?.length ?? 0) &&
-      (patient.vitalSigns == null || existingGlanceIsValid)
-    ) {
-      return patient;
-    }
-    const sanitized = { ...patient, vitalSignsHistory: retainedHistory };
-    if (retainedGlance) return { ...sanitized, vitalSigns: retainedGlance };
-    delete sanitized.vitalSigns;
-    return sanitized;
-  }
-  // `records` arrive most-recent-first; retain only readings available by the selected census day.
-  const history = eligible.slice(0, MAX_VITALS_HISTORY);
+  const history = mergeVitalHistory(
+    [...(patient.vitalSignsHistory ?? []), ...(patient.vitalSigns ? [patient.vitalSigns] : [])],
+    records,
+    censusIsoDay
+  );
   // The census cell shows the newest reading that carries a CORE vital (PA/FC/Sat/T°), so an HGT- or
   // insulin-only later measurement never leaves the cell blank. The full history (HGT/insulin rows
   // included) still feeds the detail modal.
   const glance = history.find(hasCoreVital) ?? history[0];
-  return { ...patient, vitalSigns: glance, vitalSignsHistory: history };
+  const nextHistory = history.length > 0 ? history : [];
+  if (
+    clinicalValuesEqual(patient.vitalSignsHistory ?? [], nextHistory) &&
+    clinicalValuesEqual(patient.vitalSigns, glance)
+  ) {
+    return patient;
+  }
+  const merged = { ...patient, vitalSignsHistory: nextHistory };
+  if (glance) return { ...merged, vitalSigns: glance };
+  delete merged.vitalSigns;
+  return merged;
 };
