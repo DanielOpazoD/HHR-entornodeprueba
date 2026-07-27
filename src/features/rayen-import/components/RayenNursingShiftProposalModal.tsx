@@ -6,6 +6,7 @@ import type {
   NursingShiftEvidence,
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
+import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
 
 interface RayenNursingShiftProposalModalProps {
   proposal: NursingStaffingProposal | null;
@@ -28,7 +29,12 @@ const ShiftSuggestion: React.FC<{
   roleLabel: string;
 }> = ({ label, suggestion, icon, roleLabel }) => {
   const alreadyAssigned = suggestion.alreadyAssigned ?? [];
-  if (suggestion.names.length === 0 && alreadyAssigned.length === 0 && !suggestion.ambiguous)
+  if (
+    suggestion.names.length === 0 &&
+    alreadyAssigned.length === 0 &&
+    !suggestion.ambiguous &&
+    suggestion.ignoredBoundaryRecords === 0
+  )
     return null;
   return (
     <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
@@ -67,10 +73,16 @@ const ShiftSuggestion: React.FC<{
         })}
       </ul>
       {suggestion.ignoredBoundaryRecords > 0 && (
-        <p className="mt-2 text-xs text-slate-500">
-          Se excluyeron {suggestion.ignoredBoundaryRecords} registros cercanos al relevo por ser
-          temporalmente ambiguos.
-        </p>
+        <>
+          <p className="mt-2 text-xs text-slate-500">
+            Se excluyeron {suggestion.ignoredBoundaryRecords} registros cercanos al relevo por ser
+            temporalmente ambiguos.
+          </p>
+          <StaffingBoundaryExclusions
+            total={suggestion.ignoredBoundaryRecords}
+            evidence={suggestion.ignoredBoundaryEvidence ?? []}
+          />
+        </>
       )}
       {suggestion.ambiguous && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -100,13 +112,20 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
       suggestion => suggestion?.ambiguous
     )
   );
+  const hasBoundaryExclusions = Boolean(
+    proposal &&
+    [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
+      suggestion => (suggestion?.ignoredBoundaryRecords ?? 0) > 0
+    )
+  );
   const replacesExisting = Boolean(
     proposal &&
     [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
       suggestion => suggestion?.replaceStandardSlots
     )
   );
-  if (!proposal || (!hasVacanciesToComplete && !hasAmbiguousSuggestions)) return null;
+  if (!proposal || (!hasVacanciesToComplete && !hasAmbiguousSuggestions && !hasBoundaryExclusions))
+    return null;
 
   return (
     <BaseModal

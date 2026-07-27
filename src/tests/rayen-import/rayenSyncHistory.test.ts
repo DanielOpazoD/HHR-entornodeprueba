@@ -117,6 +117,19 @@ describe('rayen sync history', () => {
     expect(JSON.stringify(coverage)).not.toContain('modificado por otro usuario');
   });
 
+  it('preserves staffing as an actionable clinical source without persisting its raw error', () => {
+    const coverage = buildRayenSyncCoverage(
+      2,
+      [{ bedId: 'H2C1', source: 'staffing', message: 'Error interno de historial 503' }],
+      '2026-07-17T07:02:25.000Z'
+    );
+
+    expect(coverage.issues).toEqual([
+      { bedId: 'H2C1', source: 'staffing', reason: 'source_unavailable' },
+    ]);
+    expect(JSON.stringify(coverage)).not.toContain('Error interno');
+  });
+
   it('finalizes as complete or partial while updating the same event', () => {
     const applied = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
     const complete = completeRayenSyncEvent(
@@ -136,7 +149,28 @@ describe('rayen sync history', () => {
     const observation = buildRayenStaffingObservation({
       censusDate: '2026-07-25',
       day: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
-      night: { names: [], candidates: [], ignoredBoundaryRecords: 2, ambiguous: true },
+      night: {
+        names: [],
+        candidates: [],
+        ignoredBoundaryRecords: 2,
+        ignoredBoundaryEvidence: [
+          {
+            name: 'Camila Soto',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-07-25T20:30:00',
+            source: 'vital-signs',
+            boundary: 'night_start',
+          },
+          {
+            name: 'Camila Soto',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-07-25T20:30:00',
+            source: 'vital-signs',
+            boundary: 'night_start',
+          },
+        ],
+        ambiguous: true,
+      },
       tensDay: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
       tensNight: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
     });
@@ -150,6 +184,16 @@ describe('rayen sync history', () => {
     expect(completed.staffingObservation).toEqual({
       ambiguousSections: ['nurse_night'],
       ignoredBoundaryRecords: 2,
+      ignoredBoundaryEvidence: [
+        {
+          section: 'nurse_night',
+          name: 'Camila Soto',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-25T20:30:00',
+          source: 'vital-signs',
+          boundary: 'night_start',
+        },
+      ],
     });
     expect(JSON.stringify(completed.staffingObservation)).not.toMatch(/patient|rut|diagn/i);
   });

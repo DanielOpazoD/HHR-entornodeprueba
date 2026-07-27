@@ -10,7 +10,10 @@ import type {
   RayenSyncStaffingObservation,
   RayenStaffingSection,
 } from '@/types/domain/rayenSync';
-import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
+import {
+  MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
+  MAX_RAYEN_SYNC_HISTORY,
+} from '@/types/domain/rayenSync';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 
 export { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
@@ -93,7 +96,9 @@ export const buildRayenSyncCoverage = (
   };
   const issueMap = new Map<string, RayenSyncCoverageIssue>();
   errors.forEach(error => {
-    const source = ['devices', 'scales', 'vitals', 'cudyr', 'patch'].includes(error.source ?? '')
+    const source = ['devices', 'scales', 'vitals', 'staffing', 'cudyr', 'patch'].includes(
+      error.source ?? ''
+    )
       ? (error.source as RayenSyncCoverageIssue['source'])
       : 'patch';
     const issue: RayenSyncCoverageIssue = {
@@ -129,14 +134,36 @@ export const buildRayenStaffingObservation = (
   if (!proposal) return undefined;
   const ambiguousSections: RayenStaffingSection[] = [];
   let ignoredBoundaryRecords = 0;
+  const ignoredBoundaryEvidence = new Map<
+    string,
+    NonNullable<RayenSyncStaffingObservation['ignoredBoundaryEvidence']>[number]
+  >();
   for (const section of STAFFING_SECTIONS) {
     const suggestion = proposal[section.key];
     if (!suggestion) continue;
     if (suggestion.ambiguous) ambiguousSections.push(section.code);
     ignoredBoundaryRecords += suggestion.ignoredBoundaryRecords;
+    for (const evidence of suggestion.ignoredBoundaryEvidence ?? []) {
+      const item = { ...evidence, section: section.code };
+      const key = [
+        item.section,
+        item.name,
+        item.role,
+        item.recordedAt,
+        item.source,
+        item.boundary,
+      ].join('|');
+      if (ignoredBoundaryEvidence.size < MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE) {
+        ignoredBoundaryEvidence.set(key, item);
+      }
+    }
   }
   if (ambiguousSections.length === 0 && ignoredBoundaryRecords === 0) return undefined;
-  return { ambiguousSections, ignoredBoundaryRecords };
+  return {
+    ambiguousSections,
+    ignoredBoundaryRecords,
+    ignoredBoundaryEvidence: [...ignoredBoundaryEvidence.values()],
+  };
 };
 
 export const completeRayenSyncEvent = (

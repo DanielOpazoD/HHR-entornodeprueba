@@ -1,12 +1,13 @@
 /** Persisted, privacy-safe evidence for one user-initiated Eloísa synchronization. */
 
 export const MAX_RAYEN_SYNC_HISTORY = 20;
+export const MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE = 40;
 
 export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
-export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'cudyr' | 'patch';
+export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
 
 export type RayenSyncIssueReason =
   | 'concurrent_write'
@@ -57,10 +58,26 @@ export interface RayenSyncChanges {
 
 export type RayenStaffingSection = 'nurse_day' | 'nurse_night' | 'tens_day' | 'tens_night';
 
+export interface RayenStaffingBoundaryExclusion {
+  section: RayenStaffingSection;
+  name: string;
+  role: string;
+  recordedAt: string;
+  source:
+    | 'evolution'
+    | 'shift-change'
+    | 'evaluation-scale'
+    | 'medication-administration'
+    | 'vital-signs';
+  boundary: 'day_start' | 'night_start' | 'night_end';
+}
+
 /** Privacy-safe explanation for a staffing proposal that HHR deliberately did not auto-apply. */
 export interface RayenSyncStaffingObservation {
   ambiguousSections: RayenStaffingSection[];
   ignoredBoundaryRecords: number;
+  /** Concrete evidence behind the aggregate counter; absent on legacy synchronization events. */
+  ignoredBoundaryEvidence?: RayenStaffingBoundaryExclusion[];
 }
 
 export interface RayenSyncSource {

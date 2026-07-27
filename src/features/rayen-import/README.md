@@ -106,9 +106,14 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
 - **Orden independiente:** las reubicaciones se planifican como lote; cadenas y permutas liberan
   sus orígenes antes de los ingresos, mientras una cadena bloqueada no libera ninguna cama.
-- **Trazabilidad sin PHI:** `rayenSyncHistory` guarda solo actor, tiempos, salud de fuentes y
-  agregados del diff/cobertura. No persiste nombres, RUN, diagnósticos ni errores crudos.
+- **Trazabilidad sin PHI del paciente:** `rayenSyncHistory` guarda actor, tiempos, duración, salud
+  de fuentes y agregados del diff/cobertura. Si una asignación de personal se excluye cerca del
+  relevo, conserva evidencia operacional acotada del funcionario (nombre, rol, fuente y hora), pero
+  nunca nombres/RUN/diagnósticos de pacientes, contenido clínico ni errores crudos.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
+- **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
+  máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
+  permanecen serializados para evitar conflictos de escritura.
 - **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
   promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.

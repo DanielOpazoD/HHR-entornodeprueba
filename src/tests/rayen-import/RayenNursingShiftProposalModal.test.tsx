@@ -20,6 +20,22 @@ const proposal: NursingStaffingProposal = {
       },
     ],
     ignoredBoundaryRecords: 2,
+    ignoredBoundaryEvidence: [
+      {
+        name: 'Claudia Saliente',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T08:35:00',
+        source: 'vital-signs',
+        boundary: 'day_start',
+      },
+      {
+        name: 'Ana Pérez',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T08:42:00',
+        source: 'medication-administration',
+        boundary: 'day_start',
+      },
+    ],
     ambiguous: false,
   },
   night: {
@@ -65,6 +81,9 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText(/4 registros · 3 pacientes/)).toBeInTheDocument();
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
     expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ver quiénes fueron excluidos (2)'));
+    expect(screen.getByText(/Claudia Saliente · 20-07 08:35/)).toBeVisible();
+    expect(screen.getAllByText(/Motivo: primeros 60 min del turno día/)).toHaveLength(2);
 
     expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));
@@ -109,7 +128,13 @@ describe('RayenNursingShiftProposalModal', () => {
     renderProposal({
       proposal: {
         ...proposal,
-        day: { ...proposal.day, names: [], alreadyAssigned: ['Ana Pérez'] },
+        day: {
+          ...proposal.day,
+          names: [],
+          alreadyAssigned: ['Ana Pérez'],
+          ignoredBoundaryRecords: 0,
+          ignoredBoundaryEvidence: [],
+        },
         night: { ...proposal.night, names: [], alreadyAssigned: ['Berta Soto'] },
       },
       isBusy: false,
@@ -142,6 +167,25 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps exclusion-only evidence visible without offering a write', () => {
+    renderProposal({
+      proposal: {
+        censusDate: proposal.censusDate,
+        day: { ...proposal.day, names: [], candidates: [] },
+        night: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.getByTestId('rayen-nursing-shift-proposal')).toBeVisible();
+    expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entendido' })).toBeVisible();
   });
 
   it('keeps a concurrent no-op visible so the user can review the current assignment', () => {

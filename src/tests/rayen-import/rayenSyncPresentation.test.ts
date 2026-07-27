@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   presentRayenCoverageIssue,
+  formatRayenSyncDuration,
   presentRayenCoverage,
   presentRayenSyncOutcome,
   presentRayenSyncRecovery,
@@ -10,6 +11,17 @@ import {
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 
 describe('rayen sync presentation', () => {
+  it('formats persisted run duration without inventing a value for incomplete or invalid events', () => {
+    expect(formatRayenSyncDuration('2026-07-27T10:00:00.000Z', '2026-07-27T10:02:05.000Z')).toBe(
+      '2 min 5 s'
+    );
+    expect(formatRayenSyncDuration('2026-07-27T10:00:00.000Z', '2026-07-27T10:00:18.000Z')).toBe(
+      '18 s'
+    );
+    expect(formatRayenSyncDuration('invalid', '2026-07-27T10:00:18.000Z')).toBeNull();
+    expect(formatRayenSyncDuration('2026-07-27T10:00:00.000Z')).toBeNull();
+  });
+
   it('keeps legacy, complete, patient-error and source-error coverage distinguishable', () => {
     expect(presentRayenCoverage(undefined, true).label).toBe(
       'No disponible en sincronizaciones antiguas'
@@ -82,6 +94,18 @@ describe('rayen sync presentation', () => {
       })
     ).toBe(
       'Cama R2 · Guardado del censo: el censo cambió mientras se guardaba; reintenta para completar este dato.'
+    );
+  });
+
+  it('identifies a staffing source failure in user-facing recovery guidance', () => {
+    expect(
+      presentRayenCoverageIssue({
+        bedId: 'H2C1',
+        source: 'staffing',
+        reason: 'source_unavailable',
+      })
+    ).toBe(
+      'Cama H2C1 · Enfermería / TENS: Eloísa no devolvió esta información; comprueba la ficha y reintenta.'
     );
   });
 
