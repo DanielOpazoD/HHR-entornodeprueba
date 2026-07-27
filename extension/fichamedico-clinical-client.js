@@ -164,20 +164,6 @@
       }
     };
 
-    const fetchScalesReportWithInfo = async (encId, info) => {
-      if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
-      // Share the exact nursing + medical read used by Centro HHR Scores. Otherwise the center can
-      // see today's Braden while the census remains stale because it consulted only event type 1.
-      const result = await fetchEvaluationForms(encId, info);
-      if (result.error) return result;
-      return {
-        ok: true,
-        forms: result.forms.filter(form =>
-          FORM_CODIGO_KEEP.has(String(form && form.formCodigo || '').toUpperCase())
-        ),
-      };
-    };
-
     const fetchHistoryScales = async ({ encId, info }) => {
       if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
       const session = await resolveSession({ info });
@@ -267,7 +253,7 @@
       }
     };
 
-    async function fetchEvaluationForms(encId, knownInfo) {
+    const fetchEvaluationForms = async (encId, knownInfo) => {
       if (!/^\d+$/.test(String(encId || ''))) {
         return { error: 'El episodio clínico no es válido.' };
       }
@@ -316,7 +302,21 @@
       } catch (error) {
         return { error: 'No se pudieron leer los instrumentos: ' + errorMessage(error) };
       }
-    }
+    };
+
+    const fetchScalesReportWithInfo = async (encId, info) => {
+      if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
+      // Share the exact nursing + medical read used by Centro HHR Scores. Otherwise the center can
+      // see today's Braden while the census remains stale because it consulted only event type 1.
+      const result = await fetchEvaluationForms(encId, info);
+      if (result.error) return result;
+      return {
+        ok: true,
+        forms: result.forms.filter(form =>
+          FORM_CODIGO_KEEP.has(String(form && form.formCodigo || '').toUpperCase())
+        ),
+      };
+    };
 
     const fetchScaleHistoryEvents = async (encId, knownInfo, lookbackDays = 30) => {
       if (!/^\d+$/.test(String(encId || ''))) {

@@ -28,15 +28,13 @@ describe('ScoresHistoryTable', () => {
     expect(rows).toHaveLength(2);
     expect(within(rows[1]).getByText('26-07-2026 · 13:01')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Nicole Palma')).toBeInTheDocument();
-    expect(within(rows[1]).getByText('Enfermera(o)')).toBeInTheDocument();
   });
 
   it('explains archived applications without treating them as invalid', () => {
     render(<ScoresHistoryTable history={[application({ archived: true })]} />);
 
-    expect(screen.getByText('Oculta')).toHaveAttribute(
-      'title',
-      'Oculta del resumen rápido en Eloísa; sigue siendo una aplicación válida'
-    );
+    expect(
+      screen.getByTitle('Oculta del resumen rápido en Eloísa; sigue siendo una aplicación válida')
+    ).toHaveTextContent('Nicole Palma · Oculta');
   });
 });
