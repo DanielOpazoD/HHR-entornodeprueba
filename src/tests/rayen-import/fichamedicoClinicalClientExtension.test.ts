@@ -37,6 +37,10 @@ type ClinicalClient = {
     encId: string;
     info?: SessionInfo;
   }) => Promise<{ events?: unknown[]; nursingActivity?: unknown[]; error?: string }>;
+  fetchScalesReportWithInfo: (
+    encId: string,
+    info?: SessionInfo
+  ) => Promise<{ ok?: boolean; forms?: unknown[]; error?: string }>;
 };
 
 type ClinicalClientFactory = {
@@ -208,6 +212,45 @@ describe('Ficha Médico read-only clinical client', () => {
     ).resolves.toEqual({
       error: 'Sin token de Ficha Médico. Recarga la lista de pacientes e inicia sesión.',
     });
+  });
+
+  it('reads nursing and medical scale forms for a medical session and deduplicates the union', async () => {
+    const nursingBraden = {
+      guid: 'braden-today',
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de riesgo UPP (Braden)',
+    };
+    const repeatedDownton = {
+      guid: 'downton-shared',
+      formCodigo: 'INSTRUMENTO',
+      nameForm: 'Escala de Riesgo de caídas (J. H. DOWNTON)',
+    };
+    fetchWithTimeout
+      .mockResolvedValueOnce(
+        response({ json: async () => [nursingBraden, repeatedDownton, { formCodigo: 'OTRO' }] })
+      )
+      .mockResolvedValueOnce(response({ json: async () => [repeatedDownton] }));
+
+    const result = await client.fetchScalesReportWithInfo('142040', session);
+
+    expect(result).toEqual({ ok: true, forms: [nursingBraden, repeatedDownton] });
+    expect(fetchWithTimeout.mock.calls.map(call => call[0])).toEqual([
+      'https://fichamedicoback.rayensalud.cl/api/encounter/entrySummary/' +
+        'encounterFormEntry/142040/2/0/81',
+      'https://fichamedicoback.rayensalud.cl/api/encounter/entrySummary/' +
+        'encounterFormEntry/142040/1/0/81',
+    ]);
+  });
+
+  it('uses only the nursing event type when the authenticated role is Enfermería', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
+
+    await expect(
+      client.fetchScalesReportWithInfo('142040', { ...session, role: 'Enfermera(o)' })
+    ).resolves.toEqual({ ok: true, forms: [] });
+
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain('encounterFormEntry/142040/2/0/81');
   });
 
   it('returns text-free nursing activity together with scale history', async () => {

@@ -166,29 +166,16 @@
 
     const fetchScalesReportWithInfo = async (encId, info) => {
       if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
-      const session = await resolveSession({ info });
-      if (session.error) return session;
-      try {
-        const result = await readJson({
-          info: session.info,
-          path:
-            '/api/encounter/entrySummary/encounterFormEntry/' +
-            `${encodeURIComponent(encId)}/1/0/${encodeURIComponent(session.info.practitionerId || '7941')}`,
-        });
-        const forms = Array.isArray(result.data)
-          ? result.data.filter(
-              form =>
-                form && FORM_CODIGO_KEEP.has(String(form.formCodigo || '').toUpperCase())
-            )
-          : [];
-        return { ok: true, forms };
-      } catch (error) {
-        if (error.kind === 'http' && error.status === 204) return { ok: true, forms: [] };
-        if (error.kind === 'http') {
-          return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };
-        }
-        return { error: 'Falló la descarga de escalas: ' + errorMessage(error) };
-      }
+      // Share the exact nursing + medical read used by Centro HHR Scores. Otherwise the center can
+      // see today's Braden while the census remains stale because it consulted only event type 1.
+      const result = await fetchEvaluationForms(encId, info);
+      if (result.error) return result;
+      return {
+        ok: true,
+        forms: result.forms.filter(form =>
+          FORM_CODIGO_KEEP.has(String(form && form.formCodigo || '').toUpperCase())
+        ),
+      };
     };
 
     const fetchHistoryScales = async ({ encId, info }) => {
@@ -280,7 +267,7 @@
       }
     };
 
-    const fetchEvaluationForms = async (encId, knownInfo) => {
+    async function fetchEvaluationForms(encId, knownInfo) {
       if (!/^\d+$/.test(String(encId || ''))) {
         return { error: 'El episodio clínico no es válido.' };
       }
@@ -329,7 +316,7 @@
       } catch (error) {
         return { error: 'No se pudieron leer los instrumentos: ' + errorMessage(error) };
       }
-    };
+    }
 
     const fetchScaleHistoryEvents = async (encId, knownInfo, lookbackDays = 30) => {
       if (!/^\d+$/.test(String(encId || ''))) {

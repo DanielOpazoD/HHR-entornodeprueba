@@ -68,6 +68,54 @@ describe('mergeScaleSources', () => {
     expect(mergeScaleSources(history, laterSummary)).toHaveLength(2);
   });
 
+  it('reconciles the same application when Resumen omits seconds and Historial includes them', () => {
+    const history = [
+      scale({
+        recordedDate: '2026-07-26',
+        recordedAt: '2026-07-26T13:01:19',
+        author: 'Nicole Palma',
+        authorRole: 'Enfermera(o)',
+      }),
+    ];
+    const summary = [
+      scale({
+        recordedDate: '2026-07-26',
+        recordedAt: '26-07-2026 13:01',
+        author: 'Nicole Palma',
+        authorRole: '',
+      }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      encounterEventId: 20260726130119,
+      author: 'Nicole Palma',
+      authorRole: 'Enfermera(o)',
+    });
+  });
+
+  it('keeps genuine repeats when one source exposes two applications in the same minute', () => {
+    const history = [
+      scale({
+        recordedDate: '2026-07-26',
+        recordedAt: '2026-07-26T13:01:19',
+        sourceOrder: 1,
+      }),
+      scale({
+        recordedDate: '2026-07-26',
+        recordedAt: '2026-07-26T13:01:48',
+        sourceOrder: 2,
+      }),
+    ];
+    const summary = [
+      scale({ recordedDate: '2026-07-26', recordedAt: '26-07-2026 13:01', sourceOrder: 3 }),
+    ];
+
+    expect(mergeScaleSources(history, summary)).toHaveLength(2);
+  });
+
   it('keeps history attribution when only the summary marks the exact copy as visible', () => {
     const history = [
       scale({

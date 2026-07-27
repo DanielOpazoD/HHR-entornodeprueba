@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildScoresCellModel,
+  dedupeScoreHistory,
   resolveAgeYears,
 } from '@/features/census/controllers/evaluationScoresCellController';
 import type { PatientData } from '@/types/domain/patient';
@@ -91,6 +92,37 @@ describe('buildScoresCellModel — Braden countdown', () => {
     expect(model.alertUrgency).toBe('ok');
   });
 
+  it('repairs a stale application clock from a newer same-score history entry', () => {
+    const current = entry({
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-23',
+      latestApplication: {
+        recordedDate: '2026-07-23',
+        recordedAt: '2026-07-23T13:00:00',
+      },
+    });
+    const reappliedToday = entry({
+      encounterEventId: 20260726130119,
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-26',
+      recordedAt: '2026-07-26T13:01:19',
+      author: 'Nicole Palma',
+    });
+
+    const model = buildScoresCellModel(
+      patient({ evaluationScores: { braden: current, history: [reappliedToday] } }),
+      '2026-07-26'
+    );
+
+    expect(model.braden?.application).toMatchObject({
+      recordedDate: '2026-07-26',
+      author: 'Nicole Palma',
+    });
+    expect(model.braden?.chipCountdown).toBe('1d');
+  });
+
   it('uses the pediatric band: Braden 15 at age 8 is riesgo medio (cada 3 días)', () => {
     const model = buildScoresCellModel(
       patient({ age: '8', evaluationScores: { braden: entry({ total: 15 }) } }),
@@ -102,6 +134,44 @@ describe('buildScoresCellModel — Braden countdown', () => {
 });
 
 describe('buildScoresCellModel — Downton and history', () => {
+  it('collapses minute/second copies for display but preserves precise genuine repeats', () => {
+    const minuteCopy = entry({
+      code: 'DOWNTON',
+      total: 3,
+      recordedDate: '2026-07-26',
+      recordedAt: '26-07-2026 13:01',
+      author: 'Nicole Palma',
+      authorRole: '',
+    });
+    const preciseCopy = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260726130119,
+      total: 3,
+      recordedDate: '2026-07-26',
+      recordedAt: '2026-07-26T13:01:19',
+      author: 'Nicole Palma',
+      authorRole: 'Enfermera(o)',
+    });
+    const genuineRepeat = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260726130148,
+      total: 3,
+      recordedDate: '2026-07-26',
+      recordedAt: '2026-07-26T13:01:48',
+      author: 'Nicole Palma',
+      authorRole: 'Enfermera(o)',
+    });
+
+    const deduped = dedupeScoreHistory([minuteCopy, preciseCopy, genuineRepeat]);
+
+    expect(deduped).toHaveLength(2);
+    expect(deduped[0]).toMatchObject({
+      encounterEventId: 20260726130119,
+      authorRole: 'Enfermera(o)',
+    });
+    expect(deduped[1].encounterEventId).toBe(20260726130148);
+  });
+
   it('maps Downton severity text to a level for coloring', () => {
     const downton = entry({ code: 'DOWNTON', total: 5, severity: 'Riesgo alto' });
     const model = buildScoresCellModel(patient({ evaluationScores: { downton } }), '2026-07-10');
