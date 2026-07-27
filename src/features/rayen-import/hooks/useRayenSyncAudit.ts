@@ -121,6 +121,7 @@ export const useRayenSyncAudit = ({
         return;
       }
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
+      if (summary.incremental) coverage.incremental = summary.incremental;
       const completedEvent = completeRayenSyncEvent(
         appliedEvent,
         coverage,

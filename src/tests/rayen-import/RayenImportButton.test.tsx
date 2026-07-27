@@ -6,6 +6,7 @@ import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
+  retryClinicalFill: vi.fn(),
   useDailyRecordData: vi.fn(),
   useRayenImport: vi.fn(),
   useRayenFillProgress: vi.fn(),
@@ -49,6 +50,7 @@ describe('RayenImportButton', () => {
       isStaffingProposalBusy: false,
       staffingProposalError: null,
       triggerImport: mocks.triggerImport,
+      retryClinicalFill: mocks.retryClinicalFill,
       confirm: vi.fn(),
       cancel: vi.fn(),
       confirmStaffingProposal: vi.fn(),
@@ -362,6 +364,37 @@ describe('RayenImportButton', () => {
 
     expect(screen.getByText('Gestión de Camas no disponible')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
+  });
+
+  it('resumes an applied clinical fill without requesting the census snapshot again', async () => {
+    mocks.useDailyRecordData.mockReturnValue({
+      record: {
+        rayenSync: {
+          at: '2026-07-14T10:00:00.000Z',
+          by: 'Daniel Opazo',
+          runId: 'run-applied',
+          status: 'applied',
+        },
+        rayenSyncHistory: [
+          {
+            id: 'run-applied',
+            startedAt: '2026-07-14T10:00:00.000Z',
+            by: 'Daniel Opazo',
+            status: 'applied',
+            changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
+          },
+        ],
+      },
+    });
+    mocks.retryClinicalFill.mockResolvedValue(undefined);
+
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
+
+    await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledOnce());
+    expect(mocks.refreshHealth).not.toHaveBeenCalled();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
   it('shows the empty history state, closes with Escape and restores focus', async () => {

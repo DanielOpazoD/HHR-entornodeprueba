@@ -21,7 +21,7 @@ import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts'
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { mergeReportDevices } from './domain/mergeReportDevices';
 import { mergeReportScales } from './domain/mergeReportScales';
-import { parseInvasiveDevices, type DeviceTextItem } from './mapping/parseInvasiveDevices';
+import { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
 import { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
 import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { parseEvaluationScales } from './mapping/parseEvaluationScales';
@@ -29,85 +29,27 @@ import { mergeScaleSources } from './mapping/mergeScaleSources';
 import { parseVitalSigns } from './mapping/parseVitalSigns';
 import { mergeReportVitals } from './domain/mergeReportVitals';
 import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
-import type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
-import type { ImportedCudyr } from '@/types/domain/evaluationScores';
-import type {
-  NursingStaffingProposal,
-  RayenNursingActivity,
-} from './contracts/nursingShiftInference';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 import { createConcurrencyGate } from './domain/concurrencyGate';
+import { clinicalValuesEqual } from './domain/clinicalIncrementalSync';
+import { collectClinicalFillCandidates } from './domain/clinicalFillCandidates';
+import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpointAccumulator';
+import { createClinicalWriteCoordinator } from './domain/clinicalWriteCoordinator';
+import type {
+  ClinicalFillDeps,
+  ClinicalFillProgress,
+  ClinicalFillSummary,
+} from './contracts/clinicalFillContracts';
+import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 
-export interface ClinicalFillDeps {
-  /** Curated HHR nurse catalog used to reconcile Eloísa identities and strengthen confidence. */
-  nurseCatalog?: string[];
-  /** Curated HHR TENS catalog used to reconcile Eloísa Paramédico/TENS identities. */
-  tensCatalog?: string[];
-  fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
-  extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
-  /**
-   * Read one patient's risk scales as clinical-history events (real `publishDatetime` per event), so
-   * `parseHistoryScales` can pick the last score applied on the census day — see `parseHistoryScales`.
-   */
-  fetchHistoryScales: (encId: string) => Promise<{
-    events: RayenHistoryScaleEvent[];
-    nursingActivity?: RayenNursingActivity[];
-    error?: string;
-  }>;
-  /**
-   * Read the same patient's risk scales from the "Instrumentos de evaluación" summary
-   * (`encounterFormEntry`). Neither source is complete on its own, so the runner UNIONS both — some
-   * applied scales only show here, others only in the history report — see `mergeScaleSources`.
-   */
-  fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
-  fetchCudyrCategories: () => Promise<{ items: RayenCudyrCategory[]; error?: string }>;
-  /** Persist a CUDYR on its owning prior census when synchronization is run from D + 1. */
-  applyHistoricalCudyr?: (
-    encId: string,
-    censusDay: string,
-    cudyr: ImportedCudyr
-  ) => Promise<HistoricalCudyrApplyResult>;
-  /** Apply one patient's granular patch. Throwing marks that patient as failed, nothing else. */
-  applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
-  now: () => Date;
-  createId: () => string;
-}
-
-export interface ClinicalFillPatchTarget {
-  censusDate: string;
-  bedId: string;
-  clinicalEpisodeId: string;
-  /** True when the episode belongs to the nested clinical crib rather than the principal bed. */
-  clinicalCrib?: true;
-}
-
-export interface HistoricalCudyrApplyResult {
-  persisted: boolean;
-  changed: boolean;
-  /** False when the episode did not exist in that historical census, so no archive was expected. */
-  applicable?: boolean;
-}
-
-export interface ClinicalFillError {
-  bedId: string;
-  source: 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
-  message: string;
-}
-
-export interface ClinicalFillSummary {
-  /** Eligible patients (with clinicalEpisodeId + name). */
-  total: number;
-  /** Patients whose patch was applied (had at least one change). */
-  patched: number;
-  errors: ClinicalFillError[];
-  /** Staffing review derived from text-free clinical metadata, including explicit no-data states. */
-  staffingProposal?: NursingStaffingProposal;
-}
-
-export interface ClinicalFillProgress {
-  done: number;
-  total: number;
-}
+export type {
+  ClinicalFillDeps,
+  ClinicalFillError,
+  ClinicalFillPatchTarget,
+  ClinicalFillProgress,
+  ClinicalFillSummary,
+  HistoricalCudyrApplyResult,
+} from './contracts/clinicalFillContracts';
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -115,27 +57,7 @@ const message = (error: unknown): string =>
 /** Maximum concurrent reads per remote source. */
 const READ_CONCURRENCY = 4;
 
-interface ClinicalFillCandidate {
-  bedId: string;
-  patient: PatientData;
-  clinicalCrib: boolean;
-}
-
-const isEligible = (patient: PatientData | undefined): patient is PatientData =>
-  !!patient?.clinicalEpisodeId && !!patient.patientName?.trim();
-
-const collectClinicalFillCandidates = (record: DailyRecord): ClinicalFillCandidate[] =>
-  Object.entries(record.beds).flatMap(([bedId, patient]) => {
-    const candidates: ClinicalFillCandidate[] = [];
-    if (isEligible(patient)) candidates.push({ bedId, patient, clinicalCrib: false });
-    if (isEligible(patient?.clinicalCrib)) {
-      candidates.push({ bedId, patient: patient.clinicalCrib, clinicalCrib: true });
-    }
-    return candidates;
-  });
-
-export const countClinicalFillEligiblePatients = (record: DailyRecord): number =>
-  collectClinicalFillCandidates(record).length;
+export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
 
 export const runClinicalFill = async (
   record: DailyRecord,
@@ -148,6 +70,14 @@ export const runClinicalFill = async (
     total: eligible.length,
     patched: 0,
     errors: [],
+    incremental: {
+      received: 0,
+      newFacts: 0,
+      duplicates: 0,
+      corrections: 0,
+      patientWrites: 0,
+      historySnapshots: 0,
+    },
     staffingProposal: inferNursingShifts(
       [],
       fecha,
@@ -166,15 +96,7 @@ export const runClinicalFill = async (
   // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
   // writes share one census version and can otherwise conflict with another write from this same
   // synchronization, producing a false "modified by another user" result.
-  let writeQueue: Promise<void> = Promise.resolve();
-  const enqueueWrite = <T>(operation: () => Promise<T>): Promise<T> => {
-    const pending = writeQueue.then(operation);
-    writeQueue = pending.then(
-      () => undefined,
-      () => undefined
-    );
-    return pending;
-  };
+  const writes = createClinicalWriteCoordinator(summary.incremental!);
 
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
@@ -207,6 +129,13 @@ export const runClinicalFill = async (
     if (!encId) return;
     let merged = patient;
     let historicalCudyrPatched = false;
+    const recordIncrementalFacts = createClinicalCheckpointAccumulator(
+      patient,
+      summary.incremental!,
+      clinicalSyncCheckpoint => {
+        merged = { ...merged, clinicalSyncCheckpoint };
+      }
+    );
 
     // Start every independent patient source together. Source-specific gates avoid head-of-line
     // blocking: four slow PDFs no longer prevent another patient's history/forms from starting.
@@ -259,6 +188,13 @@ export const runClinicalFill = async (
       for (const activity of historyResult.value.nursingActivity ?? []) {
         nursingObservations.push({ ...activity, encounterId: encId });
       }
+      recordIncrementalFacts(
+        'staffing',
+        (historyResult.value.nursingActivity ?? []).map(activity => ({
+          watermark: activity.recordedAt,
+          value: activity,
+        }))
+      );
     }
 
     try {
@@ -272,6 +208,16 @@ export const runClinicalFill = async (
       if (scales.length > 0) {
         merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       }
+      if (!historyReadError && !formsReadError) {
+        recordIncrementalFacts(
+          'scales',
+          scales.map(scale => ({
+            sourceId: `${scale.code}:${scale.encounterEventId}:${scale.sourceOrder ?? 0}`,
+            watermark: scale.encounterEventId,
+            value: scale,
+          }))
+        );
+      }
     } catch (error) {
       summary.errors.push({ bedId, source: 'scales', message: message(error) });
     }
@@ -282,6 +228,14 @@ export const runClinicalFill = async (
       if (formsResult.status === 'fulfilled' && !formsReadError) {
         const vitals = parseVitalSigns(forms);
         merged = mergeReportVitals(merged, vitals, fecha);
+        recordIncrementalFacts(
+          'vitals',
+          vitals.map(vital => ({
+            sourceId: vital.sourceEventId,
+            watermark: vital.sourceEventId ?? `${vital.recordedDate}|${vital.recordedAt}`,
+            value: vital,
+          }))
+        );
       }
     } catch (error) {
       summary.errors.push({ bedId, source: 'vitals', message: message(error) });
@@ -296,7 +250,7 @@ export const runClinicalFill = async (
       let priorCudyrPersisted = !priorCudyr;
       if (priorCudyr && deps.applyHistoricalCudyr) {
         try {
-          const historicalResult = await enqueueWrite(() =>
+          const historicalResult = await writes.enqueue(() =>
             deps.applyHistoricalCudyr!(encId, priorCensusDay, priorCudyr)
           );
           const historicalNotApplicable = historicalResult.applicable === false;
@@ -319,10 +273,12 @@ export const runClinicalFill = async (
       }
       const existingCudyr = merged.evaluationScores?.cudyr;
       if (importedCudyr) {
-        merged = {
-          ...merged,
-          evaluationScores: { ...merged.evaluationScores, cudyr: importedCudyr },
-        };
+        if (!clinicalValuesEqual(existingCudyr, importedCudyr)) {
+          merged = {
+            ...merged,
+            evaluationScores: { ...merged.evaluationScores, cudyr: importedCudyr },
+          };
+        }
       } else if (ok && existingCudyr && priorCudyrPersisted) {
         // An authoritative read with no CUDYR owned by this census removes any stale local copy.
         // This also migrates pre-fix records whose stored recordedDate incorrectly matched D + 1.
@@ -353,17 +309,20 @@ export const runClinicalFill = async (
       patch[`${patchPrefix}.vitalSigns`] = merged.vitalSigns;
     if (merged.vitalSignsHistory !== patient.vitalSignsHistory)
       patch[`${patchPrefix}.vitalSignsHistory`] = merged.vitalSignsHistory;
+    if (merged.clinicalSyncCheckpoint !== patient.clinicalSyncCheckpoint)
+      patch[`${patchPrefix}.clinicalSyncCheckpoint`] = merged.clinicalSyncCheckpoint;
     if (Object.keys(patch).length === 0) return;
 
     try {
-      await enqueueWrite(() =>
-        deps.applyPatch(patch, {
+      await writes.applyPatientPatch(async captureHistorySnapshot => {
+        await deps.applyPatch(patch, {
           censusDate: fecha,
           bedId,
           clinicalEpisodeId: encId,
+          captureHistorySnapshot,
           ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
-        })
-      );
+        });
+      });
       summary.patched += 1;
     } catch (error) {
       summary.errors.push({ bedId, source: 'patch', message: message(error) });

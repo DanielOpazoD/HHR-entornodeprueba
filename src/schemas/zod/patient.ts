@@ -124,6 +124,29 @@ const MedicalHandoffEntrySchema = z.object({
   currentStatusBy: nullableOptional(MedicalHandoffAuditActorSchema),
 });
 
+const ClinicalSyncFactCheckpointSchema = z.object({
+  identity: z.string(),
+  fingerprint: z.string(),
+  watermark: nullableOptional(z.string()),
+});
+
+const ClinicalSyncSourceCheckpointSchema = z.object({
+  watermark: nullableOptional(z.string()),
+  facts: z.array(ClinicalSyncFactCheckpointSchema).default([]),
+});
+
+const ClinicalSyncCheckpointSchema = z.object({
+  version: z.number().int(),
+  fingerprintVersion: z.number().int(),
+  sources: z
+    .object({
+      vitals: nullableOptional(ClinicalSyncSourceCheckpointSchema),
+      scales: nullableOptional(ClinicalSyncSourceCheckpointSchema),
+      staffing: nullableOptional(ClinicalSyncSourceCheckpointSchema),
+    })
+    .default({}),
+});
+
 import { PatientData } from '@/types/domain/patient';
 
 export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = z.lazy(() =>
@@ -199,6 +222,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       ),
       clinicalEvents: nullishDefault(z.array(ClinicalEventSchema), () => []),
       fhir_resource: nullableOptional(FhirResourceSchema),
+      clinicalSyncCheckpoint: nullableOptional(ClinicalSyncCheckpointSchema),
     })
     .passthrough()
     .transform(patient => {

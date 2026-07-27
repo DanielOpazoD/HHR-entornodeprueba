@@ -45,6 +45,15 @@ export interface RayenSyncCoverage {
   sourceErrors: number;
   /** Actionable, privacy-safe diagnostics for recent synchronization runs. */
   issues?: RayenSyncCoverageIssue[];
+  /** Aggregate-only incremental evidence. No patient, professional or clinical values are stored. */
+  incremental?: {
+    received: number;
+    newFacts: number;
+    duplicates: number;
+    corrections: number;
+    patientWrites: number;
+    historySnapshots: number;
+  };
   completedAt: string;
 }
 

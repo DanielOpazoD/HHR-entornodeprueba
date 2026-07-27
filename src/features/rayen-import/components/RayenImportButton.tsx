@@ -61,6 +61,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
     isStaffingProposalBusy,
     staffingProposalError,
     triggerImport,
+    retryClinicalFill,
     confirm,
     cancel,
     confirmStaffingProposal,
@@ -134,7 +135,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
     try {
       if (recovery.action === 'retry') {
         closeHistory();
-        await handleSync();
+        if (history[0]?.status === 'applied') await retryClinicalFill();
+        else await handleSync();
       } else {
         await extension.refresh();
       }

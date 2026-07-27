@@ -26,6 +26,8 @@ export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
+  /** See PartialUpdateDailyRecordOptions.historyPolicy. Defaults to the safe `snapshot` behavior. */
+  historyPolicy?: 'snapshot' | 'skip';
 }
 
 export interface DailyRecordSaveWriteOptions {

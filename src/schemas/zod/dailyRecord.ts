@@ -74,6 +74,16 @@ const RayenSyncCoverageSchema = z.object({
       })
     )
   ),
+  incremental: nullableOptional(
+    z.object({
+      received: z.number().int().nonnegative(),
+      newFacts: z.number().int().nonnegative(),
+      duplicates: z.number().int().nonnegative(),
+      corrections: z.number().int().nonnegative(),
+      patientWrites: z.number().int().nonnegative(),
+      historySnapshots: z.number().int().nonnegative(),
+    })
+  ),
   completedAt: z.string(),
 });
 

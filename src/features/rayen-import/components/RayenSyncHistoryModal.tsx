@@ -111,6 +111,8 @@ const quietRunSignature = (event: RayenSyncEvent): string =>
     event.source?.extensionVersion ?? '',
     event.source?.fichaMedico ?? '',
     event.source?.gestionCamas ?? '',
+    event.coverage?.incremental?.patientWrites ?? '',
+    event.coverage?.incremental?.duplicates ?? '',
   ].join('|');
 
 type HistoryListItem =
@@ -164,6 +166,17 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
       {source && <span className="font-medium text-slate-400">{source}</span>}
       {duration && (
         <span className="font-medium tabular-nums text-slate-500">Duración {duration}</span>
+      )}
+      {event.coverage?.incremental && (
+        <span
+          className="font-medium tabular-nums text-slate-500"
+          title="Resumen agregado; no contiene nombres, RUT ni valores clínicos"
+        >
+          Incremental: {event.coverage.incremental.newFacts} nuevos ·{' '}
+          {event.coverage.incremental.duplicates} ya conocidos ·{' '}
+          {event.coverage.incremental.corrections} corregidos ·{' '}
+          {event.coverage.incremental.patientWrites} escrituras
+        </span>
       )}
     </div>
   );

@@ -78,7 +78,10 @@ describe('runClinicalFill', () => {
     expect(deps.applyPatch).toHaveBeenCalledTimes(1);
     const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const target = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][1];
-    expect(Object.keys(patch)).toEqual(['beds.H1C2.evaluationScores']);
+    expect(Object.keys(patch)).toEqual([
+      'beds.H1C2.evaluationScores',
+      'beds.H1C2.clinicalSyncCheckpoint',
+    ]);
     expect(patch['beds.H1C2.evaluationScores']).toMatchObject({
       braden: { total: 17 },
       cudyr: { category: 'D3', source: 'Eloísa · Ficha Médico' },
@@ -87,6 +90,7 @@ describe('runClinicalFill', () => {
       censusDate: '2026-07-10',
       bedId: 'H1C2',
       clinicalEpisodeId: 'E1',
+      captureHistorySnapshot: true,
     });
   });
 
@@ -221,12 +225,12 @@ describe('runClinicalFill', () => {
         }),
         'beds.H5C1.clinicalCrib.vitalSignsHistory': expect.any(Array),
       }),
-      {
+      expect.objectContaining({
         censusDate: '2026-07-10',
         bedId: 'H5C1',
         clinicalEpisodeId: '141814',
         clinicalCrib: true,
-      }
+      })
     );
   });
 
@@ -372,6 +376,13 @@ describe('runClinicalFill', () => {
     expect(summary).toMatchObject({ total: 4, patched: 4, errors: [] });
     expect(applyPatch).toHaveBeenCalledTimes(4);
     expect(maxActiveWrites).toBe(1);
+    expect(applyPatch.mock.calls.map(([, target]) => target.captureHistorySnapshot)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(summary.incremental).toMatchObject({ patientWrites: 4, historySnapshots: 1 });
   });
 
   it('a CUDYR bulk failure costs only that source and is reported once', async () => {

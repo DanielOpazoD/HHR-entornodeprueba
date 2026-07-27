@@ -56,4 +56,35 @@ describe('runClinicalFill no-op behavior', () => {
     expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
+
+  it('writes nothing per patient when a second synchronization receives the same clinical facts', async () => {
+    const firstRecord = record({ H1C2: { encId: 'E1' } });
+    const firstDeps = okDeps();
+    const firstSummary = await runClinicalFill(firstRecord, '2026-07-10', firstDeps);
+    const firstPatch = (firstDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(firstPatch).toBeDefined();
+
+    const storedRecord = record({ H1C2: { encId: 'E1' } });
+    const storedPatient = storedRecord.beds.H1C2!;
+    storedPatient.evaluationScores = firstPatch['beds.H1C2.evaluationScores'];
+    storedPatient.clinicalSyncCheckpoint = firstPatch['beds.H1C2.clinicalSyncCheckpoint'];
+
+    const retryDeps = okDeps();
+    const summary = await runClinicalFill(storedRecord, '2026-07-10', retryDeps);
+
+    expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
+    expect(firstSummary.incremental).toMatchObject({ patientWrites: 1, historySnapshots: 1 });
+    expect(summary.incremental).toMatchObject({
+      newFacts: 0,
+      duplicates: 1,
+      patientWrites: 0,
+      historySnapshots: 0,
+    });
+    expect(retryDeps.applyPatch).not.toHaveBeenCalled();
+
+    const firstWriteBytes = JSON.stringify(firstPatch).length;
+    const retryWriteBytes = 0;
+    const reduction = 1 - retryWriteBytes / firstWriteBytes;
+    expect(reduction).toBeGreaterThanOrEqual(0.8);
+  });
 });

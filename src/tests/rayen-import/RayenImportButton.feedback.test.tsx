@@ -6,6 +6,7 @@ import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
+  retryClinicalFill: vi.fn(),
   useDailyRecordData: vi.fn(),
   useRayenImport: vi.fn(),
   useRayenFillProgress: vi.fn(),
@@ -68,6 +69,7 @@ describe('RayenImportButton feedback', () => {
       error: null,
       staffingProposal: null,
       triggerImport: mocks.triggerImport,
+      retryClinicalFill: mocks.retryClinicalFill,
       confirm: vi.fn(),
       cancel: vi.fn(),
     });

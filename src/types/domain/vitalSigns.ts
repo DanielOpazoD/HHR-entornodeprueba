@@ -6,6 +6,8 @@
  * All numeric readings are nullable: a `VITAL_SIGNS` form may record only some of them.
  */
 export interface PatientVitalSigns {
+  /** Stable Eloisa event identity. Optional for records created before incremental sync. */
+  sourceEventId?: string;
   /** ISO local day the vitals were taken (YYYY-MM-DD, Rapa Nui) — key for census-day selection. */
   recordedDate: string;
   /** When they were taken, verbatim (measurement time when present, else the form's stamp). */
