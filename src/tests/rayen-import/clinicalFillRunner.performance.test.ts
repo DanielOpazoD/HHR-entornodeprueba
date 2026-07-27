@@ -90,7 +90,7 @@ describe('runClinicalFill performance pipeline', () => {
     expect(applyPatch).toHaveBeenCalledTimes(5);
   });
 
-  it('keeps extension and PDF source groups bounded to four concurrent patients', async () => {
+  it('bounds each source independently so slow PDFs do not block history or forms', async () => {
     const releaseReads: Array<() => void> = [];
     const fetchDeviceReport = vi.fn(
       () =>
@@ -98,12 +98,18 @@ describe('runClinicalFill performance pipeline', () => {
           releaseReads.push(() => resolve({ base64: '' }));
         })
     );
-    const dependencies = deps({ fetchDeviceReport });
+    const fetchHistoryScales = vi.fn().mockResolvedValue({ events: [] });
+    const fetchScalesForms = vi.fn().mockResolvedValue({ forms: [] });
+    const dependencies = deps({ fetchDeviceReport, fetchHistoryScales, fetchScalesForms });
 
     const pending = runClinicalFill(record(5), '2026-07-10', dependencies);
 
     await vi.waitFor(() => expect(fetchDeviceReport).toHaveBeenCalledTimes(4));
     expect(releaseReads).toHaveLength(4);
+    await vi.waitFor(() => {
+      expect(fetchHistoryScales).toHaveBeenCalledTimes(5);
+      expect(fetchScalesForms).toHaveBeenCalledTimes(5);
+    });
     releaseReads[0]();
     await vi.waitFor(() => expect(fetchDeviceReport).toHaveBeenCalledTimes(5));
     releaseReads.slice(1).forEach(release => release());

@@ -90,7 +90,7 @@ export interface HistoricalCudyrApplyResult {
 
 export interface ClinicalFillError {
   bedId: string;
-  source: 'devices' | 'scales' | 'vitals' | 'cudyr' | 'patch';
+  source: 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
   message: string;
 }
 
@@ -112,7 +112,7 @@ export interface ClinicalFillProgress {
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/** How many patient source groups may use the extension/PDF parser concurrently. */
+/** Maximum concurrent reads per remote source. */
 const READ_CONCURRENCY = 4;
 
 interface ClinicalFillCandidate {
@@ -157,7 +157,11 @@ export const runClinicalFill = async (
   };
   if (eligible.length === 0) return summary;
   const nursingObservations: NursingActivityObservation[] = [];
-  const withReadSlot = createConcurrencyGate(READ_CONCURRENCY);
+  // Each source gets independent backpressure. A slow device PDF must not consume the slots used
+  // by history/forms, while every Eloisa endpoint still stays below the same conservative limit.
+  const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
+  const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
+  const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
 
   // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
   // writes share one census version and can otherwise conflict with another write from this same
@@ -204,19 +208,17 @@ export const runClinicalFill = async (
     let merged = patient;
     let historicalCudyrPatched = false;
 
-    // Start every independent patient source together. Previously the device PDF (up to a 30 s
-    // timeout) completed before history/forms even began, making source latencies additive across
-    // four patient batches. Keeping the same patient concurrency while overlapping these reads
-    // bounds each patient by its slowest source instead of their sum.
-    const [deviceResult, historyResult, formsResult] = await withReadSlot(() =>
-      Promise.allSettled([
-        deps
-          .fetchDeviceReport(encId, fecha)
-          .then(async ({ base64 }) => (base64 ? deps.extractDeviceItems(base64) : [])),
-        deps.fetchHistoryScales(encId),
-        deps.fetchScalesForms(encId),
-      ])
-    );
+    // Start every independent patient source together. Source-specific gates avoid head-of-line
+    // blocking: four slow PDFs no longer prevent another patient's history/forms from starting.
+    const [deviceResult, historyResult, formsResult] = await Promise.allSettled([
+      withDeviceReadSlot(async () => {
+        const { base64, error } = await deps.fetchDeviceReport(encId, fecha);
+        if (error) throw new Error(error);
+        return base64 ? deps.extractDeviceItems(base64) : [];
+      }),
+      withHistoryReadSlot(() => deps.fetchHistoryScales(encId)),
+      withFormsReadSlot(() => deps.fetchScalesForms(encId)),
+    ]);
 
     if (deviceResult.status === 'rejected') {
       summary.errors.push({ bedId, source: 'devices', message: message(deviceResult.reason) });
@@ -245,7 +247,15 @@ export const runClinicalFill = async (
     }
     const forms =
       formsResult.status === 'fulfilled' && !formsReadError ? formsResult.value.forms : [];
-    if (historyResult.status === 'fulfilled' && !historyResult.value.error) {
+    const historyReadError =
+      historyResult.status === 'rejected'
+        ? message(historyResult.reason)
+        : historyResult.value.error;
+    if (historyReadError) {
+      summary.errors.push({ bedId, source: 'scales', message: historyReadError });
+      summary.errors.push({ bedId, source: 'staffing', message: historyReadError });
+    }
+    if (historyResult.status === 'fulfilled' && !historyReadError) {
       for (const activity of historyResult.value.nursingActivity ?? []) {
         nursingObservations.push({ ...activity, encounterId: encId });
       }
@@ -254,7 +264,9 @@ export const runClinicalFill = async (
     try {
       // Union BOTH scale sources — neither is complete on its own.
       const historyScales =
-        historyResult.status === 'fulfilled' ? parseHistoryScales(historyResult.value.events) : [];
+        historyResult.status === 'fulfilled' && !historyReadError
+          ? parseHistoryScales(historyResult.value.events)
+          : [];
       const summaryScales = parseEvaluationScales(forms);
       const scales = mergeScaleSources(historyScales, summaryScales);
       if (scales.length > 0) {

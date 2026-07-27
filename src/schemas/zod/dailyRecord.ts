@@ -61,7 +61,7 @@ const RayenSyncCoverageSchema = z.object({
     z.array(
       z.object({
         bedId: z.string(),
-        source: z.enum(['devices', 'scales', 'vitals', 'cudyr', 'patch']),
+        source: z.enum(['devices', 'scales', 'vitals', 'staffing', 'cudyr', 'patch']),
         reason: z.enum([
           'concurrent_write',
           'source_unavailable',

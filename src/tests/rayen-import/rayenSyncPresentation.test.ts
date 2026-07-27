@@ -97,6 +97,18 @@ describe('rayen sync presentation', () => {
     );
   });
 
+  it('identifies a staffing source failure in user-facing recovery guidance', () => {
+    expect(
+      presentRayenCoverageIssue({
+        bedId: 'H2C1',
+        source: 'staffing',
+        reason: 'source_unavailable',
+      })
+    ).toBe(
+      'Cama H2C1 · Enfermería / TENS: Eloísa no devolvió esta información; comprueba la ficha y reintenta.'
+    );
+  });
+
   it('does not mislabel an historical CUDYR archive issue as an incomplete Eloísa source', () => {
     const event: RayenSyncEvent = {
       id: 'run-cudyr-history',

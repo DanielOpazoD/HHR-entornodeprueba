@@ -117,6 +117,19 @@ describe('rayen sync history', () => {
     expect(JSON.stringify(coverage)).not.toContain('modificado por otro usuario');
   });
 
+  it('preserves staffing as an actionable clinical source without persisting its raw error', () => {
+    const coverage = buildRayenSyncCoverage(
+      2,
+      [{ bedId: 'H2C1', source: 'staffing', message: 'Error interno de historial 503' }],
+      '2026-07-17T07:02:25.000Z'
+    );
+
+    expect(coverage.issues).toEqual([
+      { bedId: 'H2C1', source: 'staffing', reason: 'source_unavailable' },
+    ]);
+    expect(JSON.stringify(coverage)).not.toContain('Error interno');
+  });
+
   it('finalizes as complete or partial while updating the same event', () => {
     const applied = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
     const complete = completeRayenSyncEvent(

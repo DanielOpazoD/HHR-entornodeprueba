@@ -96,7 +96,9 @@ export const buildRayenSyncCoverage = (
   };
   const issueMap = new Map<string, RayenSyncCoverageIssue>();
   errors.forEach(error => {
-    const source = ['devices', 'scales', 'vitals', 'cudyr', 'patch'].includes(error.source ?? '')
+    const source = ['devices', 'scales', 'vitals', 'staffing', 'cudyr', 'patch'].includes(
+      error.source ?? ''
+    )
       ? (error.source as RayenSyncCoverageIssue['source'])
       : 'patch';
     const issue: RayenSyncCoverageIssue = {

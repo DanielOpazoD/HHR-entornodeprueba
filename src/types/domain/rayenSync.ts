@@ -7,7 +7,7 @@ export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
-export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'cudyr' | 'patch';
+export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
 
 export type RayenSyncIssueReason =
   | 'concurrent_write'

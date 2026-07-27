@@ -116,6 +116,7 @@ const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
   devices: 'Dispositivos',
   scales: 'Escalas de riesgo',
   vitals: 'Signos vitales',
+  staffing: 'Enfermería / TENS',
   cudyr: 'CUDYR',
   patch: 'Guardado del censo',
 };

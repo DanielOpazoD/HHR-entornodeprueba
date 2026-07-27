@@ -37,28 +37,32 @@ const formatLocalStamp = (value: string): string => {
 const hasSection = (value: BoundaryEvidence): value is RayenStaffingBoundaryExclusion =>
   'section' in value;
 
+const evidenceKey = (item: BoundaryEvidence): string =>
+  `${hasSection(item) ? item.section : 'proposal'}-${item.name}-${item.role}-${item.recordedAt}-${item.source}-${item.boundary}`;
+
 export const StaffingBoundaryExclusions: React.FC<{
   evidence: BoundaryEvidence[];
   total: number;
 }> = ({ evidence, total }) => {
   if (total === 0) return null;
+  const uniqueEvidence = [...new Map(evidence.map(item => [evidenceKey(item), item])).values()];
   return (
     <details className="mt-2 rounded-lg border border-amber-200 bg-white/60 px-2.5 py-2">
       <summary className="cursor-pointer font-semibold text-amber-900">
         Ver quiénes fueron excluidos ({total})
       </summary>
-      {evidence.length > 0 ? (
+      {uniqueEvidence.length > 0 ? (
         <>
-          {evidence.length < total && (
+          {uniqueEvidence.length < total && (
             <p className="mt-2 text-[11px] text-amber-800">
-              Se muestran {evidence.length} firmas distintas; el total incluye acciones repetidas en
-              diferentes fichas.
+              Se muestran {uniqueEvidence.length} firmas únicas disponibles. El total también puede
+              incluir acciones repetidas o detalles omitidos por el límite del historial.
             </p>
           )}
           <ul className="mt-2 space-y-1.5" aria-label="Registros excluidos cerca del relevo">
-            {evidence.map(item => (
+            {uniqueEvidence.map(item => (
               <li
-                key={`${hasSection(item) ? item.section : 'proposal'}-${item.name}-${item.recordedAt}-${item.source}-${item.boundary}`}
+                key={evidenceKey(item)}
                 className="rounded-md border border-amber-100 bg-white px-2 py-1.5 text-[11px] text-slate-700"
               >
                 <p className="font-semibold text-slate-800">

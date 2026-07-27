@@ -253,6 +253,57 @@ describe('runClinicalFill', () => {
     expect(summary.errors).toEqual([{ bedId: 'H1C2', source: 'devices', message: 'tab cerrada' }]);
   });
 
+  it('rejects a declared device error before parsing its non-authoritative payload', async () => {
+    const extractDeviceItems = vi.fn().mockResolvedValue([]);
+    const deps = okDeps({
+      fetchDeviceReport: vi.fn().mockResolvedValue({
+        base64: 'payload-parcial',
+        error: 'Reporte de dispositivos incompleto',
+      }),
+      extractDeviceItems,
+    });
+
+    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.patched).toBe(1);
+    expect(summary.errors).toEqual([
+      { bedId: 'H1C2', source: 'devices', message: 'Reporte de dispositivos incompleto' },
+    ]);
+    expect(extractDeviceItems).not.toHaveBeenCalled();
+  });
+
+  it('reports a history error for scales and staffing without trusting its partial events', async () => {
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({
+        events: [BRADEN_HISTORY_EVENT],
+        nursingActivity: [
+          {
+            author: 'Enfermera Parcial',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-07-10T08:00:00',
+            source: 'evaluation-scale',
+          },
+        ],
+        error: 'Historial clínico no disponible',
+      }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
+
+    expect(summary.patched).toBe(0);
+    expect(summary.errors).toEqual([
+      { bedId: 'H1C2', source: 'scales', message: 'Historial clínico no disponible' },
+      { bedId: 'H1C2', source: 'staffing', message: 'Historial clínico no disponible' },
+    ]);
+    expect(summary.staffingProposal).toMatchObject({
+      day: { names: [] },
+      night: { names: [] },
+    });
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
+
   it('reports a fulfilled forms error and does not treat its scales or vitals as successful', async () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),

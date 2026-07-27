@@ -111,6 +111,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
   relevo, conserva evidencia operacional acotada del funcionario (nombre, rol, fuente y hora), pero
   nunca nombres/RUN/diagnósticos de pacientes, contenido clínico ni errores crudos.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
+- **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
+  máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
+  permanecen serializados para evitar conflictos de escritura.
 - **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
   promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.
