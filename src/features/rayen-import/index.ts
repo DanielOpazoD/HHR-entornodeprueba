@@ -54,6 +54,7 @@ export {
   latestEvaluationScales,
   evaluationScalesForCensusDay,
   evaluationScalesAsOf,
+  evaluationScaleApplicationsAsOf,
 } from './mapping/parseEvaluationScales';
 export { parseHistoryScales } from './mapping/parseHistoryScales';
 export type {

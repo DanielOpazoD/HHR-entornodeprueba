@@ -16,8 +16,9 @@
  * Braden + Downton records.
  *
  * HISTORY & RECENCY. The endpoint returns the FULL history, so a scale can appear N times.
- * `encounterEventId` is monotonic (higher = more recently created), so within a day the *current*
- * value is the entry with the highest id. Ordering by the printed timestamps is NOT reliable:
+ * Every application receives a normalized `YYYYMMDDHHMMSS` ordering key, so repeated applications
+ * embedded in one form and applications created as separate forms remain directly comparable.
+ * Form-level printed timestamps alone are NOT reliable:
  * `startDateTime`/`createDateTime` go stale on a "redo" (keep the original time) and their TZ offset
  * is inconsistent (server-continental -04:00 vs Rapa Nui -06:00 seen mixed on the same patient).
  *
@@ -39,6 +40,11 @@
  * are the values HHR persists today; the per-item breakdown is kept here for future use.
  */
 
+import {
+  groupEvaluationScaleApplications,
+  type RawEvaluationCampo,
+} from './groupEvaluationScaleApplications';
+
 const RAPA_NUI_TZ = 'Pacific/Easter';
 
 export type EvaluationScaleCode = 'BRADEN' | 'DOWNTON';
@@ -55,13 +61,15 @@ export interface EvaluationScaleItem {
   valueName: string;
 }
 
-/** A single recorded evaluation scale (one form entry, normalized). */
+/** A single application of an evaluation scale (a form may contain several repeated applications). */
 export interface EvaluationScale {
   code: EvaluationScaleCode;
   /** Instrument name as printed, e.g. "Escala de riesgo UPP (Braden)". */
   name: string;
-  /** Monotonic event id; higher = more recent. Use to pick the current record within a day. */
+  /** Normalized YYYYMMDDHHMMSS application timestamp. */
   encounterEventId: number;
+  /** Monotonic form/application order used when timestamps are equal or lack clock precision. */
+  sourceOrder?: number;
   /** ISO local day it was performed (YYYY-MM-DD) — the key for census-day selection. */
   recordedDate: string;
   /** When it was performed, verbatim as printed (local time; TZ offset is unreliable — see file note). */
@@ -77,22 +85,14 @@ export interface EvaluationScale {
   /** Severity result ("Nivel de Severidad"), e.g. "Riesgo bajo"; null when absent. */
   severity: string | null;
   /**
-   * True when this record is ARCHIVED (superseded) in Ficha Médico's history. Only the history parser
-   * sets it; the summary/encounterFormEntry table shows live records, so those leave it undefined. A
-   * live record ALWAYS wins over an archived one on the same day (regardless of which is newer) — the
-   * cross-source resolution in `mergeScaleSources` relies on this flag surviving to the union step.
+   * True when the user hid this application from Ficha Médico's quick summary. It remains clinically
+   * usable: on a given day a visible application wins, but when every application is archived the
+   * most recent archived one is the day's valid result.
    */
   archived?: boolean;
 }
 
-export interface RawCampo {
-  id?: unknown;
-  label?: unknown;
-  value?: unknown;
-  valueName?: unknown;
-  sectionId?: unknown;
-  createDatetime?: unknown;
-}
+export type RawCampo = RawEvaluationCampo;
 
 export interface RawForm {
   formCodigo?: unknown;
@@ -203,6 +203,21 @@ const codeOf = (form: RawForm, campos: RawCampo[]): EvaluationScaleCode | null =
   return null;
 };
 
+const orderingKeyForApplication = (
+  form: RawForm,
+  when: ReturnType<typeof effectiveWhen>,
+  applicationIndex: number
+): number => {
+  const day = when.iso.replace(/-/g, '');
+  if (!/^\d{8}$/.test(day)) return (Number(form.encounterEventId) || 0) + applicationIndex;
+  const clock = when.raw.match(/(?:^|[T ])(\d{1,2}):(\d{2}):(\d{2})/);
+  const timestamp = `${day}${clock ? `${pad2(clock[1])}${clock[2]}${clock[3]}` : '000000'}`;
+  const key = Number(timestamp);
+  return Number.isSafeInteger(key) && key > 0
+    ? key
+    : (Number(form.encounterEventId) || 0) + applicationIndex;
+};
+
 /** Parse the raw endpoint payload into every recorded Braden/Downton scale (full history). */
 export const parseEvaluationScales = (raw: unknown): EvaluationScale[] => {
   const forms: RawForm[] = Array.isArray(raw) ? (raw as RawForm[]) : [];
@@ -216,47 +231,49 @@ export const parseEvaluationScales = (raw: unknown): EvaluationScale[] => {
     const code = codeOf(form, campos);
     if (!code) continue;
 
-    const items: EvaluationScaleItem[] = [];
-    let total: number | null = null;
-    let severity: string | null = null;
+    const applications = groupEvaluationScaleApplications(campos);
+    applications.forEach((applicationCampos, applicationIndex) => {
+      const items: EvaluationScaleItem[] = [];
+      let total: number | null = null;
+      let severity: string | null = null;
 
-    for (const campo of campos) {
-      const id = str(campo.id);
-      const idUpper = id.toUpperCase();
-      if (idUpper.endsWith('_PUNTAJE')) {
-        // An in-progress scale can have an empty Puntaje — keep it null, don't let Number('') → 0.
-        const rawValue = str(campo.value);
-        const n = Number(rawValue);
-        total = rawValue !== '' && Number.isFinite(n) ? n : null;
-      } else if (idUpper.endsWith('_RESULTADOSCORE') || idUpper.endsWith('_RESULTADO')) {
-        severity = str(campo.valueName) || null;
-      } else if (Number(campo.sectionId) === 0) {
-        items.push({
-          id,
-          label: str(campo.label),
-          value: str(campo.value),
-          valueName: str(campo.valueName),
-        });
+      for (const campo of applicationCampos) {
+        const id = str(campo.id);
+        const idUpper = id.toUpperCase();
+        if (idUpper.endsWith('_PUNTAJE')) {
+          // An in-progress scale can have an empty Puntaje — keep it null, don't let Number('') → 0.
+          const rawValue = str(campo.value);
+          const n = Number(rawValue);
+          total = rawValue !== '' && Number.isFinite(n) ? n : null;
+        } else if (idUpper.endsWith('_RESULTADOSCORE') || idUpper.endsWith('_RESULTADO')) {
+          severity = str(campo.valueName) || null;
+        } else if (Number(campo.sectionId) === 0) {
+          items.push({
+            id,
+            label: str(campo.label),
+            value: str(campo.value),
+            valueName: str(campo.valueName),
+          });
+        }
       }
-    }
 
-    const when = effectiveWhen(form, campos);
-    scales.push({
-      code,
-      name: str(form.nameForm),
-      encounterEventId: Number(form.encounterEventId) || 0,
-      recordedDate: when.iso,
-      recordedAt: when.raw,
-      author: str(form.authorHealthCarePractitionerName),
-      authorRole: str(form.authorHealthCarePractitionerRoleName),
-      items,
-      total,
-      severity,
-      // The summary endpoint (encounterFormEntry) can also carry ARCHIVED (superseded) scales — the
-      // rendered "Instrumentos de evaluación" table hides them, but the raw feed includes them. Flag
-      // them so `mergeScaleSources` drops an archived record when a live one exists the SAME day;
-      // otherwise the archived (later-in-the-day) one would win the highest-id "as-of" selection.
-      archived: form.archived === true,
+      const when = effectiveWhen(form, applicationCampos);
+      scales.push({
+        code,
+        name: str(form.nameForm),
+        encounterEventId: orderingKeyForApplication(form, when, applicationIndex),
+        sourceOrder: (Number(form.encounterEventId) || 0) * 100 + applicationIndex,
+        recordedDate: when.iso,
+        recordedAt: when.raw,
+        author: str(form.authorHealthCarePractitionerName),
+        authorRole: str(form.authorHealthCarePractitionerRoleName),
+        items,
+        total,
+        severity,
+        // Archived remains provenance, never the current clinical result. It may still prove that
+        // the instrument was applied; downstream keeps that distinction explicit.
+        archived: form.archived === true,
+      });
     });
   }
 
@@ -268,11 +285,41 @@ const pickLatestPerCode = (scales: EvaluationScale[]): EvaluationScale[] => {
   const latest = new Map<EvaluationScaleCode, EvaluationScale>();
   for (const scale of scales) {
     const current = latest.get(scale.code);
-    if (!current || scale.encounterEventId > current.encounterEventId)
-      latest.set(scale.code, scale);
+    if (!current || isLaterScale(scale, current)) latest.set(scale.code, scale);
   }
   return (['BRADEN', 'DOWNTON'] as EvaluationScaleCode[])
     .map(code => latest.get(code))
+    .filter((scale): scale is EvaluationScale => scale != null);
+};
+
+const isLaterScale = (candidate: EvaluationScale, current: EvaluationScale): boolean =>
+  candidate.encounterEventId > current.encounterEventId ||
+  (candidate.encounterEventId === current.encounterEventId &&
+    (candidate.sourceOrder ?? 0) > (current.sourceOrder ?? 0));
+
+/**
+ * Rayen's day-level precedence: choose the latest day, then prefer that day's latest visible entry;
+ * if every entry of the day is archived, use the latest archived one. "Archived" means hidden from
+ * the quick summary, not clinically invalid.
+ */
+const pickPreferredResultPerCode = (scales: EvaluationScale[]): EvaluationScale[] => {
+  const selected = new Map<EvaluationScaleCode, EvaluationScale>();
+  for (const code of ['BRADEN', 'DOWNTON'] as EvaluationScaleCode[]) {
+    // In-progress forms are retained in history but cannot displace the latest completed result.
+    const candidates = scales.filter(scale => scale.code === code && scale.total != null);
+    if (candidates.length === 0) continue;
+    const latestDay = candidates.reduce(
+      (day, scale) => (scale.recordedDate > day ? scale.recordedDate : day),
+      ''
+    );
+    const onLatestDay = candidates.filter(scale => scale.recordedDate === latestDay);
+    const visible = onLatestDay.filter(scale => !scale.archived);
+    const pool = visible.length > 0 ? visible : onLatestDay;
+    const winner = pool.reduce((latest, scale) => (isLaterScale(scale, latest) ? scale : latest));
+    selected.set(code, winner);
+  }
+  return (['BRADEN', 'DOWNTON'] as EvaluationScaleCode[])
+    .map(code => selected.get(code))
     .filter((scale): scale is EvaluationScale => scale != null);
 };
 
@@ -281,7 +328,7 @@ const pickLatestPerCode = (scales: EvaluationScale[]): EvaluationScale[] => {
  * `evaluationScalesForCensusDay` for the sync, which scopes to the census day being consulted.
  */
 export const latestEvaluationScales = (scales: EvaluationScale[]): EvaluationScale[] =>
-  pickLatestPerCode(scales);
+  pickPreferredResultPerCode(scales);
 
 /**
  * The score the sync should take: for each scale, the last one recorded ON `censusIsoDay`
@@ -291,7 +338,8 @@ export const latestEvaluationScales = (scales: EvaluationScale[]): EvaluationSca
 export const evaluationScalesForCensusDay = (
   scales: EvaluationScale[],
   censusIsoDay: string
-): EvaluationScale[] => pickLatestPerCode(scales.filter(s => s.recordedDate === censusIsoDay));
+): EvaluationScale[] =>
+  pickPreferredResultPerCode(scales.filter(scale => scale.recordedDate === censusIsoDay));
 
 /**
  * The current value of each scale AS OF `censusIsoDay`: the latest one recorded on or before that day
@@ -302,4 +350,17 @@ export const evaluationScalesForCensusDay = (
 export const evaluationScalesAsOf = (
   scales: EvaluationScale[],
   censusIsoDay: string
-): EvaluationScale[] => pickLatestPerCode(scales.filter(s => s.recordedDate <= censusIsoDay));
+): EvaluationScale[] =>
+  pickPreferredResultPerCode(scales.filter(scale => scale.recordedDate <= censusIsoDay));
+
+/**
+ * Latest complete application AS OF `censusIsoDay`, including archived records. This timestamp is
+ * independent from the day-level display preference above and feeds the reapplication clock.
+ */
+export const evaluationScaleApplicationsAsOf = (
+  scales: EvaluationScale[],
+  censusIsoDay: string
+): EvaluationScale[] =>
+  pickLatestPerCode(
+    scales.filter(scale => scale.total != null && scale.recordedDate <= censusIsoDay)
+  );

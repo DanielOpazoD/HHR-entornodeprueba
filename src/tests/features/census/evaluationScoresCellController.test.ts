@@ -66,6 +66,31 @@ describe('buildScoresCellModel — Braden countdown', () => {
     expect(model.alertUrgency).toBe('overdue');
   });
 
+  it('uses the latest application date independently from the selected same-day result', () => {
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          braden: entry({
+            total: 17,
+            severity: 'Riesgo bajo',
+            recordedDate: '2026-07-22',
+            latestApplication: {
+              recordedDate: '2026-07-23',
+              recordedAt: '2026-07-23T13:00:00',
+              archived: true,
+            },
+          }),
+        },
+      }),
+      '2026-07-26'
+    );
+
+    expect(model.braden?.assessment.riskLevel).toBe('bajo');
+    expect(model.braden?.application).toMatchObject({ recordedDate: '2026-07-23', archived: true });
+    expect(model.braden?.chipCountdown).toBe('4d');
+    expect(model.alertUrgency).toBe('ok');
+  });
+
   it('uses the pediatric band: Braden 15 at age 8 is riesgo medio (cada 3 días)', () => {
     const model = buildScoresCellModel(
       patient({ age: '8', evaluationScores: { braden: entry({ total: 15 }) } }),
@@ -177,8 +202,29 @@ describe('buildScoresCellModel — Downton and history', () => {
     );
     expect(withHistory.history).toHaveLength(2);
 
+    const archivedOnly = buildScoresCellModel(
+      patient({ evaluationScores: { history: [entry({ archived: true })] } }),
+      '2026-07-10'
+    );
+    expect(archivedOnly.hasAny).toBe(true);
+    expect(archivedOnly.braden).toBeNull();
+
     const empty = buildScoresCellModel(patient(), '2026-07-10');
     expect(empty.hasAny).toBe(false);
     expect(empty.alertUrgency).toBe('ok');
+  });
+
+  it('does not expose future history in a backdated census row', () => {
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          history: [entry({ recordedDate: '2026-07-11', archived: true })],
+        },
+      }),
+      '2026-07-10'
+    );
+
+    expect(model.history).toEqual([]);
+    expect(model.hasAny).toBe(false);
   });
 });

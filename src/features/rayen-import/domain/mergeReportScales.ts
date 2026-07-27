@@ -13,20 +13,38 @@
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type {
+  EvaluationScaleApplicationEvidence,
   EvaluationScoreEntry,
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
-import { evaluationScalesAsOf, type EvaluationScale } from '../mapping/parseEvaluationScales';
+import {
+  evaluationScaleApplicationsAsOf,
+  evaluationScalesAsOf,
+  type EvaluationScale,
+} from '../mapping/parseEvaluationScales';
 
 export interface MergeScalesContext {
   /** The census day being synced (YYYY-MM-DD, Rapa Nui local). */
   censusIsoDay: string;
 }
 
-const toEntry = (scale: EvaluationScale, includeItems: boolean): EvaluationScoreEntry => ({
+const toApplicationEvidence = (scale: EvaluationScale): EvaluationScaleApplicationEvidence => ({
+  recordedDate: scale.recordedDate,
+  recordedAt: scale.recordedAt,
+  ...(scale.author ? { author: scale.author } : {}),
+  ...(scale.authorRole ? { authorRole: scale.authorRole } : {}),
+  ...(scale.archived ? { archived: true } : {}),
+});
+
+const toEntry = (
+  scale: EvaluationScale,
+  includeItems: boolean,
+  latestApplication?: EvaluationScale
+): EvaluationScoreEntry => ({
   code: scale.code,
   name: scale.name,
   encounterEventId: scale.encounterEventId,
+  ...(scale.sourceOrder != null ? { sourceOrder: scale.sourceOrder } : {}),
   total: scale.total,
   severity: scale.severity,
   recordedDate: scale.recordedDate,
@@ -35,6 +53,8 @@ const toEntry = (scale: EvaluationScale, includeItems: boolean): EvaluationScore
   // entries predate this field and Firestore rejects `undefined`, so blank means absent.
   ...(scale.author ? { author: scale.author } : {}),
   ...(scale.authorRole ? { authorRole: scale.authorRole } : {}),
+  ...(scale.archived ? { archived: true } : {}),
+  ...(latestApplication ? { latestApplication: toApplicationEvidence(latestApplication) } : {}),
   ...(includeItems && scale.items ? { items: scale.items } : {}),
 });
 
@@ -45,17 +65,29 @@ export const mergeReportScales = (
 ): PatientData => {
   if (scales.length === 0) return patient;
 
+  // Clinical result and application time are kept separate. For the current result, Rayen's rule is
+  // resolved per day: latest visible entry first; if all are archived, latest archived. Independently,
+  // every complete entry proves application and can advance the reapplication clock.
   const current = evaluationScalesAsOf(scales, ctx.censusIsoDay);
+  const latestApplications = evaluationScaleApplicationsAsOf(scales, ctx.censusIsoDay);
   const braden = current.find(scale => scale.code === 'BRADEN');
   const downton = current.find(scale => scale.code === 'DOWNTON');
+  const bradenApplication = latestApplications.find(scale => scale.code === 'BRADEN');
+  const downtonApplication = latestApplications.find(scale => scale.code === 'DOWNTON');
 
-  const history = [...scales]
-    .sort((a, b) => b.encounterEventId - a.encounterEventId)
+  // A census-day snapshot must not reveal assessments applied after that day. This also keeps a
+  // delayed synchronization from making an old row look complete with future evidence.
+  const history = scales
+    .filter(scale => scale.recordedDate <= ctx.censusIsoDay)
+    .sort(
+      (a, b) =>
+        b.encounterEventId - a.encounterEventId || (b.sourceOrder ?? 0) - (a.sourceOrder ?? 0)
+    )
     .map(scale => toEntry(scale, false));
 
   const evaluationScores: PatientEvaluationScores = {
-    ...(braden ? { braden: toEntry(braden, true) } : {}),
-    ...(downton ? { downton: toEntry(downton, true) } : {}),
+    ...(braden ? { braden: toEntry(braden, true, bradenApplication) } : {}),
+    ...(downton ? { downton: toEntry(downton, true, downtonApplication) } : {}),
     history,
   };
 

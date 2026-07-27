@@ -14,6 +14,7 @@ import {
 } from '@/domain/evaluationScales/bradenRisk';
 import type {
   BradenRiskLevel,
+  EvaluationScaleApplicationEvidence,
   EvaluationScoreEntry,
   ImportedCudyr,
   PatientEvaluationScores,
@@ -23,6 +24,7 @@ import type { PatientData } from '@/features/census/contracts/censusPatientContr
 
 export interface BradenCellModel {
   entry: EvaluationScoreEntry;
+  application: EvaluationScaleApplicationEvidence;
   total: number;
   assessment: BradenAssessment;
   /** Short in-cell countdown chip, e.g. "5d" | "hoy" | "-2d". */
@@ -33,6 +35,7 @@ export interface BradenCellModel {
 
 export interface DowntonCellModel {
   entry: EvaluationScoreEntry;
+  application: EvaluationScaleApplicationEvidence;
   total: number;
   /** Risk level parsed from the source severity text ("Riesgo alto" → 'alto'); null if unknown. */
   level: BradenRiskLevel | null;
@@ -103,6 +106,14 @@ const parseSeverityLevel = (severity: string | null): BradenRiskLevel | null => 
   return null;
 };
 
+const applicationEvidence = (entry: EvaluationScoreEntry): EvaluationScaleApplicationEvidence =>
+  entry.latestApplication ?? {
+    recordedDate: entry.recordedDate,
+    recordedAt: entry.recordedAt,
+    ...(entry.author ? { author: entry.author } : {}),
+    ...(entry.authorRole ? { authorRole: entry.authorRole } : {}),
+  };
+
 export const buildScoresCellModel = (
   patient: PatientData,
   censusIsoDay: string
@@ -112,15 +123,17 @@ export const buildScoresCellModel = (
   let braden: BradenCellModel | null = null;
   const ageYears = resolveAgeYears(patient, censusIsoDay);
   if (scores.braden && scores.braden.total != null && ageYears != null) {
+    const application = applicationEvidence(scores.braden);
     const assessment = assessBraden(
       scores.braden.total,
       ageYears,
-      scores.braden.recordedDate,
+      application.recordedDate,
       censusIsoDay
     );
     const { daysUntilDue, urgency } = assessment.reapplication;
     braden = {
       entry: scores.braden,
+      application,
       total: scores.braden.total,
       assessment,
       chipCountdown: buildChipCountdown(daysUntilDue, urgency),
@@ -130,13 +143,15 @@ export const buildScoresCellModel = (
 
   let downton: DowntonCellModel | null = null;
   if (scores.downton && scores.downton.total != null) {
+    const application = applicationEvidence(scores.downton);
     const level = parseSeverityLevel(scores.downton.severity);
     // Downton reapplies with the SAME cadence as Braden by risk level (bajo 7d · medio 3d · alto 1d).
     const reapplication = level
-      ? bradenReapplicationStatus(scores.downton.recordedDate, level, censusIsoDay)
+      ? bradenReapplicationStatus(application.recordedDate, level, censusIsoDay)
       : null;
     downton = {
       entry: scores.downton,
+      application,
       total: scores.downton.total,
       level,
       severityLabel: scores.downton.severity ?? '',
@@ -173,12 +188,17 @@ export const buildScoresCellModel = (
   ];
   const alertUrgency = urgencies.reduce((worst, u) => (RANK[u] > RANK[worst] ? u : worst), 'ok');
 
+  // Defensive filter for records persisted before census-day bounded histories were introduced.
+  const history = (scores.history ?? []).filter(
+    entry => !/^\d{4}-\d{2}-\d{2}$/.test(entry.recordedDate) || entry.recordedDate <= censusIsoDay
+  );
+
   return {
-    hasAny: braden != null || downton != null || cudyr != null,
+    hasAny: braden != null || downton != null || cudyr != null || history.length > 0,
     braden,
     downton,
     cudyr,
     alertUrgency,
-    history: scores.history ?? [],
+    history,
   };
 };
