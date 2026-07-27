@@ -12,6 +12,23 @@ export interface CoveragePresentation {
   tone: 'muted' | 'success' | 'warning';
 }
 
+export const formatRayenSyncDuration = (startedAt: string, completedAt?: string): string | null => {
+  if (!completedAt) return null;
+  const started = Date.parse(startedAt);
+  const completed = Date.parse(completedAt);
+  if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) return null;
+
+  const seconds = Math.max(1, Math.round((completed - started) / 1_000));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60)
+    return remainingSeconds ? `${minutes} min ${remainingSeconds} s` : `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} h ${remainingMinutes} min` : `${hours} h`;
+};
+
 export const presentRayenCoverage = (
   coverage: RayenSyncCoverage | undefined,
   hasSync: boolean,

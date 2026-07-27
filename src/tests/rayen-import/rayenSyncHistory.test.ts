@@ -136,7 +136,28 @@ describe('rayen sync history', () => {
     const observation = buildRayenStaffingObservation({
       censusDate: '2026-07-25',
       day: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
-      night: { names: [], candidates: [], ignoredBoundaryRecords: 2, ambiguous: true },
+      night: {
+        names: [],
+        candidates: [],
+        ignoredBoundaryRecords: 2,
+        ignoredBoundaryEvidence: [
+          {
+            name: 'Camila Soto',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-07-25T20:30:00',
+            source: 'vital-signs',
+            boundary: 'night_start',
+          },
+          {
+            name: 'Camila Soto',
+            role: 'Enfermera(o)',
+            recordedAt: '2026-07-25T20:30:00',
+            source: 'vital-signs',
+            boundary: 'night_start',
+          },
+        ],
+        ambiguous: true,
+      },
       tensDay: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
       tensNight: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
     });
@@ -150,6 +171,16 @@ describe('rayen sync history', () => {
     expect(completed.staffingObservation).toEqual({
       ambiguousSections: ['nurse_night'],
       ignoredBoundaryRecords: 2,
+      ignoredBoundaryEvidence: [
+        {
+          section: 'nurse_night',
+          name: 'Camila Soto',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-25T20:30:00',
+          source: 'vital-signs',
+          boundary: 'night_start',
+        },
+      ],
     });
     expect(JSON.stringify(completed.staffingObservation)).not.toMatch(/patient|rut|diagn/i);
   });

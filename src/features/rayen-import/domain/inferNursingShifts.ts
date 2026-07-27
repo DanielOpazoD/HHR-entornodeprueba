@@ -1,6 +1,8 @@
 import { getNextDay, getShiftSchedule, parseTimeMinutes } from '@/utils/clinicalDayUtils';
 import type {
   NursingStaffingProposal,
+  NursingBoundaryExclusion,
+  NursingBoundaryKind,
   NursingShiftEvidence,
   NursingShiftSuggestion,
   RayenNursingActivity,
@@ -46,7 +48,7 @@ type Shift = 'day' | 'night';
 const classifyShift = (
   stamp: LocalStamp,
   censusDate: string
-): { shift: Shift; boundary: boolean } | null => {
+): { shift: Shift; boundary: NursingBoundaryKind | null } | null => {
   const schedule = getShiftSchedule(censusDate);
   const nextDay = getNextDay(censusDate);
   const dayStart = parseTimeMinutes(schedule.dayStart);
@@ -55,16 +57,22 @@ const classifyShift = (
   if (dayStart == null || dayEnd == null || nightEnd == null) return null;
 
   if (stamp.day === censusDate && stamp.minutes >= dayStart && stamp.minutes < dayEnd) {
-    return { shift: 'day', boundary: stamp.minutes < dayStart + BOUNDARY_GRACE_MINUTES };
+    return {
+      shift: 'day',
+      boundary: stamp.minutes < dayStart + BOUNDARY_GRACE_MINUTES ? 'day_start' : null,
+    };
   }
   if (stamp.day === censusDate && stamp.minutes >= dayEnd) {
-    return { shift: 'night', boundary: stamp.minutes < dayEnd + BOUNDARY_GRACE_MINUTES };
+    return {
+      shift: 'night',
+      boundary: stamp.minutes < dayEnd + BOUNDARY_GRACE_MINUTES ? 'night_start' : null,
+    };
   }
   if (stamp.day === nextDay && stamp.minutes < nightEnd) {
-    return { shift: 'night', boundary: false };
+    return { shift: 'night', boundary: null };
   }
   if (stamp.day === nextDay && stamp.minutes < nightEnd + BOUNDARY_GRACE_MINUTES) {
-    return { shift: 'night', boundary: true };
+    return { shift: 'night', boundary: 'night_end' };
   }
   return null;
 };
@@ -90,6 +98,7 @@ const buildSuggestion = (
 ): NursingShiftSuggestion => {
   const candidates = new Map<string, CandidateAccumulator>();
   let ignoredBoundaryRecords = 0;
+  const ignoredBoundaryEvidence: NursingBoundaryExclusion[] = [];
 
   for (const observation of observations) {
     if (observation.archived || observation.crossedOut || !acceptsRole(observation.role)) {
@@ -113,6 +122,13 @@ const buildSuggestion = (
     if (!classified || classified.shift !== targetShift) continue;
     if (classified.boundary) {
       ignoredBoundaryRecords += 1;
+      ignoredBoundaryEvidence.push({
+        name: identity.displayName,
+        role: observation.role,
+        recordedAt: observation.recordedAt,
+        source: observation.source,
+        boundary: classified.boundary,
+      });
       continue;
     }
 
@@ -196,6 +212,7 @@ const buildSuggestion = (
     catalogNames: staffCatalog.map(identity => identity.displayName),
     candidates: evidence,
     ignoredBoundaryRecords,
+    ignoredBoundaryEvidence,
     ambiguous: cutoffTied || identityCollision,
   };
 };

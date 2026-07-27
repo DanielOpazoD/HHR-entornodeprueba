@@ -20,6 +20,22 @@ const proposal: NursingStaffingProposal = {
       },
     ],
     ignoredBoundaryRecords: 2,
+    ignoredBoundaryEvidence: [
+      {
+        name: 'Claudia Saliente',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T08:35:00',
+        source: 'vital-signs',
+        boundary: 'day_start',
+      },
+      {
+        name: 'Ana Pérez',
+        role: 'Enfermera(o)',
+        recordedAt: '2026-07-20T08:42:00',
+        source: 'medication-administration',
+        boundary: 'day_start',
+      },
+    ],
     ambiguous: false,
   },
   night: {
@@ -65,6 +81,9 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText(/4 registros · 3 pacientes/)).toBeInTheDocument();
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
     expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ver quiénes fueron excluidos (2)'));
+    expect(screen.getByText(/Claudia Saliente · 20-07 08:35/)).toBeVisible();
+    expect(screen.getAllByText(/Motivo: primeros 60 min del turno día/)).toHaveLength(2);
 
     expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));

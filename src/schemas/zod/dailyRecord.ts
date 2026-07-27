@@ -4,6 +4,7 @@ import { DATE_REGEX, nullableOptional, nullishDefault } from './helpers';
 import { BedTypeSchema, PatientDataSchema } from './patient';
 import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './movements';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
+import { MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE } from '@/types/domain/rayenSync';
 
 const MedicalHandoffActorSchema = z.object({
   uid: z.string(),
@@ -94,6 +95,26 @@ const RayenSyncSourceSchema = z.object({
 const RayenSyncStaffingObservationSchema = z.object({
   ambiguousSections: z.array(z.enum(['nurse_day', 'nurse_night', 'tens_day', 'tens_night'])),
   ignoredBoundaryRecords: z.number().int().nonnegative(),
+  ignoredBoundaryEvidence: nullableOptional(
+    z
+      .array(
+        z.object({
+          section: z.enum(['nurse_day', 'nurse_night', 'tens_day', 'tens_night']),
+          name: z.string(),
+          role: z.string(),
+          recordedAt: z.string(),
+          source: z.enum([
+            'evolution',
+            'shift-change',
+            'evaluation-scale',
+            'medication-administration',
+            'vital-signs',
+          ]),
+          boundary: z.enum(['day_start', 'night_start', 'night_end']),
+        })
+      )
+      .max(MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE)
+  ),
 });
 
 const RayenSyncEventSchema = z.object({

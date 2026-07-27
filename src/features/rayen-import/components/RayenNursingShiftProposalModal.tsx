@@ -6,6 +6,7 @@ import type {
   NursingShiftEvidence,
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
+import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
 
 interface RayenNursingShiftProposalModalProps {
   proposal: NursingStaffingProposal | null;
@@ -67,10 +68,16 @@ const ShiftSuggestion: React.FC<{
         })}
       </ul>
       {suggestion.ignoredBoundaryRecords > 0 && (
-        <p className="mt-2 text-xs text-slate-500">
-          Se excluyeron {suggestion.ignoredBoundaryRecords} registros cercanos al relevo por ser
-          temporalmente ambiguos.
-        </p>
+        <>
+          <p className="mt-2 text-xs text-slate-500">
+            Se excluyeron {suggestion.ignoredBoundaryRecords} registros cercanos al relevo por ser
+            temporalmente ambiguos.
+          </p>
+          <StaffingBoundaryExclusions
+            total={suggestion.ignoredBoundaryRecords}
+            evidence={suggestion.ignoredBoundaryEvidence ?? []}
+          />
+        </>
       )}
       {suggestion.ambiguous && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

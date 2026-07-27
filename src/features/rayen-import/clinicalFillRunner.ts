@@ -36,6 +36,7 @@ import type {
   RayenNursingActivity,
 } from './contracts/nursingShiftInference';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
+import { createConcurrencyGate } from './domain/concurrencyGate';
 
 export interface ClinicalFillDeps {
   /** Curated HHR nurse catalog used to reconcile Eloísa identities and strengthen confidence. */
@@ -111,8 +112,8 @@ export interface ClinicalFillProgress {
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/** How many patients are fetched concurrently (each fetch can take seconds). */
-const CONCURRENCY = 4;
+/** How many patient source groups may use the extension/PDF parser concurrently. */
+const READ_CONCURRENCY = 4;
 
 interface ClinicalFillCandidate {
   bedId: string;
@@ -156,6 +157,7 @@ export const runClinicalFill = async (
   };
   if (eligible.length === 0) return summary;
   const nursingObservations: NursingActivityObservation[] = [];
+  const withReadSlot = createConcurrencyGate(READ_CONCURRENCY);
 
   // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
   // writes share one census version and can otherwise conflict with another write from this same
@@ -202,29 +204,39 @@ export const runClinicalFill = async (
     let merged = patient;
     let historicalCudyrPatched = false;
 
-    try {
-      const { base64 } = await deps.fetchDeviceReport(encId, fecha);
-      if (base64) {
-        const items = await deps.extractDeviceItems(base64);
-        const devices = mapInvasiveDevices(parseInvasiveDevices(items));
+    // Start every independent patient source together. Previously the device PDF (up to a 30 s
+    // timeout) completed before history/forms even began, making source latencies additive across
+    // four patient batches. Keeping the same patient concurrency while overlapping these reads
+    // bounds each patient by its slowest source instead of their sum.
+    const [deviceResult, historyResult, formsResult] = await withReadSlot(() =>
+      Promise.allSettled([
+        deps
+          .fetchDeviceReport(encId, fecha)
+          .then(async ({ base64 }) => (base64 ? deps.extractDeviceItems(base64) : [])),
+        deps.fetchHistoryScales(encId),
+        deps.fetchScalesForms(encId),
+      ])
+    );
+
+    if (deviceResult.status === 'rejected') {
+      summary.errors.push({ bedId, source: 'devices', message: message(deviceResult.reason) });
+    } else {
+      try {
+        const devices = mapInvasiveDevices(parseInvasiveDevices(deviceResult.value));
         if (devices.length > 0) {
           merged = mergeReportDevices(merged, devices, {
             now: deps.now(),
             createId: deps.createId,
           });
         }
+      } catch (error) {
+        summary.errors.push({ bedId, source: 'devices', message: message(error) });
       }
-    } catch (error) {
-      summary.errors.push({ bedId, source: 'devices', message: message(error) });
     }
 
     // Read the scale sources ONCE (shared by scales + vitals): the history report and the
-    // encounter-form-entry summary. `fetchScalesForms` now returns INSTRUMENTO (scales) AND VITAL_SIGNS
-    // forms in one call. Promise.allSettled never rejects, so this is safe outside a try.
-    const [historyResult, formsResult] = await Promise.allSettled([
-      deps.fetchHistoryScales(encId),
-      deps.fetchScalesForms(encId),
-    ]);
+    // encounter-form-entry summary. `fetchScalesForms` returns INSTRUMENTO (scales) AND VITAL_SIGNS
+    // forms in one call. Promise.allSettled isolates every source failure.
     const formsReadError =
       formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
     if (formsReadError) {
@@ -346,14 +358,14 @@ export const runClinicalFill = async (
     }
   };
 
-  for (let start = 0; start < eligible.length; start += CONCURRENCY) {
-    const batch = eligible.slice(start, start + CONCURRENCY);
-    await Promise.all(
-      batch.map(({ bedId, patient, clinicalCrib }) =>
-        fillPatient(bedId, patient, clinicalCrib).finally(report)
-      )
-    );
-  }
+  // Schedule every patient once. The read gate above provides backpressure and releases its slot
+  // before parsing/serialized Firestore writes, so a slow write no longer blocks the next patient
+  // from starting its independent Eloisa reads.
+  await Promise.all(
+    eligible.map(({ bedId, patient, clinicalCrib }) =>
+      fillPatient(bedId, patient, clinicalCrib).finally(report)
+    )
+  );
 
   summary.staffingProposal = inferNursingShifts(
     nursingObservations,

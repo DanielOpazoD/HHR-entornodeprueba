@@ -36,6 +36,17 @@ export interface NursingShiftEvidence {
   catalogMatched: boolean;
 }
 
+export type NursingBoundaryKind = 'day_start' | 'night_start' | 'night_end';
+
+/** One signed action deliberately excluded because it falls inside a handoff safety window. */
+export interface NursingBoundaryExclusion {
+  name: string;
+  role: string;
+  recordedAt: string;
+  source: NursingActivitySource;
+  boundary: NursingBoundaryKind;
+}
+
 export interface NursingShiftSuggestion {
   names: string[];
   /** Exact HHR catalog identities used while resolving Eloisa authors. */
@@ -48,6 +59,8 @@ export interface NursingShiftSuggestion {
   replaceStandardSlots?: boolean;
   candidates: NursingShiftEvidence[];
   ignoredBoundaryRecords: number;
+  /** Auditable detail behind ignoredBoundaryRecords; optional for persisted legacy proposals. */
+  ignoredBoundaryEvidence?: NursingBoundaryExclusion[];
   ambiguous: boolean;
 }
 

@@ -6,10 +6,12 @@ import {
   presentRayenCoverage,
   presentRayenSyncOutcome,
   presentRayenCoverageIssue,
+  formatRayenSyncDuration,
   rayenFailureReasonLabel,
   type RayenSyncRecoveryPresentation,
 } from './rayenSyncPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
+import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -142,6 +144,7 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
     event.status === 'applied'
   );
   const source = sourceLabel(event);
+  const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
       {event.status !== 'failed' && (
@@ -159,6 +162,9 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
         </span>
       )}
       {source && <span className="font-medium text-slate-400">{source}</span>}
+      {duration && (
+        <span className="font-medium tabular-nums text-slate-500">Duración {duration}</span>
+      )}
     </div>
   );
 };
@@ -247,11 +253,17 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
             </p>
           )}
           {event.staffingObservation.ignoredBoundaryRecords > 0 && (
-            <p className="mt-1">
-              Se excluyeron {event.staffingObservation.ignoredBoundaryRecords}{' '}
-              {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'registro' : 'registros'}{' '}
-              cercanos al relevo para no atribuir personal al turno incorrecto.
-            </p>
+            <>
+              <p className="mt-1">
+                Se excluyeron {event.staffingObservation.ignoredBoundaryRecords}{' '}
+                {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'registro' : 'registros'}{' '}
+                cercanos al relevo para no atribuir personal al turno incorrecto.
+              </p>
+              <StaffingBoundaryExclusions
+                total={event.staffingObservation.ignoredBoundaryRecords}
+                evidence={event.staffingObservation.ignoredBoundaryEvidence ?? []}
+              />
+            </>
           )}
         </div>
       )}

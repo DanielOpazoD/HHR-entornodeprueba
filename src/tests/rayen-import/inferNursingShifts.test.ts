@@ -58,6 +58,32 @@ describe('inferNursingShifts', () => {
     expect(proposal.night.names).toEqual([]);
     expect(proposal.day.ignoredBoundaryRecords).toBe(2);
     expect(proposal.night.ignoredBoundaryRecords).toBe(3);
+    expect(proposal.day.ignoredBoundaryEvidence).toEqual([
+      expect.objectContaining({
+        name: 'Saliente Noche',
+        recordedAt: '2026-07-20T08:30:00',
+        boundary: 'day_start',
+      }),
+      expect.objectContaining({
+        name: 'Saliente Noche',
+        recordedAt: '2026-07-20T08:45:00',
+        boundary: 'day_start',
+      }),
+    ]);
+    expect(proposal.night.ignoredBoundaryEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Saliente Día',
+          recordedAt: '2026-07-20T20:30:00',
+          boundary: 'night_start',
+        }),
+        expect.objectContaining({
+          name: 'Saliente Noche',
+          recordedAt: '2026-07-21T08:30:00',
+          boundary: 'night_end',
+        }),
+      ])
+    );
   });
 
   it('recognizes a locally catalogued nurse from one valid Eloísa record', () => {
