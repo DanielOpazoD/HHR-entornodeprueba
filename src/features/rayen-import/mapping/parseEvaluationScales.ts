@@ -40,6 +40,11 @@
  * are the values HHR persists today; the per-item breakdown is kept here for future use.
  */
 
+import {
+  groupEvaluationScaleApplications,
+  type RawEvaluationCampo,
+} from './groupEvaluationScaleApplications';
+
 const RAPA_NUI_TZ = 'Pacific/Easter';
 
 export type EvaluationScaleCode = 'BRADEN' | 'DOWNTON';
@@ -87,14 +92,7 @@ export interface EvaluationScale {
   archived?: boolean;
 }
 
-export interface RawCampo {
-  id?: unknown;
-  label?: unknown;
-  value?: unknown;
-  valueName?: unknown;
-  sectionId?: unknown;
-  createDatetime?: unknown;
-}
+export type RawCampo = RawEvaluationCampo;
 
 export interface RawForm {
   formCodigo?: unknown;
@@ -205,89 +203,6 @@ const codeOf = (form: RawForm, campos: RawCampo[]): EvaluationScaleCode | null =
   return null;
 };
 
-/**
- * `Repetir` does not always create another form entry. Rayen can append a second complete answer set
- * to the SAME `metaCampList` (same form guid), with each answer carrying the repetition's own
- * `createDatetime`. Treating the whole list as one form mixes answers and silently loses all but one
- * application. Grouping by the clinical wall-clock stamp restores one scale per application.
- */
-const clinicalWallClock = (raw: string): number | null => {
-  const match = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})(?:[ T]+(\d{1,2}):(\d{2}):(\d{2}))?/);
-  if (!match || match[4] == null) return null;
-  const [, day, month, year, hour, minute, second] = match;
-  return Date.UTC(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second)
-  );
-};
-
-const groupCamposByApplication = (_form: RawForm, campos: RawCampo[]): RawCampo[][] => {
-  const scoreAnchors = campos
-    .map((campo, sourceIndex) => ({ campo, sourceIndex }))
-    .filter(({ campo }) => str(campo.id).toUpperCase().endsWith('_PUNTAJE'))
-    .map(({ campo, sourceIndex }) => ({
-      sourceIndex,
-      clock: clinicalWallClock(str(campo.createDatetime)),
-    }));
-
-  // A single score field means one application. Keep all its fields together even if Rayen stamps
-  // individual answers a few seconds apart or omits createDatetime on some fields.
-  if (scoreAnchors.length <= 1) return [campos];
-
-  const groups: RawCampo[][] = Array.from({ length: scoreAnchors.length }, () => []);
-  const occurrencesByField = new Map<string, number>();
-  const fieldTotals = campos.reduce((totals, campo) => {
-    const fieldId = str(campo.id);
-    if (fieldId) totals.set(fieldId, (totals.get(fieldId) ?? 0) + 1);
-    return totals;
-  }, new Map<string, number>());
-  const allAnchorsHaveClock = scoreAnchors.every(anchor => anchor.clock != null);
-  campos.forEach((campo, sourceIndex) => {
-    const fieldId = str(campo.id);
-    const occurrence = occurrencesByField.get(fieldId) ?? 0;
-    occurrencesByField.set(fieldId, occurrence + 1);
-    const clock = clinicalWallClock(str(campo.createDatetime));
-
-    let groupIndex = Math.min(occurrence, groups.length - 1);
-    const hasCompleteOccurrenceMapping =
-      fieldId !== '' && fieldTotals.get(fieldId) === scoreAnchors.length;
-    if (!hasCompleteOccurrenceMapping && clock != null && allAnchorsHaveClock) {
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      let nearestSourceDistance = Number.POSITIVE_INFINITY;
-      scoreAnchors.forEach((anchor, anchorIndex) => {
-        if (anchor.clock == null) return;
-        const distance = Math.abs(clock - anchor.clock);
-        const sourceDistance = Math.abs(anchor.sourceIndex - sourceIndex);
-        if (
-          distance < nearestDistance ||
-          (distance === nearestDistance && sourceDistance < nearestSourceDistance)
-        ) {
-          nearestDistance = distance;
-          nearestSourceDistance = sourceDistance;
-          groupIndex = anchorIndex;
-        }
-      });
-    } else if (!hasCompleteOccurrenceMapping) {
-      // Optional/missing-time fields cannot use occurrence safely: nearest score in source order.
-      groupIndex = scoreAnchors.reduce(
-        (nearest, anchor, anchorIndex) =>
-          Math.abs(anchor.sourceIndex - sourceIndex) <
-          Math.abs(scoreAnchors[nearest].sourceIndex - sourceIndex)
-            ? anchorIndex
-            : nearest,
-        0
-      );
-    }
-    groups[groupIndex].push(campo);
-  });
-
-  return groups.filter(group => group.length > 0);
-};
-
 const orderingKeyForApplication = (
   form: RawForm,
   when: ReturnType<typeof effectiveWhen>,
@@ -316,7 +231,7 @@ export const parseEvaluationScales = (raw: unknown): EvaluationScale[] => {
     const code = codeOf(form, campos);
     if (!code) continue;
 
-    const applications = groupCamposByApplication(form, campos);
+    const applications = groupEvaluationScaleApplications(campos);
     applications.forEach((applicationCampos, applicationIndex) => {
       const items: EvaluationScaleItem[] = [];
       let total: number | null = null;
