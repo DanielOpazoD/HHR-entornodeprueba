@@ -127,6 +127,15 @@ describe('reconcileCensus', () => {
     expect(diff.admissions).toHaveLength(1);
   });
 
+  it('admits a madrugada patient into the preceding clinical nursing day', () => {
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([makeEncounter({ admissionDatetime: '2026-07-09T03:27:00-06:00' })]),
+      { reference: REFERENCE }
+    );
+    expect(diff.admissions).toHaveLength(1);
+  });
+
   it('reports no change when the census already matches Rayen', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([makeEncounter()]), {
@@ -423,7 +432,6 @@ describe('reconcileCensus', () => {
     expect(diff.conflicts).toHaveLength(1);
     expect(diff.conflicts[0].bedId).toBeNull();
   });
-
 });
 
 describe('requiresReview (auto-mode safety gate)', () => {

@@ -55,6 +55,14 @@ export interface RayenSyncChanges {
   unchanged: number;
 }
 
+export type RayenStaffingSection = 'nurse_day' | 'nurse_night' | 'tens_day' | 'tens_night';
+
+/** Privacy-safe explanation for a staffing proposal that HHR deliberately did not auto-apply. */
+export interface RayenSyncStaffingObservation {
+  ambiguousSections: RayenStaffingSection[];
+  ignoredBoundaryRecords: number;
+}
+
 export interface RayenSyncSource {
   extensionVersion?: string;
   protocolVersion?: number;
@@ -72,6 +80,7 @@ export interface RayenSyncEvent {
   coverage?: RayenSyncCoverage;
   changes?: RayenSyncChanges;
   source?: RayenSyncSource;
+  staffingObservation?: RayenSyncStaffingObservation;
   /** Sanitized operational category; never a raw extension/server error. */
   failureReason?: RayenSyncFailureReason;
 }
@@ -85,4 +94,5 @@ export interface RayenSyncMeta {
   coverage?: RayenSyncCoverage;
   changes?: RayenSyncChanges;
   source?: RayenSyncSource;
+  staffingObservation?: RayenSyncStaffingObservation;
 }

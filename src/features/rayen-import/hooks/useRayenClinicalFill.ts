@@ -35,7 +35,11 @@ interface UseRayenClinicalFillInput {
     censusDay: string,
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
-  completeRun: (record: DailyRecord, summary: ClinicalFillSummary) => Promise<void>;
+  completeRun: (
+    record: DailyRecord,
+    summary: ClinicalFillSummary,
+    staffingProposal?: NursingStaffingProposal | null
+  ) => Promise<void>;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   onSettled: () => void;
   createId: () => string;
@@ -114,7 +118,7 @@ export const useRayenClinicalFill = ({
       ).size;
       let completionFailed = false;
       try {
-        await completeRun(record, summary);
+        await completeRun(record, summary, reviewProposal);
       } catch (error) {
         completionFailed = true;
         console.warn('[rayen-import] cobertura de sincronización no registrada:', error);

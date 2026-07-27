@@ -7,6 +7,7 @@ import { RayenImportPreviewModal } from '@/features/rayen-import/components/Raye
 import { RayenNursingShiftProposalModal } from '@/features/rayen-import/components/RayenNursingShiftProposalModal';
 import type { CensusImportDiff } from '@/features/rayen-import';
 import type { RayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
+import { EMPTY_PATIENT } from '@/constants/patient';
 
 const diff: CensusImportDiff = {
   admissions: [],
@@ -84,6 +85,65 @@ const renderPulse = (
   );
 
 describe('Rayen synchronization decisions and pulse', () => {
+  it('makes a newborn included in the mother admission explicit in the preview', () => {
+    const motherAndNewbornDiff: CensusImportDiff = {
+      ...diff,
+      admissions: [
+        {
+          bedId: 'H4C1',
+          isCma: false,
+          patient: {
+            ...EMPTY_PATIENT,
+            bedId: 'H4C1',
+            patientName: 'Maeva Elisabet Maria Tuki Garcia',
+            rut: '17.059.646-3',
+            clinicalCrib: {
+              ...EMPTY_PATIENT,
+              bedId: 'H4C1',
+              bedMode: 'Cuna',
+              patientName: 'RN de Maeva Tuki Garcia',
+              clinicalEpisodeId: '143101',
+            },
+          },
+        },
+      ],
+      discharges: [],
+      pendingAdministrativeDischarges: [],
+      summary: {
+        ...diff.summary,
+        admissions: 1,
+        discharges: 0,
+        pendingAdministrativeDischarges: 0,
+      },
+    };
+
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={motherAndNewbornDiff}
+        isBusy={false}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        (_content, element) =>
+          element?.tagName === 'DIV' &&
+          element.textContent === 'H4C1 — Maeva Elisabet Maria Tuki Garcia'
+      )
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        (_content, element) =>
+          element?.tagName === 'DIV' &&
+          element.textContent === '↳ Cuna clínica — RN de Maeva Tuki Garcia'
+      )
+    ).toBeVisible();
+  });
+
   it('shows independent document evidence in the review decision', () => {
     render(
       <RayenImportPreviewModal

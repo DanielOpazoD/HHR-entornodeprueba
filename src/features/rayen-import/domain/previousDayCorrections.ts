@@ -21,6 +21,14 @@ import type {
   DischargeEntry,
 } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
+import {
+  applyHistoricalAdmissions,
+  confirmedPreviousDayAdmissionsByDay,
+  planPreviousDayAdmissionEdits,
+  previousDayAdmissionDays,
+} from './previousDayAdmissionCorrections';
+
+export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
@@ -46,9 +54,10 @@ export interface PreviousDayPlan {
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
   ...new Set(
-    [...diff.discharges, ...(diff.reportEgresos ?? [])]
-      .map(entry => entry.correctedDay)
-      .filter((day): day is string => !!day && day < censusDay)
+    [
+      ...[...diff.discharges, ...(diff.reportEgresos ?? [])].map(entry => entry.correctedDay),
+      ...previousDayAdmissionDays(diff, censusDay),
+    ].filter((day): day is string => !!day && day < censusDay)
   ),
 ];
 
@@ -70,7 +79,7 @@ export const computePreviousDayEdits = async (
   const alreadyDischarged = (day: string, rut: string): boolean =>
     recordHasEgresoForRut(records.get(day), rut);
 
-  const edits = planPreviousDayEdits(diff, censusDay, {
+  const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),
     isSigned: day =>
       Boolean(
@@ -79,6 +88,16 @@ export const computePreviousDayEdits = async (
     withinEditingWindow: day => canWritePreviousDay(day, isAdmin),
     alreadyDischarged,
   });
+  const admissionEdits = planPreviousDayAdmissionEdits(
+    diff,
+    censusDay,
+    records,
+    isAdmin,
+    canWritePreviousDay
+  );
+  const edits = [...dischargeEdits, ...admissionEdits].sort(
+    (left, right) => left.day.localeCompare(right.day) || left.reason.localeCompare(right.reason)
+  );
 
   // Drop a report egreso whose real (earlier) island day already holds it — the preview must not
   // list an egreso that is already consigned there ("falta el egreso de X" would be wrong).
@@ -103,6 +122,18 @@ export const fileCrossDayCorrections = async (
   makeId: () => string,
   provenance: { actor?: string; syncRunId: string }
 ): Promise<void> => {
+  const previousDayEdits = diff.previousDayEdits ?? [];
+  const confirmedDischargeDays = new Set(
+    previousDayEdits
+      .filter(
+        edit =>
+          edit.reason === 'discharge-day-correction' &&
+          edit.recordExists &&
+          edit.withinEditingWindow &&
+          !edit.isSigned
+      )
+      .map(edit => edit.day)
+  );
   const byDay = new Map<string, CrossDayEntry[]>();
   const add = (
     day: string | undefined,
@@ -111,7 +142,13 @@ export const fileCrossDayCorrections = async (
   ): void => {
     // isOccupied (not just `patient != null`): mirror the primary discharge loop so a blocked or
     // nameless bed is never filed to the historical day with garbage data.
-    if (!day || day >= censusDay || !canWritePreviousDay(day, isAdmin) || !isOccupied(patient))
+    if (
+      !day ||
+      day >= censusDay ||
+      !confirmedDischargeDays.has(day) ||
+      !canWritePreviousDay(day, isAdmin) ||
+      !isOccupied(patient)
+    )
       return;
     const list = byDay.get(day) ?? [];
     list.push({ entry, patient });
@@ -131,24 +168,61 @@ export const fileCrossDayCorrections = async (
       reportEgresoPatient(egreso)
     );
   }
-  for (const [day, entries] of byDay) {
-    const record = await port.getForDate(day);
+  const admissionsByDay = confirmedPreviousDayAdmissionsByDay(
+    diff,
+    censusDay,
+    isAdmin,
+    canWritePreviousDay
+  );
+  const affectedDays = new Set([...byDay.keys(), ...admissionsByDay.keys()]);
+  const records = new Map<string, DailyRecord>();
+  await Promise.all(
+    [...affectedDays].map(async day => {
+      const record = await port.getForDate(day);
+      if (record) records.set(day, record);
+    })
+  );
+
+  // Validate every target before the first write. This avoids partially filing an earlier day and
+  // only then discovering that another affected record was signed after the preview.
+  for (const [day, record] of records) {
+    if ((record as { medicalSignature?: unknown }).medicalSignature) {
+      throw new Error(
+        `No se modificó el censo del ${day}: el registro fue firmado después de la revisión.`
+      );
+    }
+  }
+
+  const preparedCorrections = [];
+  for (const day of affectedDays) {
+    const record = records.get(day);
     if (!record) continue;
-    const next = applyCrossDayDiff(record, entries, {
+    const movementResult = applyCrossDayDiff(record, byDay.get(day) ?? [], {
       idFactory: makeId,
       actor: provenance.actor,
       syncRunId: provenance.syncRunId,
     });
-    if (next.applied === 0) continue;
-    await patchDailyRecordWithCompatibility(
-      port,
-      day,
-      {
-        discharges: next.record.discharges,
-        transfers: next.record.transfers,
-        cma: next.record.cma,
-      },
-      { baseRecord: record }
+    const admissionResult = applyHistoricalAdmissions(
+      movementResult.record,
+      admissionsByDay.get(day) ?? []
     );
+    if (movementResult.applied === 0 && admissionResult.applied === 0) continue;
+    preparedCorrections.push({
+      day,
+      record,
+      patch: {
+        beds: admissionResult.record.beds,
+        discharges: admissionResult.record.discharges,
+        transfers: admissionResult.record.transfers,
+        cma: admissionResult.record.cma,
+        lastUpdated: admissionResult.record.lastUpdated,
+      },
+    });
+  }
+
+  for (const correction of preparedCorrections) {
+    await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
+      baseRecord: correction.record,
+    });
   }
 };

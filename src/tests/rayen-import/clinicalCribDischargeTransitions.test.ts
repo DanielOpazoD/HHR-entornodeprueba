@@ -27,18 +27,18 @@ const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => (
   ...overrides,
 });
 
-const newborn = (): RayenEncounter => encounter({
-  encounterId: 'NEWBORN',
-  run: '',
-  firstGivenName: 'RN de Ana',
-  birthDate: '2026-07-08',
-  room: 'Cunas',
-  bed: 'CH5C1',
-  clinicalCribParentBedId: 'H5C1',
-});
+const newborn = (): RayenEncounter =>
+  encounter({
+    encounterId: 'NEWBORN',
+    run: '',
+    firstGivenName: 'RN de Ana',
+    birthDate: '2026-07-08',
+    room: 'Cunas',
+    bed: 'CH5C1',
+    clinicalCribParentBedId: 'H5C1',
+  });
 
-const seed = (source: RayenEncounter): PatientData =>
-  rayenToPatientData(source, REFERENCE).patient;
+const seed = (source: RayenEncounter): PatientData => rayenToPatientData(source, REFERENCE).patient;
 
 const recordWith = (mother: RayenEncounter, child: RayenEncounter): DailyRecord => ({
   date: '2026-07-08',
@@ -101,9 +101,7 @@ describe('clinical crib discharge promotion', () => {
       }),
     ]);
     expect(applied.record.beds.H5C1).toMatchObject({ clinicalEpisodeId: 'NEWBORN' });
-    expect(applied.record.discharges).toEqual([
-      expect.objectContaining({ rut: seed(mother).rut }),
-    ]);
+    expect(applied.record.discharges).toEqual([expect.objectContaining({ rut: seed(mother).rut })]);
   });
 
   it('promotes the newborn at the destination when the mother moved before discharge', () => {
@@ -114,11 +112,7 @@ describe('clinical crib discharge promotion', () => {
       ...recordWith(priorMother, child),
       beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(child) } },
     };
-    const { enriched, applied } = apply(
-      current,
-      [dischargeRow(movedMother)],
-      [movedMother, child]
-    );
+    const { enriched, applied } = apply(current, [dischargeRow(movedMother)], [movedMother, child]);
 
     expect(enriched.moves).toHaveLength(0);
     expect(enriched.admissions).toEqual([
@@ -165,11 +159,7 @@ describe('clinical crib discharge promotion', () => {
       ...recordWith(priorMother, child),
       beds: { H4C1: { ...seed(priorMother), clinicalCrib: seed(child) } },
     };
-    const { enriched, applied } = apply(
-      current,
-      [dischargeRow(child)],
-      [movedMother, child]
-    );
+    const { enriched, applied } = apply(current, [dischargeRow(child)], [movedMother, child]);
 
     expect(enriched.moves).toEqual([
       expect.objectContaining({ fromBedId: 'H4C1', toBedId: 'H5C1' }),
@@ -186,11 +176,11 @@ describe('clinical crib discharge promotion', () => {
     expect(applied.record.beds.H5C1.clinicalCrib).toBeUndefined();
   });
 
-  it('does not retain a clinically closed newborn admitted after the census day', () => {
+  it('does not retain a clinically closed newborn admitted after the night-shift cutoff', () => {
     const mother = encounter();
     const futureClosedChild = {
       ...newborn(),
-      admissionDatetime: '2026-07-09T01:00:00-06:00',
+      admissionDatetime: '2026-07-09T09:00:00-06:00',
       hasMedicalDischarge: true,
     };
     const current: DailyRecord = {
@@ -257,7 +247,8 @@ describe('clinical crib discharge promotion', () => {
 
     expect(enriched.conflicts).toHaveLength(0);
     expect(applied.record.beds.H5C1).toMatchObject({
-      clinicalEpisodeId: 'NEWBORN', bedMode: 'Cuna',
+      clinicalEpisodeId: 'NEWBORN',
+      bedMode: 'Cuna',
     });
   });
 
@@ -286,9 +277,7 @@ describe('clinical crib discharge promotion', () => {
       syncRunId: 'promoted-crib-move',
     });
 
-    expect(diff.moves).toEqual([
-      expect.objectContaining({ fromBedId: 'H5C1', toBedId: 'H4C1' }),
-    ]);
+    expect(diff.moves).toEqual([expect.objectContaining({ fromBedId: 'H5C1', toBedId: 'H4C1' })]);
     expect(diff.conflicts).toHaveLength(0);
     expect(applied.record.beds.H5C1).toBeUndefined();
     expect(applied.record.beds.H4C1).toMatchObject({

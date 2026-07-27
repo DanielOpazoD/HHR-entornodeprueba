@@ -5,7 +5,10 @@ import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { requiresReview } from '../domain/reconcileCensus';
-import { computePreviousDayEdits } from '../domain/previousDayCorrections';
+import {
+  computePreviousDayEdits,
+  verifyPreviousDayAdmissionPlacements,
+} from '../domain/previousDayCorrections';
 import { requestEgresoLookup } from '../bridge/rayenImportBridge';
 import { requestPatientFlowReport } from '../bridge/patientFlowBridge';
 import { requestStatisticalDischargeEvidence } from '../bridge/statisticalDischargeEvidenceBridge';
@@ -179,6 +182,11 @@ export const useRayenSnapshotPreview = ({
         diff = applyEgresoLookupFallback(diff, lookupResults, currentRecord);
       }
 
+      diff = await verifyPreviousDayAdmissionPlacements(diff, reportDate, {
+        fetchReport: fetchPatientFlowReport,
+        snapshot,
+        currentRecord,
+      });
       const previousDayPlan = await computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin);
       const previousDayEdits = previousDayPlan.edits;
       diff = { ...diff, reportEgresos: previousDayPlan.reportEgresos };

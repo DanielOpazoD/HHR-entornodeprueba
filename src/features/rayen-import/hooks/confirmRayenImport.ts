@@ -21,7 +21,9 @@ export const hasSkippedPreviousDayCorrections = (
   return (
     previousDayEdits.length > 0 &&
     (!applyPreviousDays ||
-      previousDayEdits.some(edit => !edit.recordExists || !edit.withinEditingWindow))
+      previousDayEdits.some(
+        edit => !edit.recordExists || !edit.withinEditingWindow || edit.isSigned
+      ))
   );
 };
 

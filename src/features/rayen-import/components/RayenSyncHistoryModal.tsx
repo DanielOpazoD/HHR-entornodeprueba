@@ -85,8 +85,21 @@ const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
     Boolean(event.coverage?.errors) ||
     Boolean(event.coverage?.sourceErrors) ||
     Boolean(event.coverage?.issues?.length);
-  return !outcome.unresolved && !outcome.detail && !hasChanges && !hasCoverageIssues;
+  return (
+    !outcome.unresolved &&
+    !outcome.detail &&
+    !hasChanges &&
+    !hasCoverageIssues &&
+    !event.staffingObservation
+  );
 };
+
+const STAFFING_SECTION_LABELS = {
+  nurse_day: 'Enfermería · turno día',
+  nurse_night: 'Enfermería · turno noche',
+  tens_day: 'TENS · turno largo',
+  tens_night: 'TENS · turno noche',
+} as const;
 
 const quietRunSignature = (event: RayenSyncEvent): string =>
   [
@@ -220,6 +233,28 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
       </div>
 
       <HistoryMetadata event={event} />
+      {event.staffingObservation && (
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+          <p className="font-bold">Enfermería / TENS: por qué quedó con observación</p>
+          {event.staffingObservation.ambiguousSections.length > 0 && (
+            <p className="mt-1">
+              HHR no modificó la dotación porque la evidencia fue insuficiente, empatada o presentó
+              identidades incompatibles en:{' '}
+              {event.staffingObservation.ambiguousSections
+                .map(section => STAFFING_SECTION_LABELS[section])
+                .join(', ')}
+              .
+            </p>
+          )}
+          {event.staffingObservation.ignoredBoundaryRecords > 0 && (
+            <p className="mt-1">
+              Se excluyeron {event.staffingObservation.ignoredBoundaryRecords}{' '}
+              {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'registro' : 'registros'}{' '}
+              cercanos al relevo para no atribuir personal al turno incorrecto.
+            </p>
+          )}
+        </div>
+      )}
       {event.coverage && (event.coverage.errors > 0 || Boolean(event.coverage.issues?.length)) && (
         <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
           <p className="font-bold">Detalle para resolver</p>

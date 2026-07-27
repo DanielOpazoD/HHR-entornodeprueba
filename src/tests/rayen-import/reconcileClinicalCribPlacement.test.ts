@@ -77,11 +77,11 @@ describe('reconcileClinicalCribs placement and retained principals', () => {
     expect(diff.summary.unchanged).toBe(1);
   });
 
-  it('does not attach a newborn before its admission day', () => {
+  it('does not attach a newborn admitted after the preceding night-shift cutoff', () => {
     const mother = makeEncounter();
     const futureNewborn = {
       ...newborn(),
-      admissionDatetime: '2026-07-09T01:00:00-06:00',
+      admissionDatetime: '2026-07-09T09:00:00-06:00',
     };
     const diff = reconcileCensus(
       makeRecord({ H5C1: seed(mother) }),

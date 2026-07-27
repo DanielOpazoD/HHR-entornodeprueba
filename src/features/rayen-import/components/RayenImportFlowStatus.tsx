@@ -21,7 +21,7 @@ interface RayenImportFlowStatusProps {
   isSyncing: boolean;
   error: string | null;
   hasPersistedSync: boolean;
-  persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage'> | null;
+  persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
   hasSkippedItems?: boolean;
   hasUnresolvedConflicts?: boolean;
 }
@@ -35,7 +35,7 @@ interface ModulePresentation {
   icon: LucideIcon;
 }
 
-const persistedSyncHasIssues = (
+const persistedClinicalSyncHasIssues = (
   persistedSync: RayenImportFlowStatusProps['persistedSync']
 ): boolean =>
   persistedSync?.status !== 'complete' ||
@@ -44,6 +44,11 @@ const persistedSyncHasIssues = (
   Boolean(persistedSync?.coverage?.errors) ||
   Boolean(persistedSync?.coverage?.sourceErrors) ||
   Boolean(persistedSync?.coverage?.issues?.length);
+
+const persistedSyncHasIssues = (
+  persistedSync: RayenImportFlowStatusProps['persistedSync']
+): boolean =>
+  persistedClinicalSyncHasIssues(persistedSync) || Boolean(persistedSync?.staffingObservation);
 
 const persistedSyncIsComplete = ({
   hasPersistedSync,
@@ -122,6 +127,9 @@ const buildModules = ({
     fill.staffingOutcome === 'pending' || fill.staffingOutcome === 'ambiguous';
   const persistedComplete = persistedSyncIsComplete({ hasPersistedSync, persistedSync });
   const persistedWarning = hasPersistedSync && !persistedComplete;
+  const persistedClinicalWarning =
+    hasPersistedSync && persistedClinicalSyncHasIssues(persistedSync);
+  const persistedClinicalComplete = hasPersistedSync && !persistedClinicalWarning;
   const persistedWarningDetail =
     persistedSync?.status === 'applied'
       ? 'Pendiente'
@@ -152,9 +160,9 @@ const buildModules = ({
       ? clinicalWarning
         ? 'warning'
         : 'complete'
-      : persistedWarning && !isSyncing
+      : persistedClinicalWarning && !isSyncing
         ? 'warning'
-        : persistedComplete && !isSyncing
+        : persistedClinicalComplete && !isSyncing
           ? 'complete'
           : 'waiting';
 
@@ -227,7 +235,8 @@ const mainLabel = (props: RayenImportFlowStatusProps, percent: number, changes: 
   if (error) return 'La sincronización requiere atención';
   if (fill.outcome === 'rejected') return 'La información clínica no pudo iniciar';
   if (fill.staffingOutcome === 'pending') return 'Revisión lista · 1 decisión pendiente';
-  if (fill.staffingOutcome === 'ambiguous') return 'Revisión completa · enfermería con observación';
+  if (fill.staffingOutcome === 'ambiguous')
+    return 'Enfermería/TENS sin cambios · evidencia ambigua';
   if (fill.staffingOutcome === 'applying') return 'Aplicando propuesta de enfermería';
   if (props.hasUnresolvedConflicts) return 'Sincronización con conflictos pendientes';
   if (props.hasSkippedItems) return 'Sincronización con elementos sin aplicar';

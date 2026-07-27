@@ -6,6 +6,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
+import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import {
   firstPatientFlowTimestamp,
@@ -66,6 +67,47 @@ type ReconstructionEntry =
   | { encounter: RayenEncounter; conflict?: never }
   | { encounter?: never; conflict: ConflictEntry };
 
+interface HistoricalClinicalCribCandidate {
+  candidate: HistoricalCandidate;
+  currentParentBedId: string;
+}
+
+const mappedPrincipalBedId = (encounter: RayenEncounter): string | null =>
+  encounter.verifiedBedPlacement?.bedId ??
+  mapRayenBed({
+    room: encounter.room,
+    bed: encounter.bed,
+    service: encounter.service,
+  }).bedId;
+
+const activePrincipalEncountersByBed = (
+  snapshot: RayenCensusSnapshot
+): ReadonlyMap<string, RayenEncounter[]> => {
+  const result = new Map<string, RayenEncounter[]>();
+  for (const encounter of snapshot.encounters) {
+    if (encounter.clinicalCribParentBedId) continue;
+    const bedId = mappedPrincipalBedId(encounter);
+    if (!bedId) continue;
+    const occupants = result.get(bedId) ?? [];
+    occupants.push(encounter);
+    result.set(bedId, occupants);
+  }
+  return result;
+};
+
+const clinicalCribAtHistoricalParent = (
+  encounter: RayenEncounter,
+  parentBedId: string
+): RayenEncounter => ({
+  ...encounter,
+  clinicalCribParentBedId: parentBedId,
+  hasMedicalDischarge: false,
+  hasNurseDischarge: false,
+  dischargeDatetime: undefined,
+  isDead: false,
+  verifiedBedPlacement: undefined,
+});
+
 export interface HistoricalSnapshotReconstruction {
   /** Point-in-time placements proven by one official patient-flow PDF per episode. */
   snapshot: RayenCensusSnapshot;
@@ -106,6 +148,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
   const { nextDay, nightEnd } = resolveClinicalDayBounds(censusDay);
   const cutoff = secondBefore(`${nextDay}T${nightEnd}:00`);
   const eligible: HistoricalCandidate[] = [];
+  const eligibleClinicalCribs: HistoricalClinicalCribCandidate[] = [];
   const conflicts: ConflictEntry[] = [];
 
   const reportByEpisode = latestReportRowsByEpisode(reportRows);
@@ -178,9 +221,22 @@ export const reconstructHistoricalSnapshotAtClose = async (
       continue;
     }
     if (encounter.clinicalCribParentBedId) {
-      conflicts.push(
-        unresolvedConflict(encounter, 'la cuna clínica requiere conservar su vínculo materno.')
-      );
+      if (!liveEncounterIds.has(encounter.encounterId)) {
+        conflicts.push(
+          unresolvedConflict(encounter, 'la cuna clínica requiere conservar su vínculo materno.')
+        );
+        continue;
+      }
+      eligibleClinicalCribs.push({
+        candidate: {
+          encounter,
+          reportRow,
+          localBedId,
+          exactEgresoVerified,
+          exactDischargeAt,
+        },
+        currentParentBedId: encounter.clinicalCribParentBedId,
+      });
       continue;
     }
     eligible.push({
@@ -256,6 +312,54 @@ export const reconstructHistoricalSnapshotAtClose = async (
     if (!entry) continue;
     if (entry.encounter) encounters.push(entry.encounter);
     else conflicts.push(entry.conflict);
+  }
+
+  // A physical crib has no independent HHR bed: it must follow the same mother whose current
+  // association was verified by Gestion de Camas. Resolve principals first, then project the RN
+  // onto the mother's proven historical bed. This keeps a mother + newborn admission atomic and
+  // independent from the order in which Ficha Medico returned both encounters.
+  const livePrincipalsByBed = activePrincipalEncountersByBed(liveSnapshot);
+  const reconstructedPrincipalsByEpisode = new Map(
+    encounters.map(encounter => [encounter.encounterId, encounter] as const)
+  );
+  for (const { candidate, currentParentBedId } of eligibleClinicalCribs) {
+    const { encounter } = candidate;
+    const currentPrincipals = livePrincipalsByBed.get(currentParentBedId) ?? [];
+    if (currentPrincipals.length !== 1) {
+      conflicts.push(
+        unresolvedConflict(
+          encounter,
+          `la cuna clínica no identifica de forma inequívoca a su madre en ${currentParentBedId}.`
+        )
+      );
+      continue;
+    }
+    const reconstructedMother = reconstructedPrincipalsByEpisode.get(
+      currentPrincipals[0].encounterId
+    );
+    if (!reconstructedMother) {
+      conflicts.push(
+        unresolvedConflict(
+          encounter,
+          'la cama de la madre no pudo confirmarse al cierre del turno.'
+        )
+      );
+      continue;
+    }
+    const historicalParentBedId = mappedPrincipalBedId(reconstructedMother);
+    const acceptsClinicalCrib = mapRayenBed({
+      clinicalCribParentBedId: historicalParentBedId ?? undefined,
+    }).isClinicalCrib;
+    if (!historicalParentBedId || !acceptsClinicalCrib) {
+      conflicts.push(
+        unresolvedConflict(
+          encounter,
+          'la cama histórica de la madre no admite una cuna clínica vinculada.'
+        )
+      );
+      continue;
+    }
+    encounters.push(clinicalCribAtHistoricalParent(encounter, historicalParentBedId));
   }
 
   return {

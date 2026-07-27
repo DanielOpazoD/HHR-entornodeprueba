@@ -196,6 +196,10 @@ describe('zod daily record schemas', () => {
             issues: [{ bedId: 'R2', source: 'patch', reason: 'concurrent_write' }],
             completedAt: '2026-07-14T10:03:00.000Z',
           },
+          staffingObservation: {
+            ambiguousSections: ['nurse_night'],
+            ignoredBoundaryRecords: 2,
+          },
         },
         rayenSyncHistory: [
           {
@@ -213,6 +217,10 @@ describe('zod daily record schemas', () => {
       expect(record.rayenSync?.coverage?.issues?.[0]).toMatchObject({
         bedId: 'R2',
         reason: 'concurrent_write',
+      });
+      expect(record.rayenSync?.staffingObservation).toEqual({
+        ambiguousSections: ['nurse_night'],
+        ignoredBoundaryRecords: 2,
       });
       expect(record.rayenSyncHistory?.[0]).toMatchObject({ id: 'run-1', status: 'complete' });
     });

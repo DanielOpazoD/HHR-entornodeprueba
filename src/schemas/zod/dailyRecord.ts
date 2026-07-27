@@ -91,6 +91,11 @@ const RayenSyncSourceSchema = z.object({
   gestionCamas: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
 });
 
+const RayenSyncStaffingObservationSchema = z.object({
+  ambiguousSections: z.array(z.enum(['nurse_day', 'nurse_night', 'tens_day', 'tens_night'])),
+  ignoredBoundaryRecords: z.number().int().nonnegative(),
+});
+
 const RayenSyncEventSchema = z.object({
   id: z.string(),
   startedAt: z.string(),
@@ -100,6 +105,7 @@ const RayenSyncEventSchema = z.object({
   coverage: nullableOptional(RayenSyncCoverageSchema),
   changes: nullableOptional(RayenSyncChangesSchema),
   source: nullableOptional(RayenSyncSourceSchema),
+  staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
   failureReason: nullableOptional(
     z.enum([
       'extension_unavailable',
@@ -121,6 +127,7 @@ const RayenSyncMetaSchema = z.object({
   coverage: nullableOptional(RayenSyncCoverageSchema),
   changes: nullableOptional(RayenSyncChangesSchema),
   source: nullableOptional(RayenSyncSourceSchema),
+  staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
 });
 
 export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.preprocess(

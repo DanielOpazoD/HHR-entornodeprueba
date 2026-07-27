@@ -4,11 +4,13 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenSyncFailureReason, RayenSyncSource } from '@/types/domain/rayenSync';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
+import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import {
   buildAppliedRayenSyncEvent,
   buildFailedRayenSyncEvent,
   buildRayenSyncCoverage,
+  buildRayenStaffingObservation,
   completeRayenSyncEvent,
   rayenSyncMetaFromEvent,
   upsertRayenSyncEvent,
@@ -100,7 +102,11 @@ export const useRayenSyncAudit = ({
   );
 
   const completeRun = useCallback(
-    async (recordAtApply: DailyRecord, summary: ClinicalFillSummary): Promise<void> => {
+    async (
+      recordAtApply: DailyRecord,
+      summary: ClinicalFillSummary,
+      staffingProposal?: NursingStaffingProposal | null
+    ): Promise<void> => {
       // The applied record carries the authoritative run id. A newer manual attempt
       // may already be active while this background fill is finishing.
       const runId = recordAtApply.rayenSync?.runId;
@@ -115,7 +121,11 @@ export const useRayenSyncAudit = ({
         return;
       }
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
-      const completedEvent = completeRayenSyncEvent(appliedEvent, coverage);
+      const completedEvent = completeRayenSyncEvent(
+        appliedEvent,
+        coverage,
+        buildRayenStaffingObservation(staffingProposal)
+      );
       const history = upsertRayenSyncEvent(base.rayenSyncHistory, completedEvent);
       const patch: DailyRecordPatch = { rayenSyncHistory: history };
       if (base.rayenSync?.runId === runId) {
