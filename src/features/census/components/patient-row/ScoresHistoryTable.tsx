@@ -7,8 +7,13 @@ interface ScoresHistoryTableProps {
 }
 
 const applicationDateTime = (entry: EvaluationScoreEntry): string => {
-  const clock = entry.recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
-  return `${formatIsoDay(entry.recordedDate)}${clock ? ` · ${String(Number(clock[1])).padStart(2, '0')}:${clock[2]}` : ''}`;
+  const clock = entry.recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const time = clock
+    ? [String(Number(clock[1])).padStart(2, '0'), clock[2], clock[3]]
+        .filter((part): part is string => part != null)
+        .join(':')
+    : null;
+  return `${formatIsoDay(entry.recordedDate)}${time ? ` · ${time}` : ''}`;
 };
 
 export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history }) => {
@@ -25,6 +30,7 @@ export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history 
             <th className="px-3 py-2 font-semibold">Escala y resultado</th>
             <th className="px-3 py-2 font-semibold">Fecha</th>
             <th className="px-3 py-2 font-semibold">Profesional</th>
+            <th className="px-3 py-2 font-semibold">Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -51,7 +57,9 @@ export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history 
                 }
               >
                 {entry.author || 'No informado'}
-                {entry.archived && <span className="text-slate-400"> · Oculta</span>}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-slate-500">
+                {entry.archived ? 'Archivada' : 'Visible'}
               </td>
             </tr>
           ))}
