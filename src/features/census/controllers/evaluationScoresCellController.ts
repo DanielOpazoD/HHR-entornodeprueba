@@ -112,6 +112,7 @@ const applicationEvidence = (entry: EvaluationScoreEntry): EvaluationScaleApplic
     recordedAt: entry.recordedAt,
     ...(entry.author ? { author: entry.author } : {}),
     ...(entry.authorRole ? { authorRole: entry.authorRole } : {}),
+    ...(entry.archived ? { archived: true } : {}),
   };
 
 const clockParts = (value: string): { minute: string; hasSeconds: boolean } | null => {
@@ -216,6 +217,9 @@ const latestApplicationEvidence = (
   const candidates: EvaluationScaleApplicationEvidence[] = [
     applicationEvidence(entry),
     ...history
+      // Any completed application of the same instrument advances its cadence, even when the
+      // patient's score changed. The displayed result and latest application are intentionally
+      // separate because Rayen may hide a newer application from the quick summary.
       .filter(candidate => candidate.code === entry.code && candidate.total != null)
       .map(applicationEvidence),
   ];

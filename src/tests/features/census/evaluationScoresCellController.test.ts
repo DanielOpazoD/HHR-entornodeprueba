@@ -123,6 +123,43 @@ describe('buildScoresCellModel — Braden countdown', () => {
     expect(model.braden?.chipCountdown).toBe('1d');
   });
 
+  it('advances the cadence when a newer completed application has a different score', () => {
+    const visibleResult = entry({
+      total: 17,
+      severity: 'Riesgo bajo',
+      recordedDate: '2026-07-23',
+      recordedAt: '2026-07-23T11:00:00',
+      latestApplication: {
+        recordedDate: '2026-07-23',
+        recordedAt: '2026-07-23T11:00:00',
+      },
+    });
+    const laterHiddenApplication = entry({
+      encounterEventId: 20260724130000,
+      total: 11,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-24',
+      recordedAt: '2026-07-24T13:00:00',
+      author: 'Nicole Palma',
+      archived: true,
+    });
+
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: { braden: visibleResult, history: [laterHiddenApplication] },
+      }),
+      '2026-07-26'
+    );
+
+    expect(model.braden?.total).toBe(17);
+    expect(model.braden?.application).toMatchObject({
+      recordedDate: '2026-07-24',
+      author: 'Nicole Palma',
+      archived: true,
+    });
+    expect(model.braden?.chipCountdown).toBe('5d');
+  });
+
   it('uses the pediatric band: Braden 15 at age 8 is riesgo medio (cada 3 días)', () => {
     const model = buildScoresCellModel(
       patient({ age: '8', evaluationScores: { braden: entry({ total: 15 }) } }),
