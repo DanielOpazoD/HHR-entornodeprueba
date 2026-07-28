@@ -166,29 +166,26 @@ describe('Rayen synchronization decisions and pulse', () => {
     ).toHaveLength(2);
   });
 
-  it('keeps live clinical progress and all modules in the bar', () => {
+  it('shows live clinical progress from the real patient counter', () => {
     renderPulse(fill({ running: true, outcome: 'running', attemptId: 1, done: 2, total: 4 }));
 
-    expect(
-      screen.getByRole('progressbar', { name: 'Progreso de sincronización con Eloísa' })
-    ).toHaveAttribute('aria-valuenow', '68');
-    expect(screen.getByText('Censo')).toBeInTheDocument();
-    expect(screen.getByText('Signos vitales')).toBeInTheDocument();
-    expect(screen.getByText('Dispositivos')).toBeInTheDocument();
-    expect(screen.getByText('Scores')).toBeInTheDocument();
-    expect(screen.getByText('Enfermería / TENS')).toBeInTheDocument();
-    expect(screen.getByText('Revisando información clínica · 68%')).toBeVisible();
+    const progress = screen.getByRole('progressbar', {
+      name: 'Progreso de sincronización con Eloísa',
+    });
+    expect(progress).toHaveAttribute('aria-valuenow', '2');
+    expect(progress).toHaveAttribute('aria-valuemax', '4');
+    expect(screen.getByText('Datos clínicos · 2 de 4 pacientes')).toBeVisible();
+    expect(screen.getByTestId('rayen-sync-pulse')).not.toHaveTextContent('%');
   });
 
   it('makes a pending census review explicit without claiming progress is complete', () => {
     renderPulse(fill(), { isPreviewOpen: true });
 
-    expect(screen.getByText('1 cambio listo para revisar')).toBeVisible();
-    expect(screen.getByTitle('Censo: 1 cambio por revisar')).toBeInTheDocument();
+    expect(screen.getByText('2 cambios listos para revisar')).toBeVisible();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('settles quietly at 100% after a complete run', () => {
+  it('keeps completion visible until its synchronization metadata is persisted', () => {
     renderPulse(
       fill({
         outcome: 'complete',
@@ -200,13 +197,9 @@ describe('Rayen synchronization decisions and pulse', () => {
       })
     );
 
-    expect(screen.getByRole('status')).toHaveClass('sr-only');
+    expect(screen.getByRole('status').parentElement).not.toHaveClass('sr-only');
     expect(screen.getByRole('status')).toHaveTextContent('Todo al día');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(screen.getByTitle('Censo: Verificado')).toBeInTheDocument();
-    expect(screen.getByTitle('Signos vitales: Verificado')).toBeInTheDocument();
-    expect(screen.getByTitle('Dispositivos: Verificado')).toBeInTheDocument();
-    expect(screen.getByTitle('Scores: Verificado')).toBeInTheDocument();
   });
 
   it('keeps a partial clinical result visible as an observation', () => {
@@ -223,8 +216,6 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText('Sincronización completada con observaciones')).toBeVisible();
-    expect(screen.getByTitle('Signos vitales: 1 con observación')).toBeInTheDocument();
-    expect(screen.getByTitle('Dispositivos: 1 con observación')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
@@ -240,8 +231,7 @@ describe('Rayen synchronization decisions and pulse', () => {
         staffingOutcome: 'resolved',
       })
     );
-
-    expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
+    expect(screen.getByText('Sincronización completada con observaciones')).toBeVisible();
     expect(screen.queryByText('0 con observación')).not.toBeInTheDocument();
   });
 
@@ -258,7 +248,6 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText('Revisión lista · 1 decisión pendiente')).toBeVisible();
-    expect(screen.getByTitle('Enfermería / TENS: Requiere revisión')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
@@ -275,11 +264,10 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText('Aplicando propuesta de enfermería')).toBeVisible();
-    expect(screen.getByTitle('Enfermería / TENS: Aplicando')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '98');
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
   });
 
-  it('does not inherit success when a single-flight attempt is rejected', () => {
+  it('keeps the prior single-flight execution visible when a second attempt is rejected', () => {
     renderPulse(
       fill({
         running: true,
@@ -292,8 +280,8 @@ describe('Rayen synchronization decisions and pulse', () => {
       { isSyncing: true }
     );
 
-    expect(screen.getByText('La información clínica no pudo iniciar')).toBeVisible();
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByText('Sincronización anterior en curso · 3 de 8 pacientes')).toBeVisible();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3');
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
   });
 

@@ -73,7 +73,7 @@ vi.mock('@/components/layout/SummaryCard', () => ({
 // Rayen census-import control mounts a hook that needs TanStack Query + repository
 // providers. It is stubbed so this header test stays focused on staff read-model wiring.
 vi.mock('@/features/rayen-import', () => ({
-  RayenImportButton: () => null,
+  RayenImportButton: () => <div data-testid="rayen-operations-bar" />,
 }));
 
 describe('CensusStaffHeader', () => {
@@ -156,5 +156,55 @@ describe('CensusStaffHeader', () => {
     expect(screen.getByTestId('nurse-day').textContent).toBe('[]');
     expect(screen.getByTestId('tens-night').textContent).toBe('[]');
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
+  });
+
+  it('keeps the scale filter adjacent to but outside the Eloísa synchronization card', () => {
+    mockedUseDailyRecordBeds.mockReturnValue({
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente con escala pendiente',
+        evaluationScores: {
+          braden: {
+            code: 'BRADEN',
+            name: 'Escala de riesgo UPP (Braden)',
+            encounterEventId: 1,
+            total: 17,
+            severity: 'Riesgo bajo',
+            recordedDate: '2026-02-01',
+            recordedAt: '01-02-2026 08:00',
+          },
+        },
+      }),
+    });
+
+    render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
+
+    const rayen = screen.getByTestId('rayen-operations-bar');
+    const scales = screen.getByTestId('census-attention-bar');
+    expect(rayen).not.toContainElement(scales);
+    expect(rayen.parentElement?.parentElement).toBe(scales.parentElement);
+  });
+
+  it('keeps scale surveillance available in read-only mode without showing synchronization', () => {
+    mockedUseDailyRecordBeds.mockReturnValue({
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente con escala pendiente',
+        evaluationScores: {
+          downton: {
+            code: 'DOWNTON',
+            name: 'Escala de riesgo de caídas (Downton)',
+            encounterEventId: 2,
+            total: 3,
+            severity: 'Riesgo alto',
+            recordedDate: '2026-02-01',
+            recordedAt: '01-02-2026 08:00',
+          },
+        },
+      }),
+    });
+
+    render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} readOnly={true} />);
+
+    expect(screen.queryByTestId('rayen-operations-bar')).not.toBeInTheDocument();
+    expect(screen.getByTestId('census-attention-bar')).toBeInTheDocument();
   });
 });

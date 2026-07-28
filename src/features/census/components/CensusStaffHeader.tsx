@@ -103,27 +103,16 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {!readOnly && !readModel.specialistAccess && (
             <div className="min-w-0 flex-1 lg:min-w-[760px]">
-              <RayenImportButton
-                attentionControl={
-                  <CensusAttentionBar
-                    beds={beds ?? {}}
-                    censusIsoDay={dailyRecordData.record?.date ?? ''}
-                    activeFilter={attentionFilter}
-                    onFilterChange={onAttentionFilterChange}
-                  />
-                }
-              />
+              <RayenImportButton />
             </div>
           )}
 
-          {(readOnly || readModel.specialistAccess) && (
-            <CensusAttentionBar
-              beds={beds ?? {}}
-              censusIsoDay={dailyRecordData.record?.date ?? ''}
-              activeFilter={attentionFilter}
-              onFilterChange={onAttentionFilterChange}
-            />
-          )}
+          <CensusAttentionBar
+            beds={beds ?? {}}
+            censusIsoDay={dailyRecordData.record?.date ?? ''}
+            activeFilter={attentionFilter}
+            onFilterChange={onAttentionFilterChange}
+          />
         </div>
       </div>
 
