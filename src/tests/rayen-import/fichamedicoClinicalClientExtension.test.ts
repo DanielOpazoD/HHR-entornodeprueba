@@ -98,22 +98,23 @@ describe('Ficha Médico read-only clinical client', () => {
   });
 
   it('uses the metric-guided history window in the authenticated endpoint', async () => {
-    fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-28T18:00:00.000Z'));
+    try {
+      fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
 
-    await client.fetchHistoryScales({
-      encId: '141336',
-      censusDate: new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Pacific/Easter',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date()),
-      info: session,
-    });
+      await client.fetchHistoryScales({
+        encId: '141336',
+        censusDate: '2026-07-28',
+        info: session,
+      });
 
-    expect(fetchWithTimeout.mock.calls[0][0]).toContain(
-      'getPatientEncounterHistoryReportServer/false/0/0/-2'
-    );
+      expect(fetchWithTimeout.mock.calls[0][0]).toContain(
+        'getPatientEncounterHistoryReportServer/false/0/0/-2'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fails closed when required dependencies or timeout are invalid', () => {
