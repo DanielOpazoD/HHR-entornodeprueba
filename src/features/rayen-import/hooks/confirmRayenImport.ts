@@ -37,6 +37,7 @@ export const applyConfirmedRayenImport = async ({
   applyDiff,
   getFreshRecord,
   createId,
+  onRetry,
 }: {
   applyPreviousDays: boolean;
   base: DailyRecord;
@@ -47,6 +48,7 @@ export const applyConfirmedRayenImport = async ({
   applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<ApplyResult>;
   getFreshRecord: () => Promise<DailyRecord | null | undefined>;
   createId: () => string;
+  onRetry?: () => void;
 }): Promise<ApplyResult> => {
   if (applyPreviousDays) {
     const run = ensureRun();
@@ -70,6 +72,7 @@ export const applyConfirmedRayenImport = async ({
       if (!isVersionConflict(error)) throw error;
       lastConflict = error;
       if (attempt === MAX_FRESH_RECORD_RETRIES) break;
+      onRetry?.();
       const fresh = await getFreshRecord();
       if (!fresh) throw error;
       candidate = fresh;

@@ -69,6 +69,78 @@ describe('runClinicalFill performance pipeline', () => {
     await expect(pending).resolves.toMatchObject({ total: 1, errors: [] });
   });
 
+  it('reports aggregate stage and request metrics without patient identifiers', async () => {
+    let clock = 0;
+    const summary = await runClinicalFill(
+      record(1),
+      '2026-07-10',
+      deps({ monotonicNow: () => (clock += 10) })
+    );
+
+    expect(summary.performance).toMatchObject({
+      stagesMs: {
+        clinicalReads: expect.any(Number),
+        writeQueueWait: expect.any(Number),
+        persistence: expect.any(Number),
+      },
+      counters: {
+        requests: 4,
+        cacheHits: 0,
+        patches: 1,
+        retries: 0,
+        timeouts: 0,
+      },
+    });
+    expect(summary.performance?.stagesMs.clinicalReads).toBeGreaterThan(0);
+    expect(summary.performance?.stagesMs.writeQueueWait).toBeGreaterThan(0);
+    expect(summary.performance?.stagesMs.persistence).toBeGreaterThan(0);
+    expect(JSON.stringify(summary.performance)).not.toMatch(/Paciente 1|E1|R1|rut|encounter/i);
+  });
+
+  it('counts source timeouts as sanitized aggregates', async () => {
+    const summary = await runClinicalFill(
+      record(1),
+      '2026-07-10',
+      deps({
+        fetchDeviceReport: vi
+          .fn()
+          .mockResolvedValue({ base64: '', error: 'Tiempo de espera agotado leyendo PDF.' }),
+      })
+    );
+
+    expect(summary.performance?.counters.timeouts).toBe(1);
+    expect(summary.performance).not.toHaveProperty('errors');
+  });
+
+  it('counts one timed-out request once even when it affects multiple clinical sources', async () => {
+    const summary = await runClinicalFill(
+      record(1),
+      '2026-07-10',
+      deps({
+        fetchScalesForms: vi
+          .fn()
+          .mockResolvedValue({ forms: [], error: 'Tiempo de espera agotado leyendo formularios.' }),
+      })
+    );
+
+    expect(summary.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: 'scales' }),
+        expect.objectContaining({ source: 'vitals' }),
+      ])
+    );
+    expect(summary.performance?.counters.timeouts).toBe(1);
+  });
+
+  it('records zero-valued clinical stages when no patient needs enrichment', async () => {
+    const summary = await runClinicalFill(record(0), '2026-07-10', deps());
+
+    expect(summary.performance).toEqual({
+      stagesMs: { clinicalReads: 0, writeQueueWait: 0, persistence: 0 },
+      counters: { requests: 0, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+    });
+  });
+
   it('starts the next patient read as soon as a slot is free without waiting for a slow write', async () => {
     let releaseWrite: (() => void) | undefined;
     const writeBarrier = new Promise<void>(resolve => {

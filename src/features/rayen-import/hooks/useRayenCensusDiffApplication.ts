@@ -1,0 +1,45 @@
+import { useCallback } from 'react';
+import type { ApplyResult } from '../domain/applyCensusImportDiff';
+import { applyCensusImportDiff } from '../domain/applyCensusImportDiff';
+import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { RayenSyncRun } from '../domain/rayenSyncHistory';
+import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
+
+interface RayenCensusDiffApplicationInput {
+  ensureRun: () => RayenSyncRun;
+  applyRunToRecord: (record: DailyRecord, diff: CensusImportDiff) => { record: DailyRecord };
+  saveDailyRecord: (record: DailyRecord) => Promise<unknown>;
+  recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
+}
+
+/** Applies and persists the structural census diff while timing only its aggregate write stage. */
+export const useRayenCensusDiffApplication = ({
+  ensureRun,
+  applyRunToRecord,
+  saveDailyRecord,
+  recordRunPerformance,
+}: RayenCensusDiffApplicationInput) =>
+  useCallback(
+    async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
+      const run = ensureRun();
+      const result = applyCensusImportDiff(record, diff, {
+        idFactory: () => crypto.randomUUID(),
+        actor: run.by,
+        syncRunId: run.id,
+      });
+      const stamped = applyRunToRecord(result.record, diff).record;
+      const startedAt = Date.now();
+      await saveDailyRecord(stamped);
+      recordRunPerformance(
+        {
+          stagesMs: { persistence: elapsedMilliseconds(startedAt) },
+          counters: { patches: 1 },
+        },
+        run.id
+      );
+      return { ...result, record: stamped };
+    },
+    [applyRunToRecord, ensureRun, recordRunPerformance, saveDailyRecord]
+  );

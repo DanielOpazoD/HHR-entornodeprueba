@@ -6,7 +6,9 @@ describe('createPatientFlowRequestCache', () => {
     const readReport = vi.fn(async (encounterId: string) => ({
       base64: `pdf-${encounterId}`,
     }));
-    const cachedRead = createPatientFlowRequestCache(readReport);
+    const onHit = vi.fn();
+    const onMiss = vi.fn();
+    const cachedRead = createPatientFlowRequestCache(readReport, { onHit, onMiss });
 
     const [first, concurrent] = await Promise.all([cachedRead('142083'), cachedRead('142083')]);
     const later = await cachedRead('142083');
@@ -15,6 +17,8 @@ describe('createPatientFlowRequestCache', () => {
     expect(concurrent).toEqual(first);
     expect(later).toEqual(first);
     expect(readReport).toHaveBeenCalledTimes(1);
+    expect(onMiss).toHaveBeenCalledTimes(1);
+    expect(onHit).toHaveBeenCalledTimes(2);
   });
 
   it('does not share evidence between different encounters', async () => {

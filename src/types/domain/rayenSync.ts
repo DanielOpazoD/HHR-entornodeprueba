@@ -96,6 +96,31 @@ export interface RayenSyncSource {
   gestionCamas?: RayenExtensionEndpointStatus;
 }
 
+/** Aggregate-only performance evidence. It must never contain patient or clinical identifiers. */
+export interface RayenSyncPerformance {
+  stagesMs: Partial<{
+    preflight: number;
+    dualCapture: number;
+    reconciliation: number;
+    historicalEvidence: number;
+    clinicalReads: number;
+    writeQueueWait: number;
+    persistence: number;
+  }>;
+  counters: {
+    requests: number;
+    cacheHits: number;
+    patches: number;
+    retries: number;
+    timeouts: number;
+  };
+}
+
+export interface RayenSyncPerformanceDelta {
+  stagesMs?: RayenSyncPerformance['stagesMs'];
+  counters?: Partial<RayenSyncPerformance['counters']>;
+}
+
 export interface RayenSyncEvent {
   /** Stable run id. Updating a run replaces this event instead of appending a duplicate. */
   id: string;
@@ -107,6 +132,8 @@ export interface RayenSyncEvent {
   changes?: RayenSyncChanges;
   source?: RayenSyncSource;
   staffingObservation?: RayenSyncStaffingObservation;
+  /** Technical aggregate shown only in synchronization history and diagnostics. */
+  performance?: RayenSyncPerformance;
   /** Sanitized operational category; never a raw extension/server error. */
   failureReason?: RayenSyncFailureReason;
 }

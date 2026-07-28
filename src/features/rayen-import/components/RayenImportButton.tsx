@@ -10,6 +10,7 @@ import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -102,8 +103,12 @@ export const RayenImportButton: React.FC = () => {
     : 'Eloísa está disponible para sincronizar.';
 
   const handleSync = async (): Promise<void> => {
+    const startedAt = Date.now();
     const health = await extension.refresh();
-    triggerImport(health);
+    triggerImport(health, {
+      stagesMs: { preflight: elapsedMilliseconds(startedAt) },
+      counters: { requests: 1 },
+    });
   };
   const pendingChangeCount = diff
     ? diff.summary.admissions +

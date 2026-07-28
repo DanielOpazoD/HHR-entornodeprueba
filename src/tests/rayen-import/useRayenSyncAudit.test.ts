@@ -55,12 +55,27 @@ describe('useRayenSyncAudit', () => {
     );
 
     act(() => {
-      result.current.startRun();
+      result.current.startRun(undefined, {
+        stagesMs: { preflight: 50 },
+        counters: { requests: 1 },
+      });
+      result.current.recordRunPerformance({
+        stagesMs: { dualCapture: 200 },
+        counters: { requests: 1, cacheHits: 1 },
+      });
     });
     const stamped = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
     currentRecordRef.current = stamped;
     await act(async () => {
-      await result.current.completeRun(stamped, { total: 2, patched: 1, errors: [] });
+      await result.current.completeRun(stamped, {
+        total: 2,
+        patched: 1,
+        errors: [],
+        performance: {
+          stagesMs: { clinicalReads: 900, persistence: 100 },
+          counters: { requests: 4, cacheHits: 0, patches: 1, retries: 0, timeouts: 0 },
+        },
+      });
     });
 
     expect(stamped.rayenSyncHistory).toHaveLength(1);
@@ -72,10 +87,26 @@ describe('useRayenSyncAudit', () => {
             id: 'run-1',
             status: 'complete',
             coverage: expect.any(Object),
+            performance: {
+              stagesMs: {
+                preflight: 50,
+                dualCapture: 200,
+                clinicalReads: 900,
+                persistence: 100,
+              },
+              counters: {
+                requests: 6,
+                cacheHits: 1,
+                patches: 1,
+                retries: 0,
+                timeouts: 0,
+              },
+            },
           }),
         ],
       })
     );
+    expect(patchDailyRecord.mock.calls[0][0].rayenSync).not.toHaveProperty('performance');
   });
 
   it('records a sanitized failure but never replaces the latest applied sync projection', async () => {
@@ -153,6 +184,61 @@ describe('useRayenSyncAudit', () => {
       })
     );
     expect(patchDailyRecord.mock.calls[0][0]).not.toHaveProperty('rayenSync');
+  });
+
+  it('keeps applied-stage telemetry when only the persisted event remains at completion', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const currentRecordRef = { current: record() };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'Operador HHR',
+        now: () => new Date('2026-07-14T10:00:00.000Z'),
+        createId: () => 'persisted-run',
+      })
+    );
+
+    act(() => {
+      result.current.startRun(undefined, {
+        stagesMs: { preflight: 25, reconciliation: 300 },
+        counters: { requests: 2 },
+      });
+    });
+    const applied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = applied;
+    act(() => result.current.cancelRun());
+
+    await act(async () => {
+      await result.current.completeRun(applied, {
+        total: 0,
+        patched: 0,
+        errors: [],
+        performance: {
+          stagesMs: { clinicalReads: 80 },
+          counters: { requests: 1, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        },
+      });
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rayenSyncHistory: [
+          expect.objectContaining({
+            performance: {
+              stagesMs: { preflight: 25, reconciliation: 300, clinicalReads: 80 },
+              counters: {
+                requests: 3,
+                cacheHits: 0,
+                patches: 0,
+                retries: 0,
+                timeouts: 0,
+              },
+            },
+          }),
+        ],
+      })
+    );
   });
 
   it('does not persist a cancelled preview', async () => {

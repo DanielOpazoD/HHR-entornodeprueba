@@ -12,6 +12,7 @@ import {
 } from './rayenSyncPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
+import { RayenSyncTechnicalMetricsPanel } from './RayenSyncTechnicalMetricsPanel';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -79,7 +80,8 @@ const sourceLabel = (event: RayenSyncEvent): string | null => {
 
 const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
   const changes = event.changes;
-  if (!changes || event.status !== 'complete' || !event.coverage) return false;
+  // Telemetry-bearing runs remain individually inspectable; only legacy quiet runs are grouped.
+  if (!changes || event.status !== 'complete' || !event.coverage || event.performance) return false;
   const outcome = presentRayenSyncOutcome(event);
   const hasChanges = changes.admissions + changes.updates + changes.moves + changes.discharges > 0;
   const hasCoverageIssues =
@@ -209,6 +211,7 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
         {events.length} {events.length === 1 ? 'comprobación' : 'comprobaciones'} sin cambios
       </p>
       <HistoryMetadata event={newest} />
+      <RayenSyncTechnicalMetricsPanel performance={newest.performance} />
     </li>
   );
 };
@@ -253,6 +256,7 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
       </div>
 
       <HistoryMetadata event={event} />
+      <RayenSyncTechnicalMetricsPanel performance={event.performance} />
       {event.staffingObservation && (
         <div
           data-testid="rayen-staffing-observation"

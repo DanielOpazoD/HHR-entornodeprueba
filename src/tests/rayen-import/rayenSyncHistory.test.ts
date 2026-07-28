@@ -46,7 +46,15 @@ const diff = (changes = 1): CensusImportDiff =>
 
 describe('rayen sync history', () => {
   it('creates the first aggregate-only applied event and its legacy projection', () => {
-    const event = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
+    const performance = {
+      stagesMs: { preflight: 120, dualCapture: 850 },
+      counters: { requests: 2, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+    };
+    const event = buildAppliedRayenSyncEvent(
+      { ...run(), performance },
+      diff(),
+      '2026-07-14T10:01:00.000Z'
+    );
     const history = upsertRayenSyncEvent(undefined, event);
 
     expect(history).toEqual([event]);
@@ -56,6 +64,8 @@ describe('rayen sync history', () => {
       runId: 'run-1',
       status: 'applied',
     });
+    expect(event.performance).toEqual(performance);
+    expect(rayenSyncMetaFromEvent(event)).not.toHaveProperty('performance');
     expect(JSON.stringify(event)).not.toMatch(/patient|rut|diagn|indication/i);
   });
 
@@ -143,6 +153,34 @@ describe('rayen sync history', () => {
 
     expect(complete).toMatchObject({ id: applied.id, status: 'complete' });
     expect(partial).toMatchObject({ id: applied.id, status: 'partial' });
+  });
+
+  it('replaces the applied performance snapshot with the completed aggregate', () => {
+    const applied = buildAppliedRayenSyncEvent(
+      {
+        ...run(),
+        performance: {
+          stagesMs: { preflight: 100 },
+          counters: { requests: 1, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        },
+      },
+      diff(),
+      '2026-07-14T10:01:00.000Z'
+    );
+    const performance = {
+      stagesMs: { preflight: 100, clinicalReads: 2_000, persistence: 300 },
+      counters: { requests: 5, cacheHits: 1, patches: 2, retries: 0, timeouts: 0 },
+    };
+
+    const completed = completeRayenSyncEvent(
+      applied,
+      buildRayenSyncCoverage(1, [], '2026-07-14T10:03:00.000Z'),
+      undefined,
+      performance
+    );
+
+    expect(completed.performance).toEqual(performance);
+    expect(JSON.stringify(completed.performance)).not.toMatch(/rut|patientName|bedId|encounterId/i);
   });
 
   it('persists a privacy-safe explanation for ambiguous staffing evidence', () => {

@@ -28,6 +28,7 @@ describe('applyConfirmedRayenImport', () => {
     conflict.name = 'ConcurrencyError';
     const applyDiff = vi.fn().mockRejectedValueOnce(conflict).mockResolvedValueOnce(expected);
     const getFreshRecord = vi.fn().mockResolvedValue(fresh);
+    const onRetry = vi.fn();
 
     await expect(
       applyConfirmedRayenImport({
@@ -40,9 +41,11 @@ describe('applyConfirmedRayenImport', () => {
         applyDiff,
         getFreshRecord,
         createId: () => 'id',
+        onRetry,
       })
     ).resolves.toBe(expected);
     expect(getFreshRecord).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledTimes(1);
     expect(applyDiff).toHaveBeenNthCalledWith(2, fresh, expect.anything());
   });
 
