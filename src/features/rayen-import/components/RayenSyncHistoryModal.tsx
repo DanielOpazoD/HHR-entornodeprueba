@@ -216,6 +216,7 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
 const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
   const status = statusPresentation(event);
   const outcome = presentRayenSyncOutcome(event);
+  const staffingNeedsReview = Boolean(event.staffingObservation?.ambiguousSections.length);
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -253,9 +254,20 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
 
       <HistoryMetadata event={event} />
       {event.staffingObservation && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-          <p className="font-bold">Enfermería / TENS: por qué quedó con observación</p>
-          {event.staffingObservation.ambiguousSections.length > 0 && (
+        <div
+          data-testid="rayen-staffing-observation"
+          className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${
+            staffingNeedsReview
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-slate-200 bg-slate-50 text-slate-700'
+          }`}
+        >
+          <p className="font-bold">
+            {staffingNeedsReview
+              ? 'Enfermería / TENS · requiere revisión'
+              : 'Enfermería / TENS · relevo gestionado'}
+          </p>
+          {staffingNeedsReview && (
             <p className="mt-1">
               HHR no modificó la dotación porque la evidencia fue insuficiente, empatada o presentó
               identidades incompatibles en:{' '}
@@ -268,13 +280,17 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
           {event.staffingObservation.ignoredBoundaryRecords > 0 && (
             <>
               <p className="mt-1">
-                Se excluyeron {event.staffingObservation.ignoredBoundaryRecords}{' '}
-                {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'registro' : 'registros'}{' '}
-                cercanos al relevo para no atribuir personal al turno incorrecto.
+                HHR detectó {event.staffingObservation.ignoredBoundaryRecords}{' '}
+                {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'firma' : 'firmas'} cerca
+                del cambio de turno y las conservó como trazabilidad sin usarlas para reemplazar la
+                dotación.{' '}
+                {!staffingNeedsReview &&
+                  'Es un comportamiento esperado y la sincronización sigue completa.'}
               </p>
               <StaffingBoundaryExclusions
                 total={event.staffingObservation.ignoredBoundaryRecords}
                 evidence={event.staffingObservation.ignoredBoundaryEvidence ?? []}
+                tone={staffingNeedsReview ? 'warning' : 'neutral'}
               />
             </>
           )}

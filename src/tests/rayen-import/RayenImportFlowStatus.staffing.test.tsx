@@ -70,4 +70,25 @@ describe('RayenImportFlowStatus staffing observations', () => {
     expect(screen.getByTitle('Signos vitales: Verificado')).toBeInTheDocument();
     expect(screen.getByTitle('Enfermería / TENS: Con observaciones')).toBeInTheDocument();
   });
+
+  it('keeps a completed sync green when staffing only has handoff-boundary traceability', () => {
+    renderStatus(fill(), {
+      status: 'complete',
+      coverage: {
+        total: 12,
+        completed: 12,
+        errors: 0,
+        sourceErrors: 0,
+        completedAt: '2026-07-27T18:57:04.000Z',
+      },
+      staffingObservation: {
+        ambiguousSections: [],
+        ignoredBoundaryRecords: 8,
+      },
+    });
+
+    expect(screen.getByText('Todo al día')).toHaveClass('sr-only');
+    expect(screen.getByTitle('Enfermería / TENS: Verificada')).toBeInTheDocument();
+    expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
+  });
 });

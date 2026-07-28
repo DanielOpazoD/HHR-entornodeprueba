@@ -28,6 +28,8 @@ const BOUNDARY_REASON = {
   night_end: '60 min posteriores al cierre del turno noche',
 } as const;
 
+type BoundaryEvidenceTone = 'neutral' | 'warning';
+
 const formatLocalStamp = (value: string): string => {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
   if (!match) return value;
@@ -43,27 +45,44 @@ const evidenceKey = (item: BoundaryEvidence): string =>
 export const StaffingBoundaryExclusions: React.FC<{
   evidence: BoundaryEvidence[];
   total: number;
-}> = ({ evidence, total }) => {
+  tone?: BoundaryEvidenceTone;
+}> = ({ evidence, total, tone = 'neutral' }) => {
   if (total === 0) return null;
   const uniqueEvidence = [...new Map(evidence.map(item => [evidenceKey(item), item])).values()];
+  const palette =
+    tone === 'warning'
+      ? {
+          container: 'border-amber-200 bg-white/60',
+          summary: 'text-amber-900',
+          note: 'text-amber-800',
+          item: 'border-amber-100',
+          reason: 'text-amber-800',
+        }
+      : {
+          container: 'border-slate-200 bg-white/70',
+          summary: 'text-slate-700',
+          note: 'text-slate-500',
+          item: 'border-slate-200',
+          reason: 'text-slate-500',
+        };
   return (
-    <details className="mt-2 rounded-lg border border-amber-200 bg-white/60 px-2.5 py-2">
-      <summary className="cursor-pointer font-semibold text-amber-900">
-        Ver quiénes fueron excluidos ({total})
+    <details className={`mt-2 rounded-lg border px-2.5 py-2 ${palette.container}`}>
+      <summary className={`cursor-pointer font-semibold ${palette.summary}`}>
+        Ver actividad cercana al relevo ({total})
       </summary>
       {uniqueEvidence.length > 0 ? (
         <>
           {uniqueEvidence.length < total && (
-            <p className="mt-2 text-[11px] text-amber-800">
+            <p className={`mt-2 text-[11px] ${palette.note}`}>
               Se muestran {uniqueEvidence.length} firmas únicas disponibles. El total también puede
               incluir acciones repetidas o detalles omitidos por el límite del historial.
             </p>
           )}
-          <ul className="mt-2 space-y-1.5" aria-label="Registros excluidos cerca del relevo">
+          <ul className="mt-2 space-y-1.5" aria-label="Actividad registrada cerca del relevo">
             {uniqueEvidence.map(item => (
               <li
                 key={evidenceKey(item)}
-                className="rounded-md border border-amber-100 bg-white px-2 py-1.5 text-[11px] text-slate-700"
+                className={`rounded-md border bg-white px-2 py-1.5 text-[11px] text-slate-700 ${palette.item}`}
               >
                 <p className="font-semibold text-slate-800">
                   {item.name} · {formatLocalStamp(item.recordedAt)}
@@ -72,13 +91,15 @@ export const StaffingBoundaryExclusions: React.FC<{
                   {hasSection(item) ? `${SECTION_LABELS[item.section]} · ` : ''}
                   {item.role} · {SOURCE_LABELS[item.source]}
                 </p>
-                <p className="text-amber-800">Motivo: {BOUNDARY_REASON[item.boundary]}.</p>
+                <p className={palette.reason}>
+                  Ventana de relevo: {BOUNDARY_REASON[item.boundary]}.
+                </p>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="mt-2 text-[11px] text-amber-800">
+        <p className={`mt-2 text-[11px] ${palette.note}`}>
           Esta sincronización fue registrada por una versión anterior y solo conservó el total.
           Ejecuta una nueva sincronización para obtener nombres y horarios.
         </p>
