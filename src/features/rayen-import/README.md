@@ -117,7 +117,8 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
   preflight, captura dual, reconciliación, evidencia histórica, lecturas clínicas, espera de
   escrituras y persistencia, más contadores agregados de solicitudes, caché, parches, reintentos y
   timeouts. No crea otra colección, no se proyecta a `rayenSync` y sólo se muestra dentro del panel
-  técnico plegado del historial; sus contratos no admiten RUN, nombres, camas, `ENC_ID` ni valores.
+  técnico plegado del historial; sus contratos no admiten RUN, nombres, camas, `ENC_ID` ni valores
+  clínicos.
 - **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
   máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
   permanecen serializados para evitar conflictos de escritura.
