@@ -37,7 +37,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
       role="group"
       aria-label="Vigilancia de escalas"
       data-testid="census-attention-bar"
-      className="ml-0 inline-flex shrink-0 items-center border-l border-slate-200 pl-1.5"
+      className="ml-0 inline-flex shrink-0 items-center"
     >
       <button
         type="button"
@@ -60,10 +60,6 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
         {scaleLabel(summary.scale)}
         <span className="sr-only">por reaplicar</span>
       </button>
-
-      <span className="sr-only" role="status" aria-live="polite">
-        {active ? 'Mostrando solo escalas por reaplicar' : 'Mostrando censo completo'}
-      </span>
     </div>
   );
 };

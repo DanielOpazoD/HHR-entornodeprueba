@@ -178,7 +178,6 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Última sincronización sin evidencia clínica'
     );
-    expect(screen.getByTitle('Signos vitales: Sin evidencia')).toBeInTheDocument();
     expect(
       screen.queryByRole('progressbar', { name: 'Progreso de sincronización con Eloísa' })
     ).not.toBeInTheDocument();
@@ -309,7 +308,6 @@ describe('RayenImportButton', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Última sincronización con observaciones');
-    expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     const historyButton = screen.getByRole('button', {
       name: 'Abrir historial de sincronización del día, 1 eventos',
@@ -429,7 +427,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('Sincronizado:');
   });
 
-  it('shows real clinical-fill progress as an accessible percentage bar', () => {
+  it('shows real clinical-fill progress without an invented global percentage', () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
     mocks.useRayenFillProgress.mockReturnValue({
       running: true,
@@ -444,25 +442,11 @@ describe('RayenImportButton', () => {
     const progress = screen.getByRole('progressbar', {
       name: 'Progreso de sincronización con Eloísa',
     });
-    expect(progress).toHaveAttribute('aria-valuenow', '68');
+    expect(progress).toHaveAttribute('aria-valuenow', '4');
+    expect(progress).toHaveAttribute('aria-valuemax', '8');
     expect(screen.getByTestId('rayen-sync-pulse')).toHaveTextContent(
-      'Revisando información clínica · 68%'
+      'Datos clínicos · 4 de 8 pacientes'
     );
-    expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('4/8');
-  });
-
-  it('integrates the contextual attention action in the same compact bar', () => {
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-
-    render(<RayenImportButton attentionControl={<button type="button">1 escala</button>} />);
-
-    const bar = screen.getByTestId('rayen-operations-bar');
-    expect(bar).toContainElement(screen.getByRole('button', { name: '1 escala' }));
-    expect(bar.firstElementChild).toHaveClass(
-      'xl:grid-cols-[minmax(190px,0.72fr)_minmax(0,2.25fr)_auto]'
-    );
-    expect(bar.firstElementChild).not.toHaveClass(
-      'md:grid-cols-[minmax(210px,0.72fr)_minmax(520px,2.25fr)_auto]'
-    );
+    expect(screen.getByTestId('rayen-sync-pulse')).not.toHaveTextContent('%');
   });
 });

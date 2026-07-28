@@ -47,10 +47,10 @@ describe('RayenImportFlowStatus staffing observations', () => {
     );
 
     expect(screen.getByText('Enfermería/TENS sin cambios · evidencia ambigua')).toBeVisible();
-    expect(screen.getByTitle('Enfermería / TENS: Con observación')).toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
-  it('keeps clinical modules verified when only persisted staffing has an observation', () => {
+  it('keeps persisted staffing observations independent from clinical coverage', () => {
     renderStatus(fill(), {
       status: 'complete',
       coverage: {
@@ -67,8 +67,8 @@ describe('RayenImportFlowStatus staffing observations', () => {
     });
 
     expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
-    expect(screen.getByTitle('Signos vitales: Verificado')).toBeInTheDocument();
-    expect(screen.getByTitle('Enfermería / TENS: Con observaciones')).toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
   });
 
   it('keeps a completed sync green when staffing only has handoff-boundary traceability', () => {
@@ -87,8 +87,8 @@ describe('RayenImportFlowStatus staffing observations', () => {
       },
     });
 
-    expect(screen.getByText('Todo al día')).toHaveClass('sr-only');
-    expect(screen.getByTitle('Enfermería / TENS: Verificada')).toBeInTheDocument();
+    expect(screen.getByText('Todo al día').parentElement).toHaveClass('sr-only');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
   });
 });

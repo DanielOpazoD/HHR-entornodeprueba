@@ -118,11 +118,11 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     const notice = screen.getByTestId('rayen-import-error');
-    expect(notice).toHaveClass('flex-wrap');
-    expect(screen.queryByText(error)).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: `Ver detalle de sincronización. ${error}` })
-    );
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Sincronización requiere revisión');
+    expect(screen.getByText(error)).not.toBeVisible();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    expect(notice).toHaveAttribute('open');
     expect(screen.getByText(error)).toBeVisible();
   });
 
@@ -241,7 +241,6 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Sincronización pendiente de completar');
-    expect(screen.getByTitle('Signos vitales: Pendiente')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
     expect(screen.getAllByText('Censo aplicado')).toHaveLength(2);
     expect(screen.queryByText('2 comprobaciones sin cambios')).not.toBeInTheDocument();

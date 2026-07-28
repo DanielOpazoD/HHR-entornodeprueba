@@ -45,6 +45,7 @@ describe('CensusAttentionBar', () => {
     expect(scale).toHaveTextContent('1 escala');
     expect(scale).toHaveAttribute('aria-pressed', 'false');
     expect(scale).toHaveClass('min-h-8', 'px-2', 'text-[11px]');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByText('Vigilancia')).not.toBeInTheDocument();
     expect(screen.queryByText(/requiere atención/)).not.toBeInTheDocument();
     expect(screen.queryByText(/aislamiento/)).not.toBeInTheDocument();

@@ -8,13 +8,8 @@ import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
-import { RayenImportErrorNotice } from './RayenImportErrorNotice';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
-
-interface RayenImportButtonProps {
-  attentionControl?: React.ReactNode;
-}
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -43,7 +38,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
 };
 
-export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionControl }) => {
+export const RayenImportButton: React.FC = () => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
@@ -150,7 +145,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
       className="w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
       data-testid="rayen-operations-bar"
     >
-      <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.72fr)_minmax(0,2.25fr)_auto]">
+      <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.78fr)_minmax(260px,1.4fr)_auto]">
         <div className="relative flex min-w-[210px] items-center gap-2">
           <span
             className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
@@ -192,7 +187,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
                   onClick={() => setConnectionGuidanceOpen(open => !open)}
                   aria-expanded={connectionGuidanceOpen}
                   aria-controls="rayen-connection-guidance"
-                  className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
                   title={connectionGuidance}
                   aria-label={connectionGuidance}
                   data-testid="rayen-extension-health-help"
@@ -201,11 +196,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
                 </button>
               )}
             </div>
-            {needsConnectionGuidance && (
-              <span className="sr-only" role="status">
-                {connectionGuidance}
-              </span>
-            )}
+            {needsConnectionGuidance && <span className="sr-only">{connectionGuidance}</span>}
             <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-slate-500">
               {lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
             </p>
@@ -278,7 +269,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
               </span>
             )}
           </button>
-          {attentionControl}
         </div>
       </div>
 
@@ -306,8 +296,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ attentionC
         onConfirm={() => void confirmStaffingProposal()}
         onCancel={dismissStaffingProposal}
       />
-
-      <RayenImportErrorNotice error={error} isPreviewOpen={isPreviewOpen} />
     </div>
   );
 };

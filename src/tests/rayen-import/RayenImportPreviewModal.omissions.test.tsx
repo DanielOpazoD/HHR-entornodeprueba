@@ -48,7 +48,6 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
     );
 
     expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
-    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
   });
 
   it('does not restore a partial persisted synchronization as fully successful', () => {
@@ -76,8 +75,7 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
-    expect(screen.getByTitle('Signos vitales: Con observaciones')).toBeInTheDocument();
-    expect(screen.getByTitle('Enfermería / TENS: Con observaciones')).toBeInTheDocument();
+    expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
   });
 
   it('does not claim full success when staffing changes were declined', () => {
@@ -85,7 +83,6 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Sincronización completada · se mantuvo HHR')).toBeVisible();
-    expect(screen.getByTitle('Enfermería / TENS: Se mantuvo HHR')).toBeInTheDocument();
   });
 
   it('keeps skipped work visible after the decision modal closes', () => {
@@ -93,7 +90,6 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Sincronización con elementos sin aplicar')).toBeVisible();
-    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
   });
 
   it('keeps unresolved conflicts visible after the decision modal closes', () => {
@@ -101,6 +97,5 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
-    expect(screen.getByTitle('Censo: Con observaciones')).toBeInTheDocument();
   });
 });
