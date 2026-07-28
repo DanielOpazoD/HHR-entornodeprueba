@@ -19,6 +19,7 @@ import {
 } from '../bridge/extensionHealthBridge';
 import { resolveOccupiedBedTraceabilityChain } from '../bedTraceabilityResolver';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
+import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
@@ -113,7 +114,7 @@ export const useRayenSnapshotPreview = ({
         extensionHealth ??= requestRayenExtensionHealth();
         return extensionHealth;
       };
-      const fetchPatientFlowReport = async (encId: string) => {
+      const fetchPatientFlowReport = createPatientFlowRequestCache(async encId => {
         const health = await getExtensionHealth();
         if (!supportsPatientFlowReport(health.report)) {
           return {
@@ -122,7 +123,7 @@ export const useRayenSnapshotPreview = ({
           };
         }
         return requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
-      };
+      });
       const fetchStatisticalDischarge = async (encId: string) => {
         const health = await getExtensionHealth();
         if (!supportsStatisticalDischargeEvidence(health.report)) {
