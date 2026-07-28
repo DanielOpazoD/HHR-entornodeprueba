@@ -88,6 +88,26 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model.ariaBusy).toBe(true);
   });
 
+  it('counts pending administrative discharges in the review total', () => {
+    const pendingAdministrativeDischargeDiff = {
+      ...oneChangeDiff,
+      summary: {
+        ...oneChangeDiff.summary,
+        admissions: 0,
+        pendingAdministrativeDischarges: 1,
+      },
+    } satisfies CensusImportDiff;
+
+    const model = buildRayenSyncBarViewModel(
+      input({ isPreviewOpen: true, diff: pendingAdministrativeDischargeDiff })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'review',
+      label: '1 cambio listo para revisar',
+    });
+  });
+
   it('keeps an overlapping rejected attempt visibly busy while the prior fill continues', () => {
     const model = buildRayenSyncBarViewModel(
       input({ fill: fill({ running: true, outcome: 'rejected', done: 3, total: 8 }) })

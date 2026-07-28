@@ -225,6 +225,13 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
     expect(screen.queryByText('Camas —')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rayen-extension-health-message')).not.toBeInTheDocument();
+    const connectionStatus = screen
+      .getAllByRole('status')
+      .find(
+        element => element.textContent === `Eloísa requiere atención. ${blockedHealth.message}`
+      );
+    expect(connectionStatus).toBeDefined();
+    expect(connectionStatus).toHaveClass('sr-only');
     expect(screen.getByTestId('rayen-extension-health-help')).toHaveAttribute(
       'title',
       expect.stringContaining('Se requieren Ficha Médico y Gestión de Camas')

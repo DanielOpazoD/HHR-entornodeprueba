@@ -181,7 +181,7 @@ describe('Rayen synchronization decisions and pulse', () => {
   it('makes a pending census review explicit without claiming progress is complete', () => {
     renderPulse(fill(), { isPreviewOpen: true });
 
-    expect(screen.getByText('1 cambio listo para revisar')).toBeVisible();
+    expect(screen.getByText('2 cambios listos para revisar')).toBeVisible();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 

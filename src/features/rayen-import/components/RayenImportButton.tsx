@@ -196,7 +196,11 @@ export const RayenImportButton: React.FC = () => {
                 </button>
               )}
             </div>
-            {needsConnectionGuidance && <span className="sr-only">{connectionGuidance}</span>}
+            {needsConnectionGuidance && (
+              <span className="sr-only" role="status">
+                {connectionGuidance}
+              </span>
+            )}
             <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-slate-500">
               {lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
             </p>

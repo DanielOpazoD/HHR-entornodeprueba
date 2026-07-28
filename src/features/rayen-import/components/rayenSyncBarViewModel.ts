@@ -47,6 +47,7 @@ const changeCount = (diff: CensusImportDiff | null): number =>
       diff.summary.updates +
       diff.summary.moves +
       diff.summary.discharges +
+      diff.summary.pendingAdministrativeDischarges +
       (diff.reportEgresos?.length ?? 0)
     : 0;
 
